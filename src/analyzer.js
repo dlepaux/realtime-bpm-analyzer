@@ -1,4 +1,23 @@
+'use strict';
+
+import utils from "./utils";
+
+
+
+/**
+ * Cross browser OfflineAudioContext
+ */
+
 const OfflineContext = (window.OfflineAudioContext || window.webkitOfflineAudioContext);
+
+
+
+/**
+ * Contain analyzer functions
+ */
+
+const analyzer = {};
+
 
 
 /**
@@ -7,7 +26,7 @@ const OfflineContext = (window.OfflineAudioContext || window.webkitOfflineAudioC
  * @return {AudioBufferSourceNode}
  */
 
-function getLowPassSource(buffer) {
+analyzer.getLowPassSource = function (buffer) {
   const {length, numberOfChannels, sampleRate} = buffer;
   const context = new OfflineContext(numberOfChannels, length, sampleRate);
 
@@ -37,33 +56,49 @@ function getLowPassSource(buffer) {
 }
 
 
+
 /**
- * Schedule the sound to start playing at time:0
- * @param  {AudioBufferSourceNode} source Source AudioBufferSourceNode
+ * Peaks finder
+ * @param  {Array}    data     Buffer channel data
+ * @param  {Float}    thresold Thresold for qualifying as a peak
+ * @param  {Integer}  offset   Position where we start to loop
+ * @param  {Function} callback Return peaks
+ * @return {Array}             Peaks found that are grater than the thresold
  */
-function startBeginingSource (source) {
-  source.start(0);
+
+function findPeaksAtThresold(data, thresold, offset = 0, callback) {
+  let peaks = [];
+
+  /**
+   * Identify peaks that pass the thresold, adding them to the collection
+   */
+  
+  for (var i = offset, l = data.length; i < l; i += 1) {
+    if (data[i] > thresold) {
+      peaks.push(i);
+
+      /**
+       * Skip forward ~ 1/4s to get past this peak
+       */
+      i += 10000;
+    }
+  }
+
+  peaks = peaks.length == 0 ? undefined :peaks;
+
+  return callback && callback(peaks) || peaks;
 }
 
-
-/**
- * [getPeaks description]
- * @param  {[type]}   buffer   [description]
- * @param  {Function} callback [description]
- * @return {[type]}            [description]
- */
-function getPeaks(pcmData, thresold, callback) {
-  callback(findPeaksAtThresold(pcmData, thresold));
-};
 
 
 /**
  * Return in a callback the computed bpm from data
- * @param  {[type]}   data     [description]
- * @param  {Function} callback [description]
- * @return {[type]}            [description]
+ * @param  {Object}   data     Contain peaks per thresolds
+ * @param  {Function} callback (error, bpm)
  */
-function computeBPM (data, callback) {
+
+analyzer.computeBPM = function (data, callback) {
+
   /**
    * Minimum peaks
    */
@@ -74,28 +109,8 @@ function computeBPM (data, callback) {
    */
   let peaksFound = false;
 
-  /**
-   * Top starting value to check peaks
-   */
-
-  let thresold = 0.95;
-
-  /**
-   * Minimum value to check peaks
-   */
-
-  const minThresold = 0.30;
-
-
-
-  /**
-   * Keep looking for peaks lowering the thresold
-   */
-  do {
-    thresold = thresold - 0.05;
-
+  utils.loopOnThresolds((object, thresold, stop) => {
     if (data[thresold].length > minPeaks) {
-
       peaksFound = true;
       return callback(null, [
         identifyIntervals,
@@ -106,91 +121,26 @@ function computeBPM (data, callback) {
         data[thresold]
       ));
     }
-  } while (thresold > minThresold && ! peaksFound);
 
-  return callback(new Error('Could not find enough samples for a reliable detection.'))
+    if (peaksFound) stop();
+  }, () => {
+    return ! peaksFound && callback(new Error('Could not find enough samples for a reliable detection.')) || false;
+  });
 };
-
-
-
 
 
 
 /**
  * Sort results by count and return top candidate
- * @param  {Object} Candidate
+ * @param  {Object} Candidate (BPMs) with count
  * @return {Number}
  */
 
-function getTopCandidates(candidates) {
+analyzer.getTopCandidates = function (candidates) {
   return candidates.sort((a, b) => (b.count - a.count)).splice(0, 5);
 }
 
 
-/**
- * Find peaks in sampleRate
- * @param  {Array} data Bugger channel data
- * @return {Array}      Peaks found that are greater than the thresold
- */
-
-function findPeaks(data) {
-  let peaks = [];
-  let thresold = 0.95;
-  const minThresold = 0.30;
-  const minPeaks = 15;
-
-  /**
-   * Keep looking for peaks lowering the thresold until
-   * we have at least 15 peaks (10 seconds @ 90bpm)
-   */
-  do {
-    thresold = (thresold - 0.05).toFixed(2);
-    peaks = findPeaksAtThresold(data, thresold);
-  } while (peaks.length < minPeaks && thresold > minThresold);
-
-  /**
-   * Too fiew samples are unreliable
-   */
-
-  if (peaks.length < minPeaks) {
-    throw (
-      new Error('Could not find enough samples for a reliable detection.')
-    );
-  }
-
-  return peaks;
-}
-
-/**
- * Function to identify peaks
- * @param  {Array}  data      Buffer channel data
- * @param  {Number} thresold Thresold for qualifying as a peak
- * @return {Array}            Peaks found that are grater than the thresold
- */
-
-function findPeaksAtThresold(data, thresold, offset = 0, callback) {
-  let peaks = [];
-
-  /**
-   * Identify peaks that pass the thresold, adding them to the collection
-   */
-
-  for (var i = offset, l = data.length; i < l; i += 1) {
-    if (data[i] > thresold) {
-      peaks.push(i);
-
-      /**
-       * Skip forward ~ 1/4s to get past this peak
-       */
-
-      i += 10000;
-    }
-  }
-
-  peaks = peaks.length == 0 ? undefined :peaks;
-
-  return callback && callback(peaks) || peaks;
-}
 
 /**
  * Identify intervals between peaks
@@ -198,7 +148,7 @@ function findPeaksAtThresold(data, thresold, offset = 0, callback) {
  * @return {Array}       Identifies intervals between peaks
  */
 
-function identifyIntervals(peaks) {
+analyzer.identifyIntervals = function (peaks) {
   const intervals = [];
   peaks.forEach((peak, index) => {
     for (let i = 0; i < 10; i+= 1) {
@@ -213,8 +163,7 @@ function identifyIntervals(peaks) {
           return intervalCount.count += 1;
         }
       });
-      //console.log('foundInterval');
-      //console.log(foundInterval);
+
       /**
        * Add the interval to the collection if it's unique
        */
@@ -230,13 +179,16 @@ function identifyIntervals(peaks) {
   return intervals;
 }
 
+
+
 /**
  * Factory for group reducer
  * @param  {Number} sampleRate Audio sample rate
  * @return {Function}
  */
 
-function groupByTempo(sampleRate) {
+analyzer.groupByTempo = function (sampleRate) {
+
   /**
    * Figure out best possible tempo candidates
    * @param  {Array} intervalCounts List of identified intervals
@@ -248,11 +200,13 @@ function groupByTempo(sampleRate) {
 
     intervalCounts.forEach(intervalCount => {
       if (intervalCount.interval !== 0) {
+
         /**
          * Convert an interval to tempo
          */
 
         let theoreticalTempo = (60 / (intervalCount.interval / sampleRate));
+        
         /**
          * Adjust the tempo to fit within the 90-180 BPM range
          */
@@ -279,8 +233,8 @@ function groupByTempo(sampleRate) {
         /**
          * Add a unique tempo to the collection
          */
-
-        if (!foundTempo) {
+        
+        if ( ! foundTempo) {
           tempoCounts.push({
             tempo: theoreticalTempo,
             count: intervalCount.count
@@ -293,10 +247,10 @@ function groupByTempo(sampleRate) {
   }
 }
 
-module.exports = {
-  findPeaksAtThresold: findPeaksAtThresold,
-  startBeginingSource: startBeginingSource,
-  computeBPM: computeBPM,
-  getPeaks: getPeaks,
-  getLowPassSource: getLowPassSource
-};
+
+
+/**
+ * Export utils function container
+ */
+
+module.exports = analyzer;

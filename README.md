@@ -1,6 +1,6 @@
 # RealTime BPM/Tempo Analyzer
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/dlepaux/realtime-bpm-analyzer.svg)](https://greenkeeper.io/) [![npm](https://img.shields.io/npm/l/express.svg)]()
+[![npm](https://img.shields.io/npm/l/express.svg)]()
 
 This tool allow to compute the BPM (Beats Per minutes) in real time, of a song on an <audio></audio> or <video></video> node thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
 

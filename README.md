@@ -1,14 +1,20 @@
 # RealTime BPM/Tempo Analyzer
 
+<<<<<<< HEAD
 [![Greenkeeper badge](https://badges.greenkeeper.io/dlepaux/realtime-bpm-analyzer.svg)](https://greenkeeper.io/)
 
+||||||| parent of 5e3ba1c... add tests, update doc, add license etc
+=======
+[![npm](https://img.shields.io/npm/l/express.svg)]()
+
+>>>>>>> 5e3ba1c... add tests, update doc, add license etc
 This tool allow to compute the BPM (Beats Per minutes) in real time, of a song on an <audio></audio> or <video></video> node thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
 
-Please, note that the main use case for this tool, is to get the BPM **during** the video / audio **play**. In fact, it pre-compute datas to not store the entire AudioBuffer in memory. So it can quickly return BPM.
+Please, note that the main use case for this tool, is to get the BPM **during** the video / audio **play**. In fact, it pre-compute datas instead to store the entire AudioBuffer in memory. So it can quickly return BPM.
 
-## WebAudioAPI
+### WebAudioAPI
 
-The [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) provides a powerful and versatile system for controlling audio on the Web, allowing developers to choose audio sources, add effects to audio, create audio visualizations, apply spatial effects (such as panning) and much more.
+> The [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) provides a powerful and versatile system for controlling audio on the Web, allowing developers to choose audio sources, add effects to audio, create audio visualizations, apply spatial effects (such as panning) and much more.
 
 
 ## Usage / Requirements
@@ -18,7 +24,7 @@ The [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
     <audio src="./new_order-blue_monday.mp3" id="track"></audio>
     ```
 
-2. Connect the [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to the AudioContext **and** create a [AudioContext.createScriptProcessor()](https://developer.mozilla.org/fr/docs/Web/API/ScriptProcessorNode).
+2. Connect the [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to the [AudioContext](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext) **and** create an [AudioContext.createScriptProcessor()](https://developer.mozilla.org/en-US/docs/Web/API/ScriptProcessorNode).
     ```javascript
     // Create new instance of AudioContext
     var audioContext = new AudioContext();
@@ -32,10 +38,9 @@ The [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
     source.connect(audioContext.destination);
     ```
     
-3. Now you have just to configure the tool and attach it to the `audioprocess` event like this :
+3. Now you have just to configure the tool and attach it to the [audioprocess](https://developer.mozilla.org/en-US/docs/Web/Events/audioprocess) event like this :
     ```javascript
     var RealTimeBPMAnalyzer = include('realtime-bpm-analyzer');
- 
     var onAudioProcess = new RealTimeBPMAnalyzer({
         scriptNode: {
             bufferSize: 4096,
@@ -47,7 +52,6 @@ The [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
             console.log('bpm', bpm);
         }
     });
- 
     // Attach realTime function to audioprocess event
     scriptProcessorNode.onaudioprocess = function (e) {
         onAudioProcess.analyze(e);

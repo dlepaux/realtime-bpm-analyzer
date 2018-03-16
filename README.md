@@ -63,10 +63,9 @@ His algorithm use an AudioBuffer in input. We apply a lowpass filter to get only
 
 Now, we extract brut data (PCM, Pulse Code Modulation, each points is between 1 and -1) to detect peaks.
 
-|                                       | Description                                                       |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| ![pcm data](./doc/pcm.png "PCM Data") | PCM Data are dots with value between the max/min amplitude (1/-1) |
-|                                       | Each dots have it's index                                         |
+|                                       | Description                                                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| ![pcm data](./doc/pcm.png "PCM Data") | PCM Data are dots with value between the max/min amplitude (1/-1). Each dots have its own index |
 
 To do this job, we start with a thresold setted to 0.9 (on the amplitude axis) and we search a minimal peak number (~15) by decrementing this thresold by 0.05 through all the AudioBuffer.
 When we find a peak, we jump 10000 peaks index (1/4 second) to ignore the descendant phase of the peak...

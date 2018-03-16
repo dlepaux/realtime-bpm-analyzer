@@ -1,9 +1,6 @@
 node_modules
-temp
 .tmp
-dist
 .DS_Store
-build
 npm-debug*
 coverage
 .nyc*

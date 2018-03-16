@@ -1,6 +1,8 @@
 # RealTime BPM/Tempo Analyzer
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/dlepaux/realtime-bpm-analyzer.svg)](https://greenkeeper.io/) [![Build Status][travis-badge]][travis] [![Coverage Status](https://coveralls.io/repos/github/dlepaux/realtime-bpm-analyser/badge.svg?branch=master)](https://coveralls.io/github/dlepaux/realtime-bpm-analyser?branch=master)
+[![Greenkeeper badge](https://badges.greenkeeper.io/dlepaux/realtime-bpm-analyzer.svg)](https://greenkeeper.io/)
+[![Build Status](https://travis-ci.org/dlepaux/realtime-bpm-analyzer.svg?branch=master)](https://travis-ci.org/dlepaux/realtime-bpm-analyzer)
+[![Coverage Status](https://coveralls.io/repos/github/dlepaux/realtime-bpm-analyzer/badge.svg?branch=master)](https://coveralls.io/github/dlepaux/realtime-bpm-analyzer?branch=master)
 [![npm](https://img.shields.io/npm/l/express.svg)]()
 
 This tool allow to compute the BPM (Beats Per minutes) in real time, of a song on an <audio></audio> or <video></video> node thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
@@ -53,7 +55,27 @@ Please, note that the main use case for this tool, is to get the BPM **during** 
     };
     ```
 
-## References
+## Technical approch
+
+This tool has been largely inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective).
+
+His algorithm use an AudioBuffer in input. We apply a lowpass filter to get only bass frequencies.
+
+Now, we extract brut data (PCM, Pulse Code Modulation, each points is between 1 and -1) to detect peaks.
+
+|                                       | Description                                                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| ![pcm data](./doc/pcm.png "PCM Data") | PCM Data are dots with value between the max/min amplitude (1/-1). Each dots have its own index |
+
+To do this job, we start with a thresold setted to 0.9 (on the amplitude axis) and we search a minimal peak number (~15) by decrementing this thresold by 0.05 through all the AudioBuffer.
+When we find a peak, we jump 10000 peaks index (1/4 second) to ignore the descendant phase of the peak...
+
+---
+
+This tool is designed to detect BPM by detecting all peaks for all thresolds, because we work on chunks (AudioBuffer). So we can recompute the BPM with intervals, etc.. without recompute everything with a full AudioBuffer.
+
+
+## Credits
 
 This library was been inspired from [Tornqvist project](https://github.com/tornqvist/bpm-detective) which also based on [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/). Thank you to both of them
 

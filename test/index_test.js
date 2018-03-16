@@ -15,11 +15,11 @@ import "web-audio-test-api";
  */
 
 describe('RealTime BPM Analyzer', () => {
-  
+
   /**
    * Test Utility functions
    */
-  
+
   describe('Utils', () => {
 
     it('Test onLoop function', (done) => {
@@ -54,7 +54,7 @@ describe('RealTime BPM Analyzer', () => {
   /**
    * Test Analyzer functions
    */
-  
+
   describe('Analyzer', () => {
 	  it('Test low pass filter applying', (done) => {
 
@@ -77,13 +77,13 @@ describe('RealTime BPM Analyzer', () => {
       expect(typeof source.buffer).to.be.not.equal('AudioBuffer');
       done();
     });
-	  
+
 
 	  it('Test onLoop function', (done) => {
       // findPeaksAtThresold(data, thresold, *offset, *callback)
       // -- EASY
-      
-      // 
+
+      //
       // getTopCandidates(candidates)
       // -- EASY
       // identifyIntervals(peaks)

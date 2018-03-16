@@ -1,0 +1,23 @@
+{
+  "name": "realtime-bpm-analyzer-example",
+  "version": "1.0.0",
+  "description": "Boilerplate for realtime-bpm-analyzer",
+  "repository ": {
+    "type": "git",
+    "url": "git://github.com/dlepaux/realtime-bpm-analyzer.git"
+  },
+  "author": "David Lepaux <d.lepaux@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "brunch": "^2.10.10",
+    "realtime-bpm-analyzer": "^1.0.1"
+  },
+  "devDependencies": {
+    "babel-brunch": "^6.1.1",
+    "clean-css-brunch": "^2.10.0",
+    "css-brunch": "^2.10.0",
+    "javascript-brunch": "^2.10.0",
+    "sass-brunch": "^2.10.4",
+    "uglify-js-brunch": "^2.10.0"
+  }
+}

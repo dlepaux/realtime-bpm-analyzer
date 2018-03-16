@@ -7,8 +7,8 @@ import utils from "./utils";
 /**
  * Cross browser OfflineAudioContext
  */
-
-const OfflineContext = (window.OfflineAudioContext || window.webkitOfflineAudioContext);
+let window = window || {};
+const OfflineAudioContext = window && (window.OfflineAudioContext || window.webkitOfflineAudioContext);
 
 
 
@@ -26,7 +26,7 @@ const analyzer = {};
  * @return {AudioBufferSourceNode}
  */
 
-analyzer.getLowPassSource = function (buffer) {
+analyzer.getLowPassSource = function (buffer, OfflineContext = OfflineAudioContext) {
   const {length, numberOfChannels, sampleRate} = buffer;
   const context = new OfflineContext(numberOfChannels, length, sampleRate);
 
@@ -66,7 +66,7 @@ analyzer.getLowPassSource = function (buffer) {
  * @return {Array}             Peaks found that are grater than the thresold
  */
 
-function findPeaksAtThresold(data, thresold, offset = 0, callback) {
+analyzer.findPeaksAtThresold = function (data, thresold, offset = 0, callback) {
   let peaks = [];
 
   /**
@@ -102,11 +102,13 @@ analyzer.computeBPM = function (data, callback) {
   /**
    * Minimum peaks
    */
+  
   const minPeaks = 15;
 
   /**
    * Flag to fix Object.keys looping
    */
+  
   let peaksFound = false;
 
   utils.loopOnThresolds((object, thresold, stop) => {
@@ -122,7 +124,7 @@ analyzer.computeBPM = function (data, callback) {
       ));
     }
 
-    if (peaksFound) stop();
+    if (peaksFound) stop(true);
   }, () => {
     return ! peaksFound && callback(new Error('Could not find enough samples for a reliable detection.')) || false;
   });

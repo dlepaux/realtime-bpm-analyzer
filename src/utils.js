@@ -41,10 +41,12 @@ utils.loopOnThresolds = function (onLoop, callback) {
    */
   
   do {
+    let stop = false;
     thresold = thresold - 0.05;
-    onLoop && onLoop(object, thresold, function () {
-      break;
+    onLoop && onLoop(object, thresold, function (bool) {
+      stop = bool;
     });
+    if (stop) break;
   } while (thresold > minThresold);
   
   /**
@@ -61,11 +63,11 @@ utils.loopOnThresolds = function (onLoop, callback) {
  * @return {Object}              Object with thresolds key initialized with a defaultValue
  */
 
-utils.generateObjectModel = function (defaultValue) {
-  return loopOnThresolds((object) => {
+utils.generateObjectModel = function (defaultValue, callback) {
+  return utils.loopOnThresolds((object, thresold) => {
     object[thresold.toString()] = defaultValue;
   }, (object) => {
-    return object;
+    return callback && callback(object) || object;
   });
 }
 

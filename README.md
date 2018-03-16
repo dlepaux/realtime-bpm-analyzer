@@ -1,6 +1,8 @@
 # RealTime BPM/Tempo Analyzer
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/dlepaux/realtime-bpm-analyzer.svg)](https://greenkeeper.io/) [![Build Status][travis-badge]][travis] [![Coverage Status](https://coveralls.io/repos/github/dlepaux/realtime-bpm-analyser/badge.svg?branch=master)](https://coveralls.io/github/dlepaux/realtime-bpm-analyser?branch=master)
+[![Greenkeeper badge](https://badges.greenkeeper.io/dlepaux/realtime-bpm-analyzer.svg)](https://greenkeeper.io/)
+[![Build Status](https://travis-ci.org/dlepaux/realtime-bpm-analyzer.svg?branch=master)](https://travis-ci.org/dlepaux/realtime-bpm-analyzer)
+[![Coverage Status](https://coveralls.io/repos/github/dlepaux/realtime-bpm-analyser/badge.svg?branch=master)](https://coveralls.io/github/dlepaux/realtime-bpm-analyser?branch=master)
 [![npm](https://img.shields.io/npm/l/express.svg)]()
 
 This tool allow to compute the BPM (Beats Per minutes) in real time, of a song on an <audio></audio> or <video></video> node thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).

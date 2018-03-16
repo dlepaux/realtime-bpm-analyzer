@@ -13,14 +13,14 @@ var RealTimeBPMAnalyzer = function () {
    * Define default configuration
    * @param  {Object} config Configuration
    */
-  
+
   constructor (config = {}) {
 
     /**
      * Default configuration
      * @type {Object}
      */
-    
+
     this.options = {
       element: null,
       scriptNode: {
@@ -37,13 +37,13 @@ var RealTimeBPMAnalyzer = function () {
     /**
      * Overriding default configuration
      */
-    
+
     Object.assign(this.options, config);
 
     /**
      * Initialize variables and thresolds object's
      */
-    
+
     initClass();
   }
 
@@ -53,31 +53,31 @@ var RealTimeBPMAnalyzer = function () {
    * Instentiate some vars, counter, ..
    * @return {[type]} [description]
    */
-  
+
   initClass () {
 
     /**
      * Used to temporize the BPM computation
      */
-    
+
     this.wait = null;
 
     /**
      * Contain all valid peaks
      */
-    
+
     this.validPeaks = utils.generateObjectModel([]);
 
     /**
      * Next index (+10000 ...) to take care about peaks
      */
-    
+
     this.nextIndexPeaks = utils.generateObjectModel(0);
 
     /**
      * Number / Position of chunks
      */
-    
+
     this.chunkIndex = 1;
   }
 
@@ -86,7 +86,7 @@ var RealTimeBPMAnalyzer = function () {
   /**
    * Attach this function to an audioprocess event on a audio/video node to compute BPM / Tempo in realtime
    */
-  
+
   analyze (event) {
 
     /**
@@ -147,3 +147,9 @@ var RealTimeBPMAnalyzer = function () {
     this.chunkIndex++;
   }
 }
+
+// Export
+module.exports = RealTimeBPMAnalyzer;
+
+// Extend tool to global window scope
+window.RealTimeBPMAnalyzer = RealTimeBPMAnalyzer;

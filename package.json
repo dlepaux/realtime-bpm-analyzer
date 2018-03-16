@@ -1,8 +1,22 @@
 {
   "name": "realtime-bpm-analyzer",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Tool to analyze BPM / Tempo in realtime",
+  "author": "David Lepaux <d.lepaux@gmail.com> (https://github.com/dlepaux)",
+  "keywords": [
+    "webaudioapi",
+    "audiobuffer",
+    "audio",
+    "realtime",
+    "tempo",
+    "bpm",
+    "beats",
+    "minutes",
+    "analyzer"
+  ],
+  "main": "./src/index.js",
   "scripts": {
+    "debug": "set LOGGY_STACKS=true && brunch w",
     "test": "node_modules/.bin/mocha --require babel-core/register",
     "local-test": "nyc --reporter=html npm test",
     "coverage": "nyc --reporter=text-lcov npm test | coveralls",
@@ -22,6 +36,5 @@
     "nyc": "^11.2.1",
     "web-audio-test-api": "^0.5.2"
   },
-  "author": "David Lepaux <d.lepaux@gmail.com> (https://github.com/dlepaux)",
   "license": "MIT"
 }

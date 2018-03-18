@@ -1,12 +1,12 @@
 'use strict';
 
-import analyzer from "./analyzer";
-import utils from "./utils";
+var analyzer = require("./analyzer.js");
+var utils = require("./utils.js");
 
 /**
  * RealTimeBPMAnalyzer Class
  */
-var RealTimeBPMAnalyzer = function () {
+class RealTimeBPMAnalyzer {
 
 
   /**
@@ -44,7 +44,7 @@ var RealTimeBPMAnalyzer = function () {
      * Initialize variables and thresolds object's
      */
 
-    initClass();
+    this.initClass();
   }
 
 

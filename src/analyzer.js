@@ -1,6 +1,6 @@
 'use strict';
 
-import utils from "./utils";
+var utils = require("./utils.js");
 
 
 

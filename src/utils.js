@@ -52,7 +52,7 @@ utils.loopOnThresolds = function (onLoop, minValidThresold, callback) {
       stop = bool;
     });
     if (stop) break;
-  } while (thresold > minThresold);
+  } while (thresold >= minThresold);
   
   /**
    * Ended callback

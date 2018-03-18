@@ -60,7 +60,19 @@ class RealTimeBPMAnalyzer {
      * Used to temporize the BPM computation
      */
 
-    this.minValidThresold = false;
+    this.minValidThresold = 0.30;
+
+    /**
+     * Used to temporize the BPM computation
+     */
+
+    this.minimimTimeToOptimize = 10000;
+
+    /**
+     * Used to temporize the BPM computation
+     */
+
+    this.waitedTime = 0;
 
     /**
      * Used to temporize the BPM computation
@@ -152,12 +164,13 @@ class RealTimeBPMAnalyzer {
     // Refresh BPM every 2s (default value)
     if (this.wait === null) {
       this.wait = setTimeout(() => {
+        this.waitedTime += this.options.pushTime;
         this.wait = null;
         analyzer.computeBPM(this.validPeaks, event.inputBuffer.sampleRate, (err, bpm, thresold) => {
           this.options.pushCallback(err, bpm);
 
           // Stop all (we have enougth interval counts)
-          if (bpm) {
+          if (!err && bpm) {
             if (bpm[0].count >= 2000) {
               // Freeze pushPack periodicity
               wait = 'never';
@@ -165,8 +178,9 @@ class RealTimeBPMAnalyzer {
               this.minValidThresold = 1;
             }
           }
-          
-          if ( ! this.minValidThresold || this.minValidThresold < thresold) {
+          if (this.waitedTime >= this.minimimTimeToOptimize
+           && this.minValidThresold < thresold
+          ) {
             this.clearValidPeaks(thresold);
           }
         });

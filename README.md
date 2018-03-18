@@ -5,7 +5,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/dlepaux/realtime-bpm-analyzer/badge.svg?branch=master)](https://coveralls.io/github/dlepaux/realtime-bpm-analyzer?branch=master)
 [![npm](https://img.shields.io/npm/l/express.svg)]()
 
-This tool allow to compute the BPM (Beats Per minutes) in real time, of a song on an <audio></audio> or <video></video> node thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
+This tool allow to compute the BPM (Beats Per minutes) in real time, of a song on an `<audio></audio>` or `<video></video>` node thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
 
 Please, note that the main use case for this tool, is to get the BPM **during** the video / audio **play**. In fact, it pre-compute datas instead to store the entire AudioBuffer in memory. So it can quickly return BPM.
 
@@ -49,11 +49,16 @@ Please, note that the main use case for this tool, is to get the BPM **during** 
             console.log('bpm', bpm);
         }
     });
-    // Attach realTime function to audioprocess event
+    // Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
     scriptProcessorNode.onaudioprocess = function (e) {
-        onAudioProcess.analyze(e);
+        onAudioProcess.analyze(e.inputBuffer);
     };
     ```
+
+## Example
+
+You can find here [a functionnal example](https://github.com/dlepaux/realtime-bpm-analyzer-example) of this tool.
+
 
 ## Technical approch
 
@@ -79,3 +84,5 @@ This tool is designed to detect BPM by detecting all peaks for all thresolds, be
 
 This library was been inspired from [Tornqvist project](https://github.com/tornqvist/bpm-detective) which also based on [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/). Thank you to both of them
 
+## Todo
+- Add controls

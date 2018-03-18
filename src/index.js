@@ -1,12 +1,12 @@
 'use strict';
 
-import analyzer from "./analyzer";
-import utils from "./utils";
+var analyzer = require("./analyzer.js");
+var utils = require("./utils.js");
 
 /**
  * RealTimeBPMAnalyzer Class
  */
-var RealTimeBPMAnalyzer = function () {
+class RealTimeBPMAnalyzer {
 
 
   /**
@@ -44,7 +44,7 @@ var RealTimeBPMAnalyzer = function () {
      * Initialize variables and thresolds object's
      */
 
-    initClass();
+    this.initClass();
   }
 
 
@@ -55,6 +55,24 @@ var RealTimeBPMAnalyzer = function () {
    */
 
   initClass () {
+
+    /**
+     * Used to temporize the BPM computation
+     */
+
+    this.minValidThresold = 0.30;
+
+    /**
+     * Used to temporize the BPM computation
+     */
+
+    this.minimimTimeToOptimize = 10000;
+
+    /**
+     * Used to temporize the BPM computation
+     */
+
+    this.waitedTime = 0;
 
     /**
      * Used to temporize the BPM computation
@@ -79,6 +97,17 @@ var RealTimeBPMAnalyzer = function () {
      */
 
     this.chunkIndex = 1;
+  }
+
+
+
+  clearValidPeaks (minThresold) {
+    utils.loopOnThresolds((object, thresold) => {
+      if (thresold < minThresold) {
+        delete this.validPeaks[thresold];
+      }
+    });
+    this.minValidThresold = minThresold;
   }
 
 
@@ -108,8 +137,7 @@ var RealTimeBPMAnalyzer = function () {
     const source = analyzer.getLowPassSource(event.inputBuffer);
     source.start(0);
 
-
-    utils.loopOnThresolds((object) => {
+    utils.loopOnThresolds((object, thresold) => {
       if (this.nextIndexPeaks[thresold] < currentMaxIndex) {
         // Get the next index in the next chunk
         const offsetForNextPeak = this.nextIndexPeaks[thresold] % 4096; // 0 - 4095
@@ -131,14 +159,30 @@ var RealTimeBPMAnalyzer = function () {
           }
         });
       }
-    });
+    }, this.minValidThresold);
 
     // Refresh BPM every 2s (default value)
     if (this.wait === null) {
       this.wait = setTimeout(() => {
+        this.waitedTime += this.options.pushTime;
         this.wait = null;
-        analyzer.computeBPM(this.validPeaks, event.inputBuffer.sampleRate, (err, bpm) => {
+        analyzer.computeBPM(this.validPeaks, event.inputBuffer.sampleRate, (err, bpm, thresold) => {
           this.options.pushCallback(err, bpm);
+
+          // Stop all (we have enougth interval counts)
+          if (!err && bpm) {
+            if (bpm[0].count >= 2000) {
+              // Freeze pushPack periodicity
+              wait = 'never';
+              // Cancel the audioprocess
+              this.minValidThresold = 1;
+            }
+          }
+          if (this.waitedTime >= this.minimimTimeToOptimize
+           && this.minValidThresold < thresold
+          ) {
+            this.clearValidPeaks(thresold);
+          }
         });
       }, this.options.pushTime);
     }

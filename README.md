@@ -1,5 +1,7 @@
 # RealTime BPM/Tempo Analyzer
 
+[![Join the chat at https://gitter.im/realtime-bpm-analyzer/Lobby](https://badges.gitter.im/realtime-bpm-analyzer/Lobby.svg)](https://gitter.im/realtime-bpm-analyzer/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Greenkeeper badge](https://badges.greenkeeper.io/dlepaux/realtime-bpm-analyzer.svg)](https://greenkeeper.io/)
 [![Build Status](https://travis-ci.org/dlepaux/realtime-bpm-analyzer.svg?branch=master)](https://travis-ci.org/dlepaux/realtime-bpm-analyzer)
 [![Coverage Status](https://coveralls.io/repos/github/dlepaux/realtime-bpm-analyzer/badge.svg?branch=master)](https://coveralls.io/github/dlepaux/realtime-bpm-analyzer?branch=master)

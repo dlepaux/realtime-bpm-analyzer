@@ -109,7 +109,7 @@ class RealTimeBPMAnalyzer {
     source.start(0);
 
 
-    utils.loopOnThresolds((object) => {
+    utils.loopOnThresolds((object, thresold) => {
       if (this.nextIndexPeaks[thresold] < currentMaxIndex) {
         // Get the next index in the next chunk
         const offsetForNextPeak = this.nextIndexPeaks[thresold] % 4096; // 0 - 4095
@@ -137,7 +137,7 @@ class RealTimeBPMAnalyzer {
     if (this.wait === null) {
       this.wait = setTimeout(() => {
         this.wait = null;
-        analyzer.computeBPM(this.validPeaks, event.inputBuffer.sampleRate, (err, bpm) => {
+        analyzer.computeBPM(this.validPeaks, (err, bpm) => {
           this.options.pushCallback(err, bpm);
         });
       }, this.options.pushTime);

@@ -7,7 +7,6 @@ var utils = require("./utils.js");
 /**
  * Cross browser OfflineAudioContext
  */
-let window = window || {};
 const OfflineAudioContext = window && (window.OfflineAudioContext || window.webkitOfflineAudioContext);
 
 
@@ -72,7 +71,7 @@ analyzer.findPeaksAtThresold = function (data, thresold, offset = 0, callback) {
   /**
    * Identify peaks that pass the thresold, adding them to the collection
    */
-  
+
   for (var i = offset, l = data.length; i < l; i += 1) {
     if (data[i] > thresold) {
       peaks.push(i);
@@ -102,13 +101,13 @@ analyzer.computeBPM = function (data, callback) {
   /**
    * Minimum peaks
    */
-  
+
   const minPeaks = 15;
 
   /**
    * Flag to fix Object.keys looping
    */
-  
+
   let peaksFound = false;
 
   utils.loopOnThresolds((object, thresold, stop) => {
@@ -208,7 +207,7 @@ analyzer.groupByTempo = function (sampleRate) {
          */
 
         let theoreticalTempo = (60 / (intervalCount.interval / sampleRate));
-        
+
         /**
          * Adjust the tempo to fit within the 90-180 BPM range
          */
@@ -235,7 +234,7 @@ analyzer.groupByTempo = function (sampleRate) {
         /**
          * Add a unique tempo to the collection
          */
-        
+
         if ( ! foundTempo) {
           tempoCounts.push({
             tempo: theoreticalTempo,

@@ -1,6 +1,6 @@
 {
   "name": "realtime-bpm-analyzer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Tool to analyze BPM / Tempo in realtime",
   "author": "David Lepaux <d.lepaux@gmail.com> (https://github.com/dlepaux)",
   "keywords": [
@@ -26,10 +26,12 @@
     "type": "git",
     "url": "https://github.com/dlepaux/realtime-bpm-analyzer"
   },
-  "devDependencies": {
+  "dependencies": {
     "babel-core": "^6.1.2",
     "babel-plugin-transform-object-assign": "^6.22.0",
-    "babel-preset-es2015": "^6.1.2",
+    "babel-preset-es2015": "^6.1.2"
+  },
+  "devDependencies": {
     "chai": "^4.1.1",
     "coveralls": "^3.0.0",
     "mocha": "~5.0.0",

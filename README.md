@@ -55,6 +55,11 @@ Please, note that the main use case for this tool, is to get the BPM **during** 
     };
     ```
 
+## Example
+
+You can find here [a functionnal example](https://github.com/dlepaux/realtime-bpm-analyzer-example) of this tool.
+
+
 ## Technical approch
 
 This tool has been largely inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective).

@@ -1,1 +1,0 @@
-{"version":3,"sources":["app/scss/app.scss"],"names":[],"mappings":";AAAA,IAAI,CAAC;EACH,SAAS,EAAE,IAAK,GACjB","file":"public/css/master.css","sourcesContent":["body {\n  font-size: 14px;\n}\n"]}

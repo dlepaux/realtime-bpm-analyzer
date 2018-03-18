@@ -42,7 +42,7 @@ analyzer.getLowPassSource = function (buffer, OfflineContext = OfflineAudioConte
 
   const filter = context.createBiquadFilter();
   filter.type = 'lowpass';
-  filter.frequency.value = 100; // instead of break frequency 70% of max amplitude
+  // filter.frequency.value = 100; // instead of break frequency 70% of max amplitude
 
   /**
    * Pipe the song into the filter, and the filter into the offline context
@@ -96,7 +96,7 @@ analyzer.findPeaksAtThresold = function (data, thresold, offset = 0, callback) {
  * @param  {Function} callback (error, bpm)
  */
 
-analyzer.computeBPM = function (data, callback) {
+analyzer.computeBPM = function (data, sampleRate, callback) {
 
   /**
    * Minimum peaks
@@ -111,19 +111,19 @@ analyzer.computeBPM = function (data, callback) {
   let peaksFound = false;
 
   utils.loopOnThresolds((object, thresold, stop) => {
+    if (peaksFound) return stop(true);
+
     if (data[thresold].length > minPeaks) {
       peaksFound = true;
       return callback(null, [
-        identifyIntervals,
-        groupByTempo(48000),
-        getTopCandidates
+        analyzer.identifyIntervals,
+        analyzer.groupByTempo(sampleRate),
+        analyzer.getTopCandidates
       ].reduce(
        (state, fn) => fn(state),
         data[thresold]
-      ));
+      ), thresold);
     }
-
-    if (peaksFound) stop(true);
   }, () => {
     return ! peaksFound && callback(new Error('Could not find enough samples for a reliable detection.')) || false;
   });
@@ -202,17 +202,20 @@ analyzer.groupByTempo = function (sampleRate) {
     intervalCounts.forEach(intervalCount => {
       if (intervalCount.interval !== 0) {
 
+        intervalCount.interval = Math.abs(intervalCount.interval); 
+
         /**
          * Convert an interval to tempo
          */
 
         let theoreticalTempo = (60 / (intervalCount.interval / sampleRate));
-
         /**
          * Adjust the tempo to fit within the 90-180 BPM range
          */
 
-        while (theoreticalTempo < 90) theoreticalTempo *= 2;
+        while (theoreticalTempo < 90) {
+          theoreticalTempo *= 2;
+        }
         while (theoreticalTempo > 180) theoreticalTempo /= 2;
 
         /**
@@ -243,7 +246,6 @@ analyzer.groupByTempo = function (sampleRate) {
         }
       }
     });
-
     return tempoCounts;
   }
 }

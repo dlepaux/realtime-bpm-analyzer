@@ -16,7 +16,7 @@ const utils = {};
  * @return {Mixed}             Return of 'callback' function     
  */
 
-utils.loopOnThresolds = function (onLoop, callback) {
+utils.loopOnThresolds = function (onLoop, minValidThresold, callback) {
 
   /**
    * Top starting value to check peaks
@@ -28,7 +28,12 @@ utils.loopOnThresolds = function (onLoop, callback) {
    * Minimum value to check peaks
    */
 
-  const minThresold = 0.30;
+  if (typeof minValidThresold == 'function' || typeof minValidThresold == 'boolean') {
+    callback = minValidThresold || callback;
+    minValidThresold = 0.30;
+  }
+  
+  const minThresold = minValidThresold;
 
   /**
    * Optionnal object to store data

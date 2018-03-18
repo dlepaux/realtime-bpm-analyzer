@@ -60,6 +60,12 @@ class RealTimeBPMAnalyzer {
      * Used to temporize the BPM computation
      */
 
+    this.minValidThresold = false;
+
+    /**
+     * Used to temporize the BPM computation
+     */
+
     this.wait = null;
 
     /**
@@ -79,6 +85,17 @@ class RealTimeBPMAnalyzer {
      */
 
     this.chunkIndex = 1;
+  }
+
+
+
+  clearValidPeaks (minThresold) {
+    utils.loopOnThresolds((object, thresold) => {
+      if (thresold < minThresold) {
+        delete this.validPeaks[thresold];
+      }
+    });
+    this.minValidThresold = minThresold;
   }
 
 
@@ -108,7 +125,6 @@ class RealTimeBPMAnalyzer {
     const source = analyzer.getLowPassSource(event.inputBuffer);
     source.start(0);
 
-
     utils.loopOnThresolds((object, thresold) => {
       if (this.nextIndexPeaks[thresold] < currentMaxIndex) {
         // Get the next index in the next chunk
@@ -131,14 +147,28 @@ class RealTimeBPMAnalyzer {
           }
         });
       }
-    });
+    }, this.minValidThresold);
 
     // Refresh BPM every 2s (default value)
     if (this.wait === null) {
       this.wait = setTimeout(() => {
         this.wait = null;
-        analyzer.computeBPM(this.validPeaks, (err, bpm) => {
+        analyzer.computeBPM(this.validPeaks, event.inputBuffer.sampleRate, (err, bpm, thresold) => {
           this.options.pushCallback(err, bpm);
+
+          // Stop all (we have enougth interval counts)
+          if (bpm) {
+            if (bpm[0].count >= 2000) {
+              // Freeze pushPack periodicity
+              wait = 'never';
+              // Cancel the audioprocess
+              this.minValidThresold = 1;
+            }
+          }
+          
+          if ( ! this.minValidThresold || this.minValidThresold < thresold) {
+            this.clearValidPeaks(thresold);
+          }
         });
       }, this.options.pushTime);
     }

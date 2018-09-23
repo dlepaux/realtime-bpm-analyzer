@@ -7,7 +7,8 @@ import chai from "chai";
 let expect = chai.expect;
 import utils from "./../src/utils";
 import analyzer from "./../src/analyzer";
-import "web-audio-test-api";
+const AudioContext = require("web-audio-engine").StreamAudioContext;
+const OfflineAudioContext = require("web-audio-engine").OfflineAudioContext;
 
 
 /**
@@ -58,7 +59,7 @@ describe('RealTime BPM Analyzer', () => {
   describe('Analyzer', () => {
 	  it('Test low pass filter applying', (done) => {
 
-			var audioContext = new (global.WebAudioTestAPI && global.WebAudioTestAPI.AudioContext)();
+			var audioContext = new AudioContext();
 			// Create an empty three-second stereo buffer at the sample rate of the AudioContext
 			var buffer = audioContext.createBuffer(2, audioContext.sampleRate * 3, audioContext.sampleRate);
 			// Fill the buffer with white noise;
@@ -73,7 +74,7 @@ describe('RealTime BPM Analyzer', () => {
 			  }
 			}
 
-      const source = analyzer.getLowPassSource(buffer, global.WebAudioTestAPI.OfflineAudioContext);
+      const source = analyzer.getLowPassSource(buffer, OfflineAudioContext);
       expect(typeof source.buffer).to.be.not.equal('AudioBuffer');
       done();
     });
@@ -82,8 +83,6 @@ describe('RealTime BPM Analyzer', () => {
 	  it('Test onLoop function', (done) => {
       // findPeaksAtThresold(data, thresold, *offset, *callback)
       // -- EASY
-
-      //
       // getTopCandidates(candidates)
       // -- EASY
       // identifyIntervals(peaks)

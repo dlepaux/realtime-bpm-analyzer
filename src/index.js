@@ -35,9 +35,16 @@ class RealTimeBPMAnalyzer {
       pushTime: 2000,
       pushCallback: (err, bpm) => {
         console.log('bpm', bpm);
+<<<<<<< HEAD
       },
       onBpmStabilized: (thresold) => {
         this.clearValidPeaks(thresold);
+||||||| parent of acaddf8... fix tests with web-audio-engine <3
+=======
+      },
+      webAudioAPI: {
+        OfflineAudioContext: typeof window == 'object' && (window.OfflineAudioContext || window.webkitOfflineAudioContext);
+>>>>>>> acaddf8... fix tests with web-audio-engine <3
       }
     }
 
@@ -144,7 +151,7 @@ class RealTimeBPMAnalyzer {
      * Apply a low pass filter to the buffer
      * @type {integer}
      */
-    const source = analyzer.getLowPassSource(event.inputBuffer);
+    const source = analyzer.getLowPassSource(event.inputBuffer, this.options.webAudioAPI.OfflineAudioContext);
     source.start(0);
 
     utils.loopOnThresolds((object, thresold) => {

@@ -5,13 +5,6 @@ var utils = require("./utils.js");
 
 
 /**
- * Cross browser OfflineAudioContext
- */
-const OfflineAudioContext = window && (window.OfflineAudioContext || window.webkitOfflineAudioContext);
-
-
-
-/**
  * Contain analyzer functions
  */
 
@@ -25,7 +18,7 @@ const analyzer = {};
  * @return {AudioBufferSourceNode}
  */
 
-analyzer.getLowPassSource = function (buffer, OfflineContext = OfflineAudioContext) {
+analyzer.getLowPassSource = function (buffer, OfflineContext) {
   const {length, numberOfChannels, sampleRate} = buffer;
   const context = new OfflineContext(numberOfChannels, length, sampleRate);
 

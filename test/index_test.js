@@ -37,7 +37,7 @@ describe('RealTime BPM Analyzer', () => {
     });
 
     it('Test callback (second param) without onLoop', (done) => {
-      utils.loopOnThresolds(null, (object) => {
+      utils.loopOnThresolds(() => {}, (object) => {
       	expect(JSON.stringify(object)).to.be.equal('{}');
       	done();
       });

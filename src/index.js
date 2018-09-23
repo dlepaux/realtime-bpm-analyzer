@@ -35,16 +35,12 @@ class RealTimeBPMAnalyzer {
       pushTime: 2000,
       pushCallback: (err, bpm) => {
         console.log('bpm', bpm);
-<<<<<<< HEAD
       },
       onBpmStabilized: (thresold) => {
         this.clearValidPeaks(thresold);
-||||||| parent of acaddf8... fix tests with web-audio-engine <3
-=======
       },
       webAudioAPI: {
         OfflineAudioContext: typeof window == 'object' && (window.OfflineAudioContext || window.webkitOfflineAudioContext);
->>>>>>> acaddf8... fix tests with web-audio-engine <3
       }
     }
 

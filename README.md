@@ -59,7 +59,7 @@ Please, note that the main use case for this tool, is to get the BPM **during** 
 
 ## Example
 
-You can find here [a functionnal example](https://github.com/dlepaux/realtime-bpm-analyzer-example) of this tool.
+You can find here [a functionnal exemple](https://github.com/dlepaux/realtime-bpm-analyzer-exemple) of this tool.
 
 
 ## Technical approch

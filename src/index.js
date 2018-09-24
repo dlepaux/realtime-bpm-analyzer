@@ -204,7 +204,7 @@ class RealTimeBPMAnalyzer {
               this.options.onBpmStabilized(thresold);
 
               // After x milliseconds, we reinit the analyzer
-              if (this.continuousAnalysis) {
+              if (this.options.continuousAnalysis) {
                 clearTimeout(this.waitStabilization);
                 this.waitStabilization = setTimeout(() => {
                   console.log('[waitStabilization] setTimeout: Fired !');

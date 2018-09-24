@@ -76,7 +76,9 @@ analyzer.findPeaksAtThresold = function (data, thresold, offset = 0, callback) {
     }
   }
 
-  peaks = peaks.length == 0 ? undefined :peaks;
+  if (peaks.length == 0) {
+    peaks = undefined;
+  }
 
   return callback && callback(peaks, thresold) || peaks;
 }

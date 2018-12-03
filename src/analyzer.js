@@ -5,13 +5,6 @@ var utils = require("./utils.js");
 
 
 /**
- * Cross browser OfflineAudioContext
- */
-const OfflineAudioContext = window && (window.OfflineAudioContext || window.webkitOfflineAudioContext);
-
-
-
-/**
  * Contain analyzer functions
  */
 
@@ -25,7 +18,7 @@ const analyzer = {};
  * @return {AudioBufferSourceNode}
  */
 
-analyzer.getLowPassSource = function (buffer, OfflineContext = OfflineAudioContext) {
+analyzer.getLowPassSource = function (buffer, OfflineContext) {
   const {length, numberOfChannels, sampleRate} = buffer;
   const context = new OfflineContext(numberOfChannels, length, sampleRate);
 
@@ -83,9 +76,11 @@ analyzer.findPeaksAtThresold = function (data, thresold, offset = 0, callback) {
     }
   }
 
-  peaks = peaks.length == 0 ? undefined :peaks;
+  if (peaks.length == 0) {
+    peaks = undefined;
+  }
 
-  return callback && callback(peaks) || peaks;
+  return callback && callback(peaks, thresold) || peaks;
 }
 
 
@@ -120,7 +115,7 @@ analyzer.computeBPM = function (data, sampleRate, callback) {
         analyzer.groupByTempo(sampleRate),
         analyzer.getTopCandidates
       ].reduce(
-       (state, fn) => fn(state),
+        (state, fn) => fn(state),
         data[thresold]
       ), thresold);
     }
@@ -202,7 +197,7 @@ analyzer.groupByTempo = function (sampleRate) {
     intervalCounts.forEach(intervalCount => {
       if (intervalCount.interval !== 0) {
 
-        intervalCount.interval = Math.abs(intervalCount.interval); 
+        intervalCount.interval = Math.abs(intervalCount.interval);
 
         /**
          * Convert an interval to tempo

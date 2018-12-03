@@ -13,7 +13,7 @@ const utils = {};
  * Loop between .9 and .3 to check peak for each thresolds
  * @param  {Function} onLoop   Function for each iteration
  * @param  {Function} callback Function executed at the end
- * @return {Mixed}             Return of 'callback' function     
+ * @return {Mixed}             Return of 'callback' function
  */
 
 utils.loopOnThresolds = function (onLoop, minValidThresold, callback) {
@@ -32,28 +32,29 @@ utils.loopOnThresolds = function (onLoop, minValidThresold, callback) {
     callback = minValidThresold || callback;
     minValidThresold = 0.30;
   }
-  
+  if (typeof minValidThresold == 'undefined') minValidThresold = 0.30;
+
   const minThresold = minValidThresold;
 
   /**
    * Optionnal object to store data
    */
-  
+
   let object = {};
 
   /**
    * Loop between 0.90 and 0.30 (theoretically it is 0.90 but it is 0.899999, due because of float manipulation)
    */
-  
+
   do {
     let stop = false;
     thresold = thresold - 0.05;
-    onLoop && onLoop(object, thresold, function (bool) {
+    onLoop(object, thresold, function (bool) {
       stop = bool;
     });
     if (stop) break;
-  } while (thresold >= minThresold);
-  
+  } while (thresold > minThresold);
+
   /**
    * Ended callback
    */
@@ -70,9 +71,9 @@ utils.loopOnThresolds = function (onLoop, minValidThresold, callback) {
 
 utils.generateObjectModel = function (defaultValue, callback) {
   return utils.loopOnThresolds((object, thresold) => {
-    object[thresold.toString()] = defaultValue;
+    object[thresold.toString()] = JSON.parse(JSON.stringify(defaultValue));
   }, (object) => {
-    return callback && callback(object) || object;
+    return callback && callback(JSON.parse(JSON.stringify(object))) || object;
   });
 }
 

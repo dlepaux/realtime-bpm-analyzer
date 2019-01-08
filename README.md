@@ -11,6 +11,12 @@ This tool allow to compute the BPM (Beats Per minutes) in real time, of a song o
 
 Please, note that the main use case for this tool, is to get the BPM **during** the video / audio **play**.
 
+## Installation
+
+```
+npm install realtime-bpm-analyzer -S
+```
+
 ### WebAudioAPI
 
 > The [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) provides a powerful and versatile system for controlling audio on the Web, allowing developers to choose audio sources, add effects to audio, create audio visualizations, apply spatial effects (such as panning) and much more.

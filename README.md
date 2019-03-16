@@ -59,7 +59,7 @@ npm install realtime-bpm-analyzer -S
     });
     // Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
     scriptProcessorNode.onaudioprocess = function (e) {
-        onAudioProcess.analyze(e.inputBuffer);
+        onAudioProcess.analyze(e);
     };
     ```
 

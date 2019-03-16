@@ -40,7 +40,7 @@ class RealTimeBPMAnalyzer {
         this.clearValidPeaks(thresold);
       },
       webAudioAPI: {
-        OfflineAudioContext: typeof window == 'object' && (window.OfflineAudioContext || window.webkitOfflineAudioContext);
+        OfflineAudioContext: typeof window == 'object' && (window.OfflineAudioContext || window.webkitOfflineAudioContext)
       }
     }
 

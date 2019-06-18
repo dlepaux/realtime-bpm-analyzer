@@ -109,7 +109,7 @@ describe('RealTime BPM Analyzer', () => {
       const fs = require('fs');
       const AudioContext = require('web-audio-engine').RenderingAudioContext;
       const context = new AudioContext();
-      fs.readFile(path.resolve(__dirname, '/fixtures/bass-test.wav'), (err, buffer) => {
+      fs.readFile(path.resolve(__dirname, 'fixtures', 'bass-test.wav'), (err, buffer) => {
         if (err) console.log(err);
 
         context.decodeAudioData(buffer).then((audioBuffer) => {

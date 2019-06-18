@@ -4,6 +4,7 @@
  * Get expect function for testing
  */
 import chai from 'chai';
+import path from 'path';
 let expect = chai.expect;
 import utils from './../src/utils';
 import analyzer from './../src/analyzer';

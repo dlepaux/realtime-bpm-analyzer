@@ -17,7 +17,8 @@
   "main": "./src/index.js",
   "scripts": {
     "debug": "set LOGGY_STACKS=true && brunch w",
-    "test": "node_modules/.bin/mocha --require babel-core/register",
+    "test": "node_modules/.bin/mocha --require babel-core/register && npm run lint",
+    "lint": "eslint src/*.js test/*.js",
     "local-test": "nyc --reporter=html npm test",
     "coverage": "nyc --reporter=text-lcov npm test | coveralls",
     "coveralls": "nyc --reporter=text-lcov npm test && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage"
@@ -29,6 +30,7 @@
   "dependencies": {
     "babel-core": "^6.1.2",
     "babel-preset-env": "^1.7.0",
+    "eslint": "^5.16.0",
     "mp3": "^0.1.0",
     "web-audio-engine": "^0.13.4"
   },

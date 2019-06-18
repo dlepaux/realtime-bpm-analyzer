@@ -1,21 +1,18 @@
 'use strict';
 
-var analyzer = require("./analyzer.js");
-var utils = require("./utils.js");
+var analyzer = require('./analyzer.js');
+var utils = require('./utils.js');
 
 /**
  * RealTimeBPMAnalyzer Class
  */
 class RealTimeBPMAnalyzer {
-
-
   /**
    * Define default configuration
    * @param  {Object} config Configuration
    */
 
   constructor (config = {}) {
-
     /**
      * Default configuration
      * @type {Object}
@@ -34,6 +31,9 @@ class RealTimeBPMAnalyzer {
       stabilizationTime: 20000,
       pushTime: 2000,
       pushCallback: (err, bpm) => {
+        if (err) {
+          throw new Error(err);
+        }
         console.log('bpm', bpm);
       },
       onBpmStabilized: (thresold) => {
@@ -42,7 +42,7 @@ class RealTimeBPMAnalyzer {
       webAudioAPI: {
         OfflineAudioContext: typeof window == 'object' && (window.OfflineAudioContext || window.webkitOfflineAudioContext)
       }
-    }
+    };
 
     /**
      * Overriding default configuration
@@ -65,7 +65,6 @@ class RealTimeBPMAnalyzer {
    */
 
   initClass () {
-
     /**
      * Used to temporize the BPM computation
      */
@@ -102,8 +101,6 @@ class RealTimeBPMAnalyzer {
      */
 
     this.chunkCoeff = 1;
-
-
   }
 
 
@@ -112,7 +109,7 @@ class RealTimeBPMAnalyzer {
    * @param  {Float} minThresold Value between 1 and 0
    */
   clearValidPeaks (minThresold) {
-    console.log('[clearValidPeaks] function: under', minThresold)
+    console.log('[clearValidPeaks] function: under', minThresold);
     this.minValidThresold = minThresold.toFixed(2);
 
     utils.loopOnThresolds((object, thresold) => {
@@ -122,8 +119,6 @@ class RealTimeBPMAnalyzer {
       }
     });
   }
-
-
 
 
 
@@ -151,19 +146,18 @@ class RealTimeBPMAnalyzer {
     source.start(0);
 
     utils.loopOnThresolds((object, thresold) => {
-
       if (this.nextIndexPeaks[thresold] < currentMaxIndex) {
         // Get the next index in the next chunk
         const offsetForNextPeak = this.nextIndexPeaks[thresold] % 4096; // 0 - 4095
         // Get peaks sort by tresold
         analyzer.findPeaksAtThresold(source.buffer.getChannelData(0), thresold, offsetForNextPeak, (peaks, atThresold) => {
           // Loop over peaks
-          if (typeof(peaks) != 'undefined' && peaks != undefined) {
+          if (typeof (peaks) != 'undefined' && peaks != undefined) {
             Object.keys(peaks).forEach((key) => {
               // If we got some data..
               const relativeChunkPeak = peaks[key];
 
-              if (typeof(relativeChunkPeak) != 'undefined') {
+              if (typeof (relativeChunkPeak) != 'undefined') {
                 // Add current Index + 10K
                 this.nextIndexPeaks[atThresold] = currentMinIndex + relativeChunkPeak + 10000;
                 // Store valid relativeChunkPeak
@@ -174,7 +168,6 @@ class RealTimeBPMAnalyzer {
         });
       }
     }, this.minValidThresold, () => {
-
       // Refresh BPM every 2s (default value)
       if (this.waitPushTime === null) {
         this.waitPushTime = setTimeout(() => {
@@ -197,8 +190,8 @@ class RealTimeBPMAnalyzer {
               }
             }
 
-            if (this.cumulatedPushTime >= this.options.computeBPMDelay
-             && this.minValidThresold < thresold
+            if (this.cumulatedPushTime >= this.options.computeBPMDelay &&
+             this.minValidThresold < thresold
             ) {
               console.log('[onBpmStabilized] function: Fired !');
               this.options.onBpmStabilized(thresold);
@@ -212,7 +205,6 @@ class RealTimeBPMAnalyzer {
                   this.initClass();
                 }, this.options.stabilizationTime);
               }
-
             }
           });
         }, this.options.pushTime);
@@ -220,7 +212,6 @@ class RealTimeBPMAnalyzer {
 
       // Increment chunk
       this.chunkCoeff++;
-
     });
   }
 }

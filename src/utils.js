@@ -17,7 +17,6 @@ const utils = {};
  */
 
 utils.loopOnThresolds = function (onLoop, minValidThresold, callback) {
-
   /**
    * Top starting value to check peaks
    */
@@ -59,7 +58,7 @@ utils.loopOnThresolds = function (onLoop, minValidThresold, callback) {
    * Ended callback
    */
   return callback && callback(object);
-}
+};
 
 
 
@@ -75,7 +74,7 @@ utils.generateObjectModel = function (defaultValue, callback) {
   }, (object) => {
     return callback && callback(JSON.parse(JSON.stringify(object))) || object;
   });
-}
+};
 
 
 

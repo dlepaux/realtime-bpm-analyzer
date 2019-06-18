@@ -1,6 +1,6 @@
 'use strict';
 
-var utils = require("./utils.js");
+var utils = require('./utils.js');
 
 
 
@@ -19,7 +19,7 @@ const analyzer = {};
  */
 
 analyzer.getLowPassSource = function (buffer, OfflineContext) {
-  const {length, numberOfChannels, sampleRate} = buffer;
+  const { length, numberOfChannels, sampleRate } = buffer;
   const context = new OfflineContext(numberOfChannels, length, sampleRate);
 
   /**
@@ -45,7 +45,7 @@ analyzer.getLowPassSource = function (buffer, OfflineContext) {
   filter.connect(context.destination);
 
   return source;
-}
+};
 
 
 
@@ -81,7 +81,7 @@ analyzer.findPeaksAtThresold = function (data, thresold, offset = 0, callback) {
   }
 
   return callback && callback(peaks, thresold) || peaks;
-}
+};
 
 
 
@@ -92,7 +92,6 @@ analyzer.findPeaksAtThresold = function (data, thresold, offset = 0, callback) {
  */
 
 analyzer.computeBPM = function (data, sampleRate, callback) {
-
   /**
    * Minimum peaks
    */
@@ -120,7 +119,7 @@ analyzer.computeBPM = function (data, sampleRate, callback) {
       ), thresold);
     }
   }, () => {
-    return ! peaksFound && callback(new Error('Could not find enough samples for a reliable detection.')) || false;
+    return !peaksFound && callback(new Error('Could not find enough samples for a reliable detection.')) || false;
   });
 };
 
@@ -134,7 +133,7 @@ analyzer.computeBPM = function (data, sampleRate, callback) {
 
 analyzer.getTopCandidates = function (candidates) {
   return candidates.sort((a, b) => (b.count - a.count)).splice(0, 5);
-}
+};
 
 
 
@@ -147,7 +146,7 @@ analyzer.getTopCandidates = function (candidates) {
 analyzer.identifyIntervals = function (peaks) {
   const intervals = [];
   peaks.forEach((peak, index) => {
-    for (let i = 0; i < 10; i+= 1) {
+    for (let i = 0; i < 10; i += 1) {
       let interval = peaks[index + i] - peak;
 
       /**
@@ -156,7 +155,8 @@ analyzer.identifyIntervals = function (peaks) {
 
       let foundInterval = intervals.some(intervalCount => {
         if (intervalCount.interval === interval) {
-          return intervalCount.count += 1;
+          intervalCount.count += 1;
+          return intervalCount.count;
         }
       });
 
@@ -173,7 +173,7 @@ analyzer.identifyIntervals = function (peaks) {
     }
   });
   return intervals;
-}
+};
 
 
 
@@ -184,7 +184,6 @@ analyzer.identifyIntervals = function (peaks) {
  */
 
 analyzer.groupByTempo = function (sampleRate) {
-
   /**
    * Figure out best possible tempo candidates
    * @param  {Array} intervalCounts List of identified intervals
@@ -196,7 +195,6 @@ analyzer.groupByTempo = function (sampleRate) {
 
     intervalCounts.forEach(intervalCount => {
       if (intervalCount.interval !== 0) {
-
         intervalCount.interval = Math.abs(intervalCount.interval);
 
         /**
@@ -225,7 +223,8 @@ analyzer.groupByTempo = function (sampleRate) {
 
         let foundTempo = tempoCounts.some(tempoCount => {
           if (tempoCount.tempo === theoreticalTempo) {
-            return tempoCount.count += intervalCount.count;
+            tempoCount.count += intervalCount.count;
+            return tempoCount.count;
           }
         });
 
@@ -233,7 +232,7 @@ analyzer.groupByTempo = function (sampleRate) {
          * Add a unique tempo to the collection
          */
 
-        if ( ! foundTempo) {
+        if (!foundTempo) {
           tempoCounts.push({
             tempo: theoreticalTempo,
             count: intervalCount.count
@@ -242,8 +241,8 @@ analyzer.groupByTempo = function (sampleRate) {
       }
     });
     return tempoCounts;
-  }
-}
+  };
+};
 
 
 

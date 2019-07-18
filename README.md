@@ -22,6 +22,11 @@ npm install realtime-bpm-analyzer -S
 > The [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) provides a powerful and versatile system for controlling audio on the Web, allowing developers to choose audio sources, add effects to audio, create audio visualizations, apply spatial effects (such as panning) and much more.
 
 
+## Example
+
+You can find here [a functionnal exemple](https://github.com/dlepaux/realtime-bpm-analyzer-exemple) of this tool with `userMedia (microphone)` and `audioNode` usage.
+
+
 ## Usage / Requirements
 
 1. An [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to analyze. So something like this :
@@ -32,11 +37,11 @@ npm install realtime-bpm-analyzer -S
 2. Connect the [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to the [AudioContext](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext) **and** create an [AudioContext.createScriptProcessor()](https://developer.mozilla.org/en-US/docs/Web/API/ScriptProcessorNode).
     ```javascript
     // Create new instance of AudioContext
-    var audioContext = new AudioContext();
+    const audioContext = new AudioContext();
     // Set the source with the HTML Audio Node
-    var source = audioContext.createMediaElementSource(document.getElementById('track'));
+    const source = audioContext.createMediaElementSource(document.getElementById('track'));
     // Set the scriptProcessorNode to get PCM data in real time
-    var scriptProcessorNode = audioContext.createScriptProcessor(4096, 1, 1);
+    const scriptProcessorNode = audioContext.createScriptProcessor(4096, 1, 1);
     // Connect everythings together
     scriptProcessorNode.connect(audioContext.destination);
     source.connect(scriptProcessorNode);
@@ -45,28 +50,24 @@ npm install realtime-bpm-analyzer -S
     
 3. Now you have just to configure the tool and attach it to the [audioprocess](https://developer.mozilla.org/en-US/docs/Web/Events/audioprocess) event like this :
     ```javascript
-    var RealTimeBPMAnalyzer = include('realtime-bpm-analyzer');
-    var onAudioProcess = new RealTimeBPMAnalyzer({
+    import RealTimeBPMAnalyzer from 'realtime-bpm-analyzer';
+
+    const onAudioProcess = new RealTimeBPMAnalyzer({
         scriptNode: {
             bufferSize: 4096,
             numberOfInputChannels: 1,
             numberOfOutputChannels: 1
         },
         pushTime: 2000,
-        pushCallback: function (err, bpm) {
+        pushCallback: (err, bpm) => {
             console.log('bpm', bpm);
         }
     });
     // Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
-    scriptProcessorNode.onaudioprocess = function (e) {
+    scriptProcessorNode.onaudioprocess = (e) => {
         onAudioProcess.analyze(e);
     };
     ```
-
-## Example
-
-You can find here [a functionnal exemple](https://github.com/dlepaux/realtime-bpm-analyzer-exemple) of this tool.
-
 
 ## Technical approch
 
@@ -91,6 +92,3 @@ This tool is designed to detect BPM by detecting all peaks for all thresolds, be
 ## Credits
 
 This library was been inspired from [Tornqvist project](https://github.com/tornqvist/bpm-detective) which also based on [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/). Thank you to both of them
-
-## Todo
-- Add controls

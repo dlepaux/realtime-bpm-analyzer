@@ -1,6 +1,6 @@
 'use strict';
 
-var utils = require('./utils.js');
+const utils = require('./utils');
 
 
 
@@ -19,7 +19,7 @@ const analyzer = {};
  */
 
 analyzer.getLowPassSource = function (buffer, OfflineContext) {
-  const { length, numberOfChannels, sampleRate } = buffer;
+  const {length, numberOfChannels, sampleRate} = buffer;
   const context = new OfflineContext(numberOfChannels, length, sampleRate);
 
   /**
@@ -35,7 +35,8 @@ analyzer.getLowPassSource = function (buffer, OfflineContext) {
 
   const filter = context.createBiquadFilter();
   filter.type = 'lowpass';
-  // filter.frequency.value = 100; // instead of break frequency 70% of max amplitude
+  // Instead of break frequency 70% of max amplitude
+  // filter.frequency.value = 100;
 
   /**
    * Pipe the song into the filter, and the filter into the offline context
@@ -58,14 +59,14 @@ analyzer.getLowPassSource = function (buffer, OfflineContext) {
  * @return {Array}             Peaks found that are grater than the thresold
  */
 
-analyzer.findPeaksAtThresold = function (data, thresold, offset = 0, callback) {
+analyzer.findPeaksAtThresold = function (data, thresold, offset, callback) {
   let peaks = [];
 
   /**
    * Identify peaks that pass the thresold, adding them to the collection
    */
 
-  for (var i = offset, l = data.length; i < l; i += 1) {
+  for (let i = offset, l = data.length; i < l; i += 1) {
     if (data[i] > thresold) {
       peaks.push(i);
 
@@ -76,11 +77,15 @@ analyzer.findPeaksAtThresold = function (data, thresold, offset = 0, callback) {
     }
   }
 
-  if (peaks.length == 0) {
+  if (peaks.length === 0) {
     peaks = undefined;
   }
 
-  return callback && callback(peaks, thresold) || peaks;
+  if (callback) {
+    return callback(peaks, thresold);
+  }
+
+  return peaks;
 };
 
 
@@ -105,7 +110,9 @@ analyzer.computeBPM = function (data, sampleRate, callback) {
   let peaksFound = false;
 
   utils.loopOnThresolds((object, thresold, stop) => {
-    if (peaksFound) return stop(true);
+    if (peaksFound) {
+      return stop(true);
+    }
 
     if (data[thresold].length > minPeaks) {
       peaksFound = true;
@@ -119,7 +126,11 @@ analyzer.computeBPM = function (data, sampleRate, callback) {
       ), thresold);
     }
   }, () => {
-    return !peaksFound && callback(new Error('Could not find enough samples for a reliable detection.')) || false;
+    if (!peaksFound) {
+      callback(new Error('Could not find enough samples for a reliable detection.'));
+    }
+
+    return false;
   });
 };
 
@@ -147,17 +158,19 @@ analyzer.identifyIntervals = function (peaks) {
   const intervals = [];
   peaks.forEach((peak, index) => {
     for (let i = 0; i < 10; i += 1) {
-      let interval = peaks[index + i] - peak;
+      const interval = peaks[index + i] - peak;
 
       /**
        * Try and find a matching interval and increase it's count
        */
 
-      let foundInterval = intervals.some(intervalCount => {
+      const foundInterval = intervals.some(intervalCount => {
         if (intervalCount.interval === interval) {
           intervalCount.count += 1;
           return intervalCount.count;
         }
+
+        return false;
       });
 
       /**
@@ -166,7 +179,7 @@ analyzer.identifyIntervals = function (peaks) {
 
       if (!foundInterval) {
         intervals.push({
-          interval: interval,
+          interval,
           count: 1
         });
       }
@@ -190,7 +203,7 @@ analyzer.groupByTempo = function (sampleRate) {
    * @return {Array}                Intervals grouped with similar values
    */
 
-  return (intervalCounts) => {
+  return intervalCounts => {
     const tempoCounts = [];
 
     intervalCounts.forEach(intervalCount => {
@@ -209,7 +222,10 @@ analyzer.groupByTempo = function (sampleRate) {
         while (theoreticalTempo < 90) {
           theoreticalTempo *= 2;
         }
-        while (theoreticalTempo > 180) theoreticalTempo /= 2;
+
+        while (theoreticalTempo > 180) {
+          theoreticalTempo /= 2;
+        }
 
         /**
          * Round to legible integer
@@ -221,11 +237,13 @@ analyzer.groupByTempo = function (sampleRate) {
          * See if another interval resolved to the same tempo
          */
 
-        let foundTempo = tempoCounts.some(tempoCount => {
+        const foundTempo = tempoCounts.some(tempoCount => {
           if (tempoCount.tempo === theoreticalTempo) {
             tempoCount.count += intervalCount.count;
             return tempoCount.count;
           }
+
+          return false;
         });
 
         /**

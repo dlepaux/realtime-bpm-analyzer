@@ -1,7 +1,7 @@
 'use strict';
 
-var analyzer = require('./analyzer.js');
-var utils = require('./utils.js');
+const analyzer = require('./analyzer');
+const utils = require('./utils');
 
 /**
  * RealTimeBPMAnalyzer Class
@@ -12,7 +12,7 @@ class RealTimeBPMAnalyzer {
    * @param  {Object} config Configuration
    */
 
-  constructor (config = {}) {
+  constructor(config = {}) {
     /**
      * Default configuration
      * @type {Object}
@@ -30,17 +30,16 @@ class RealTimeBPMAnalyzer {
       computeBPMDelay: 10000,
       stabilizationTime: 20000,
       pushTime: 2000,
-      pushCallback: (err, bpm) => {
+      pushCallback: (err, _bpm) => {
         if (err) {
           throw new Error(err);
         }
-        console.log('bpm', bpm);
       },
-      onBpmStabilized: (thresold) => {
+      onBpmStabilized: thresold => {
         this.clearValidPeaks(thresold);
       },
       webAudioAPI: {
-        OfflineAudioContext: typeof window == 'object' && (window.OfflineAudioContext || window.webkitOfflineAudioContext)
+        OfflineAudioContext: typeof window === 'object' && (window.OfflineAudioContext || window.webkitOfflineAudioContext)
       }
     };
 
@@ -64,12 +63,12 @@ class RealTimeBPMAnalyzer {
    * @return {[type]} [description]
    */
 
-  initClass () {
+  initClass() {
     /**
      * Used to temporize the BPM computation
      */
 
-    this.minValidThresold = 0.30;
+    this.minValidThresold = 0.3;
 
     /**
      * Used to temporize the BPM computation
@@ -108,7 +107,7 @@ class RealTimeBPMAnalyzer {
    * Remve all validPeaks between the minThresold pass in param to optimize the weight of datas
    * @param  {Float} minThresold Value between 1 and 0
    */
-  clearValidPeaks (minThresold) {
+  clearValidPeaks(minThresold) {
     console.log('[clearValidPeaks] function: under', minThresold);
     this.minValidThresold = minThresold.toFixed(2);
 
@@ -125,7 +124,7 @@ class RealTimeBPMAnalyzer {
   /**
    * Attach this function to an audioprocess event on a audio/video node to compute BPM / Tempo in realtime
    */
-  analyze (event) {
+  analyze(event) {
     /**
      * Compute the maximum index with all previous chunks
      * @type {integer}
@@ -152,12 +151,12 @@ class RealTimeBPMAnalyzer {
         // Get peaks sort by tresold
         analyzer.findPeaksAtThresold(source.buffer.getChannelData(0), thresold, offsetForNextPeak, (peaks, atThresold) => {
           // Loop over peaks
-          if (typeof (peaks) != 'undefined' && peaks != undefined) {
-            Object.keys(peaks).forEach((key) => {
+          if (typeof peaks !== 'undefined' && peaks !== undefined) {
+            Object.keys(peaks).forEach(key => {
               // If we got some data..
               const relativeChunkPeak = peaks[key];
 
-              if (typeof (relativeChunkPeak) != 'undefined') {
+              if (typeof (relativeChunkPeak) !== 'undefined') {
                 // Add current Index + 10K
                 this.nextIndexPeaks[atThresold] = currentMinIndex + relativeChunkPeak + 10000;
                 // Store valid relativeChunkPeak
@@ -175,8 +174,6 @@ class RealTimeBPMAnalyzer {
           this.waitPushTime = null;
           analyzer.computeBPM(this.validPeaks, event.inputBuffer.sampleRate, (err, bpm, thresold) => {
             this.options.pushCallback(err, bpm, thresold);
-
-            // if (err) console.log(err);
 
             // Stop all (we have enougth interval counts)
             // Never executed !

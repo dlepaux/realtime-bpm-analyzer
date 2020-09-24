@@ -52,7 +52,7 @@ class RealTimeBPMAnalyzer {
       if (this.options.debug) {
         console.log(log);
       }
-    },
+    };
 
     /**
      * Overriding default configuration

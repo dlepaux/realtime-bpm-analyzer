@@ -1,6 +1,6 @@
 {
   "name": "realtime-bpm-analyzer",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Tool to analyze BPM / Tempo in realtime",
   "author": "David Lepaux <d.lepaux@gmail.com> (https://github.com/dlepaux)",
   "keywords": [

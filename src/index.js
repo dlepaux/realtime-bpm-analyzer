@@ -19,6 +19,7 @@ class RealTimeBPMAnalyzer {
      */
 
     this.options = {
+      debug: false,
       element: null,
       scriptNode: {
         bufferSize: 4096,
@@ -42,6 +43,16 @@ class RealTimeBPMAnalyzer {
         OfflineAudioContext: typeof window === 'object' && (window.OfflineAudioContext || window.webkitOfflineAudioContext)
       }
     };
+
+    /**
+     * Logger
+     * @param  {String} log Data to log
+     */
+    this.logger = log => {
+      if (this.options.debug) {
+        console.log(log);
+      }
+    },
 
     /**
      * Overriding default configuration
@@ -108,7 +119,7 @@ class RealTimeBPMAnalyzer {
    * @param  {Float} minThresold Value between 1 and 0
    */
   clearValidPeaks(minThresold) {
-    console.log('[clearValidPeaks] function: under', minThresold);
+    this.logger(`[clearValidPeaks] function: under ${minThresold}`);
     this.minValidThresold = minThresold.toFixed(2);
 
     utils.loopOnThresolds((object, thresold) => {
@@ -151,7 +162,7 @@ class RealTimeBPMAnalyzer {
         // Get peaks sort by tresold
         analyzer.findPeaksAtThresold(source.buffer.getChannelData(0), thresold, offsetForNextPeak, (peaks, atThresold) => {
           // Loop over peaks
-          if (typeof peaks !== 'undefined' && peaks !== undefined) {
+          if (typeof peaks !== 'undefined') {
             Object.keys(peaks).forEach(key => {
               // If we got some data..
               const relativeChunkPeak = peaks[key];
@@ -179,7 +190,7 @@ class RealTimeBPMAnalyzer {
             // Never executed !
             if (!err && bpm) {
               if (bpm[0].count >= this.options.stabilizedBpmCount) {
-                console.log('[freezePushBack]');
+                this.logger('[freezePushBack]');
                 // Freeze pushPack periodicity
                 this.waitPushTime = 'never';
                 // Cancel the audioprocess
@@ -190,14 +201,14 @@ class RealTimeBPMAnalyzer {
             if (this.cumulatedPushTime >= this.options.computeBPMDelay &&
              this.minValidThresold < thresold
             ) {
-              console.log('[onBpmStabilized] function: Fired !');
+              this.logger('[onBpmStabilized] function: Fired !');
               this.options.onBpmStabilized(thresold);
 
               // After x milliseconds, we reinit the analyzer
               if (this.options.continuousAnalysis) {
                 clearTimeout(this.waitStabilization);
                 this.waitStabilization = setTimeout(() => {
-                  console.log('[waitStabilization] setTimeout: Fired !');
+                  this.logger('[waitStabilization] setTimeout: Fired !');
                   this.options.computeBPMDelay = 0;
                   this.initClass();
                 }, this.options.stabilizationTime);

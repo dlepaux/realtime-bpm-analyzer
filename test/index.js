@@ -122,7 +122,7 @@ describe('RealTime BPM Analyzer', () => {
           expect(source.buffer.constructor.name).to.be.equal('AudioBuffer');
 
           if (callback) {
-            callback(source);
+            callback({source, sampleRate: context.sampleRate});
           }
         }).catch(error => {
           if (callback) {
@@ -135,9 +135,9 @@ describe('RealTime BPM Analyzer', () => {
 
 
     it('Test lowpass filter', done => {
-      passLowPassFilter((soruce, err) => {
-        if (err) {
-          done(err);
+      passLowPassFilter((data, error) => {
+        if (error) {
+          done(error);
         } else {
           done();
         }
@@ -146,24 +146,37 @@ describe('RealTime BPM Analyzer', () => {
 
 
     it('Test lowpass filter + findPeaksAtThresold', done => {
-      passLowPassFilter((source, err) => {
-        if (err) {
-          done(err);
+      passLowPassFilter((data, error) => {
+        if (error) {
+          done(error);
         }
 
         const thresold = 0.8;
         const offset = 0;
 
-        analyzer.findPeaksAtThresold(source.buffer.getChannelData(0), thresold, offset, (peaks, returnedThresold) => {
+        analyzer.findPeaksAtThresold(data.source.buffer.getChannelData(0), thresold, offset, (peaks, returnedThresold) => {
           expect(peaks.length).to.be.not.equal(0);
           expect(thresold).to.be.equal(returnedThresold);
+
+          /**
+           * Try to get the BPM
+           */
+          const intervals = analyzer.identifyIntervals(peaks);
+          const groupByTempo = analyzer.groupByTempo(data.sampleRate);
+          const candidates = groupByTempo(intervals);
+          const bpm = analyzer.getTopCandidates(candidates);
+
+          expect(bpm.length).to.be.not.equal(0);
+          expect(bpm[0].tempo).to.be.equal(125);
+          expect(bpm[0].count).to.be.equal(9);
+
           done();
         });
       });
     });
 
     it('Test lowpass filter + findPeaksAtThresold at 1.1 (no peaks hit)', done => {
-      passLowPassFilter((source, err) => {
+      passLowPassFilter((data, err) => {
         if (err) {
           done(err);
         }
@@ -171,7 +184,7 @@ describe('RealTime BPM Analyzer', () => {
         const thresold = 1.1;
         const offset = 0;
 
-        analyzer.findPeaksAtThresold(source.buffer.getChannelData(0), thresold, offset, (peaks, returnedThresold) => {
+        analyzer.findPeaksAtThresold(data.source.buffer.getChannelData(0), thresold, offset, (peaks, returnedThresold) => {
           expect(peaks).to.be.equal(undefined);
           expect(thresold).to.be.equal(returnedThresold);
           done();

@@ -18,6 +18,7 @@
     "minutes",
     "analyzer"
   ],
+  "type": "module",
   "license": "MIT",
   "main": "./src/index.js",
   "scripts": {
@@ -26,6 +27,7 @@
     "test:report": "nyc --reporter=html npm test",
     "coverage": "nyc --reporter=text-lcov npm test | coveralls",
     "coveralls": "nyc --reporter=text-lcov npm test && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage",
+    "postinstall": "npx husky install",
     "release": "standard-version",
     "release:patch": "standard-version --release-as patch",
     "release:minor": "standard-version --release-as minor",
@@ -36,8 +38,8 @@
     "url": "https://github.com/dlepaux/realtime-bpm-analyzer"
   },
   "devDependencies": {
-    "@commitlint/cli": "^13.2.0",
-    "@commitlint/config-conventional": "^13.2.0",
+    "@commitlint/cli": "^12.1.4",
+    "@commitlint/config-conventional": "^12.1.4",
     "audio-decode": "^1.4.0",
     "chai": "^4.1.1",
     "coveralls": "^3.0.0",

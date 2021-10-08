@@ -9,7 +9,7 @@ class Utils {
    * @param  {function} minValidThresold Function for each iteration
    * @param  {function} callback Function executed at the end
    */
-  loopOnThresolds(onLoop, minValidThresold, callback = null) {
+  loopOnThresolds(onLoop, minValidThresold, callback) {
     /**
      * Top starting value to check peaks
      */
@@ -25,6 +25,10 @@ class Utils {
 
     if (typeof minValidThresold === 'undefined') {
       minValidThresold = 0.3;
+    }
+
+    if (typeof callback !== 'function') {
+      callback = this.noop;
     }
 
     const minThresold = minValidThresold;
@@ -52,9 +56,7 @@ class Utils {
     /**
      * Ended callback
      */
-    if (callback) {
-      callback(object);
-    }
+    return callback(object);
   }
 
   /**
@@ -74,6 +76,11 @@ class Utils {
       return object;
     });
   }
+
+  /**
+   * Empty method
+   */
+  noop() {}
 }
 
 /**

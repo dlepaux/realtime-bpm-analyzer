@@ -5,7 +5,9 @@ import wae from 'web-audio-engine';
 import WavDecoder from 'wav-decoder';
 
 import utils from '../src/utils.js';
-import analyzer from '../src/analyzer.js';
+import {Analyzer} from '../src/analyzer.js';
+
+const analyzer = new Analyzer();
 
 /**
  * Unit test for the RealTime BPM Analyzer
@@ -62,6 +64,11 @@ describe('RealTime BPM Analyzer', () => {
         expect(JSON.stringify(object)).to.be.not.equal('{}');
         done();
       });
+    });
+
+    it('should test Object Model generation', () => {
+      const object = utils.generateObjectModel(false);
+      expect(typeof object).to.be.equal('object');
     });
   });
 

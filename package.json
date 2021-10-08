@@ -22,16 +22,15 @@
   "license": "MIT",
   "main": "./src/index.js",
   "scripts": {
+    "coverage": "codecov",
     "debug": "set LOGGY_STACKS=true && brunch w",
-    "test": "xo && mocha --require @babel/register",
-    "test:report": "nyc --reporter=html npm test",
-    "coverage": "nyc --reporter=text-lcov npm test | coveralls",
-    "coveralls": "nyc --reporter=text-lcov npm test && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage",
     "postinstall": "npx husky install",
     "release": "standard-version",
     "release:patch": "standard-version --release-as patch",
     "release:minor": "standard-version --release-as minor",
-    "release:major": "standard-version --release-as major"
+    "release:major": "standard-version --release-as major",
+    "test": "NODE_ENV=test mocha",
+    "test:report": "c8 --reporter=html --reporter=text --reporter=lcov npm test"
   },
   "repository": {
     "type": "git",

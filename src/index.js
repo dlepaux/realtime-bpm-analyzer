@@ -1,7 +1,5 @@
-'use strict';
-
-const analyzer = require('./analyzer');
-const utils = require('./utils');
+import analyzer from './analyzer.js';
+import utils from './utils.js';
 
 /**
  * RealTimeBPMAnalyzer Class
@@ -9,39 +7,37 @@ const utils = require('./utils');
 class RealTimeBPMAnalyzer {
   /**
    * Define default configuration
-   * @param  {Object} config Configuration
+   * @param {object} config Configuration
    */
-
   constructor(config = {}) {
     /**
      * Default configuration
-     * @type {Object}
+     * @type {object}
      */
-
     this.options = {
       debug: false,
       element: null,
       scriptNode: {
         bufferSize: 4096,
         numberOfInputChannels: 1,
-        numberOfOutputChannels: 1
+        numberOfOutputChannels: 1,
       },
       continuousAnalysis: false,
       stabilizedBpmCount: 2000,
-      computeBPMDelay: 10000,
-      stabilizationTime: 20000,
+      computeBPMDelay: 10_000,
+      stabilizationTime: 20_000,
       pushTime: 2000,
-      pushCallback: (err, _bpm) => {
-        if (err) {
-          throw new Error(err);
+      pushCallback: (error, _bpm) => {
+        if (error) {
+          throw new Error(error);
         }
       },
       onBpmStabilized: thresold => {
         this.clearValidPeaks(thresold);
       },
       webAudioAPI: {
-        OfflineAudioContext: typeof window === 'object' && (window.OfflineAudioContext || window.webkitOfflineAudioContext)
-      }
+        OfflineAudioContext: typeof window === 'object' && (window.OfflineAudioContext || window.webkitOfflineAudioContext),
+      },
     };
 
     /**
@@ -57,62 +53,49 @@ class RealTimeBPMAnalyzer {
     /**
      * Overriding default configuration
      */
-
     Object.assign(this.options, config);
 
     /**
      * Initialize variables and thresolds object's
      */
-
     this.initClass();
   }
 
-
-
   /**
    * Instentiate some vars, counter, ..
-   * @return {[type]} [description]
    */
-
   initClass() {
     /**
      * Used to temporize the BPM computation
      */
-
     this.minValidThresold = 0.3;
 
     /**
      * Used to temporize the BPM computation
      */
-
     this.cumulatedPushTime = 0;
 
     /**
      * Used to temporize the BPM computation
      */
-
     this.waitPushTime = null;
     this.waitStabilization = null;
 
     /**
      * Contain all valid peaks
      */
-
     this.validPeaks = utils.generateObjectModel([]);
 
     /**
      * Next index (+10000 ...) to take care about peaks
      */
-
     this.nextIndexPeaks = utils.generateObjectModel(0);
 
     /**
      * Number / Position of chunks
      */
-
     this.chunkCoeff = 1;
   }
-
 
   /**
    * Remve all validPeaks between the minThresold pass in param to optimize the weight of datas
@@ -130,10 +113,9 @@ class RealTimeBPMAnalyzer {
     });
   }
 
-
-
   /**
    * Attach this function to an audioprocess event on a audio/video node to compute BPM / Tempo in realtime
+   * @param {object} event Event
    */
   analyze(event) {
     /**
@@ -163,17 +145,17 @@ class RealTimeBPMAnalyzer {
         analyzer.findPeaksAtThresold(source.buffer.getChannelData(0), thresold, offsetForNextPeak, (peaks, atThresold) => {
           // Loop over peaks
           if (typeof peaks !== 'undefined') {
-            Object.keys(peaks).forEach(key => {
+            for (const key of Object.keys(peaks)) {
               // If we got some data..
               const relativeChunkPeak = peaks[key];
 
               if (typeof (relativeChunkPeak) !== 'undefined') {
                 // Add current Index + 10K
-                this.nextIndexPeaks[atThresold] = currentMinIndex + relativeChunkPeak + 10000;
+                this.nextIndexPeaks[atThresold] = currentMinIndex + relativeChunkPeak + 10_000;
                 // Store valid relativeChunkPeak
                 this.validPeaks[atThresold].push(currentMinIndex + relativeChunkPeak);
               }
-            });
+            }
           }
         });
       }
@@ -183,23 +165,21 @@ class RealTimeBPMAnalyzer {
         this.waitPushTime = setTimeout(() => {
           this.cumulatedPushTime += this.options.pushTime;
           this.waitPushTime = null;
-          analyzer.computeBPM(this.validPeaks, event.inputBuffer.sampleRate, (err, bpm, thresold) => {
-            this.options.pushCallback(err, bpm, thresold);
+          analyzer.computeBPM(this.validPeaks, event.inputBuffer.sampleRate, (error, bpm, thresold) => {
+            this.options.pushCallback(error, bpm, thresold);
 
             // Stop all (we have enougth interval counts)
             // Never executed !
-            if (!err && bpm) {
-              if (bpm[0].count >= this.options.stabilizedBpmCount) {
-                this.logger('[freezePushBack]');
-                // Freeze pushPack periodicity
-                this.waitPushTime = 'never';
-                // Cancel the audioprocess
-                this.minValidThresold = 1;
-              }
+            if (!error && bpm && bpm[0].count >= this.options.stabilizedBpmCount) {
+              this.logger('[freezePushBack]');
+              // Freeze pushPack periodicity
+              this.waitPushTime = 'never';
+              // Cancel the audioprocess
+              this.minValidThresold = 1;
             }
 
-            if (this.cumulatedPushTime >= this.options.computeBPMDelay &&
-             this.minValidThresold < thresold
+            if (this.cumulatedPushTime >= this.options.computeBPMDelay
+             && this.minValidThresold < thresold
             ) {
               this.logger('[onBpmStabilized] function: Fired !');
               this.options.onBpmStabilized(thresold);
@@ -224,8 +204,9 @@ class RealTimeBPMAnalyzer {
   }
 }
 
-// Export
-module.exports = RealTimeBPMAnalyzer;
-
-// Extend tool to global window scope
+/**
+ * Extend tool to global window scope
+ */
 window.RealTimeBPMAnalyzer = RealTimeBPMAnalyzer;
+
+export {RealTimeBPMAnalyzer};

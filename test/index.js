@@ -1,27 +1,21 @@
-'use strict';
-
-/**
- * Get expect function for testing
- */
+import fs from 'node:fs';
 import {expect} from 'chai';
-import path from 'path';
 import {describe, it} from 'mocha';
-import utils from '../src/utils';
-import analyzer from '../src/analyzer';
-const wae = require('web-audio-engine');
-const WavDecoder = require('wav-decoder');
+import wae from 'web-audio-engine';
+import WavDecoder from 'wav-decoder';
+
+import utils from '../src/utils.js';
+import analyzer from '../src/analyzer.js';
 
 /**
  * Unit test for the RealTime BPM Analyzer
  */
-
 describe('RealTime BPM Analyzer', () => {
   /**
    * Test Utility functions
    */
-
   describe('Utils.loopOnThresolds', () => {
-    it('Test thresold value with stop call', done => {
+    it('should test thresold value with stop call', done => {
       utils.loopOnThresolds((object, thresold, stop) => {
         // We add an entry to object
         object.foo = thresold;
@@ -34,7 +28,7 @@ describe('RealTime BPM Analyzer', () => {
       });
     });
 
-    it('Test thresold value with boolean', done => {
+    it('should test thresold value with boolean', done => {
       utils.loopOnThresolds((object, thresold, stop) => {
         // We add an entry to object
         object.foo = thresold;
@@ -46,7 +40,7 @@ describe('RealTime BPM Analyzer', () => {
       });
     });
 
-    it('Test thresold without minThresold', done => {
+    it('should test thresold without minThresold', done => {
       utils.loopOnThresolds((object, thresold) => {
         // We add an entry to object
         object[thresold] = thresold;
@@ -56,14 +50,14 @@ describe('RealTime BPM Analyzer', () => {
       });
     });
 
-    it('Test callback (second param) without onLoop', done => {
+    it('should test callback (second param) without onLoop', done => {
       utils.loopOnThresolds(() => {}, object => {
         expect(JSON.stringify(object)).to.be.equal('{}');
         done();
       });
     });
 
-    it('Test Object Model generation', done => {
+    it('should test Object Model generation', done => {
       utils.generateObjectModel(false, object => {
         expect(JSON.stringify(object)).to.be.not.equal('{}');
         done();
@@ -71,14 +65,13 @@ describe('RealTime BPM Analyzer', () => {
     });
   });
 
-
   /**
    * Test Analyzer functions
    */
 
   describe('Analyzer', () => {
-    it('Test low pass filter applying', done => {
-      const AudioContext = require('web-audio-engine').StreamAudioContext;
+    it('should test low pass filter applying', done => {
+      const AudioContext = wae.StreamAudioContext;
       const audioContext = new AudioContext();
       // Create an empty three-second stereo buffer at the sample rate of the AudioContext
       const buffer = audioContext.createBuffer(2, audioContext.sampleRate * 3, audioContext.sampleRate);
@@ -95,20 +88,19 @@ describe('RealTime BPM Analyzer', () => {
       }
 
       expect(buffer.constructor.name).to.be.equal('AudioBuffer');
-      const OfflineAudioContext = require('web-audio-engine').OfflineAudioContext;
+      const OfflineAudioContext = wae.OfflineAudioContext;
       const source = analyzer.getLowPassSource(buffer, OfflineAudioContext);
       expect(source.buffer.constructor.name).to.be.equal('AudioBuffer');
       done();
     });
 
-
     const passLowPassFilter = callback => {
       wae.decoder.set('wav', WavDecoder);
 
-      const fs = require('fs');
-      const AudioContext = require('web-audio-engine').RenderingAudioContext;
+      const AudioContext = wae.RenderingAudioContext;
       const context = new AudioContext();
-      fs.readFile(path.resolve(__dirname, 'fixtures', 'bass-test.wav'), (error, buffer) => {
+
+      fs.readFile('test/fixtures/bass-test.wav', (error, buffer) => {
         if (error) {
           console.log(error);
         }
@@ -116,7 +108,7 @@ describe('RealTime BPM Analyzer', () => {
         context.decodeAudioData(buffer).then(audioBuffer => {
           expect(audioBuffer.constructor.name).to.be.equal('AudioBuffer');
 
-          const OfflineAudioContext = require('web-audio-engine').OfflineAudioContext;
+          const OfflineAudioContext = wae.OfflineAudioContext;
           const source = analyzer.getLowPassSource(audioBuffer, OfflineAudioContext);
 
           expect(source.buffer.constructor.name).to.be.equal('AudioBuffer');
@@ -132,9 +124,7 @@ describe('RealTime BPM Analyzer', () => {
       });
     };
 
-
-
-    it('Test lowpass filter', done => {
+    it('should test lowpass filter', done => {
       passLowPassFilter((data, error) => {
         if (error) {
           done(error);
@@ -144,8 +134,7 @@ describe('RealTime BPM Analyzer', () => {
       });
     });
 
-
-    it('Test lowpass filter + findPeaksAtThresold', done => {
+    it('should test lowpass filter + findPeaksAtThresold', done => {
       passLowPassFilter((data, error) => {
         if (error) {
           done(error);
@@ -175,10 +164,10 @@ describe('RealTime BPM Analyzer', () => {
       });
     });
 
-    it('Test lowpass filter + findPeaksAtThresold at 1.1 (no peaks hit)', done => {
-      passLowPassFilter((data, err) => {
-        if (err) {
-          done(err);
+    it('should test lowpass filter + findPeaksAtThresold at 1.1 (no peaks hit)', done => {
+      passLowPassFilter((data, error) => {
+        if (error) {
+          done(error);
         }
 
         const thresold = 1.1;

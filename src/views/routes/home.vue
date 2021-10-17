@@ -44,7 +44,12 @@
       This project is under <a href="https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/licence.md">MIT licence</a>
     </p>
 
-    <h2>Offer me a beer</h2>
+    <h2>Credits</h2>
+    <p>
+      This library was been inspired from <a href="https://github.com/tornqvist/bpm-detective">Tornqvist</a> project which also based on <a href="http://joesul.li/van/beat-detection-using-web-audio/">Joe Sullivan's algorithm</a>. Thank you to both of them
+    </p>
+
+    <h2>Final</h2>
     <p>
       If this helped you in any way, you can always leave me a tip here :)
       <br>

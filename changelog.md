@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.0.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v1.1.5...v2.0.1) (2021-10-17)
+
+
+### Bug Fixes
+
+* revert require process ([6db526f](https://github.com/dlepaux/realtime-bpm-analyzer/commit/6db526f2f15ca2a50418aa0c809ad1b917f9b488))
+
 ## [2.0.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v1.1.5...v2.0.0) (2021-10-17)
 
 

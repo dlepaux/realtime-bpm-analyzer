@@ -71,6 +71,7 @@
     ],
     "rules": {
       "unicorn/no-array-reduce": "off",
+      "unicorn/numeric-separators-style": "off",
       "import/no-anonymous-default-export": "off"
     }
   },

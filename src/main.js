@@ -26,6 +26,7 @@ import Home from './views/routes/home.vue';
 import AudioNode from './views/routes/audio-node.vue';
 import HowItWorks from './views/routes/how-it-works.vue';
 import UserMedia from './views/routes/user-media.vue';
+import Stream from './views/routes/stream.vue';
 
 hljs.registerLanguage('javascript', javascript);
 hljs.registerLanguage('bash', bash);
@@ -39,6 +40,7 @@ const routes = [
   {path: '/audio-node', component: AudioNode},
   {path: '/how-it-works', component: HowItWorks},
   {path: '/user-media', component: UserMedia},
+  {path: '/stream', component: Stream},
 ];
 
 /**

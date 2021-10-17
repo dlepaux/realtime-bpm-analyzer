@@ -6,6 +6,12 @@
 [![Join the chat at https://gitter.im/realtime-bpm-analyzer/Lobby](https://badges.gitter.im/realtime-bpm-analyzer/Lobby.svg)](https://gitter.im/realtime-bpm-analyzer/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
+<div>
+  <p align="center">
+    <img src="./public/img/allegro-project.png" style="max-width: 100%; height: auto;">
+  </p>
+</div>
+
 ## Documentation
 
 [See the documentation](https://dlepaux.github.io/realtime-bpm-analyzer/)
@@ -25,13 +31,6 @@ Please, note that the main use case of this tool, is to compute the BPM while th
 
 
 ## Motivations
-
-<div>
-  <h1 align="center">Allegro Project</h1>
-  <p align="center">
-    <img src="./public/img/allegro-project.png" style="max-width: 100%; height: auto;">
-  </p>
-</div>
 
 Allegro Project purpose is to permits you to collect the BPM of [Youtube](https://youtube.com) musics listened by the user. Once the data collected the tool shall bind it at the begining of the title.
 

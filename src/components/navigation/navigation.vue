@@ -2,7 +2,7 @@
   <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
       <router-link class="navbar-brand" to="/">
-          <img src="/favicon.png" alt="" height="24" class="d-inline-block align-text-top">
+          <img src="https://dlepaux.github.io/realtime-bpm-analyzer/favicon.png" alt="" height="24" class="d-inline-block align-text-top">
           Allegro
       </router-link>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">

@@ -9,7 +9,7 @@
 
 <div>
   <p align="center">
-    <img src="./public/img/allegro-project.png" style="max-width: 100%; height: auto;">
+    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/img/allegro-project.png" style="max-width: 100%; height: auto;">
   </p>
 </div>
 
@@ -113,7 +113,7 @@ The algorithm use an AudioBuffer in input. We apply on it a lowpass filter to ge
 
 |                                       | Description                                                                                     |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| ![pcm data](./public/img/pcm.png "PCM Data") | PCM Data are dots with value between the max/min amplitude (1/-1). Each dots have its own index |
+| ![pcm data](https://dlepaux.github.io/realtime-bpm-analyzer/img/pcm.png "PCM Data") | PCM Data are dots with value between the max/min amplitude (1/-1). Each dots have its own index |
 
 To detect peaks, we will test the whole AudioBuffer with a high thresold (setted to 0.9), on the amplitude axis. We need a minimum of 15 occurence to confirm a valid BPM. To find the occurencies that we need, we will decrease the thresold with a step of `0.05`.
 

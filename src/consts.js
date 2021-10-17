@@ -9,7 +9,7 @@ export const exampleMusicFile = '/media/new_order-blue_monday.mp3';
 
 export const installationCommand = 'npm install realtime-bpm-analyzer';
 
-export const usageStepOne = '<audio src="./new_order-blue_monday.mp3" id="music"></audio>';
+export const usageStepOne = '<audio src="/media/new_order-blue_monday.mp3" id="music"></audio>';
 
 export const usageStepTwo = `// Create new instance of AudioContext
 const audioContext = new AudioContext();
@@ -25,17 +25,18 @@ source.connect(audioContext.destination);
 
 export const usageStepThree = `import RealTimeBPMAnalyzer from 'realtime-bpm-analyzer';
 
-const onAudioProcess = new RealTimeBPMAnalyzer({
-    scriptNode: {
-        bufferSize: 4096
-    },
-    pushTime: 2000,
-    pushCallback: (err, bpm) => {
-        console.log('bpm', bpm);
-    }
+const realtimeBpmAnalyzer = new RealTimeBPMAnalyzer({
+  scriptNode: {
+    bufferSize: 4096
+  },
+  pushTime: 2000,
+  pushCallback: (err, bpm) => {
+    console.log('bpm', bpm);
+  }
 });
+
 // Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
-scriptProcessorNode.onaudioprocess = (e) => {
-    onAudioProcess.analyze(e);
-};
+scriptProcessorNode.addEventListener('audioprocess', event => {
+  realtimeBpmAnalyzer.analyze(event);
+});
 `;

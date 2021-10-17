@@ -21,4 +21,15 @@ body,
   height: 100%;
   min-height: 100%;
 }
+
+h2 {
+  padding-bottom: .3em;
+  margin-top: .5rem;
+  border-bottom: 1px solid #d9d9d9;
+}
+
+pre code.hljs {
+  background: #f6f8fa;
+  border-radius: 6px;
+}
 </style>

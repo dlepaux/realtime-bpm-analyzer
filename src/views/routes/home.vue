@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <p class="text-center">
-      <img src="/img/allegro-project.png" class="img-fluid">
+      <img src="https://dlepaux.github.io/realtime-bpm-analyzer/img/allegro-project.png" class="img-fluid">
     </p>
 
     <h2>Documentation</h2>

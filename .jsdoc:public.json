@@ -24,7 +24,11 @@
 			"content": "Library to analyze BPM (Tempo) of a song in realtime on your browser"
 		}],
 		"theme_opts": {
-            "theme": "light"
+            "theme": "light",
+			"menu" : [{
+				"title": "Back to documentation",
+				"link": "https://dlepaux.github.io/realtime-bpm-analyzer/"
+			}]
         },
 		"search": {
 			"shouldSort": true,

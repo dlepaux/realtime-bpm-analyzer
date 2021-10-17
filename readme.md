@@ -63,11 +63,6 @@ npm test
 ```
 
 
-## Example
-
-You can find here [a functionnal exemple](https://github.com/dlepaux/realtime-bpm-analyzer-exemple) of this tool with `userMedia (microphone)` and `audioNode` usage.
-
-
 ## Usage
 
 1. An [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to analyze. So something like this :

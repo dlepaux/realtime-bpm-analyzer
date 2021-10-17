@@ -51,9 +51,7 @@ npm install realtime-bpm-analyzer
 ## Development
 
 ```bash
-npm install -g serve
-
-serve -s dist
+npm run serve
 ```
 
 ## Tests & Coverage

@@ -1,7 +1,11 @@
+# Vendors
 node_modules
-.tmp
-.DS_Store
-npm-debug*
+
+# Coverage
 coverage
-.nyc*
-package-lock.json
+
+# Documentation
+dist
+
+# Others
+*.DS_Store

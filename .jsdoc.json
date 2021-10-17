@@ -1,0 +1,39 @@
+{
+	"plugins": [],
+	"recurseDepth": 1,
+	"source": {
+		"include": [
+			"./lib"
+		],
+		"includePattern": ".(js)$"
+	},
+	"sourceType": "module",
+	"tags": {
+		"allowUnknownTags": true,
+		"dictionaries": ["jsdoc", "closure"]
+	},
+	"opts": {
+		"encoding": "utf8",
+		"destination": "./dist/api/",
+		"template": "node_modules/clean-jsdoc-theme",
+		"meta": [{
+			"name": "author",
+			"content": "David Lepaux"
+		}, {
+			"name": "description",
+			"content": "Library to analyze BPM (Tempo) of a song in realtime on your browser"
+		}],
+		"theme_opts": {
+            "theme": "light"
+        },
+		"search": {
+			"shouldSort": true,
+			"threshold": 0.4,
+			"location": 0,
+			"distance": 100,
+			"maxPatternLength": 32,
+			"minMatchCharLength": 1
+		},
+		"create_style": "nav{background: yellow} footer {background: green}"
+	}
+}

@@ -5,7 +5,7 @@ set -e
 
 # Build
 npm run build
-npm run doc
+npm run doc:dist
 
 # Navigate into the build output directory
 cd dist

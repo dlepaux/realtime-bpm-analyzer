@@ -9,6 +9,7 @@
 ## Documentation
 
 [See the documentation](https://dlepaux.github.io/realtime-bpm-analyzer/)
+
 [See the API documentation](https://dlepaux.github.io/realtime-bpm-analyzer/api)
 
 ## Introduction

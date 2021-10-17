@@ -24,7 +24,7 @@
             <router-link class="nav-link" to="/how-it-works">How it works</router-link>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/api">API</a>
+            <a class="nav-link" :href="`${vueConfig.publicPath}api`">API</a>
           </li>
         </ul>
       </div>
@@ -34,12 +34,14 @@
 
 <script>
   import * as consts from '../../consts.js';
+  import vueConfig from '../../../vue.config.cjs';
 
   export default {
     name: 'Navigation',
     data() {
       return {
-        routeExemples: consts.routeExemples
+        routeExemples: consts.routeExemples,
+        vueConfig
       }
     }
   }

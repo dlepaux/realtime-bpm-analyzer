@@ -9,44 +9,65 @@
       See the <a href="/api/index.html">API documentation</a><br>
     </p>
 
-    <h2>Installation & Usage</h2>
-    <p>Install the library with the following command</p>
-    <div class="card">
-      <div class="card-body">
-        <pre><code>npm install realtime-bpm-analyzer
-        </code></pre>
-      </div>
-    </div>
+    <h2>Installation</h2>
+    <highlightjs language="bash" :code="consts.installationCommand"/>
 
-    <p>
-      See the a basic <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/readme.md##usage--requirements">usage example</a>
-      <br>
-      For more examples and usages explore the Examples in the menu.
-    </p>
+    <h2>Usage</h2>
+    <div>
+      1. An AudioNode to analyze. So something like this :
+      <highlightjs language="xml" :code="consts.usageStepOne"/>
+
+      2. Connect the AudioNode to the AudioContext and create an AudioContext.createScriptProcessor().
+      <highlightjs language="js" :code="consts.usageStepTwo"/>
+
+      3. Now you have just to configure the tool and attach it to the audioprocess event like this :
+      <highlightjs language="js" :code="consts.usageStepThree"/>
+
+      <hr>
+
+      You can check <a href="https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/src/views/routes">the code base</a> of the github pages to have a real usage of the library.
+    </div>
 
     <h2>Contribution, Community & Support</h2>
     <p>
-      See the <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/contributing.md">contribution guide lines</a><br>
-      See the <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/code-of-conduct.md">code of conduct</a>
+      See the <a href="https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/contributing.md">contribution guide lines</a><br>
+      See the <a href="https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/code-of-conduct.md">code of conduct</a>
     </p>
 
     <h2>Changelog</h2>
     <p>
-      See the <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/changelog.md">changelog</a>
+      See the <a href="https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/changelog.md">changelog</a>
     </p>
 
     <h2>Licence</h2>
     <p>
-      This project is under <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/licence.md">MIT licence</a>
+      This project is under <a href="https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/licence.md">MIT licence</a>
     </p>
 
-    <h2>Offer me a beer / coffee</h2>
+    <h2>Offer me a beer</h2>
     <p>
       If this helped you in any way, you can always leave me a tip here :)
       <br>
-      BTC **36eHnxCRUDfWNFEx3YebRGw12WeutjkBBt**
+      BTC <strong>36eHnxCRUDfWNFEx3YebRGw12WeutjkBBt**</strong>
       <br>
-      ETH **0x0F8b4F026624150e9F6267bFD93C372eb98e3010**
+      ETH <strong>0x0F8b4F026624150e9F6267bFD93C372eb98e3010**</strong>
     </p>
   </div>
 </template>
+
+<script>
+  import hljsVuePlugin from '@highlightjs/vue-plugin';
+  import * as consts from '../../consts.js';
+
+  export default {
+    name: 'Home',
+    components: {
+        highlightjs: hljsVuePlugin.component
+    },
+    data() {
+      return {
+        consts
+      };
+    }
+  };
+</script>

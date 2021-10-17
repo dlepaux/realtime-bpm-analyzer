@@ -5,7 +5,7 @@ node_modules
 coverage
 
 # Documentation
-public/api
+dist
 
 # Others
 *.DS_Store

@@ -23,6 +23,9 @@
           <li class="nav-item">
             <router-link class="nav-link" to="/how-it-works">How it works</router-link>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/api">API</a>
+          </li>
         </ul>
       </div>
     </div>

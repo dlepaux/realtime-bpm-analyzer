@@ -12,9 +12,9 @@
 
 ## Introduction
 
-This library allows you to compute the BPM (Beats Per minutes) in real time, of a song on an `<audio></audio>` or `<video></video>` node thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
+This **dependency free** library allows you to compute the BPM (Beats Per minutes) in real time, of a song with a `audio` or `video` node thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
 
-Please, note that the main use case of this tool, is to compute / get the BPM **during** the video / audio **playing**.
+Please, note that the main use case of this tool, is to compute the BPM while the video / audio is **playing**.
 
 
 ### WebAudioAPI
@@ -125,6 +125,10 @@ To detect peaks, we will test the whole AudioBuffer with a high thresold (setted
 When a peak is found, we will search for the next by jumping `10 000` indexes of PCM data, this means that we ignore `0.25` second of the song, in other words we simply ignore the descending phase of the peak.
 
 Feel free to [contact me by mail](d.lepaux[at]gmail.com) or [join the chat](https://gitter.im/realtime-bpm-analyzer/Lobby) if you have any questions.
+
+## Todo
+
+- Migrate from ScriptProcessorNode to AudioWorklet
 
 
 ## Credits

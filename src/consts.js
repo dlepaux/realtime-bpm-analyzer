@@ -1,6 +1,7 @@
 export const routeExemples = {
   'audio-node': 'Audio Node',
   'user-media': 'User Media',
+  stream: 'Stream',
 };
 
 export const audioContext = new (window.AudioContext || window.mozAudioContext || window.webkitAudioContext)();

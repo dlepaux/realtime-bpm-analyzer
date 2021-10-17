@@ -1,25 +1,67 @@
 # RealTime BPM/Tempo Analyzer
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/dlepaux/realtime-bpm-analyzer.svg)](https://greenkeeper.io/)
-[![Build Status](https://travis-ci.org/dlepaux/realtime-bpm-analyzer.svg?branch=feature/continuous-analysis)](https://travis-ci.org/dlepaux/realtime-bpm-analyzer)
-[![Coverage Status](https://coveralls.io/repos/github/dlepaux/realtime-bpm-analyzer/badge.svg?branch=feature/continuous-analysis)](https://coveralls.io/github/dlepaux/realtime-bpm-analyzer?branch=feature/continuous-analysis)
-[![npm](https://img.shields.io/npm/l/express.svg)]()
 [![XO code style](https://img.shields.io/badge/code_style-XO-5ed9c7.svg)](https://github.com/xojs/xo)
+[![npm](https://img.shields.io/npm/dm/realtime-bpm-analyzer.svg)](https://www.npmjs.com/package/realtime-bpm-analyzer)
+[![npm](https://img.shields.io/npm/l/realtime-bpm-analyzer.svg)](https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/licence.md)
 [![Join the chat at https://gitter.im/realtime-bpm-analyzer/Lobby](https://badges.gitter.im/realtime-bpm-analyzer/Lobby.svg)](https://gitter.im/realtime-bpm-analyzer/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-This tool allow to compute the BPM (Beats Per minutes) in real time, of a song on an `<audio></audio>` or `<video></video>` node thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
 
-Please, note that the main use case for this tool, is to get the BPM **during** the video / audio **play**.
+## API Documentation
 
-## Installation
+[See the documentation]()
 
-```
-npm install realtime-bpm-analyzer -S
-```
+## Introduction
+
+This library allows you to compute the BPM (Beats Per minutes) in real time, of a song on an `<audio></audio>` or `<video></video>` node thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
+
+Please, note that the main use case of this tool, is to compute / get the BPM **during** the video / audio **playing**.
+
 
 ### WebAudioAPI
 
 > The [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) provides a powerful and versatile system for controlling audio on the Web, allowing developers to choose audio sources, add effects to audio, create audio visualizations, apply spatial effects (such as panning) and much more.
+
+
+## Motivations
+
+<div>
+  <h1 align="center">Allegro Project</h1>
+  <p align="center">
+    <img src="./docs/allegro-project.png" style="max-width: 100%; height: auto;">
+  </p>
+</div>
+
+Allegro Project purpose is to permits you to collect the BPM of [Youtube](https://youtube.com) musics listened by the user. Once the data collected the tool shall bind it at the begining of the title.
+
+A schema worst better than a long speech so, let's imagine we are listening a [song](https://www.youtube.com/watch?v=FYH8DsU2WCk) on Youtube. The "raw" title of it is: `New Order - Blue Monday`, once `Allegro` have collected the BPM it will bind it at the begining of the title, so we will have: `[130BPM] New Order - Blue Monday`.
+
+The project is under construction thought and this component [realtime-bpm-analyzer](https://github.com/dlepaux/realtime-bpm-analyzer) is an essential piece of the project.
+
+
+## Installation
+
+To install this module to your project, just launch the command below:
+
+```bash
+npm install realtime-bpm-analyzer
+```
+
+
+## Development
+
+```bash
+npm install -g serve
+
+serve -s dist
+```
+
+## Tests & Coverage
+
+To launch the test suite, just launch the command below:
+
+```bash
+npm test
+```
 
 
 ## Example
@@ -27,7 +69,7 @@ npm install realtime-bpm-analyzer -S
 You can find here [a functionnal exemple](https://github.com/dlepaux/realtime-bpm-analyzer-exemple) of this tool with `userMedia (microphone)` and `audioNode` usage.
 
 
-## Usage / Requirements
+## Usage
 
 1. An [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to analyze. So something like this :
     ```html
@@ -54,9 +96,7 @@ You can find here [a functionnal exemple](https://github.com/dlepaux/realtime-bp
 
     const onAudioProcess = new RealTimeBPMAnalyzer({
         scriptNode: {
-            bufferSize: 4096,
-            numberOfInputChannels: 1,
-            numberOfOutputChannels: 1
+            bufferSize: 4096
         },
         pushTime: 2000,
         pushCallback: (err, bpm) => {
@@ -69,24 +109,22 @@ You can find here [a functionnal exemple](https://github.com/dlepaux/realtime-bp
     };
     ```
 
+
 ## Technical approch
 
-This tool has been largely inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective).
+This tool has been largely inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective), which is actually optimized to compute the BPM of a song as fast as possible and not during the plying.
 
-His algorithm use an AudioBuffer in input. We apply a lowpass filter to get only bass frequencies.
-
-Now, we extract brut data (PCM, Pulse Code Modulation, each points is between 1 and -1) to detect peaks.
+The algorithm use an AudioBuffer in input. We apply on it a lowpass filter to get bass frequencies. Then, we extract raw data (PCM, Pulse Code Modulation, each points is between 1 and -1) to detect peaks.
 
 |                                       | Description                                                                                     |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| ![pcm data](./doc/pcm.png "PCM Data") | PCM Data are dots with value between the max/min amplitude (1/-1). Each dots have its own index |
+| ![pcm data](./docs/pcm.png "PCM Data") | PCM Data are dots with value between the max/min amplitude (1/-1). Each dots have its own index |
 
-To do this job, we start with a thresold setted to 0.9 (on the amplitude axis) and we search a minimal peak number (~15) by decrementing this thresold by 0.05 through all the AudioBuffer.
-When we find a peak, we jump 10000 peaks index (1/4 second) to ignore the descendant phase of the peak...
+To detect peaks, we will test the whole AudioBuffer with a high thresold (setted to 0.9), on the amplitude axis. We need a minimum of 15 occurence to confirm a valid BPM. To find the occurencies that we need, we will decrease the thresold with a step of `0.05`.
 
----
+When a peak is found, we will search for the next by jumping `10 000` indexes of PCM data, this means that we ignore `0.25` second of the song, in other words we simply ignore the descending phase of the peak.
 
-This tool is designed to detect BPM by detecting all peaks for all thresolds, because we work on chunks (AudioBuffer). So we can recompute the BPM with intervals, etc.. without recompute everything with a full AudioBuffer.
+Feel free to [contact me by mail](d.lepaux[at]gmail.com) or [join the chat](https://gitter.im/realtime-bpm-analyzer/Lobby) if you have any questions.
 
 
 ## Credits
@@ -94,9 +132,9 @@ This tool is designed to detect BPM by detecting all peaks for all thresolds, be
 This library was been inspired from [Tornqvist project](https://github.com/tornqvist/bpm-detective) which also based on [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/). Thank you to both of them
 
 
-## Offer me a beer / coffee
+## Final
 
-If Lazarus helped you in any way, you can always leave me a tip here:
+If this project helped you in any way, you can always leave me a tip here:
 
 BTC **36eHnxCRUDfWNFEx3YebRGw12WeutjkBBt**
 

@@ -6,6 +6,7 @@ coverage
 
 # Documentation
 dist
+public/api
 
 # Others
 *.DS_Store

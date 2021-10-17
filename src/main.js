@@ -1,12 +1,22 @@
 import {createApp} from 'vue';
 import {createRouter, createWebHashHistory} from 'vue-router';
 
+/**
+ * Bootstrap
+ */
+import 'bootstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+
+/**
+ * Highlight
+ */
 import hljs from 'highlight.js/lib/core.js';
 import javascript from 'highlight.js/lib/languages/javascript.js';
 import bash from 'highlight.js/lib/languages/bash.js';
 import xml from 'highlight.js/lib/languages/xml.js';
 import hljsVuePlugin from '@highlightjs/vue-plugin';
-import 'highlight.js/styles/monokai-sublime.css';
+import 'highlight.js/styles/github.css';
 
 /**
  * Components

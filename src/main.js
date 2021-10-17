@@ -1,5 +1,5 @@
 import {createApp} from 'vue';
-import {createRouter, createWebHistory} from 'vue-router';
+import {createRouter, createWebHashHistory} from 'vue-router';
 
 /**
  * Components
@@ -24,7 +24,7 @@ const routes = [
  * Router
  */
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes,
 });
 

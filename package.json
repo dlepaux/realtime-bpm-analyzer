@@ -1,6 +1,6 @@
 {
   "name": "realtime-bpm-analyzer",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Library to analyze BPM (Tempo) of a song in realtime on your browser",
   "author": {
     "name": "David Lepaux",

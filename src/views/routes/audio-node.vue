@@ -11,16 +11,27 @@
 
   <div class="mt-2">
     <p class="alert alert-info">
-      The analyzer needs the music to be played ! By pressing the button below you will play the music.<br>
-      A stable result will be provided after couple of seconds and is expected to be around 131 beats per minute.
+      The analyzer needs the music to be played ! Press the button below to play and analyze the music sample.<br>
+      A stable result will be provided after couple of seconds and is expected to be around <strong>131</strong> beats per minute.
     </p>
 
     <p class="text-center">
-      <button class="btn btn-primary" @click="analyzeBpm" :disabled="analyzing">
-        <span v-if="!analyzing">Start the analysis</span>
-        <span v-else>BPM {{ currentTempo }}</span>
-      </button>
+      <button class="btn btn-primary" @click="analyzeBpm" :disabled="analyzing">Play and Analyze BPM</button>
     </p>
+
+    <div class="d-flex justify-content-center">
+      <div class="card mb-3 col-4">
+        <div class="card-body text-center">
+          <span class="display-6">
+            Current BPM <span>{{ currentTempo }}</span>
+            <br>
+            <i class="bi bi-soundwave"></i>
+            <br>
+            <span class="text-muted">Expected BPM 131</span>
+          </span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -43,6 +54,7 @@
     },
     data() {
       return {
+        audioContext: null,
         currentTempo: 0,
         currentCount: 0,
         analyzing: false,
@@ -60,6 +72,7 @@
         /**
          * Resumes the progression of time in an audio context that has previously been suspended/paused.
          */
+        this.audioContext = new this.AudioContext();
         await this.audioContext.resume();
 
         /**

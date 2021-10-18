@@ -57,7 +57,7 @@ export default {
         context.fillText('Original Signal', 4, 10);
       }
 
-      if (thresold !== null) {
+      if (thresold !== null && isLowPass === true) {
         const heightRatio = canvasHeight * (1 - thresold);
 
         context.beginPath();
@@ -75,11 +75,11 @@ export default {
         context.fillText(text, canvasWidth - context.measureText(text).width - 4, heightRatio - 4);
       }
 
-      for (const [i, element_] of dataArray.entries()) {
-        const value = element_ / 256;
+      for (const [x, element] of dataArray.entries()) {
+        const value = element / 256;
         const y = canvasHeight - (canvasHeight * value) - 1;
         context.fillStyle = 'white';
-        context.fillRect(i, y, 1, 1);
+        context.fillRect(x, y, 1, 1);
       }
     },
   },

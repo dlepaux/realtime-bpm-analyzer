@@ -4,8 +4,6 @@ export const routeExemples = {
   stream: 'Stream',
 };
 
-export const audioContext = new (window.AudioContext || window.mozAudioContext || window.webkitAudioContext)();
-
 export const exampleMusicFile = '/media/new_order-blue_monday.mp3';
 
 export const installationCommand = 'npm install realtime-bpm-analyzer';

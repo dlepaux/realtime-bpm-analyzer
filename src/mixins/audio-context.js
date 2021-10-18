@@ -1,7 +1,7 @@
 export default {
   data() {
     return {
-      audioContext: new window.AudioContext(),
+      AudioContext: window.AudioContext || window.mozAudioContext || window.webkitAudioContext,
     };
   },
 };

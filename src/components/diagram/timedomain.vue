@@ -12,10 +12,14 @@
   import {RealTimeBPMAnalyzer} from '../../../lib/realtime-bpm-analyzer.js';
 
   export default {
-    emits: ['update:thresold', 'update:bpm'],
+    emits: ['update:thresold', 'update:bpm', 'music:ended'],
     name: 'Timeserie',
     mixins: [audioContextMixin, audioManager],
     props: {
+      audioContext: {
+        type: Object,
+        default: {},
+      },
       isLowPass: {
         type: Boolean,
         default: false,
@@ -95,6 +99,28 @@
       });
     },
     methods: {
+      onEnded() {
+        this.$emit('music:ended');
+      },
+      onAudioProcess(event) {
+        if (!this.isLowPass) {
+          this.realtimeBpmAnalyzer.analyze(event);
+        }
+
+        /**
+         * Get the Time Domain data for this sample
+         */
+        this.analyserNode.getByteTimeDomainData(this.dataArray);
+
+        /**
+         * Draw the display if the audio is playing
+         */
+        if (this.audioPlaying === true) {
+          requestAnimationFrame(() => {
+            this.drawTimeDomain(this.canvas, this.parentWidth, this.canvasHeight, this.dataArray, this.isLowPass, this.thresold, this.bpm);
+          });
+        }
+      },
       animate() {
         this.sourceNode = this.audioContext.createBufferSource();
         this.analyserNode = this.audioContext.createAnalyser();
@@ -126,37 +152,27 @@
          * Setup the event handler that is triggered every time enough samples have been collected
          * trigger the audio analysis and draw the results
          */
-        this.scriptProcessor.addEventListener('audioprocess', event => {
-          if (!this.isLowPass) {
-            this.realtimeBpmAnalyzer.analyze(event);
-          }
-
-          /**
-           * Get the Time Domain data for this sample
-           */
-          this.analyserNode.getByteTimeDomainData(this.dataArray);
-
-          /**
-           * Draw the display if the audio is playing
-           */
-          if (this.audioPlaying === true) {
-            requestAnimationFrame(() => {
-              this.drawTimeDomain(this.canvas, this.parentWidth, this.canvasHeight, this.dataArray, this.isLowPass, this.thresold, this.bpm);
-            });
-          }
-        });
+        this.scriptProcessor.addEventListener('audioprocess', this.onAudioProcess);
 
         /**
          * Load the Audio the first time through, otherwise play it from the buffer
          */
-        if (this.audioData == null) {
+        if (this.audioData === null) {
           this.loadSound(this.exampleMusicFile).then(buffer => {
             this.audioData = buffer;
 
             this.playSound(this);
+
+            this.sourceNode.addEventListener('ended', () => {
+              this.onEnded();
+            });
           });
         } else {
           this.playSound(this);
+
+          this.sourceNode.addEventListener('ended', () => {
+            this.onEnded();
+          });
         }
       },
       stop() {
@@ -176,6 +192,19 @@
          * Reset data
          */
         this.dataArray = new Uint8Array();
+        // this.audioData = null;
+        // this.audioPlaying = false;
+
+        // this.filter = null;
+        // this.sourceNode = null;
+        // this.analyserNode = null;
+
+        // this.realtimeBpmAnalyzer = null;
+
+        if (this.scriptProcessorNode) {
+          this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
+        }
+
         requestAnimationFrame(() => {
           this.drawTimeDomain(this.canvas, this.parentWidth, this.canvasHeight, this.dataArray, this.isLowPass, this.thresold, this.bpm);
         });

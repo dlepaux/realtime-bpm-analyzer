@@ -16,11 +16,13 @@
     </p>
 
     <p class="text-center">
-      <button class="btn btn-primary" @click="analyzeBpm" :disabled="analyzing">Play and Analyze BPM</button>
+      <button class="btn btn-primary" @click="analyzeBpm" :disabled="analyzing">
+        <i class="bi bi-play-circle"></i> Play and Analyze BPM
+      </button>
     </p>
 
-    <div class="d-flex justify-content-center">
-      <div class="card mb-3 col-4">
+    <div class="d-flex justify-content-center mb-5">
+      <div class="card col-lg-6 col-md-8 col-sm-10">
         <div class="card-body text-center">
           <span class="display-6">
             Current BPM <span>{{ currentTempo }}</span>

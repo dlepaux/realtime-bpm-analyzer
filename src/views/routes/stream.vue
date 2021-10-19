@@ -14,7 +14,7 @@
       The analyzer needs the music to be played ! Press the button below to play and analyze the music sample.
     </p>
 
-    <div class="row">
+    <div class="row mb-3">
       <div class="col-md-6 col-sm-12">
         <form>
           <div class="mb-3">
@@ -45,7 +45,9 @@
         </form>
 
         <p class="text-center">
-          <button class="btn btn-primary" @click="analyzeBpm" :disabled="analyzing">Play and Analyze BPM</button>
+          <button class="btn btn-primary" @click="analyzeBpm" :disabled="analyzing">
+            <i class="bi bi-play-circle"></i>Play and Analyze BPM
+          </button>
         </p>
       </div>
 

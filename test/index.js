@@ -150,24 +150,24 @@ describe('RealTime BPM Analyzer', () => {
         const thresold = 0.8;
         const offset = 0;
 
-        analyzer.findPeaksAtThresold(data.source.buffer.getChannelData(0), thresold, offset, (peaks, returnedThresold) => {
-          expect(peaks.length).to.be.not.equal(0);
-          expect(thresold).to.be.equal(returnedThresold);
+        const {peaks, thresold: returnedThresold} = analyzer.findPeaksAtThresold(data.source.buffer.getChannelData(0), thresold, offset);
 
-          /**
-           * Try to get the BPM
-           */
-          const intervals = analyzer.identifyIntervals(peaks);
-          const groupByTempo = analyzer.groupByTempo(data.sampleRate);
-          const candidates = groupByTempo(intervals);
-          const bpm = analyzer.getTopCandidates(candidates);
+        expect(peaks.length).to.be.not.equal(0);
+        expect(thresold).to.be.equal(returnedThresold);
 
-          expect(bpm.length).to.be.not.equal(0);
-          expect(bpm[0].tempo).to.be.equal(125);
-          expect(bpm[0].count).to.be.equal(9);
+        /**
+         * Try to get the BPM
+         */
+        const intervals = analyzer.identifyIntervals(peaks);
+        const groupByTempo = analyzer.groupByTempo(data.sampleRate);
+        const candidates = groupByTempo(intervals);
+        const bpm = analyzer.getTopCandidates(candidates);
 
-          done();
-        });
+        expect(bpm.length).to.be.not.equal(0);
+        expect(bpm[0].tempo).to.be.equal(125);
+        expect(bpm[0].count).to.be.equal(9);
+
+        done();
       });
     });
 
@@ -180,11 +180,11 @@ describe('RealTime BPM Analyzer', () => {
         const thresold = 1.1;
         const offset = 0;
 
-        analyzer.findPeaksAtThresold(data.source.buffer.getChannelData(0), thresold, offset, (peaks, returnedThresold) => {
-          expect(peaks).to.be.equal(undefined);
-          expect(thresold).to.be.equal(returnedThresold);
-          done();
-        });
+        const {peaks, thresold: returnedThresold} = analyzer.findPeaksAtThresold(data.source.buffer.getChannelData(0), thresold, offset);
+
+        expect(peaks).to.be.equal(undefined);
+        expect(thresold).to.be.equal(returnedThresold);
+        done();
       });
     });
   });

@@ -58,33 +58,17 @@
       });
     },
     beforeUnmount() {
-      this.stopRecoreding = true;
-    },
-    unmounted() {
       /**
-       * Once the user leave the page we detach everything
+       * When the user leave the page we stop listening the microphone
        */
-      this.mediaStreamSource.disconnect(this.scriptProcessorNode);
-      this.scriptProcessorNode.disconnect(this.audioContext.destination);
-
-      /**
-       * Cleanup listeners
-       */
-      this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
-      this.scriptProcessorNode = null;
-
-      /**
-       * Closes the audio context, releasing any system audio resources that it uses.
-       */
-      this.audioContext.close();
+      this.stream.getTracks().forEach(track => {
+        if (track.readyState === 'live') {
+          track.stop();
+        }
+      });
     },
     methods: {
       async onStream(stream) {
-        if (this.stopRecoreding) {
-          console.log('stream.getTracks()', stream.getTracks());
-          stream.getTracks()[0].stop();
-        }
-
         // /**
         //  * Resumes the progression of time in an audio context that has previously been suspended/paused.
         //  */

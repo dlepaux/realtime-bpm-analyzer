@@ -119,7 +119,7 @@ To detect peaks, we will test the whole AudioBuffer with a high thresold (setted
 
 When a peak is found, we will search for the next by jumping `10 000` indexes of PCM data, this means that we ignore `0.25` second of the song, in other words we simply ignore the descending phase of the peak.
 
-Feel free to [contact me by mail](d.lepaux[at]gmail.com) or [join the chat](https://gitter.im/realtime-bpm-analyzer/Lobby) if you have any questions.
+Feel free to [contact me by mail](mailto:d.lepaux@gmail.com) or [join the chat](https://gitter.im/realtime-bpm-analyzer/Lobby) if you have any questions.
 
 ## Todo
 

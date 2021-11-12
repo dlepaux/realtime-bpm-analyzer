@@ -7,8 +7,23 @@
 
   <hr>
 
-  <div class="alert alert-warning mb-3">
-    Start the experiment by clicking the button below, then you may have an alert to allow access to your microphone.<br>
+  <p class="text-center">
+    <button v-if="isRecording" class="btn btn-lg btn-primary" @click="stopRecording">
+      <i class="bi bi-record-fill"></i> Stop Recording
+    </button>
+    <button v-if="!isRecording" class="btn btn-lg btn-primary" @click="listenMicrophone">
+      <i class="bi bi-soundwave"></i> Detect BPM with your Microphone
+    </button>
+
+    <br>
+
+    <small class="text-muted" data-bs-toggle="collapse" data-bs-target="#help" aria-expanded="false" aria-controls="help">
+      More info
+    </small>
+  </p>
+
+  <div class="collapse alert alert-warning mb-3" id="help">
+    Start the experiment by clicking the button above, then you may have an alert to allow access to your microphone.<br>
     If you do not have the alert, it means either that you already gave access to it or you have an issue with your material.<br>
     <hr>
     You can emulate the behaviour of a microphone by looping back your output as an input to your machine to detect BPM of what you're listening right now.
@@ -18,13 +33,7 @@
     </ul>
   </div>
 
-  <p class="text-center">
-    <button class="btn btn-lg btn-primary" @click="listenMicrophone"><i class="bi bi-soundwave"></i> Detect BPM from your Microphone</button>
-  </p>
-
-  <div>
-    <canvas ref="canvas" :height="canvasHeight" :width="parentWidth" class="bg-dark"></canvas>
-  </div>
+  <frequency-bar-graph ref="graph" :bufferLength="bufferLength" :dataArray="dataArray"></frequency-bar-graph>
 
   <div class="d-flex justify-content-center mt-3 mb-5">
     <div class="card col-lg-6 col-md-8 col-sm-10">
@@ -53,72 +62,50 @@
   import {ref} from 'vue';
   import requestAnimationFrame from 'raf';
 
-  import * as consts from '../../consts.js';
   import audioContextMixin from '../../mixins/audio-context.js';
+  import frequencyBarGraph from '../../components/diagram/frequency-bar-graph.vue';
   import {RealTimeBPMAnalyzer} from '../../../lib/realtime-bpm-analyzer.js';
 
   export default {
     name: 'UserMedia',
     mixins: [audioContextMixin],
+    components: {frequencyBarGraph},
+    setup() {
+      const graph = ref(null);
+
+      return {
+        graph
+      };
+    },
     data() {
       return {
-        stopRecoreding: false,
+        // Flag
+        isRecording: false,
+        // Analyzer
         analyzer: null,
         bufferLength: null,
         dataArray: null,
+        // AudioContext
+        audioContext: null,
+        // Audio Source
         mediaStreamSource: null,
+        // RealTimeAnalyzer
         scriptProcessorNode: null,
         realTimeBPMAnalyzer: null,
-        exampleMusicFile: consts.exampleMusicFile,
+        // RealTimeAnalyzer Results
         currentThresold: 0,
         firstCandidateTempo: 0,
         firstCandidateCount: 0,
         secondCandidateTempo: 0,
         secondCandidateCount: 0,
+        // Stream (microphone)
         stream: null,
-        canvasHeight: 100,
-      };
-    },
-    setup() {
-      const canvas = ref(null);
-
-      return {
-        canvas
       };
     },
     beforeUnmount() {
-      /**
-       * When the user leave the page we stop listening the microphone
-       */
-      if (!this.stream) {
-        return;
-      }
-
-      this.stream.getTracks().forEach(track => {
-        if (track.readyState === 'live') {
-          track.stop();
-        }
-      });
-
-      /**
-       * Closes the audio context, releasing any system audio resources that it uses.
-       */
-      this.audioContext.close();
-
-      /**
-       * Reset
-       */
-      this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
-      this.realTimeBPMAnalyzer = null;
+      this.stopRecording();
     },
     computed: {
-      parentWidth() {
-        if (this.canvas && this.canvas.parentNode) {
-          return this.canvas.parentNode.offsetWidth;
-        }
-
-        return 200;
-      },
       formattedCurrentThresold() {
         if (this.currentThresold) {
           return this.currentThresold.toFixed(2);
@@ -128,31 +115,11 @@
       }
     },
     methods: {
-      draw() {
-        const context = this.canvas.getContext('2d');
-
-        context.clearRect(0, 0, this.parentWidth, this.canvasHeight);
-  
-        this.analyzer.getByteFrequencyData(this.dataArray);
-        context.fillStyle = 'rgb(0, 0, 0)';
-        context.fillRect(0, 0, this.parentWidth, this.canvasHeight);
-
-        const barWidth = (this.parentWidth / this.bufferLength) * 2.5;
-        let barHeight;
-        let x = 0;
-
-        for (let i = 0; i < this.bufferLength; i++) {
-          barHeight = this.dataArray[i] / 2;
-
-          context.fillStyle = `rgba(100, 206, 170, ${(barHeight / this.canvasHeight).toFixed(2)})`;
-          context.fillRect(x, this.canvasHeight - barHeight / 2, barWidth, barHeight);
-
-          x += barWidth + 1;
-        }
-      },
       async listenMicrophone() {
         this.audioContext = new this.AudioContext();
         await this.audioContext.resume();
+
+        this.isRecording = true;
 
         /**
          * Get user media and enable microphone
@@ -162,6 +129,41 @@
           this.onStream(stream);
         }).catch(error => {
           console.error(error);
+        });
+      },
+      stopRecording() {
+        /**
+         * When the user leave the page we stop listening the microphone
+         */
+        this.isRecording = false;
+
+        /**
+         * Closes the audio context, releasing any system audio resources that it uses.
+         */
+        if (this.audioContext) {
+          this.audioContext.close();
+        }
+
+        /**
+         * Reset
+         */
+        if (this.scriptProcessorNode) {
+          this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
+        }
+
+        this.realTimeBPMAnalyzer = null;
+
+        /**
+         * If no stream avaible, abort
+         */
+        if (!this.stream) {
+          return;
+        }
+
+        this.stream.getTracks().forEach(track => {
+          if (track.readyState === 'live') {
+            track.stop();
+          }
         });
       },
       async onStream(stream) {
@@ -176,7 +178,6 @@
         this.analyzer = this.audioContext.createAnalyser();
         this.analyzer.fftSize = 1024;
         this.bufferLength = this.analyzer.frequencyBinCount;
-        console.log(this.bufferLength);
         this.dataArray = new Uint8Array(this.bufferLength);
 
         /**
@@ -239,10 +240,10 @@
          * Animate what we here from the microphone
          */
         requestAnimationFrame(() => {
-          this.draw();
+          this.analyzer.getByteFrequencyData(this.dataArray);
+          this.graph.drawFrequencyBarGraph();
         });
       },
     }
   };
 </script>
-

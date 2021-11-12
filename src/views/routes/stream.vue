@@ -11,12 +11,14 @@
 
   <div class="mt-2">
     <p class="text-center">
-      <button class="btn btn-primary" @click="analyzeBpm" :disabled="analyzing">
+      <button class="btn btn-lg btn-primary" @click="analyzeBpm" :disabled="isAnalyzing">
         <i class="bi bi-play-circle"></i> Play and Analyze BPM
       </button>
     </p>
 
-    <div class="row mb-3">
+    <frequency-bar-graph ref="graph" :bufferLength="bufferLength" :dataArray="dataArray"></frequency-bar-graph>
+
+    <div class="row mt-3 mb-3">
       <div class="col-md-6 col-sm-12">
         <form>
           <div class="mb-3">
@@ -48,7 +50,7 @@
       </div>
 
       <div class="col-md-6 col-sm-12">
-        <div class="d-flex h-100 align-items-center justify-content-center">
+        <div class="d-flex h-100 align-items-start justify-content-center">
           <div class="card mb-3">
             <div class="card-body text-center">
               <span class="display-6">Current BPM <span>{{ currentTempo }}</span>
@@ -64,38 +66,73 @@
 
 <script>
   import {ref} from 'vue';
+  import requestAnimationFrame from 'raf';
 
   import audioContextMixin from '../../mixins/audio-context.js';
+  import frequencyBarGraph from '../../components/diagram/frequency-bar-graph.vue';
   import {RealTimeBPMAnalyzer} from '../../../lib/realtime-bpm-analyzer.js';
 
   export default {
     name: 'Stream',
     mixins: [audioContextMixin],
+    components: {frequencyBarGraph},
     setup() {
       const music = ref(null);
+      const graph = ref(null);
 
       return {
-        music
+        music,
+        graph
       };
     },
     data() {
       return {
+        // Flag
+        isAnalyzing: false,
+        // Analyzer
+        analyzer: null,
+        bufferLength: null,
+        dataArray: null,
+        // AudioContext
         audioContext: null,
-        currentTempo: 0,
-        currentCount: 0,
-        analyzing: false,
+        // Audio Source
+        source: null,
+        // RealTimeAnalyzer
         scriptProcessorNode: null,
         realTimeBPMAnalyzer: null,
-        // Controlable
+        // RealTimeAnalyzer Controlable
         defaultStreamEndpoint: 'https://zaycevfm.cdnvideo.ru/ZaycevFM_zaychata_256.mp3',
         computeBPMDelay: 5000,
         stabilizationTime: 10000,
         pushTime: 1000,
+        // RealTimeAnalyzer Results
+        currentTempo: 0,
+        currentCount: 0,
       };
+    },
+    beforeUnmount() {
+      /**
+       * Closes the audio context, releasing any system audio resources that it uses.
+       */
+      if (this.audioContext !== null) {
+        this.audioContext.close();
+      }
+
+      /**
+       * Reset
+       */
+      this.isAnalyzing = false;
+      this.music.removeEventListener('ended', this.onEnded);
+      
+      if (this.scriptProcessorNode) {
+        this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
+      }
+
+      this.realTimeBPMAnalyzer = null;
     },
     methods: {
       async analyzeBpm() {
-        if (this.analyzing) {
+        if (this.isAnalyzing) {
           return;
         }
 
@@ -106,14 +143,22 @@
         await this.audioContext.resume();
 
         /**
-         * Turn the analyzing to true to avoid multiple plays
+         * Turn the isAnalyzing to true to avoid multiple plays
          */
-        this.analyzing = true;
+        this.isAnalyzing = true;
+
+        /**
+         * Analyzer
+         */
+        this.analyzer = this.audioContext.createAnalyser();
+        this.analyzer.fftSize = 1024;
+        this.bufferLength = this.analyzer.frequencyBinCount;
+        this.dataArray = new Uint8Array(this.bufferLength);
 
         /**
          * Set the source with the HTML Audio Node
          */
-        const source = this.audioContext.createMediaElementSource(this.music);
+        this.source = this.audioContext.createMediaElementSource(this.music);
 
         /**
          * Set the scriptProcessorNode to get PCM data in real time
@@ -123,9 +168,10 @@
         /**
          * Connect everythings together
          */
+        this.source.connect(this.analyzer);
         this.scriptProcessorNode.connect(this.audioContext.destination);
-        source.connect(this.scriptProcessorNode);
-        source.connect(this.audioContext.destination);
+        this.source.connect(this.scriptProcessorNode);
+        this.source.connect(this.audioContext.destination);
 
         /**
          * Insternciate RealTimeBPMAnalyzer
@@ -166,28 +212,16 @@
        */
       onAudioProcess(event) {
         this.realTimeBPMAnalyzer.analyze(event);
+
+        /**
+         * Animate what we here from the microphone
+         */
+        requestAnimationFrame(() => {
+          this.analyzer.getByteFrequencyData(this.dataArray);
+          this.graph.drawFrequencyBarGraph();
+        });
       },
     },
-    beforeUnmount() {
-      /**
-       * Closes the audio context, releasing any system audio resources that it uses.
-       */
-      if (this.audioContext !== null) {
-        this.audioContext.close();
-      }
-
-      /**
-       * Reset
-       */
-      this.analyzing = false;
-      this.music.removeEventListener('ended', this.onEnded);
-      
-      if (this.scriptProcessorNode) {
-        this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
-      }
-
-      this.realTimeBPMAnalyzer = null;
-    }
   };
 </script>
 

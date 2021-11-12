@@ -10,18 +10,26 @@
   <audio :src="exampleMusicFile" ref="music" class="w-100" controls></audio>
 
   <div class="mt-2">
-    <p class="alert alert-info">
-      The analyzer needs the music to be played ! Press the button below to play and analyze the music sample.<br>
-      A stable result will be provided after couple of seconds and is expected to be around <strong>131</strong> beats per minute.
-    </p>
-
     <p class="text-center">
-      <button class="btn btn-primary" @click="analyzeBpm" :disabled="analyzing">
-        <i class="bi bi-play-circle"></i> Play and Analyze BPM
+      <button class="btn btn-lg btn-primary" @click="analyzeBpm" :disabled="isAnalyzing">
+        <i class="bi bi-play-circle"></i> Detect BPM from audio node
       </button>
+
+      <br>
+
+      <small class="text-muted" data-bs-toggle="collapse" data-bs-target="#help" aria-expanded="false" aria-controls="help">
+        More info
+      </small>
     </p>
 
-    <div class="d-flex justify-content-center mb-5">
+    <p class="collapse alert alert-info" id="help">
+      Start the experiment by clicking the button above, it will play and analyze the music sample.<br>
+      A stable and robust result will be provided after couple of seconds and is expected to be around <strong>131</strong> beats per minute.
+    </p>
+
+    <frequency-bar-graph ref="graph" :bufferLength="bufferLength" :dataArray="dataArray"></frequency-bar-graph>
+
+    <div class="d-flex justify-content-center mt-3 mb-5">
       <div class="card col-lg-6 col-md-8 col-sm-10">
         <div class="card-body text-center">
           <span class="display-6">
@@ -39,35 +47,51 @@
 
 <script>
   import {ref} from 'vue';
+  import requestAnimationFrame from 'raf';
 
   import * as consts from '../../consts.js';
   import audioContextMixin from '../../mixins/audio-context.js';
+  import frequencyBarGraph from '../../components/diagram/frequency-bar-graph.vue';
   import {RealTimeBPMAnalyzer} from '../../../lib/realtime-bpm-analyzer.js';
 
   export default {
     name: 'AudioNode',
     mixins: [audioContextMixin],
+    components: {frequencyBarGraph},
     setup() {
       const music = ref(null);
+      const graph = ref(null);
 
       return {
-        music
+        music,
+        graph
       };
     },
     data() {
       return {
+        // Flag
+        isAnalyzing: false,
+        // Analyzer
+        analyzer: null,
+        bufferLength: null,
+        dataArray: null,
+        // AudioContext
         audioContext: null,
-        currentTempo: 0,
-        currentCount: 0,
-        analyzing: false,
+        // Audio Source
+        source: null,
+        // RealTimeAnalyzer
         scriptProcessorNode: null,
         realTimeBPMAnalyzer: null,
-        exampleMusicFile: consts.exampleMusicFile
+        // RealTimeAnalyzer Results
+        currentTempo: 0,
+        currentCount: 0,
+        // Expose consts
+        exampleMusicFile: consts.exampleMusicFile,
       };
     },
     methods: {
       async analyzeBpm() {
-        if (this.analyzing) {
+        if (this.isAnalyzing) {
           return;
         }
 
@@ -78,9 +102,9 @@
         await this.audioContext.resume();
 
         /**
-         * Turn the analyzing to true to avoid multiple plays
+         * Turn the isAnalyzing to true to avoid multiple plays
          */
-        this.analyzing = true;
+        this.isAnalyzing = true;
 
         /**
          * Wait the end of the music to reset
@@ -88,9 +112,17 @@
         this.music.addEventListener('ended', this.onEnded);
 
         /**
+         * Analyzer
+         */
+        this.analyzer = this.audioContext.createAnalyser();
+        this.analyzer.fftSize = 1024;
+        this.bufferLength = this.analyzer.frequencyBinCount;
+        this.dataArray = new Uint8Array(this.bufferLength);
+
+        /**
          * Set the source with the HTML Audio Node
          */
-        const source = this.audioContext.createMediaElementSource(this.music);
+        this.source = this.audioContext.createMediaElementSource(this.music);
 
         /**
          * Set the scriptProcessorNode to get PCM data in real time
@@ -100,9 +132,10 @@
         /**
          * Connect everythings together
          */
+        this.source.connect(this.analyzer);
         this.scriptProcessorNode.connect(this.audioContext.destination);
-        source.connect(this.scriptProcessorNode);
-        source.connect(this.audioContext.destination);
+        this.source.connect(this.scriptProcessorNode);
+        this.source.connect(this.audioContext.destination);
 
         /**
          * Insternciate RealTimeBPMAnalyzer
@@ -136,12 +169,6 @@
         this.music.play();
       },
       /**
-       * Audio Process
-       */
-      onAudioProcess(event) {
-        this.realTimeBPMAnalyzer.analyze(event);
-      },
-      /**
        * On music (audio node) ended
        */
       async onEnded() {
@@ -153,11 +180,25 @@
         /**
          * Reset
          */
-        this.analyzing = false;
+        this.isAnalyzing = false;
         this.music.removeEventListener('ended', this.onEnded);
         this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
         this.realTimeBPMAnalyzer = null;
-      }
+      },
+      /**
+       * Audio Process
+       */
+      onAudioProcess(event) {
+        this.realTimeBPMAnalyzer.analyze(event);
+
+        /**
+         * Animate what we here from the microphone
+         */
+        requestAnimationFrame(() => {
+          this.analyzer.getByteFrequencyData(this.dataArray);
+          this.graph.drawFrequencyBarGraph();
+        });
+      },
     }
   };
 </script>

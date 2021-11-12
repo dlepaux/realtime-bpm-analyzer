@@ -1,34 +1,38 @@
 <template>
-  <h1>Audio Node</h1>
+  <div class="container mt-3">
+    <h1>Audio Node</h1>
 
-  <p class="lead">
-    Exemple of the usage of the analyzer with an <code>&lt;audio&gt;</code> node.
-  </p>
-
-  <hr>
-
-  <audio :src="exampleMusicFile" ref="music" class="w-100" controls></audio>
-
-  <div class="mt-2">
-    <p class="text-center">
-      <button class="btn btn-lg btn-primary" @click="analyzeBpm" :disabled="isAnalyzing">
-        <i class="bi bi-play-circle"></i> Detect BPM from audio node
-      </button>
-
-      <br>
-
-      <small class="text-muted" data-bs-toggle="collapse" data-bs-target="#help" aria-expanded="false" aria-controls="help">
-        More info
-      </small>
+    <p class="lead">
+      Exemple of the usage of the analyzer with an <code>&lt;audio&gt;</code> node.
     </p>
 
-    <p class="collapse alert alert-info" id="help">
-      Start the experiment by clicking the button above, it will play and analyze the music sample.<br>
-      A stable and robust result will be provided after couple of seconds and is expected to be around <strong>131</strong> beats per minute.
-    </p>
+    <hr>
 
-    <frequency-bar-graph ref="graph" :bufferLength="bufferLength" :dataArray="dataArray"></frequency-bar-graph>
+    <audio :src="exampleMusicFile" ref="music" class="w-100" controls></audio>
 
+    <div class="mt-2">
+      <p class="text-center">
+        <button class="btn btn-lg btn-primary" @click="analyzeBpm" :disabled="isAnalyzing">
+          <i class="bi bi-play-circle"></i> Detect BPM from audio node
+        </button>
+
+        <br>
+
+        <small class="text-muted" data-bs-toggle="collapse" data-bs-target="#help" aria-expanded="false" aria-controls="help">
+          More info
+        </small>
+      </p>
+
+      <p class="collapse alert alert-info" id="help">
+        Start the experiment by clicking the button above, it will play and analyze the music sample.<br>
+        A stable and robust result will be provided after couple of seconds and is expected to be around <strong>131</strong> beats per minute.
+      </p>
+    </div>
+  </div>
+
+  <frequency-bar-graph ref="graph" :bufferLength="bufferLength" :dataArray="dataArray"></frequency-bar-graph>
+
+  <div class="container mt-3">
     <div class="d-flex justify-content-center mt-3 mb-5">
       <div class="card col-lg-6 col-md-8 col-sm-10">
         <div class="card-body text-center">

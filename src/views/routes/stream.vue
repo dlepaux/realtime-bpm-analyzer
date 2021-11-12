@@ -1,23 +1,27 @@
 <template>
-  <h1>Stream</h1>
+  <div class="container mt-3">
+    <h1>Stream</h1>
 
-  <p class="lead">
-    Exemple of the usage of the analyzer with a <code>Stream</code>.
-  </p>
-
-  <hr>
-
-  <audio :src="defaultStreamEndpoint" crossorigin="anonymous" ref="music" class="w-100" controls></audio>
-
-  <div class="mt-2">
-    <p class="text-center">
-      <button class="btn btn-lg btn-primary" @click="analyzeBpm" :disabled="isAnalyzing">
-        <i class="bi bi-play-circle"></i> Play and Analyze BPM
-      </button>
+    <p class="lead">
+      Exemple of the usage of the analyzer with a <code>Stream</code>.
     </p>
 
-    <frequency-bar-graph ref="graph" :bufferLength="bufferLength" :dataArray="dataArray"></frequency-bar-graph>
+    <hr>
 
+    <audio :src="defaultStreamEndpoint" crossorigin="anonymous" ref="music" class="w-100" controls></audio>
+
+    <div class="mt-2">
+      <p class="text-center">
+        <button class="btn btn-lg btn-primary" @click="analyzeBpm" :disabled="isAnalyzing">
+          <i class="bi bi-play-circle"></i> Play and Analyze BPM
+        </button>
+      </p>
+    </div>
+  </div>
+
+  <frequency-bar-graph ref="graph" :bufferLength="bufferLength" :dataArray="dataArray"></frequency-bar-graph>
+
+  <div class="container mt-3">
     <div class="row mt-3 mb-3">
       <div class="col-md-6 col-sm-12">
         <form>

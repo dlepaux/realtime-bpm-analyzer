@@ -2,9 +2,7 @@
   <navigation></navigation>
   <div class="d-flex flex-grow-1 flex-column">
     <div class="flex-grow-1 bg-white">
-      <div class="container mt-3">
-        <router-view></router-view>
-      </div>
+      <router-view></router-view>
     </div>
     <end-of-page></end-of-page>
   </div>

@@ -1,58 +1,62 @@
 <template>
-  <h1>User Media</h1>
+  <div class="container mt-3">
+    <h1>User Media</h1>
 
-  <p class="lead">
-    Exemple of the usage of the analyzer with a <code>MediaStreamSource</code> (microphone).
-  </p>
+    <p class="lead">
+      Exemple of the usage of the analyzer with a <code>MediaStreamSource</code> (microphone).
+    </p>
 
-  <hr>
-
-  <p class="text-center">
-    <button v-if="isRecording" class="btn btn-lg btn-primary" @click="stopRecording">
-      <i class="bi bi-record-fill"></i> Stop Recording
-    </button>
-    <button v-if="!isRecording" class="btn btn-lg btn-primary" @click="listenMicrophone">
-      <i class="bi bi-soundwave"></i> Detect BPM with your Microphone
-    </button>
-
-    <br>
-
-    <small class="text-muted" data-bs-toggle="collapse" data-bs-target="#help" aria-expanded="false" aria-controls="help">
-      More info
-    </small>
-  </p>
-
-  <div class="collapse alert alert-warning mb-3" id="help">
-    Start the experiment by clicking the button above, then you may have an alert to allow access to your microphone.<br>
-    If you do not have the alert, it means either that you already gave access to it or you have an issue with your material.<br>
     <hr>
-    You can emulate the behaviour of a microphone by looping back your output as an input to your machine to detect BPM of what you're listening right now.
-    <ul>
-      <li>On Windows envrionment Enable the <strong>stereoMix</strong> in your audio params to emulate the behaviour of a micro.</li>
-      <li>On MacOS you can use <em>LoopBack</em> to put the output of Chrome on your micro input.</li>
-    </ul>
+
+    <p class="text-center">
+      <button v-if="isRecording" class="btn btn-lg btn-primary" @click="stopRecording">
+        <i class="bi bi-record-fill"></i> Stop Recording
+      </button>
+      <button v-if="!isRecording" class="btn btn-lg btn-primary" @click="listenMicrophone">
+        <i class="bi bi-soundwave"></i> Detect BPM with your Microphone
+      </button>
+
+      <br>
+
+      <small class="text-muted" data-bs-toggle="collapse" data-bs-target="#help" aria-expanded="false" aria-controls="help">
+        More info
+      </small>
+    </p>
+
+    <div class="collapse alert alert-warning mb-3" id="help">
+      Start the experiment by clicking the button above, then you may have an alert to allow access to your microphone.<br>
+      If you do not have the alert, it means either that you already gave access to it or you have an issue with your material.<br>
+      <hr>
+      You can emulate the behaviour of a microphone by looping back your output as an input to your machine to detect BPM of what you're listening right now.
+      <ul>
+        <li>On Windows envrionment Enable the <strong>stereoMix</strong> in your audio params to emulate the behaviour of a micro.</li>
+        <li>On MacOS you can use <em>LoopBack</em> to put the output of Chrome on your micro input.</li>
+      </ul>
+    </div>
   </div>
 
   <frequency-bar-graph ref="graph" :bufferLength="bufferLength" :dataArray="dataArray"></frequency-bar-graph>
 
-  <div class="d-flex justify-content-center mt-3 mb-5">
-    <div class="card col-lg-6 col-md-8 col-sm-10">
-      <div class="card-body text-center">
-        <span class="display-6">
-          <span>First Candidate BPM {{ firstCandidateTempo }}</span>
+  <div class="container mt-3">
+    <div class="d-flex justify-content-center mt-3 mb-5">
+      <div class="card col-lg-6 col-md-8 col-sm-10">
+        <div class="card-body text-center">
+          <span class="display-6">
+            <span>First Candidate BPM {{ firstCandidateTempo }}</span>
+            <br>
+            <span class="text-muted">Second Candidate BPM {{ secondCandidateTempo }}</span>
+            <br>
+            <i class="bi bi-soundwave"></i>
+            <br>
+            <span class="text-muted">Current Thresold {{ formattedCurrentThresold }}</span>
+          </span>
           <br>
-          <span class="text-muted">Second Candidate BPM {{ secondCandidateTempo }}</span>
+          <small class="text-muted">High thresold (between 0.30 and 0.90) means stable BPM.</small>
           <br>
-          <i class="bi bi-soundwave"></i>
+          <small class="text-muted">First Candidate Count {{ firstCandidateCount }}</small>
           <br>
-          <span class="text-muted">Current Thresold {{ formattedCurrentThresold }}</span>
-        </span>
-        <br>
-        <small class="text-muted">High thresold (between 0.30 and 0.90) means stable BPM.</small>
-        <br>
-        <small class="text-muted">First Candidate Count {{ firstCandidateCount }}</small>
-        <br>
-        <small class="text-muted">Second Candidate Count {{ secondCandidateCount }}</small>
+          <small class="text-muted">Second Candidate Count {{ secondCandidateCount }}</small>
+        </div>
       </div>
     </div>
   </div>

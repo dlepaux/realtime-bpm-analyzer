@@ -10,8 +10,10 @@
   <audio :src="defaultStreamEndpoint" crossorigin="anonymous" ref="music" class="w-100" controls></audio>
 
   <div class="mt-2">
-    <p class="alert alert-info">
-      The analyzer needs the music to be played ! Press the button below to play and analyze the music sample.
+    <p class="text-center">
+      <button class="btn btn-primary" @click="analyzeBpm" :disabled="analyzing">
+        <i class="bi bi-play-circle"></i> Play and Analyze BPM
+      </button>
     </p>
 
     <div class="row mb-3">
@@ -41,14 +43,8 @@
             <div id="stabilizationTimeDescription" class="form-text">BPM will be considered as stable after this time</div>
           </div>
 
-          <p class="alert alert-secondary">You might need to reload the page if you change the parameters during an analysis.</p>
+          <p class="alert alert-secondary">Those parameters are used at the initialization of the tool.</p>
         </form>
-
-        <p class="text-center">
-          <button class="btn btn-primary" @click="analyzeBpm" :disabled="analyzing">
-            <i class="bi bi-play-circle"></i>Play and Analyze BPM
-          </button>
-        </p>
       </div>
 
       <div class="col-md-6 col-sm-12">

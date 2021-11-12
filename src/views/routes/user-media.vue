@@ -7,17 +7,19 @@
 
   <hr>
 
-  <p class="alert alert-warning">
-    The exemple will be started once you clicked on the button below, then you may have an alert to allow access to your microphone.<br>
+  <div class="alert alert-warning mb-3">
+    Start the experiment by clicking the button below, then you may have an alert to allow access to your microphone.<br>
     If you do not have the alert, it means either that you already gave access to it or you have an issue with your material.<br>
+    <hr>
+    You can emulate the behaviour of a microphone by looping back your output as an input to your machine to detect BPM of what you're listening right now.
     <ul>
       <li>On Windows envrionment Enable the <strong>stereoMix</strong> in your audio params to emulate the behaviour of a micro.</li>
       <li>On MacOS you can use <em>LoopBack</em> to put the output of Chrome on your micro input.</li>
     </ul>
-  </p>
+  </div>
 
   <p class="text-center">
-    <button class="btn btn-lg btn-primary" @click="listenMicrophone"><i class="bi bi-soundwave"></i> Detect BPM</button>
+    <button class="btn btn-lg btn-primary" @click="listenMicrophone"><i class="bi bi-soundwave"></i> Detect BPM from your Microphone</button>
   </p>
 
   <div>
@@ -135,14 +137,14 @@
         context.fillStyle = 'rgb(0, 0, 0)';
         context.fillRect(0, 0, this.parentWidth, this.canvasHeight);
 
-        var barWidth = (this.parentWidth / this.bufferLength) * 2.5;
-        var barHeight;
-        var x = 0;
+        const barWidth = (this.parentWidth / this.bufferLength) * 2.5;
+        let barHeight;
+        let x = 0;
 
-        for (var i = 0; i < this.bufferLength; i++) {
+        for (let i = 0; i < this.bufferLength; i++) {
           barHeight = this.dataArray[i] / 2;
 
-          context.fillStyle = 'rgb(' + (barHeight+100) + ',50,50)';
+          context.fillStyle = `rgba(100, 206, 170, ${(barHeight / this.canvasHeight).toFixed(2)})`;
           context.fillRect(x, this.canvasHeight - barHeight / 2, barWidth, barHeight);
 
           x += barWidth + 1;
@@ -171,8 +173,8 @@
         /**
          * Analyzer
          */
-        this.analyzer = this.audioContext.createAnalyzer();
-        this.analyzer.fftSize = 256;
+        this.analyzer = this.audioContext.createAnalyser();
+        this.analyzer.fftSize = 1024;
         this.bufferLength = this.analyzer.frequencyBinCount;
         console.log(this.bufferLength);
         this.dataArray = new Uint8Array(this.bufferLength);

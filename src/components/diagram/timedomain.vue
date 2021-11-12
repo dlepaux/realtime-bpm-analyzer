@@ -122,7 +122,7 @@
       },
       animate() {
         this.sourceNode = this.audioContext.createBufferSource();
-        this.analyzerNode = this.audioContext.createAnalyzer();
+        this.analyzerNode = this.audioContext.createAnalyser();
         this.scriptProcessor = this.audioContext.createScriptProcessor(2048, 1, 1);
 
         /**

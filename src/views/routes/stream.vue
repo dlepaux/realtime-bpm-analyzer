@@ -89,7 +89,7 @@
         currentCount: 0,
         analyzing: false,
         scriptProcessorNode: null,
-        realtimeBpmAnalyzer: null,
+        realTimeBPMAnalyzer: null,
         // Controlable
         defaultStreamEndpoint: 'https://zaycevfm.cdnvideo.ru/ZaycevFM_zaychata_256.mp3',
         computeBPMDelay: 5000,
@@ -134,7 +134,7 @@
         /**
          * Insternciate RealTimeBPMAnalyzer
          */
-        this.realtimeBpmAnalyzer = new RealTimeBPMAnalyzer({
+        this.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
           debug: true,
           scriptNode: {
             bufferSize: 4096,
@@ -169,7 +169,7 @@
        * Audio Process
        */
       onAudioProcess(event) {
-        this.realtimeBpmAnalyzer.analyze(event);
+        this.realTimeBPMAnalyzer.analyze(event);
       },
     },
     beforeUnmount() {
@@ -190,7 +190,7 @@
         this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
       }
 
-      this.realtimeBpmAnalyzer = null;
+      this.realTimeBPMAnalyzer = null;
     }
   };
 </script>

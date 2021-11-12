@@ -7,14 +7,13 @@
   import requestAnimationFrame from 'raf';
 
   import * as consts from '../../consts.js';
-  import audioContextMixin from '../../mixins/audio-context.js';
   import audioManager from '../../mixins/audio-manager.js';
   import {RealTimeBPMAnalyzer} from '../../../lib/realtime-bpm-analyzer.js';
 
   export default {
     emits: ['update:thresold', 'update:bpm', 'music:ended'],
-    name: 'Timeserie',
-    mixins: [audioContextMixin, audioManager],
+    name: 'TimeDomain',
+    mixins: [audioManager],
     props: {
       audioContext: {
         type: Object,
@@ -56,9 +55,9 @@
         audioPlaying: false,
         filter: null,
         sourceNode: null,
-        analyserNode: null,
+        analyzerNode: null,
         scriptProcessor: null,
-        realtimeBpmAnalyzer: null,
+        realTimeBPMAnalyzer: null,
         canvasHeight: 100,
         maxWidth: 1024,
       }
@@ -74,10 +73,10 @@
     },
     mounted() {
       /**
-       * We will use the realtimeBpmAnalyzer to illustrate how it's working
+       * We will use the realTimeBPMAnalyzer to illustrate how it's working
        */
       if (!this.isLowPass) {
-        this.realtimeBpmAnalyzer = new RealTimeBPMAnalyzer({
+        this.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
           debug: true,
           scriptNode: {
             bufferSize: 2048,
@@ -104,13 +103,13 @@
       },
       onAudioProcess(event) {
         if (!this.isLowPass) {
-          this.realtimeBpmAnalyzer.analyze(event);
+          this.realTimeBPMAnalyzer.analyze(event);
         }
 
         /**
          * Get the Time Domain data for this sample
          */
-        this.analyserNode.getByteTimeDomainData(this.dataArray);
+        this.analyzerNode.getByteTimeDomainData(this.dataArray);
 
         /**
          * Draw the display if the audio is playing
@@ -123,13 +122,13 @@
       },
       animate() {
         this.sourceNode = this.audioContext.createBufferSource();
-        this.analyserNode = this.audioContext.createAnalyser();
+        this.analyzerNode = this.audioContext.createAnalyzer();
         this.scriptProcessor = this.audioContext.createScriptProcessor(2048, 1, 1);
 
         /**
          * Create the array for the data values, to hold time domain data
          */
-        this.dataArray = new Uint8Array(this.analyserNode.frequencyBinCount);
+        this.dataArray = new Uint8Array(this.analyzerNode.frequencyBinCount);
 
         /**
          * Now connect the nodes together add lowerPassFilter on the canvas
@@ -140,12 +139,12 @@
           this.filter = this.audioContext.createBiquadFilter();
           this.filter.type = 'lowpass';
           this.sourceNode.connect(this.filter);
-          this.filter.connect(this.analyserNode);
+          this.filter.connect(this.analyzerNode);
         } else {
-          this.sourceNode.connect(this.analyserNode);
+          this.sourceNode.connect(this.analyzerNode);
         }
 
-        this.analyserNode.connect(this.scriptProcessor);
+        this.analyzerNode.connect(this.scriptProcessor);
         this.scriptProcessor.connect(this.audioContext.destination);
 
         /**
@@ -180,12 +179,12 @@
 
         if (this.isLowPass) {
           this.sourceNode.disconnect(this.filter);
-          this.filter.disconnect(this.analyserNode);
+          this.filter.disconnect(this.analyzerNode);
         } else {
-          this.sourceNode.disconnect(this.analyserNode);
+          this.sourceNode.disconnect(this.analyzerNode);
         }
 
-        this.analyserNode.disconnect(this.scriptProcessor);
+        this.analyzerNode.disconnect(this.scriptProcessor);
         this.scriptProcessor.disconnect(this.audioContext.destination);
 
         /**
@@ -197,9 +196,9 @@
 
         // this.filter = null;
         // this.sourceNode = null;
-        // this.analyserNode = null;
+        // this.analyzerNode = null;
 
-        // this.realtimeBpmAnalyzer = null;
+        // this.realTimeBPMAnalyzer = null;
 
         if (this.scriptProcessorNode) {
           this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);

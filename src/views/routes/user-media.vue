@@ -53,7 +53,7 @@
 
   import * as consts from '../../consts.js';
   import audioContextMixin from '../../mixins/audio-context.js';
-  import {RealTimeBPMAnalyser} from '../../../lib/realtime-bpm-analyser.js';
+  import {RealTimeBPMAnalyzer} from '../../../lib/realtime-bpm-analyzer.js';
 
   export default {
     name: 'UserMedia',
@@ -61,12 +61,12 @@
     data() {
       return {
         stopRecoreding: false,
-        analyser: null,
+        analyzer: null,
         bufferLength: null,
         dataArray: null,
         mediaStreamSource: null,
         scriptProcessorNode: null,
-        realTimeBPMAnalyser: null,
+        realTimeBPMAnalyzer: null,
         exampleMusicFile: consts.exampleMusicFile,
         currentThresold: 0,
         firstCandidateTempo: 0,
@@ -107,7 +107,7 @@
        * Reset
        */
       this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
-      this.realTimeBPMAnalyser = null;
+      this.realTimeBPMAnalyzer = null;
     },
     computed: {
       parentWidth() {
@@ -131,7 +131,7 @@
 
         context.clearRect(0, 0, this.parentWidth, this.canvasHeight);
   
-        this.analyser.getByteFrequencyData(this.dataArray);
+        this.analyzer.getByteFrequencyData(this.dataArray);
         context.fillStyle = 'rgb(0, 0, 0)';
         context.fillRect(0, 0, this.parentWidth, this.canvasHeight);
 
@@ -171,9 +171,9 @@
         /**
          * Analyzer
          */
-        this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 256;
-        this.bufferLength = this.analyser.frequencyBinCount;
+        this.analyzer = this.audioContext.createAnalyzer();
+        this.analyzer.fftSize = 256;
+        this.bufferLength = this.analyzer.frequencyBinCount;
         console.log(this.bufferLength);
         this.dataArray = new Uint8Array(this.bufferLength);
 
@@ -190,14 +190,14 @@
         /**
          * Connect everythings together (do not connect input to this.audioContext.destination to avoid sound looping)
          */
-        this.mediaStreamSource.connect(this.analyser);
+        this.mediaStreamSource.connect(this.analyzer);
         this.mediaStreamSource.connect(this.scriptProcessorNode);
         this.scriptProcessorNode.connect(this.audioContext.destination);
 
         /**
-         * Insternciate RealTimeBPMAnalyser
+         * Insternciate RealTimeBPMAnalyzer
          */
-        this.realTimeBPMAnalyser = new RealTimeBPMAnalyser({
+        this.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
           debug: true,
           scriptNode: {
             bufferSize: 4096,
@@ -218,7 +218,7 @@
             }
           },
           onBpmStabilized: (thresold) => {
-            this.realTimeBPMAnalyser.clearValidPeaks(thresold);
+            this.realTimeBPMAnalyzer.clearValidPeaks(thresold);
           }
         });
 
@@ -231,7 +231,7 @@
        * Audio Process
        */
       onAudioProcess(event) {
-        this.realTimeBPMAnalyser.analyze(event);
+        this.realTimeBPMAnalyzer.analyze(event);
 
         /**
          * Animate what we here from the microphone

@@ -61,7 +61,7 @@
         currentCount: 0,
         analyzing: false,
         scriptProcessorNode: null,
-        realtimeBpmAnalyzer: null,
+        realTimeBPMAnalyzer: null,
         exampleMusicFile: consts.exampleMusicFile
       };
     },
@@ -107,7 +107,7 @@
         /**
          * Insternciate RealTimeBPMAnalyzer
          */
-        this.realtimeBpmAnalyzer = new RealTimeBPMAnalyzer({
+        this.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
           debug: true,
           scriptNode: {
             bufferSize: 4096,
@@ -139,7 +139,7 @@
        * Audio Process
        */
       onAudioProcess(event) {
-        this.realtimeBpmAnalyzer.analyze(event);
+        this.realTimeBPMAnalyzer.analyze(event);
       },
       /**
        * On music (audio node) ended
@@ -156,7 +156,7 @@
         this.analyzing = false;
         this.music.removeEventListener('ended', this.onEnded);
         this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
-        this.realtimeBpmAnalyzer = null;
+        this.realTimeBPMAnalyzer = null;
       }
     }
   };

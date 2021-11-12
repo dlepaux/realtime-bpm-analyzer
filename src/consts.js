@@ -24,7 +24,7 @@ source.connect(audioContext.destination);
 
 export const usageStepThree = `import RealTimeBPMAnalyzer from 'realtime-bpm-analyzer';
 
-const realtimeBpmAnalyzer = new RealTimeBPMAnalyzer({
+const realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
   scriptNode: {
     bufferSize: 4096
   },
@@ -36,6 +36,6 @@ const realtimeBpmAnalyzer = new RealTimeBPMAnalyzer({
 
 // Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
 scriptProcessorNode.addEventListener('audioprocess', event => {
-  realtimeBpmAnalyzer.analyze(event);
+  realTimeBPMAnalyzer.analyze(event);
 });
 `;

@@ -4,11 +4,13 @@ export const routeExemples = {
   stream: 'Stream',
 };
 
-export const exampleMusicFile = '/media/new_order-blue_monday.mp3';
+export const publicPath = process.env.NODE_ENV === 'production' ? '/realtime-bpm-analyzer/' : '/';
+
+export const exampleMusicFile = '{publicPath}$media/new_order-blue_monday.mp3';
 
 export const installationCommand = 'npm install realtime-bpm-analyzer';
 
-export const usageStepOne = '<audio src="/media/new_order-blue_monday.mp3" id="music"></audio>';
+export const usageStepOne = '<audio src="{publicPath}$media/new_order-blue_monday.mp3" id="music"></audio>';
 
 export const usageStepTwo = `// Create new instance of AudioContext
 const audioContext = new AudioContext();

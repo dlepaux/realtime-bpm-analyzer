@@ -22,7 +22,7 @@
   ],
   "type": "module",
   "license": "MIT",
-  "main": "./dist/realtime-bpn-analyzer.js",
+  "main": "./dist/realtime-bpm-analyzer.js",
   "scripts": {
     "build": "npm run doc && vue-cli-service build",
     "esbuild": "esbuild lib/realtime-bpm-analyzer.js --bundle --platform=node --sourcemap --target=node10 --outfile=dist/realtime-bpm-analyzer.js",

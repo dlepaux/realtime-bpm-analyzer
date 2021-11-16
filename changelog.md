@@ -13,7 +13,6 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### Bug Fixes
 
-* harmonize the usage of analyse to analyze ([85cc5bb](https://github.com/dlepaux/realtime-bpm-analyzer/commit/85cc5bb7eba0936ae00e458b75e3aa95319c1a02))
 * publicPath for github pages ([0231494](https://github.com/dlepaux/realtime-bpm-analyzer/commit/023149482743fdaba2c5776668ec9d1ce7390924))
 * publicPath for github pages ([d7a235c](https://github.com/dlepaux/realtime-bpm-analyzer/commit/d7a235cd480b07d96d1f79e26bf7c5ffd3d1a257))
 * publicPath for github pages ([c6a273d](https://github.com/dlepaux/realtime-bpm-analyzer/commit/c6a273d439569a10a08427334c195e4aa6750937))
@@ -46,11 +45,10 @@ All notable changes to this project will be documented in this file. See [standa
 
 * revert require process ([6db526f](https://github.com/dlepaux/realtime-bpm-analyzer/commit/6db526f2f15ca2a50418aa0c809ad1b917f9b488))
 
-# CHANGELOG
 
-### v1.0.5
+### 1.0.5
 - Fix bugs
 - Optimisations
 
-### v1.0.0
+### 1.0.0
 - Analyze in realtime BPM/Tempo on audio/video node

@@ -10,7 +10,7 @@ test
 .commitlintrc.cjs
 .editorconfig
 .gitignore
-.jsodc.json
+.jsdoc.json
 .npmignore
 .versionrc.json
 changelog.md

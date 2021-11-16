@@ -6,6 +6,7 @@ coverage
 
 # Documentation
 dist
+github-pages
 public/api
 
 # Others

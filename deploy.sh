@@ -5,10 +5,9 @@ set -e
 
 # Build
 npm run build
-npm run doc:dist
 
 # Navigate into the build output directory
-cd dist
+cd github-pages
 
 git init
 git add -A

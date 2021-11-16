@@ -4,9 +4,9 @@ export default {
   mixins: [audioContextMixin],
   methods: {
     /**
-     * Load the audio from the URL via Ajax and store it in global variable audioData
+     * Load the audio from the URL through AJAX
      * Note that the audio load is asynchronous
-     * @param {string} url URL
+     * @param {string} url URL of the audio file
      */
     loadSound(url) {
       const request = new window.XMLHttpRequest();
@@ -36,7 +36,10 @@ export default {
        */
       context.sourceNode.start(0);
 
-      // Context.sourceNode.loop = true;
+      /**
+       * You can loop the song with:
+       * context.sourceNode.loop = true;
+       */
 
       context.audioPlaying = true;
     },

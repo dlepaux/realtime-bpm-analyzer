@@ -1,10 +1,11 @@
 import {Container, Collapse} from 'react-bootstrap';
 import React, {Component} from 'react';
-import Head from 'next/head';
+import Head from 'next/head.js';
+import requestAnimationFrame from 'raf';
 
-import FrequencyBarGraph from '../components/frequency-bar-graph';
-import {RealTimeBPMAnalyzer} from '../../lib/realtime-bpm-analyzer';
-import * as consts from '../consts';
+import FrequencyBarGraph from '../components/frequency-bar-graph.js';
+import {RealTimeBPMAnalyzer} from '../../lib/realtime-bpm-analyzer.js';
+import * as consts from '../consts.js';
 
 export default class extends Component {
   constructor(props) {
@@ -36,11 +37,11 @@ export default class extends Component {
       secondCandidateCount: 0,
       // Stream (microphone)
       stream: null,
-    }
+    };
   }
 
   async listenMicrophone() {
-    this.state.audioContext = this.state.audioContext || consts.AudioContext();
+    this.state.audioContext = this.state.audioContext || consts.getAudioContext();
     await this.state.audioContext.resume();
 
     this.state.isRecording = true;
@@ -88,11 +89,11 @@ export default class extends Component {
       return;
     }
 
-    this.state.stream.getTracks().forEach(track => {
+    for (const track of this.state.stream.getTracks()) {
       if (track.readyState === 'live') {
         track.stop();
       }
-    });
+    }
   }
 
   async onStream(stream) {
@@ -143,7 +144,7 @@ export default class extends Component {
           return;
         }
 
-        if (bpm && bpm.length) {
+        if (bpm && bpm.length > 0) {
           this.state.currentThresold = thresold;
           this.state.firstCandidateTempo = bpm[0].tempo;
           this.state.firstCandidateCount = bpm[0].count;
@@ -152,9 +153,9 @@ export default class extends Component {
           this.setState({...this.state});
         }
       },
-      onBpmStabilized: (thresold) => {
+      onBpmStabilized: thresold => {
         this.state.realTimeBPMAnalyzer.clearValidPeaks(thresold);
-      }
+      },
     });
 
     /**
@@ -185,78 +186,78 @@ export default class extends Component {
   }
 
   render() {
-    return <>
-      <Head>
-        <title>Microphone usage example | Realtime Bpm Analyzer</title>
-        <meta name="description" content="Example using the Microphone (UserMedia) of the user. Detect the BPM arround you !"/>
-      </Head>
-      <Container className="pt-3">
-        <h1>User Media</h1>
+    return (
+      <>
+        <Head>
+          <title>Microphone usage example | Realtime Bpm Analyzer</title>
+          <meta name="description" content="Example using the Microphone (UserMedia) of the user. Detect the BPM arround you !"/>
+        </Head>
+        <Container className="pt-3">
+          <h1>User Media</h1>
 
-        <div className="lead">
-          Exemple of the usage of the analyzer with a <code>MediaStreamSource</code> (microphone).
-        </div>
+          <div className="lead">
+            Exemple of the usage of the analyzer with a <code>MediaStreamSource</code> (microphone).
+          </div>
 
-        <hr/>
+          <hr/>
 
-        <div className="text-center">
-          {this.state.isRecording &&
-            <button className="btn btn-lg btn-primary" onClick={this.stopRecording.bind(this)}>
-              <i className="bi bi-record-fill"></i> Stop Recording
-            </button>
-          }
-          {!this.state.isRecording &&
-            <button className="btn btn-lg btn-primary" onClick={this.listenMicrophone.bind(this)}>
-              <i className="bi bi-soundwave"></i> Detect BPM with your Microphone
-            </button>
-          }
+          <div className="text-center">
+            {this.state.isRecording
+            && <button className="btn btn-lg btn-primary" onClick={this.stopRecording.bind(this)}>
+              <i className="bi bi-record-fill"/> Stop Recording
+            </button>}
+            {!this.state.isRecording
+            && <button className="btn btn-lg btn-primary" onClick={this.listenMicrophone.bind(this)}>
+              <i className="bi bi-soundwave"/> Detect BPM with your Microphone
+            </button>}
 
-          <br/>
+            <br/>
 
-          <small onClick={this.toggleCollapse.bind(this)} className="text-muted" aria-expanded={this.state.open} aria-controls="help">More info</small>
-        </div>
+            <small className="text-muted" aria-expanded={this.state.open} aria-controls="help" onClick={this.toggleCollapse.bind(this)}>More info</small>
+          </div>
 
-        <Collapse in={this.state.open}>
-          <div id="help">
-            <div className="alert alert-dark">
-              Start the experiment by clicking the button above, then you may have an alert to allow access to your microphone.<br/>
-              If you do not have the alert, it means either that you already gave access to it or you have an issue with your material.<br/>
-              <hr/>
-              You can emulate the behaviour of a microphone by looping back your output as an input to your machine to detect BPM of what you're listening right now.
-              <ul>
-                <li>On Windows envrionment Enable the <strong>stereoMix</strong> in your audio params to emulate the behaviour of a micro.</li>
-                <li>On MacOS you can use <em>LoopBack</em> to put the output of Chrome on your micro input.</li>
-              </ul>
+          <Collapse in={this.state.open}>
+            <div id="help">
+              <div className="alert alert-dark">
+                Start the experiment by clicking the button above, then you may have an alert to allow access to your microphone.<br/>
+                If you do not have the alert, it means either that you already gave access to it or you have an issue with your material.<br/>
+                <hr/>
+                You can emulate the behaviour of a microphone by looping back your output as an input to your machine to detect BPM of what you're listening right now.
+                <ul>
+                  <li>On Windows envrionment Enable the <strong>stereoMix</strong> in your audio params to emulate the behaviour of a micro.</li>
+                  <li>On MacOS you can use <em>LoopBack</em> to put the output of Chrome on your micro input.</li>
+                </ul>
+              </div>
+            </div>
+          </Collapse>
+        </Container>
+
+        <FrequencyBarGraph ref={this.graph} bufferLength={this.state.bufferLength} dataArray={this.state.dataArray}/>
+
+        <Container>
+          <div className="d-flex justify-content-center pt-5 pb-5">
+            <div className="card bg-dark col-lg-6 col-md-8 col-sm-10">
+              <div className="card-body text-center">
+                <span className="display-6">
+                  <span>First Candidate BPM {this.state.firstCandidateTempo}</span>
+                  <br/>
+                  <span className="text-muted">Second Candidate BPM {this.state.secondCandidateTempo}</span>
+                  <br/>
+                  <i className="bi bi-soundwave"/>
+                  <br/>
+                  <span className="text-muted">Current Thresold {this.state.formattedCurrentThresold}</span>
+                </span>
+                <br/>
+                <small className="text-muted">High thresold (between 0.30 and 0.90) means stable BPM.</small>
+                <br/>
+                <small className="text-muted">First Candidate Count {this.state.firstCandidateCount}</small>
+                <br/>
+                <small className="text-muted">Second Candidate Count {this.state.secondCandidateCount}</small>
+              </div>
             </div>
           </div>
-        </Collapse>
-      </Container>
-
-      <FrequencyBarGraph ref={this.graph} bufferLength={this.state.bufferLength} dataArray={this.state.dataArray}></FrequencyBarGraph>
-
-      <Container>
-        <div className="d-flex justify-content-center pt-5 pb-5">
-          <div className="card bg-dark col-lg-6 col-md-8 col-sm-10">
-            <div className="card-body text-center">
-              <span className="display-6">
-                <span>First Candidate BPM {this.state.firstCandidateTempo}</span>
-                <br/>
-                <span className="text-muted">Second Candidate BPM {this.state.secondCandidateTempo}</span>
-                <br/>
-                <i className="bi bi-soundwave"></i>
-                <br/>
-                <span className="text-muted">Current Thresold {this.state.formattedCurrentThresold}</span>
-              </span>
-              <br/>
-              <small className="text-muted">High thresold (between 0.30 and 0.90) means stable BPM.</small>
-              <br/>
-              <small className="text-muted">First Candidate Count {this.state.firstCandidateCount}</small>
-              <br/>
-              <small className="text-muted">Second Candidate Count {this.state.secondCandidateCount}</small>
-            </div>
-          </div>
-        </div>
-      </Container>
-    </>
+        </Container>
+      </>
+    );
   }
 }

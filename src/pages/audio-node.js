@@ -1,10 +1,11 @@
 import {Container, Collapse} from 'react-bootstrap';
 import React, {Component} from 'react';
-import Head from 'next/head';
+import Head from 'next/head.js';
+import requestAnimationFrame from 'raf';
 
-import FrequencyBarGraph from '../components/frequency-bar-graph';
-import {RealTimeBPMAnalyzer} from '../../lib/realtime-bpm-analyzer';
-import * as consts from '../consts';
+import FrequencyBarGraph from '../components/frequency-bar-graph.js';
+import {RealTimeBPMAnalyzer} from '../../lib/realtime-bpm-analyzer.js';
+import * as consts from '../consts.js';
 
 export default class extends Component {
   constructor(props) {
@@ -44,7 +45,7 @@ export default class extends Component {
     /**
      * Resumes the progression of time in an audio context that has previously been suspended/paused.
      */
-    this.state.audioContext = this.state.audioContext || consts.AudioContext();
+    this.state.audioContext = this.state.audioContext || consts.getAudioContext();
     await this.state.audioContext.resume();
 
     /**
@@ -65,7 +66,7 @@ export default class extends Component {
     this.state.bufferLength = this.state.analyzer.frequencyBinCount;
     this.state.dataArray = new Uint8Array(this.state.bufferLength);
     this.setState({
-      ...this.state
+      ...this.state,
     });
 
     /**
@@ -101,15 +102,15 @@ export default class extends Component {
           return;
         }
 
-        if (typeof bpm[0] != 'undefined') {
+        if (typeof bpm[0] !== 'undefined') {
           this.state.currentTempo = bpm[0].tempo;
           this.state.currentCount = bpm[0].count;
 
           this.setState({
-            ...this.state
+            ...this.state,
           });
         }
-      }
+      },
     });
 
     /**
@@ -149,7 +150,7 @@ export default class extends Component {
     this.state.currentCount = 0;
 
     this.setState({
-      ...this.state
+      ...this.state,
     });
   }
 
@@ -165,7 +166,7 @@ export default class extends Component {
     requestAnimationFrame(() => {
       this.state.analyzer.getByteFrequencyData(this.state.dataArray);
       this.setState({
-        ...this.state
+        ...this.state,
       });
       this.graph.current.drawFrequencyBarGraph();
     });
@@ -175,66 +176,68 @@ export default class extends Component {
     this.state.open = !this.state.open;
 
     this.setState({
-      ...this.state
+      ...this.state,
     });
   }
-  
+
   render() {
-    return <>
-      <Head>
-        <title>AudioNode usage example | Realtime Bpm Analyzer</title>
-        <meta name="description" content="Example using the Realtime BPM Analyzer on an audio node."/>
-      </Head>
-      <Container className="pt-3">
-        <h1>Audio Node</h1>
+    return (
+      <>
+        <Head>
+          <title>AudioNode usage example | Realtime Bpm Analyzer</title>
+          <meta name="description" content="Example using the Realtime BPM Analyzer on an audio node."/>
+        </Head>
+        <Container className="pt-3">
+          <h1>Audio Node</h1>
 
-        <div className="lead">
-          Exemple of the usage of the analyzer with an <code>&lt;audio&gt;</code> node.
-        </div>
-
-        <hr/>
-
-        <audio src={consts.exampleMusicFile} ref={this.music} className="w-100" controls></audio>
-
-        <div className="pt-2">
-          <div className="text-center">
-            <button className="btn btn-lg btn-primary" onClick={this.analyzeBpm.bind(this)} onEnded={this.onEnded} disabled={this.state.isAnalyzing}>
-              <i className="bi bi-play-circle"></i> Detect BPM from audio node
-            </button>
-
-            <br/>
-
-            <small onClick={this.toggleCollapse.bind(this)} className="text-muted" aria-expanded={this.state.open} aria-controls="help">More info</small>
+          <div className="lead">
+            Exemple of the usage of the analyzer with an <code>&lt;audio&gt;</code> node.
           </div>
 
-          <Collapse in={this.state.open}>
-            <div id="help">
-              <p className="alert alert-dark">
-                Start the experiment by clicking the button above, it will play and analyze the music sample.<br/>
-                A stable and robust result will be provided after couple of seconds and is expected to be around <strong>131</strong> beats per minute.
-              </p>
+          <hr/>
+
+          <audio ref={this.music} controls src={consts.exampleMusicFile} className="w-100"/>
+
+          <div className="pt-2">
+            <div className="text-center">
+              <button type="button" className="btn btn-lg btn-primary" disabled={this.state.isAnalyzing} onClick={this.analyzeBpm.bind(this)} onEnded={this.onEnded}>
+                <i className="bi bi-play-circle"/> Detect BPM from audio node
+              </button>
+
+              <br/>
+
+              <small className="text-muted" aria-expanded={this.state.open} aria-controls="help" onClick={this.toggleCollapse.bind(this)}>More info</small>
             </div>
-          </Collapse>
-        </div>
-      </Container>
 
-      <FrequencyBarGraph ref={this.graph} bufferLength={this.state.bufferLength} dataArray={this.state.dataArray}></FrequencyBarGraph>
+            <Collapse in={this.state.open}>
+              <div id="help">
+                <p className="alert alert-dark">
+                  Start the experiment by clicking the button above, it will play and analyze the music sample.<br/>
+                  A stable and robust result will be provided after couple of seconds and is expected to be around <strong>131</strong> beats per minute.
+                </p>
+              </div>
+            </Collapse>
+          </div>
+        </Container>
 
-      <Container>
-        <div className="d-flex justify-content-center pt-5 pb-5">
-          <div className="card bg-dark col-lg-6 col-md-8 col-sm-10">
-            <div className="card-body text-center">
-              <span className="display-6">
-                Current BPM <span>{this.state.currentTempo}</span>
-                <br/>
-                <i className="bi bi-soundwave"></i>
-                <br/>
-                <span className="text-muted">Expected BPM 131</span>
-              </span>
+        <FrequencyBarGraph ref={this.graph} bufferLength={this.state.bufferLength} dataArray={this.state.dataArray}/>
+
+        <Container>
+          <div className="d-flex justify-content-center pt-5 pb-5">
+            <div className="card bg-dark col-lg-6 col-md-8 col-sm-10">
+              <div className="card-body text-center">
+                <span className="display-6">
+                  Current BPM <span>{this.state.currentTempo}</span>
+                  <br/>
+                  <i className="bi bi-soundwave"/>
+                  <br/>
+                  <span className="text-muted">Expected BPM 131</span>
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      </Container>
-    </>
+        </Container>
+      </>
+    );
   }
 }

@@ -1,22 +1,22 @@
-import React, {Component} from 'react';
+import React from 'react';
 
-export default class extends Component {
+export default class extends React.Component {
   constructor(props) {
     super(props);
     this.canvas = React.createRef();
     this.state = {
       parentWidth: 200,
       canvasHeight: 100,
-      bufferLength: props.bufferLength, 
+      bufferLength: props.bufferLength,
       dataArray: props.dataArray,
     };
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.state.parentWidth = this.canvas.current.parentNode.offsetWidth;
 
     this.setState({
-      ...this.state
+      ...this.state,
     });
   }
 
@@ -48,10 +48,12 @@ export default class extends Component {
       x += barWidth + 1;
     }
   }
-  
+
   render() {
-    return <div className="canvas-container">
-      <canvas ref={this.canvas} height={this.state.canvasHeight} width={this.state.parentWidth} className="bg-dark"></canvas>
-    </div>
+    return (
+      <div className="canvas-container">
+        <canvas ref={this.canvas} height={this.state.canvasHeight} width={this.state.parentWidth} className="bg-dark"/>
+      </div>
+    );
   }
 }

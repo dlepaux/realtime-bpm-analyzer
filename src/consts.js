@@ -4,7 +4,7 @@ export const routeExemples = {
   stream: 'Stream',
 };
 
-export const AudioContext = () => new (window.AudioContext || window.mozAudioContext || window.webkitAudioContext)();
+export const getAudioContext = () => new (window.AudioContext || window.mozAudioContext || window.webkitAudioContext)();
 
 export const publicPath = process.env.NODE_ENV === 'production' ? '/realtime-bpm-analyzer/' : '/';
 

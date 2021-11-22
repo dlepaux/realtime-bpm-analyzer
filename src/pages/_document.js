@@ -1,5 +1,5 @@
-import Document, {Html, Head, Main, NextScript} from 'next/document';
-import Script from 'next/script';
+import React from 'react';
+import {Document, Script} from 'next';
 
 class MyDocument extends Document {
   static async getInitialProps(context) {
@@ -9,33 +9,36 @@ class MyDocument extends Document {
 
   render() {
     return (
-      <Html>
-        <Head>
+      <Document.Html>
+        <Document.Head>
           <meta charset="utf-8"/>
           <meta httpEquiv="X-UA-Compatible" content="IE=edge"/>
-          <meta name="viewport" content="width=device-width,initial-scale=1.0"></meta>
-          <link rel="icon" href="/favicon.png"></link>
+          <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+          <link rel="icon" href="/favicon.png"/>
           <title>Realtime Bpm Analyzer</title>
 
           {/* Global site tag (gtag.js) - Google Analytics */}
-          <Script async src="https://www.googletagmanager.com/gtag/js?id=G-PXQ4D05F0B" onLoad={() => {
-            window.dataLayer = window.dataLayer || [];
+          <Script
+            async
+            src="https://www.googletagmanager.com/gtag/js?id=G-PXQ4D05F0B"
+            onLoad={() => {
+              window.dataLayer = window.dataLayer || [];
 
-            function gtag() {
-              dataLayer.push(arguments);
-            }
+              function gtag() {
+                window.dataLayer.push(arguments);
+              }
 
-            gtag('js', new Date());
-            gtag('config', 'G-PXQ4D05F0B');
-          }}/>
-        </Head>
+              gtag('js', new Date());
+              gtag('config', 'G-PXQ4D05F0B');
+            }}/>
+        </Document.Head>
         <body>
-          <Main/>
-          <NextScript/>
+          <Document.Main/>
+          <Document.NextScript/>
         </body>
-      </Html>
+      </Document.Html>
     );
   }
 }
 
-export default MyDocument
+export default MyDocument;

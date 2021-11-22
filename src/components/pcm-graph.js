@@ -1,12 +1,10 @@
-import React, {Component} from 'react';
-
-export default class extends Component {
+import React from 'react';
+import requestAnimationFrame from 'raf';
+export default class extends React.Component {
   constructor(props) {
     super(props);
     this.canvas = React.createRef();
-    this.state = {
-
-    };
+    this.state = {};
   }
 
   onAudioProcess(event) {
@@ -101,7 +99,7 @@ export default class extends Component {
      * Reset data
      */
     this.dataArray = new Uint8Array();
-    // this.audioData = null;
+    // This.audioData = null;
     // this.audioPlaying = false;
 
     // this.filter = null;
@@ -163,8 +161,10 @@ export default class extends Component {
   }
 
   render() {
-    return <div style={{height: '100px'}}>
-      <canvas ref={this.canvas} height={this.state.canvasHeight} width={this.state.parentWidth} className="bg-dark"></canvas>
-    </div>
+    return (
+      <div style={{height: '100px'}}>
+        <canvas ref={this.canvas} height={this.state.canvasHeight} width={this.state.parentWidth} className="bg-dark"/>
+      </div>
+    );
   }
 }

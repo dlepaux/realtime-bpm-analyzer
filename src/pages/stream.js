@@ -1,17 +1,15 @@
 import {Container} from 'react-bootstrap';
-import React, {Component} from 'react';
-import Head from 'next/head';
+import React from 'react';
+import {Head} from 'next';
+import requestAnimationFrame from 'raf';
 
-import FrequencyBarGraph from '../components/frequency-bar-graph';
-import {RealTimeBPMAnalyzer} from '../../lib/realtime-bpm-analyzer';
-import * as consts from '../consts';
+import FrequencyBarGraph from '../components/frequency-bar-graph.js';
+import {RealTimeBPMAnalyzer} from '../../lib/realtime-bpm-analyzer.js';
+import * as consts from '../consts.js';
 
-export default class extends Component {
+export default class StreamPage extends React.Component {
   constructor(props) {
     super(props);
-    this.music = React.createRef(null);
-    this.graph = React.createRef(null);
-
     this.state = {
       // Flag
       isAnalyzing: false,
@@ -35,6 +33,8 @@ export default class extends Component {
       currentTempo: 0,
       currentCount: 0,
     };
+    this.music = React.createRef(null);
+    this.graph = React.createRef(null);
   }
 
   async analyzeBpm() {
@@ -61,7 +61,7 @@ export default class extends Component {
     this.state.bufferLength = this.state.analyzer.frequencyBinCount;
     this.state.dataArray = new Uint8Array(this.state.bufferLength);
     this.setState({
-      ...this.state
+      ...this.state,
     });
 
     /**
@@ -100,15 +100,15 @@ export default class extends Component {
           return;
         }
 
-        if (typeof bpm[0] != 'undefined') {
+        if (typeof bpm[0] !== 'undefined') {
           this.state.currentTempo = bpm[0].tempo;
           this.state.currentCount = bpm[0].count;
 
           this.setState({
-            ...this.state
+            ...this.state,
           });
         }
-      }
+      },
     });
 
     /**
@@ -134,7 +134,7 @@ export default class extends Component {
     requestAnimationFrame(() => {
       this.state.analyzer.getByteFrequencyData(this.state.dataArray);
       this.setState({
-        ...this.state
+        ...this.state,
       });
       this.graph.current.drawFrequencyBarGraph();
     });
@@ -161,78 +161,81 @@ export default class extends Component {
   }
 
   render() {
-    return <>
-      <Head>
-        <title>Stream usage example | Realtime Bpm Analyzer</title>
-        <meta name="description" content="Example using the Realtime BPM Analyzer on a stream. This example allows you to test any stream and configure the analyzer."/>
-      </Head>
-      <Container className="pt-3">
-        <h1>Stream</h1>
+    return (
+      <>
+        <Head>
+          <title>Stream usage example | Realtime Bpm Analyzer</title>
+          <meta name="description" content="Example using the Realtime BPM Analyzer on a stream. This example allows you to test any stream and configure the analyzer."/>
+        </Head>
+        <Container className="pt-3">
+          <h1>Stream</h1>
 
-        <div className="lead">
-          Exemple of the usage of the analyzer with a <code>Stream</code>.
-        </div>
-
-        <hr/>
-
-        <audio src={this.state.defaultStreamEndpoint} crossOrigin="anonymous" ref={this.music} className="w-100" controls></audio>
-
-        <div className="mt-2">
-          <p className="text-center">
-            <button className="btn btn-lg btn-primary" onClick={this.analyzeBpm.bind(this)} disabled={this.state.isAnalyzing}>
-              <i className="bi bi-play-circle"></i> Play and Analyze BPM
-            </button>
-          </p>
-        </div>
-      </Container>
-
-      <FrequencyBarGraph ref={this.graph} bufferLength={this.state.bufferLength} dataArray={this.state.dataArray}></FrequencyBarGraph>
-
-      <Container className="pt-3">
-        <div className="row mt-3 mb-3">
-          <div className="col-md-6 col-sm-12">
-            <form>
-              <div className="mb-3">
-                <label htmlFor="streamEndpoint" className="form-label">Stream Endpoint</label>
-                <input type="text" className="form-control" id="streamEndpoint" aria-describedby="streamEndpointDescription" value={this.state.defaultStreamEndpoint} onChange={this.onChangeStreamEndpoint.bind(this)}/>
-                <div id="streamEndpointDescription" className="form-text">Stream endpoint analyzed by the library</div>
-              </div>
-
-              <div className="mb-3">
-                <label htmlFor="pushTime" className="form-label">Push Time ({this.state.pushTime} milliseconds)</label>
-                <input type="range" className="form-range" min="100" max="5000" step="100" id="pushTime" aria-describedby="pushTimeDescription" value={this.state.pushTime} onChange={this.onChangePushTime.bind(this)}/>
-                <div id="pushTimeDescription" className="form-text">BPM will be computed at each tick of {this.state.pushTime} milliseconds</div>
-              </div>
-
-              <div className="mb-3">
-                <label htmlFor="computeBPMDelay" className="form-label">Compute BPM Delay ({this.state.computeBPMDelay} milliseconds)</label>
-                <input type="range" className="form-range" min="1000" max="20000" step="1000" id="computeBPMDelay" aria-describedby="computeBPMDelayDescription" value={this.state.computeBPMDelay} onChange={this.onChangeComputeBPMDelay.bind(this)}/>
-                <div id="computeBPMDelayDescription" className="form-text">BPM computation will start after this delay</div>
-              </div>
-
-              <div className="mb-3">
-                <label htmlFor="stabilizationTime" className="form-label">Stabilization Time ({this.state.stabilizationTime} milliseconds)</label>
-                <input type="range" className="form-range" min="10000" max="60000" step="1000" id="stabilizationTime" aria-describedby="stabilizationTimeDescription" value={this.state.stabilizationTime} onChange={this.onChangeStabilizationTime.bind(this)}/>
-                <div id="stabilizationTimeDescription" className="form-text">BPM will be considered as stable after this time</div>
-              </div>
-
-              <p className="alert alert-secondary">Those parameters are used at the initialization of the tool.</p>
-            </form>
+          <div className="lead">
+            Exemple of the usage of the analyzer with a <code>Stream</code>.
           </div>
 
-          <div className="col-md-6 col-sm-12">
-            <div className="d-flex h-100 align-items-start justify-content-center">
-              <div className="card bg-dark mb-3">
-                <div className="card-body text-center">
-                  <span className="display-6">Current BPM <span>{this.state.currentTempo}</span>
-                  <br/>
-                  <i className="bi bi-soundwave"></i></span>
+          <hr/>
+
+          <audio ref={this.music} controls src={this.state.defaultStreamEndpoint} crossOrigin="anonymous" className="w-100"/>
+
+          <div className="mt-2">
+            <p className="text-center">
+              <button className="btn btn-lg btn-primary" disabled={this.state.isAnalyzing} onClick={this.analyzeBpm.bind(this)}>
+                <i className="bi bi-play-circle"/> Play and Analyze BPM
+              </button>
+            </p>
+          </div>
+        </Container>
+
+        <FrequencyBarGraph ref={this.graph} bufferLength={this.state.bufferLength} dataArray={this.state.dataArray}/>
+
+        <Container className="pt-3">
+          <div className="row mt-3 mb-3">
+            <div className="col-md-6 col-sm-12">
+              <form>
+                <div className="mb-3">
+                  <label htmlFor="streamEndpoint" className="form-label">Stream Endpoint</label>
+                  <input type="text" className="form-control" id="streamEndpoint" aria-describedby="streamEndpointDescription" value={this.state.defaultStreamEndpoint} onChange={this.onChangeStreamEndpoint.bind(this)}/>
+                  <div id="streamEndpointDescription" className="form-text">Stream endpoint analyzed by the library</div>
+                </div>
+
+                <div className="mb-3">
+                  <label htmlFor="pushTime" className="form-label">Push Time ({this.state.pushTime} milliseconds)</label>
+                  <input type="range" className="form-range" min="100" max="5000" step="100" id="pushTime" aria-describedby="pushTimeDescription" value={this.state.pushTime} onChange={this.onChangePushTime.bind(this)}/>
+                  <div id="pushTimeDescription" className="form-text">BPM will be computed at each tick of {this.state.pushTime} milliseconds</div>
+                </div>
+
+                <div className="mb-3">
+                  <label htmlFor="computeBPMDelay" className="form-label">Compute BPM Delay ({this.state.computeBPMDelay} milliseconds)</label>
+                  <input type="range" className="form-range" min="1000" max="20000" step="1000" id="computeBPMDelay" aria-describedby="computeBPMDelayDescription" value={this.state.computeBPMDelay} onChange={this.onChangeComputeBPMDelay.bind(this)}/>
+                  <div id="computeBPMDelayDescription" className="form-text">BPM computation will start after this delay</div>
+                </div>
+
+                <div className="mb-3">
+                  <label htmlFor="stabilizationTime" className="form-label">Stabilization Time ({this.state.stabilizationTime} milliseconds)</label>
+                  <input type="range" className="form-range" min="10000" max="60000" step="1000" id="stabilizationTime" aria-describedby="stabilizationTimeDescription" value={this.state.stabilizationTime} onChange={this.onChangeStabilizationTime.bind(this)}/>
+                  <div id="stabilizationTimeDescription" className="form-text">BPM will be considered as stable after this time</div>
+                </div>
+
+                <p className="alert alert-secondary">Those parameters are used at the initialization of the tool.</p>
+              </form>
+            </div>
+
+            <div className="col-md-6 col-sm-12">
+              <div className="d-flex h-100 align-items-start justify-content-center">
+                <div className="card bg-dark mb-3">
+                  <div className="card-body text-center">
+                    <span className="display-6">Current BPM <span>{this.state.currentTempo}</span>
+                      <br/>
+                      <i className="bi bi-soundwave"/>
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </Container>
-    </>
+        </Container>
+      </>
+    );
   }
-};
+}

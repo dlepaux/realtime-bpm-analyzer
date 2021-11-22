@@ -1,5 +1,6 @@
 .github
 .husky
+.next
 coverage
 github-pages
 lib

@@ -1,0 +1,109 @@
+/**
+ * Vendor
+ */
+// Configuration
+@import "~bootstrap/scss/functions";
+@import "~bootstrap/scss/variables";
+
+/**
+ * Variables override
+ */
+$form-range-track-bg: rgba(255, 255, 255, 0.1);
+
+@import "~bootstrap/scss/mixins";
+@import "~bootstrap/scss/utilities";
+
+// Layout & components
+@import "~bootstrap/scss/root";
+@import "~bootstrap/scss/reboot";
+@import "~bootstrap/scss/type";
+@import "~bootstrap/scss/images";
+@import "~bootstrap/scss/containers";
+@import "~bootstrap/scss/grid";
+@import "~bootstrap/scss/tables";
+@import "~bootstrap/scss/forms";
+@import "~bootstrap/scss/buttons";
+@import "~bootstrap/scss/transitions";
+@import "~bootstrap/scss/dropdown";
+@import "~bootstrap/scss/button-group";
+@import "~bootstrap/scss/nav";
+@import "~bootstrap/scss/navbar";
+@import "~bootstrap/scss/card";
+@import "~bootstrap/scss/accordion";
+@import "~bootstrap/scss/breadcrumb";
+@import "~bootstrap/scss/pagination";
+@import "~bootstrap/scss/badge";
+@import "~bootstrap/scss/alert";
+@import "~bootstrap/scss/progress";
+@import "~bootstrap/scss/list-group";
+@import "~bootstrap/scss/close";
+@import "~bootstrap/scss/toasts";
+@import "~bootstrap/scss/modal";
+@import "~bootstrap/scss/tooltip";
+@import "~bootstrap/scss/popover";
+@import "~bootstrap/scss/carousel";
+@import "~bootstrap/scss/spinners";
+@import "~bootstrap/scss/offcanvas";
+@import "~bootstrap/scss/placeholders";
+
+// Helpers
+@import "~bootstrap/scss/helpers";
+
+// Utilities
+@import "~bootstrap/scss/utilities/api";
+@import "~bootstrap-icons/font/bootstrap-icons.scss";
+
+$green: #03CC57;
+$blue: #3C43C1;
+// 64CEAA
+$allegro-primary-background: $green;
+$allegro-primary-color: darken($green, 10%);
+
+.btn-primary {
+  @include button-variant(#3C43C1, darken(#3C43C1, 10%));
+}
+
+.form-control {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: transparent;
+  @extend .text-light;
+
+  &:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/**
+ * Components
+ */
+@import "./components/github-corner";
+
+/**
+ * Global
+ */
+html,
+body,
+#root,
+#app {
+  background-color: #22272e;
+  color: rgb(173, 186, 199);
+  height: 100%;
+  min-height: 100%;
+}
+
+h2 {
+  padding-bottom: .3em;
+  margin-top: .5rem;
+  border-bottom: 1px solid #373e47;
+}
+
+pre code.hljs {
+  background: #2d333b;
+  border-radius: 6px;
+}
+
+.canvas-container {
+  border-top: 1px solid rgba(0, 0, 0, 0.125);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+  height: 102px;
+}

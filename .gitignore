@@ -10,4 +10,5 @@ github-pages
 public/api
 
 # Others
+.next
 *.DS_Store

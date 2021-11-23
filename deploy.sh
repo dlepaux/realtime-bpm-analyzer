@@ -4,7 +4,7 @@
 set -e
 
 # Build
-npm run build
+npm run export
 
 # Navigate into the build output directory
 cd github-pages

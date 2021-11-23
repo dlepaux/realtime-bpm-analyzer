@@ -1,3 +1,3 @@
 module.exports = {
-  // Prefer loading of ES Modules over CommonJS
+  basePath: process.env.NODE_ENV === 'production' ? '/realtime-bpm-analyzer/' : '/',
 };

@@ -27,6 +27,7 @@
     "build": "npm run doc && next build",
     "start": "next start",
     "lint": "next lint",
+    "export": "npm run build && next export -o github-pages",
     "esbuild": "esbuild lib/realtime-bpm-analyzer.js --bundle --platform=node --sourcemap --target=node10 --outfile=dist/realtime-bpm-analyzer.js",
     "serve": "npm run doc && vue-cli-service serve",
     "coverage": "codecov",

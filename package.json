@@ -73,6 +73,7 @@
     "xo": "^0.45.0"
   },
   "xo": {
+    "extends": "xo-react",
     "space": 2,
     "semicolon": true,
     "globals": [
@@ -82,6 +83,8 @@
       "window"
     ],
     "rules": {
+      "react/state-in-constructor": [2, "always"],
+      "react/prop-types": "off",
       "unicorn/no-array-reduce": "off",
       "node/prefer-global/process": 0,
       "unicorn/numeric-separators-style": "off",

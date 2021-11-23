@@ -1,6 +1,6 @@
 import {Container} from 'react-bootstrap';
 import React from 'react';
-import {Head} from 'next';
+import Head from 'next/head.js';
 import requestAnimationFrame from 'raf';
 
 import FrequencyBarGraph from '../components/frequency-bar-graph.js';
@@ -10,20 +10,23 @@ import * as consts from '../consts.js';
 export default class StreamPage extends React.Component {
   constructor(props) {
     super(props);
+
+    // Analyzer
+    this.analyzer = null;
+    this.bufferLength = null;
+    // AudioContext
+    this.audioContext = null;
+    // Audio Source
+    this.source = null;
+    // RealTimeAnalyzer
+    this.scriptProcessorNode = null;
+    this.realTimeBPMAnalyzer = null;
+
     this.state = {
       // Flag
       isAnalyzing: false,
       // Analyzer
-      analyzer: null,
-      bufferLength: null,
       dataArray: null,
-      // AudioContext
-      audioContext: null,
-      // Audio Source
-      source: null,
-      // RealTimeAnalyzer
-      scriptProcessorNode: null,
-      realTimeBPMAnalyzer: null,
       // RealTimeAnalyzer Controlable
       defaultStreamEndpoint: 'https://zaycevfm.cdnvideo.ru/ZaycevFM_zaychata_256.mp3',
       computeBPMDelay: 5000,
@@ -31,10 +34,16 @@ export default class StreamPage extends React.Component {
       pushTime: 1000,
       // RealTimeAnalyzer Results
       currentTempo: 0,
-      currentCount: 0,
     };
     this.music = React.createRef(null);
     this.graph = React.createRef(null);
+
+    this.analyzeBpm = this.analyzeBpm.bind(this);
+    this.onAudioProcess = this.onAudioProcess.bind(this);
+    this.onChangeStreamEndpoint = this.onChangeStreamEndpoint.bind(this);
+    this.onChangePushTime = this.onChangePushTime.bind(this);
+    this.onChangeComputeBPMDelay = this.onChangeComputeBPMDelay.bind(this);
+    this.onChangeStabilizationTime = this.onChangeStabilizationTime.bind(this);
   }
 
   async analyzeBpm() {
@@ -45,47 +54,44 @@ export default class StreamPage extends React.Component {
     /**
      * Resumes the progression of time in an audio context that has previously been suspended/paused.
      */
-    this.state.audioContext = this.state.audioContext || consts.AudioContext();
-    await this.state.audioContext.resume();
+    this.audioContext = this.audioContext || consts.getAudioContext();
+    await this.audioContext.resume();
 
     /**
      * Turn the isAnalyzing to true to avoid multiple plays
      */
-    this.state.isAnalyzing = true;
+    this.setState({isAnalyzing: true});
 
     /**
      * Analyzer
      */
-    this.state.analyzer = this.state.audioContext.createAnalyser();
-    this.state.analyzer.fftSize = 1024;
-    this.state.bufferLength = this.state.analyzer.frequencyBinCount;
-    this.state.dataArray = new Uint8Array(this.state.bufferLength);
-    this.setState({
-      ...this.state,
-    });
+    this.analyzer = this.audioContext.createAnalyser();
+    this.analyzer.fftSize = 1024;
+    this.bufferLength = this.analyzer.frequencyBinCount;
+    this.setState({dataArray: new Uint8Array(this.bufferLength)});
 
     /**
      * Set the source with the HTML Audio Node
      */
-    this.state.source = this.state.audioContext.createMediaElementSource(this.music.current);
+    this.source = this.source || this.audioContext.createMediaElementSource(this.music.current);
 
     /**
      * Set the scriptProcessorNode to get PCM data in real time
      */
-    this.state.scriptProcessorNode = this.state.audioContext.createScriptProcessor(4096, 1, 1);
+    this.scriptProcessorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
 
     /**
      * Connect everythings together
      */
-    this.state.source.connect(this.state.analyzer);
-    this.state.scriptProcessorNode.connect(this.state.audioContext.destination);
-    this.state.source.connect(this.state.scriptProcessorNode);
-    this.state.source.connect(this.state.audioContext.destination);
+    this.source.connect(this.analyzer);
+    this.scriptProcessorNode.connect(this.audioContext.destination);
+    this.source.connect(this.scriptProcessorNode);
+    this.source.connect(this.audioContext.destination);
 
     /**
      * Insternciate RealTimeBPMAnalyzer
      */
-    this.state.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
+    this.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
       debug: true,
       scriptNode: {
         bufferSize: 4096,
@@ -101,12 +107,7 @@ export default class StreamPage extends React.Component {
         }
 
         if (typeof bpm[0] !== 'undefined') {
-          this.state.currentTempo = bpm[0].tempo;
-          this.state.currentCount = bpm[0].count;
-
-          this.setState({
-            ...this.state,
-          });
+          this.setState({currentTempo: bpm[0].tempo});
         }
       },
     });
@@ -114,7 +115,7 @@ export default class StreamPage extends React.Component {
     /**
      * Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
      */
-    this.state.scriptProcessorNode.addEventListener('audioprocess', this.onAudioProcess.bind(this));
+    this.scriptProcessorNode.addEventListener('audioprocess', this.onAudioProcess);
 
     /**
      * Play music to analyze the BPM
@@ -126,38 +127,64 @@ export default class StreamPage extends React.Component {
    * Audio Process
    */
   onAudioProcess(event) {
-    this.state.realTimeBPMAnalyzer.analyze(event);
+    this.realTimeBPMAnalyzer.analyze(event);
 
     /**
      * Animate what we here from the microphone
      */
     requestAnimationFrame(() => {
-      this.state.analyzer.getByteFrequencyData(this.state.dataArray);
-      this.setState({
-        ...this.state,
-      });
+      this.analyzer.getByteFrequencyData(this.state.dataArray);
+      this.setState(state => state);
       this.graph.current.drawFrequencyBarGraph();
     });
   }
 
   onChangeStreamEndpoint(event) {
-    this.state.defaultStreamEndpoint = event.target.value;
-    this.setState({...this.state});
+    this.setState({defaultStreamEndpoint: event.target.value});
+    this.restartAnalyzer();
   }
 
   onChangePushTime(event) {
-    this.state.pushTime = event.target.value;
-    this.setState({...this.state});
+    this.setState({pushTime: event.target.value});
+    this.restartAnalyzer();
   }
 
   onChangeComputeBPMDelay(event) {
-    this.state.computeBPMDelay = event.target.value;
-    this.setState({...this.state});
+    this.setState({computeBPMDelay: event.target.value});
+    this.restartAnalyzer();
   }
 
   onChangeStabilizationTime(event) {
-    this.state.stabilizationTime = event.target.value;
-    this.setState({...this.state});
+    this.setState({stabilizationTime: event.target.value});
+    this.restartAnalyzer();
+  }
+
+  async restartAnalyzer() {
+    if (!this.state.isAnalyzing) {
+      return;
+    }
+
+    await this.audioContext.suspend();
+
+    /**
+     * Disconnect everything
+     */
+    this.source.disconnect();
+    this.scriptProcessorNode.disconnect();
+    this.analyzer.disconnect();
+
+    /**
+     * Reset
+     */
+    this.setState({isAnalyzing: false});
+    this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
+    this.realTimeBPMAnalyzer = null;
+    this.setState({currentTempo: 0});
+
+    /**
+     * Restart
+     */
+    this.analyzeBpm();
   }
 
   render() {
@@ -180,14 +207,14 @@ export default class StreamPage extends React.Component {
 
           <div className="mt-2">
             <p className="text-center">
-              <button className="btn btn-lg btn-primary" disabled={this.state.isAnalyzing} onClick={this.analyzeBpm.bind(this)}>
+              <button type="button" className="btn btn-lg btn-primary" disabled={this.state.isAnalyzing} onClick={this.analyzeBpm}>
                 <i className="bi bi-play-circle"/> Play and Analyze BPM
               </button>
             </p>
           </div>
         </Container>
 
-        <FrequencyBarGraph ref={this.graph} bufferLength={this.state.bufferLength} dataArray={this.state.dataArray}/>
+        <FrequencyBarGraph ref={this.graph} bufferLength={this.bufferLength} dataArray={this.state.dataArray}/>
 
         <Container className="pt-3">
           <div className="row mt-3 mb-3">
@@ -195,29 +222,27 @@ export default class StreamPage extends React.Component {
               <form>
                 <div className="mb-3">
                   <label htmlFor="streamEndpoint" className="form-label">Stream Endpoint</label>
-                  <input type="text" className="form-control" id="streamEndpoint" aria-describedby="streamEndpointDescription" value={this.state.defaultStreamEndpoint} onChange={this.onChangeStreamEndpoint.bind(this)}/>
+                  <input type="text" className="form-control" id="streamEndpoint" aria-describedby="streamEndpointDescription" value={this.state.defaultStreamEndpoint} onChange={this.onChangeStreamEndpoint}/>
                   <div id="streamEndpointDescription" className="form-text">Stream endpoint analyzed by the library</div>
                 </div>
 
                 <div className="mb-3">
                   <label htmlFor="pushTime" className="form-label">Push Time ({this.state.pushTime} milliseconds)</label>
-                  <input type="range" className="form-range" min="100" max="5000" step="100" id="pushTime" aria-describedby="pushTimeDescription" value={this.state.pushTime} onChange={this.onChangePushTime.bind(this)}/>
+                  <input type="range" className="form-range" min="100" max="5000" step="100" id="pushTime" aria-describedby="pushTimeDescription" value={this.state.pushTime} onChange={this.onChangePushTime}/>
                   <div id="pushTimeDescription" className="form-text">BPM will be computed at each tick of {this.state.pushTime} milliseconds</div>
                 </div>
 
                 <div className="mb-3">
                   <label htmlFor="computeBPMDelay" className="form-label">Compute BPM Delay ({this.state.computeBPMDelay} milliseconds)</label>
-                  <input type="range" className="form-range" min="1000" max="20000" step="1000" id="computeBPMDelay" aria-describedby="computeBPMDelayDescription" value={this.state.computeBPMDelay} onChange={this.onChangeComputeBPMDelay.bind(this)}/>
+                  <input type="range" className="form-range" min="1000" max="20000" step="1000" id="computeBPMDelay" aria-describedby="computeBPMDelayDescription" value={this.state.computeBPMDelay} onChange={this.onChangeComputeBPMDelay}/>
                   <div id="computeBPMDelayDescription" className="form-text">BPM computation will start after this delay</div>
                 </div>
 
                 <div className="mb-3">
                   <label htmlFor="stabilizationTime" className="form-label">Stabilization Time ({this.state.stabilizationTime} milliseconds)</label>
-                  <input type="range" className="form-range" min="10000" max="60000" step="1000" id="stabilizationTime" aria-describedby="stabilizationTimeDescription" value={this.state.stabilizationTime} onChange={this.onChangeStabilizationTime.bind(this)}/>
+                  <input type="range" className="form-range" min="10000" max="60000" step="1000" id="stabilizationTime" aria-describedby="stabilizationTimeDescription" value={this.state.stabilizationTime} onChange={this.onChangeStabilizationTime}/>
                   <div id="stabilizationTimeDescription" className="form-text">BPM will be considered as stable after this time</div>
                 </div>
-
-                <p className="alert alert-secondary">Those parameters are used at the initialization of the tool.</p>
               </form>
             </div>
 

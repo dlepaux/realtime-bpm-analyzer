@@ -1,4 +1,5 @@
-import {Head, Link} from 'next';
+import Head from 'next/head.js';
+import Link from 'next/link.js';
 import React from 'react';
 import Highlight from 'react-highlight';
 import {Container} from 'react-bootstrap';

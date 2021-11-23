@@ -1,5 +1,6 @@
 import React from 'react';
-import {Document, Script} from 'next';
+import Document, {Html, Head, Main, NextScript} from 'next/document.js';
+import Script from 'next/script.js';
 
 class MyDocument extends Document {
   static async getInitialProps(context) {
@@ -9,8 +10,8 @@ class MyDocument extends Document {
 
   render() {
     return (
-      <Document.Html>
-        <Document.Head>
+      <Html>
+        <Head>
           <meta charset="utf-8"/>
           <meta httpEquiv="X-UA-Compatible" content="IE=edge"/>
           <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -31,12 +32,12 @@ class MyDocument extends Document {
               gtag('js', new Date());
               gtag('config', 'G-PXQ4D05F0B');
             }}/>
-        </Document.Head>
+        </Head>
         <body>
-          <Document.Main/>
-          <Document.NextScript/>
+          <Main/>
+          <NextScript/>
         </body>
-      </Document.Html>
+      </Html>
     );
   }
 }

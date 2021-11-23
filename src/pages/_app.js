@@ -18,8 +18,8 @@ const App = ({Component, pageProps}) => (
 );
 
 App.propTypes = {
-  Component: PropTypes.element,
-  pageProps: PropTypes.object,
+  Component: PropTypes.any.isRequired,
+  pageProps: PropTypes.any.isRequired,
 };
 
 export default App;

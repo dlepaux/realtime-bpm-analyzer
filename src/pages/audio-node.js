@@ -12,6 +12,16 @@ export default class extends Component {
     super(props);
     this.music = React.createRef(null);
     this.graph = React.createRef(null);
+    // AudioContext
+    this.audioContext = null;
+    // Analyzer
+    this.analyzer = null;
+    this.bufferLength = null;
+    // Audio Source
+    this.source = null;
+    // RealTimeAnalyzer
+    this.scriptProcessorNode = null;
+    this.realTimeBPMAnalyzer = null;
 
     this.state = {
       // Collapse
@@ -19,22 +29,13 @@ export default class extends Component {
       // Flag
       isAnalyzing: false,
       // Analyzer
-      analyzer: null,
-      bufferLength: null,
       dataArray: null,
-      // AudioContext
-      audioContext: null,
-      // Audio Source
-      source: null,
-      // RealTimeAnalyzer
-      scriptProcessorNode: null,
-      realTimeBPMAnalyzer: null,
       // RealTimeAnalyzer Results
       currentTempo: 0,
-      currentCount: 0,
-      // Expose consts
-      exampleMusicFile: consts.exampleMusicFile,
     };
+
+    this.analyzeBpm = this.analyzeBpm.bind(this);
+    this.toggleCollapse = this.toggleCollapse.bind(this);
   }
 
   async analyzeBpm() {
@@ -45,13 +46,13 @@ export default class extends Component {
     /**
      * Resumes the progression of time in an audio context that has previously been suspended/paused.
      */
-    this.state.audioContext = this.state.audioContext || consts.getAudioContext();
-    await this.state.audioContext.resume();
+    this.audioContext = this.audioContext || consts.getAudioContext();
+    await this.audioContext.resume();
 
     /**
      * Turn the isAnalyzing to true to avoid multiple plays
      */
-    this.state.isAnalyzing = true;
+    this.setState({isAnalyzing: true});
 
     /**
      * Wait the end of the music to reset
@@ -61,36 +62,33 @@ export default class extends Component {
     /**
      * Analyzer
      */
-    this.state.analyzer = this.state.audioContext.createAnalyser();
-    this.state.analyzer.fftSize = 1024;
-    this.state.bufferLength = this.state.analyzer.frequencyBinCount;
-    this.state.dataArray = new Uint8Array(this.state.bufferLength);
-    this.setState({
-      ...this.state,
-    });
+    this.analyzer = this.audioContext.createAnalyser();
+    this.analyzer.fftSize = 1024;
+    this.bufferLength = this.analyzer.frequencyBinCount;
+    this.setState({dataArray: new Uint8Array(this.bufferLength)});
 
     /**
      * Set the source with the HTML Audio Node
      */
-    this.state.source = this.state.source || this.state.audioContext.createMediaElementSource(this.music.current);
+    this.source = this.source || this.audioContext.createMediaElementSource(this.music.current);
 
     /**
      * Set the scriptProcessorNode to get PCM data in real time
      */
-    this.state.scriptProcessorNode = this.state.audioContext.createScriptProcessor(4096, 1, 1);
+    this.scriptProcessorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
 
     /**
      * Connect everythings together
      */
-    this.state.source.connect(this.state.analyzer);
-    this.state.scriptProcessorNode.connect(this.state.audioContext.destination);
-    this.state.source.connect(this.state.scriptProcessorNode);
-    this.state.source.connect(this.state.audioContext.destination);
+    this.source.connect(this.analyzer);
+    this.scriptProcessorNode.connect(this.audioContext.destination);
+    this.source.connect(this.scriptProcessorNode);
+    this.source.connect(this.audioContext.destination);
 
     /**
      * Insternciate RealTimeBPMAnalyzer
      */
-    this.state.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
+    this.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
       debug: true,
       scriptNode: {
         bufferSize: 4096,
@@ -103,12 +101,7 @@ export default class extends Component {
         }
 
         if (typeof bpm[0] !== 'undefined') {
-          this.state.currentTempo = bpm[0].tempo;
-          this.state.currentCount = bpm[0].count;
-
-          this.setState({
-            ...this.state,
-          });
+          this.setState({currentTempo: bpm[0].tempo});
         }
       },
     });
@@ -116,7 +109,7 @@ export default class extends Component {
     /**
      * Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
      */
-    this.state.scriptProcessorNode.addEventListener('audioprocess', this.onAudioProcess.bind(this));
+    this.scriptProcessorNode.addEventListener('audioprocess', this.onAudioProcess.bind(this));
 
     /**
      * Play music to analyze the BPM
@@ -131,52 +124,44 @@ export default class extends Component {
     /**
      * Closes the audio context, releasing any system audio resources that it uses.
      */
-    await this.state.audioContext.suspend();
+    await this.audioContext.suspend();
 
     /**
      * Disconnect everything
      */
-    this.state.source.disconnect();
-    this.state.scriptProcessorNode.disconnect();
-    this.state.analyzer.disconnect();
+    this.source.disconnect();
+    this.scriptProcessorNode.disconnect();
+    this.analyzer.disconnect();
 
     /**
      * Reset
      */
-    this.state.isAnalyzing = false;
-    this.state.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
-    this.state.realTimeBPMAnalyzer = null;
-    this.state.currentTempo = 0;
-    this.state.currentCount = 0;
-
-    this.setState({
-      ...this.state,
-    });
+    this.setState({isAnalyzing: false});
+    this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
+    this.realTimeBPMAnalyzer = null;
+    this.setState({currentTempo: 0});
   }
 
   /**
    * Audio Process
    */
   onAudioProcess(event) {
-    this.state.realTimeBPMAnalyzer.analyze(event);
+    this.realTimeBPMAnalyzer.analyze(event);
 
     /**
      * Animate what we here from the microphone
      */
     requestAnimationFrame(() => {
-      this.state.analyzer.getByteFrequencyData(this.state.dataArray);
-      this.setState({
-        ...this.state,
-      });
+      this.analyzer.getByteFrequencyData(this.state.dataArray);
+      this.setState(state => state);
       this.graph.current.drawFrequencyBarGraph();
     });
   }
 
   toggleCollapse() {
-    this.state.open = !this.state.open;
-
-    this.setState({
-      ...this.state,
+    this.setState(state => {
+      state.open = !state.open;
+      return state;
     });
   }
 
@@ -200,13 +185,13 @@ export default class extends Component {
 
           <div className="pt-2">
             <div className="text-center">
-              <button type="button" className="btn btn-lg btn-primary" disabled={this.state.isAnalyzing} onClick={this.analyzeBpm.bind(this)} onEnded={this.onEnded}>
+              <button type="button" className="btn btn-lg btn-primary" disabled={this.state.isAnalyzing} onClick={this.analyzeBpm} onEnded={this.onEnded}>
                 <i className="bi bi-play-circle"/> Detect BPM from audio node
               </button>
 
               <br/>
 
-              <small className="text-muted" aria-expanded={this.state.open} aria-controls="help" onClick={this.toggleCollapse.bind(this)}>More info</small>
+              <small className="text-muted" aria-expanded={this.state.open} aria-controls="help" onClick={this.toggleCollapse}>More info</small>
             </div>
 
             <Collapse in={this.state.open}>
@@ -220,7 +205,7 @@ export default class extends Component {
           </div>
         </Container>
 
-        <FrequencyBarGraph ref={this.graph} bufferLength={this.state.bufferLength} dataArray={this.state.dataArray}/>
+        <FrequencyBarGraph ref={this.graph} bufferLength={this.bufferLength} dataArray={this.state.dataArray}/>
 
         <Container>
           <div className="d-flex justify-content-center pt-5 pb-5">

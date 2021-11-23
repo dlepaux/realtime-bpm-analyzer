@@ -13,36 +13,42 @@ export default class extends Component {
     this.music = React.createRef(null);
     this.graph = React.createRef(null);
 
+    // Analyzer
+    this.analyzer = null;
+    this.bufferLength = null;
+    // AudioContext
+    this.audioContext = null;
+    // Audio Source
+    this.mediaStreamSource = null;
+    // RealTimeAnalyzer
+    this.scriptProcessorNode = null;
+    this.realTimeBPMAnalyzer = null;
+    // Stream (microphone)
+    this.stream = null;
+
     this.state = {
       // Collapse
       open: false,
       // Flag
       isRecording: false,
       // Analyzer
-      analyzer: null,
-      bufferLength: null,
       dataArray: null,
-      // AudioContext
-      audioContext: null,
-      // Audio Source
-      mediaStreamSource: null,
-      // RealTimeAnalyzer
-      scriptProcessorNode: null,
-      realTimeBPMAnalyzer: null,
       // RealTimeAnalyzer Results
-      currentThresold: 0,
       firstCandidateTempo: 0,
       firstCandidateCount: 0,
       secondCandidateTempo: 0,
       secondCandidateCount: 0,
-      // Stream (microphone)
-      stream: null,
     };
+
+    this.onAudioProcess = this.onAudioProcess.bind(this);
+    this.stopRecording = this.stopRecording.bind(this);
+    this.listenMicrophone = this.listenMicrophone.bind(this);
+    this.toggleCollapse = this.toggleCollapse.bind(this);
   }
 
   async listenMicrophone() {
-    this.state.audioContext = this.state.audioContext || consts.getAudioContext();
-    await this.state.audioContext.resume();
+    this.audioContext = this.audioContext || consts.getAudioContext();
+    await this.audioContext.resume();
 
     this.state.isRecording = true;
 
@@ -50,9 +56,7 @@ export default class extends Component {
      * Get user media and enable microphone
      */
     navigator.mediaDevices.getUserMedia({audio: true, video: false}).then(stream => {
-      this.state.stream = stream;
-      this.setState({...this.state});
-
+      this.stream = stream;
       this.onStream(stream);
     }).catch(error => {
       console.error(error);
@@ -63,33 +67,32 @@ export default class extends Component {
     /**
      * When the user leave the page we stop listening the microphone
      */
-    this.state.isRecording = false;
+    this.setState({isRecording: false});
 
     /**
      * Closes the audio context, releasing any system audio resources that it uses.
      */
-    if (this.state.audioContext) {
-      await this.state.audioContext.suspend();
+    if (this.audioContext) {
+      await this.audioContext.suspend();
     }
 
     /**
      * Reset
      */
-    if (this.state.scriptProcessorNode) {
-      this.state.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess.bind(this));
+    if (this.scriptProcessorNode) {
+      this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
     }
 
-    this.state.realTimeBPMAnalyzer = null;
-    this.setState({...this.state});
+    this.realTimeBPMAnalyzer = null;
 
     /**
      * If no stream avaible, abort
      */
-    if (!this.state.stream) {
+    if (!this.stream) {
       return;
     }
 
-    for (const track of this.state.stream.getTracks()) {
+    for (const track of this.stream.getTracks()) {
       if (track.readyState === 'live') {
         track.stop();
       }
@@ -100,89 +103,88 @@ export default class extends Component {
     /**
      * Resumes the progression of time in an audio context that has previously been suspended/paused.
      */
-    await this.state.audioContext.resume();
+    await this.audioContext.resume();
 
     /**
      * Analyzer
      */
-    this.state.analyzer = this.state.audioContext.createAnalyser();
-    this.state.analyzer.fftSize = 1024;
-    this.state.bufferLength = this.state.analyzer.frequencyBinCount;
-    this.state.dataArray = new Uint8Array(this.state.bufferLength);
-    this.setState({...this.state});
+    this.analyzer = this.audioContext.createAnalyser();
+    this.analyzer.fftSize = 1024;
+    this.bufferLength = this.analyzer.frequencyBinCount;
+    this.setState({dataArray: new Uint8Array(this.bufferLength)});
 
     /**
      * Set the source with the HTML Audio Node
      */
-    this.state.mediaStreamSource = this.state.audioContext.createMediaStreamSource(stream);
+    this.mediaStreamSource = this.audioContext.createMediaStreamSource(stream);
 
     /**
      * Set the scriptProcessorNode to get PCM data in real time
      */
-    this.state.scriptProcessorNode = this.state.audioContext.createScriptProcessor(4096, 1, 1);
+    this.scriptProcessorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
 
     /**
-     * Connect everythings together (do not connect input to this.state.audioContext.destination to avoid sound looping)
+     * Connect everythings together (do not connect input to this.audioContext.destination to avoid sound looping)
      */
-    this.state.mediaStreamSource.connect(this.state.analyzer);
-    this.state.mediaStreamSource.connect(this.state.scriptProcessorNode);
-    this.state.scriptProcessorNode.connect(this.state.audioContext.destination);
+    this.mediaStreamSource.connect(this.analyzer);
+    this.mediaStreamSource.connect(this.scriptProcessorNode);
+    this.scriptProcessorNode.connect(this.audioContext.destination);
 
     /**
      * Insternciate RealTimeBPMAnalyzer
      */
-    this.state.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
+    this.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
       debug: true,
       scriptNode: {
         bufferSize: 4096,
       },
       continuousAnalysis: true,
       pushTime: 1000,
-      pushCallback: (error, bpm, thresold) => {
+      pushCallback: (error, bpm, _thresold) => {
         if (error) {
           console.warn(error);
           return;
         }
 
         if (bpm && bpm.length > 0) {
-          this.state.currentThresold = thresold;
-          this.state.firstCandidateTempo = bpm[0].tempo;
-          this.state.firstCandidateCount = bpm[0].count;
-          this.state.secondCandidateTempo = bpm[1].tempo;
-          this.state.secondCandidateCount = bpm[1].count;
-          this.setState({...this.state});
+          this.setState({firstCandidateTempo: bpm[0].tempo});
+          this.setState({firstCandidateCount: bpm[0].count});
+          this.setState({secondCandidateTempo: bpm[1].tempo});
+          this.setState({secondCandidateCount: bpm[1].count});
         }
       },
       onBpmStabilized: thresold => {
-        this.state.realTimeBPMAnalyzer.clearValidPeaks(thresold);
+        this.realTimeBPMAnalyzer.clearValidPeaks(thresold);
       },
     });
 
     /**
      * Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
      */
-    this.state.scriptProcessorNode.addEventListener('audioprocess', this.onAudioProcess.bind(this));
+    this.scriptProcessorNode.addEventListener('audioprocess', this.onAudioProcess.bind(this));
   }
 
   /**
    * Audio Process
    */
   onAudioProcess(event) {
-    this.state.realTimeBPMAnalyzer.analyze(event);
+    this.realTimeBPMAnalyzer.analyze(event);
 
     /**
      * Animate what we here from the microphone
      */
     requestAnimationFrame(() => {
-      this.state.analyzer.getByteFrequencyData(this.state.dataArray);
-      this.setState({...this.state});
+      this.analyzer.getByteFrequencyData(this.state.dataArray);
+      this.setState(state => state);
       this.graph.current.drawFrequencyBarGraph();
     });
   }
 
   toggleCollapse() {
-    this.state.open = !this.state.open;
-    this.setState({...this.state});
+    this.setState(state => {
+      state.open = !state.open;
+      return state;
+    });
   }
 
   render() {
@@ -202,18 +204,16 @@ export default class extends Component {
           <hr/>
 
           <div className="text-center">
-            {this.state.isRecording
-            && <button className="btn btn-lg btn-primary" onClick={this.stopRecording.bind(this)}>
+            <button type="button" className="btn btn-lg btn-primary" style={this.state.isRecording ? {} : {display: 'none'}} onClick={this.stopRecording}>
               <i className="bi bi-record-fill"/> Stop Recording
-            </button>}
-            {!this.state.isRecording
-            && <button className="btn btn-lg btn-primary" onClick={this.listenMicrophone.bind(this)}>
+            </button>
+            <button type="button" className="btn btn-lg btn-primary" style={this.state.isRecording ? {display: 'none'} : {}} onClick={this.listenMicrophone}>
               <i className="bi bi-soundwave"/> Detect BPM with your Microphone
-            </button>}
+            </button>
 
             <br/>
 
-            <small className="text-muted" aria-expanded={this.state.open} aria-controls="help" onClick={this.toggleCollapse.bind(this)}>More info</small>
+            <small className="text-muted" aria-expanded={this.state.open} aria-controls="help" onClick={this.toggleCollapse}>More info</small>
           </div>
 
           <Collapse in={this.state.open}>
@@ -222,7 +222,7 @@ export default class extends Component {
                 Start the experiment by clicking the button above, then you may have an alert to allow access to your microphone.<br/>
                 If you do not have the alert, it means either that you already gave access to it or you have an issue with your material.<br/>
                 <hr/>
-                You can emulate the behaviour of a microphone by looping back your output as an input to your machine to detect BPM of what you're listening right now.
+                You can emulate the behaviour of a microphone by looping back your output as an input to your machine to detect BPM of what you&apos;re listening right now.
                 <ul>
                   <li>On Windows envrionment Enable the <strong>stereoMix</strong> in your audio params to emulate the behaviour of a micro.</li>
                   <li>On MacOS you can use <em>LoopBack</em> to put the output of Chrome on your micro input.</li>
@@ -232,7 +232,7 @@ export default class extends Component {
           </Collapse>
         </Container>
 
-        <FrequencyBarGraph ref={this.graph} bufferLength={this.state.bufferLength} dataArray={this.state.dataArray}/>
+        <FrequencyBarGraph ref={this.graph} bufferLength={this.bufferLength} dataArray={this.state.dataArray}/>
 
         <Container>
           <div className="d-flex justify-content-center pt-5 pb-5">

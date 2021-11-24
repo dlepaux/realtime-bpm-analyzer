@@ -28,7 +28,7 @@ export default class StreamPage extends React.Component {
       // Analyzer
       dataArray: null,
       // RealTimeAnalyzer Controlable
-      defaultStreamEndpoint: 'https://zaycevfm.cdnvideo.ru/ZaycevFM_zaychata_256.mp3',
+      defaultStreamEndpoint: 'https://ssl1.viastreaming.net:7005/;listen.mp3',
       computeBPMDelay: 5000,
       stabilizationTime: 10000,
       pushTime: 1000,
@@ -223,25 +223,25 @@ export default class StreamPage extends React.Component {
                 <div className="mb-3">
                   <label htmlFor="streamEndpoint" className="form-label">Stream Endpoint</label>
                   <input type="text" className="form-control" id="streamEndpoint" aria-describedby="streamEndpointDescription" value={this.state.defaultStreamEndpoint} onChange={this.onChangeStreamEndpoint}/>
-                  <div id="streamEndpointDescription" className="form-text">Stream endpoint analyzed by the library</div>
+                  <div id="streamEndpointDescription" className="form-text">Stream endpoint analyzed by the library. THe default value is a stream from <a href="https://ibizasonica.com/">IbizaSonica</a> &hearts;.</div>
                 </div>
 
                 <div className="mb-3">
                   <label htmlFor="pushTime" className="form-label">Push Time ({this.state.pushTime} milliseconds)</label>
                   <input type="range" className="form-range" min="100" max="5000" step="100" id="pushTime" aria-describedby="pushTimeDescription" value={this.state.pushTime} onChange={this.onChangePushTime}/>
-                  <div id="pushTimeDescription" className="form-text">BPM will be computed at each tick of {this.state.pushTime} milliseconds</div>
+                  <div id="pushTimeDescription" className="form-text">BPM will be computed at each tick of {this.state.pushTime} milliseconds.</div>
                 </div>
 
                 <div className="mb-3">
                   <label htmlFor="computeBPMDelay" className="form-label">Compute BPM Delay ({this.state.computeBPMDelay} milliseconds)</label>
                   <input type="range" className="form-range" min="1000" max="20000" step="1000" id="computeBPMDelay" aria-describedby="computeBPMDelayDescription" value={this.state.computeBPMDelay} onChange={this.onChangeComputeBPMDelay}/>
-                  <div id="computeBPMDelayDescription" className="form-text">BPM computation will start after this delay</div>
+                  <div id="computeBPMDelayDescription" className="form-text">BPM computation will start after this delay.</div>
                 </div>
 
                 <div className="mb-3">
                   <label htmlFor="stabilizationTime" className="form-label">Stabilization Time ({this.state.stabilizationTime} milliseconds)</label>
                   <input type="range" className="form-range" min="10000" max="60000" step="1000" id="stabilizationTime" aria-describedby="stabilizationTimeDescription" value={this.state.stabilizationTime} onChange={this.onChangeStabilizationTime}/>
-                  <div id="stabilizationTimeDescription" className="form-text">BPM will be considered as stable after this time</div>
+                  <div id="stabilizationTimeDescription" className="form-text">BPM will be considered as stable after this time.</div>
                 </div>
               </form>
             </div>

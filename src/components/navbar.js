@@ -12,7 +12,7 @@ export default class extends React.Component {
             <Navbar.Brand href="/">
               <img
                 alt=""
-                src="/favicon.png"
+                src={`${process.env.PREFIX_URL}/favicon.png`}
                 width="30"
                 height="30"
                 className="d-inline-block align-top"

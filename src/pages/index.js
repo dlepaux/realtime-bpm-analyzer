@@ -14,7 +14,7 @@ const HomePage = () => (
     </Head>
     <Container className="pb-3">
       <p className="text-center">
-        <img src="/img/allegro-project-transparent.png" className="img-fluid"/>
+        <img src={`${process.env.PREFIX_URL}/img/allegro-project.png`} className="img-fluid"/>
       </p>
 
       <h2>Installation</h2>

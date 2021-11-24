@@ -6,13 +6,11 @@ export const routeExemples = {
 
 export const getAudioContext = () => new (window.AudioContext || window.mozAudioContext || window.webkitAudioContext)();
 
-export const publicPath = process.env.NODE_ENV === 'production' ? '/realtime-bpm-analyzer/' : '/';
-
-export const exampleMusicFile = `${publicPath}media/new_order-blue_monday.mp3`;
+export const exampleMusicFile = `${process.env.PREFIX_URL}/media/new_order-blue_monday.mp3`;
 
 export const installationCommand = 'npm install realtime-bpm-analyzer';
 
-export const usageStepOne = `<audio src="${publicPath}media/new_order-blue_monday.mp3" id="music"></audio>`;
+export const usageStepOne = `<audio src="${process.env.PREFIX_URL}/media/new_order-blue_monday.mp3" id="music"></audio>`;
 
 export const usageStepTwo = `// Create new instance of AudioContext
 const audioContext = new AudioContext();
@@ -26,7 +24,7 @@ source.connect(scriptProcessorNode);
 source.connect(audioContext.destination);
 `;
 
-export const usageStepThree = `import RealTimeBPMAnalyzer from 'realtime-bpm-analyzer';
+export const usageStepThree = `import {RealTimeBPMAnalyzer} from 'realtime-bpm-analyzer';
 
 const realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
   scriptNode: {

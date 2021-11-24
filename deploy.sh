@@ -3,6 +3,9 @@
 # Abort on errors
 set -e
 
+# Cleanup
+rm -Rf github-pages/*
+
 # Build
 npm run export
 
@@ -10,8 +13,9 @@ npm run export
 cd github-pages
 
 git init
+
+touch .nojekyll
+
 git add -A
 git commit -m 'deploy'
 git push -f git@github.com:dlepaux/realtime-bpm-analyzer.git main:gh-pages
-
-cd -

@@ -12,11 +12,7 @@ class MyDocument extends Document {
     return (
       <Html>
         <Head>
-          <meta charset="utf-8"/>
-          <meta httpEquiv="X-UA-Compatible" content="IE=edge"/>
-          <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-          <link rel="icon" href="/favicon.png"/>
-          <title>Realtime Bpm Analyzer</title>
+          <link rel="icon" href={`${process.env.PREFIX_URL}/favicon.png`}/>
 
           {/* Global site tag (gtag.js) - Google Analytics */}
           <Script

@@ -223,7 +223,7 @@ export default class StreamPage extends React.Component {
                 <div className="mb-3">
                   <label htmlFor="streamEndpoint" className="form-label">Stream Endpoint</label>
                   <input type="text" className="form-control" id="streamEndpoint" aria-describedby="streamEndpointDescription" value={this.state.defaultStreamEndpoint} onChange={this.onChangeStreamEndpoint}/>
-                  <div id="streamEndpointDescription" className="form-text">Stream endpoint analyzed by the library. THe default value is a stream from <a href="https://ibizasonica.com/">IbizaSonica</a> &hearts;.</div>
+                  <div id="streamEndpointDescription" className="form-text">Stream endpoint analyzed by the library. The default value is a stream from <a href="https://ibizasonica.com/">IbizaSonica Radio</a> &hearts;.</div>
                 </div>
 
                 <div className="mb-3">

@@ -1,8 +1,8 @@
 .github
 .husky
+.next
 coverage
 node_modules
-src
 test
 .commitlintrc.cjs
 .editorconfig

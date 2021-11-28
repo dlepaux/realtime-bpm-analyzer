@@ -1,12 +1,8 @@
 # Vendors
 node_modules
 
-# Coverage
-coverage
-
 # Documentation
 dist
-github-pages
 public/api
 
 # Others

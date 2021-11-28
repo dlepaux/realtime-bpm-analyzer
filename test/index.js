@@ -4,8 +4,8 @@ import {describe, it} from 'mocha';
 import wae from 'web-audio-engine';
 import WavDecoder from 'wav-decoder';
 
-import utils from '../lib/utils.js';
-import {Analyzer} from '../lib/analyzer.js';
+import utils from '../src/utils.js';
+import {Analyzer} from '../src/analyzer.js';
 
 const analyzer = new Analyzer();
 

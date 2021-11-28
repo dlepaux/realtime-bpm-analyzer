@@ -3,7 +3,7 @@ import React, {Component} from 'react';
 import Head from 'next/head.js';
 import requestAnimationFrame from 'raf';
 
-import {RealTimeBPMAnalyzer} from '../../lib/realtime-bpm-analyzer.js';
+import {RealTimeBPMAnalyzer} from 'realtime-bpm-analyzer';
 import PcmGraph from '../components/pcm-graph.js';
 import * as consts from '../consts.js';
 

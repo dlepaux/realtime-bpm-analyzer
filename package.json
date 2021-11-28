@@ -26,7 +26,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "export": "npm run build && next export -o github-pages",
+    "export": "npm run build && next export -o dist",
     "postinstall": "npx husky install",
     "release": "standard-version",
     "release:patch": "standard-version --release-as patch",

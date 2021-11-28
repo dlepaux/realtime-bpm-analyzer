@@ -3,8 +3,8 @@ import React from 'react';
 import Head from 'next/head.js';
 import requestAnimationFrame from 'raf';
 
+import {RealTimeBPMAnalyzer} from 'realtime-bpm-analyzer';
 import FrequencyBarGraph from '../components/frequency-bar-graph.js';
-import {RealTimeBPMAnalyzer} from '../../lib/realtime-bpm-analyzer.js';
 import * as consts from '../consts.js';
 
 export default class StreamPage extends React.Component {

@@ -6,8 +6,7 @@ coverage
 
 # Documentation
 dist
-github-pages
-public/api
+docs
 
 # Others
 .next

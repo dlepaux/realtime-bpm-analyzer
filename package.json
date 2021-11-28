@@ -29,11 +29,10 @@
     "start": "next start",
     "lint": "next lint",
     "export": "npm run build && next export -o github-pages",
-    "esbuild": "esbuild lib/realtime-bpm-analyzer.js --bundle --platform=node --sourcemap --target=node10 --outfile=dist/realtime-bpm-analyzer.js",
+    "esbuild": "esbuild src/realtime-bpm-analyzer.js --bundle --platform=node --sourcemap --target=node10 --outfile=dist/realtime-bpm-analyzer.js",
     "serve": "npm run doc && vue-cli-service serve",
     "coverage": "codecov",
     "doc": "rm -Rf ./jsdoc && jsdoc -c ./.jsdoc.json ./readme.md",
-    "postinstall": "npx husky install",
     "release": "standard-version",
     "release:patch": "standard-version --release-as patch",
     "release:minor": "standard-version --release-as minor",
@@ -53,9 +52,6 @@
     "clean-jsdoc-theme": "^3.2.8",
     "codecov": "^3.8.3",
     "esbuild": "^0.13.14",
-    "eslint-config-xo-react": "^0.25.0",
-    "eslint-plugin-react": "^7.27.1",
-    "eslint-plugin-react-hooks": "^4.3.0",
     "husky": "^7.0.2",
     "jsdoc": "^3.6.7",
     "mocha": "^8.3.2",
@@ -65,7 +61,6 @@
     "xo": "^0.45.0"
   },
   "xo": {
-    "extends": "xo-react",
     "space": 2,
     "semicolon": true,
     "globals": [
@@ -75,8 +70,6 @@
       "window"
     ],
     "rules": {
-      "react/state-in-constructor": [2, "always"],
-      "react/prop-types": "off",
       "unicorn/no-array-reduce": "off",
       "node/prefer-global/process": 0,
       "unicorn/numeric-separators-style": "off",

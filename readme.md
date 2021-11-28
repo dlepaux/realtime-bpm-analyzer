@@ -51,7 +51,9 @@ npm install realtime-bpm-analyzer
 ## Development
 
 ```bash
-npm run serve
+npm install
+npx husky install
+npm test
 ```
 
 ## Tests & Coverage

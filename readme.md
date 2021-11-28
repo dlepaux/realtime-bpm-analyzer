@@ -34,7 +34,7 @@ Please, note that the main use case of this tool, is to compute the BPM while th
 
 Allegro Project purpose is to permits you to collect the BPM of [Youtube](https://youtube.com) musics listened by the user. Once the data collected the tool shall bind it at the begining of the title.
 
-A schema worst better than a long speech so, let's imagine we are listening a [song](https://www.youtube.com/watch?v=FYH8DsU2WCk) on Youtube. The "raw" title of it is: `New Order - Blue Monday`, once `Allegro` have collected the BPM it will bind it at the begining of the title, so we would have: `[130BPM] New Order - Blue Monday`.
+Let's imagine we are listening a [song](https://www.youtube.com/watch?v=FYH8DsU2WCk) on Youtube. The "raw" title of it is: `New Order - Blue Monday`, once `Allegro` have collected the BPM it will bind it at the begining of the title, so we would have: `[130BPM] New Order - Blue Monday`.
 
 The project is under construction thought and this component [realtime-bpm-analyzer](https://github.com/dlepaux/realtime-bpm-analyzer) is an essential piece of the project.
 

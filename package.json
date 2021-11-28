@@ -37,6 +37,9 @@
     "type": "git",
     "url": "https://github.com/dlepaux/realtime-bpm-analyzer"
   },
+  "dependencies": {
+    "realtime-bpm-analyzer": "^2.1.6"
+  },
   "devDependencies": {
     "@commitlint/cli": "^12.1.4",
     "@commitlint/config-conventional": "^12.1.4",
@@ -68,7 +71,10 @@
       "window"
     ],
     "rules": {
-      "react/state-in-constructor": [2, "always"],
+      "react/state-in-constructor": [
+        2,
+        "always"
+      ],
       "react/prop-types": "off",
       "unicorn/no-array-reduce": "off",
       "node/prefer-global/process": 0,

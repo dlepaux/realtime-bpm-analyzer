@@ -5,5 +5,8 @@ node_modules
 public/api
 
 # Others
+dist/realtime-bpm-analyzer.js
+dist/realtime-bpm-analyzer.js.map
+coverage
 .next
 *.DS_Store

@@ -1,11 +1,7 @@
 .github
 .husky
-.next
 coverage
-github-pages
-lib
 node_modules
-public
 src
 test
 .commitlintrc.cjs
@@ -17,7 +13,5 @@ test
 changelog.md
 code-of-conduct.md
 contributing.md
-deploy.sh
 licence.md
 readme.md
-vue.config.cjs

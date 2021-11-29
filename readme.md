@@ -16,6 +16,8 @@
 
 [See the documentation](https://dlepaux.github.io/realtime-bpm-analyzer/)
 
+Checkout [gh-pages](https://github.com/dlepaux/realtime-bpm-analyzer/tree/gh-pages) branch to edit the github-pages.
+
 [See the API documentation](https://dlepaux.github.io/realtime-bpm-analyzer/api)
 
 ## Introduction

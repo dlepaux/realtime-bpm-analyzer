@@ -1,9 +1,6 @@
 # Vendors
 node_modules
 
-# Documentation
-public/api
-
 # Others
 dist/realtime-bpm-analyzer.js
 dist/realtime-bpm-analyzer.js.map

@@ -2,6 +2,7 @@
 .husky
 .next
 coverage
+jsdoc
 node_modules
 test
 .commitlintrc.cjs

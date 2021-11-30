@@ -3,7 +3,7 @@
 	"recurseDepth": 1,
 	"source": {
 		"include": [
-			"./lib"
+			"./src"
 		],
 		"includePattern": ".(js)$"
 	},
@@ -14,7 +14,7 @@
 	},
 	"opts": {
 		"encoding": "utf8",
-		"destination": "./public/api/",
+		"destination": "./jsdoc",
 		"template": "node_modules/clean-jsdoc-theme",
 		"meta": [{
 			"name": "author",

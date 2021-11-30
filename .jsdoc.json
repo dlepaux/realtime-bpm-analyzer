@@ -14,7 +14,7 @@
 	},
 	"opts": {
 		"encoding": "utf8",
-		"destination": "./jsdoc",
+		"destination": "./public/api",
 		"template": "node_modules/clean-jsdoc-theme",
 		"meta": [{
 			"name": "author",

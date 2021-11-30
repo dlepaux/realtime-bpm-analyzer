@@ -30,7 +30,7 @@
     "lint": "next lint",
     "export": "npm run build && next export -o github-pages",
     "coverage": "codecov",
-    "doc": "rm -Rf ./jsdoc && jsdoc -c ./.jsdoc.json ./readme.md",
+    "doc": "rm -Rf ./public/api && jsdoc -c ./.jsdoc.json ./readme.md",
     "release": "standard-version",
     "release:patch": "standard-version --release-as patch",
     "release:minor": "standard-version --release-as minor",

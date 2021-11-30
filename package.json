@@ -1,5 +1,5 @@
 {
-  "name": "realtime-bpm-analyzer",
+  "name": "realtime-bpm-analyzer-gh-pages",
   "version": "2.1.6",
   "description": "This dependency free library can analyze the BPM (Tempo) of an audio/video node or any stream in realtime on your browser",
   "author": {

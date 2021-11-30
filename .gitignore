@@ -5,7 +5,6 @@ node_modules
 coverage
 
 # Documentation
-public/api
 dist
 docs
 

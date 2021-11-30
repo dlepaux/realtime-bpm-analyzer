@@ -2,7 +2,7 @@
 .husky
 .next
 coverage
-public/api
+docs
 node_modules
 test
 .commitlintrc.cjs

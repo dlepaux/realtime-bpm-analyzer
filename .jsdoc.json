@@ -30,7 +30,7 @@
 				"link": "https://dlepaux.github.io/realtime-bpm-analyzer/"
 			}],
 			"add_script_path": [{
-				"href": "https://www.googletagmanager.com/gtag/js?id=G-PXQ4D05F0B"
+				"src": "https://www.googletagmanager.com/gtag/js?id=G-PXQ4D05F0B"
 			}],
 			"add_scripts": "window.dataLayer = window.dataLayer || []; function gtag() {dataLayer.push(arguments)} gtag('js', new Date()); gtag('config', 'G-PXQ4D05F0B');",
 			"add_style_path": [{

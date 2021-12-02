@@ -15,10 +15,9 @@ class MyDocument extends Document {
           <link rel="icon" href={`${process.env.PREFIX_URL}/favicon.png`}/>
 
           {/* Global site tag (gtag.js) - Google Analytics */}
-          <Script
-            async
-            src="https://www.googletagmanager.com/gtag/js?id=G-PXQ4D05F0B"
-            onLoad={() => {
+          <Script src="https://www.googletagmanager.com/gtag/js?id=G-PXQ4D05F0B" strategy="lazyOnload"/>
+          <Script strategy="lazyOnload">
+            {`
               window.dataLayer = window.dataLayer || [];
 
               function gtag() {
@@ -27,7 +26,8 @@ class MyDocument extends Document {
 
               gtag('js', new Date());
               gtag('config', 'G-PXQ4D05F0B');
-            }}/>
+            `}
+          </Script>
         </Head>
         <body>
           <Main/>

@@ -28,8 +28,9 @@ jobs:
     # End Environment Variables
     - run: npm ci
     - run: npm run test:report
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
+    - name: Codecov
+      uses: codecov/codecov-action@v2.1.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-    - run: npm run coverage
+        fail_ci_if_error: true
+        verbose: true

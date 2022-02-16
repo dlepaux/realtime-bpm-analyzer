@@ -91,14 +91,14 @@ npm run test:report
     
 3. Now you have just to configure the tool and attach it to the [audioprocess](https://developer.mozilla.org/en-US/docs/Web/Events/audioprocess) event like this :
     ```javascript
-    import RealTimeBPMAnalyzer from 'realtime-bpm-analyzer';
+    import RealTimeBpmAnalyzer from 'realtime-bpm-analyzer';
 
-    const onAudioProcess = new RealTimeBPMAnalyzer({
+    const onAudioProcess = new RealTimeBpmAnalyzer({
         scriptNode: {
             bufferSize: 4096
         },
         pushTime: 2000,
-        pushCallback: (err, bpm) => {
+        pushCallback: (bpm) => {
             console.log('bpm', bpm);
         }
     });
@@ -119,7 +119,7 @@ The algorithm use an AudioBuffer in input. We apply on it a lowpass filter to ge
 | ------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | ![pcm data](https://dlepaux.github.io/realtime-bpm-analyzer/img/pcm.png "PCM Data") | PCM Data are dots with value between the max/min amplitude (1/-1). Each dots have its own index |
 
-To detect peaks, we will test the whole AudioBuffer with a high thresold (setted to 0.9), on the amplitude axis. We need a minimum of 15 occurence to confirm a valid BPM. To find the occurencies that we need, we will decrease the thresold with a step of `0.05`.
+To detect peaks, we will test the whole AudioBuffer with a high threshold (setted to 0.9), on the amplitude axis. We need a minimum of 15 occurence to confirm a valid BPM. To find the occurencies that we need, we will decrease the threshold with a step of `0.05`.
 
 When a peak is found, we will search for the next by jumping `10 000` indexes of PCM data, this means that we ignore `0.25` second of the song, in other words we simply ignore the descending phase of the peak.
 

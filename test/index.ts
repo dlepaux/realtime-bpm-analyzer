@@ -4,10 +4,8 @@ import {describe, it} from 'mocha';
 import wae from 'web-audio-engine';
 import WavDecoder from 'wav-decoder';
 
-import utils from '../src/utils.js';
-import {Analyzer} from '../src/analyzer.js';
-
-const analyzer = new Analyzer();
+import {loopOnThresholds, generateObjectModel} from '../src/utils.ts';
+import {getLowPassSource, identifyIntervals, groupByTempo, getTopCandidates, findPeaksAtThreshold} from '../src/analyzer.ts';
 
 /**
  * Unit test for the RealTime BPM Analyzer
@@ -16,11 +14,11 @@ describe('RealTime BPM Analyzer', () => {
   /**
    * Test Utility functions
    */
-  describe('Utils.loopOnThresolds', () => {
-    it('should test thresold value with stop call', done => {
-      utils.loopOnThresolds((object, thresold, stop) => {
+  describe('Utils.loopOnThresholds', () => {
+    it('should test threshold value with stop call', done => {
+      loopOnThresholds((object, threshold, stop) => {
         // We add an entry to object
-        object.foo = thresold;
+        object.foo = threshold;
         // Stop the loop at first iteration
         stop(true);
       }, object => {
@@ -30,10 +28,10 @@ describe('RealTime BPM Analyzer', () => {
       });
     });
 
-    it('should test thresold value with boolean', done => {
-      utils.loopOnThresolds((object, thresold, stop) => {
+    it('should test threshold value with boolean', done => {
+      loopOnThresholds((object, threshold, stop) => {
         // We add an entry to object
-        object.foo = thresold;
+        object.foo = threshold;
         // Stop the loop at first iteration
         stop(true);
       }, false, object => {
@@ -42,10 +40,10 @@ describe('RealTime BPM Analyzer', () => {
       });
     });
 
-    it('should test thresold without minThresold', done => {
-      utils.loopOnThresolds((object, thresold) => {
+    it('should test threshold without minThreshold', done => {
+      loopOnThresholds((object, threshold) => {
         // We add an entry to object
-        object[thresold] = thresold;
+        object[threshold] = threshold;
       });
       setTimeout(() => {
         done();
@@ -53,21 +51,21 @@ describe('RealTime BPM Analyzer', () => {
     });
 
     it('should test callback (second param) without onLoop', done => {
-      utils.loopOnThresolds(() => {}, object => {
+      loopOnThresholds(() => {}, object => {
         expect(JSON.stringify(object)).to.be.equal('{}');
         done();
       });
     });
 
     it('should test Object Model generation', done => {
-      utils.generateObjectModel(false, object => {
+      generateObjectModel(false, object => {
         expect(JSON.stringify(object)).to.be.not.equal('{}');
         done();
       });
     });
 
     it('should test Object Model generation', () => {
-      const object = utils.generateObjectModel(false);
+      const object = generateObjectModel(false);
       expect(typeof object).to.be.equal('object');
     });
   });
@@ -96,7 +94,7 @@ describe('RealTime BPM Analyzer', () => {
 
       expect(buffer.constructor.name).to.be.equal('AudioBuffer');
       const OfflineAudioContext = wae.OfflineAudioContext;
-      const source = analyzer.getLowPassSource(buffer, OfflineAudioContext);
+      const source = getLowPassSource(buffer, OfflineAudioContext);
       expect(source.buffer.constructor.name).to.be.equal('AudioBuffer');
       done();
     });
@@ -116,7 +114,7 @@ describe('RealTime BPM Analyzer', () => {
           expect(audioBuffer.constructor.name).to.be.equal('AudioBuffer');
 
           const OfflineAudioContext = wae.OfflineAudioContext;
-          const source = analyzer.getLowPassSource(audioBuffer, OfflineAudioContext);
+          const source = getLowPassSource(audioBuffer, OfflineAudioContext);
 
           expect(source.buffer.constructor.name).to.be.equal('AudioBuffer');
 
@@ -141,27 +139,27 @@ describe('RealTime BPM Analyzer', () => {
       });
     });
 
-    it('should test lowpass filter + findPeaksAtThresold', done => {
+    it('should test lowpass filter + findPeaksAtThreshold', done => {
       passLowPassFilter((data, error) => {
         if (error) {
           done(error);
         }
 
-        const thresold = 0.8;
+        const threshold = 0.8;
         const offset = 0;
 
-        const {peaks, thresold: returnedThresold} = analyzer.findPeaksAtThresold(data.source.buffer.getChannelData(0), thresold, offset);
+        const {peaks, threshold: returnedThreshold} = findPeaksAtThreshold(data.source.buffer.getChannelData(0), threshold, offset);
 
         expect(peaks.length).to.be.not.equal(0);
-        expect(thresold).to.be.equal(returnedThresold);
+        expect(threshold).to.be.equal(returnedThreshold);
 
         /**
          * Try to get the BPM
          */
-        const intervals = analyzer.identifyIntervals(peaks);
-        const groupByTempo = analyzer.groupByTempo(data.sampleRate);
-        const candidates = groupByTempo(intervals);
-        const bpm = analyzer.getTopCandidates(candidates);
+        const intervals = identifyIntervals(peaks);
+        const fn = groupByTempo(data.sampleRate);
+        const candidates = fn(intervals);
+        const bpm = getTopCandidates(candidates);
 
         expect(bpm.length).to.be.not.equal(0);
         expect(bpm[0].tempo).to.be.equal(125);
@@ -171,19 +169,19 @@ describe('RealTime BPM Analyzer', () => {
       });
     });
 
-    it('should test lowpass filter + findPeaksAtThresold at 1.1 (no peaks hit)', done => {
+    it('should test lowpass filter + findPeaksAtThreshold at 1.1 (no peaks hit)', done => {
       passLowPassFilter((data, error) => {
         if (error) {
           done(error);
         }
 
-        const thresold = 1.1;
+        const threshold = 1.1;
         const offset = 0;
 
-        const {peaks, thresold: returnedThresold} = analyzer.findPeaksAtThresold(data.source.buffer.getChannelData(0), thresold, offset);
+        const {peaks, threshold: returnedThreshold} = findPeaksAtThreshold(data.source.buffer.getChannelData(0), threshold, offset);
 
         expect(peaks).to.be.equal(undefined);
-        expect(thresold).to.be.equal(returnedThresold);
+        expect(threshold).to.be.equal(returnedThreshold);
         done();
       });
     });

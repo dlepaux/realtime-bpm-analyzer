@@ -1,6 +1,8 @@
 {
-    "extends": "@tsconfig/node14/tsconfig.json",
+    "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
-        "lib": ["DOM"]
+        "lib": ["dom"],
+        "target": "ES6",
+        "skipLibCheck": true
     }
 }

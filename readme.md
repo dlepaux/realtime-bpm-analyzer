@@ -91,7 +91,7 @@ npm run test:report
     
 3. Now you have just to configure the tool and attach it to the [audioprocess](https://developer.mozilla.org/en-US/docs/Web/Events/audioprocess) event like this :
     ```javascript
-    import RealTimeBPMAnalyzer from 'realtime-bpm-analyzer';
+    import { RealTimeBPMAnalyzer } from 'realtime-bpm-analyzer';
 
     const onAudioProcess = new RealTimeBPMAnalyzer({
         scriptNode: {

@@ -1,7 +1,6 @@
 import {findPeaksAtThreshold, computeBpm} from './analyzer';
 import type {RealTimeBpmAnalyzerOptions, RealTimeBpmAnalyzerParameters, ValidPeaks, NextIndexPeaks, BpmCandidates} from './types';
-import { EventEmitter } from 'events';
-import {generateValidPeaksModel, generateNextIndexPeaksModel, loopOnThresholds} from './utils';
+import {generateValidPeaksModel, generateNextIndexPeaksModel, descendingOverThresholds} from './utils';
 
 /**
  * Initial value of key parameters of the analyzer
@@ -14,7 +13,7 @@ const initialValue = {
   chunkCoeff: () => 1,
 };
 
-class RealTimeBpmAnalyzer extends EventEmitter {
+export class RealTimeBpmAnalyzer {
   options: RealTimeBpmAnalyzerOptions;
   /**
    * Minimum valid threshold, below this level result would be irrelevant.
@@ -44,9 +43,7 @@ class RealTimeBpmAnalyzer extends EventEmitter {
    * @param {number} config.computeBpmDelay Arbitrary delay to compute the BPM for the first time
    * @param {number} config.stabilizationTime Arbitrary time where we consider that a BPM is computable
    */
-  constructor(config: RealTimeBpmAnalyzerParameters = {}) {
-    super();
-
+  constructor(config: RealTimeBpmAnalyzerParameters) {
     /**
      * Default configuration
      * @property {object} options Default configuration
@@ -55,6 +52,7 @@ class RealTimeBpmAnalyzer extends EventEmitter {
       continuousAnalysis: false,
       computeBpmDelay: 10000,
       stabilizationTime: 20000,
+      postMessage: config.postMessage,
     };
 
     /**
@@ -82,7 +80,7 @@ class RealTimeBpmAnalyzer extends EventEmitter {
     console.log(`[clearValidPeaks] function: under ${minThreshold}, this.minValidThreshold has been setted to that threshold.`);
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
 
-    loopOnThresholds(threshold => {
+    descendingOverThresholds(threshold => {
       if (threshold < minThreshold) {
         delete this.validPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
         delete this.nextIndexPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
@@ -120,10 +118,10 @@ class RealTimeBpmAnalyzer extends EventEmitter {
 
     const result: BpmCandidates = computeBpm(this.validPeaks, audioSampleRate);
     const {threshold} = result;
-    this.emit('bpm', result);
+    this.options.postMessage({message: 'BPM', result});
 
     if (this.minValidThreshold < threshold) {
-      this.emit('bpmStable', threshold);
+      this.options.postMessage({message: 'BPM_STABLE', result});
       this.clearValidPeaks(threshold);
     }
 
@@ -149,7 +147,7 @@ class RealTimeBpmAnalyzer extends EventEmitter {
    * @param currentMaxIndex 
    */
   findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number) {
-    loopOnThresholds(threshold => {
+    descendingOverThresholds(threshold => {
       if (this.nextIndexPeaks[threshold] >= currentMaxIndex) {
         return;
       }
@@ -187,12 +185,3 @@ class RealTimeBpmAnalyzer extends EventEmitter {
     this.minValidThreshold);
   }
 }
-
-/**
- * Expose globally RealTimeBpmAnalyzer class if possible
- */
-// if (typeof window !== 'undefined') {
-//   window.RealTimeBpmAnalyzer = RealTimeBpmAnalyzer;
-// }
-
-export { RealTimeBpmAnalyzer };

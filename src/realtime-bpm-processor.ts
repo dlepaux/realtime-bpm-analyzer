@@ -22,9 +22,11 @@ class RealTimeBpmProcessor extends AudioWorkletProcessor {
   _buffer: Float32Array = new Float32Array(this.bufferSize);
 
   /**
-   * Create the realtime analyzer instance
+   * RealTimeBpmAnalzer
    */
-  realTimeBPMAnalyzer: RealTimeBpmAnalyzer = new RealTimeBpmAnalyzer();
+  realTimeBpmAnalyzer: RealTimeBpmAnalyzer = new RealTimeBpmAnalyzer({
+    postMessage: this.port.postMessage,
+  });
 
   constructor() {
     super();
@@ -69,7 +71,7 @@ class RealTimeBpmProcessor extends AudioWorkletProcessor {
     this.append(inputs[0][0])
 
     if (this.isBufferFull()) {
-      this.realTimeBPMAnalyzer.analyze(this._buffer, this.bufferSize, sampleRate);
+      this.realTimeBpmAnalyzer.analyze(this._buffer, this.bufferSize, sampleRate);
     }
 
     return true;

@@ -4,7 +4,7 @@ import {describe, it} from 'mocha';
 import wae from 'web-audio-engine';
 import WavDecoder from 'wav-decoder';
 
-import {loopOnThresholds, generateObjectModel} from '../src/utils.ts';
+import {descendingOverThresholds, generateObjectModel} from '../src/utils.ts';
 import {getLowPassSource, identifyIntervals, groupByTempo, getTopCandidates, findPeaksAtThreshold} from '../src/analyzer.ts';
 
 /**
@@ -14,9 +14,9 @@ describe('RealTime BPM Analyzer', () => {
   /**
    * Test Utility functions
    */
-  describe('Utils.loopOnThresholds', () => {
+  describe('Utils.descendingOverThresholds', () => {
     it('should test threshold value with stop call', done => {
-      loopOnThresholds((object, threshold, stop) => {
+      descendingOverThresholds((object, threshold, stop) => {
         // We add an entry to object
         object.foo = threshold;
         // Stop the loop at first iteration
@@ -29,7 +29,7 @@ describe('RealTime BPM Analyzer', () => {
     });
 
     it('should test threshold value with boolean', done => {
-      loopOnThresholds((object, threshold, stop) => {
+      descendingOverThresholds((object, threshold, stop) => {
         // We add an entry to object
         object.foo = threshold;
         // Stop the loop at first iteration
@@ -41,7 +41,7 @@ describe('RealTime BPM Analyzer', () => {
     });
 
     it('should test threshold without minThreshold', done => {
-      loopOnThresholds((object, threshold) => {
+      descendingOverThresholds((object, threshold) => {
         // We add an entry to object
         object[threshold] = threshold;
       });
@@ -51,7 +51,7 @@ describe('RealTime BPM Analyzer', () => {
     });
 
     it('should test callback (second param) without onLoop', done => {
-      loopOnThresholds(() => {}, object => {
+      descendingOverThresholds(() => {}, object => {
         expect(JSON.stringify(object)).to.be.equal('{}');
         done();
       });

@@ -7,7 +7,7 @@ import type { Peaks } from './types';
  * @param {mixed} minValidThreshold Function for each iteration
  * @param {mixed} callback Function executed at the end
  */
-export function loopOnThresholds(onLoop: (threshold: number, stop?: (bool: boolean) => void) => void, minValidThreshold = 0.3): Record<string, any[]> {
+export function descendingOverThresholds(onLoop: (threshold: number, stop?: (bool: boolean) => void) => void, minValidThreshold = 0.3): Record<string, any[]> {
   let threshold = consts.startThreshold;
 
   /**
@@ -16,7 +16,7 @@ export function loopOnThresholds(onLoop: (threshold: number, stop?: (bool: boole
   const object = {};
 
   /**
-   * Loop between 0.90 and 0.30 (theoretically it is 0.90 but it is 0.899999, due because of float manipulation)
+   * Loop between 0.90 and 0.30 (theoretically it is 0.90 but it is actually 0.899999, due because of float manipulation)
    */
   do {
     let stop = false;
@@ -34,12 +34,9 @@ export function loopOnThresholds(onLoop: (threshold: number, stop?: (bool: boole
 }
 
 /**
- * Generate an object with each keys (thresholds) with a defaultValue
- * @param  {mixed} defaultValue Contain the înitial value for each thresholds
- * @param  {function} callback Callback function
- * @return {object} Object with thresholds key initialized with a defaultValue
+ * Generate an object with each keys (thresholds)
+ * @return {object} Object with thresholds key initialized with an empty array
  */
-
 export function generateValidPeaksModel(): Record<string, Peaks> {
   const object: Record<string, Peaks> = {};
   let threshold = consts.startThreshold;
@@ -52,6 +49,10 @@ export function generateValidPeaksModel(): Record<string, Peaks> {
   return object;
 }
 
+/**
+ * Generate an object with each keys (thresholds)
+ * @return {object} Object with thresholds key initialized at 0
+ */
 export function generateNextIndexPeaksModel(): Record<string, number> {
   const object: Record<string, number> = {};
   let threshold = consts.startThreshold;

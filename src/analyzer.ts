@@ -1,4 +1,4 @@
-import {loopOnThresholds} from './utils';
+import {descendingOverThresholds} from './utils';
 import type { Peaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo } from './types';
 
 /**
@@ -50,7 +50,7 @@ export function computeBpm(data: Record<string, Peaks>, audioSampleRate: number)
   let hasPeaks = false;
   let foundThreshold = 0.3;
 
-  loopOnThresholds((threshold: number, stop: ((bool: boolean) => void) | undefined) => {
+  descendingOverThresholds((threshold: number, stop: ((bool: boolean) => void) | undefined) => {
     if (hasPeaks && stop) {
       stop(true);
       return;

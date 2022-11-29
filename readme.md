@@ -77,7 +77,7 @@ npm run test:report
 
 2. Provoide your [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to `RealTimeBpmAnalyzer` like the following and enjoy the beat.
     ```javascript
-    import { createRealTimeBpmProcessor, analyzer } from 'realtime-bpm-analyzer';
+    import { createRealTimeBpmProcessor, realTimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
     const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
 
@@ -93,13 +93,14 @@ npm run test:report
     source.connect(filter).connect(realtimeAnalyzerNode);
     source.connect(audioContext.destination);
 
-    analyzer.on('bpm', (event) => {
-      console.log('bpm', event);
-    });
-
-    analyzer.on('bpmStable', (event) => {
-      console.log('bpmStable', event);
-    });
+    realtimeAnalyzerNode.port.onmessage = (event) => {
+      if (event.data.message === 'BPM') {
+        console.log('BPM', event);
+      }
+      if (event.data.message === 'BPM_STABLE') {
+        console.log('BPM_STABLE', event);
+      }
+    };
     ```
 
 ## Technical approch

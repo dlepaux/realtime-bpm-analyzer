@@ -1,49 +1,15 @@
 import {loopOnThresholds} from './utils';
+import type { Peaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo } from './types';
 
 /**
- * Apply a low pass filter to an AudioBuffer and return the result
- */
-export function getLowPassSource(buffer: AudioBuffer): AudioBufferSourceNode {
-  const {numberOfChannels, length, sampleRate} = buffer;
-  const context = new OfflineAudioContext(numberOfChannels, length, sampleRate);
-
-  /**
-   * Create buffer source
-   */
-  const source: AudioBufferSourceNode = context.createBufferSource();
-  source.buffer = buffer;
-
-  /**
-   * Create lowpass filter
-   */
-  const filter = context.createBiquadFilter();
-  filter.type = 'lowpass';
-
-  /**
-   * Pipe the song into the filter, and the filter into the offline context
-   */
-  source.connect(filter);
-  filter.connect(context.destination);
-
-  return source;
-}
-
-/**
- * Find peaks when the signal if greater than the threshold, then move 10000 indexes (represents ~0.25s) to ignore the descending phase of the parabol
- * @param {object} data Buffer channel data
+ * Find peaks when the signal if greater than the threshold, then move 10_000 indexes (represents ~0.25s) to ignore the descending phase of the parabol
+ * @param {Float32Array} data Buffer channel data
  * @param {number} threshold Threshold for qualifying as a peak
  * @param {number} offset Position where we start to loop
- * @return {object[]|undefined} Peaks found that are greater than the threshold
+ * @return {PeaksAndThreshold} Peaks found that are greater than the threshold
  */
-
-interface PeaksAndThreshold {
-  peaks: number[];
-  threshold: number;
-}
-
-// Source.buffer.getChannelData(0), threshold, offsetForNextPeak
 export function findPeaksAtThreshold(data: Float32Array, threshold: number, offset: number): PeaksAndThreshold {
-  const peaks = [];
+  const peaks: Peaks = [];
 
   const {length} = data;
 
@@ -70,15 +36,9 @@ export function findPeaksAtThreshold(data: Float32Array, threshold: number, offs
 /**
  * Return the computed bpm from data
  * @param {Record<string, number[]>} data Contain valid peaks
- * @param {number} sampleRate Audio sample rate
+ * @param {number} audioSampleRate Audio sample rate
  */
-interface BpmCandidates {
-  bpm: Tempo[];
-  threshold: number;
-}
-
-type Peaks = number[];
-export function computeBpm(data: Record<string, Peaks>, sampleRate: number): BpmCandidates {
+export function computeBpm(data: Record<string, Peaks>, audioSampleRate: number): BpmCandidates {
   /**
    * Minimum peaks
    */
@@ -104,7 +64,7 @@ export function computeBpm(data: Record<string, Peaks>, sampleRate: number): Bpm
 
   if (hasPeaks && foundThreshold) {
     const intervals = identifyIntervals(data[foundThreshold]);
-    const tempos = groupByTempo(sampleRate)(intervals);
+    const tempos = groupByTempo(audioSampleRate, intervals);
     const candidates = getTopCandidates(tempos);
 
     const bpmCandidates: BpmCandidates = {
@@ -127,11 +87,12 @@ export function computeBpm(data: Record<string, Peaks>, sampleRate: number): Bpm
 
 /**
  * Sort results by count and return top candidate
- * @param {object[]} Candidate (BPMs) with count
- * @return {object[]} Returns the 5 top candidates with highest counts
+ * @param {Tempo[]} candidates (BPMs) with count
+ * @param {number} length Amount of returned candidates (default: 5)
+ * @return {Tempo[]} Returns the 5 top candidates with highest counts
  */
-export function getTopCandidates(candidates: Tempo[]): Tempo[] {
-  return candidates.sort((a, b) => (b.count - a.count)).splice(0, 5);
+export function getTopCandidates(candidates: Tempo[], length: number = 5): Tempo[] {
+  return candidates.sort((a, b) => (b.count - a.count)).splice(0, length);
 }
 
 /**
@@ -139,10 +100,6 @@ export function getTopCandidates(candidates: Tempo[]): Tempo[] {
  * @param {array} peaks Array of qualified peaks
  * @return {array} Identifies intervals between peaks
  */
-interface Interval {
-  interval: number;
-  count: number;
-}
 export function identifyIntervals(peaks: Peaks): Interval[] {
   const intervals: Interval[] = [];
 
@@ -181,75 +138,69 @@ export function identifyIntervals(peaks: Peaks): Interval[] {
 }
 
 /**
- * Factory for group reducer
- * @param  {number} sampleRate Audio sample rate
- * @return {Function}
+ * Figure out best possible tempo candidates
+ * @param  {number} audioSampleRate Audio sample rate
+ * @param  {Interval[]} intervalCounts List of identified intervals
+ * @return {Tempo[]} Intervals grouped with similar values
  */
-export interface Tempo {
-  tempo: number;
-  count: number;
-}
+export function groupByTempo(audioSampleRate: number, intervalCounts: Interval[]): Tempo[] {
+  const tempoCounts: Tempo[] = [];
 
-export function groupByTempo(sampleRate: number) {
-  /**
-   * Figure out best possible tempo candidates
-   * @param {array} intervalCounts List of identified intervals
-   * @return {array} Intervals grouped with similar values
-   */
-  return (intervalCounts: Interval[]): Tempo[] => {
-    const tempoCounts: Tempo[] = [];
+  for (const intervalCount of intervalCounts) {
+    /**
+     * Skip if interval is equal 0
+     */
+    if (intervalCount.interval === 0) {
+      continue;
+    }
+  
+    intervalCount.interval = Math.abs(intervalCount.interval);
 
-    for (const intervalCount of intervalCounts) {
-      if (intervalCount.interval !== 0) {
-        intervalCount.interval = Math.abs(intervalCount.interval);
+    /**
+     * Convert an interval to tempo
+     */
+    let theoreticalTempo = (60 / (intervalCount.interval / audioSampleRate));
 
-        /**
-         * Convert an interval to tempo
-         */
-        let theoreticalTempo = (60 / (intervalCount.interval / sampleRate));
-
-        /**
-         * Adjust the tempo to fit within the 90-180 BPM range
-         */
-        while (theoreticalTempo < 90) {
-          theoreticalTempo *= 2;
-        }
-
-        while (theoreticalTempo > 180) {
-          theoreticalTempo /= 2;
-        }
-
-        /**
-         * Round to legible integer
-         */
-        theoreticalTempo = Math.round(theoreticalTempo);
-
-        /**
-         * See if another interval resolved to the same tempo
-         */
-        const foundTempo: boolean = tempoCounts.some((tempoCount: Tempo) => {
-          if (tempoCount.tempo === theoreticalTempo) {
-            tempoCount.count += intervalCount.count;
-            return tempoCount.count;
-          }
-
-          return false;
-        });
-
-        /**
-         * Add a unique tempo to the collection
-         */
-        if (!foundTempo) {
-          const tempo: Tempo = {
-            tempo: theoreticalTempo,
-            count: intervalCount.count,
-          };
-
-          tempoCounts.push(tempo);
-        }
-      }
+    /**
+     * Adjust the tempo to fit within the 90-180 BPM range
+     */
+    while (theoreticalTempo < 90) {
+      theoreticalTempo *= 2;
     }
 
-    return tempoCounts;
-  };
-}
+    while (theoreticalTempo > 180) {
+      theoreticalTempo /= 2;
+    }
+
+    /**
+     * Round to legible integer
+     */
+    theoreticalTempo = Math.round(theoreticalTempo);
+
+    /**
+     * See if another interval resolved to the same tempo
+     */
+    const foundTempo: boolean = tempoCounts.some((tempoCount: Tempo) => {
+      if (tempoCount.tempo === theoreticalTempo) {
+        tempoCount.count += intervalCount.count;
+        return tempoCount.count;
+      }
+
+      return false;
+    });
+
+    /**
+     * Add a unique tempo to the collection
+     */
+    if (!foundTempo) {
+      const tempo: Tempo = {
+        tempo: theoreticalTempo,
+        count: intervalCount.count,
+      };
+
+      tempoCounts.push(tempo);
+    }
+  }
+
+  return tempoCounts;
+};

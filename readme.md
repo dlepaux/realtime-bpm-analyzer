@@ -75,60 +75,44 @@ npm run test:report
     <audio src="./new_order-blue_monday.mp3" id="track"></audio>
     ```
 
-2. Connect the [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to the [AudioContext](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext) **and** create an [AudioContext.createScriptProcessor()](https://developer.mozilla.org/en-US/docs/Web/API/ScriptProcessorNode).
+2. Provoide your [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to `RealTimeBpmAnalyzer` like the following and enjoy the beat.
     ```javascript
-    // Create new instance of AudioContext
-    const audioContext = new AudioContext();
+    import { createRealTimeBpmProcessor, analyzer } from 'realtime-bpm-analyzer';
+
+    const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+
     // Set the source with the HTML Audio Node
-    const source = audioContext.createMediaElementSource(document.getElementById('track'));
-    // Set the scriptProcessorNode to get PCM data in real time
-    const scriptProcessorNode = audioContext.createScriptProcessor(4096, 1, 1);
-    // Connect everythings together
-    scriptProcessorNode.connect(audioContext.destination);
-    source.connect(scriptProcessorNode);
+    const track = document.getElementById('track');
+    const source = audioContext.createMediaElementSource(track);
+
+    // Lowpass filter
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'lowpass';
+
+    // Connect stuff together
+    source.connect(filter).connect(realtimeAnalyzerNode);
     source.connect(audioContext.destination);
-    ```
-    
-3. Now you have just to configure the tool and attach it to the [audioprocess](https://developer.mozilla.org/en-US/docs/Web/Events/audioprocess) event like this :
-    ```javascript
-    import RealTimeBpmAnalyzer from 'realtime-bpm-analyzer';
 
-    const onAudioProcess = new RealTimeBpmAnalyzer({
-        scriptNode: {
-            bufferSize: 4096
-        },
-        pushTime: 2000,
-        pushCallback: (bpm) => {
-            console.log('bpm', bpm);
-        }
+    analyzer.on('bpm', (event) => {
+      console.log('bpm', event);
     });
-    // Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
-    scriptProcessorNode.onaudioprocess = (e) => {
-        onAudioProcess.analyze(e);
-    };
-    ```
 
+    analyzer.on('bpmStable', (event) => {
+      console.log('bpmStable', event);
+    });
+    ```
 
 ## Technical approch
 
-This tool has been largely inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective), which is actually optimized to compute the BPM of a song as fast as possible and not during the plying.
+This tool has been largely inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective), which is actually optimized to compute the BPM of a song as fast as possible and not while playing it.
 
-The algorithm use an AudioBuffer in input. We apply on it a lowpass filter to get bass frequencies. Then, we extract raw data (PCM, Pulse Code Modulation, each points is between 1 and -1) to detect peaks.
+The algorithm basically detect peaks in the bass frequencies and try to figure out the best BPM candidates.
 
 |                                       | Description                                                                                     |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | ![pcm data](https://dlepaux.github.io/realtime-bpm-analyzer/img/pcm.png "PCM Data") | PCM Data are dots with value between the max/min amplitude (1/-1). Each dots have its own index |
 
-To detect peaks, we will test the whole AudioBuffer with a high threshold (setted to 0.9), on the amplitude axis. We need a minimum of 15 occurence to confirm a valid BPM. To find the occurencies that we need, we will decrease the threshold with a step of `0.05`.
-
-When a peak is found, we will search for the next by jumping `10 000` indexes of PCM data, this means that we ignore `0.25` second of the song, in other words we simply ignore the descending phase of the peak.
-
 Feel free to [contact me by mail](mailto:d.lepaux@gmail.com) or [join the chat](https://gitter.im/realtime-bpm-analyzer/Lobby) if you have any questions.
-
-## Todo
-
-- Migrate from ScriptProcessorNode to AudioWorklet
-
 
 ## Credits
 

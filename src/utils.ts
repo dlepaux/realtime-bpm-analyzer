@@ -1,4 +1,5 @@
 import * as consts from './consts';
+import type { Peaks } from './types';
 
 /**
  * Loop between .9 and .3 to check peak at each thresholds
@@ -39,7 +40,6 @@ export function loopOnThresholds(onLoop: (threshold: number, stop?: (bool: boole
  * @return {object} Object with thresholds key initialized with a defaultValue
  */
 
-type Peaks = number[];
 export function generateValidPeaksModel(): Record<string, Peaks> {
   const object: Record<string, Peaks> = {};
   let threshold = consts.startThreshold;

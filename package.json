@@ -1,6 +1,6 @@
 {
   "name": "realtime-bpm-analyzer",
-  "version": "3.0.0-0",
+  "version": "3.0.0-1",
   "description": "This dependency free library can analyze the BPM (Tempo) of an audio/video node or any stream in realtime on your browser",
   "author": {
     "name": "David Lepaux",
@@ -22,6 +22,7 @@
   ],
   "license": "MIT",
   "main": "./dist/index.js",
+  "module": "./src/index.ts",
   "scripts": {
     "build": "esbuild src/realtime-bpm-processor.ts --bundle --outfile=dist/realtime-bpm-processor.js && esbuild src/index.ts --bundle --outfile=dist/index.js",
     "coverage": "codecov",

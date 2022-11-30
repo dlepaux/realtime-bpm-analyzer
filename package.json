@@ -1,6 +1,6 @@
 {
   "name": "realtime-bpm-analyzer",
-  "version": "3.0.0-4",
+  "version": "3.0.0-5",
   "description": "This dependency free library can analyze the BPM (Tempo) of an audio/video node or any stream in realtime on your browser",
   "author": {
     "name": "David Lepaux",

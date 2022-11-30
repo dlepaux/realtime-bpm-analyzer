@@ -50,7 +50,7 @@ export default class extends Component {
     this.audioContext = this.audioContext || consts.getAudioContext();
     await this.audioContext.resume();
 
-    this.state.isRecording = true;
+    this.setState({isRecording: true});
 
     /**
      * Get user media and enable microphone

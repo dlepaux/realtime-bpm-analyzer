@@ -3,7 +3,7 @@ import React, {Component} from 'react';
 import Head from 'next/head.js';
 import requestAnimationFrame from 'raf';
 
-import {RealTimeBPMAnalyzer} from 'realtime-bpm-analyzer';
+import {createRealTimeBpmProcessor} from 'realtime-bpm-analyzer';
 import FrequencyBarGraph from '../components/frequency-bar-graph.js';
 import * as consts from '../consts.js';
 
@@ -12,16 +12,17 @@ export default class extends Component {
     super(props);
     this.music = React.createRef(null);
     this.graph = React.createRef(null);
-    // AudioContext
-    this.audioContext = null;
+
     // Analyzer
     this.analyzer = null;
     this.bufferLength = null;
+    this.audioContext = null;
     // Audio Source
+    this.filter = null;
     this.source = null;
     // RealTimeAnalyzer
     this.scriptProcessorNode = null;
-    this.realTimeBPMAnalyzer = null;
+    this.realtimeAnalyzerNode = null;
 
     this.state = {
       // Collapse
@@ -39,82 +40,80 @@ export default class extends Component {
   }
 
   async analyzeBpm() {
-    if (this.state.isAnalyzing) {
-      return;
+    try {
+      if (this.state.isAnalyzing) {
+        return;
+      }
+
+      this.audioContext = this.audioContext || consts.getAudioContext();
+
+      /**
+       * Set the scriptProcessorNode to get PCM data in real time
+       */
+      this.scriptProcessorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
+
+      /**
+       * Resumes the progression of time in an audio context that has previously been suspended/paused.
+       */
+      await this.audioContext.resume();
+
+      /**
+       * Create the AudioWorkletNode
+       */
+      this.realtimeAnalyzerNode = await createRealTimeBpmProcessor(this.audioContext).catch(error => console.log(error));
+
+      /**
+       * Turn the isAnalyzing to true to avoid multiple plays
+       */
+      this.setState({isAnalyzing: true});
+
+      /**
+       * Wait the end of the music to reset
+       */
+      this.music.current.addEventListener('ended', this.onEnded.bind(this));
+
+      /**
+       * Analyzer
+       */
+      this.analyzer = this.audioContext.createAnalyser();
+      this.analyzer.fftSize = 1024;
+      this.bufferLength = this.analyzer.frequencyBinCount;
+      this.setState({dataArray: new Uint8Array(this.bufferLength)});
+
+      /**
+       * Set the source with the HTML Audio Node
+       */
+      this.source = this.source || this.audioContext.createMediaElementSource(this.music.current);
+      this.filter = this.audioContext.createBiquadFilter();
+      this.filter.type = 'lowpass';
+
+      /**
+       * Connect everythings together
+       */
+      this.source.connect(this.filter).connect(this.realtimeAnalyzerNode);
+      this.source.connect(this.analyzer);
+      this.source.connect(this.scriptProcessorNode);
+      this.source.connect(this.audioContext.destination);
+
+      /**
+       * Listen realtimeAnalyzerNode for bpm updates
+       */
+      this.realtimeAnalyzerNode.port.addEventListener('message', event => {
+        if (event.data.message === 'BPM' && event.data.result.bpm.length > 0) {
+          this.setState({currentTempo: event.data.result.bpm[0].tempo});
+        }
+      });
+
+      // We continue to use scriptProcessorNode for that (:, migration can be done later
+      this.scriptProcessorNode.addEventListener('audioprocess', this.onAudioProcess.bind(this));
+
+      /**
+       * Play music to analyze the BPM
+       */
+      this.music.current.play();
+    } catch (error) {
+      console.error(error);
     }
-
-    /**
-     * Resumes the progression of time in an audio context that has previously been suspended/paused.
-     */
-    this.audioContext = this.audioContext || consts.getAudioContext();
-    await this.audioContext.resume();
-
-    /**
-     * Turn the isAnalyzing to true to avoid multiple plays
-     */
-    this.setState({isAnalyzing: true});
-
-    /**
-     * Wait the end of the music to reset
-     */
-    this.music.current.addEventListener('ended', this.onEnded.bind(this));
-
-    /**
-     * Analyzer
-     */
-    this.analyzer = this.audioContext.createAnalyser();
-    this.analyzer.fftSize = 1024;
-    this.bufferLength = this.analyzer.frequencyBinCount;
-    this.setState({dataArray: new Uint8Array(this.bufferLength)});
-
-    /**
-     * Set the source with the HTML Audio Node
-     */
-    this.source = this.source || this.audioContext.createMediaElementSource(this.music.current);
-
-    /**
-     * Set the scriptProcessorNode to get PCM data in real time
-     */
-    this.scriptProcessorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
-
-    /**
-     * Connect everythings together
-     */
-    this.source.connect(this.analyzer);
-    this.scriptProcessorNode.connect(this.audioContext.destination);
-    this.source.connect(this.scriptProcessorNode);
-    this.source.connect(this.audioContext.destination);
-
-    /**
-     * Insternciate RealTimeBPMAnalyzer
-     */
-    this.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
-      debug: true,
-      scriptNode: {
-        bufferSize: 4096,
-      },
-      pushTime: 1000,
-      pushCallback: (error, bpm) => {
-        if (error) {
-          console.warn(error);
-          return;
-        }
-
-        if (typeof bpm[0] !== 'undefined') {
-          this.setState({currentTempo: bpm[0].tempo});
-        }
-      },
-    });
-
-    /**
-     * Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
-     */
-    this.scriptProcessorNode.addEventListener('audioprocess', this.onAudioProcess.bind(this));
-
-    /**
-     * Play music to analyze the BPM
-     */
-    this.music.current.play();
   }
 
   /**
@@ -131,23 +130,22 @@ export default class extends Component {
      */
     this.source.disconnect();
     this.scriptProcessorNode.disconnect();
+    this.realtimeAnalyzerNode.disconnect();
     this.analyzer.disconnect();
+    this.filter.disconnect();
 
     /**
      * Reset
      */
     this.setState({isAnalyzing: false});
     this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
-    this.realTimeBPMAnalyzer = null;
     this.setState({currentTempo: 0});
   }
 
   /**
    * Audio Process
    */
-  onAudioProcess(event) {
-    this.realTimeBPMAnalyzer.analyze(event);
-
+  onAudioProcess() {
     /**
      * Animate what we here from the microphone
      */
@@ -181,11 +179,11 @@ export default class extends Component {
 
           <hr/>
 
-          <audio ref={this.music} controls src={consts.exampleMusicFile} className="w-100"/>
+          <audio ref={this.music} controls src={consts.exampleMusicFile} className="w-100" onEnded={this.onEnded}/>
 
           <div className="pt-2">
             <div className="text-center">
-              <button type="button" className="btn btn-lg btn-primary" disabled={this.state.isAnalyzing} onClick={this.analyzeBpm} onEnded={this.onEnded}>
+              <button type="button" className="btn btn-lg btn-primary" disabled={this.state.isAnalyzing} onClick={this.analyzeBpm}>
                 <i className="bi bi-play-circle"/> Detect BPM from audio node
               </button>
 

@@ -7,3 +7,6 @@ dist/realtime-bpm-analyzer.js.map
 coverage
 .next
 *.DS_Store
+
+# Public exceptions
+public/realtime-bpm-processor.js

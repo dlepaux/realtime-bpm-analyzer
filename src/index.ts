@@ -25,9 +25,14 @@ export async function createRealTimeBpmProcessor(audioContext: AudioContext): Pr
  * @private
  */
 async function setupAudioWorkletNode(audioContext: AudioContext, processorName: string): Promise<AudioWorkletNode> {
-  await audioContext.audioWorklet.addModule(`./${processorName}.js`);
-
-  const audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
-
-  return audioWorkletNode;
+  try {
+    await audioContext.audioWorklet.addModule(`./${processorName}.js`);
+  
+    const audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
+  
+    return audioWorkletNode;
+  } catch (error) {
+    console.log(error);
+    throw error;    
+  }
 };

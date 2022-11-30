@@ -35,6 +35,7 @@ export default class extends Component {
       currentTempo: 0,
     };
 
+    this.onEnded = this.onEnded.bind(this);
     this.analyzeBpm = this.analyzeBpm.bind(this);
     this.toggleCollapse = this.toggleCollapse.bind(this);
   }
@@ -92,17 +93,15 @@ export default class extends Component {
        */
       this.source.connect(this.filter).connect(this.realtimeAnalyzerNode);
       this.source.connect(this.analyzer);
+      this.scriptProcessorNode.connect(this.audioContext.destination);
       this.source.connect(this.scriptProcessorNode);
       this.source.connect(this.audioContext.destination);
 
       /**
        * Listen realtimeAnalyzerNode for bpm updates
        */
-      this.realtimeAnalyzerNode.port.addEventListener('message', event => {
-        if (event.data.message === 'BPM' && event.data.result.bpm.length > 0) {
-          this.setState({currentTempo: event.data.result.bpm[0].tempo});
-        }
-      });
+      this.realtimeAnalyzerNode.port.addEventListener('message', this.onMessage.bind(this));
+      this.realtimeAnalyzerNode.port.start();
 
       // We continue to use scriptProcessorNode for that (:, migration can be done later
       this.scriptProcessorNode.addEventListener('audioprocess', this.onAudioProcess.bind(this));
@@ -140,6 +139,12 @@ export default class extends Component {
     this.setState({isAnalyzing: false});
     this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
     this.setState({currentTempo: 0});
+  }
+
+  onMessage(event) {
+    if (event.data.message === 'BPM' && event.data.result.bpm.length > 0) {
+      this.setState({currentTempo: event.data.result.bpm[0].tempo});
+    }
   }
 
   /**

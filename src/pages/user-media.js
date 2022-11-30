@@ -3,7 +3,7 @@ import React, {Component} from 'react';
 import Head from 'next/head.js';
 import requestAnimationFrame from 'raf';
 
-import {RealTimeBPMAnalyzer} from 'realtime-bpm-analyzer';
+import {createRealTimeBpmProcessor} from 'realtime-bpm-analyzer';
 import FrequencyBarGraph from '../components/frequency-bar-graph.js';
 import * as consts from '../consts.js';
 
@@ -22,9 +22,10 @@ export default class extends Component {
     this.mediaStreamSource = null;
     // RealTimeAnalyzer
     this.scriptProcessorNode = null;
-    this.realTimeBPMAnalyzer = null;
+    this.realtimeAnalyzerNode = null;
     // Stream (microphone)
     this.stream = null;
+    this.filter = null;
 
     this.state = {
       // Collapse
@@ -105,6 +106,11 @@ export default class extends Component {
      */
     await this.audioContext.resume();
 
+    this.realtimeAnalyzerNode = await createRealTimeBpmProcessor(this.audioContext).catch(error => console.log(error));
+
+    this.filter = this.audioContext.createBiquadFilter();
+    this.filter.type = 'lowpass';
+
     /**
      * Analyzer
      */
@@ -126,6 +132,7 @@ export default class extends Component {
     /**
      * Connect everythings together (do not connect input to this.audioContext.destination to avoid sound looping)
      */
+    this.mediaStreamSource.connect(this.filter).connect(this.realtimeAnalyzerNode);
     this.mediaStreamSource.connect(this.analyzer);
     this.mediaStreamSource.connect(this.scriptProcessorNode);
     this.scriptProcessorNode.connect(this.audioContext.destination);
@@ -133,30 +140,8 @@ export default class extends Component {
     /**
      * Insternciate RealTimeBPMAnalyzer
      */
-    this.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
-      debug: true,
-      scriptNode: {
-        bufferSize: 4096,
-      },
-      continuousAnalysis: true,
-      pushTime: 1000,
-      pushCallback: (error, bpm, _thresold) => {
-        if (error) {
-          console.warn(error);
-          return;
-        }
-
-        if (bpm && bpm.length > 0) {
-          this.setState({firstCandidateTempo: bpm[0].tempo});
-          this.setState({firstCandidateCount: bpm[0].count});
-          this.setState({secondCandidateTempo: bpm[1].tempo});
-          this.setState({secondCandidateCount: bpm[1].count});
-        }
-      },
-      onBpmStabilized: thresold => {
-        this.realTimeBPMAnalyzer.clearValidPeaks(thresold);
-      },
-    });
+    this.realtimeAnalyzerNode.port.addEventListener('message', this.onMessage.bind(this));
+    this.realtimeAnalyzerNode.port.start();
 
     /**
      * Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
@@ -164,12 +149,19 @@ export default class extends Component {
     this.scriptProcessorNode.addEventListener('audioprocess', this.onAudioProcess.bind(this));
   }
 
+  onMessage(event) {
+    if (event.data.message === 'BPM' && event.data.result.bpm.length > 0) {
+      this.setState({firstCandidateTempo: event.data.result.bpm[0].tempo});
+      this.setState({firstCandidateCount: event.data.result.bpm[0].count});
+      this.setState({secondCandidateTempo: event.data.result.bpm[1].tempo});
+      this.setState({secondCandidateCount: event.data.result.bpm[1].count});
+    }
+  }
+
   /**
    * Audio Process
    */
-  onAudioProcess(event) {
-    this.realTimeBPMAnalyzer.analyze(event);
-
+  onAudioProcess() {
     /**
      * Animate what we here from the microphone
      */
@@ -245,10 +237,10 @@ export default class extends Component {
                   <br/>
                   <i className="bi bi-soundwave"/>
                   <br/>
-                  <span className="text-muted">Current Thresold {this.state.formattedCurrentThresold}</span>
+                  <span className="text-muted">Current Threshold {this.state.formattedCurrentThreshold}</span>
                 </span>
                 <br/>
-                <small className="text-muted">High thresold (between 0.30 and 0.90) means stable BPM.</small>
+                <small className="text-muted">High threshold (between 0.30 and 0.90) means stable BPM.</small>
                 <br/>
                 <small className="text-muted">First Candidate Count {this.state.firstCandidateCount}</small>
                 <br/>

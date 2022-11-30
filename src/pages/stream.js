@@ -3,7 +3,7 @@ import React from 'react';
 import Head from 'next/head.js';
 import requestAnimationFrame from 'raf';
 
-import {RealTimeBPMAnalyzer} from 'realtime-bpm-analyzer';
+import {createRealTimeBpmProcessor} from 'realtime-bpm-analyzer';
 import FrequencyBarGraph from '../components/frequency-bar-graph.js';
 import * as consts from '../consts.js';
 
@@ -20,7 +20,7 @@ export default class StreamPage extends React.Component {
     this.source = null;
     // RealTimeAnalyzer
     this.scriptProcessorNode = null;
-    this.realTimeBPMAnalyzer = null;
+    this.realtimeAnalyzerNode = null;
 
     this.state = {
       // Flag
@@ -31,7 +31,6 @@ export default class StreamPage extends React.Component {
       defaultStreamEndpoint: 'https://ssl1.viastreaming.net:7005/;listen.mp3',
       computeBPMDelay: 5000,
       stabilizationTime: 10000,
-      pushTime: 1000,
       // RealTimeAnalyzer Results
       currentTempo: 0,
     };
@@ -56,6 +55,10 @@ export default class StreamPage extends React.Component {
      */
     this.audioContext = this.audioContext || consts.getAudioContext();
     await this.audioContext.resume();
+
+    this.realtimeAnalyzerNode = await createRealTimeBpmProcessor(this.audioContext).catch(error => console.log(error));
+    this.filter = this.audioContext.createBiquadFilter();
+    this.filter.type = 'lowpass';
 
     /**
      * Turn the isAnalyzing to true to avoid multiple plays
@@ -83,34 +86,17 @@ export default class StreamPage extends React.Component {
     /**
      * Connect everythings together
      */
+    this.source.connect(this.filter).connect(this.realtimeAnalyzerNode);
     this.source.connect(this.analyzer);
     this.scriptProcessorNode.connect(this.audioContext.destination);
     this.source.connect(this.scriptProcessorNode);
     this.source.connect(this.audioContext.destination);
 
     /**
-     * Insternciate RealTimeBPMAnalyzer
+     * Insternciate realtimeAnalyzerNode
      */
-    this.realTimeBPMAnalyzer = new RealTimeBPMAnalyzer({
-      debug: true,
-      scriptNode: {
-        bufferSize: 4096,
-      },
-      computeBPMDelay: this.state.computeBPMDelay,
-      stabilizationTime: this.state.stabilizationTime,
-      continuousAnalysis: true,
-      pushTime: this.state.pushTime,
-      pushCallback: (error, bpm) => {
-        if (error) {
-          console.warn(error);
-          return;
-        }
-
-        if (typeof bpm[0] !== 'undefined') {
-          this.setState({currentTempo: bpm[0].tempo});
-        }
-      },
-    });
+    this.realtimeAnalyzerNode.port.addEventListener('message', this.onMessage.bind(this));
+    this.realtimeAnalyzerNode.port.start();
 
     /**
      * Attach realTime function to audioprocess event.inputBuffer (AudioBuffer)
@@ -123,12 +109,16 @@ export default class StreamPage extends React.Component {
     this.music.current.play();
   }
 
+  onMessage(event) {
+    if (event.data.message === 'BPM' && event.data.result.bpm.length > 0) {
+      this.setState({currentTempo: event.data.result.bpm[0].tempo});
+    }
+  }
+
   /**
    * Audio Process
    */
-  onAudioProcess(event) {
-    this.realTimeBPMAnalyzer.analyze(event);
-
+  onAudioProcess() {
     /**
      * Animate what we here from the microphone
      */
@@ -141,11 +131,6 @@ export default class StreamPage extends React.Component {
 
   onChangeStreamEndpoint(event) {
     this.setState({defaultStreamEndpoint: event.target.value});
-    this.restartAnalyzer();
-  }
-
-  onChangePushTime(event) {
-    this.setState({pushTime: event.target.value});
     this.restartAnalyzer();
   }
 
@@ -171,6 +156,7 @@ export default class StreamPage extends React.Component {
      */
     this.source.disconnect();
     this.scriptProcessorNode.disconnect();
+    this.realtimeAnalyzerNode.disconnect();
     this.analyzer.disconnect();
 
     /**
@@ -178,7 +164,6 @@ export default class StreamPage extends React.Component {
      */
     this.setState({isAnalyzing: false});
     this.scriptProcessorNode.removeEventListener('audioprocess', this.onAudioProcess);
-    this.realTimeBPMAnalyzer = null;
     this.setState({currentTempo: 0});
 
     /**
@@ -224,12 +209,6 @@ export default class StreamPage extends React.Component {
                   <label htmlFor="streamEndpoint" className="form-label">Stream Endpoint</label>
                   <input type="text" className="form-control" id="streamEndpoint" aria-describedby="streamEndpointDescription" value={this.state.defaultStreamEndpoint} onChange={this.onChangeStreamEndpoint}/>
                   <div id="streamEndpointDescription" className="form-text">Stream endpoint analyzed by the library. The default value is a stream from <a href="https://ibizasonica.com/">IbizaSonica Radio</a> &hearts;.</div>
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="pushTime" className="form-label">Push Time ({this.state.pushTime} milliseconds)</label>
-                  <input type="range" className="form-range" min="100" max="5000" step="100" id="pushTime" aria-describedby="pushTimeDescription" value={this.state.pushTime} onChange={this.onChangePushTime}/>
-                  <div id="pushTimeDescription" className="form-text">BPM will be computed at each tick of {this.state.pushTime} milliseconds.</div>
                 </div>
 
                 <div className="mb-3">

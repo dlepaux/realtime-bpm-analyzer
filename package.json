@@ -39,7 +39,7 @@
     "url": "https://github.com/dlepaux/realtime-bpm-analyzer"
   },
   "dependencies": {
-    "realtime-bpm-analyzer": "^3.0.0-7"
+    "realtime-bpm-analyzer": "^3.0.0-10"
   },
   "devDependencies": {
     "@commitlint/cli": "^12.1.4",

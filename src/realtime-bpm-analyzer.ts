@@ -43,7 +43,7 @@ export class RealTimeBpmAnalyzer {
    * @param {number} config.computeBpmDelay Arbitrary delay to compute the BPM for the first time
    * @param {number} config.stabilizationTime Arbitrary time where we consider that a BPM is computable
    */
-  constructor(config: RealTimeBpmAnalyzerParameters) {
+  constructor(config: RealTimeBpmAnalyzerParameters = {}) {
     /**
      * Default configuration
      * @property {object} options Default configuration
@@ -52,7 +52,6 @@ export class RealTimeBpmAnalyzer {
       continuousAnalysis: false,
       computeBpmDelay: 10000,
       stabilizationTime: 20000,
-      postMessage: config.postMessage,
     };
 
     /**
@@ -118,7 +117,6 @@ export class RealTimeBpmAnalyzer {
 
     const result: BpmCandidates = computeBpm(this.validPeaks, audioSampleRate);
     const {threshold} = result;
-    console.log('threshold', threshold);
     postMessage({message: 'BPM', result});
 
     if (this.minValidThreshold < threshold) {

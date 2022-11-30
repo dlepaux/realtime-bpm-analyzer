@@ -4,6 +4,7 @@
 coverage
 docs
 node_modules
+src
 test
 .commitlintrc.cjs
 .editorconfig

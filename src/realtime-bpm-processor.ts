@@ -24,9 +24,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   /**
    * RealTimeBpmAnalzer
    */
-  realTimeBpmAnalyzer: RealTimeBpmAnalyzer = new RealTimeBpmAnalyzer({
-    postMessage: this.port.postMessage,
-  });
+  realTimeBpmAnalyzer: RealTimeBpmAnalyzer = new RealTimeBpmAnalyzer();
 
   constructor() {
     super();

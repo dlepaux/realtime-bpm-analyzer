@@ -27,14 +27,12 @@ export interface RealTimeBpmAnalyzerParameters {
   continuousAnalysis?: boolean;
   computeBpmDelay?: number;
   stabilizationTime?: number;
-  postMessage(message: any, transfer?: Transferable[]): void
 }
 
 export interface RealTimeBpmAnalyzerOptions {
   continuousAnalysis: boolean;
   computeBpmDelay: number;
   stabilizationTime: number;
-  postMessage(message: any, transfer?: Transferable[]): void
 }
 
 export type ValidPeaks = Record<string, Peaks>;

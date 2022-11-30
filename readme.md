@@ -77,7 +77,7 @@ npm run test:report
 
 2. Provoide your [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to `RealTimeBpmAnalyzer` like the following and enjoy the beat.
     ```javascript
-    import { createRealTimeBpmProcessor, realTimeBpmAnalyzer } from 'realtime-bpm-analyzer';
+    import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
 
     const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
 

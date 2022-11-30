@@ -5,7 +5,7 @@ import { RealTimeBpmAnalyzer } from './realtime-bpm-analyzer';
  * @class RealTimeBpmProcessor
  * @extends AudioWorkletProcessor
  **/
-class RealTimeBpmProcessor extends AudioWorkletProcessor {
+export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   /**
    * Determine the buffer size (this is the same as the 1st argument of ScriptProcessor)
    */

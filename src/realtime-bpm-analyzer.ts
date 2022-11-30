@@ -60,6 +60,15 @@ export class RealTimeBpmAnalyzer {
     Object.assign(this.options, config);
   }
 
+  setAsyncConfiguration(key: string, value: unknown): void {
+    if (typeof this.options[key] === 'undefined') {
+      console.log('Ke not found in options', key);
+      return;
+    }
+
+    this.options[key] = value;
+  }
+
   /**
    * Reset BPM computation properties to get a fresh start
    */

@@ -25,6 +25,7 @@
   "module": "./src/index.ts",
   "scripts": {
     "build": "esbuild src/realtime-bpm-processor.ts --bundle --outfile=dist/realtime-bpm-processor.js && esbuild src/index.ts --bundle --outfile=dist/index.js",
+    "build-esm": "esbuild src/index.ts --bundle --platform=node --target=node14 --outfile=dist/index.esm.js",
     "coverage": "codecov",
     "doc": "rm -Rf ./public/api && jsdoc -c ./.jsdoc.json ./readme.md",
     "release": "standard-version",

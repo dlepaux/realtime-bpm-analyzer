@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.0.0-0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v2.1.6...v3.0.0-0) (2022-11-30)
+
+
+### Bug Fixes
+
+* jsdoc ([24d2ff6](https://github.com/dlepaux/realtime-bpm-analyzer/commit/24d2ff6f056bf0ba188d0edebf0a629038f03290))
+
 ### [2.1.6](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v2.1.5...v2.1.6) (2021-11-28)
 
 

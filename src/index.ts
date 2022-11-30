@@ -1,6 +1,5 @@
 import { realtimeBpmProcessorName } from './consts';
 export * from './realtime-bpm-analyzer';
-export * from './realtime-bpm-processor';
 export * from './types';
 
 /**

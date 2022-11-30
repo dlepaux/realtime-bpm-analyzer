@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.0.0-8](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.0.0-7...v3.0.0-8) (2022-11-30)
+
 ## [3.0.0-7](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.0.0-6...v3.0.0-7) (2022-11-30)
 
 ## [3.0.0-6](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.0.0-5...v3.0.0-6) (2022-11-30)

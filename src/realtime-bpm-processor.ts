@@ -71,12 +71,13 @@ class RealTimeBpmProcessor extends AudioWorkletProcessor {
     this.append(inputs[0][0])
 
     if (this.isBufferFull()) {
-      this.realTimeBpmAnalyzer.analyze(this._buffer, this.bufferSize, sampleRate);
+      this.realTimeBpmAnalyzer.analyze(this._buffer, sampleRate, this.bufferSize, (event) => {
+        this.port.postMessage(event);
+      });
     }
 
     return true;
   }
-
 
   /**
    * Append the new chunk to the buffer (with a bufferSize of 4096)

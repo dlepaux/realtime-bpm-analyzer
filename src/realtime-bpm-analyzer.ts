@@ -93,7 +93,7 @@ export class RealTimeBpmAnalyzer {
    * @todo This function is a chimeria, it must be sliced out
    * @param {object} event Event
    */
-  analyze(channelData: Float32Array, audioSampleRate: number, bufferSize: number) {
+  analyze(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: any) => void) {
     /**
      * Compute the maximum index with all previous chunks
      * @type {number}
@@ -118,10 +118,11 @@ export class RealTimeBpmAnalyzer {
 
     const result: BpmCandidates = computeBpm(this.validPeaks, audioSampleRate);
     const {threshold} = result;
-    this.options.postMessage({message: 'BPM', result});
+    console.log('threshold', threshold);
+    postMessage({message: 'BPM', result});
 
     if (this.minValidThreshold < threshold) {
-      this.options.postMessage({message: 'BPM_STABLE', result});
+      postMessage({message: 'BPM_STABLE', result});
       this.clearValidPeaks(threshold);
     }
 

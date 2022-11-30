@@ -1,7 +1,7 @@
 import {expect} from 'chai';
 import {describe, it} from 'mocha';
 
-import {descendingOverThresholds} from '../src/utils';
+import {descendingOverThresholds, generateValidPeaksModel, generateNextIndexPeaksModel} from '../src/utils';
 
 /**
  * Unit test for the RealTime BPM Analyzer
@@ -55,6 +55,17 @@ describe('RealTime BPM Analyzer', () => {
       setTimeout(() => {
         done();
       });
+    });
+
+    it('should create the model with the default value', done => {
+      const object = generateValidPeaksModel();
+      expect(JSON.stringify(Object.values(object)[0])).to.be.equal('[]');
+      done();
+    });
+    it('should create the model with the default value', done => {
+      const object = generateNextIndexPeaksModel();
+      expect(JSON.stringify(Object.values(object)[0])).to.be.equal('0');
+      done();
     });
   });
 });

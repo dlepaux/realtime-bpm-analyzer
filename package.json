@@ -21,7 +21,7 @@
     "analyzer"
   ],
   "license": "MIT",
-  "main": "./src/realtime-bpm-analyzer.js",
+  "main": "./dist/index.js",
   "scripts": {
     "build": "esbuild src/realtime-bpm-processor.ts --bundle --outfile=dist/realtime-bpm-processor.js && esbuild src/index.ts --bundle --outfile=dist/index.js",
     "coverage": "codecov",

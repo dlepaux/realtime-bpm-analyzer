@@ -40,7 +40,6 @@ export default class StreamPage extends React.Component {
     this.analyzeBpm = this.analyzeBpm.bind(this);
     this.onAudioProcess = this.onAudioProcess.bind(this);
     this.onChangeStreamEndpoint = this.onChangeStreamEndpoint.bind(this);
-    this.onChangePushTime = this.onChangePushTime.bind(this);
     this.onChangeComputeBPMDelay = this.onChangeComputeBPMDelay.bind(this);
     this.onChangeStabilizationTime = this.onChangeStabilizationTime.bind(this);
   }

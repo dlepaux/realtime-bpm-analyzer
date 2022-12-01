@@ -150,7 +150,8 @@ export default class extends Component {
   }
 
   onMessage(event) {
-    if (event.data.message === 'BPM' && event.data.result.bpm.length > 0) {
+    console.log(event);
+    if (event.data.message === 'BPM' && event.data.result.bpm.length > 1) {
       this.setState({firstCandidateTempo: event.data.result.bpm[0].tempo});
       this.setState({firstCandidateCount: event.data.result.bpm[0].count});
       this.setState({secondCandidateTempo: event.data.result.bpm[1].tempo});

@@ -14,11 +14,13 @@
 
 ## Documentation
 
-[See the documentation](https://dlepaux.github.io/realtime-bpm-analyzer/)
+[See the documentation](https://dlepaux.github.io/realtime-bpm-analyzer)
 
 Checkout [gh-pages](https://github.com/dlepaux/realtime-bpm-analyzer/tree/gh-pages) branch to edit the github-pages.
 
-[See the API documentation](https://dlepaux.github.io/realtime-bpm-analyzer/api)
+[See the API documentation (lastest: v3)](https://dlepaux.github.io/realtime-bpm-analyzer/api/v3)
+
+[See the API documentation (v2)](https://dlepaux.github.io/realtime-bpm-analyzer/api/v2)
 
 ## Introduction
 
@@ -75,7 +77,7 @@ npm run test:report
     <audio src="./new_order-blue_monday.mp3" id="track"></audio>
     ```
 
-2. Provoide your [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to `RealTimeBpmAnalyzer` like the following and enjoy the beat.
+2. Create the AudioWorkletProcessor with `createRealTimeBpmProcessor`, create and pipe the lowpass filter to the AudioWorkletNode (`realtimeAnalyzerNode`).
     ```javascript
     import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
 
@@ -95,14 +97,39 @@ npm run test:report
 
     realtimeAnalyzerNode.port.onmessage = (event) => {
       if (event.data.message === 'BPM') {
-        console.log('BPM', event);
+        console.log('BPM', event.data.result);
       }
       if (event.data.message === 'BPM_STABLE') {
-        console.log('BPM_STABLE', event);
+        console.log('BPM_STABLE', event.data.result);
       }
     };
     ```
 
+3. You also need to expose the file `dist/realtime-bpm-processor.js` (already bundled) to your public root diretory. Typically, this file must be available at http://yourdomain/realtime-bpm-processor.js.
+
+    ```javascript
+    // For NextJS see your next.config.js and add this:
+    // You also need to install `npm install copy-webpack-plugin@6.4.1 -D`
+    // Note that the latest version (11.0.0) didn't worked properly with NextJS 12
+    const path = require('path');
+    const CopyPlugin = require('copy-webpack-plugin');
+    module.exports = {
+    webpack: config => {
+        config.plugins.push(
+          new CopyPlugin({
+            patterns: [
+              {
+                from: './node_modules/realtime-bpm-analyzer/dist/realtime-bpm-processor.js',
+                to: path.resolve(__dirname, 'public'),
+              },
+            ],
+          },
+          ));
+
+        return config;
+      },
+    };
+    ```
 ## Technical approch
 
 This tool has been largely inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective), which is actually optimized to compute the BPM of a song as fast as possible and not while playing it.

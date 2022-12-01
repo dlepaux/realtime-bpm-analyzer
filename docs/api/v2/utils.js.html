@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Adding favicon -->
+    
+
+    <!-- Adding meta -->
+    
+
+    <!-- Adding external script-->
+    
+    
+    <script src="https://www.googletagmanager.com/gtag/js?id=G-PXQ4D05F0B" ></script>
+    
+    
+
+    <!-- Adding external style-->
+    
+    
+    <link rel="icon" href="https://dlepaux.github.io/realtime-bpm-analyzer/favicon.png" />
+    
+    
+
+    <!-- Adding scripts-->
+    
+
+    <!-- Adding style-->
+    
+
+    <!-- Adding overlay script-->
+    
+
+    <!-- Adding overlay style-->
+    
+
+
+    <title>
+      utils.js
+    </title>
+
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/third-party/ionicons.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/third-party/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/reset.css">
+    <link type="text/css" rel="stylesheet" href="styles/clean-jsdoc-theme-base.css">
+    <link type="text/css" rel="stylesheet" href="styles/clean-jsdoc-theme-light.css">
+    
+    <svg aria-hidden="true" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+    style="display:none">
+    <defs>
+        <symbol id="copy-icon" viewbox="0 0 488.3 488.3">
+            <g>
+                <path
+                    d="M314.25,85.4h-227c-21.3,0-38.6,17.3-38.6,38.6v325.7c0,21.3,17.3,38.6,38.6,38.6h227c21.3,0,38.6-17.3,38.6-38.6V124    C352.75,102.7,335.45,85.4,314.25,85.4z M325.75,449.6c0,6.4-5.2,11.6-11.6,11.6h-227c-6.4,0-11.6-5.2-11.6-11.6V124    c0-6.4,5.2-11.6,11.6-11.6h227c6.4,0,11.6,5.2,11.6,11.6V449.6z" />
+                <path
+                    d="M401.05,0h-227c-21.3,0-38.6,17.3-38.6,38.6c0,7.5,6,13.5,13.5,13.5s13.5-6,13.5-13.5c0-6.4,5.2-11.6,11.6-11.6h227    c6.4,0,11.6,5.2,11.6,11.6v325.7c0,6.4-5.2,11.6-11.6,11.6c-7.5,0-13.5,6-13.5,13.5s6,13.5,13.5,13.5c21.3,0,38.6-17.3,38.6-38.6    V38.6C439.65,17.3,422.35,0,401.05,0z" />
+            </g>
+        </symbol>
+        <symbol id='search-icon' viewBox="0 0 512 512">
+            <g>
+                <g>
+                    <path
+                        d="M225.474,0C101.151,0,0,101.151,0,225.474c0,124.33,101.151,225.474,225.474,225.474    c124.33,0,225.474-101.144,225.474-225.474C450.948,101.151,349.804,0,225.474,0z M225.474,409.323    c-101.373,0-183.848-82.475-183.848-183.848S124.101,41.626,225.474,41.626s183.848,82.475,183.848,183.848    S326.847,409.323,225.474,409.323z" />
+                </g>
+            </g>
+            <g>
+                <g>
+                    <path
+                        d="M505.902,476.472L386.574,357.144c-8.131-8.131-21.299-8.131-29.43,0c-8.131,8.124-8.131,21.306,0,29.43l119.328,119.328    c4.065,4.065,9.387,6.098,14.715,6.098c5.321,0,10.649-2.033,14.715-6.098C514.033,497.778,514.033,484.596,505.902,476.472z" />
+                </g>
+            </g>
+        </symbol>
+        <symbol id="down-icon" viewBox="0 0 16 16">
+            <path 
+                fill-rule="evenodd" 
+                clip-rule="evenodd" 
+                d="M12.7803 6.21967C13.0732 6.51256 13.0732 6.98744 12.7803 7.28033L8.53033 11.5303C8.23744 11.8232 7.76256 11.8232 7.46967 11.5303L3.21967 7.28033C2.92678 6.98744 2.92678 6.51256 3.21967 6.21967C3.51256 5.92678 3.98744 5.92678 4.28033 6.21967L8 9.93934L11.7197 6.21967C12.0126 5.92678 12.4874 5.92678 12.7803 6.21967Z"
+            >
+            </path>
+        </symbol>
+    </defs>
+</svg>
+  </head>
+
+  <body>
+
+    <nav class="navbar" id="navbar">
+      <div class="navbar-heading" id="navbar-heading"><a href="index.html"><h2 class="navbar-heading-text">Home</h2></a></div><div class="search-box" id="search-box"><div class="search-box-input-container"><input class="search-box-input" type="text" placeholder="Search..." id="search-box-input" /><svg class="search-icon" alt="search-icon"><use xlink:href="#search-icon"></use></svg></div><div class="search-item-container" id="search-item-container"><ul class="search-item-ul" id="search-item-ul"></ul></div></div><div class="sidebar-main-content" id="sidebar-main-content"><ul><li class="menu-li"><a href='https://dlepaux.github.io/realtime-bpm-analyzer/' class=' menu-link' id='' target=''>Back to documentation</a></li></ul><div class="accordion collapsed" id="3782479" > <h3 class="accordion-heading">Classes<svg><use xlink:href="#down-icon"></use></svg></h3><ul class="accordion-content"><li class="accordion collapsed child" id=6226978><div class="accordion-heading child"><a href="Analyzer.html">Analyzer</a><svg><use xlink:href="#down-icon"></use></svg></div><ul class='methods accordion-content'><li data-type='method'><a href="Analyzer.html#computeBPM">computeBPM</a></li><li data-type='method'><a href="Analyzer.html#findPeaksAtThresold">findPeaksAtThresold</a></li><li data-type='method'><a href="Analyzer.html#getLowPassSource">getLowPassSource</a></li><li data-type='method'><a href="Analyzer.html#getTopCandidates">getTopCandidates</a></li><li data-type='method'><a href="Analyzer.html#groupByTempo">groupByTempo</a></li><li data-type='method'><a href="Analyzer.html#identifyIntervals">identifyIntervals</a></li></ul></li><li class="accordion collapsed child" id=6207924><div class="accordion-heading child"><a href="RealTimeBPMAnalyzer.html">RealTimeBPMAnalyzer</a><svg><use xlink:href="#down-icon"></use></svg></div><ul class='methods accordion-content'><li data-type='method'><a href="RealTimeBPMAnalyzer.html#analyze">analyze</a></li><li data-type='method'><a href="RealTimeBPMAnalyzer.html#clearValidPeaks">clearValidPeaks</a></li><li data-type='method'><a href="RealTimeBPMAnalyzer.html#logger">logger</a></li><li data-type='method'><a href="RealTimeBPMAnalyzer.html#reset">reset</a></li></ul></li><li class="accordion collapsed child" id=9547125><div class="accordion-heading child"><a href="Utils.html">Utils</a><svg><use xlink:href="#down-icon"></use></svg></div><ul class='methods accordion-content'><li data-type='method'><a href="Utils.html#generateObjectModel">generateObjectModel</a></li><li data-type='method'><a href="Utils.html#loopOnThresolds">loopOnThresolds</a></li><li data-type='method'><a href="Utils.html#noop">noop</a></li></ul></li></ul> </div>
+      
+
+    </nav>
+    <div class="navbar-ham" id="navbar-ham">
+      <div>
+        <div class="first"></div>
+        <div class="second"></div>
+        <div class="third"></div>
+      </div>
+    </div>
+
+    <div id="main" class="main-content">
+      
+      <h1 id='page-title' class="page-title">
+        utils.js
+      </h1>
+      
+
+      
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * Utils Singletron
+ * @class
+ */
+class Utils {
+  /**
+   * Loop between .9 and .3 to check peak at each thresolds
+   * @param {function} onLoop Function for each iteration
+   * @param {mixed} minValidThresold Function for each iteration
+   * @param {mixed} callback Function executed at the end
+   */
+  loopOnThresolds(onLoop, minValidThresold, callback) {
+    /**
+     * Top starting value to check peaks
+     * @type {number}
+     */
+    let thresold = 0.95;
+
+    /**
+     * Minimum value to check peaks
+     */
+    if (typeof minValidThresold === 'function' || typeof minValidThresold === 'boolean') {
+      callback = minValidThresold || callback;
+      minValidThresold = 0.3;
+    }
+
+    if (typeof minValidThresold === 'undefined') {
+      minValidThresold = 0.3;
+    }
+
+    if (typeof callback !== 'function') {
+      callback = this.noop;
+    }
+
+    const minThresold = minValidThresold;
+
+    /**
+     * Optionnal object to store data
+     */
+    const object = {};
+
+    /**
+     * Loop between 0.90 and 0.30 (theoretically it is 0.90 but it is 0.899999, due because of float manipulation)
+     */
+    do {
+      let stop = false;
+      thresold -= 0.05;
+      onLoop(object, thresold, bool => {
+        stop = bool;
+      });
+
+      if (stop) {
+        break;
+      }
+    } while (thresold > minThresold);
+
+    /**
+     * Ended callback
+     */
+    return callback(object);
+  }
+
+  /**
+   * Generate an object with each keys (thresolds) with a defaultValue
+   * @param  {mixed} defaultValue Contain the înitial value for each thresolds
+   * @param  {function} callback Callback function
+   * @return {object} Object with thresolds key initialized with a defaultValue
+   */
+  generateObjectModel(defaultValue, callback) {
+    return this.loopOnThresolds((object, thresold) => {
+      object[thresold.toString()] = JSON.parse(JSON.stringify(defaultValue));
+    }, object => {
+      if (callback) {
+        return callback(JSON.parse(JSON.stringify(object)));
+      }
+
+      return object;
+    });
+  }
+
+  /**
+   * Empty method
+   */
+  noop() {}
+}
+
+export default new Utils();
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    </div>
+
+    <footer class="footer" id="footer">
+      
+    </footer>
+
+    <script src="scripts/third-party/prettify.js"></script>
+    <script src="scripts/third-party/lang-css.js"></script>
+    <script type="text/javascript" src="scripts/misc.js"></script>
+
+    <script>prettyPrint();</script>
+    <script src="scripts/linenumber.js"></script>
+    <script src="scripts/fix-code-block.js"></script>
+    <script src="scripts/fix-navbar.js"></script>
+    
+      <script src="scripts/search.js"></script>
+      <script src="scripts/third-party/fuse.js"></script>
+      <script>
+        var list = [{"title":"Analyzer","link":"<a href=\"Analyzer.html\">Analyzer</a>"},{"title":"Analyzer#computeBPM","link":"<a href=\"Analyzer.html#computeBPM\">Analyzer &rtrif; computeBPM</a>"},{"title":"Analyzer#findPeaksAtThresold","link":"<a href=\"Analyzer.html#findPeaksAtThresold\">Analyzer &rtrif; findPeaksAtThresold</a>"},{"title":"Analyzer#getLowPassSource","link":"<a href=\"Analyzer.html#getLowPassSource\">Analyzer &rtrif; getLowPassSource</a>"},{"title":"Analyzer#getTopCandidates","link":"<a href=\"Analyzer.html#getTopCandidates\">Analyzer &rtrif; getTopCandidates</a>"},{"title":"Analyzer#groupByTempo","link":"<a href=\"Analyzer.html#groupByTempo\">Analyzer &rtrif; groupByTempo</a>"},{"title":"Analyzer#identifyIntervals","link":"<a href=\"Analyzer.html#identifyIntervals\">Analyzer &rtrif; identifyIntervals</a>"},{"title":"RealTimeBPMAnalyzer","link":"<a href=\"RealTimeBPMAnalyzer.html\">RealTimeBPMAnalyzer</a>"},{"title":"RealTimeBPMAnalyzer#analyze","link":"<a href=\"RealTimeBPMAnalyzer.html#analyze\">RealTimeBPMAnalyzer &rtrif; analyze</a>"},{"title":"RealTimeBPMAnalyzer#clearValidPeaks","link":"<a href=\"RealTimeBPMAnalyzer.html#clearValidPeaks\">RealTimeBPMAnalyzer &rtrif; clearValidPeaks</a>"},{"title":"RealTimeBPMAnalyzer#logger","link":"<a href=\"RealTimeBPMAnalyzer.html#logger\">RealTimeBPMAnalyzer &rtrif; logger</a>"},{"title":"RealTimeBPMAnalyzer#reset","link":"<a href=\"RealTimeBPMAnalyzer.html#reset\">RealTimeBPMAnalyzer &rtrif; reset</a>"},{"title":"Utils","link":"<a href=\"Utils.html\">Utils</a>"},{"title":"Utils#generateObjectModel","link":"<a href=\"Utils.html#generateObjectModel\">Utils &rtrif; generateObjectModel</a>"},{"title":"Utils#loopOnThresolds","link":"<a href=\"Utils.html#loopOnThresolds\">Utils &rtrif; loopOnThresolds</a>"},{"title":"Utils#noop","link":"<a href=\"Utils.html#noop\">Utils &rtrif; noop</a>"}];
+        var options = 
+          setupSearch(list, options)
+      </script>
+    
+
+    
+    <script type="text/javascript">
+        window.dataLayer = window.dataLayer || []; function gtag() {dataLayer.push(arguments)} gtag('js', new Date()); gtag('config', 'G-PXQ4D05F0B');
+    </script>
+    
+
+    
+
+    
+    <script type="text/javascript">
+    window.dataLayer = window.dataLayer || []; function gtag() {dataLayer.push(arguments)} gtag('js', new Date()); gtag('config', 'G-PXQ4D05F0B');
+    </script>
+    
+
+    
+
+
+  </body>
+
+</html>

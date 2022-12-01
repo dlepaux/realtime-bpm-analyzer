@@ -16,8 +16,11 @@ module.exports = { // eslint-disable-line unicorn/prefer-module
         patterns: [
           {
             from: './node_modules/realtime-bpm-analyzer/dist/realtime-bpm-processor.js',
-            // To: 'public/dist',
             to: path.resolve(__dirname, 'public'), // eslint-disable-line unicorn/prefer-module
+          },
+          {
+            from: './api',
+            to: path.resolve(__dirname, 'docs', 'api'), // eslint-disable-line unicorn/prefer-module
           },
         ],
       },

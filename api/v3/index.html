@@ -1,0 +1,113 @@
+<!DOCTYPE html><html class="default"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>realtime-bpm-analyzer</title><meta name="description" content="Documentation for realtime-bpm-analyzer"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script async src="assets/search.js" id="search-script"></script></head><body><script>document.body.classList.add(localStorage.getItem("tsd-theme") || "os")</script><header><div class="tsd-page-toolbar"><div class="container"><div class="table-wrap"><div class="table-cell" id="tsd-search" data-base="."><div class="field"><label for="tsd-search-field" class="tsd-widget search no-caption">Search</label><input type="text" id="tsd-search-field"/></div><ul class="results"><li class="state loading">Preparing search index...</li><li class="state failure">The search index is not available</li></ul><a href="index.html" class="title">realtime-bpm-analyzer</a></div><div class="table-cell" id="tsd-widgets"><div id="tsd-filter"><a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a><div class="tsd-filter-group"><div class="tsd-select" id="tsd-filter-visibility"><span class="tsd-select-label">All</span><ul class="tsd-select-list"><li data-value="public">Public</li><li data-value="protected">Public/Protected</li><li data-value="private" class="selected">All</li></ul></div> <input type="checkbox" id="tsd-filter-inherited" checked/><label class="tsd-widget" for="tsd-filter-inherited">Inherited</label><input type="checkbox" id="tsd-filter-externals" checked/><label class="tsd-widget" for="tsd-filter-externals">Externals</label></div></div><a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a></div></div></div></div><div class="tsd-page-title"><div class="container"><h1>realtime-bpm-analyzer </h1></div></div></header><div class="container container-main"><div class="row"><div class="col-8 col-content"><div class="tsd-panel tsd-typography">
+<a href="#realtime-bpm-analyzer" id="realtime-bpm-analyzer" style="color: inherit; text-decoration: none;">
+  <h1>RealTime BPM Analyzer</h1>
+</a>
+<p><a href="https://github.com/xojs/xo"><img src="https://img.shields.io/badge/code_style-XO-5ed9c7.svg" alt="XO code style"></a>
+<a href="https://www.npmjs.com/package/realtime-bpm-analyzer"><img src="https://img.shields.io/npm/dm/realtime-bpm-analyzer.svg" alt="npm"></a>
+<a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/licence.md"><img src="https://img.shields.io/npm/l/realtime-bpm-analyzer.svg" alt="npm"></a>
+<a href="https://github.com/dlepaux/realtime-bpm-analyzer/actions"><img src="https://github.com/dlepaux/realtime-bpm-analyzer/workflows/CI/badge.svg" alt="CI Actions Status"></a>
+<a href="https://gitter.im/realtime-bpm-analyzer/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge"><img src="https://badges.gitter.im/realtime-bpm-analyzer/Lobby.svg" alt="Join the chat at https://gitter.im/realtime-bpm-analyzer/Lobby"></a></p>
+<div>
+  <p align="center">
+    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/img/allegro-project.png" style="max-width: 100%; height: auto;">
+  </p>
+</div>
+
+
+<a href="#documentation" id="documentation" style="color: inherit; text-decoration: none;">
+  <h2>Documentation</h2>
+</a>
+<p><a href="https://dlepaux.github.io/realtime-bpm-analyzer">See the documentation</a></p>
+<p>Checkout <a href="https://github.com/dlepaux/realtime-bpm-analyzer/tree/gh-pages">gh-pages</a> branch to edit the github-pages.</p>
+<p><a href="https://dlepaux.github.io/realtime-bpm-analyzer/api/v3">See the API documentation (lastest: v3)</a></p>
+<p><a href="https://dlepaux.github.io/realtime-bpm-analyzer/api/v2">See the API documentation (v2)</a></p>
+
+<a href="#introduction" id="introduction" style="color: inherit; text-decoration: none;">
+  <h2>Introduction</h2>
+</a>
+<p>This <strong>dependency free</strong> library allows you to compute the BPM (Beats Per minutes) in realtime of an <code>audio</code> / <code>video</code> node or streams thanks to the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API">WebAudioAPI</a>.</p>
+<p>Please, note that the main use case of this tool, is to compute the BPM while the video / audio is <strong>playing</strong>.</p>
+
+<a href="#webaudioapi" id="webaudioapi" style="color: inherit; text-decoration: none;">
+  <h3>WebAudioAPI</h3>
+</a>
+<blockquote>
+<p>The <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API">WebAudioAPI</a> provides a powerful and versatile system for controlling audio on the Web, allowing developers to choose audio sources, add effects to audio, create audio visualizations, apply spatial effects (such as panning) and much more.</p>
+</blockquote>
+
+<a href="#motivations" id="motivations" style="color: inherit; text-decoration: none;">
+  <h2>Motivations</h2>
+</a>
+<p>Allegro Project purpose is to permits you to collect the BPM of <a href="https://youtube.com">Youtube</a> musics listened by the user. Once the data collected the tool shall bind it at the begining of the title.</p>
+<p>Let&#39;s imagine we are listening a <a href="https://www.youtube.com/watch?v=FYH8DsU2WCk">song</a> on Youtube. The &quot;raw&quot; title of it is: <code>New Order - Blue Monday</code>, once <code>Allegro</code> have collected the BPM it will bind it at the begining of the title, so we would have: <code>[130BPM] New Order - Blue Monday</code>.</p>
+<p>The project is under construction thought and this component <a href="https://github.com/dlepaux/realtime-bpm-analyzer">realtime-bpm-analyzer</a> is an essential piece of the project.</p>
+
+<a href="#installation" id="installation" style="color: inherit; text-decoration: none;">
+  <h2>Installation</h2>
+</a>
+<p>To install this module to your project, just launch the command below:</p>
+<pre><code class="language-bash"><span class="hl-0">npm install realtime-bpm-analyzer</span>
+</code></pre>
+
+<a href="#development" id="development" style="color: inherit; text-decoration: none;">
+  <h2>Development</h2>
+</a>
+<pre><code class="language-bash"><span class="hl-0">npm install</span><br/><span class="hl-0">npx husky install</span><br/><span class="hl-0">npm </span><span class="hl-1">test</span>
+</code></pre>
+
+<a href="#tests-amp-coverage" id="tests-amp-coverage" style="color: inherit; text-decoration: none;">
+  <h2>Tests &amp; Coverage</h2>
+</a>
+<p>To launch the test suite, just launch the command below:</p>
+<pre><code class="language-bash"><span class="hl-0">npm </span><span class="hl-1">test</span><br/><span class="hl-0">npm run test:report</span>
+</code></pre>
+
+<a href="#usage" id="usage" style="color: inherit; text-decoration: none;">
+  <h2>Usage</h2>
+</a>
+<ol>
+<li><p>An <a href="https://developer.mozilla.org/en-US/docs/Web/API/AudioNode">AudioNode</a> to analyze. So something like this :</p>
+<pre><code class="language-html"><span class="hl-2">&lt;</span><span class="hl-3">audio</span><span class="hl-0"> </span><span class="hl-4">src</span><span class="hl-0">=</span><span class="hl-5">&quot;./new_order-blue_monday.mp3&quot;</span><span class="hl-0"> </span><span class="hl-4">id</span><span class="hl-0">=</span><span class="hl-5">&quot;track&quot;</span><span class="hl-2">&gt;&lt;/</span><span class="hl-3">audio</span><span class="hl-2">&gt;</span>
+</code></pre>
+</li>
+<li><p>Create the AudioWorkletProcessor with <code>createRealTimeBpmProcessor</code>, create and pipe the lowpass filter to the AudioWorkletNode (<code>realtimeAnalyzerNode</code>).</p>
+<pre><code class="language-javascript"><span class="hl-6">import</span><span class="hl-0"> { </span><span class="hl-7">createRealTimeBpmProcessor</span><span class="hl-0"> } </span><span class="hl-6">from</span><span class="hl-0"> </span><span class="hl-8">&#39;realtime-bpm-analyzer&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-9">const</span><span class="hl-0"> </span><span class="hl-10">realtimeAnalyzerNode</span><span class="hl-0"> = </span><span class="hl-6">await</span><span class="hl-0"> </span><span class="hl-1">createRealTimeBpmProcessor</span><span class="hl-0">(</span><span class="hl-7">audioContext</span><span class="hl-0">);</span><br/><br/><span class="hl-11">// Set the source with the HTML Audio Node</span><br/><span class="hl-9">const</span><span class="hl-0"> </span><span class="hl-10">track</span><span class="hl-0"> = </span><span class="hl-7">document</span><span class="hl-0">.</span><span class="hl-1">getElementById</span><span class="hl-0">(</span><span class="hl-8">&#39;track&#39;</span><span class="hl-0">);</span><br/><span class="hl-9">const</span><span class="hl-0"> </span><span class="hl-10">source</span><span class="hl-0"> = </span><span class="hl-7">audioContext</span><span class="hl-0">.</span><span class="hl-1">createMediaElementSource</span><span class="hl-0">(</span><span class="hl-7">track</span><span class="hl-0">);</span><br/><br/><span class="hl-11">// Lowpass filter</span><br/><span class="hl-9">const</span><span class="hl-0"> </span><span class="hl-10">filter</span><span class="hl-0"> = </span><span class="hl-7">audioContext</span><span class="hl-0">.</span><span class="hl-1">createBiquadFilter</span><span class="hl-0">();</span><br/><span class="hl-7">filter</span><span class="hl-0">.</span><span class="hl-7">type</span><span class="hl-0"> = </span><span class="hl-8">&#39;lowpass&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-11">// Connect stuff together</span><br/><span class="hl-7">source</span><span class="hl-0">.</span><span class="hl-1">connect</span><span class="hl-0">(</span><span class="hl-7">filter</span><span class="hl-0">).</span><span class="hl-1">connect</span><span class="hl-0">(</span><span class="hl-7">realtimeAnalyzerNode</span><span class="hl-0">);</span><br/><span class="hl-7">source</span><span class="hl-0">.</span><span class="hl-1">connect</span><span class="hl-0">(</span><span class="hl-7">audioContext</span><span class="hl-0">.</span><span class="hl-7">destination</span><span class="hl-0">);</span><br/><br/><span class="hl-7">realtimeAnalyzerNode</span><span class="hl-0">.</span><span class="hl-7">port</span><span class="hl-0">.</span><span class="hl-1">onmessage</span><span class="hl-0"> = (</span><span class="hl-7">event</span><span class="hl-0">) </span><span class="hl-9">=&gt;</span><span class="hl-0"> {</span><br/><span class="hl-0">  </span><span class="hl-6">if</span><span class="hl-0"> (</span><span class="hl-7">event</span><span class="hl-0">.</span><span class="hl-7">data</span><span class="hl-0">.</span><span class="hl-7">message</span><span class="hl-0"> === </span><span class="hl-8">&#39;BPM&#39;</span><span class="hl-0">) {</span><br/><span class="hl-0">    </span><span class="hl-7">console</span><span class="hl-0">.</span><span class="hl-1">log</span><span class="hl-0">(</span><span class="hl-8">&#39;BPM&#39;</span><span class="hl-0">, </span><span class="hl-7">event</span><span class="hl-0">.</span><span class="hl-7">data</span><span class="hl-0">.</span><span class="hl-7">result</span><span class="hl-0">);</span><br/><span class="hl-0">  }</span><br/><span class="hl-0">  </span><span class="hl-6">if</span><span class="hl-0"> (</span><span class="hl-7">event</span><span class="hl-0">.</span><span class="hl-7">data</span><span class="hl-0">.</span><span class="hl-7">message</span><span class="hl-0"> === </span><span class="hl-8">&#39;BPM_STABLE&#39;</span><span class="hl-0">) {</span><br/><span class="hl-0">    </span><span class="hl-7">console</span><span class="hl-0">.</span><span class="hl-1">log</span><span class="hl-0">(</span><span class="hl-8">&#39;BPM_STABLE&#39;</span><span class="hl-0">, </span><span class="hl-7">event</span><span class="hl-0">.</span><span class="hl-7">data</span><span class="hl-0">.</span><span class="hl-7">result</span><span class="hl-0">);</span><br/><span class="hl-0">  }</span><br/><span class="hl-0">};</span>
+</code></pre>
+</li>
+<li><p>You also need to expose the file <code>dist/realtime-bpm-processor.js</code> (already bundled) to your public root diretory. Typically, this file must be available at <a href="http://yourdomain/realtime-bpm-processor.js">http://yourdomain/realtime-bpm-processor.js</a>.</p>
+<pre><code class="language-javascript"><span class="hl-11">// For NextJS see your next.config.js and add this:</span><br/><span class="hl-11">// You also need to install `npm install copy-webpack-plugin@6.4.1 -D`</span><br/><span class="hl-11">// Note that the latest version (11.0.0) didn&#39;t worked properly with NextJS 12</span><br/><span class="hl-9">const</span><span class="hl-0"> </span><span class="hl-10">path</span><span class="hl-0"> = </span><span class="hl-1">require</span><span class="hl-0">(</span><span class="hl-8">&#39;path&#39;</span><span class="hl-0">);</span><br/><span class="hl-9">const</span><span class="hl-0"> </span><span class="hl-10">CopyPlugin</span><span class="hl-0"> = </span><span class="hl-1">require</span><span class="hl-0">(</span><span class="hl-8">&#39;copy-webpack-plugin&#39;</span><span class="hl-0">);</span><br/><span class="hl-12">module</span><span class="hl-0">.</span><span class="hl-12">exports</span><span class="hl-0"> = {</span><br/><span class="hl-1">webpack</span><span class="hl-7">:</span><span class="hl-0"> </span><span class="hl-7">config</span><span class="hl-0"> </span><span class="hl-9">=&gt;</span><span class="hl-0"> {</span><br/><span class="hl-0">    </span><span class="hl-7">config</span><span class="hl-0">.</span><span class="hl-7">plugins</span><span class="hl-0">.</span><span class="hl-1">push</span><span class="hl-0">(</span><br/><span class="hl-0">      </span><span class="hl-9">new</span><span class="hl-0"> </span><span class="hl-1">CopyPlugin</span><span class="hl-0">({</span><br/><span class="hl-0">        </span><span class="hl-7">patterns:</span><span class="hl-0"> [</span><br/><span class="hl-0">          {</span><br/><span class="hl-0">            </span><span class="hl-7">from:</span><span class="hl-0"> </span><span class="hl-8">&#39;./node_modules/realtime-bpm-analyzer/dist/realtime-bpm-processor.js&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">            </span><span class="hl-7">to:</span><span class="hl-0"> </span><span class="hl-7">path</span><span class="hl-0">.</span><span class="hl-1">resolve</span><span class="hl-0">(</span><span class="hl-7">__dirname</span><span class="hl-0">, </span><span class="hl-8">&#39;public&#39;</span><span class="hl-0">),</span><br/><span class="hl-0">          },</span><br/><span class="hl-0">        ],</span><br/><span class="hl-0">      },</span><br/><span class="hl-0">      ));</span><br/><br/><span class="hl-0">    </span><span class="hl-6">return</span><span class="hl-0"> </span><span class="hl-7">config</span><span class="hl-0">;</span><br/><span class="hl-0">  },</span><br/><span class="hl-0">};</span>
+</code></pre>
+</li>
+</ol>
+
+<a href="#technical-approch" id="technical-approch" style="color: inherit; text-decoration: none;">
+  <h2>Technical approch</h2>
+</a>
+<p>This tool has been largely inspired by the <a href="https://github.com/tornqvist/bpm-detective">Tornqvist project</a>, which is actually optimized to compute the BPM of a song as fast as possible and not while playing it.</p>
+<p>The algorithm basically detect peaks in the bass frequencies and try to figure out the best BPM candidates.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><img src="https://dlepaux.github.io/realtime-bpm-analyzer/img/pcm.png" alt="pcm data" title="PCM Data"></td>
+<td>PCM Data are dots with value between the max/min amplitude (1/-1). Each dots have its own index</td>
+</tr>
+</tbody></table>
+<p>Feel free to <a href="mailto:d.lepaux@gmail.com">contact me by mail</a> or <a href="https://gitter.im/realtime-bpm-analyzer/Lobby">join the chat</a> if you have any questions.</p>
+
+<a href="#credits" id="credits" style="color: inherit; text-decoration: none;">
+  <h2>Credits</h2>
+</a>
+<p>This library was been inspired from <a href="https://github.com/tornqvist/bpm-detective">Tornqvist project</a> which also based on <a href="http://joesul.li/van/beat-detection-using-web-audio/">Joe Sullivan&#39;s algorithm</a>. Thank you to both of them !</p>
+
+<a href="#final" id="final" style="color: inherit; text-decoration: none;">
+  <h2>Final</h2>
+</a>
+<p>If this project helped you in any way or if you want to support it, you can always leave me a tip here:</p>
+<p>BTC <strong>36eHnxCRUDfWNFEx3YebRGw12WeutjkBBt</strong></p>
+<p>ETH <strong>0x0F8b4F026624150e9F6267bFD93C372eb98e3010</strong></p>
+</div></div><div class="col-4 col-menu menu-sticky-wrap menu-highlight"><nav class="tsd-navigation primary"><ul><li class="current"><a href="modules.html">Exports</a></li></ul></nav><nav class="tsd-navigation secondary menu-sticky"><ul><li class="tsd-kind-class"><a href="classes/RealTimeBpmAnalyzer.html" class="tsd-kind-icon">Real<wbr/>Time<wbr/>Bpm<wbr/>Analyzer</a></li><li class="tsd-kind-interface"><a href="interfaces/BpmCandidates.html" class="tsd-kind-icon">Bpm<wbr/>Candidates</a></li><li class="tsd-kind-interface"><a href="interfaces/Interval.html" class="tsd-kind-icon">Interval</a></li><li class="tsd-kind-interface"><a href="interfaces/PeaksAndThreshold.html" class="tsd-kind-icon">Peaks<wbr/>And<wbr/>Threshold</a></li><li class="tsd-kind-interface"><a href="interfaces/RealTimeBpmAnalyzerOptions.html" class="tsd-kind-icon">Real<wbr/>Time<wbr/>Bpm<wbr/>Analyzer<wbr/>Options</a></li><li class="tsd-kind-interface"><a href="interfaces/RealTimeBpmAnalyzerParameters.html" class="tsd-kind-icon">Real<wbr/>Time<wbr/>Bpm<wbr/>Analyzer<wbr/>Parameters</a></li><li class="tsd-kind-interface"><a href="interfaces/Tempo.html" class="tsd-kind-icon">Tempo</a></li><li class="tsd-kind-type-alias"><a href="modules.html#NextIndexPeaks" class="tsd-kind-icon">Next<wbr/>Index<wbr/>Peaks</a></li><li class="tsd-kind-type-alias"><a href="modules.html#Peaks" class="tsd-kind-icon">Peaks</a></li><li class="tsd-kind-type-alias"><a href="modules.html#ValidPeaks" class="tsd-kind-icon">Valid<wbr/>Peaks</a></li><li class="tsd-kind-function"><a href="modules.html#createRealTimeBpmProcessor" class="tsd-kind-icon">create<wbr/>Real<wbr/>Time<wbr/>Bpm<wbr/>Processor</a></li></ul></nav></div></div></div><footer class="with-border-bottom"><div class="container"><h2>Legend</h2><div class="tsd-legend-group"><ul class="tsd-legend"><li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li><li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li><li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li></ul><ul class="tsd-legend"><li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li></ul></div><h2>Settings</h2><p>Theme <select id="theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></p></div></footer><div class="container tsd-generator"><p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div><div class="overlay"></div><script src="assets/main.js"></script></body></html>

@@ -1,0 +1,7 @@
+{
+    "compilerOptions": {
+        "lib": ["dom"],
+        "target": "es6",
+        "skipLibCheck": true
+    }
+}

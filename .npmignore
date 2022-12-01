@@ -4,6 +4,7 @@
 coverage
 docs
 node_modules
+src
 test
 .commitlintrc.cjs
 .editorconfig
@@ -16,3 +17,4 @@ code-of-conduct.md
 contributing.md
 licence.md
 readme.md
+tsconfig.json

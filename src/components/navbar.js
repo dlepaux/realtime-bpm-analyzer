@@ -21,7 +21,7 @@ export default class extends React.Component {
             <Navbar.Toggle aria-controls="basic-navbar-nav"/>
             <Navbar.Collapse id="basic-navbar-nav">
               <Nav className="me-auto">
-                <Nav.Link href={`${process.env.PREFIX_URL}/api/index.html`}>API Documentation</Nav.Link>
+                <Nav.Link href={`${process.env.PREFIX_URL}/api/v3/index.html`}>API Documentation</Nav.Link>
                 <NavDropdown title="Examples" menuVariant="dark" id="basic-nav-dropdown">
                   <NavDropdown.Item href={`${process.env.PREFIX_URL}/audio-node`}>Audio Node</NavDropdown.Item>
                   <NavDropdown.Item href={`${process.env.PREFIX_URL}/user-media`}>User Media</NavDropdown.Item>

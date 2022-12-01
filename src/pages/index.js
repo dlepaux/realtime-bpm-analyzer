@@ -29,12 +29,12 @@ const HomePage = () => (
           {consts.usageStepOne}
         </Highlight>
 
-        <p>2. Connect the AudioNode to the AudioContext and create an AudioContext.createScriptProcessor().</p>
+        <p>2. Create the AudioWorkletProcessor with `createRealTimeBpmProcessor`, create and pipe the lowpass filter to the AudioWorkletNode (`realtimeAnalyzerNode`).</p>
         <Highlight language="js" className="ms-3 javascript">
           {consts.usageStepTwo}
         </Highlight>
 
-        <p>3. Now you have just to configure the tool and attach it to the audioprocess event like this :</p>
+        <p>3. You also need to expose the file `dist/realtime-bpm-processor.js` (already bundled) to your public root diretory. Typically, this file must be available at http://yourdomain/realtime-bpm-processor.js.</p>
         <Highlight language="js" className="ms-3 javascript">
           {consts.usageStepThree}
         </Highlight>

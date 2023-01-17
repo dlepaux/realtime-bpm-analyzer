@@ -1,3 +1,5 @@
+export type Threshold = number;
+
 /**
  * Types
  */
@@ -5,12 +7,12 @@ export type Peaks = number[];
 
 export interface PeaksAndThreshold {
   peaks: Peaks;
-  threshold: number;
+  threshold: Threshold;
 }
 
 export interface BpmCandidates {
   bpm: Tempo[];
-  threshold: number;
+  threshold: Threshold;
 }
 
 export interface Interval {
@@ -37,3 +39,7 @@ export interface RealTimeBpmAnalyzerOptions {
 
 export type ValidPeaks = Record<string, Peaks>;
 export type NextIndexPeaks = Record<string, number>;
+
+export interface OnThresholdFunction {
+  (threshold: Threshold): Promise<boolean>;
+}

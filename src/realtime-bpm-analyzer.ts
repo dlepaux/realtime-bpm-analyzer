@@ -1,5 +1,5 @@
 import {findPeaksAtThreshold, computeBpm} from './analyzer';
-import type {RealTimeBpmAnalyzerOptions, RealTimeBpmAnalyzerParameters, ValidPeaks, NextIndexPeaks, BpmCandidates} from './types';
+import type {RealTimeBpmAnalyzerOptions, RealTimeBpmAnalyzerParameters, ValidPeaks, NextIndexPeaks, BpmCandidates, Threshold} from './types';
 import {generateValidPeaksModel, generateNextIndexPeaksModel, descendingOverThresholds} from './utils';
 
 /**
@@ -18,7 +18,7 @@ export class RealTimeBpmAnalyzer {
   /**
    * Minimum valid threshold, below this level result would be irrelevant.
    */
-  minValidThreshold: number = initialValue.minValidThreshold();
+  minValidThreshold: Threshold = initialValue.minValidThreshold();
   /**
    * Schedule timeout triggered when the stabilizationTime is reached
    */
@@ -62,7 +62,7 @@ export class RealTimeBpmAnalyzer {
 
   setAsyncConfiguration(key: string, value: unknown): void {
     if (typeof this.options[key] === 'undefined') {
-      console.log('Ke not found in options', key);
+      console.log('Key not found in options', key);
       return;
     }
 
@@ -72,7 +72,7 @@ export class RealTimeBpmAnalyzer {
   /**
    * Reset BPM computation properties to get a fresh start
    */
-  reset() {
+  reset(): void {
     this.minValidThreshold = initialValue.minValidThreshold();
     this.timeoutStabilization = initialValue.timeoutStabilization();
     this.validPeaks = initialValue.validPeaks();
@@ -84,15 +84,16 @@ export class RealTimeBpmAnalyzer {
    * Remve all validPeaks between the minThreshold pass in param to optimize the weight of datas
    * @param {number} minThreshold Value between 0.9 and 0.3
    */
-  clearValidPeaks(minThreshold: number) {
+  clearValidPeaks(minThreshold: Threshold): void {
     console.log(`[clearValidPeaks] function: under ${minThreshold}, this.minValidThreshold has been setted to that threshold.`);
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
 
-    descendingOverThresholds(threshold => {
+    descendingOverThresholds(async (threshold) => {
       if (threshold < minThreshold) {
         delete this.validPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
         delete this.nextIndexPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
       }
+      return false;
     });
   }
 
@@ -101,7 +102,7 @@ export class RealTimeBpmAnalyzer {
    * @todo This function is a chimeria, it must be sliced out
    * @param {object} event Event
    */
-  analyze(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: any) => void) {
+  async analyzeChuck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: any) => void): Promise<void> {
     /**
      * Compute the maximum index with all previous chunks
      * @type {number}
@@ -124,7 +125,7 @@ export class RealTimeBpmAnalyzer {
      */
     this.chunkCoeff++;
 
-    const result: BpmCandidates = computeBpm(this.validPeaks, audioSampleRate);
+    const result: BpmCandidates = await computeBpm(this.validPeaks, audioSampleRate);
     const {threshold} = result;
     postMessage({message: 'BPM', result});
 
@@ -154,10 +155,10 @@ export class RealTimeBpmAnalyzer {
    * @param currentMinIndex 
    * @param currentMaxIndex 
    */
-  findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number) {
-    descendingOverThresholds(threshold => {
+  findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number): void {
+    descendingOverThresholds(async threshold => {
       if (this.nextIndexPeaks[threshold] >= currentMaxIndex) {
-        return;
+        return false;
       }
 
       /**
@@ -171,7 +172,7 @@ export class RealTimeBpmAnalyzer {
        * Loop over peaks
        */
       if (peaks.length === 0) {
-        return;
+        return false;
       }
 
       for (const relativeChunkPeak of peaks) {
@@ -189,6 +190,8 @@ export class RealTimeBpmAnalyzer {
          */
         this.validPeaks[atThreshold].push(currentMinIndex + relativeChunkPeak);
       }
+
+      return false;
     },
     this.minValidThreshold);
   }

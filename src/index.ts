@@ -1,5 +1,6 @@
 import { realtimeBpmProcessorName } from './consts';
 export * from './realtime-bpm-analyzer';
+export * from './offline-bpm-analyzer';
 export * from './types';
 
 /**
@@ -10,11 +11,11 @@ export * from './types';
  * @public
  */
 export async function createRealTimeBpmProcessor(audioContext: AudioContext): Promise<AudioWorkletNode> {
-    const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName);
+  const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName);
 
-    await audioContext.resume();
+  await audioContext.resume();
 
-    return processorNode;
+  return processorNode;
 };
 
 /**

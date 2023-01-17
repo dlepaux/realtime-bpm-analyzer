@@ -1,5 +1,6 @@
 import {descendingOverThresholds} from './utils';
-import type { Peaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo } from './types';
+import * as consts from './consts';
+import type { Peaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo, Threshold } from './types';
 
 /**
  * Find peaks when the signal if greater than the threshold, then move 10_000 indexes (represents ~0.25s) to ignore the descending phase of the parabol
@@ -8,7 +9,7 @@ import type { Peaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo } from '.
  * @param {number} offset Position where we start to loop
  * @return {PeaksAndThreshold} Peaks found that are greater than the threshold
  */
-export function findPeaksAtThreshold(data: Float32Array, threshold: number, offset: number): PeaksAndThreshold {
+export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, offset: number = 0): PeaksAndThreshold {
   const peaks: Peaks = [];
 
   const {length} = data;
@@ -38,11 +39,11 @@ export function findPeaksAtThreshold(data: Float32Array, threshold: number, offs
  * @param {Record<string, number[]>} data Contain valid peaks
  * @param {number} audioSampleRate Audio sample rate
  */
-export function computeBpm(data: Record<string, Peaks>, audioSampleRate: number): BpmCandidates {
+export async function computeBpm(data: Record<string, Peaks>, audioSampleRate: number): Promise<BpmCandidates> {
   /**
    * Minimum peaks
    */
-  const minPeaks = 15;
+  const minPeaks = consts.minPeaks;
 
   /**
    * Flag to fix Object.keys looping
@@ -50,10 +51,9 @@ export function computeBpm(data: Record<string, Peaks>, audioSampleRate: number)
   let hasPeaks = false;
   let foundThreshold = 0.3;
 
-  descendingOverThresholds((threshold: number, stop: ((bool: boolean) => void) | undefined) => {
-    if (hasPeaks && stop) {
-      stop(true);
-      return;
+  await descendingOverThresholds(async (threshold: Threshold) => {
+    if (hasPeaks) {
+      return true;
     }
 
     if (data[threshold].length > minPeaks) {
@@ -93,6 +93,14 @@ export function computeBpm(data: Record<string, Peaks>, audioSampleRate: number)
  */
 export function getTopCandidates(candidates: Tempo[], length: number = 5): Tempo[] {
   return candidates.sort((a, b) => (b.count - a.count)).splice(0, length);
+}
+
+export function getTopCandidate(candidates: Tempo[]): number {
+  if (candidates.length === 0) {
+    throw new Error('Could not find enough samples for a reliable detection.');
+  }
+
+  return candidates.sort((a, b) => (b.count - a.count))[0].tempo;
 }
 
 /**

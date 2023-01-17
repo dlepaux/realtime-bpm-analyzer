@@ -1,6 +1,5 @@
 import { realtimeBpmProcessorName } from './consts';
 import { RealTimeBpmAnalyzer } from './realtime-bpm-analyzer';
-import type { RealTimeBpmAnalyzerParameters } from './types';
 
 /**
  * @class RealTimeBpmProcessor
@@ -39,6 +38,10 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     this.port.start();
   }
 
+  /**
+   * On 'message' event handler
+   * @param {object} event Contain event data
+   */
   onMessage(event) {
     if (event.data.message === 'ASYNC_CONFIGURATION') {
       for (const key of Object.keys(event.data.parameters)) {
@@ -81,7 +84,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     this.append(inputs[0][0])
 
     if (this.isBufferFull()) {
-      this.realTimeBpmAnalyzer.analyze(this._buffer, sampleRate, this.bufferSize, (event) => {
+      this.realTimeBpmAnalyzer.analyzeChuck(this._buffer, sampleRate, this.bufferSize, (event) => {
         this.port.postMessage(event);
       });
     }

@@ -1,5 +1,5 @@
-# RealTime BPM Analyzer
-
+# Realtime BPM Analyzer
+[![Discord](https://img.shields.io/discord/1234567890?color=blue&label=Discord)](https://discord.gg/3xV7TGmq)
 [![XO code style](https://img.shields.io/badge/code_style-XO-5ed9c7.svg)](https://github.com/xojs/xo)
 [![npm](https://img.shields.io/npm/dm/realtime-bpm-analyzer.svg)](https://www.npmjs.com/package/realtime-bpm-analyzer)
 [![npm](https://img.shields.io/npm/l/realtime-bpm-analyzer.svg)](https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/licence.md)
@@ -8,45 +8,13 @@
 
 <div>
   <p align="center">
-    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/img/realtime-bpm-analyzer-logo.png" style="max-width: 100%; height: auto;">
+    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/img/realtime-bpm-analyzer-icon.png" style="max-width: 100%; height: auto;">
   </p>
 </div>
 
-## Documentation
+Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of an audio or video source in real-time.
 
-[See the documentation](https://dlepaux.github.io/realtime-bpm-analyzer)
-
-Checkout [gh-pages](https://github.com/dlepaux/realtime-bpm-analyzer/tree/gh-pages) branch to edit the github-pages.
-
-[See the API documentation (lastest: v3)](https://dlepaux.github.io/realtime-bpm-analyzer/api/v3)
-
-[See the API documentation (v2)](https://dlepaux.github.io/realtime-bpm-analyzer/api/v2)
-
-## Introduction
-
-This **dependency free** library allows you to compute the BPM (Beats Per minutes) in realtime of an `audio` / `video` node or streams thanks to the [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
-
-Please, note that the main use case of this tool, is to compute the BPM while the video / audio is **playing**.
-
-## Community
-
-Join the discord ! [https://discord.gg/3xV7TGmq](https://discord.gg/3xV7TGmq)
-
-### WebAudioAPI
-
-> The [WebAudioAPI](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) provides a powerful and versatile system for controlling audio on the Web, allowing developers to choose audio sources, add effects to audio, create audio visualizations, apply spatial effects (such as panning) and much more.
-
-
-## Motivations
-
-Allegro Project purpose is to permits you to collect the BPM of [Youtube](https://youtube.com) musics listened by the user. Once the data collected the tool shall bind it at the begining of the title.
-
-Let's imagine we are listening a [song](https://www.youtube.com/watch?v=FYH8DsU2WCk) on Youtube. The "raw" title of it is: `New Order - Blue Monday`, once `Allegro` have collected the BPM it will bind it at the begining of the title, so we would have: `[130BPM] New Order - Blue Monday`.
-
-The project is under construction thought and this component [realtime-bpm-analyzer](https://github.com/dlepaux/realtime-bpm-analyzer) is an essential piece of the project.
-
-
-## Installation
+## Getting started
 
 To install this module to your project, just launch the command below:
 
@@ -54,26 +22,16 @@ To install this module to your project, just launch the command below:
 npm install realtime-bpm-analyzer
 ```
 
+To learn more about how to use the library, you can check out [the documentation](https://dlepaux.github.io/realtime-bpm-analyzer).
 
-## Development
+## Features
 
-```bash
-npm install
-npx husky install
-npm test
-```
+- **Dependency-free** library that utilizes the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) to analyze audio or video sources and provide accurate BPM detection.
+- Can be used to analyze audio or video nodes, as well as audio or video streams.
+- Allows you to compute the BPM while the audio or video is playing.
+- Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
 
-## Tests & Coverage
-
-To launch the test suite, just launch the command below:
-
-```bash
-npm test
-npm run test:report
-```
-
-
-## Usage
+## Usage example
 
 1. An [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to analyze. So something like this :
     ```html
@@ -133,27 +91,24 @@ npm run test:report
       },
     };
     ```
-## Technical approch
 
-This tool has been largely inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective), which is actually optimized to compute the BPM of a song as fast as possible and not while playing it.
+## Development
 
-The algorithm basically detect peaks in the bass frequencies and try to figure out the best BPM candidates.
+```bash
+npm install
+npx husky install
+npm test
+```
 
-|                                       | Description                                                                                     |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| ![pcm data](https://dlepaux.github.io/realtime-bpm-analyzer/img/pcm.png "PCM Data") | PCM Data are dots with value between the max/min amplitude (1/-1). Each dots have its own index |
+## Tests & Coverage
 
-Feel free to [contact me by mail](mailto:d.lepaux@gmail.com) or [join the chat](https://gitter.im/realtime-bpm-analyzer/Lobby) if you have any questions.
+To launch the test suite, just launch the command below:
+
+```bash
+npm test
+npm run test:report
+```
 
 ## Credits
 
-This library was been inspired from [Tornqvist project](https://github.com/tornqvist/bpm-detective) which also based on [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/). Thank you to both of them !
-
-
-## Final
-
-If this project helped you in any way or if you want to support it, you can always leave me a tip here:
-
-BTC **36eHnxCRUDfWNFEx3YebRGw12WeutjkBBt**
-
-ETH **0x0F8b4F026624150e9F6267bFD93C372eb98e3010**
+This library was inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective), which was also based on [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/). Thank you to both of them.

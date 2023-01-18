@@ -26,7 +26,7 @@ describe('RealTime BPM Analyzer', () => {
         expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
         done();
       }).catch((error: unknown) => {
-        console.error(error);
+        done(error);
       });
     });
 
@@ -44,7 +44,7 @@ describe('RealTime BPM Analyzer', () => {
         expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
         done();
       }).catch((error: unknown) => {
-        console.error(error);
+        done(error);
       });
     });
 
@@ -60,7 +60,7 @@ describe('RealTime BPM Analyzer', () => {
       }).then(() => {
         done();
       }).catch((error: unknown) => {
-        console.error(error);
+        done(error);
       });
     });
 

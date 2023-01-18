@@ -31,10 +31,22 @@
 <a href="https://gitter.im/realtime-bpm-analyzer/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge"><img src="https://badges.gitter.im/realtime-bpm-analyzer/Lobby.svg" alt="Join the chat at https://gitter.im/realtime-bpm-analyzer/Lobby"></a></p>
 <div>
   <p align="center">
-    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/realtime-bpm-analyzer-icon.png" style="max-width: 100%; height: auto;">
+    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/realtime-bpm-analyzer-icon.png" style="width: 200px; height: auto;">
   </p>
 </div>
 <p>Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of an audio or video source in real-time.</p>
+<ul>
+<li><a href="#getting-started">Getting started</a></li>
+<li><a href="#features">Features</a></li>
+<li><a href="#usages">Usages</a><ul>
+<li><a href="#realtime-stream-playing-strategy">Realtime (stream/playing) strategy</a></li>
+<li><a href="#localoffline-strategy">Local/Offline strategy</a></li>
+</ul>
+</li>
+<li><a href="#development">Development</a></li>
+<li><a href="#tests--coverage">Tests &amp; Coverage</a></li>
+<li><a href="#credits">Credits</a></li>
+</ul>
 <a href="#getting-started" id="getting-started" style="color: inherit; text-decoration: none;">
   <h2>Getting started</h2>
 </a>
@@ -47,16 +59,21 @@
 </a>
 <ul>
 <li><strong>Dependency-free</strong> library that utilizes the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API">Web Audio API</a> to analyze audio or video sources and provide accurate BPM detection.</li>
-<li>Can be used to analyze audio or video nodes, as well as audio or video streams.</li>
+<li>Can be used to analyze <strong>audio or video</strong> nodes, streams as well as <strong>files</strong>.</li>
 <li>Allows you to compute the BPM while the audio or video is playing.</li>
 <li>Lightweight and easy to use, making it a great option for web-based music production and DJing applications.</li>
 </ul>
-<a href="#usage-example" id="usage-example" style="color: inherit; text-decoration: none;">
-  <h2>Usage example</h2>
+<a href="#usages" id="usages" style="color: inherit; text-decoration: none;">
+  <h2>Usages</h2>
 </a>
-<p>Join our discord server <a href="https://discord.gg/3xV7TGmq">https://discord.gg/3xV7TGmq</a> !</p>
+<p>If you encounter issues along the way, remember we have a <a href="https://discord.gg/3xV7TGmq">discord server</a> and a <a href="https://gitter.im/realtime-bpm-analyzer/Lobby">chat</a> !</p>
+<a href="#realtime-streamplaying-strategy" id="realtime-streamplaying-strategy" style="color: inherit; text-decoration: none;">
+  <h3>Realtime (stream/playing) strategy</h3>
+</a>
+<p>Mesure or detect the BPM from a <strong>stream</strong> or a <strong>player</strong> ? Meaning that it is technically a stream. The library provide an <code>AudioWorkletProcessor</code> that will compute BPM while the stream is distributed.</p>
+<p>This example shows how to deal with a simple <code>audio</code> node.</p>
 <ol>
-<li><p>An <a href="https://developer.mozilla.org/en-US/docs/Web/API/AudioNode">AudioNode</a> to analyze. So something like this :</p>
+<li><p>An <a href="https://developer.mozilla.org/en-US/docs/Web/API/AudioNode">AudioNode</a> to analyze. So something like this:</p>
 <pre><code class="language-html"><span class="hl-2">&lt;</span><span class="hl-3">audio</span><span class="hl-0"> </span><span class="hl-4">src</span><span class="hl-0">=</span><span class="hl-5">&quot;./new_order-blue_monday.mp3&quot;</span><span class="hl-0"> </span><span class="hl-4">id</span><span class="hl-0">=</span><span class="hl-5">&quot;track&quot;</span><span class="hl-2">&gt;&lt;/</span><span class="hl-3">audio</span><span class="hl-2">&gt;</span>
 </code></pre>
 </li>
@@ -69,6 +86,25 @@
 </code></pre>
 </li>
 </ol>
+<a href="#localoffline-strategy" id="localoffline-strategy" style="color: inherit; text-decoration: none;">
+  <h3>Local/Offline strategy</h3>
+</a>
+<p>Analyze the BPM from <strong>files</strong> located in your <strong>desktop, tablet or mobile</strong> !</p>
+<ol>
+<li>Import the library</li>
+</ol>
+<pre><code class="language-javascript"><span class="hl-6">import</span><span class="hl-0"> </span><span class="hl-8">*</span><span class="hl-0"> </span><span class="hl-6">as</span><span class="hl-0"> </span><span class="hl-7">realtimeBpm</span><span class="hl-0"> </span><span class="hl-6">from</span><span class="hl-0"> </span><span class="hl-1">&#39;realtime-bpm-analyzer&#39;</span><span class="hl-0">;</span>
+</code></pre>
+<ol start="2">
+<li>Use an <code>input[type=file]</code> to get the files you want.</li>
+</ol>
+<pre><code class="language-jsx"><span class="hl-2">&lt;</span><span class="hl-3">input</span><span class="hl-0"> </span><span class="hl-4">type</span><span class="hl-0">=</span><span class="hl-1">&quot;file&quot;</span><span class="hl-0"> </span><span class="hl-4">accept</span><span class="hl-0">=</span><span class="hl-1">&quot;wav,mp3&quot;</span><span class="hl-0"> </span><span class="hl-4">onChange</span><span class="hl-0">=</span><span class="hl-8">{</span><span class="hl-7">event</span><span class="hl-13"> </span><span class="hl-8">=&gt;</span><span class="hl-13"> </span><span class="hl-8">this</span><span class="hl-13">.</span><span class="hl-10">onFileChange</span><span class="hl-13">(</span><span class="hl-7">event</span><span class="hl-13">)</span><span class="hl-8">}</span><span class="hl-2">/&gt;</span>
+</code></pre>
+<ol start="3">
+<li>You can listen the <code>change</code> event like so, and analyze the BPM of the selected files. You don&#39;t need to be connected to Internet for this to work.</li>
+</ol>
+<pre><code class="language-javascript"><span class="hl-8">function</span><span class="hl-0"> </span><span class="hl-10">onFileChange</span><span class="hl-0">(</span><span class="hl-7">event</span><span class="hl-0">) {</span><br><span class="hl-0">  </span><span class="hl-11">// Get the first file from the list</span><br><span class="hl-0">  </span><span class="hl-8">const</span><span class="hl-0"> </span><span class="hl-9">file</span><span class="hl-0"> = </span><span class="hl-7">event</span><span class="hl-0">.</span><span class="hl-7">target</span><span class="hl-0">.</span><span class="hl-7">files</span><span class="hl-0">[</span><span class="hl-14">0</span><span class="hl-0">];</span><br><span class="hl-0">  </span><span class="hl-8">const</span><span class="hl-0"> </span><span class="hl-9">reader</span><span class="hl-0"> = </span><span class="hl-8">new</span><span class="hl-0"> </span><span class="hl-10">FileReader</span><span class="hl-0">();</span><br><span class="hl-0">  </span><span class="hl-7">reader</span><span class="hl-0">.</span><span class="hl-10">addEventListener</span><span class="hl-0">(</span><span class="hl-1">&#39;load&#39;</span><span class="hl-0">, () </span><span class="hl-8">=&gt;</span><span class="hl-0"> {</span><br><span class="hl-0">    </span><span class="hl-8">const</span><span class="hl-0"> </span><span class="hl-9">audioContext</span><span class="hl-0"> = </span><span class="hl-8">new</span><span class="hl-0"> </span><span class="hl-7">window</span><span class="hl-0">.</span><span class="hl-10">AudioContext</span><span class="hl-0">();</span><br><span class="hl-0">    </span><span class="hl-11">// The file is uploaded, now we decode it</span><br><span class="hl-0">    </span><span class="hl-7">audioContext</span><span class="hl-0">.</span><span class="hl-10">decodeAudioData</span><span class="hl-0">(</span><span class="hl-7">reader</span><span class="hl-0">.</span><span class="hl-7">result</span><span class="hl-0">, </span><span class="hl-7">audioBuffer</span><span class="hl-0"> </span><span class="hl-8">=&gt;</span><span class="hl-0"> {</span><br><span class="hl-0">      </span><span class="hl-11">// The result is passed to the analyzer</span><br><span class="hl-0">      </span><span class="hl-7">realtimeBpm</span><span class="hl-0">.</span><span class="hl-10">analyzeFullBuffer</span><span class="hl-0">(</span><span class="hl-7">audioBuffer</span><span class="hl-0">).</span><span class="hl-10">then</span><span class="hl-0">(</span><span class="hl-7">topCandidate</span><span class="hl-0"> </span><span class="hl-8">=&gt;</span><span class="hl-0"> {</span><br><span class="hl-0">        </span><span class="hl-11">// Prints the top candidate, like: 90</span><br><span class="hl-0">        </span><span class="hl-7">console</span><span class="hl-0">.</span><span class="hl-10">log</span><span class="hl-0">(</span><span class="hl-1">&#39;topCandidate&#39;</span><span class="hl-0">, </span><span class="hl-7">topCandidate</span><span class="hl-0">);</span><br><span class="hl-0">      });</span><br><span class="hl-0">    });</span><br><span class="hl-0">  });</span><br><span class="hl-0">  </span><span class="hl-7">reader</span><span class="hl-0">.</span><span class="hl-10">readAsArrayBuffer</span><span class="hl-0">(</span><span class="hl-7">file</span><span class="hl-0">);</span><br><span class="hl-0">};</span>
+</code></pre>
 <a href="#development" id="development" style="color: inherit; text-decoration: none;">
   <h2>Development</h2>
 </a>

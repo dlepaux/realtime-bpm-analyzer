@@ -15,7 +15,9 @@ Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScri
 
 - [Getting started](#getting-started)
 - [Features](#features)
-- [Usage example](#usage-example)
+- [Usages](#usages)
+  - [Realtime (stream/playing) strategy](#realtime--stream--playing--strategy)
+  - [Local/Offline strategy](#local--offline-strategy)
 - [Development](#development)
 - [Tests & Coverage](#tests--coverage)
 - [Credits](#credits)
@@ -37,11 +39,17 @@ To learn more about how to use the library, you can check out [the documentation
 - Allows you to compute the BPM while the audio or video is playing.
 - Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
 
-## Usage example
+## Usages
 
-Join our discord server https://discord.gg/3xV7TGmq !
+If you encounter issues along the way, remember we have a discord server https://discord.gg/3xV7TGmq !
 
-1. An [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to analyze. So something like this :
+### Realtime (stream/playing) strategy
+
+Mesure or detect the BPM from a **stream** or a **player** ? Meaning that it is technically a stream. The library provide an `AudioWorkletProcessor` that will compute BPM while the stream is distributed.
+
+This example shows how to deal with a simple `audio` node.
+
+1. An [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to analyze. So something like this:
     ```html
     <audio src="./new_order-blue_monday.mp3" id="track"></audio>
     ```
@@ -99,6 +107,41 @@ Join our discord server https://discord.gg/3xV7TGmq !
       },
     };
     ```
+
+### Local/Offline strategy
+
+Analyze the BPM from **files** located in your **desktop, tablet or mobile** !
+
+1. Import the library
+```javascript
+import * as realtimeBpm from 'realtime-bpm-analyzer';
+```
+
+2. Use an `input[type=file]` to get the files you want.
+```jsx
+<input type="file" accept="wav,mp3" onChange={event => this.onFileChange(event)}/>
+```
+
+3. You can listen the `change` event like so, and analyze the BPM of the selected files. You don't need to be connected to Internet for this to work.
+```javascript
+function onFileChange(event) {
+  // Get the first file from the list
+  const file = event.target.files[0];
+  const reader = new FileReader();
+  reader.addEventListener('load', () => {
+    const audioContext = new window.AudioContext();
+    // The file is uploaded, now we decode it
+    audioContext.decodeAudioData(reader.result, audioBuffer => {
+      // The result is passed to the analyzer
+      realtimeBpm.analyzeFullBuffer(audioBuffer).then(topCandidate => {
+        // Prints the top candidate, like: 90
+        console.log('topCandidate', topCandidate);
+      });
+    });
+  });
+  reader.readAsArrayBuffer(file);
+};
+```
 
 ## Development
 

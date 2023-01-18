@@ -50,63 +50,62 @@ Mesure or detect the BPM from a **stream** or a **player** ? Meaning that it is 
 This example shows how to deal with a simple `audio` node.
 
 1. An [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to analyze. So something like this:
-    ```html
-    <audio src="./new_order-blue_monday.mp3" id="track"></audio>
-    ```
+```html
+<audio src="./new_order-blue_monday.mp3" id="track"></audio>
+```
 
 2. Create the AudioWorkletProcessor with `createRealTimeBpmProcessor`, create and pipe the lowpass filter to the AudioWorkletNode (`realtimeAnalyzerNode`).
-    ```javascript
-    import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+```javascript
+import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
 
-    const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
 
-    // Set the source with the HTML Audio Node
-    const track = document.getElementById('track');
-    const source = audioContext.createMediaElementSource(track);
+// Set the source with the HTML Audio Node
+const track = document.getElementById('track');
+const source = audioContext.createMediaElementSource(track);
 
-    // Lowpass filter
-    const filter = audioContext.createBiquadFilter();
-    filter.type = 'lowpass';
+// Lowpass filter
+const filter = audioContext.createBiquadFilter();
+filter.type = 'lowpass';
 
-    // Connect stuff together
-    source.connect(filter).connect(realtimeAnalyzerNode);
-    source.connect(audioContext.destination);
+// Connect stuff together
+source.connect(filter).connect(realtimeAnalyzerNode);
+source.connect(audioContext.destination);
 
-    realtimeAnalyzerNode.port.onmessage = (event) => {
-      if (event.data.message === 'BPM') {
-        console.log('BPM', event.data.result);
-      }
-      if (event.data.message === 'BPM_STABLE') {
-        console.log('BPM_STABLE', event.data.result);
-      }
-    };
-    ```
+realtimeAnalyzerNode.port.onmessage = (event) => {
+  if (event.data.message === 'BPM') {
+    console.log('BPM', event.data.result);
+  }
+  if (event.data.message === 'BPM_STABLE') {
+    console.log('BPM_STABLE', event.data.result);
+  }
+};
+```
 
 3. You also need to expose the file `dist/realtime-bpm-processor.js` (already bundled) to your public root diretory. Typically, this file must be available at http://yourdomain/realtime-bpm-processor.js.
-
-    ```javascript
-    // For NextJS see your next.config.js and add this:
-    // You also need to install `npm install copy-webpack-plugin@6.4.1 -D`
-    // Note that the latest version (11.0.0) didn't worked properly with NextJS 12
-    const path = require('path');
-    const CopyPlugin = require('copy-webpack-plugin');
-    module.exports = {
-    webpack: config => {
-        config.plugins.push(
-          new CopyPlugin({
-            patterns: [
-              {
-                from: './node_modules/realtime-bpm-analyzer/dist/realtime-bpm-processor.js',
-                to: path.resolve(__dirname, 'public'),
-              },
-            ],
+```javascript
+// For NextJS see your next.config.js and add this:
+// You also need to install `npm install copy-webpack-plugin@6.4.1 -D`
+// Note that the latest version (11.0.0) didn't worked properly with NextJS 12
+const path = require('path');
+const CopyPlugin = require('copy-webpack-plugin');
+module.exports = {
+  webpack: config => {
+    config.plugins.push(
+      new CopyPlugin({
+        patterns: [
+          {
+            from: './node_modules/realtime-bpm-analyzer/dist/realtime-bpm-processor.js',
+            to: path.resolve(__dirname, 'public'),
           },
-          ));
-
-        return config;
+        ],
       },
-    };
-    ```
+      ));
+
+    return config;
+  },
+};
+```
 
 ### Local/Offline strategy
 

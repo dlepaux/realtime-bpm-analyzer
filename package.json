@@ -84,7 +84,8 @@
       "import/no-unassigned-import": "off",
       "import/no-anonymous-default-export": "off",
       "import/extensions": "off",
-      "no-await-in-loop": "off"
+      "no-await-in-loop": "off",
+      "unicorn/prefer-top-level-await": "off"
     }
   },
   "lint-staged": {

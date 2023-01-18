@@ -28,4 +28,6 @@ async function main() {
   return true;
 }
 
-await main();
+main().catch((error: unknown) => {
+  console.error(error);
+});

@@ -1,0 +1,8 @@
+User-agent: Googlebot
+Disallow: /nogooglebot/
+
+User-agent: *
+Allow: /
+Allow: /*
+
+Sitemap: https://dlepaux.github.io/realtime-bpm-analyzer/sitemap.xml

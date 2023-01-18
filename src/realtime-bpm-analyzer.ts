@@ -7,7 +7,7 @@ import {generateValidPeaksModel, generateNextIndexPeaksModel, descendingOverThre
  */
 const initialValue = {
   minValidThreshold: () => 0.3,
-  timeoutStabilization: () => null,
+  timeoutStabilization: () => 'off',
   validPeaks: () => generateValidPeaksModel(),
   nextIndexPeaks: () => generateNextIndexPeaksModel(),
   chunkCoeff: () => 1,
@@ -22,7 +22,7 @@ export class RealTimeBpmAnalyzer {
   /**
    * Schedule timeout triggered when the stabilizationTime is reached
    */
-  timeoutStabilization: any = initialValue.timeoutStabilization();
+  timeoutStabilization: string | NodeJS.Timeout = initialValue.timeoutStabilization();
   /**
    * Contain all valid peaks
    */
@@ -95,6 +95,8 @@ export class RealTimeBpmAnalyzer {
       }
 
       return false;
+    }).catch((error: unknown) => {
+      console.error(error);
     });
   }
 
@@ -103,7 +105,7 @@ export class RealTimeBpmAnalyzer {
    * @todo This function is a chimeria, it must be sliced out
    * @param {object} event Event
    */
-  async analyzeChuck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: any) => void): Promise<void> {
+  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: any) => void): Promise<void> {
     /**
      * Compute the maximum index with all previous chunks
      * @type {number}
@@ -194,6 +196,8 @@ export class RealTimeBpmAnalyzer {
 
       return false;
     },
-    this.minValidThreshold);
+    this.minValidThreshold).catch((error: unknown) => {
+      console.error(error);
+    });
   }
 }

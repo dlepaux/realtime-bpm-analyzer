@@ -33,7 +33,7 @@ async function setupAudioWorkletNode(audioContext: AudioContext, processorName: 
     const audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
 
     return audioWorkletNode;
-  } catch (error) {
+  } catch (error: unknown) {
     console.log(error);
     throw error;
   }

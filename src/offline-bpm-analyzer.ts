@@ -57,7 +57,7 @@ async function findPeaks(channelData): Promise<Peaks> {
  * @param buffer
  * @returns
  */
-function getOfflineLowPassSource(buffer): AudioBufferSourceNode {
+function getOfflineLowPassSource(buffer: AudioBuffer): AudioBufferSourceNode {
   const {length, numberOfChannels, sampleRate} = buffer;
   const context = new OfflineAudioContext(numberOfChannels, length, sampleRate);
 

@@ -41,7 +41,7 @@ To learn more about how to use the library, you can check out [the documentation
 
 ## Usages
 
-If you encounter issues along the way, remember we have a discord server https://discord.gg/3xV7TGmq !
+If you encounter issues along the way, remember we have a [discord server](https://discord.gg/3xV7TGmq) and a [chat](https://gitter.im/realtime-bpm-analyzer/Lobby) !
 
 ### Realtime (stream/playing) strategy
 

@@ -24,10 +24,17 @@
   "main": "./dist/index.js",
   "module": "./dist/index.esm.js",
   "scripts": {
-    "build": "esbuild src/realtime-bpm-processor.ts --bundle --outfile=dist/realtime-bpm-processor.js && esbuild src/index.ts --bundle --outfile=dist/index.js",
-    "build-esm": "esbuild src/index.ts --bundle --platform=neutral --outfile=dist/index.esm.js",
+    "build": "npm run build:index && npm run build:index:esm && npm run build:processor",
+    "build:index": "esbuild src/index.ts --bundle --sourcemap --outfile=dist/index.js",
+    "build:index:esm": "esbuild src/index.ts --bundle --sourcemap --platform=neutral --outfile=dist/index.esm.js",
+    "build:processor": "esbuild src/realtime-bpm-processor.ts --bundle --sourcemap --outfile=dist/realtime-bpm-processor.js",
+    "build:types": "npm run build:types:index && npm run build:types:processor",
+    "build:types:index": "tsc -h && tsc src/index.ts --emitDeclarationOnly --outdir dist --declaration",
+    "build:types:processor": "tsc src/realtime-bpm-processor.ts --emitDeclarationOnly --declaration --outfile dist/realtime-bpm-processor.d.ts",
     "coverage": "codecov",
-    "doc": "rm -Rf ./public/api && typedoc ./src",
+    "lint": "xo --fix",
+    "doc": "typedoc ./src",
+    "prepare": "husky install",
     "release": "standard-version",
     "release:patch": "standard-version --release-as patch",
     "release:minor": "standard-version --release-as minor",
@@ -44,7 +51,6 @@
     "@commitlint/config-conventional": "^17.0.3",
     "@microsoft/tsdoc": "^0.14.2",
     "@tsconfig/recommended": "^1.0.1",
-    "@types/audioworklet": "0.0.35",
     "@types/chai": "^4.3.0",
     "@types/mocha": "^9.1.0",
     "c8": "^7.7.1",
@@ -76,7 +82,9 @@
       "node/prefer-global/process": 0,
       "unicorn/numeric-separators-style": "off",
       "import/no-unassigned-import": "off",
-      "import/no-anonymous-default-export": "off"
+      "import/no-anonymous-default-export": "off",
+      "import/extensions": "off",
+      "no-await-in-loop": "off"
     }
   },
   "lint-staged": {

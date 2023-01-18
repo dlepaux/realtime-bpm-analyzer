@@ -7,13 +7,20 @@
 
 <div>
   <p align="center">
-    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/realtime-bpm-analyzer-icon.png" style="max-width: 100%; height: auto;">
+    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/realtime-bpm-analyzer-icon.png" style="width: 200px; height: auto;">
   </p>
 </div>
 
 Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of an audio or video source in real-time.
 
-## Getting started
+- [Getting started](#getting-started)
+- [Features](#features)
+- [Usage example](#usage-example)
+- [Development](#development)
+- [Tests & Coverage](#tests-&-coverage)
+- [Credits](#credits)
+
+## Getting started {#getting-started}
 
 To install this module to your project, just launch the command below:
 
@@ -23,14 +30,14 @@ npm install realtime-bpm-analyzer
 
 To learn more about how to use the library, you can check out [the documentation](https://dlepaux.github.io/realtime-bpm-analyzer).
 
-## Features
+## Features {#features}
 
 - **Dependency-free** library that utilizes the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) to analyze audio or video sources and provide accurate BPM detection.
 - Can be used to analyze audio or video nodes, as well as audio or video streams.
 - Allows you to compute the BPM while the audio or video is playing.
 - Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
 
-## Usage example
+## Usage example {#usage-example}
 
 Join our discord server https://discord.gg/3xV7TGmq !
 
@@ -93,7 +100,7 @@ Join our discord server https://discord.gg/3xV7TGmq !
     };
     ```
 
-## Development
+## Development {#development}
 
 ```bash
 npm install
@@ -101,7 +108,7 @@ npx husky install
 npm test
 ```
 
-## Tests & Coverage
+## Tests & Coverage {#tests-&-coverage}
 
 To launch the test suite, just launch the command below:
 
@@ -110,6 +117,6 @@ npm test
 npm run test:report
 ```
 
-## Credits
+## Credits {#credits}
 
 This library was inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective), which was also based on [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/). Thank you to both of them.

@@ -35,7 +35,7 @@ To learn more about how to use the library, you can check out [the documentation
 ## Features
 
 - **Dependency-free** library that utilizes the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) to analyze audio or video sources and provide accurate BPM detection.
-- Can be used to analyze audio or video nodes, as well as audio or video streams.
+- Can be used to analyze **audio or video** nodes, streams as well as **files**.
 - Allows you to compute the BPM while the audio or video is playing.
 - Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
 

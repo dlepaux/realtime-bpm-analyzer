@@ -17,7 +17,7 @@ Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScri
 - [Features](#features)
 - [Usage example](#usage-example)
 - [Development](#development)
-- [Tests & Coverage](#tests-&-coverage)
+- [Tests & Coverage](#tests--coverage)
 - [Credits](#credits)
 
 ## Getting started

@@ -88,11 +88,12 @@ export class RealTimeBpmAnalyzer {
     console.log(`[clearValidPeaks] function: under ${minThreshold}, this.minValidThreshold has been setted to that threshold.`);
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
 
-    descendingOverThresholds(async (threshold) => {
+    descendingOverThresholds(async threshold => {
       if (threshold < minThreshold) {
         delete this.validPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
         delete this.nextIndexPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
       }
+
       return false;
     });
   }
@@ -150,10 +151,10 @@ export class RealTimeBpmAnalyzer {
   /**
    * Find peaks at all threshold
    * Works on this.nextIndexPeaks and this.validPeaks
-   * @param channelData 
-   * @param bufferSize 
-   * @param currentMinIndex 
-   * @param currentMaxIndex 
+   * @param channelData
+   * @param bufferSize
+   * @param currentMinIndex
+   * @param currentMaxIndex
    */
   findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number): void {
     descendingOverThresholds(async threshold => {

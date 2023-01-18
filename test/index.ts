@@ -47,7 +47,7 @@ describe('RealTime BPM Analyzer', () => {
         foo: 0,
       };
 
-      descendingOverThresholds((threshold) => {
+      descendingOverThresholds(threshold => {
         // We add an entry to object
         object[threshold] = threshold;
       });

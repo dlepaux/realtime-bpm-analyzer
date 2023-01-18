@@ -1,6 +1,6 @@
 import {descendingOverThresholds} from './utils';
 import * as consts from './consts';
-import type { Peaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo, Threshold } from './types';
+import type {Peaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo, Threshold} from './types';
 
 /**
  * Find peaks when the signal if greater than the threshold, then move 10_000 indexes (represents ~0.25s) to ignore the descending phase of the parabol
@@ -9,7 +9,7 @@ import type { Peaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo, Threshol
  * @param {number} offset Position where we start to loop
  * @return {PeaksAndThreshold} Peaks found that are greater than the threshold
  */
-export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, offset: number = 0): PeaksAndThreshold {
+export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, offset = 0): PeaksAndThreshold {
   const peaks: Peaks = [];
 
   const {length} = data;
@@ -91,7 +91,7 @@ export async function computeBpm(data: Record<string, Peaks>, audioSampleRate: n
  * @param {number} length Amount of returned candidates (default: 5)
  * @return {Tempo[]} Returns the 5 top candidates with highest counts
  */
-export function getTopCandidates(candidates: Tempo[], length: number = 5): Tempo[] {
+export function getTopCandidates(candidates: Tempo[], length = 5): Tempo[] {
   return candidates.sort((a, b) => (b.count - a.count)).splice(0, length);
 }
 
@@ -161,7 +161,7 @@ export function groupByTempo(audioSampleRate: number, intervalCounts: Interval[]
     if (intervalCount.interval === 0) {
       continue;
     }
-  
+
     intervalCount.interval = Math.abs(intervalCount.interval);
 
     /**
@@ -211,4 +211,4 @@ export function groupByTempo(audioSampleRate: number, intervalCounts: Interval[]
   }
 
   return tempoCounts;
-};
+}

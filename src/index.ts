@@ -1,4 +1,5 @@
-import { realtimeBpmProcessorName } from './consts';
+import {realtimeBpmProcessorName} from './consts';
+
 export * from './realtime-bpm-analyzer';
 export * from './offline-bpm-analyzer';
 export * from './types';
@@ -6,8 +7,8 @@ export * from './types';
 /**
  * Create the RealTimeBpmProcessor needed to run the library trough AudioWorklet
  * This Processor must be AFTER the biquad filter (lowpass)
- * @param audioContext 
- * @returns {Promise<AudioWorkletNode>} 
+ * @param audioContext
+ * @returns {Promise<AudioWorkletNode>}
  * @public
  */
 export async function createRealTimeBpmProcessor(audioContext: AudioContext): Promise<AudioWorkletNode> {
@@ -16,7 +17,7 @@ export async function createRealTimeBpmProcessor(audioContext: AudioContext): Pr
   await audioContext.resume();
 
   return processorNode;
-};
+}
 
 /**
  * Creates AudioWorkletNode for the Processor
@@ -28,12 +29,12 @@ export async function createRealTimeBpmProcessor(audioContext: AudioContext): Pr
 async function setupAudioWorkletNode(audioContext: AudioContext, processorName: string): Promise<AudioWorkletNode> {
   try {
     await audioContext.audioWorklet.addModule(`./${processorName}.js`);
-  
+
     const audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
-  
+
     return audioWorkletNode;
   } catch (error) {
     console.log(error);
-    throw error;    
+    throw error;
   }
-};
+}

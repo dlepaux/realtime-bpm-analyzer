@@ -5,41 +5,39 @@ export type Threshold = number;
  */
 export type Peaks = number[];
 
-export interface PeaksAndThreshold {
+export type PeaksAndThreshold = {
   peaks: Peaks;
   threshold: Threshold;
-}
+};
 
-export interface BpmCandidates {
+export type BpmCandidates = {
   bpm: Tempo[];
   threshold: Threshold;
-}
+};
 
-export interface Interval {
+export type Interval = {
   interval: number;
   count: number;
-}
+};
 
-export interface Tempo {
+export type Tempo = {
   tempo: number;
   count: number;
-}
+};
 
-export interface RealTimeBpmAnalyzerParameters {
+export type RealTimeBpmAnalyzerParameters = {
   continuousAnalysis?: boolean;
   computeBpmDelay?: number;
   stabilizationTime?: number;
-}
+};
 
-export interface RealTimeBpmAnalyzerOptions {
+export type RealTimeBpmAnalyzerOptions = {
   continuousAnalysis: boolean;
   computeBpmDelay: number;
   stabilizationTime: number;
-}
+};
 
 export type ValidPeaks = Record<string, Peaks>;
 export type NextIndexPeaks = Record<string, number>;
 
-export interface OnThresholdFunction {
-  (threshold: Threshold): Promise<boolean>;
-}
+export type OnThresholdFunction = (threshold: Threshold) => Promise<boolean>;

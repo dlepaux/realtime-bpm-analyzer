@@ -1,5 +1,5 @@
 import * as consts from './consts';
-import type { Peaks, ValidPeaks, NextIndexPeaks, OnThresholdFunction } from './types';
+import type {Peaks, ValidPeaks, NextIndexPeaks, OnThresholdFunction} from './types';
 
 /**
  * Loop between .9 and .3 to check peak at each thresholds

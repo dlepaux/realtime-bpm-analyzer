@@ -1,5 +1,5 @@
-import { realtimeBpmProcessorName } from './consts';
-import { RealTimeBpmAnalyzer } from './realtime-bpm-analyzer';
+import {realtimeBpmProcessorName} from './consts';
+import {RealTimeBpmAnalyzer} from './realtime-bpm-analyzer';
 
 /**
  * @class RealTimeBpmProcessor
@@ -9,12 +9,12 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   /**
    * Determine the buffer size (this is the same as the 1st argument of ScriptProcessor)
    */
-  bufferSize: number = 4096;
+  bufferSize = 4096;
 
   /**
    * Track the current buffer fill level
    */
-  _bytesWritten: number = 0;
+  _bytesWritten = 0;
 
   /**
    * Create a buffer of fixed size
@@ -54,7 +54,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
    * Set bytesWritten to 0
    */
   initBuffer() {
-    this._bytesWritten = 0
+    this._bytesWritten = 0;
   }
 
   /**
@@ -62,7 +62,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
    * @returns {boolean} true if bytesWritten is equal 0
    */
   isBufferEmpty() {
-    return this._bytesWritten === 0
+    return this._bytesWritten === 0;
   }
 
   /**
@@ -70,21 +70,21 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
    * @returns {boolean} true if the bytesWritten is equal bufferSize
    */
   isBufferFull() {
-    return this._bytesWritten === this.bufferSize
+    return this._bytesWritten === this.bufferSize;
   }
 
   /**
-   * 
-   * @param inputs 
-   * @param _outputs 
-   * @param _parameters 
-   * @returns 
+   *
+   * @param inputs
+   * @param _outputs
+   * @param _parameters
+   * @returns
    */
   process(inputs: Float32Array[][], _outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
-    this.append(inputs[0][0])
+    this.append(inputs[0][0]);
 
     if (this.isBufferFull()) {
-      this.realTimeBpmAnalyzer.analyzeChuck(this._buffer, sampleRate, this.bufferSize, (event) => {
+      this.realTimeBpmAnalyzer.analyzeChuck(this._buffer, sampleRate, this.bufferSize, event => {
         this.port.postMessage(event);
       });
     }
@@ -109,12 +109,12 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       this._buffer[this._bytesWritten++] = data;
     }
   }
-  
+
   /**
    * Flush memory buffer
    */
   flush() {
-    this.initBuffer()
+    this.initBuffer();
   }
 }
 

@@ -1,9 +1,9 @@
-import {findPeaksAtThreshold, identifyIntervals, groupByTempo, getTopCandidate} from './analyzer';
+import {findPeaksAtThreshold, identifyIntervals, groupByTempo, getTopCandidates} from './analyzer';
 import {descendingOverThresholds} from './utils';
 import {minPeaks} from './consts';
-import type {Peaks} from './types';
+import type {Peaks, Tempo} from './types';
 
-export async function analyzeFullBuffer(buffer: AudioBuffer): Promise<number> {
+export async function analyzeFullBuffer(buffer: AudioBuffer): Promise<Tempo[]> {
   const source = getOfflineLowPassSource(buffer);
 
   /**
@@ -19,11 +19,11 @@ export async function analyzeFullBuffer(buffer: AudioBuffer): Promise<number> {
   const peaks = await findPeaks(channelData);
   const intervals = identifyIntervals(peaks);
   const tempos = groupByTempo(buffer.sampleRate, intervals);
-  const topCandidate = getTopCandidate(tempos);
+  const topCandidates = getTopCandidates(tempos);
   console.log('tempos', tempos);
-  console.log('topCandidate', topCandidate);
+  console.log('topCandidates', topCandidates);
 
-  return topCandidate;
+  return topCandidates;
 }
 
 /**

@@ -133,9 +133,9 @@ function onFileChange(event) {
     // The file is uploaded, now we decode it
     audioContext.decodeAudioData(reader.result, audioBuffer => {
       // The result is passed to the analyzer
-      realtimeBpm.analyzeFullBuffer(audioBuffer).then(topCandidate => {
-        // Prints the top candidate, like: 90
-        console.log('topCandidate', topCandidate);
+      realtimeBpm.analyzeFullBuffer(audioBuffer).then(topCandidates => {
+        // Do something with the BPM
+        console.log('topCandidates', topCandidates);
       });
     });
   });

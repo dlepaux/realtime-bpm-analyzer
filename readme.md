@@ -8,7 +8,7 @@
 
 <div>
   <p align="center">
-    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/img/allegro-project.png" style="max-width: 100%; height: auto;">
+    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/img/realtime-bpm-analyzer-logo.png" style="max-width: 100%; height: auto;">
   </p>
 </div>
 
@@ -28,6 +28,9 @@ This **dependency free** library allows you to compute the BPM (Beats Per minute
 
 Please, note that the main use case of this tool, is to compute the BPM while the video / audio is **playing**.
 
+## Community
+
+Join the discord ! [https://discord.gg/3xV7TGmq](https://discord.gg/3xV7TGmq)
 
 ### WebAudioAPI
 

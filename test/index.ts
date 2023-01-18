@@ -15,15 +15,19 @@ describe('RealTime BPM Analyzer', () => {
       const object = {
         foo: 0,
       };
-      descendingOverThresholds((threshold, stop) => {
+
+      descendingOverThresholds(async threshold => {
         // We add an entry to object
         object.foo = threshold;
         // Stop the loop at first iteration
-        stop(true);
+        return true;
+      }).then(() => {
+        // Check if object have only ONE entry
+        expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
+        done();
+      }).catch((error: unknown) => {
+        console.error(error);
       });
-      // Check if object have only ONE entry
-      expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
-      done();
     });
 
     it('should test threshold value with boolean', done => {
@@ -31,15 +35,17 @@ describe('RealTime BPM Analyzer', () => {
         foo: 0,
       };
 
-      descendingOverThresholds((threshold, stop) => {
+      descendingOverThresholds(async threshold => {
         // We add an entry to object
         object.foo = threshold;
         // Stop the loop at first iteration
-        stop(true);
+        return true;
+      }).then(() => {
+        expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
+        done();
+      }).catch((error: unknown) => {
+        console.error(error);
       });
-
-      expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
-      done();
     });
 
     it('should test threshold without minThreshold', done => {
@@ -47,13 +53,14 @@ describe('RealTime BPM Analyzer', () => {
         foo: 0,
       };
 
-      descendingOverThresholds(threshold => {
+      descendingOverThresholds(async threshold => {
         // We add an entry to object
         object[threshold] = threshold;
-      });
-
-      setTimeout(() => {
+        return false;
+      }).then(() => {
         done();
+      }).catch((error: unknown) => {
+        console.error(error);
       });
     });
 

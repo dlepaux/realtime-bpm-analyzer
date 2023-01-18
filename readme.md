@@ -1,5 +1,4 @@
 # Realtime BPM Analyzer
-[![Discord](https://img.shields.io/discord/1234567890?color=blue&label=Discord)](https://discord.gg/3xV7TGmq)
 [![XO code style](https://img.shields.io/badge/code_style-XO-5ed9c7.svg)](https://github.com/xojs/xo)
 [![npm](https://img.shields.io/npm/dm/realtime-bpm-analyzer.svg)](https://www.npmjs.com/package/realtime-bpm-analyzer)
 [![npm](https://img.shields.io/npm/l/realtime-bpm-analyzer.svg)](https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/licence.md)
@@ -32,6 +31,8 @@ To learn more about how to use the library, you can check out [the documentation
 - Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
 
 ## Usage example
+
+Join our discord server https://discord.gg/3xV7TGmq !
 
 1. An [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to analyze. So something like this :
     ```html

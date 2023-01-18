@@ -1,7 +1,7 @@
 
 {
 	"masterPicture": "deploy/public/realtime-bpm-analyzer-icon.png",
-	"iconsPath": "/docs/favicon/",
+	"iconsPath": "/favicon/",
 	"design": {
 		"ios": {
 			"pictureAspect": "noChange",

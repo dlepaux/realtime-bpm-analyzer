@@ -5,9 +5,9 @@ export * from './offline-bpm-analyzer';
 export * from './types';
 
 /**
- * Create the RealTimeBpmProcessor needed to run the library trough AudioWorklet
- * This Processor must be AFTER the biquad filter (lowpass)
- * @param audioContext
+ * Create the RealTimeBpmProcessor needed to run the realtime strategy
+ * ENsure that the biquad lowpass filter is done before using this library
+ * @param {AudioContext} audioContext AudioContext instance
  * @returns {Promise<AudioWorkletNode>}
  * @public
  */

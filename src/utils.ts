@@ -2,17 +2,14 @@ import * as consts from './consts';
 import type {Peaks, ValidPeaks, NextIndexPeaks, OnThresholdFunction} from './types';
 
 /**
- * Loop between .9 and .3 to check peak at each thresholds
- * @param {function} onThreshold Function for each iteration, you must return a boolean, true will exit the lopp process
- * @param {mixed} minValidThreshold Function for each iteration
- * @param {mixed} callback Function executed at the end
+ * Loop between .9 and minValidThreshold at .3 by default, passoing the threshold to the function
+ * @param {OnThresholdFunction} onThreshold Function for each iteration, you must return a boolean, true will exit the lopp process
+ * @param {number} minValidThreshold Minimum threshold to count peaks from
+ * @return {Promise<void>}
  */
 export async function descendingOverThresholds(onThreshold: OnThresholdFunction, minValidThreshold = 0.3): Promise<void> {
   let threshold = consts.startThreshold;
 
-  /**
-   * Loop between 0.90 and 0.30 (theoretically it is 0.90 but it is actually 0.899999, due because of float manipulation)
-   */
   do {
     threshold -= consts.thresholdStep;
     const shouldExit = await onThreshold(threshold);
@@ -23,8 +20,8 @@ export async function descendingOverThresholds(onThreshold: OnThresholdFunction,
 }
 
 /**
- * Generate an object with each keys (thresholds)
- * @return {object} Object with thresholds key initialized with an empty array
+ * Generate an object with keys as thresholds and will containes validPeaks
+ * @return {ValidPeaks} Collection of validPeaks by thresholds
  */
 export function generateValidPeaksModel(): ValidPeaks {
   const object: Record<string, Peaks> = {};
@@ -39,8 +36,8 @@ export function generateValidPeaksModel(): ValidPeaks {
 }
 
 /**
- * Generate an object with each keys (thresholds)
- * @return {object} Object with thresholds key initialized at 0
+ * Generate an object with keys as thresholds and will containes NextIndexPeaks
+ * @return {NextIndexPeaks} Collection of NextIndexPeaks by thresholds
  */
 export function generateNextIndexPeaksModel(): NextIndexPeaks {
   const object: Record<string, number> = {};

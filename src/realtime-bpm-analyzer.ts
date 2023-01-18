@@ -13,8 +13,19 @@ const initialValue = {
   chunkCoeff: () => 1,
 };
 
+/**
+ * @class RealTimeBpmAnalyzer
+ **/
 export class RealTimeBpmAnalyzer {
-  options: RealTimeBpmAnalyzerOptions;
+  /**
+   * Default configuration
+   */
+  options: RealTimeBpmAnalyzerOptions = {
+    continuousAnalysis: false,
+    computeBpmDelay: 10000,
+    stabilizationTime: 20000,
+  };
+
   /**
    * Minimum valid threshold, below this level result would be irrelevant.
    */
@@ -45,21 +56,17 @@ export class RealTimeBpmAnalyzer {
    */
   constructor(config: RealTimeBpmAnalyzerParameters = {}) {
     /**
-     * Default configuration
-     * @property {object} options Default configuration
-     */
-    this.options = {
-      continuousAnalysis: false,
-      computeBpmDelay: 10000,
-      stabilizationTime: 20000,
-    };
-
-    /**
      * Overriding default configuration
      */
     Object.assign(this.options, config);
   }
 
+  /**
+   * Method to apply a configuration on the fly
+   * @param {string} key Key of the configuration in this.options
+   * @param {unknown} value The value you need to set
+   * @returns {void}
+   */
   setAsyncConfiguration(key: string, value: unknown): void {
     if (typeof this.options[key] === 'undefined') {
       console.log('Key not found in options', key);
@@ -71,6 +78,7 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Reset BPM computation properties to get a fresh start
+   * @returns {void}
    */
   reset(): void {
     this.minValidThreshold = initialValue.minValidThreshold();
@@ -82,7 +90,8 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Remve all validPeaks between the minThreshold pass in param to optimize the weight of datas
-   * @param {number} minThreshold Value between 0.9 and 0.3
+   * @param {Threshold} minThreshold Value between 0.9 and 0.3
+   * @returns {void}
    */
   clearValidPeaks(minThreshold: Threshold): void {
     console.log(`[clearValidPeaks] function: under ${minThreshold}, this.minValidThreshold has been setted to that threshold.`);
@@ -102,19 +111,20 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Attach this function to an audioprocess event on a audio/video node to compute BPM / Tempo in realtime
-   * @todo This function is a chimeria, it must be sliced out
-   * @param {object} event Event
+   * @param {Float32Array} channelData Channel data
+   * @param {number} audioSampleRate Audio sample rate
+   * @param {number} bufferSize Buffer size
+   * @param {(data: any) => void} postMessage Function to post a message to the processor node
+   * @returns {Promise<void>}
    */
   async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: any) => void): Promise<void> {
     /**
      * Compute the maximum index with all previous chunks
-     * @type {number}
      */
     const currentMaxIndex = bufferSize * this.chunkCoeff;
 
     /**
      * Compute the minimum index with all previous chunks
-     * @type {number}
      */
     const currentMinIndex = currentMaxIndex - bufferSize;
 
@@ -151,12 +161,12 @@ export class RealTimeBpmAnalyzer {
   }
 
   /**
-   * Find peaks at all threshold
-   * Works on this.nextIndexPeaks and this.validPeaks
-   * @param channelData
-   * @param bufferSize
-   * @param currentMinIndex
-   * @param currentMaxIndex
+   * Find the best threshold with enought peaks
+   * @param {Float32Array} channelData Channel data
+   * @param {number} bufferSize Buffer size
+   * @param {number} currentMinIndex Current minimum index
+   * @param {number} currentMaxIndex Current maximum index
+   * @returns {void}
    */
   findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number): void {
     descendingOverThresholds(async threshold => {

@@ -3,6 +3,12 @@ import {descendingOverThresholds} from './utils';
 import {minPeaks} from './consts';
 import type {Peaks, Tempo} from './types';
 
+/**
+ * Function to detect the BPM from an AudioBuffer (which can be a whole file)
+ * It is the fastest way to detect the BPM
+ * @param {AudioBuffer} buffer AudioBuffer
+ * @returns {Promise<Tempo[]>} Returns the 5 bests candidates
+ */
 export async function analyzeFullBuffer(buffer: AudioBuffer): Promise<Tempo[]> {
   const source = getOfflineLowPassSource(buffer);
 
@@ -20,18 +26,16 @@ export async function analyzeFullBuffer(buffer: AudioBuffer): Promise<Tempo[]> {
   const intervals = identifyIntervals(peaks);
   const tempos = groupByTempo(buffer.sampleRate, intervals);
   const topCandidates = getTopCandidates(tempos);
-  console.log('tempos', tempos);
-  console.log('topCandidates', topCandidates);
 
   return topCandidates;
 }
 
 /**
- *
- * @param channelData
- * @returns
+ * Find the minimum amount of peaks from top to bottom threshold
+ * @param {Float32Array} channelData Channel data
+ * @returns {Promise<Peaks>} Suffisent amount of peaks in order to continue further the process
  */
-async function findPeaks(channelData): Promise<Peaks> {
+async function findPeaks(channelData: Float32Array): Promise<Peaks> {
   let validPeaks: Peaks = [];
 
   await descendingOverThresholds(async threshold => {
@@ -53,9 +57,9 @@ async function findPeaks(channelData): Promise<Peaks> {
 }
 
 /**
- *
- * @param buffer
- * @returns
+ * Apply to the source a biquad lowpass filter
+ * @param {AudioBuffer} buffer Audio buffer
+ * @returns {AudioBufferSourceNode}
  */
 function getOfflineLowPassSource(buffer: AudioBuffer): AudioBufferSourceNode {
   const {length, numberOfChannels, sampleRate} = buffer;
@@ -82,4 +86,3 @@ function getOfflineLowPassSource(buffer: AudioBuffer): AudioBufferSourceNode {
 
   return source;
 }
-

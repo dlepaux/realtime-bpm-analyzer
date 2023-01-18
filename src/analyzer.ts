@@ -95,6 +95,11 @@ export function getTopCandidates(candidates: Tempo[], length = 5): Tempo[] {
   return candidates.sort((a, b) => (b.count - a.count)).splice(0, length);
 }
 
+/**
+ * Gets the top candidate from the array
+ * @param {Tempo[]} candidates - (BPMs) with counts.
+ * @returns {number} - Returns the top candidate with the highest count.
+ */
 export function getTopCandidate(candidates: Tempo[]): number {
   if (candidates.length === 0) {
     throw new Error('Could not find enough samples for a reliable detection.');

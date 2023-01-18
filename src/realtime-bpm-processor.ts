@@ -1,6 +1,9 @@
 import {realtimeBpmProcessorName} from './consts';
 import {RealTimeBpmAnalyzer} from './realtime-bpm-analyzer';
 
+/**
+ * Thos declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.
+ */
 /* eslint-disable no-var, @typescript-eslint/prefer-function-type, @typescript-eslint/no-empty-interface, @typescript-eslint/consistent-type-definitions, @typescript-eslint/no-redeclare, @typescript-eslint/naming-convention */
 declare var sampleRate: number;
 
@@ -71,9 +74,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
 
-    /**
-     * Initializing
-     */
     this.initBuffer();
 
     this.port.addEventListener('message', this.onMessage.bind(this));
@@ -81,10 +81,12 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * On 'message' event handler
-   * @param {object} event Contain event data
+   * Handle message event
+   * @param {object} event Contain event data from main process
+   * @returns {void}
    */
-  onMessage(event) {
+  onMessage(event): void {
+    // Handle custom event ASYNC_CONFIGURATION, to set configuration asynchronously
     if (event.data.message === 'ASYNC_CONFIGURATION') {
       for (const key of Object.keys(event.data.parameters)) {
         this.realTimeBpmAnalyzer.setAsyncConfiguration(key, event.data.parameters[key]);
@@ -94,33 +96,34 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
   /**
    * Set bytesWritten to 0
+   * @returns {void}
    */
-  initBuffer() {
+  initBuffer(): void {
     this._bytesWritten = 0;
   }
 
   /**
    * Returns a boolean to know if the buffer if empty
-   * @returns {boolean} true if bytesWritten is equal 0
+   * @returns {boolean} True if bytesWritten is equal 0
    */
-  isBufferEmpty() {
+  isBufferEmpty(): boolean {
     return this._bytesWritten === 0;
   }
 
   /**
    * Returns a boolean to know if the buffer if full
-   * @returns {boolean} true if the bytesWritten is equal bufferSize
+   * @returns {boolean} True if the bytesWritten is equal bufferSize
    */
-  isBufferFull() {
+  isBufferFull(): boolean {
     return this._bytesWritten === this.bufferSize;
   }
 
   /**
-   *
-   * @param inputs
-   * @param _outputs
-   * @param _parameters
-   * @returns
+   * Process function to handle chunks of data
+   * @param {Float32Array[][]} inputs Inputs (the data we need to process)
+   * @param {Float32Array[][]} _outputs Outputs (not useful for now)
+   * @param {Record<string, Float32Array>} _parameters Parameters
+   * @returns {boolean} Process ended successfully
    */
   process(inputs: Float32Array[][], _outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
     this.append(inputs[0][0]);
@@ -139,9 +142,10 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
   /**
    * Append the new chunk to the buffer (with a bufferSize of 4096)
-   * @param {Float32Array} channelData
+   * @param {Float32Array} channelData ChannelData
+   * @returns {void}
    */
-  append(channelData: Float32Array) {
+  append(channelData: Float32Array): void {
     if (this.isBufferFull()) {
       this.flush();
     }
@@ -157,8 +161,9 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
   /**
    * Flush memory buffer
+   * @returns {void}
    */
-  flush() {
+  flush(): void {
     this.initBuffer();
   }
 }

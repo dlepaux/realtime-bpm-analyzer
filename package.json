@@ -42,7 +42,7 @@
     "build:docs:assets": "cp -r ./deploy/public/* ./docs/",
     "coverage": "codecov",
     "lint": "xo --fix",
-    "doc": "rm -Rf docs && typedoc ./src && npm run build:favicons && npm run build:docs:sitemap && npm run build:docs:assets",
+    "doc": "rm -Rf docs && typedoc ./src --gaID G-PXQ4D05F0B && npm run build:favicons && npm run build:docs:sitemap && npm run build:docs:assets",
     "deploy": "gh-pages -d docs -b gh-pages",
     "prepare": "husky install",
     "release": "standard-version",

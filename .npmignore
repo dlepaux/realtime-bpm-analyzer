@@ -1,6 +1,7 @@
 .github
 .husky
 .next
+brand
 coverage
 docs
 node_modules

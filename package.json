@@ -33,7 +33,7 @@
     "build:types:processor": "tsc src/realtime-bpm-processor.ts --emitDeclarationOnly --declaration --outfile dist/realtime-bpm-processor.d.ts",
     "coverage": "codecov",
     "lint": "xo --fix",
-    "doc": "rm -Rf docs && typedoc ./src && ts-node ./deploy/sitemap-generator.ts && cp ./deploy/how-it-works.html ./docs/how-it-works.html && cp ./deploy/robots.txt ./docs/robots.txt",
+    "doc": "rm -Rf docs && typedoc ./src && ts-node ./deploy/sitemap-generator.ts && cp -r ./deploy/public/* ./docs/",
     "deploy": "gh-pages -d docs -b gh-pages",
     "prepare": "husky install",
     "release": "standard-version",

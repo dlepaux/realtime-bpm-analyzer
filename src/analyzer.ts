@@ -109,9 +109,9 @@ export function getTopCandidate(candidates: Tempo[]): number {
 }
 
 /**
- * Identify intervals between peaks
- * @param {array} peaks Array of qualified peaks
- * @return {array} Identifies intervals between peaks
+ * Identify intervals between bass peaks
+ * @param {array} peaks Array of qualified bass peaks
+ * @return {array} Return a collection of intervals between peaks
  */
 export function identifyIntervals(peaks: Peaks): Interval[] {
   const intervals: Interval[] = [];

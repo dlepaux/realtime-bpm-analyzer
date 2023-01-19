@@ -24,6 +24,7 @@ export class RealTimeBpmAnalyzer {
     continuousAnalysis: false,
     computeBpmDelay: 10000,
     stabilizationTime: 20000,
+    muteTimeInIndexes: 10000,
   };
 
   /**
@@ -53,6 +54,7 @@ export class RealTimeBpmAnalyzer {
    * @param {boolean} config.continuousAnalysis Flag indicating if we need to analyze continuously, typically used for streams
    * @param {number} config.computeBpmDelay Arbitrary delay to compute the BPM for the first time
    * @param {number} config.stabilizationTime Arbitrary time where we consider that a BPM is computable
+   * @param {number} config.muteTimeInIndexes Arbitrary time to mute the analysis to improve the bpm detection
    */
   constructor(config: RealTimeBpmAnalyzerParameters = {}) {
     /**
@@ -194,9 +196,9 @@ export class RealTimeBpmAnalyzer {
         }
 
         /**
-         * Add current Index + 10K
+         * Add current Index + muteTimeInIndexes (10000/44100=0.22s)
          */
-        this.nextIndexPeaks[atThreshold] = currentMinIndex + relativeChunkPeak + 10000;
+        this.nextIndexPeaks[atThreshold] = currentMinIndex + relativeChunkPeak + this.options.muteTimeInIndexes;
 
         /**
          * Store valid relativeChunkPeak Indexes

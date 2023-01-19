@@ -1,15 +1,16 @@
 import {findPeaksAtThreshold, identifyIntervals, groupByTempo, getTopCandidates} from './analyzer';
 import {descendingOverThresholds} from './utils';
 import {minPeaks} from './consts';
-import type {Peaks, Tempo} from './types';
+import type {Peaks, Tempo, PeaksAndThreshold} from './types';
 
 /**
  * Function to detect the BPM from an AudioBuffer (which can be a whole file)
  * It is the fastest way to detect the BPM
  * @param {AudioBuffer} buffer AudioBuffer
+ * @param {boolean} debug If enabled, it will capture the PCM data and the peaks used to compute the BPM
  * @returns {Promise<Tempo[]>} Returns the 5 bests candidates
  */
-export async function analyzeFullBuffer(buffer: AudioBuffer): Promise<Tempo[]> {
+export async function analyzeFullBuffer(buffer: AudioBuffer, debug = false): Promise<Tempo[]> {
   const source = getOfflineLowPassSource(buffer);
 
   /**
@@ -22,7 +23,13 @@ export async function analyzeFullBuffer(buffer: AudioBuffer): Promise<Tempo[]> {
    * Pipe the source through the program
    */
   const channelData = source.buffer.getChannelData(0);
-  const peaks = await findPeaks(channelData);
+  const {peaks, threshold} = await findPeaks(channelData);
+
+  if (debug) {
+    console.debug({peaks, threshold});
+    // Console.log('PCM DATA', JSON.stringify(Object.keys(channelData).map(key => ({index: key, value: channelData[key]})), undefined, 2));
+  }
+
   const intervals = identifyIntervals(peaks);
   const tempos = groupByTempo(buffer.sampleRate, intervals);
   const topCandidates = getTopCandidates(tempos);
@@ -31,12 +38,13 @@ export async function analyzeFullBuffer(buffer: AudioBuffer): Promise<Tempo[]> {
 }
 
 /**
- * Find the minimum amount of peaks from top to bottom threshold
+ * Find the minimum amount of peaks from top to bottom threshold, it's necessary to analyze at least 10seconds at 90bpm
  * @param {Float32Array} channelData Channel data
- * @returns {Promise<Peaks>} Suffisent amount of peaks in order to continue further the process
+ * @returns {Promise<PeaksAndThreshold>} Suffisent amount of peaks in order to continue further the process
  */
-async function findPeaks(channelData: Float32Array): Promise<Peaks> {
+async function findPeaks(channelData: Float32Array): Promise<PeaksAndThreshold> {
   let validPeaks: Peaks = [];
+  let validThreshold = 0;
 
   await descendingOverThresholds(async threshold => {
     const {peaks} = findPeaksAtThreshold(channelData, threshold);
@@ -49,11 +57,15 @@ async function findPeaks(channelData: Float32Array): Promise<Peaks> {
     }
 
     validPeaks = peaks;
+    validThreshold = threshold;
 
     return true;
   });
 
-  return validPeaks;
+  return {
+    peaks: validPeaks,
+    threshold: validThreshold,
+  };
 }
 
 /**

@@ -1,5 +1,5 @@
-import {realtimeBpmProcessorName} from './consts';
-import {RealTimeBpmAnalyzer} from './realtime-bpm-analyzer';
+import {strobeProcessorName} from './consts';
+import {StrobeAnalyzer} from './strobe-analyzer';
 
 /**
  * Those declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.
@@ -47,14 +47,14 @@ declare function registerProcessor(name: string, processorCtor: AudioWorkletProc
 /* eslint-enable no-var, @typescript-eslint/prefer-function-type, @typescript-eslint/no-empty-interface, @typescript-eslint/consistent-type-definitions, @typescript-eslint/no-redeclare, @typescript-eslint/naming-convention */
 
 /**
- * @class RealTimeBpmProcessor
+ * @class StrobeProcessor
  * @extends AudioWorkletProcessor
  **/
-export class RealTimeBpmProcessor extends AudioWorkletProcessor {
+export class StrobeProcessor extends AudioWorkletProcessor {
   /**
    * Determine the buffer size (this is the same as the 1st argument of ScriptProcessor)
    */
-  bufferSize = 4096;
+  bufferSize = 4096; // Represent 4096 / 44100 = 0,09287981859 seconds
 
   /**
    * Track the current buffer fill level
@@ -67,9 +67,9 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   _buffer: Float32Array = new Float32Array(this.bufferSize);
 
   /**
-   * RealTimeBpmAnalzer
+   * StrobeAnalzer
    */
-  realTimeBpmAnalyzer: RealTimeBpmAnalyzer = new RealTimeBpmAnalyzer();
+  strobeAnalyzer: StrobeAnalyzer = new StrobeAnalyzer();
 
   constructor() {
     super();
@@ -87,9 +87,10 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
    */
   onMessage(event): void {
     // Handle custom event ASYNC_CONFIGURATION, to set configuration asynchronously
+    console.log('event', event);
     if (event.data.message === 'ASYNC_CONFIGURATION') {
       for (const key of Object.keys(event.data.parameters)) {
-        this.realTimeBpmAnalyzer.setAsyncConfiguration(key, event.data.parameters[key]);
+        this.strobeAnalyzer.setAsyncConfiguration(key, event.data.parameters[key]);
       }
     }
   }
@@ -130,7 +131,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
     if (this.isBufferFull()) {
       // The variable sampleRate is global ! thanks to the AudioWorkletProcessor
-      this.realTimeBpmAnalyzer.analyzeChunck(this._buffer, sampleRate, this.bufferSize, event => {
+      this.strobeAnalyzer.analyzeChunck(this._buffer, sampleRate, event => {
         this.port.postMessage(event);
       }).catch((error: unknown) => {
         console.error(error);
@@ -171,4 +172,4 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 /**
  * Mandatory Registration to use the processor
  */
-registerProcessor(realtimeBpmProcessorName, RealTimeBpmProcessor);
+registerProcessor(strobeProcessorName, StrobeProcessor);

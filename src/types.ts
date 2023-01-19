@@ -26,12 +26,24 @@ export type RealTimeBpmAnalyzerParameters = {
   continuousAnalysis?: boolean;
   computeBpmDelay?: number;
   stabilizationTime?: number;
+  muteTimeInIndexes?: number;
 };
 
 export type RealTimeBpmAnalyzerOptions = {
   continuousAnalysis: boolean;
   computeBpmDelay: number;
   stabilizationTime: number;
+  muteTimeInIndexes: number;
+};
+
+export type StrobeAnalyzerParameters = {
+  threshold?: number;
+  minTimeBetweenBump?: number;
+};
+
+export type StrobeAnalyzerOptions = {
+  threshold: number;
+  minTimeBetweenBump: number;
 };
 
 export type ValidPeaks = Record<string, Peaks>;

@@ -20,6 +20,7 @@ export type Interval = {
 export type Tempo = {
   tempo: number;
   count: number;
+  confidence: number;
 };
 
 export type RealTimeBpmAnalyzerParameters = {

@@ -39,12 +39,7 @@ export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, o
  * @param {Record<string, number[]>} data Contain valid peaks
  * @param {number} audioSampleRate Audio sample rate
  */
-export async function computeBpm(data: Record<string, Peaks>, audioSampleRate: number): Promise<BpmCandidates> {
-  /**
-   * Minimum peaks
-   */
-  const minPeaks = consts.minPeaks;
-
+export async function computeBpm(data: Record<string, Peaks>, audioSampleRate: number, minPeaks = 14): Promise<BpmCandidates> {
   /**
    * Flag to fix Object.keys looping
    */
@@ -209,6 +204,7 @@ export function groupByTempo(audioSampleRate: number, intervalCounts: Interval[]
       const tempo: Tempo = {
         tempo: theoreticalTempo,
         count: intervalCount.count,
+        confidence: 0,
       };
 
       tempoCounts.push(tempo);

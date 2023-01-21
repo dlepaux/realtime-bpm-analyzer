@@ -32,7 +32,7 @@ export async function analyzeFullBuffer(buffer: AudioBuffer, debug = false): Pro
 
   const intervals = identifyIntervals(peaks);
   const tempos = groupByTempo(buffer.sampleRate, intervals);
-  const topCandidates = getTopCandidates(tempos);
+  const topCandidates = getTopCandidates(tempos, channelData.length);
 
   return topCandidates;
 }

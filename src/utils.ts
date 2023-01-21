@@ -7,11 +7,11 @@ import type {Peaks, ValidPeaks, NextIndexPeaks, OnThresholdFunction} from './typ
  * @param {number} minValidThreshold Minimum threshold to count peaks from
  * @return {Promise<void>}
  */
-export async function descendingOverThresholds(onThreshold: OnThresholdFunction, minValidThreshold = 0.3): Promise<void> {
-  let threshold = consts.startThreshold;
+export async function descendingOverThresholds(onThreshold: OnThresholdFunction, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep, minValidThreshold = consts.minValidThreshold): Promise<void> {
+  let threshold = startThreshold;
 
   do {
-    threshold -= consts.thresholdStep;
+    threshold -= thresholdStep;
     const shouldExit = await onThreshold(threshold);
     if (shouldExit) {
       break;
@@ -23,14 +23,14 @@ export async function descendingOverThresholds(onThreshold: OnThresholdFunction,
  * Generate an object with keys as thresholds and will containes validPeaks
  * @return {ValidPeaks} Collection of validPeaks by thresholds
  */
-export function generateValidPeaksModel(): ValidPeaks {
+export function generateValidPeaksModel(startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep, minValidThreshold = consts.minValidThreshold): ValidPeaks {
   const object: Record<string, Peaks> = {};
-  let threshold = consts.startThreshold;
+  let threshold = startThreshold;
 
   do {
-    threshold -= consts.thresholdStep;
+    threshold -= thresholdStep;
     object[threshold.toString()] = [];
-  } while (threshold > consts.minValidThreshold);
+  } while (threshold > minValidThreshold);
 
   return object;
 }
@@ -39,14 +39,14 @@ export function generateValidPeaksModel(): ValidPeaks {
  * Generate an object with keys as thresholds and will containes NextIndexPeaks
  * @return {NextIndexPeaks} Collection of NextIndexPeaks by thresholds
  */
-export function generateNextIndexPeaksModel(): NextIndexPeaks {
+export function generateNextIndexPeaksModel(startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep, minValidThreshold = consts.minValidThreshold): NextIndexPeaks {
   const object: Record<string, number> = {};
-  let threshold = consts.startThreshold;
+  let threshold = startThreshold;
 
   do {
-    threshold -= consts.thresholdStep;
+    threshold -= thresholdStep;
     object[threshold.toString()] = 0;
-  } while (threshold > consts.minValidThreshold);
+  } while (threshold > minValidThreshold);
 
   return object;
 }

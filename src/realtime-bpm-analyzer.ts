@@ -10,7 +10,7 @@ const initialValue = {
   timeoutStabilization: () => 'off',
   validPeaks: () => generateValidPeaksModel(),
   nextIndexPeaks: () => generateNextIndexPeaksModel(),
-  chunkCoeff: () => 1,
+  skipIndexes: () => 1,
 };
 
 /**
@@ -46,7 +46,7 @@ export class RealTimeBpmAnalyzer {
   /**
    * Number / Position of chunks
    */
-  chunkCoeff: number = initialValue.chunkCoeff();
+  skipIndexes: number = initialValue.skipIndexes();
 
   /**
    * @constructor
@@ -87,7 +87,7 @@ export class RealTimeBpmAnalyzer {
     this.timeoutStabilization = initialValue.timeoutStabilization();
     this.validPeaks = initialValue.validPeaks();
     this.nextIndexPeaks = initialValue.nextIndexPeaks();
-    this.chunkCoeff = initialValue.chunkCoeff();
+    this.skipIndexes = initialValue.skipIndexes();
   }
 
   /**
@@ -123,7 +123,7 @@ export class RealTimeBpmAnalyzer {
     /**
      * Compute the maximum index with all previous chunks
      */
-    const currentMaxIndex = bufferSize * this.chunkCoeff;
+    const currentMaxIndex = bufferSize * this.skipIndexes;
 
     /**
      * Compute the minimum index with all previous chunks
@@ -138,7 +138,7 @@ export class RealTimeBpmAnalyzer {
     /**
      * Increment chunk
      */
-    this.chunkCoeff++;
+    this.skipIndexes++;
 
     const result: BpmCandidates = await computeBpm(this.validPeaks, audioSampleRate);
     const {threshold} = result;

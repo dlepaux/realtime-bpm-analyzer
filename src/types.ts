@@ -37,16 +37,6 @@ export type RealTimeBpmAnalyzerOptions = {
   muteTimeInIndexes: number;
 };
 
-export type StrobeAnalyzerParameters = {
-  threshold?: number;
-  minTimeBetweenBump?: number;
-};
-
-export type StrobeAnalyzerOptions = {
-  threshold: number;
-  minTimeBetweenBump: number;
-};
-
 export type ValidPeaks = Record<string, Peaks>;
 
 export type NextIndexPeaks = Record<string, number>;

@@ -1,4 +1,4 @@
-import {realtimeBpmProcessorName, strobeProcessorName} from './consts';
+import {realtimeBpmProcessorName} from './consts';
 
 export * from './realtime-bpm-analyzer';
 export * from './offline-bpm-analyzer';
@@ -13,21 +13,6 @@ export * from './types';
  */
 export async function createRealTimeBpmProcessor(audioContext: AudioContext): Promise<AudioWorkletNode> {
   const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName);
-
-  await audioContext.resume();
-
-  return processorNode;
-}
-
-/**
- * Create the StrobeProcessor needed to run the realtime strategy
- * ENsure that the biquad lowpass filter is done before using this library
- * @param {AudioContext} audioContext AudioContext instance
- * @returns {Promise<AudioWorkletNode>}
- * @public
- */
-export async function createStrobeProcessor(audioContext: AudioContext): Promise<AudioWorkletNode> {
-  const processorNode = await setupAudioWorkletNode(audioContext, strobeProcessorName);
 
   await audioContext.resume();
 

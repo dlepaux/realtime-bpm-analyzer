@@ -1,5 +1,4 @@
 import {descendingOverThresholds} from './utils';
-import * as consts from './consts';
 import type {Peaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo, Threshold} from './types';
 
 /**

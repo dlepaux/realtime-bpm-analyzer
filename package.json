@@ -73,7 +73,7 @@
     "gh-pages": "^4.0.0",
     "husky": "^7.0.2",
     "mocha": "^9.2.0",
-    "standard-version": "^9.3.1",
+    "standard-version": "^9.5.0",
     "ts-mocha": "^9.0.2",
     "typedoc": "^0.23.24",
     "typescript": "^4.7.4",

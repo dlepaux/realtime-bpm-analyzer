@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.0.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.0.0...v3.0.1) (2023-01-27)
+
+
+### Features
+
+* **offline-analyzer:** add offline analyzer, this enable the possibility to detect bpm with a browser (event offline) ([f921ad2](https://github.com/dlepaux/realtime-bpm-analyzer/commit/f921ad25ffc0db893d52a1ada728c229f9e3a8fe))
+
 ## [3.0.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.0.0-10...v3.0.0) (2022-12-01)
 
 ## [3.0.0-10](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.0.0-9...v3.0.0-10) (2022-11-30)

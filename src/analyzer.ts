@@ -1,14 +1,16 @@
 import {descendingOverThresholds} from './utils';
-import type {Peaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo, Threshold} from './types';
+import type {Peaks, ValidPeaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo, Threshold} from './types';
+import * as consts from './consts';
 
 /**
- * Find peaks when the signal if greater than the threshold, then move 10_000 indexes (represents ~0.25s) to ignore the descending phase of the parabol
+ * Find peaks when the signal if greater than the threshold, then move 10_000 indexes (represents ~0.23s) to ignore the descending phase of the parabol
  * @param {Float32Array} data Buffer channel data
  * @param {number} threshold Threshold for qualifying as a peak
  * @param {number} offset Position where we start to loop
+ * @param {number} skipForwardIndexes Numbers of index to skip when a peak is detected
  * @return {PeaksAndThreshold} Peaks found that are greater than the threshold
  */
-export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, offset = 0): PeaksAndThreshold {
+export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, offset = 0, skipForwardIndexes = consts.skipForwardIndexes): PeaksAndThreshold {
   const peaks: Peaks = [];
 
   const {length} = data;
@@ -23,7 +25,7 @@ export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, o
       /**
        * Skip forward ~0.25s to pass this peak
        */
-      i += 10000;
+      i += skipForwardIndexes;
     }
   }
 
@@ -38,12 +40,12 @@ export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, o
  * @param {Record<string, number[]>} data Contain valid peaks
  * @param {number} audioSampleRate Audio sample rate
  */
-export async function computeBpm(data: Record<string, Peaks>, audioSampleRate: number, minPeaks = 14): Promise<BpmCandidates> {
+export async function computeBpm(data: ValidPeaks, audioSampleRate: number, minPeaks = consts.minPeaks): Promise<BpmCandidates> {
   /**
    * Flag to fix Object.keys looping
    */
   let hasPeaks = false;
-  let foundThreshold = 0.3;
+  let foundThreshold = consts.minValidThreshold;
 
   await descendingOverThresholds(async (threshold: Threshold) => {
     if (hasPeaks) {
@@ -70,7 +72,7 @@ export async function computeBpm(data: Record<string, Peaks>, audioSampleRate: n
   }
 
   if (!hasPeaks) {
-    console.warn(new Error('Could not find enough samples for a reliable detection.'));
+    // Console.warn(new Error('Could not find enough samples for a reliable detection.'));
   }
 
   return {

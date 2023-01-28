@@ -1,12 +1,13 @@
 import {findPeaksAtThreshold, computeBpm} from './analyzer';
 import type {RealTimeBpmAnalyzerOptions, RealTimeBpmAnalyzerParameters, ValidPeaks, NextIndexPeaks, BpmCandidates, Threshold} from './types';
 import {generateValidPeaksModel, generateNextIndexPeaksModel, descendingOverThresholds} from './utils';
+import * as consts from './consts';
 
 /**
  * Initial value of key parameters of the analyzer
  */
 const initialValue = {
-  minValidThreshold: () => 0.3,
+  minValidThreshold: () => consts.minValidThreshold,
   timeoutStabilization: () => 'off',
   validPeaks: () => generateValidPeaksModel(),
   nextIndexPeaks: () => generateNextIndexPeaksModel(),
@@ -95,19 +96,17 @@ export class RealTimeBpmAnalyzer {
    * @param {Threshold} minThreshold Value between 0.9 and 0.3
    * @returns {void}
    */
-  clearValidPeaks(minThreshold: Threshold): void {
+  async clearValidPeaks(minThreshold: Threshold): Promise<void> {
     console.log(`[clearValidPeaks] function: under ${minThreshold}, this.minValidThreshold has been setted to that threshold.`);
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
 
-    descendingOverThresholds(async threshold => {
+    await descendingOverThresholds(async threshold => {
       if (threshold < minThreshold) {
         delete this.validPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
         delete this.nextIndexPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
       }
 
       return false;
-    }).catch((error: unknown) => {
-      console.error(error);
     });
   }
 
@@ -133,7 +132,7 @@ export class RealTimeBpmAnalyzer {
     /**
      * Mutate nextIndexPeaks and validPeaks if possible
      */
-    this.findPeaks(channelData, bufferSize, currentMinIndex, currentMaxIndex);
+    await this.findPeaks(channelData, bufferSize, currentMinIndex, currentMaxIndex);
 
     /**
      * Increment chunk
@@ -146,7 +145,7 @@ export class RealTimeBpmAnalyzer {
 
     if (this.minValidThreshold < threshold) {
       postMessage({message: 'BPM_STABLE', result});
-      this.clearValidPeaks(threshold);
+      await this.clearValidPeaks(threshold);
     }
 
     /**
@@ -170,8 +169,8 @@ export class RealTimeBpmAnalyzer {
    * @param {number} currentMaxIndex Current maximum index
    * @returns {void}
    */
-  findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number): void {
-    descendingOverThresholds(async threshold => {
+  async findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number): Promise<void> {
+    await descendingOverThresholds(async threshold => {
       if (this.nextIndexPeaks[threshold] >= currentMaxIndex) {
         return false;
       }
@@ -207,9 +206,6 @@ export class RealTimeBpmAnalyzer {
       }
 
       return false;
-    },
-    this.minValidThreshold).catch((error: unknown) => {
-      console.error(error);
-    });
+    }, this.minValidThreshold);
   }
 }

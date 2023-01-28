@@ -3,11 +3,13 @@ import type {Peaks, ValidPeaks, NextIndexPeaks, OnThresholdFunction} from './typ
 
 /**
  * Loop between .9 and minValidThreshold at .3 by default, passoing the threshold to the function
- * @param {OnThresholdFunction} onThreshold Function for each iteration, you must return a boolean, true will exit the lopp process
- * @param {number} minValidThreshold Minimum threshold to count peaks from
+ * @param {OnThresholdFunction} onThreshold Function for each iteration, you must return a boolean, true will exit the loop process
+ * @param {number} minValidThreshold minValidThreshold usualy 0.3
+ * @param {number} startThreshold startThreshold usualy 0.9
+ * @param {number} thresholdStep thresholdStep usuably 0.05
  * @return {Promise<void>}
  */
-export async function descendingOverThresholds(onThreshold: OnThresholdFunction, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep, minValidThreshold = consts.minValidThreshold): Promise<void> {
+export async function descendingOverThresholds(onThreshold: OnThresholdFunction, minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): Promise<void> {
   let threshold = startThreshold;
 
   do {
@@ -21,9 +23,12 @@ export async function descendingOverThresholds(onThreshold: OnThresholdFunction,
 
 /**
  * Generate an object with keys as thresholds and will containes validPeaks
+ * @param {number} minValidThreshold minValidThreshold usualy 0.3
+ * @param {number} startThreshold startThreshold usualy 0.9
+ * @param {number} thresholdStep thresholdStep usuably 0.05
  * @return {ValidPeaks} Collection of validPeaks by thresholds
  */
-export function generateValidPeaksModel(startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep, minValidThreshold = consts.minValidThreshold): ValidPeaks {
+export function generateValidPeaksModel(minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): ValidPeaks {
   const object: Record<string, Peaks> = {};
   let threshold = startThreshold;
 
@@ -39,7 +44,7 @@ export function generateValidPeaksModel(startThreshold = consts.startThreshold, 
  * Generate an object with keys as thresholds and will containes NextIndexPeaks
  * @return {NextIndexPeaks} Collection of NextIndexPeaks by thresholds
  */
-export function generateNextIndexPeaksModel(startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep, minValidThreshold = consts.minValidThreshold): NextIndexPeaks {
+export function generateNextIndexPeaksModel(minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): NextIndexPeaks {
   const object: Record<string, number> = {};
   let threshold = startThreshold;
 

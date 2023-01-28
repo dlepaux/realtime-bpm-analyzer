@@ -3,10 +3,13 @@
 .next
 brand
 coverage
+deploy
 docs
 node_modules
 src
 test
+.real-favicon-data.json
+.real-favicon.json
 .commitlintrc.cjs
 .editorconfig
 .gitignore

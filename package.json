@@ -46,7 +46,7 @@
     "dev": "npm run build && rm -Rf ../allegro/.next/ && rm -Rf ../allegro/node_modules/realtime-bpm-analyzer/dist/ && mkdir ../allegro/node_modules/realtime-bpm-analyzer/dist/ && cp ./dist/* ../allegro/node_modules/realtime-bpm-analyzer/dist/",
     "lint": "xo --fix",
     "doc": "rm -Rf docs && npm run build:typedoc && npm run build:favicons && npm run build:docs:sitemap && npm run build:docs:assets && npm run build:docs:legacy-api",
-    "deploy": "gh-pages -d docs -b gh-pages",
+    "deploy": "rm -Rf docs && npm run doc && gh-pages -d docs -b gh-pages",
     "prepare": "husky install",
     "release": "standard-version",
     "release:patch": "standard-version --release-as patch",

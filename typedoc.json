@@ -1,17 +1,11 @@
 {
+    "$schema": "https://typedoc.org/schema.json",
     "hideGenerator": true,
     "name": "Realtime BPM Analyzer",
     "customCss": "./deploy/styles/global.css",
-    "titleLink": "https://github.com/dlepaux/realtime-bpm-analyzer",
     "includeVersion": false,
     "gaID": "G-S911G9WQTM",
     "navigationLinks": {
-        "Documentation": "http://dlepaux.github.io/realtime-bpm-analyzer",
-        "Github": "http://github.com/dlepaux/realtime-bpm-analyzer",
-        "Examples": "http://dlepaux.io/allegro",
-    },
-    "sidebarLinks": {
-        "Documentation": "http://dlepaux.github.io/realtime-bpm-analyzer",
         "Github": "http://github.com/dlepaux/realtime-bpm-analyzer",
         "Examples": "http://dlepaux.io/allegro",
     }

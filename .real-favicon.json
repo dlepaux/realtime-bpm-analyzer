@@ -1,4 +1,3 @@
-
 {
 	"masterPicture": "deploy/public/realtime-bpm-analyzer-icon.png",
 	"iconsPath": "/realtime-bpm-analyzer/favicon/",
@@ -33,6 +32,7 @@
 			"pictureAspect": "noChange",
 			"themeColor": "#ffffff",
 			"manifest": {
+				"name": "Realtime BPM Analyzer",
 				"display": "standalone",
 				"orientation": "notSet",
 				"onConflict": "override",
@@ -44,7 +44,8 @@
 			}
 		},
 		"safariPinnedTab": {
-			"pictureAspect": "silhouette",
+			"pictureAspect": "blackAndWhite",
+			"threshold": 94.84375,
 			"themeColor": "#5bbad5"
 		}
 	},

@@ -1,6 +1,6 @@
 {
-    "name": "",
-    "short_name": "",
+    "name": "Realtime BPM Analyzer",
+    "short_name": "Realtime BPM Analyzer",
     "icons": [
         {
             "src": "/realtime-bpm-analyzer/favicon/android-chrome-192x192.png",

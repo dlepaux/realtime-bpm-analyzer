@@ -1,5 +1,5 @@
 import {findPeaksAtThreshold, computeBpm} from './analyzer';
-import type {RealTimeBpmAnalyzerOptions, RealTimeBpmAnalyzerParameters, ValidPeaks, NextIndexPeaks, BpmCandidates, Threshold} from './types';
+import type {RealTimeBpmAnalyzerOptions, RealTimeBpmAnalyzerParameters, ValidPeaks, NextIndexPeaks, BpmCandidates, Threshold, BpmEventData} from './types';
 import {generateValidPeaksModel, generateNextIndexPeaksModel, descendingOverThresholds} from './utils';
 import * as consts from './consts';
 
@@ -118,7 +118,7 @@ export class RealTimeBpmAnalyzer {
    * @param {(data: any) => void} postMessage Function to post a message to the processor node
    * @returns {Promise<void>}
    */
-  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: any) => void): Promise<void> {
+  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: BpmEventData) => void): Promise<void> {
     /**
      * Compute the maximum index with all previous chunks
      */

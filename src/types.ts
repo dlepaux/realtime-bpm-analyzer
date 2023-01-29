@@ -12,6 +12,15 @@ export type BpmCandidates = {
   threshold: Threshold;
 };
 
+export type BpmEventData = {
+  message: 'BPM' | 'BPM_STABLE';
+  result: BpmCandidates;
+};
+
+export type BpmEvent = {
+  data: BpmEventData;
+};
+
 export type Interval = {
   interval: number;
   count: number;

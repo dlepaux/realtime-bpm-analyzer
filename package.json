@@ -38,7 +38,7 @@
     "build:favicons:inject:classes": "real-favicon inject .real-favicon-data.json docs/classes docs/classes/*.html",
     "build:favicons:inject:functions": "real-favicon inject .real-favicon-data.json docs/functions docs/functions/*.html",
     "build:favicons:inject:types": "real-favicon inject .real-favicon-data.json docs/types docs/types/*.html",
-    "build:typedoc": "typedoc ./src --titleLink https://github.com/dlepaux/realtime-bpm-analyzer --includeVersion --gaID G-S911G9WQTM",
+    "build:typedoc": "typedoc ./src",
     "build:docs:sitemap": "ts-node ./deploy/sitemap-generator.ts",
     "build:docs:assets": "cp -r ./deploy/public/* ./docs/",
     "build:docs:legacy-api": "mkdir ./docs/api/ && cp -r ./deploy/api/* ./docs/api/",

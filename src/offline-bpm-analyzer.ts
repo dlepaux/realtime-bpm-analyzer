@@ -1,6 +1,6 @@
 import {findPeaksAtThreshold, identifyIntervals, groupByTempo, getTopCandidates} from './analyzer';
 import {descendingOverThresholds} from './utils';
-import {minPeaks} from './consts';
+import {minPeaks, offlineBequadFilterFrequencyValue, offlineBequadFilterQualityValue} from './consts';
 import type {Peaks, Tempo, PeaksAndThreshold} from './types';
 
 /**
@@ -82,8 +82,8 @@ async function getOfflineLowPassSource(buffer: AudioBuffer): Promise<AudioBuffer
    */
   const filter = context.createBiquadFilter();
   filter.type = 'lowpass';
-  filter.frequency.value = 1000;
-  filter.Q.value = 1;
+  filter.frequency.value = offlineBequadFilterFrequencyValue;
+  filter.Q.value = offlineBequadFilterQualityValue;
 
   /**
    * Pipe the song into the filter, and the filter into the offline context

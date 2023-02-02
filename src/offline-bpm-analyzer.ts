@@ -11,18 +11,12 @@ import type {Peaks, Tempo, PeaksAndThreshold} from './types';
  * @returns {Promise<Tempo[]>} Returns the 5 bests candidates
  */
 export async function analyzeFullBuffer(buffer: AudioBuffer, debug = false): Promise<Tempo[]> {
-  const source = getOfflineLowPassSource(buffer);
-
-  /**
-   * Schedule the sound to start playing at time:0
-   */
-
-  source.start(0);
+  const sourceBuffer = await getOfflineLowPassSource(buffer);
 
   /**
    * Pipe the source through the program
    */
-  const channelData = source.buffer.getChannelData(0);
+  const channelData = sourceBuffer.getChannelData(0);
   const {peaks, threshold} = await findPeaks(channelData);
 
   if (debug) {
@@ -73,7 +67,7 @@ async function findPeaks(channelData: Float32Array): Promise<PeaksAndThreshold> 
  * @param {AudioBuffer} buffer Audio buffer
  * @returns {AudioBufferSourceNode}
  */
-function getOfflineLowPassSource(buffer: AudioBuffer): AudioBufferSourceNode {
+async function getOfflineLowPassSource(buffer: AudioBuffer): Promise<AudioBuffer> {
   const {length, numberOfChannels, sampleRate} = buffer;
   const context = new OfflineAudioContext(numberOfChannels, length, sampleRate);
 
@@ -88,13 +82,18 @@ function getOfflineLowPassSource(buffer: AudioBuffer): AudioBufferSourceNode {
    */
   const filter = context.createBiquadFilter();
   filter.type = 'lowpass';
+  filter.frequency.value = 1000;
+  filter.Q.value = 1;
 
   /**
    * Pipe the song into the filter, and the filter into the offline context
    */
-
   source.connect(filter);
   filter.connect(context.destination);
 
-  return source;
+  source.start(0);
+
+  const audioBuffer = await context.startRendering();
+
+  return audioBuffer;
 }

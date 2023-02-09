@@ -26,6 +26,11 @@ export type Interval = {
   count: number;
 };
 
+export type Group = {
+  tempo: number;
+  count: number;
+};
+
 export type Tempo = {
   tempo: number;
   count: number;

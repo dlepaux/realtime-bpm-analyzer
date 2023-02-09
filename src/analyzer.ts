@@ -1,5 +1,5 @@
 import {descendingOverThresholds} from './utils';
-import type {Peaks, ValidPeaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo, Threshold} from './types';
+import type {Peaks, ValidPeaks, PeaksAndThreshold, BpmCandidates, Interval, Tempo, Threshold, Group} from './types';
 import * as consts from './consts';
 
 /**
@@ -33,6 +33,175 @@ export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, o
     peaks,
     threshold,
   };
+}
+
+/**
+ * Find the minimum amount of peaks from top to bottom threshold, it's necessary to analyze at least 10seconds at 90bpm
+ * @param {Float32Array} channelData Channel data
+ * @returns {Promise<PeaksAndThreshold>} Suffisent amount of peaks in order to continue further the process
+ */
+export async function findPeaks(channelData: Float32Array): Promise<PeaksAndThreshold> {
+  let validPeaks: Peaks = [];
+  let validThreshold = 0;
+
+  await descendingOverThresholds(async threshold => {
+    const {peaks} = findPeaksAtThreshold(channelData, threshold);
+
+    /**
+     * Loop over peaks
+     */
+    if (peaks.length < consts.minPeaks) {
+      return false;
+    }
+
+    validPeaks = peaks;
+    validThreshold = threshold;
+
+    return true;
+  });
+
+  return {
+    peaks: validPeaks,
+    threshold: validThreshold,
+  };
+}
+
+type MaxInterval = {
+  position: number;
+  volume: number;
+};
+
+export function getPeaks(data: Float32Array[]): MaxInterval[] {
+  // What we're going to do here, is to divide up our audio into parts.
+
+  // We will then identify, for each part, what the loudest sample is in that
+  // part.
+
+  // It's implied that that sample would represent the most likely 'beat'
+  // within that part.
+
+  // Each part is 0.5 seconds long - or 22,050 samples.
+
+  // This will give us 60 'beats' - we will only take the loudest half of
+  // those.
+
+  // This will allow us to ignore breaks, and allow us to address tracks with
+  // a BPM below 120.
+
+  const partSize = 22050;
+  const parts = data[0].length / partSize;
+  let peaks: MaxInterval[] = [];
+
+  for (let i = 0; i < parts; i++) {
+    let max: number | MaxInterval = 0;
+    for (let j = i * partSize; j < (i + 1) * partSize; j++) {
+      const volume = Math.max(Math.abs(data[0][j]), Math.abs(data[1][j]));
+      if (typeof max !== 'number' && (volume > max.volume)) {
+        max = {
+          position: j,
+          volume,
+        };
+      }
+    }
+
+    if (typeof max !== 'number') {
+      peaks.push(max);
+    }
+  }
+
+  // We then sort the peaks according to volume...
+
+  peaks.sort((a, b) => b.volume - a.volume);
+
+  // ...take the loundest half of those...
+
+  peaks = peaks.splice(0, peaks.length * 0.5);
+
+  // ...and re-sort it back based on position.
+
+  peaks.sort((a, b) => a.position - b.position);
+
+  return peaks;
+}
+
+export function getIntervals(peaks: MaxInterval[]): Group[] {
+  // What we now do is get all of our peaks, and then measure the distance to
+  // other peaks, to create intervals.  Then based on the distance between
+  // those peaks (the distance of the intervals) we can calculate the BPM of
+  // that particular interval.
+
+  // The interval that is seen the most should have the BPM that corresponds
+  // to the track itself.
+
+  const groups: Group[] = [];
+
+  for (const [index, peak] of peaks.entries()) {
+    for (let i = 1; (index + i) < peaks.length && i < 10; i++) {
+      const group: Group = {
+        tempo: (60 * 44100) / (peaks[index + i].position - peak.position),
+        count: 1,
+      };
+
+      while (group.tempo < 90) {
+        group.tempo *= 2;
+      }
+
+      while (group.tempo > 180) {
+        group.tempo /= 2;
+      }
+
+      group.tempo = Math.round(group.tempo);
+
+      if (!(groups.some(interval => (interval.tempo === group.tempo ? interval.count++ : 0)))) {
+        groups.push(group);
+      }
+    }
+  }
+
+  return groups;
+}
+
+/**
+ * Apply to the source a biquad lowpass filter
+ * @param {AudioBuffer} buffer Audio buffer
+ * @returns {AudioBufferSourceNode}
+ */
+export async function getOfflineLowPassSource(buffer: AudioBuffer): Promise<AudioBuffer> {
+  const {length, numberOfChannels, sampleRate} = buffer;
+  const context = new OfflineAudioContext(numberOfChannels, length, sampleRate);
+
+  /**
+   * Create buffer source
+   */
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+
+  /**
+   * Create filter
+   */
+  const lowpass = context.createBiquadFilter();
+  lowpass.type = 'lowpass';
+  lowpass.frequency.value = consts.offlineLowPassFrequencyValue;
+  lowpass.Q.value = consts.offlineLowPassQualityValue;
+
+  const highpass = context.createBiquadFilter();
+  highpass.type = 'highpass';
+  highpass.frequency.value = consts.offlineHighPassFrequencyValue;
+  highpass.Q.value = consts.offlineHighPassQualityValue;
+
+  /**
+   * Pipe the song into the filter, and the filter into the offline context
+   */
+  source.connect(lowpass);
+  source.connect(highpass);
+  lowpass.connect(highpass);
+  highpass.connect(context.destination);
+
+  source.start(0);
+
+  const audioBuffer = await context.startRendering();
+
+  return audioBuffer;
 }
 
 /**

@@ -135,7 +135,8 @@ export function getIntervals(peaks: MaxInterval[]): Group[] {
 
   const groups: Group[] = [];
 
-  for (const [index, peak] of peaks.entries()) {
+  for (let index = 0; index < peaks.length; index++) {
+    const peak = peaks[index];
     for (let i = 1; (index + i) < peaks.length && i < 10; i++) {
       const group: Group = {
         tempo: (60 * 44100) / (peaks[index + i].position - peak.position),

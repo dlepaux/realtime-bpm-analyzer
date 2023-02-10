@@ -1,5 +1,7 @@
 import {expect} from 'chai';
 import {createRealTimeBpmProcessor, analyzeFullBuffer} from '../../src/index';
+import { askUserGesture } from '../utils';
+import {realtimeBpmProcessorName} from '../../src/consts';
 
 /**
  * Unit test for the RealTime BPM Analyzer
@@ -14,24 +16,29 @@ export default () => {
     describe('Index - Intergration tests', () => {
         it('should create a realTimeBpmProcessor', function(done) {
             this.timeout(0);
-            const button = window.document.createElement('button');
-            button.innerHTML = 'START TESTS';
+            askUserGesture(() => {
+                if (!window.audioContext) return done(new Error("No AudioContext"));
 
-            button.addEventListener('click', () => {
-                console.log('START TESTS');
-
-                window.audioContext = new AudioContext();
-
-                console.log('window.audioContext', window.audioContext);
-                createRealTimeBpmProcessor(window.audioContext).then(processor => {
+                createRealTimeBpmProcessor(window.audioContext, `/dist/${realtimeBpmProcessorName}.js`).then(processor => {
                     expect(processor).to.be.instanceOf(AudioWorkletNode);
                     done();
                 }).catch((error: unknown) => {
                     throw error;
                 });
-            });
+            })
+        });
 
-            window.document.body.appendChild(button);
+        it('should not create a realTimeBpmProcessor', function(done) {
+            this.timeout(0);
+            askUserGesture(() => {
+                if (!window.audioContext) return done(new Error("No AudioContext"));
+
+                createRealTimeBpmProcessor(window.audioContext).then(() => {
+                    throw new Error('Should not succeed, the processor does not exists at this location');
+                }).catch((error: unknown) => {
+                    done();
+                });
+            })
         });
     });
 };

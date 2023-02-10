@@ -6,7 +6,7 @@ export function readChannelData() {
     return channelData;
 }
 
-export function readChannelDataToChunk(bufferSize = 4096): Float32Array[] {
+export function readChannelDataToChunk(bufferSize: number): Float32Array[] {
     const chunks: Float32Array[] = [];
     const channelDataRaw: number[] = Object.values(channelDataJson);
 
@@ -22,4 +22,24 @@ export function readChannelDataToChunk(bufferSize = 4096): Float32Array[] {
     }
     
     return chunks;
+}
+
+export function askUserGesture(done: Mocha.Done): void {
+    const button = window.document.createElement('button');
+    button.innerHTML = 'Process test !';
+
+    function onClick() {
+      window.audioContext = new AudioContext();
+      button.innerHTML = 'Processing...';
+
+      setTimeout(()=> {
+        button.removeEventListener('click', onClick);
+        button.remove();
+        done();
+      }, 200);
+    }
+
+    button.addEventListener('click', onClick);
+
+    window.document.body.appendChild(button);
 }

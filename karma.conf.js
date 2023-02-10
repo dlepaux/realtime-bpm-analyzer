@@ -15,11 +15,12 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
       pattern: 'tests/**/*.ts',
     }, {
       pattern: 'src/**/*.ts',
-    // }, {
-    //   pattern: 'processor/realtime-bpm-processor.ts',
-    //   included: false,
-    //   served: true,
-    //   type: 'js',
+    }, {
+      pattern: 'dist/realtime-bpm-processor.js',
+      included: false,
+      served: true,
+      type: 'module',
+      nocache: true,
     }, {
       pattern: 'tests/fixtures/*.wav',
       watched: false,
@@ -28,6 +29,10 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
       nocache: false,
     }],
 
+    proxies: {
+      '/dist/': '/base/dist/',
+    },
+
     // List of files / patterns to exclude
     exclude: [
     ],
@@ -35,7 +40,15 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
     // Preprocess matching files before serving them to the browser
     // available preprocessors: https://www.npmjs.com/search?q=keywords:karma-preprocessor
     preprocessors: {
-      '**/*.ts': ['karma-typescript'],
+      'src/**/*.ts': ['karma-typescript'],
+      'tests/**/*.ts': ['karma-typescript'],
+      'processor/*.ts': ['esbuild'],
+    },
+
+    esbuild: {
+      bundle: true,
+      sourcemap: true,
+      singleBundle: false,
     },
 
     // Test results reporter to use
@@ -76,7 +89,7 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
 
     // Continuous Integration mode
     // if true, Karma captures browsers, runs the tests and exits
-    singleRun: false,
+    singleRun: true,
 
     // Concurrency level
     // how many browser instances should be started simultaneously

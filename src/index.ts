@@ -11,8 +11,8 @@ export * from './types';
  * @returns {Promise<AudioWorkletNode>}
  * @public
  */
-export async function createRealTimeBpmProcessor(audioContext: AudioContext): Promise<AudioWorkletNode> {
-  const processorNode = await setupAudioWorkletNode(audioContext, `dist/${realtimeBpmProcessorName}`);
+export async function createRealTimeBpmProcessor(audioContext: AudioContext, realtimeBpmProcessorPath = `/${realtimeBpmProcessorName}.js`): Promise<AudioWorkletNode> {
+  const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorPath, realtimeBpmProcessorName);
 
   await audioContext.resume();
 
@@ -26,18 +26,15 @@ export async function createRealTimeBpmProcessor(audioContext: AudioContext): Pr
  * @return {Promise<AudioWorkletNode>} Recording node related components for the app.
  * @private
  */
-async function setupAudioWorkletNode(audioContext: AudioContext, processorName: string): Promise<AudioWorkletNode> {
+async function setupAudioWorkletNode(audioContext: AudioContext, pathToProcessor: string, processorName: string): Promise<AudioWorkletNode> {
   try {
-    console.log('hey', `./${processorName}.js`);
-    await audioContext.audioWorklet.addModule(`./${processorName}.js`);
-    console.log('hey1');
+    await audioContext.audioWorklet.addModule(pathToProcessor);
 
     const audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
-    console.log('hey2');
 
     return audioWorkletNode;
   } catch (error: unknown) {
-    console.log(error);
+    console.error('setupAudioWorkletNode ERROR', error);
     throw error;
   }
 }

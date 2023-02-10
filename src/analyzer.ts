@@ -260,10 +260,6 @@ export async function computeBpm(data: ValidPeaks, audioSampleRate: number, minP
     return bpmCandidates;
   }
 
-  if (!hasPeaks) {
-    // Console.warn(new Error('Could not find enough samples for a reliable detection.'));
-  }
-
   return {
     bpm: [],
     threshold: foundThreshold,
@@ -404,4 +400,29 @@ export function groupByTempo(audioSampleRate: number, intervalCounts: Interval[]
   }
 
   return tempoCounts;
+}
+
+/**
+ * Function to detect the BPM from an AudioBuffer (which can be a whole file)
+ * It is the fastest way to detect the BPM
+ * @param {AudioBuffer} buffer AudioBuffer
+ * @returns {Promise<Tempo[]>} Returns the 5 bests candidates
+ */
+export async function analyzeFullBuffer(buffer: AudioBuffer): Promise<Tempo[]> {
+  const sourceBuffer = await getOfflineLowPassSource(buffer);
+
+  /**
+   * Pipe the source through the program
+   */
+  // const newAlgorithm = getNewAlgorithmBPM(sourceBuffer);
+  // console.log('newAlgorithm', newAlgorithm);
+
+  const channelData = sourceBuffer.getChannelData(0);
+
+  const {peaks} = await findPeaks(channelData);
+  const intervals = identifyIntervals(peaks);
+  const tempos = groupByTempo(buffer.sampleRate, intervals);
+  const topCandidates = getTopCandidates(tempos, channelData.length);
+
+  return topCandidates;
 }

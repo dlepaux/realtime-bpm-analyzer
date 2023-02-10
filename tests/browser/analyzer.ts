@@ -1,4 +1,5 @@
-import {getOfflineLowPassSource} from '../../src/analyzer';
+import {analyzeFullBuffer} from '../../src/analyzer';
+import type {Tempo} from '../../src/types';
 import {expect} from 'chai';
 
 export default () => {
@@ -11,10 +12,10 @@ export default () => {
         const audioContext = new AudioContext();
         response.arrayBuffer().then((buffer) => {
           audioContext.decodeAudioData(buffer).then((audioBuffer: AudioBuffer) => {
-            getOfflineLowPassSource(audioBuffer).then((lowpassedAudioBuffer: AudioBuffer) => {
-              expect(JSON.stringify(audioBuffer.getChannelData(0))).to.not.be.equal(JSON.stringify(lowpassedAudioBuffer.getChannelData(0)));
+            analyzeFullBuffer(audioBuffer).then((tempo: Tempo[]) => {
+              expect(tempo[0].tempo).to.be.equal(126);
               done();
-            });
+            }).catch(error => done(error));
           });
         });
       });

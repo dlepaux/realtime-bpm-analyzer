@@ -6,6 +6,7 @@ import {data as assertIntervals} from '../fixtures/bass-test-intervals';
 import {data as assertTempo} from '../fixtures/bass-test-tempo';
 
 import * as analyzer from '../../src/analyzer';
+import * as utils from '../../src/utils';
 
 const sampleRate = 48000;
 
@@ -34,6 +35,13 @@ export default () => {
       expect(JSON.stringify(peaks)).to.be.equal(JSON.stringify(assertPeaksBassSample));
     });
 
+    it('should not find peaks from empty channel data', async () => {
+      const channelData = new Float32Array([0, 0, 0, 0]);
+      const {peaks, threshold} = await analyzer.findPeaks(channelData);
+      expect(threshold).to.be.equal(0);
+      expect(peaks.length).to.be.equal(0);
+    });
+
     it('should identify intervals from peaks', async () => {
       const intervals = analyzer.identifyIntervals(assertPeaksBassSample);
       expect(JSON.stringify(intervals)).to.be.equal(JSON.stringify(assertIntervals));
@@ -55,14 +63,19 @@ export default () => {
       }).to.throw('Could not find enough samples for a reliable detection.');
     });
 
-    // it('should test threshold value with stop call', async () => {
-    //   const validPeaks = utils.generateValidPeaksModel();
-    //   validPeaks[validThreshold] = assertPeaksBassSample;
-    //   const data = await analyzer.computeBpm(validPeaks, sampleRate);
-    //   console.log('validPeaks', validPeaks);
-    //   console.log('data', data);
-    //   // expect(threshold).to.be.equal(validThreshold);
-    //   // expect(JSON.stringify(peaks)).to.be.equal(JSON.stringify(assertPeaksBassSample));
-    // });
+    it('should compute BPM from valid peaks', async () => {
+      const validPeaks = utils.generateValidPeaksModel();
+      validPeaks[validThreshold] = assertPeaksBassSample;
+      const {threshold, bpm} = await analyzer.computeBpm(validPeaks, sampleRate);
+      expect(threshold).to.be.equal(validThreshold);
+      expect(bpm[0].tempo).to.be.equal(126);
+    });
+
+    it('should not compute BPM from empty array of peaks', async () => {
+      const validPeaks = utils.generateValidPeaksModel();
+      const {threshold, bpm} = await analyzer.computeBpm(validPeaks, sampleRate);
+      expect(threshold).to.be.equal(0.3);
+      expect(bpm.length).to.be.equal(0);
+    });
   });
 };

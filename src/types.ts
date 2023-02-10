@@ -21,6 +21,15 @@ export type BpmEvent = {
   data: BpmEventData;
 };
 
+export type AsyncConfigurationEventData = {
+  message: 'ASYNC_CONFIGURATION';
+  parameters: RealTimeBpmAnalyzerParameters;
+};
+
+export type AsyncConfigurationEvent = {
+  data: AsyncConfigurationEventData;
+};
+
 export type Interval = {
   interval: number;
   count: number;

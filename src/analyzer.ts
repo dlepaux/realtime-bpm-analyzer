@@ -243,6 +243,8 @@ export async function computeBpm(data: ValidPeaks, audioSampleRate: number, minP
       hasPeaks = true;
       foundThreshold = threshold;
     }
+
+    return false;
   });
 
   if (hasPeaks && foundThreshold) {

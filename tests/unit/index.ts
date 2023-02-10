@@ -8,7 +8,7 @@ import testRealtimeBpmAnalyzer from './realtime-bpm-analyzer';
  * Unit test for the RealTime BPM Analyzer
  */
 export default () => {
-    describe('Unit', () => {
+    describe('Unit tests', () => {
         testAnalyzer();
         testUtils();
         testOfflineBpmAnalyzer();

@@ -1,5 +1,4 @@
 import {expect} from 'chai';
-import {describe, it} from 'mocha';
 
 import * as utils from '../../src/utils';
 
@@ -46,8 +45,8 @@ export default () => {
     });
 
     it('should test threshold without minThreshold', done => {
-      const object = {
-        foo: 0,
+      const object: Record<number, number> = {
+        [0.4]: 0,
       };
 
       utils.descendingOverThresholds(async threshold => {

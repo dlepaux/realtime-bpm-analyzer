@@ -15,6 +15,11 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
       pattern: 'tests/**/*.ts',
     }, {
       pattern: 'src/**/*.ts',
+    // }, {
+    //   pattern: 'processor/realtime-bpm-processor.ts',
+    //   included: false,
+    //   served: true,
+    //   type: 'js',
     }, {
       pattern: 'tests/fixtures/*.wav',
       watched: false,
@@ -59,11 +64,19 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
 
     // Start these browsers
     // available browser launchers: https://www.npmjs.com/search?q=keywords:karma-launcher
-    browsers: ['Chrome'],
+    browsers: ['chromeWithoutSecurity'], // You may use 'Chrome', 'ChromeCanary', 'Chromium' or any other supported browser
+
+    // you can define custom flags
+    customLaunchers: {
+      chromeWithoutSecurity: {
+        base: 'Chrome',
+        flags: ['--disable-web-security', '--disable-site-isolation-trials'],
+      },
+    },
 
     // Continuous Integration mode
     // if true, Karma captures browsers, runs the tests and exits
-    singleRun: true,
+    singleRun: false,
 
     // Concurrency level
     // how many browser instances should be started simultaneously

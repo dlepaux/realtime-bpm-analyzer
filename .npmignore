@@ -6,6 +6,7 @@ coverage
 deploy
 docs
 node_modules
+processor
 src
 test
 .real-favicon-data.json
@@ -13,7 +14,6 @@ test
 .commitlintrc.cjs
 .editorconfig
 .gitignore
-.jsdoc.json
 .npmignore
 .versionrc.json
 changelog.md

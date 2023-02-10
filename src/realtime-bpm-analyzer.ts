@@ -150,7 +150,7 @@ export class RealTimeBpmAnalyzer {
      */
     if (this.options.continuousAnalysis) {
       clearTimeout(this.timeoutStabilization);
-      this.timeoutStabilization = setTimeout(() => {
+      this.timeoutStabilization = window.setTimeout(() => {
         console.log('[timeoutStabilization] setTimeout: Fired !');
         this.options.computeBpmDelay = 0;
         this.reset();
@@ -187,10 +187,6 @@ export class RealTimeBpmAnalyzer {
       }
 
       for (const relativeChunkPeak of peaks) {
-        if (typeof relativeChunkPeak === 'undefined') {
-          continue;
-        }
-
         /**
          * Add current Index + muteTimeInIndexes (10000/44100=0.22s)
          */

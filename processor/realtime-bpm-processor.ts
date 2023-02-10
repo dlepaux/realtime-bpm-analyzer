@@ -172,3 +172,5 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
  * Mandatory Registration to use the processor
  */
 registerProcessor(realtimeBpmProcessorName, RealTimeBpmProcessor);
+
+export default {};

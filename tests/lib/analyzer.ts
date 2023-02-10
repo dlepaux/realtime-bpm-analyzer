@@ -1,5 +1,6 @@
 import {expect} from 'chai';
-
+import {analyzeFullBuffer} from '../../src/analyzer';
+import type {Tempo} from '../../src/types';
 import {readChannelData} from '../utils';
 
 import {data as assertIntervals} from '../fixtures/bass-test-intervals';
@@ -15,10 +16,7 @@ const assertPeaksBassSample = [12962,23459,35776,46244,58593,69041,82686,105130,
 const validThreshold = 0.8999999999999999;
 
 export default () => {
-  /**
-   * Test Utility functions
-   */
-  describe('Analyzer', () => {
+  describe('Analyzer - Unit tests', () => {
     it('should find peaks at specific threshold in channel data', async () => {
       const channelData = await readChannelData();
       const {peaks, threshold} = await analyzer.findPeaksAtThreshold(channelData, validThreshold);
@@ -76,6 +74,22 @@ export default () => {
       const {threshold, bpm} = await analyzer.computeBpm(validPeaks, sampleRate);
       expect(threshold).to.be.equal(0.3);
       expect(bpm.length).to.be.equal(0);
+    });
+  });
+
+  describe('Analyzer - Integration tests', () => {
+    it('should be able to detect the BPM from an AudioBuffer', function (done) {
+      fetch('http://localhost:9876/base/tests/fixtures/bass-test.wav').then((response) => {
+        response.arrayBuffer().then((buffer) => {
+          console.log('window.audioContext', window.audioContext);
+          window.audioContext?.decodeAudioData(buffer).then((audioBuffer: AudioBuffer) => {
+            analyzeFullBuffer(audioBuffer).then((tempo: Tempo[]) => {
+              expect(tempo[0].tempo).to.be.equal(126);
+              done();
+            }).catch(error => done(error));
+          });
+        });
+      });
     });
   });
 };

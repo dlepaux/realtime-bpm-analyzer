@@ -3,10 +3,7 @@ import {expect} from 'chai';
 import * as utils from '../../src/utils';
 
 export default () => {
-  /**
-   * Test Utility functions
-   */
-  describe('Utils.descendingOverThresholds', () => {
+  describe('Utils - Unit tests', () => {
     it('should test threshold value with stop call', done => {
       const object = {
         foo: 0,
@@ -45,8 +42,8 @@ export default () => {
     });
 
     it('should test threshold without minThreshold', done => {
-      const object: Record<number, number> = {
-        [0.4]: 0,
+      const object: Record<string, number> = {
+        '0.4': 0,
       };
 
       utils.descendingOverThresholds(async threshold => {

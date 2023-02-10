@@ -12,7 +12,7 @@ export * from './types';
  * @public
  */
 export async function createRealTimeBpmProcessor(audioContext: AudioContext): Promise<AudioWorkletNode> {
-  const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName);
+  const processorNode = await setupAudioWorkletNode(audioContext, `dist/${realtimeBpmProcessorName}`);
 
   await audioContext.resume();
 
@@ -28,9 +28,12 @@ export async function createRealTimeBpmProcessor(audioContext: AudioContext): Pr
  */
 async function setupAudioWorkletNode(audioContext: AudioContext, processorName: string): Promise<AudioWorkletNode> {
   try {
+    console.log('hey', `./${processorName}.js`);
     await audioContext.audioWorklet.addModule(`./${processorName}.js`);
+    console.log('hey1');
 
     const audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
+    console.log('hey2');
 
     return audioWorkletNode;
   } catch (error: unknown) {

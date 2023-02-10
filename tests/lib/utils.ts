@@ -4,56 +4,46 @@ import * as utils from '../../src/utils';
 
 export default () => {
   describe('Utils - Unit tests', () => {
-    it('should test threshold value with stop call', done => {
+    it('should test threshold value with stop call', async () => {
       const object = {
         foo: 0,
       };
 
-      utils.descendingOverThresholds(async threshold => {
+      await utils.descendingOverThresholds(async threshold => {
         // We add an entry to object
         object.foo = threshold;
         // Stop the loop at first iteration
         return true;
-      }).then(() => {
-        // Check if object have only ONE entry
-        expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
-        done();
-      }).catch((error: unknown) => {
-        done(error);
       });
+
+      // Check if object have only ONE entry
+      expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
     });
 
-    it('should test threshold value with boolean', done => {
+    it('should test threshold value with boolean', async () => {
       const object = {
         foo: 0,
       };
 
-      utils.descendingOverThresholds(async threshold => {
+      await utils.descendingOverThresholds(async threshold => {
         // We add an entry to object
         object.foo = threshold;
         // Stop the loop at first iteration
         return true;
-      }).then(() => {
-        expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
-        done();
-      }).catch((error: unknown) => {
-        done(error);
       });
+      
+      expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
     });
 
-    it('should test threshold without minThreshold', done => {
+    it('should test threshold without minThreshold', async () => {
       const object: Record<string, number> = {
         '0.4': 0,
       };
 
-      utils.descendingOverThresholds(async threshold => {
+      await utils.descendingOverThresholds(async threshold => {
         // We add an entry to object
         object[threshold] = threshold;
         return false;
-      }).then(() => {
-        done();
-      }).catch((error: unknown) => {
-        done(error);
       });
     });
 

@@ -24,18 +24,18 @@ export function readChannelDataToChunk(bufferSize: number): Float32Array[] {
     return chunks;
 }
 
-export function askUserGesture(done: Mocha.Done): void {
+export function askUserGesture(done: (audioContest: AudioContext) => void): void {
     const button = window.document.createElement('button');
     button.innerHTML = 'Process test !';
 
     function onClick() {
-      window.audioContext = new AudioContext();
+      button.removeEventListener('click', onClick);
+      const audioContext = new AudioContext();
       button.innerHTML = 'Processing...';
 
       setTimeout(()=> {
-        button.removeEventListener('click', onClick);
         button.remove();
-        done();
+        done(audioContext);
       }, 200);
     }
 

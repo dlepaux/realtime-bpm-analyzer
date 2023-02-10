@@ -79,18 +79,14 @@ export default () => {
 
   describe('Analyzer - Integration tests', () => {
     it('should be able to detect the BPM from an AudioBuffer', function (done) {
-      this.timeout(0);
-      askUserGesture(() => {
-        fetch('http://localhost:9876/base/tests/fixtures/bass-test.wav').then((response) => {
-          response.arrayBuffer().then((buffer) => {
-            window.audioContext?.decodeAudioData(buffer).then((audioBuffer: AudioBuffer) => {
-              analyzeFullBuffer(audioBuffer).then((tempo: Tempo[]) => {
-                expect(tempo[0].tempo).to.be.equal(126);
-                done();
-              }).catch(error => done(error));
-            });
-          });
-        });
+      this.timeout(30 * 1000);
+      askUserGesture(async (audioContext) => {
+        const response = await fetch('http://localhost:9876/base/tests/fixtures/bass-test.wav');
+        const buffer = await response.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(buffer);
+        const tempo = await analyzeFullBuffer(audioBuffer);
+        expect(tempo[0].tempo).to.be.equal(126);
+        done();
       });
     });
   });

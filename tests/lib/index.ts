@@ -14,30 +14,23 @@ export default () => {
     });
 
     describe('Index - Intergration tests', () => {
-        it('should create a realTimeBpmProcessor', function(done) {
-            this.timeout(0);
-            askUserGesture(() => {
-                if (!window.audioContext) return done(new Error("No AudioContext"));
-
-                createRealTimeBpmProcessor(window.audioContext, `/dist/${realtimeBpmProcessorName}.js`).then(processor => {
-                    expect(processor).to.be.instanceOf(AudioWorkletNode);
-                    done();
-                }).catch((error: unknown) => {
-                    throw error;
-                });
+        it('should create a realTimeBpmProcessor', function(done: Mocha.Done) {
+            this.timeout(30 * 1000);
+            askUserGesture(async (audioContext: AudioContext) => {
+                const processor = await createRealTimeBpmProcessor(audioContext, `/dist/${realtimeBpmProcessorName}.js`);
+                expect(processor).to.be.instanceOf(AudioWorkletNode);
+                done();
             })
         });
 
-        it('should not create a realTimeBpmProcessor', function(done) {
-            this.timeout(0);
-            askUserGesture(() => {
-                if (!window.audioContext) return done(new Error("No AudioContext"));
-
-                createRealTimeBpmProcessor(window.audioContext).then(() => {
-                    throw new Error('Should not succeed, the processor does not exists at this location');
-                }).catch((error: unknown) => {
+        it('should not create a realTimeBpmProcessor', function(done: Mocha.Done) {
+            this.timeout(30 * 1000);
+            askUserGesture(async (audioContext: AudioContext) => {
+                try {
+                    await createRealTimeBpmProcessor(audioContext);
+                } catch (error) {
                     done();
-                });
+                }
             })
         });
     });

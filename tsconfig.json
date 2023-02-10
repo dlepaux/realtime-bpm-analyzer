@@ -16,7 +16,7 @@
             "mocha"
         ]
     },
-    "include": ["types/*", "tests/**/*.ts", "src/*.ts", "processor/*.ts"],
+    "include": ["tests/**/*.ts", "src/*.ts", "processor/*.ts"],
     "exclude": [
         "node_modules"
     ]

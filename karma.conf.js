@@ -16,6 +16,7 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
     }, {
       pattern: 'src/**/*.ts',
     }, {
+      // This rule expose the built file of the processor. It's to improve cause the code is nor covered that way.
       pattern: 'dist/realtime-bpm-processor.js',
       included: false,
       served: true,

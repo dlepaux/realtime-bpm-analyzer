@@ -14,8 +14,10 @@ export async function analyzeFullBuffer(buffer: AudioBuffer, debug = false): Pro
   /**
    * Pipe the source through the program
    */
-  const channelData = sourceBuffer.getChannelData(0);
+  // const newAlgorithm = getNewAlgorithmBPM(sourceBuffer);
+  // console.log('newAlgorithm', newAlgorithm);
 
+  const channelData = sourceBuffer.getChannelData(0);
   console.log('channelData', JSON.stringify(channelData, undefined, 2));
 
   const {peaks, threshold} = await findPeaks(channelData);

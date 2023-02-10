@@ -6,6 +6,6 @@ export const thresholdStep = 0.05;
 export const skipForwardIndexes = 10000;
 export const offlineLowPassFrequencyValue = 150;
 export const offlineLowPassQualityValue = 1;
-export const offlineHighPassFrequencyValue = 150;
+export const offlineHighPassFrequencyValue = 100;
 export const offlineHighPassQualityValue = 1;
 

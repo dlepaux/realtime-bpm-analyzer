@@ -66,101 +66,118 @@ export async function findPeaks(channelData: Float32Array): Promise<PeaksAndThre
   };
 }
 
-type MaxInterval = {
-  position: number;
-  volume: number;
-};
+// Type MaxInterval = {
+//   position: number;
+//   volume: number;
+// };
 
-export function getPeaks(data: Float32Array[]): MaxInterval[] {
-  // What we're going to do here, is to divide up our audio into parts.
+// export function getPeaks(data: Float32Array[], sampleRate: number): MaxInterval[] {
+//   // What we're going to do here, is to divide up our audio into parts.
 
-  // We will then identify, for each part, what the loudest sample is in that
-  // part.
+//   // We will then identify, for each part, what the loudest sample is in that
+//   // part.
 
-  // It's implied that that sample would represent the most likely 'beat'
-  // within that part.
+//   // It's implied that that sample would represent the most likely 'beat'
+//   // within that part.
 
-  // Each part is 0.5 seconds long - or 22,050 samples.
+//   // Each part is 0.5 seconds long - or 22,050 samples.
 
-  // This will give us 60 'beats' - we will only take the loudest half of
-  // those.
+//   // This will give us 60 'beats' - we will only take the loudest half of
+//   // those.
 
-  // This will allow us to ignore breaks, and allow us to address tracks with
-  // a BPM below 120.
+//   // This will allow us to ignore breaks, and allow us to address tracks with
+//   // a BPM below 120.
 
-  const partSize = 22050;
-  const parts = data[0].length / partSize;
-  let peaks: MaxInterval[] = [];
+//   // const partSize = 22050;
+//   const partSize = sampleRate / 2;
+//   console.log('partSize, 22050', partSize, 'sampleRate', sampleRate);
+//   const parts = data[0].length / partSize;
+//   let peaks: MaxInterval[] = [];
 
-  for (let i = 0; i < parts; i++) {
-    let max: number | MaxInterval = 0;
-    for (let j = i * partSize; j < (i + 1) * partSize; j++) {
-      const volume = Math.max(Math.abs(data[0][j]), Math.abs(data[1][j]));
-      if (typeof max !== 'number' && (volume > max.volume)) {
-        max = {
-          position: j,
-          volume,
-        };
-      }
-    }
+//   for (let i = 0; i < parts; i++) {
+//     let max: number | MaxInterval = 0;
+//     for (let j = i * partSize; j < (i + 1) * partSize; j++) {
+//       const volume = Math.max(Math.abs(data[0][j]), Math.abs(data[1][j]));
+//       if (typeof max === 'number' || (volume > max.volume)) {
+//         max = {
+//           position: j,
+//           volume,
+//         };
+//       }
+//     }
 
-    if (typeof max !== 'number') {
-      peaks.push(max);
-    }
-  }
+//     if (typeof max !== 'number') {
+//       peaks.push(max);
+//     }
+//   }
 
-  // We then sort the peaks according to volume...
+//   // We then sort the peaks according to volume...
 
-  peaks.sort((a, b) => b.volume - a.volume);
+//   peaks.sort((a, b) => b.volume - a.volume);
 
-  // ...take the loundest half of those...
+//   // ...take the loundest half of those...
 
-  peaks = peaks.splice(0, peaks.length * 0.5);
+//   peaks = peaks.splice(0, peaks.length * 0.5);
 
-  // ...and re-sort it back based on position.
+//   // ...and re-sort it back based on position.
 
-  peaks.sort((a, b) => a.position - b.position);
+//   peaks.sort((a, b) => a.position - b.position);
 
-  return peaks;
-}
+//   return peaks;
+// }
 
-export function getIntervals(peaks: MaxInterval[]): Group[] {
-  // What we now do is get all of our peaks, and then measure the distance to
-  // other peaks, to create intervals.  Then based on the distance between
-  // those peaks (the distance of the intervals) we can calculate the BPM of
-  // that particular interval.
+// export function getIntervals(peaks: MaxInterval[]): Group[] {
+//   // What we now do is get all of our peaks, and then measure the distance to
+//   // other peaks, to create intervals.  Then based on the distance between
+//   // those peaks (the distance of the intervals) we can calculate the BPM of
+//   // that particular interval.
 
-  // The interval that is seen the most should have the BPM that corresponds
-  // to the track itself.
+//   // The interval that is seen the most should have the BPM that corresponds
+//   // to the track itself.
 
-  const groups: Group[] = [];
+//   const groups: Group[] = [];
 
-  for (let index = 0; index < peaks.length; index++) {
-    const peak = peaks[index];
-    for (let i = 1; (index + i) < peaks.length && i < 10; i++) {
-      const group: Group = {
-        tempo: (60 * 44100) / (peaks[index + i].position - peak.position),
-        count: 1,
-      };
+//   for (let index = 0; index < peaks.length; index++) {
+//     const peak = peaks[index];
+//     for (let i = 1; (index + i) < peaks.length && i < 10; i++) {
+//       const group: Group = {
+//         tempo: (60 * 44100) / (peaks[index + i].position - peak.position),
+//         count: 1,
+//       };
 
-      while (group.tempo < 90) {
-        group.tempo *= 2;
-      }
+//       while (group.tempo < 90) {
+//         group.tempo *= 2;
+//       }
 
-      while (group.tempo > 180) {
-        group.tempo /= 2;
-      }
+//       while (group.tempo > 180) {
+//         group.tempo /= 2;
+//       }
 
-      group.tempo = Math.round(group.tempo);
+//       group.tempo = Math.round(group.tempo);
 
-      if (!(groups.some(interval => (interval.tempo === group.tempo ? interval.count++ : 0)))) {
-        groups.push(group);
-      }
-    }
-  }
+//       if (!(groups.some(interval => (interval.tempo === group.tempo ? interval.count++ : 0)))) {
+//         groups.push(group);
+//       }
+//     }
+//   }
 
-  return groups;
-}
+//   return groups;
+// }
+
+// export function getTop(groups: Group[]): Group[] {
+//   return groups.sort(function(intA, intB) {
+//     return intB.count - intA.count;
+//   }).splice(0, 5);
+// };
+
+// export function getNewAlgorithmBPM(audioBuffer: AudioBuffer) {
+//   const peaks = getPeaks([audioBuffer.getChannelData(0), audioBuffer.getChannelData(1)], audioBuffer.sampleRate);
+//   console.log('peaks', peaks);
+//   const groups = getIntervals(peaks);
+//   console.log('groups', groups);
+//   const tops = getTop(groups);
+//   return tops;
+// }
 
 /**
  * Apply to the source a biquad lowpass filter
@@ -271,7 +288,9 @@ export function getTopCandidate(candidates: Tempo[]): number {
     throw new Error('Could not find enough samples for a reliable detection.');
   }
 
-  return candidates.sort((a, b) => (b.count - a.count))[0].tempo;
+  const [first] = candidates.sort((a, b) => (b.count - a.count));
+
+  return first.tempo;
 }
 
 /**

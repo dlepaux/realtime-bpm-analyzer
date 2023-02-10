@@ -24,8 +24,9 @@
   "main": "./dist/index.js",
   "module": "./dist/index.esm.js",
   "scripts": {
-    "build": "npm run build:index && npm run build:index:esm && npm run build:realtime:processor && npm run build:types",
+    "build": "npm run build:index && npm run build:tests && npm run build:index:esm && npm run build:realtime:processor && npm run build:types",
     "build:index": "esbuild src/index.ts --bundle --sourcemap --outfile=dist/index.js",
+    "build:tests": "esbuild tests/browser/index.ts --bundle --sourcemap --outfile=dist/tests/index.js",
     "build:index:esm": "esbuild src/index.ts --bundle --sourcemap --platform=neutral --outfile=dist/index.esm.js",
     "build:realtime:processor": "esbuild src/realtime-bpm-processor.ts --bundle --sourcemap --outfile=dist/realtime-bpm-processor.js",
     "build:types": "npm run build:types:index && npm run build:types:realtime:processor",
@@ -53,6 +54,7 @@
     "release:minor": "standard-version --release-as minor",
     "release:major": "standard-version --release-as major",
     "test": "NODE_ENV=test ts-mocha -p tsconfig.json test/index.ts",
+    "test:browser": "npm run build && http-server",
     "test:report": "c8 --reporter=html --reporter=text --reporter=lcov npm test"
   },
   "repository": {
@@ -72,6 +74,7 @@
     "cli-real-favicon": "0.0.8",
     "esbuild": "^0.14.21",
     "gh-pages": "^4.0.0",
+    "http-server": "^14.1.1",
     "husky": "^7.0.2",
     "mocha": "^9.2.0",
     "puppeteer": "^19.6.3",

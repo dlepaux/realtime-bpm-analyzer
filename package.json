@@ -48,10 +48,12 @@
     "doc": "rm -Rf docs && npm run build:typedoc && npm run build:favicons && npm run build:docs:sitemap && npm run build:docs:seo && npm run build:docs:assets",
     "deploy": "rm -Rf docs && npm run doc && gh-pages -d docs -b gh-pages",
     "prepare": "husky install",
+    "release:before": "npm test && npm run coverage",
+    "release:after": "npm test && npm run coverage && npm run build && npm publish && npm run deploy",
     "release": "standard-version",
-    "release:patch": "standard-version --release-as patch",
-    "release:minor": "standard-version --release-as minor",
-    "release:major": "standard-version --release-as major",
+    "release:patch": "npm run release:before && standard-version --release-as patch && git push && npm run release:after",
+    "release:minor": "npm run release:before && standard-version --release-as minor && git push && npm run release:after",
+    "release:major": "npm run release:before && standard-version --release-as major && git push && npm run release:after",
     "test": "NODE_ENV=test karma start"
   },
   "repository": {

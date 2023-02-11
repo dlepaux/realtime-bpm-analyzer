@@ -1,5 +1,5 @@
 import * as consts from './consts';
-import type {Peaks, ValidPeaks, NextIndexPeaks, OnThresholdFunction} from './types';
+import type {Peaks, ValidPeaks, NextIndexPeaks, OnThresholdFunction, AggregateData} from './types';
 
 /**
  * Loop between .9 and minValidThreshold at .3 by default, passoing the threshold to the function
@@ -54,4 +54,47 @@ export function generateNextIndexPeaksModel(minValidThreshold = consts.minValidT
   } while (threshold > minValidThreshold);
 
   return object;
+}
+
+export function chunckAggregator(): (pcmData: Float32Array) => AggregateData {
+  const bufferSize = 4096;
+
+  /**
+   * Track the current buffer fill level
+   */
+  let _bytesWritten = 0;
+
+  /**
+   * Create a buffer of fixed size
+   */
+  const _buffer: Float32Array = new Float32Array();
+
+  function initBuffer(): void {
+    _bytesWritten = 0;
+  }
+
+  function isBufferFull(): boolean {
+    return _bytesWritten === bufferSize;
+  }
+
+  function flush(): void {
+    initBuffer();
+  }
+
+  return function (pcmData: Float32Array): AggregateData {
+    if (isBufferFull()) {
+      flush();
+    }
+
+    const mergedArray = new Float32Array(_buffer.length + pcmData.length);
+    mergedArray.set(_buffer, 0);
+    mergedArray.set(pcmData, _buffer.length);
+    _bytesWritten += pcmData.length;
+
+    return {
+      isBufferFull: isBufferFull(),
+      _buffer,
+      bufferSize,
+    };
+  };
 }

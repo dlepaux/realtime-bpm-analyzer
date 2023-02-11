@@ -1,6 +1,7 @@
 import {expect} from 'chai';
 
 import * as utils from '../../src/utils';
+import {readChannelDataToChunk} from '../utils';
 
 export default () => {
   describe('Utils - Unit tests', () => {
@@ -57,6 +58,16 @@ export default () => {
       const object = utils.generateNextIndexPeaksModel();
       expect(JSON.stringify(Object.values(object)[0])).to.be.equal('0');
       done();
+    });
+
+    it('should use the chunk aggregator', () => {
+      const aggregate = utils.chunckAggregator();
+      const bufferSize = 1024;
+      const channelData = readChannelDataToChunk(bufferSize);
+
+      for (const chunk of channelData) {
+        aggregate(chunk);
+      }
     });
   });
 };

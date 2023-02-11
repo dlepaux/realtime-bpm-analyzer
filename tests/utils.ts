@@ -11,16 +11,15 @@ export function readChannelDataToChunk(bufferSize: number): Float32Array[] {
     const channelDataRaw: number[] = Object.values(channelDataJson);
 
     let currentChunk: number[] = [];
-    for (const [index, value] of channelDataRaw.entries()) {
+    for (const value of channelDataRaw) {
         currentChunk.push(value);
 
-        // Normally each 4095 modulo 0
-        if (index % bufferSize - 1 === 0) {
+        if (currentChunk.length === bufferSize) {
             chunks.push(new Float32Array(currentChunk));
             currentChunk = [];
         }
     }
-    
+
     return chunks;
 }
 

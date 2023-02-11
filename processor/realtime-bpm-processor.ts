@@ -1,6 +1,7 @@
 import {realtimeBpmProcessorName} from '../src/consts';
+import {chunckAggregator} from '../src/utils';
 import {RealTimeBpmAnalyzer} from '../src/realtime-bpm-analyzer';
-import type {AsyncConfigurationEvent} from '../src/types';
+import type {AsyncConfigurationEvent, AggregateData} from '../src/types';
 
 /**
  * Those declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.
@@ -52,30 +53,13 @@ declare function registerProcessor(name: string, processorCtor: AudioWorkletProc
  * @extends AudioWorkletProcessor
  **/
 export class RealTimeBpmProcessor extends AudioWorkletProcessor {
-  /**
-   * Determine the buffer size (this is the same as the 1st argument of ScriptProcessor)
-   */
-  bufferSize = 4096;
-
-  /**
-   * Track the current buffer fill level
-   */
-  _bytesWritten = 0;
-
-  /**
-   * Create a buffer of fixed size
-   */
-  _buffer: Float32Array = new Float32Array(this.bufferSize);
-
-  /**
-   * RealTimeBpmAnalzer
-   */
+  aggregate: (pcmData: Float32Array) => AggregateData;
   realTimeBpmAnalyzer: RealTimeBpmAnalyzer = new RealTimeBpmAnalyzer();
 
   constructor() {
     super();
 
-    this.initBuffer();
+    this.aggregate = chunckAggregator();
 
     this.port.addEventListener('message', this.onMessage.bind(this));
     this.port.start();
@@ -94,30 +78,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Set bytesWritten to 0
-   * @returns {void}
-   */
-  initBuffer(): void {
-    this._bytesWritten = 0;
-  }
-
-  /**
-   * Returns a boolean to know if the buffer if empty
-   * @returns {boolean} True if bytesWritten is equal 0
-   */
-  isBufferEmpty(): boolean {
-    return this._bytesWritten === 0;
-  }
-
-  /**
-   * Returns a boolean to know if the buffer if full
-   * @returns {boolean} True if the bytesWritten is equal bufferSize
-   */
-  isBufferFull(): boolean {
-    return this._bytesWritten === this.bufferSize;
-  }
-
-  /**
    * Process function to handle chunks of data
    * @param {Float32Array[][]} inputs Inputs (the data we need to process)
    * @param {Float32Array[][]} _outputs Outputs (not useful for now)
@@ -125,11 +85,12 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
    * @returns {boolean} Process ended successfully
    */
   process(inputs: Float32Array[][], _outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
-    this.append(inputs[0][0]);
+    const currentChunk = inputs[0][0];
+    const {isBufferFull, _buffer, bufferSize} = this.aggregate(currentChunk);
 
-    if (this.isBufferFull()) {
+    if (isBufferFull) {
       // The variable sampleRate is global ! thanks to the AudioWorkletProcessor
-      this.realTimeBpmAnalyzer.analyzeChunck(this._buffer, sampleRate, this.bufferSize, event => {
+      this.realTimeBpmAnalyzer.analyzeChunck(_buffer, sampleRate, bufferSize, event => {
         this.port.postMessage(event);
       }).catch((error: unknown) => {
         console.error(error);
@@ -137,34 +98,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     }
 
     return true;
-  }
-
-  /**
-   * Append the new chunk to the buffer (with a bufferSize of 4096)
-   * @param {Float32Array} channelData ChannelData
-   * @returns {void}
-   */
-  append(channelData: Float32Array): void {
-    if (this.isBufferFull()) {
-      this.flush();
-    }
-
-    if (!channelData) {
-      return;
-    }
-
-    const mergedArray = new Float32Array(this._buffer.length + channelData.length);
-    mergedArray.set(this._buffer, 0);
-    mergedArray.set(channelData, this._buffer.length);
-    this._bytesWritten += channelData.length;
-  }
-
-  /**
-   * Flush memory buffer
-   * @returns {void}
-   */
-  flush(): void {
-    this.initBuffer();
   }
 }
 

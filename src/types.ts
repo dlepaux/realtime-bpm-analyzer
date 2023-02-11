@@ -65,3 +65,9 @@ export type ValidPeaks = Record<string, Peaks>;
 export type NextIndexPeaks = Record<string, number>;
 
 export type OnThresholdFunction = (threshold: Threshold) => Promise<boolean>;
+
+export type AggregateData = {
+  isBufferFull: boolean;
+  _buffer: Float32Array;
+  bufferSize: number;
+};

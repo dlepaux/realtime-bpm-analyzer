@@ -16,12 +16,10 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
     }, {
       pattern: 'src/**/*.ts',
     }, {
-      // This rule expose the built file of the processor. It's to improve cause the code is nor covered that way.
-      pattern: 'dist/realtime-bpm-processor.js',
+      pattern: 'processor/realtime-bpm-processor.ts',
       included: false,
       served: true,
-      type: 'module',
-      nocache: true,
+      nocache: false,
     }, {
       pattern: 'tests/fixtures/*.wav',
       watched: false,
@@ -29,10 +27,6 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
       served: true,
       nocache: false,
     }],
-
-    proxies: {
-      '/dist/': '/base/dist/',
-    },
 
     // List of files / patterns to exclude
     exclude: [

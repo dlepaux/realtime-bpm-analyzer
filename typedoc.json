@@ -3,7 +3,6 @@
     "hideGenerator": true,
     "name": "Realtime BPM Analyzer",
     "customCss": "./deploy/styles/global.css",
-    "includeVersion": false,
     "gaID": "G-S911G9WQTM",
     "navigationLinks": {
         "Github": "http://github.com/dlepaux/realtime-bpm-analyzer",

@@ -19,6 +19,7 @@ export default () => {
             askUserGesture(async (audioContext: AudioContext) => { // Path: /base/processor/realtime-bpm-processor.js
                 const processor = await createRealTimeBpmProcessor(audioContext, `/base/processor/${realtimeBpmProcessorName}.js`);
                 expect(processor).to.be.instanceOf(AudioWorkletNode);
+                await audioContext.close();
                 done();
             })
         });
@@ -29,6 +30,7 @@ export default () => {
                 try {
                     await createRealTimeBpmProcessor(audioContext);
                 } catch (error) {
+                    await audioContext.close();
                     done();
                 }
             })

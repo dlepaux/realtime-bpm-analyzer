@@ -68,6 +68,7 @@
     "@types/mocha": "^9.1.0",
     "chai": "^4.3.4",
     "cli-real-favicon": "0.0.8",
+    "codecov": "^3.8.3",
     "esbuild": "^0.14.21",
     "gh-pages": "^4.0.0",
     "husky": "^7.0.2",

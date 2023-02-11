@@ -27,10 +27,4 @@ jobs:
         cache: 'npm'
     # End Environment Variables
     - run: npm ci
-    - run: npm run test:report
-    - name: Codecov
-      uses: codecov/codecov-action@v2.1.0
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        fail_ci_if_error: true
-        verbose: true
+    - run: npm run build

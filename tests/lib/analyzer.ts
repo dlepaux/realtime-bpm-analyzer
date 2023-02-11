@@ -86,6 +86,7 @@ export default () => {
         const audioBuffer = await audioContext.decodeAudioData(buffer);
         const tempo = await analyzeFullBuffer(audioBuffer);
         expect(tempo[0].tempo).to.be.equal(126);
+        await audioContext.close();
         done();
       });
     });

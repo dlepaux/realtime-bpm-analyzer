@@ -53,7 +53,7 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
     reporters: ['progress', 'coverage-istanbul'],
 
     coverageIstanbulReporter: {
-      reports: ['html', 'text-summary'],
+      reports: ['html', 'lcov', 'text-summary'],
       dir: 'coverage/',
     },
 

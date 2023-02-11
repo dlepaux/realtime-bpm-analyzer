@@ -41,4 +41,15 @@ export function askUserGesture(done: (audioContest: AudioContext) => void): void
     button.addEventListener('click', onClick);
 
     window.document.body.appendChild(button);
+
+    // setTimeout(()=> {
+    //     // Create the click event
+    //     const clickEvent = new MouseEvent("click", {
+    //         bubbles: true,
+    //         cancelable: true,
+    //     });
+
+    //     // Dispatch the event on the button
+    //     button.dispatchEvent(clickEvent);
+    // }, 100);
 }

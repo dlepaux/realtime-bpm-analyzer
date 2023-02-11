@@ -3,8 +3,18 @@ import {promises} from 'node:fs';
 
 const baseUrl = 'https://dlepaux.github.io/realtime-bpm-analyzer/';
 
+async function getRootFiles() {
+  try {
+    const rootFiles = await promises.readdir('docs');
+    return rootFiles;
+  } catch {
+    await promises.mkdir('docs');
+    return [];
+  }
+}
+
 async function main(): Promise<boolean> {
-  const rootFiles = await promises.readdir('docs');
+  const rootFiles = await getRootFiles();
   const rootPages = rootFiles.filter((name: string) => name.includes('.html'));
   const pages = rootPages;
   const directories = rootFiles.filter((name: string) => !name.includes('.'));

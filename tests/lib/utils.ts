@@ -66,7 +66,10 @@ export default () => {
       const channelData = readChannelDataToChunk(bufferSize);
 
       for (const chunk of channelData) {
-        aggregate(chunk);
+        const {isBufferFull, buffer} = aggregate(chunk);
+        if (isBufferFull) {
+          expect(buffer.length).to.equal(4096);
+        }
       }
     });
   });

@@ -68,6 +68,6 @@ export type OnThresholdFunction = (threshold: Threshold) => Promise<boolean>;
 
 export type AggregateData = {
   isBufferFull: boolean;
-  _buffer: Float32Array;
+  buffer: Float32Array;
   bufferSize: number;
 };

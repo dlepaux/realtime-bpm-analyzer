@@ -86,11 +86,16 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
    */
   process(inputs: Float32Array[][], _outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
     const currentChunk = inputs[0][0];
-    const {isBufferFull, _buffer, bufferSize} = this.aggregate(currentChunk);
+
+    if (!currentChunk) {
+      return true;
+    }
+
+    const {isBufferFull, buffer, bufferSize} = this.aggregate(currentChunk);
 
     if (isBufferFull) {
       // The variable sampleRate is global ! thanks to the AudioWorkletProcessor
-      this.realTimeBpmAnalyzer.analyzeChunck(_buffer, sampleRate, bufferSize, event => {
+      this.realTimeBpmAnalyzer.analyzeChunck(buffer, sampleRate, bufferSize, event => {
         this.port.postMessage(event);
       }).catch((error: unknown) => {
         console.error(error);

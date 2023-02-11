@@ -67,10 +67,11 @@ export function chunckAggregator(): (pcmData: Float32Array) => AggregateData {
   /**
    * Create a buffer of fixed size
    */
-  const _buffer: Float32Array = new Float32Array();
+  let buffer: Float32Array = new Float32Array(0);
 
   function initBuffer(): void {
     _bytesWritten = 0;
+    buffer = new Float32Array(0);
   }
 
   function isBufferFull(): boolean {
@@ -86,14 +87,15 @@ export function chunckAggregator(): (pcmData: Float32Array) => AggregateData {
       flush();
     }
 
-    const mergedArray = new Float32Array(_buffer.length + pcmData.length);
-    mergedArray.set(_buffer, 0);
-    mergedArray.set(pcmData, _buffer.length);
+    const newBuffer = new Float32Array(buffer.length + pcmData.length);
+    newBuffer.set(buffer, 0);
+    newBuffer.set(pcmData, buffer.length);
+    buffer = newBuffer;
     _bytesWritten += pcmData.length;
 
     return {
       isBufferFull: isBufferFull(),
-      _buffer,
+      buffer,
       bufferSize,
     };
   };

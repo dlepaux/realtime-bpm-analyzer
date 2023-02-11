@@ -100,6 +100,7 @@
       "import/no-anonymous-default-export": "off",
       "import/extensions": "off",
       "no-await-in-loop": "off",
+      "@typescript-eslint/triple-slash-reference": "off",
       "unicorn/prefer-top-level-await": "off"
     }
   },

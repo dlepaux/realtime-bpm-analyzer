@@ -1,4 +1,4 @@
-import 'node';
+/// <reference types="node" />
 import {promises} from 'node:fs';
 
 const baseUrl = 'https://dlepaux.github.io/realtime-bpm-analyzer/';

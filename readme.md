@@ -8,7 +8,7 @@
 
 <div>
   <p align="center">
-    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/realtime-bpm-analyzer-icon.png" style="width: 200px; height: auto;">
+    <img width="200" src="https://dlepaux.github.io/realtime-bpm-analyzer/realtime-bpm-analyzer-icon.png">
   </p>
 </div>
 

@@ -1,17 +1,15 @@
 import {data as channelDataJson} from './fixtures/bass-test-lowpassed-channel-data';
 
 export function readChannelData() {
-    const values: number[] = Object.values(channelDataJson);
-    const channelData = new Float32Array(values);
+    const channelData = new Float32Array(channelDataJson);
     return channelData;
 }
 
 export function readChannelDataToChunk(bufferSize: number): Float32Array[] {
     const chunks: Float32Array[] = [];
-    const channelDataRaw: number[] = Object.values(channelDataJson);
 
     let currentChunk: number[] = [];
-    for (const value of channelDataRaw) {
+    for (const value of channelDataJson) {
         currentChunk.push(value);
 
         if (currentChunk.length === bufferSize) {

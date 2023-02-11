@@ -22,6 +22,7 @@ export default () => {
       const {peaks, threshold} = await analyzer.findPeaksAtThreshold(channelData, validThreshold);
 
       expect(threshold).to.be.equal(validThreshold);
+      console.log(peaks.length, assertPeaksBassSample.length);
       expect(JSON.stringify(peaks)).to.be.equal(JSON.stringify(assertPeaksBassSample));
     });
 
@@ -30,6 +31,7 @@ export default () => {
       const {peaks, threshold} = await analyzer.findPeaks(channelData);
 
       expect(threshold).to.be.equal(validThreshold);
+      console.log(peaks.length, assertPeaksBassSample.length);
       expect(JSON.stringify(peaks)).to.be.equal(JSON.stringify(assertPeaksBassSample));
     });
 

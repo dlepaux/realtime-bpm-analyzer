@@ -144,9 +144,11 @@ function onFileChange(event) {
 
 ## Development
 
+The test suite is built on top of karma and is very practical to test new features. Before running tests switch the `singleRun` property of `karma.config.js` to leave the browser open after the tests.
+
 ```bash
 npm install
-npx husky install
+npm run prepare
 npm test
 ```
 
@@ -156,8 +158,10 @@ To launch the test suite, just launch the command below:
 
 ```bash
 npm test
-npm run test:report
+open http://localhost:9876
 ```
+
+Note that tests requires real human gesture to be successfully run!
 
 ## Credits
 

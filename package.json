@@ -42,7 +42,7 @@
     "build:types": "npm run build:types:index && npm run build:types:realtime:processor",
     "build:types:index": "tsc -h && tsc src/index.ts --emitDeclarationOnly --outdir dist --declaration",
     "build:types:realtime:processor": "tsc processor/realtime-bpm-processor.ts --emitDeclarationOnly --target es6 --declaration --outfile dist/realtime-bpm-processor.d.ts",
-    "coverage": "codecov",
+    "coverage": "codecov -f coverage/lcov.info",
     "dev": "npm run build && rm -Rf ../allegro/.next/ && rm -Rf ../allegro/node_modules/realtime-bpm-analyzer/dist/ && mkdir ../allegro/node_modules/realtime-bpm-analyzer/dist/ && cp ./dist/* ../allegro/node_modules/realtime-bpm-analyzer/dist/",
     "lint": "xo --fix",
     "doc": "rm -Rf docs && npm run build:typedoc && npm run build:favicons && npm run build:docs:sitemap && npm run build:docs:seo && npm run build:docs:assets",

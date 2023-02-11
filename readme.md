@@ -18,6 +18,7 @@ Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScri
 - [Usages](#usages)
   - [Realtime (stream/playing) strategy](#realtime-stream-playing-strategy)
   - [Local/Offline strategy](#localoffline-strategy)
+- [Roadmap](#roadmap)
 - [Development](#development)
 - [Tests & Coverage](#tests--coverage)
 - [Credits](#credits)
@@ -141,6 +142,14 @@ function onFileChange(event) {
   reader.readAsArrayBuffer(file);
 };
 ```
+
+## Roadmap
+
+[] Add confidence level of Tempo
+[] Combine Amplitude Thresholding strategy with others to improve BPM accuracy
+[] Improve the continous analysis in order to ignore drops and cuts, monitore memory usage
+
+Let us know what is your most wanted feature by opening [an issue](https://github.com/dlepaux/realtime-bpm-analyzer/issues).
 
 ## Development
 

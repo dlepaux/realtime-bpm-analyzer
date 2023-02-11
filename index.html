@@ -28,6 +28,7 @@
 <a href="https://www.npmjs.com/package/realtime-bpm-analyzer"><img src="https://img.shields.io/npm/dm/realtime-bpm-analyzer.svg" alt="npm"></a>
 <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/licence.md"><img src="https://img.shields.io/npm/l/realtime-bpm-analyzer.svg" alt="npm"></a>
 <a href="https://github.com/dlepaux/realtime-bpm-analyzer/actions"><img src="https://github.com/dlepaux/realtime-bpm-analyzer/workflows/CI/badge.svg" alt="CI Actions Status"></a>
+<a href="https://codecov.io/gh/dlepaux/realtime-bpm-analyzer"><img src="https://codecov.io/gh/dlepaux/realtime-bpm-analyzer/branch/main/graph/badge.svg" alt="codecov"></a>
 <a href="https://gitter.im/realtime-bpm-analyzer/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge"><img src="https://badges.gitter.im/realtime-bpm-analyzer/Lobby.svg" alt="Join the chat at https://gitter.im/realtime-bpm-analyzer/Lobby"></a></p>
 <div>
   <p align="center">
@@ -43,6 +44,7 @@
 <li><a href="#localoffline-strategy">Local/Offline strategy</a></li>
 </ul>
 </li>
+<li><a href="#roadmap">Roadmap</a></li>
 <li><a href="#development">Development</a></li>
 <li><a href="#tests--coverage">Tests &amp; Coverage</a></li>
 <li><a href="#credits">Credits</a></li>
@@ -106,17 +108,26 @@
 </ol>
 <pre><code class="language-javascript"><span class="hl-8">function</span><span class="hl-0"> </span><span class="hl-10">onFileChange</span><span class="hl-0">(</span><span class="hl-7">event</span><span class="hl-0">) {</span><br><span class="hl-0">  </span><span class="hl-11">// Get the first file from the list</span><br><span class="hl-0">  </span><span class="hl-8">const</span><span class="hl-0"> </span><span class="hl-9">file</span><span class="hl-0"> = </span><span class="hl-7">event</span><span class="hl-0">.</span><span class="hl-7">target</span><span class="hl-0">.</span><span class="hl-7">files</span><span class="hl-0">[</span><span class="hl-14">0</span><span class="hl-0">];</span><br><span class="hl-0">  </span><span class="hl-8">const</span><span class="hl-0"> </span><span class="hl-9">reader</span><span class="hl-0"> = </span><span class="hl-8">new</span><span class="hl-0"> </span><span class="hl-10">FileReader</span><span class="hl-0">();</span><br><span class="hl-0">  </span><span class="hl-7">reader</span><span class="hl-0">.</span><span class="hl-10">addEventListener</span><span class="hl-0">(</span><span class="hl-1">&#39;load&#39;</span><span class="hl-0">, () </span><span class="hl-8">=&gt;</span><span class="hl-0"> {</span><br><span class="hl-0">    </span><span class="hl-8">const</span><span class="hl-0"> </span><span class="hl-9">audioContext</span><span class="hl-0"> = </span><span class="hl-8">new</span><span class="hl-0"> </span><span class="hl-7">window</span><span class="hl-0">.</span><span class="hl-10">AudioContext</span><span class="hl-0">();</span><br><span class="hl-0">    </span><span class="hl-11">// The file is uploaded, now we decode it</span><br><span class="hl-0">    </span><span class="hl-7">audioContext</span><span class="hl-0">.</span><span class="hl-10">decodeAudioData</span><span class="hl-0">(</span><span class="hl-7">reader</span><span class="hl-0">.</span><span class="hl-7">result</span><span class="hl-0">, </span><span class="hl-7">audioBuffer</span><span class="hl-0"> </span><span class="hl-8">=&gt;</span><span class="hl-0"> {</span><br><span class="hl-0">      </span><span class="hl-11">// The result is passed to the analyzer</span><br><span class="hl-0">      </span><span class="hl-7">realtimeBpm</span><span class="hl-0">.</span><span class="hl-10">analyzeFullBuffer</span><span class="hl-0">(</span><span class="hl-7">audioBuffer</span><span class="hl-0">).</span><span class="hl-10">then</span><span class="hl-0">(</span><span class="hl-7">topCandidates</span><span class="hl-0"> </span><span class="hl-8">=&gt;</span><span class="hl-0"> {</span><br><span class="hl-0">        </span><span class="hl-11">// Do something with the BPM</span><br><span class="hl-0">        </span><span class="hl-7">console</span><span class="hl-0">.</span><span class="hl-10">log</span><span class="hl-0">(</span><span class="hl-1">&#39;topCandidates&#39;</span><span class="hl-0">, </span><span class="hl-7">topCandidates</span><span class="hl-0">);</span><br><span class="hl-0">      });</span><br><span class="hl-0">    });</span><br><span class="hl-0">  });</span><br><span class="hl-0">  </span><span class="hl-7">reader</span><span class="hl-0">.</span><span class="hl-10">readAsArrayBuffer</span><span class="hl-0">(</span><span class="hl-7">file</span><span class="hl-0">);</span><br><span class="hl-0">};</span>
 </code></pre>
+<a href="#roadmap" id="roadmap" style="color: inherit; text-decoration: none;">
+  <h2>Roadmap</h2>
+</a>
+<p>[] Add confidence level of Tempo
+[] Combine Amplitude Thresholding strategy with others to improve BPM accuracy
+[] Improve the continous analysis in order to ignore drops and cuts, monitore memory usage</p>
+<p>Let us know what is your most wanted feature by opening <a href="https://github.com/dlepaux/realtime-bpm-analyzer/issues">an issue</a>.</p>
 <a href="#development" id="development" style="color: inherit; text-decoration: none;">
   <h2>Development</h2>
 </a>
-<pre><code class="language-bash"><span class="hl-0">npm </span><span class="hl-1">install</span><br><span class="hl-0">npx </span><span class="hl-1">husky</span><span class="hl-0"> </span><span class="hl-1">install</span><br><span class="hl-0">npm </span><span class="hl-1">test</span>
+<p>The test suite is built on top of karma and is very practical to test new features. Before running tests switch the <code>singleRun</code> property of <code>karma.config.js</code> to leave the browser open after the tests.</p>
+<pre><code class="language-bash"><span class="hl-0">npm </span><span class="hl-1">install</span><br><span class="hl-0">npm </span><span class="hl-1">run</span><span class="hl-0"> </span><span class="hl-1">prepare</span><br><span class="hl-0">npm </span><span class="hl-1">test</span>
 </code></pre>
 <a href="#tests-amp-coverage" id="tests-amp-coverage" style="color: inherit; text-decoration: none;">
   <h2>Tests &amp; Coverage</h2>
 </a>
 <p>To launch the test suite, just launch the command below:</p>
-<pre><code class="language-bash"><span class="hl-0">npm </span><span class="hl-1">test</span><br><span class="hl-0">npm </span><span class="hl-1">run</span><span class="hl-0"> </span><span class="hl-1">test:report</span>
+<pre><code class="language-bash"><span class="hl-0">npm </span><span class="hl-1">test</span><br><span class="hl-0">open </span><span class="hl-1">http://localhost:</span><span class="hl-14">9876</span>
 </code></pre>
+<p>Note that tests requires real human gesture to be successfully run!</p>
 <a href="#credits" id="credits" style="color: inherit; text-decoration: none;">
   <h2>Credits</h2>
 </a>

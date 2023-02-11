@@ -3,6 +3,7 @@
 [![npm](https://img.shields.io/npm/dm/realtime-bpm-analyzer.svg)](https://www.npmjs.com/package/realtime-bpm-analyzer)
 [![npm](https://img.shields.io/npm/l/realtime-bpm-analyzer.svg)](https://github.com/dlepaux/realtime-bpm-analyzer/blob/master/licence.md)
 [![CI Actions Status](https://github.com/dlepaux/realtime-bpm-analyzer/workflows/CI/badge.svg)](https://github.com/dlepaux/realtime-bpm-analyzer/actions)
+[![codecov](https://codecov.io/gh/dlepaux/realtime-bpm-analyzer/branch/main/graph/badge.svg)](https://codecov.io/gh/dlepaux/realtime-bpm-analyzer)
 [![Join the chat at https://gitter.im/realtime-bpm-analyzer/Lobby](https://badges.gitter.im/realtime-bpm-analyzer/Lobby.svg)](https://gitter.im/realtime-bpm-analyzer/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 <div>
@@ -18,6 +19,7 @@ Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScri
 - [Usages](#usages)
   - [Realtime (stream/playing) strategy](#realtime-stream-playing-strategy)
   - [Local/Offline strategy](#localoffline-strategy)
+- [Roadmap](#roadmap)
 - [Development](#development)
 - [Tests & Coverage](#tests--coverage)
 - [Credits](#credits)
@@ -142,11 +144,21 @@ function onFileChange(event) {
 };
 ```
 
+## Roadmap
+
+[] Add confidence level of Tempo
+[] Combine Amplitude Thresholding strategy with others to improve BPM accuracy
+[] Improve the continous analysis in order to ignore drops and cuts, monitore memory usage
+
+Let us know what is your most wanted feature by opening [an issue](https://github.com/dlepaux/realtime-bpm-analyzer/issues).
+
 ## Development
+
+The test suite is built on top of karma and is very practical to test new features. Before running tests switch the `singleRun` property of `karma.config.js` to leave the browser open after the tests.
 
 ```bash
 npm install
-npx husky install
+npm run prepare
 npm test
 ```
 
@@ -156,8 +168,10 @@ To launch the test suite, just launch the command below:
 
 ```bash
 npm test
-npm run test:report
+open http://localhost:9876
 ```
+
+Note that tests requires real human gesture to be successfully run!
 
 ## Credits
 

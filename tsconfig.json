@@ -1,19 +1,23 @@
 {
     "compilerOptions": {
-        "lib": ["dom"],
         "target": "es6",
+        "module": "commonjs",
+        "lib": [
+            "dom",
+            "dom.iterable",
+            "es2017"
+        ],
         "skipLibCheck": true,
         "declaration": true,
-        "sourceMap": true
+        "strict": true,
+        "moduleResolution": "node",
+        "sourceMap": true,
+        "types" : [
+            "mocha"
+        ]
     },
-    "files": [
-        "src/analyzer.ts",
-        "src/consts.ts",
-        "src/index.ts",
-        "src/offline-bpm-analyzer.ts",
-        "src/realtime-bpm-analyzer.ts",
-        "src/realtime-bpm-processor.ts",
-        "src/types.ts",
-        "src/utils.ts"
+    "include": ["tests/**/*.ts", "src/*.ts", "processor/*.ts", "deploy/*.ts"],
+    "exclude": [
+        "node_modules"
     ]
 }

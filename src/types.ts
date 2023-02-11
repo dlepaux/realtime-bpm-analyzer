@@ -21,8 +21,22 @@ export type BpmEvent = {
   data: BpmEventData;
 };
 
+export type AsyncConfigurationEventData = {
+  message: 'ASYNC_CONFIGURATION';
+  parameters: RealTimeBpmAnalyzerParameters;
+};
+
+export type AsyncConfigurationEvent = {
+  data: AsyncConfigurationEventData;
+};
+
 export type Interval = {
   interval: number;
+  count: number;
+};
+
+export type Group = {
+  tempo: number;
   count: number;
 };
 
@@ -51,3 +65,9 @@ export type ValidPeaks = Record<string, Peaks>;
 export type NextIndexPeaks = Record<string, number>;
 
 export type OnThresholdFunction = (threshold: Threshold) => Promise<boolean>;
+
+export type AggregateData = {
+  isBufferFull: boolean;
+  _buffer: Float32Array;
+  bufferSize: number;
+};

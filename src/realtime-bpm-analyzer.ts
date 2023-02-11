@@ -8,11 +8,13 @@ import * as consts from './consts';
  */
 const initialValue = {
   minValidThreshold: () => consts.minValidThreshold,
-  timeoutStabilization: () => 'off',
+  timeoutStabilization: () => 0,
   validPeaks: () => generateValidPeaksModel(),
   nextIndexPeaks: () => generateNextIndexPeaksModel(),
   skipIndexes: () => 1,
 };
+
+type RealtimeBpmAnalyzerAsyncOptions = 'continuousAnalysis' | 'computeBpmDelay' | 'stabilizationTime' | 'muteTimeInIndexes';
 
 /**
  * @class RealTimeBpmAnalyzer
@@ -35,7 +37,7 @@ export class RealTimeBpmAnalyzer {
   /**
    * Schedule timeout triggered when the stabilizationTime is reached
    */
-  timeoutStabilization: string | NodeJS.Timeout = initialValue.timeoutStabilization();
+  timeoutStabilization: number = initialValue.timeoutStabilization();
   /**
    * Contain all valid peaks
    */
@@ -66,17 +68,12 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Method to apply a configuration on the fly
-   * @param {string} key Key of the configuration in this.options
+   * @param {RealtimeBpmAnalyzerAsyncOptions} key Key of the configuration in this.options
    * @param {unknown} value The value you need to set
    * @returns {void}
    */
-  setAsyncConfiguration(key: string, value: unknown): void {
-    if (typeof this.options[key] === 'undefined') {
-      console.log('Key not found in options', key);
-      return;
-    }
-
-    this.options[key] = value;
+  setAsyncConfiguration(parameters: RealTimeBpmAnalyzerParameters): void {
+    Object.assign(this.options, parameters);
   }
 
   /**
@@ -153,7 +150,7 @@ export class RealTimeBpmAnalyzer {
      */
     if (this.options.continuousAnalysis) {
       clearTimeout(this.timeoutStabilization);
-      this.timeoutStabilization = setTimeout(() => {
+      this.timeoutStabilization = window.setTimeout(() => {
         console.log('[timeoutStabilization] setTimeout: Fired !');
         this.options.computeBpmDelay = 0;
         this.reset();
@@ -190,10 +187,6 @@ export class RealTimeBpmAnalyzer {
       }
 
       for (const relativeChunkPeak of peaks) {
-        if (typeof relativeChunkPeak === 'undefined') {
-          continue;
-        }
-
         /**
          * Add current Index + muteTimeInIndexes (10000/44100=0.22s)
          */

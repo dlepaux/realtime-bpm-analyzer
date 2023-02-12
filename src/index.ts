@@ -1,7 +1,7 @@
 import {realtimeBpmProcessorName} from './consts';
 
 export * from './realtime-bpm-analyzer';
-export {analyzeFullBuffer} from './analyzer';
+export {analyzeFullBuffer, getBiquadFilters} from './analyzer';
 export * from './types';
 
 /**

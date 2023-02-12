@@ -179,6 +179,23 @@ export async function findPeaks(channelData: Float32Array): Promise<PeaksAndThre
 //   return tops;
 // }
 
+export function getBiquadFilters(context: AudioContext | OfflineAudioContext) {
+  const lowpass = context.createBiquadFilter();
+  lowpass.type = 'lowpass';
+  lowpass.frequency.value = consts.offlineLowPassFrequencyValue;
+  lowpass.Q.value = consts.offlineLowPassQualityValue;
+
+  const highpass = context.createBiquadFilter();
+  highpass.type = 'highpass';
+  highpass.frequency.value = consts.offlineHighPassFrequencyValue;
+  highpass.Q.value = consts.offlineHighPassQualityValue;
+
+  return {
+    lowpass,
+    highpass,
+  };
+}
+
 /**
  * Apply to the source a biquad lowpass filter
  * @param {AudioBuffer} buffer Audio buffer
@@ -194,18 +211,7 @@ export async function getOfflineLowPassSource(buffer: AudioBuffer): Promise<Audi
   const source = context.createBufferSource();
   source.buffer = buffer;
 
-  /**
-   * Create filter
-   */
-  const lowpass = context.createBiquadFilter();
-  lowpass.type = 'lowpass';
-  lowpass.frequency.value = consts.offlineLowPassFrequencyValue;
-  lowpass.Q.value = consts.offlineLowPassQualityValue;
-
-  const highpass = context.createBiquadFilter();
-  highpass.type = 'highpass';
-  highpass.frequency.value = consts.offlineHighPassFrequencyValue;
-  highpass.Q.value = consts.offlineHighPassQualityValue;
+  const {lowpass, highpass} = getBiquadFilters(context);
 
   /**
    * Pipe the song into the filter, and the filter into the offline context

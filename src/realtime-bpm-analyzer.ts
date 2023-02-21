@@ -14,8 +14,6 @@ const initialValue = {
   skipIndexes: () => 1,
 };
 
-type RealtimeBpmAnalyzerAsyncOptions = 'continuousAnalysis' | 'computeBpmDelay' | 'stabilizationTime' | 'muteTimeInIndexes';
-
 /**
  * @class RealTimeBpmAnalyzer
  **/

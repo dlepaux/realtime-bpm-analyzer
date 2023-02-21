@@ -26,8 +26,16 @@ export type AsyncConfigurationEventData = {
   parameters: RealTimeBpmAnalyzerParameters;
 };
 
+export type ResetEventData = {
+  message: 'RESET';
+};
+
+export type StopEventData = {
+  message: 'STOP';
+};
+
 export type AsyncConfigurationEvent = {
-  data: AsyncConfigurationEventData;
+  data: AsyncConfigurationEventData | ResetEventData | StopEventData;
 };
 
 export type Interval = {

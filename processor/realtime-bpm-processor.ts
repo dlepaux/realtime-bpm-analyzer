@@ -55,6 +55,7 @@ declare function registerProcessor(name: string, processorCtor: AudioWorkletProc
 export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   aggregate: (pcmData: Float32Array) => AggregateData;
   realTimeBpmAnalyzer: RealTimeBpmAnalyzer = new RealTimeBpmAnalyzer();
+  stopped = false;
 
   constructor() {
     super();
@@ -73,7 +74,23 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   onMessage(event: AsyncConfigurationEvent): void {
     // Handle custom event ASYNC_CONFIGURATION, to set configuration asynchronously
     if (event.data.message === 'ASYNC_CONFIGURATION') {
+      console.log('[processor.onMessage] ASYNC_CONFIGURATION');
       this.realTimeBpmAnalyzer.setAsyncConfiguration(event.data.parameters);
+    }
+
+    // Handle custom event RESET
+    if (event.data.message === 'RESET') {
+      console.log('[processor.onMessage] RESET');
+      this.aggregate = chunckAggregator();
+      this.stopped = false;
+      this.realTimeBpmAnalyzer.reset();
+    }
+
+    if (event.data.message === 'STOP') {
+      console.log('[processor.onMessage] STOP');
+      this.aggregate = chunckAggregator();
+      this.stopped = true;
+      this.realTimeBpmAnalyzer.reset();
     }
   }
 
@@ -86,6 +103,10 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
    */
   process(inputs: Float32Array[][], _outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
     const currentChunk = inputs[0][0];
+
+    if (this.stopped) {
+      return true;
+    }
 
     if (!currentChunk) {
       return true;

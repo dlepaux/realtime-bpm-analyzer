@@ -5,5 +5,4 @@ User-agent: *
 Allow: /
 Allow: /*
 
-Sitemap: https://dlepaux.github.io/realtime-bpm-analyzer/sitemap.xml
-Sitemap: https://dlepaux.github.io/sitemap-index.xml
+Sitemap: https://www.realtime-bpm-analyzer.com/sitemap.xml

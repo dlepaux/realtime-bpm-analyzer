@@ -56,14 +56,12 @@ export type Tempo = {
 
 export type RealTimeBpmAnalyzerParameters = {
   continuousAnalysis?: boolean;
-  computeBpmDelay?: number;
   stabilizationTime?: number;
   muteTimeInIndexes?: number;
 };
 
 export type RealTimeBpmAnalyzerOptions = {
   continuousAnalysis: boolean;
-  computeBpmDelay: number;
   stabilizationTime: number;
   muteTimeInIndexes: number;
 };

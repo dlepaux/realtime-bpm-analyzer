@@ -8,16 +8,19 @@
 
 <div>
   <p align="center">
-    <img src="https://dlepaux.github.io/realtime-bpm-analyzer/realtime-bpm-analyzer-share.png" style="width: 100%; height: auto;">
+    <img src="https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png" style="width: 100%; height: auto;">
   </p>
 </div>
 
 Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of an audio or video source in real-time.
 
 - [Getting started](#getting-started)
+  - [NextJS](#nextjs)
+  - [Esbuild](#esbuild)
 - [Features](#features)
 - [Usages](#usages)
-  - [Realtime (stream/playing) strategy](#realtime-stream-playing-strategy)
+  - [Realtime/Onfly strategy](#realtimeonfly-strategy)
+  - [Continuous Analysis strategy](#continuous-analysis-strategy)
   - [Local/Offline strategy](#localoffline-strategy)
 - [Roadmap](#roadmap)
 - [Development](#development)
@@ -32,62 +35,12 @@ To install this module to your project, just launch the command below:
 npm install realtime-bpm-analyzer
 ```
 
-To learn more about how to use the library, you can check out [the documentation](https://dlepaux.github.io/realtime-bpm-analyzer).
+**Important** - You need to expose the file located at `dist/realtime-bpm-processor.js` (already bundled) to your public root diretory. Typically, this file must be available at http://yourdomain/realtime-bpm-processor.js. Here some examples on how to integrate this into your project.
 
-## Features
-
-- **Dependency-free** library that utilizes the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) to analyze audio or video sources and provide accurate BPM detection.
-- Can be used to analyze **audio or video** nodes, streams as well as **files**.
-- Allows you to compute the BPM while the audio or video is playing.
-- Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
-
-## Usages
-
-If you encounter issues along the way, remember we have a [discord server](https://discord.gg/3xV7TGmq) and a [chat](https://gitter.im/realtime-bpm-analyzer/Lobby) !
-
-### Realtime (stream/playing) strategy
-
-Mesure or detect the BPM from a **stream** or a **player** ? Meaning that it is technically a stream. The library provide an `AudioWorkletProcessor` that will compute BPM while the stream is distributed.
-
-This example shows how to deal with a simple `audio` node.
-
-1. An [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to analyze. So something like this:
-```html
-<audio src="./new_order-blue_monday.mp3" id="track"></audio>
-```
-
-2. Create the AudioWorkletProcessor with `createRealTimeBpmProcessor`, create and pipe the lowpass filter to the AudioWorkletNode (`realtimeAnalyzerNode`).
+### NextJS
 ```javascript
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
-
-const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
-
-// Set the source with the HTML Audio Node
-const track = document.getElementById('track');
-const source = audioContext.createMediaElementSource(track);
-
-// Lowpass filter
-const filter = audioContext.createBiquadFilter();
-filter.type = 'lowpass';
-
-// Connect stuff together
-source.connect(filter).connect(realtimeAnalyzerNode);
-source.connect(audioContext.destination);
-
-realtimeAnalyzerNode.port.onmessage = (event) => {
-  if (event.data.message === 'BPM') {
-    console.log('BPM', event.data.result);
-  }
-  if (event.data.message === 'BPM_STABLE') {
-    console.log('BPM_STABLE', event.data.result);
-  }
-};
-```
-
-3. You also need to expose the file `dist/realtime-bpm-processor.js` (already bundled) to your public root diretory. Typically, this file must be available at http://yourdomain/realtime-bpm-processor.js.
-```javascript
-// For NextJS see your next.config.js and add this:
-// You also need to install `npm install copy-webpack-plugin@6.4.1 -D`
+// For NextJS check your next.config.js and add this:
+// You also need to install copy-webpack-plugin, `npm install copy-webpack-plugin@6.4.1 -D`
 // Note that the latest version (11.0.0) didn't worked properly with NextJS 12
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
@@ -108,6 +61,126 @@ module.exports = {
   },
 };
 ```
+
+### Esbuild
+```javascript
+// In order to use the copy plugin of esbuild you will need to use a custom build process.
+// This example is based on esbuild(^0.17.7) and esbuild-plugin-copy(^2.0.2).
+import * as esbuild from 'esbuild';
+import {copy} from 'esbuild-plugin-copy';
+
+const outdir = 'build';
+
+const esbuildConfig: BuildOptions = {
+  plugins: [
+    copy({
+      resolveFrom: 'cwd',
+      assets: {
+        from: ['./node_modules/realtime-bpm-analyzer/dist/realtime-bpm-processor.js*'],
+        to: [`./${outdir}/`],
+      },
+    }),
+  ],
+};
+```
+
+To learn more about how to use the library, you can check out [the documentation](https://www.realtime-bpm-analyzer.com).
+
+## Features
+
+- **Dependency-free** library that utilizes the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) to analyze audio or video sources and provide accurate BPM detection.
+- Can be used to analyze **audio or video** nodes, streams as well as **files**.
+- Allows you to compute the BPM while the audio or video is playing.
+- Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
+
+## Usages
+
+If you encounter issues along the way, remember we have a [discord server](https://discord.gg/3xV7TGmq) and a [chat](https://gitter.im/realtime-bpm-analyzer/Lobby) !
+
+### Realtime/Onfly strategy
+
+Mesure or detect the BPM from a **player** (Typically if you don't own the audio file) ? The library provide an `AudioWorkletProcessor` that will compute BPM while the music is played.
+
+This example shows how to deal with a simple `audio` node.
+
+1. An [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode) to analyze. So something like this:
+```html
+<audio src="./new_order-blue_monday.mp3" id="track"></audio>
+```
+
+2. Create the AudioWorkletProcessor with `createRealTimeBpmProcessor`, create and pipe the filters to the AudioWorkletNode (`realtimeAnalyzerNode`).
+```javascript
+import { createRealTimeBpmProcessor, getBiquadFilters } from 'realtime-bpm-analyzer';
+
+const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+
+// Set the source with the HTML Audio Node
+const track = document.getElementById('track');
+const source = audioContext.createMediaElementSource(track);
+
+// The library provides built in biquad filters, so no need to configure them
+const {lowpass, highpass} = getBiquadFilters(audioContext);
+
+// Connect nodes together
+source.connect(lowpass).connect(highpass).connect(realtimeAnalyzerNode);
+source.connect(audioContext.destination);
+
+realtimeAnalyzerNode.port.onmessage = (event) => {
+  if (event.data.message === 'BPM') {
+    console.log('BPM', event.data.result);
+  }
+  if (event.data.message === 'BPM_STABLE') {
+    console.log('BPM_STABLE', event.data.result);
+  }
+};
+```
+
+### Continuous Analysis strategy
+
+Analyze the BPM from a stream or a source where you can't determine the start/end of a music.
+
+1. Streams can be played with [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode), so the approch is quite similar to the [Realtime/Onfly strategy](#realtimeonfly-strategy).
+```html
+<audio src="https://ssl1.viastreaming.net:7005/;listen.mp3" id="track"></audio>
+```
+NB: Thank you [IbizaSonica](http://ibizasonica.com) for the stream.
+
+2. As for the [Realtime/Onfly strategy](#realtimeonfly-strategy), except that we need to turn on the `continuousAnalysis` flag to periodically RESET collected data.
+```javascript
+import { createRealTimeBpmProcessor, getBiquadFilters } from 'realtime-bpm-analyzer';
+
+const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+
+// Set the source with the HTML Audio Node
+const track = document.getElementById('track');
+const source = audioContext.createMediaElementSource(track);
+
+// The library provides built in biquad filters, so no need to configure them
+const {lowpass, highpass} = getBiquadFilters(audioContext);
+
+// Connect nodes together
+source.connect(lowpass).connect(highpass).connect(realtimeAnalyzerNode);
+source.connect(audioContext.destination);
+
+// Set continuousAnalysis to true
+realtimeAnalyzerNode.port.postMessage({
+  message: 'ASYNC_CONFIGURATION',
+  parameters: {
+    continuousAnalysis: true,
+    stabilizationTime: 20_000, // Default value is 20_000ms after what the library will automatically delete all collected data and restart analysing BPM
+  }
+})
+
+realtimeAnalyzerNode.port.onmessage = (event) => {
+  if (event.data.message === 'BPM') {
+    console.log('BPM', event.data.result);
+  }
+  if (event.data.message === 'BPM_STABLE') {
+    console.log('BPM_STABLE', event.data.result);
+  }
+};
+```
+
 
 ### Local/Offline strategy
 
@@ -146,9 +219,10 @@ function onFileChange(event) {
 
 ## Roadmap
 
-[] Add confidence level of Tempo
-[] Combine Amplitude Thresholding strategy with others to improve BPM accuracy
-[] Improve the continous analysis in order to ignore drops and cuts, monitore memory usage
+- [ ] Add confidence level of Tempo
+- [ ] Combine Amplitude Thresholding strategy with others to improve BPM accuracy
+- [ ] Improve the continous analysis in order to ignore drops and cuts
+- [ ] Monitore memory usage
 
 Let us know what is your most wanted feature by opening [an issue](https://github.com/dlepaux/realtime-bpm-analyzer/issues).
 

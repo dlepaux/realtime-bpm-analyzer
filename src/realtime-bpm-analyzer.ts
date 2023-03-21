@@ -23,7 +23,6 @@ export class RealTimeBpmAnalyzer {
    */
   options: RealTimeBpmAnalyzerOptions = {
     continuousAnalysis: false,
-    computeBpmDelay: 10000,
     stabilizationTime: 20000,
     muteTimeInIndexes: 10000,
   };
@@ -53,9 +52,8 @@ export class RealTimeBpmAnalyzer {
    * @constructor
    * @param {object} config Configuration
    * @param {boolean} config.continuousAnalysis Flag indicating if we need to analyze continuously, typically used for streams
-   * @param {number} config.computeBpmDelay Arbitrary delay to compute the BPM for the first time
-   * @param {number} config.stabilizationTime Arbitrary time where we consider that a BPM is computable
-   * @param {number} config.muteTimeInIndexes Arbitrary time to mute the analysis to improve the bpm detection
+   * @param {number} config.stabilizationTime The algorithm needs aproximatly 10s to compute accurate results
+   * @param {number} config.muteTimeInIndexes Arbitrary time to mute the analysis to improve the bpm detection by jumping data right after a peak
    */
   constructor(config: RealTimeBpmAnalyzerParameters = {}) {
     /**
@@ -150,7 +148,6 @@ export class RealTimeBpmAnalyzer {
       clearTimeout(this.timeoutStabilization);
       this.timeoutStabilization = window.setTimeout(() => {
         console.log('[timeoutStabilization] setTimeout: Fired !');
-        this.options.computeBpmDelay = 0;
         this.reset();
       }, this.options.stabilizationTime);
     }

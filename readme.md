@@ -241,8 +241,8 @@ npm test
 To launch the test suite, just launch the command below:
 
 ```bash
-npm test
 open http://localhost:9876
+npm test
 ```
 
 Note that tests requires real human gesture to be successfully run!

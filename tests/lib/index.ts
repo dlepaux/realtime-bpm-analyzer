@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {createRealTimeBpmProcessor, analyzeFullBuffer} from '../../src/index';
+import {createRealTimeBpmProcessor, analyzeFullBuffer, getBiquadFilters} from '../../src/index';
 import { askUserGesture } from '../utils';
 import {realtimeBpmProcessorName} from '../../src/consts';
 
@@ -33,6 +33,17 @@ export default () => {
                     await audioContext.close();
                     done();
                 }
+            })
+        });
+
+        it('should create the biquad filters', function(done: Mocha.Done) {
+            this.timeout(30 * 1000);
+            askUserGesture(async (audioContext: AudioContext) => {
+                const {lowpass, highpass} = await getBiquadFilters(audioContext);
+                expect(lowpass).to.be.instanceOf(BiquadFilterNode);
+                expect(highpass).to.be.instanceOf(BiquadFilterNode);
+                await audioContext.close();
+                done();
             })
         });
     });

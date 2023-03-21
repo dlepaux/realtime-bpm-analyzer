@@ -23,7 +23,7 @@ export function readChannelDataToChunk(bufferSize: number): Float32Array[] {
 
 export function askUserGesture(done: (audioContest: AudioContext) => void): void {
     const button = window.document.createElement('button');
-    button.innerHTML = 'Process test !';
+    button.innerHTML = 'Please click the button to proceed tests';
 
     function onClick() {
       button.removeEventListener('click', onClick);
@@ -39,15 +39,4 @@ export function askUserGesture(done: (audioContest: AudioContext) => void): void
     button.addEventListener('click', onClick);
 
     window.document.body.appendChild(button);
-
-    // setTimeout(()=> {
-    //     // Create the click event
-    //     const clickEvent = new MouseEvent("click", {
-    //         bubbles: true,
-    //         cancelable: true,
-    //     });
-
-    //     // Dispatch the event on the button
-    //     button.dispatchEvent(clickEvent);
-    // }, 100);
 }

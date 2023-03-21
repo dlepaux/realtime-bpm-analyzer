@@ -28,6 +28,11 @@ const data: Array<{path: string; title: string; description: string}> = [
     description: 'Create an audio worklet and compute BPM in realtime from a stream or a microphone',
   },
   {
+    path: 'functions/getBiquadFilters.html',
+    title: 'Function getBiquadFilters',
+    description: 'this handy function will permits you to create low and high filters easily.',
+  },
+  {
     path: 'types/AggregateData.html',
     title: 'Type AggregateData',
     description: 'RealTimeBpmAnalyzer AggregateData Type',

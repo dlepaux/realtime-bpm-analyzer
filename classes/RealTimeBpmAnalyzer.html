@@ -28,7 +28,7 @@
 <ul class="tsd-hierarchy">
 <li><span class="target">RealTimeBpmAnalyzer</span></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L20">realtime-bpm-analyzer.ts:20</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L20">realtime-bpm-analyzer.ts:20</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-index-accordion" open><summary class="tsd-accordion-summary tsd-index-summary">
@@ -40,11 +40,11 @@
 </div></section>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading">Properties</h3>
-<div class="tsd-index-list"><a href="RealTimeBpmAnalyzer.html#minValidThreshold" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><rect fill="var(--color-icon-background)" stroke="#FF984D" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="12" id="icon-1024-path"/><path d="M9.354 16V7.24H12.174C12.99 7.24 13.638 7.476 14.118 7.948C14.606 8.412 14.85 9.036 14.85 9.82C14.85 10.604 14.606 11.232 14.118 11.704C13.638 12.168 12.99 12.4 12.174 12.4H10.434V16H9.354ZM10.434 11.428H12.174C12.646 11.428 13.022 11.284 13.302 10.996C13.59 10.7 13.734 10.308 13.734 9.82C13.734 9.324 13.59 8.932 13.302 8.644C13.022 8.356 12.646 8.212 12.174 8.212H10.434V11.428Z" fill="var(--color-text)" id="icon-1024-text"/></svg><span>min<wbr>Valid<wbr>Threshold</span></a>
+<div class="tsd-index-list"><a href="RealTimeBpmAnalyzer.html#effectiveBufferTime" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><rect fill="var(--color-icon-background)" stroke="#FF984D" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="12" id="icon-1024-path"/><path d="M9.354 16V7.24H12.174C12.99 7.24 13.638 7.476 14.118 7.948C14.606 8.412 14.85 9.036 14.85 9.82C14.85 10.604 14.606 11.232 14.118 11.704C13.638 12.168 12.99 12.4 12.174 12.4H10.434V16H9.354ZM10.434 11.428H12.174C12.646 11.428 13.022 11.284 13.302 10.996C13.59 10.7 13.734 10.308 13.734 9.82C13.734 9.324 13.59 8.932 13.302 8.644C13.022 8.356 12.646 8.212 12.174 8.212H10.434V11.428Z" fill="var(--color-text)" id="icon-1024-text"/></svg><span>effective<wbr>Buffer<wbr>Time</span></a>
+<a href="RealTimeBpmAnalyzer.html#minValidThreshold" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg><span>min<wbr>Valid<wbr>Threshold</span></a>
 <a href="RealTimeBpmAnalyzer.html#nextIndexPeaks" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg><span>next<wbr>Index<wbr>Peaks</span></a>
 <a href="RealTimeBpmAnalyzer.html#options" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg><span>options</span></a>
 <a href="RealTimeBpmAnalyzer.html#skipIndexes" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg><span>skip<wbr>Indexes</span></a>
-<a href="RealTimeBpmAnalyzer.html#timeoutStabilization" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg><span>timeout<wbr>Stabilization</span></a>
 <a href="RealTimeBpmAnalyzer.html#validPeaks" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg><span>valid<wbr>Peaks</span></a>
 </div></section>
 <section class="tsd-index-section">
@@ -71,57 +71,55 @@
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="RealTimeBpmAnalyzer.html" class="tsd-signature-type" data-tsd-kind="Class">RealTimeBpmAnalyzer</a></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L58">realtime-bpm-analyzer.ts:58</a></li></ul></aside></li></ul></section></section>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L55">realtime-bpm-analyzer.ts:55</a></li></ul></aside></li></ul></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Properties</h2>
+<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class"><a id="effectiveBufferTime" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>effective<wbr>Buffer<wbr>Time</span><a href="#effectiveBufferTime" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
+<div class="tsd-signature">effective<wbr>Buffer<wbr>Time<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> = ...</span></div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L46">realtime-bpm-analyzer.ts:46</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class"><a id="minValidThreshold" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>min<wbr>Valid<wbr>Threshold</span><a href="#minValidThreshold" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
 <div class="tsd-signature">min<wbr>Valid<wbr>Threshold<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> = ...</span></div>
 <div class="tsd-comment tsd-typography"><p>Minimum valid threshold, below this level result would be irrelevant.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L33">realtime-bpm-analyzer.ts:33</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L33">realtime-bpm-analyzer.ts:33</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class"><a id="nextIndexPeaks" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>next<wbr>Index<wbr>Peaks</span><a href="#nextIndexPeaks" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
 <div class="tsd-signature">next<wbr>Index<wbr>Peaks<span class="tsd-signature-symbol">:</span> <a href="../types/NextIndexPeaks.html" class="tsd-signature-type" data-tsd-kind="Type alias">NextIndexPeaks</a><span class="tsd-signature-symbol"> = ...</span></div>
 <div class="tsd-comment tsd-typography"><p>Next index (+10000 ...) to take care about peaks</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L45">realtime-bpm-analyzer.ts:45</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L41">realtime-bpm-analyzer.ts:41</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class"><a id="options" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>options</span><a href="#options" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
 <div class="tsd-signature">options<span class="tsd-signature-symbol">:</span> <a href="../types/RealTimeBpmAnalyzerOptions.html" class="tsd-signature-type" data-tsd-kind="Type alias">RealTimeBpmAnalyzerOptions</a><span class="tsd-signature-symbol"> = ...</span></div>
 <div class="tsd-comment tsd-typography"><p>Default configuration</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L24">realtime-bpm-analyzer.ts:24</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L24">realtime-bpm-analyzer.ts:24</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class"><a id="skipIndexes" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>skip<wbr>Indexes</span><a href="#skipIndexes" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
 <div class="tsd-signature">skip<wbr>Indexes<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> = ...</span></div>
 <div class="tsd-comment tsd-typography"><p>Number / Position of chunks</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L49">realtime-bpm-analyzer.ts:49</a></li></ul></aside></section>
-<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class"><a id="timeoutStabilization" class="tsd-anchor"></a>
-<h3 class="tsd-anchor-link"><span>timeout<wbr>Stabilization</span><a href="#timeoutStabilization" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
-<div class="tsd-signature">timeout<wbr>Stabilization<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> = ...</span></div>
-<div class="tsd-comment tsd-typography"><p>Schedule timeout triggered when the stabilizationTime is reached</p>
-</div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L37">realtime-bpm-analyzer.ts:37</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L45">realtime-bpm-analyzer.ts:45</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class"><a id="validPeaks" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>valid<wbr>Peaks</span><a href="#validPeaks" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
 <div class="tsd-signature">valid<wbr>Peaks<span class="tsd-signature-symbol">:</span> <a href="../types/ValidPeaks.html" class="tsd-signature-type" data-tsd-kind="Type alias">ValidPeaks</a><span class="tsd-signature-symbol"> = ...</span></div>
 <div class="tsd-comment tsd-typography"><p>Contain all valid peaks</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L41">realtime-bpm-analyzer.ts:41</a></li></ul></aside></section></section>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L37">realtime-bpm-analyzer.ts:37</a></li></ul></aside></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Methods</h2>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="analyzeChunck" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>analyze<wbr>Chunck</span><a href="#analyzeChunck" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
 <ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-<li class="tsd-signature tsd-anchor-link" id="analyzeChunck.analyzeChunck-1">analyze<wbr>Chunck<span class="tsd-signature-symbol">(</span>channelData<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Float32Array</span>, audioSampleRate<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, bufferSize<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, postMessage<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><a href="../types/BpmEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">BpmEventData</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#analyzeChunck.analyzeChunck-1" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></li>
+<li class="tsd-signature tsd-anchor-link" id="analyzeChunck.analyzeChunck-1">analyze<wbr>Chunck<span class="tsd-signature-symbol">(</span>channelData<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Float32Array</span>, audioSampleRate<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, bufferSize<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, postMessage<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><a href="../types/BpmEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">BpmEventData</a><span class="tsd-signature-symbol"> | </span><a href="../types/AnalyzerResetedEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">AnalyzerResetedEventData</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#analyzeChunck.analyzeChunck-1" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></li>
 <li class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>Attach this function to an audioprocess event on a audio/video node to compute BPM / Tempo in realtime</p>
 <h3>Returns</h3></div>
@@ -134,30 +132,30 @@
 </div></li>
 <li>
 <h5>audioSampleRate: <span class="tsd-signature-type">number</span></h5>
-<div class="tsd-comment tsd-typography"><p>Audio sample rate</p>
+<div class="tsd-comment tsd-typography"><p>Audio sample rate (44100)</p>
 </div></li>
 <li>
 <h5>bufferSize: <span class="tsd-signature-type">number</span></h5>
 <div class="tsd-comment tsd-typography"><p>Buffer size</p>
 </div></li>
 <li>
-<h5>postMessage: <span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><a href="../types/BpmEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">BpmEventData</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+<h5>postMessage: <span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><a href="../types/BpmEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">BpmEventData</a><span class="tsd-signature-symbol"> | </span><a href="../types/AnalyzerResetedEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">AnalyzerResetedEventData</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
 <div class="tsd-comment tsd-typography"><p>Function to post a message to the processor node</p>
 </div>
 <ul class="tsd-parameters">
 <li class="tsd-parameter-signature">
 <ul class="tsd-signatures tsd-kind-type-literal">
-<li class="tsd-signature"><span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><a href="../types/BpmEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">BpmEventData</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+<li class="tsd-signature"><span class="tsd-signature-symbol">(</span>data<span class="tsd-signature-symbol">: </span><a href="../types/BpmEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">BpmEventData</a><span class="tsd-signature-symbol"> | </span><a href="../types/AnalyzerResetedEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">AnalyzerResetedEventData</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
 <li class="tsd-description">
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li>
-<h5>data: <a href="../types/BpmEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">BpmEventData</a></h5></li></ul></div>
+<h5>data: <a href="../types/BpmEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">BpmEventData</a><span class="tsd-signature-symbol"> | </span><a href="../types/AnalyzerResetedEventData.html" class="tsd-signature-type" data-tsd-kind="Type alias">AnalyzerResetedEventData</a></h5></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4></li></ul></li></ul></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L114">realtime-bpm-analyzer.ts:114</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L110">realtime-bpm-analyzer.ts:110</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="clearValidPeaks" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>clear<wbr>Valid<wbr>Peaks</span><a href="#clearValidPeaks" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
 <ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
@@ -174,7 +172,7 @@
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L92">realtime-bpm-analyzer.ts:92</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L89">realtime-bpm-analyzer.ts:89</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="findPeaks" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>find<wbr>Peaks</span><a href="#findPeaks" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
 <ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
@@ -203,7 +201,7 @@
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L164">realtime-bpm-analyzer.ts:164</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L159">realtime-bpm-analyzer.ts:159</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="reset" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>reset</span><a href="#reset" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
 <ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
@@ -213,7 +211,7 @@
 <h3>Returns</h3></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L79">realtime-bpm-analyzer.ts:79</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L76">realtime-bpm-analyzer.ts:76</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="setAsyncConfiguration" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>set<wbr>Async<wbr>Configuration</span><a href="#setAsyncConfiguration" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewbox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"/><use href="#icon-anchor-b"/><use href="#icon-anchor-c"/></svg></a></h3>
 <ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
@@ -228,7 +226,7 @@
 <h5>parameters: <a href="../types/RealTimeBpmAnalyzerParameters.html" class="tsd-signature-type" data-tsd-kind="Type alias">RealTimeBpmAnalyzerParameters</a></h5></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/e4496ba/src/realtime-bpm-analyzer.ts#L71">realtime-bpm-analyzer.ts:71</a></li></ul></aside></li></ul></section></section></div>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/6ad1ec3/src/realtime-bpm-analyzer.ts#L68">realtime-bpm-analyzer.ts:68</a></li></ul></aside></li></ul></section></section></div>
 <div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 <div class="tsd-navigation settings">
 <details class="tsd-index-accordion"><summary class="tsd-accordion-summary">
@@ -255,11 +253,11 @@
 <li class="current tsd-kind-class"><a href="RealTimeBpmAnalyzer.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-class)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6" id="icon-128-path"/><path d="M11.898 16.1201C11.098 16.1201 10.466 15.8961 10.002 15.4481C9.53803 15.0001 9.30603 14.3841 9.30603 13.6001V9.64012C9.30603 8.85612 9.53803 8.24012 10.002 7.79212C10.466 7.34412 11.098 7.12012 11.898 7.12012C12.682 7.12012 13.306 7.34812 13.77 7.80412C14.234 8.25212 14.466 8.86412 14.466 9.64012H13.386C13.386 9.14412 13.254 8.76412 12.99 8.50012C12.734 8.22812 12.37 8.09212 11.898 8.09212C11.426 8.09212 11.054 8.22412 10.782 8.48812C10.518 8.75212 10.386 9.13212 10.386 9.62812V13.6001C10.386 14.0961 10.518 14.4801 10.782 14.7521C11.054 15.0161 11.426 15.1481 11.898 15.1481C12.37 15.1481 12.734 15.0161 12.99 14.7521C13.254 14.4801 13.386 14.0961 13.386 13.6001H14.466C14.466 14.3761 14.234 14.9921 13.77 15.4481C13.306 15.8961 12.682 16.1201 11.898 16.1201Z" fill="var(--color-text)" id="icon-128-text"/></svg><span>Real<wbr>Time<wbr>Bpm<wbr>Analyzer</span></a>
 <ul>
 <li class="tsd-kind-constructor tsd-parent-kind-class"><a href="RealTimeBpmAnalyzer.html#constructor" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-512-path"/><use href="#icon-512-text"/></svg>constructor</a></li>
+<li class="tsd-kind-property tsd-parent-kind-class"><a href="RealTimeBpmAnalyzer.html#effectiveBufferTime" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg>effective<wbr>Buffer<wbr>Time</a></li>
 <li class="tsd-kind-property tsd-parent-kind-class"><a href="RealTimeBpmAnalyzer.html#minValidThreshold" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg>min<wbr>Valid<wbr>Threshold</a></li>
 <li class="tsd-kind-property tsd-parent-kind-class"><a href="RealTimeBpmAnalyzer.html#nextIndexPeaks" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg>next<wbr>Index<wbr>Peaks</a></li>
 <li class="tsd-kind-property tsd-parent-kind-class"><a href="RealTimeBpmAnalyzer.html#options" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg>options</a></li>
 <li class="tsd-kind-property tsd-parent-kind-class"><a href="RealTimeBpmAnalyzer.html#skipIndexes" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg>skip<wbr>Indexes</a></li>
-<li class="tsd-kind-property tsd-parent-kind-class"><a href="RealTimeBpmAnalyzer.html#timeoutStabilization" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg>timeout<wbr>Stabilization</a></li>
 <li class="tsd-kind-property tsd-parent-kind-class"><a href="RealTimeBpmAnalyzer.html#validPeaks" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-1024-path"/><use href="#icon-1024-text"/></svg>valid<wbr>Peaks</a></li>
 <li class="tsd-kind-method tsd-parent-kind-class"><a href="RealTimeBpmAnalyzer.html#analyzeChunck" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-2048-path"/><use href="#icon-2048-text"/></svg>analyze<wbr>Chunck</a></li>
 <li class="tsd-kind-method tsd-parent-kind-class"><a href="RealTimeBpmAnalyzer.html#clearValidPeaks" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-2048-path"/><use href="#icon-2048-text"/></svg>clear<wbr>Valid<wbr>Peaks</a></li>

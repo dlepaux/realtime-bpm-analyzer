@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { BpmEventData } from '../../src';
+import { BpmEventData, AnalyzerResetedEventData } from '../../src';
 import {RealTimeBpmAnalyzer} from '../../src/realtime-bpm-analyzer';
 import {readChannelDataToChunk} from '../utils';
 
@@ -21,7 +21,7 @@ export default () => {
       const channelData = readChannelDataToChunk(bufferSize);
 
       for (const chunk of channelData) {
-        await realTimeBpmAnalyzer.analyzeChunck(chunk, sampleRate, bufferSize, (data: BpmEventData) => {
+        await realTimeBpmAnalyzer.analyzeChunck(chunk, sampleRate, bufferSize, (data: BpmEventData | AnalyzerResetedEventData) => {
           // console.log('message received', data);
         });
       }
@@ -40,7 +40,7 @@ export default () => {
       const channelData = readChannelDataToChunk(bufferSize);
 
       for (const chunk of channelData) {
-        await realTimeBpmAnalyzer.analyzeChunck(chunk, sampleRate, bufferSize, (data: BpmEventData) => {
+        await realTimeBpmAnalyzer.analyzeChunck(chunk, sampleRate, bufferSize, (data: BpmEventData | AnalyzerResetedEventData) => {
           // console.log('message received', data);
         });
       }

@@ -1,5 +1,5 @@
 import {findPeaksAtThreshold, computeBpm} from './analyzer';
-import type {RealTimeBpmAnalyzerOptions, RealTimeBpmAnalyzerParameters, ValidPeaks, NextIndexPeaks, BpmCandidates, Threshold, BpmEventData} from './types';
+import type {RealTimeBpmAnalyzerOptions, AnalyzerResetedEventData, RealTimeBpmAnalyzerParameters, ValidPeaks, NextIndexPeaks, BpmCandidates, Threshold, BpmEventData} from './types';
 import {generateValidPeaksModel, generateNextIndexPeaksModel, descendingOverThresholds} from './utils';
 import * as consts from './consts';
 
@@ -8,10 +8,10 @@ import * as consts from './consts';
  */
 const initialValue = {
   minValidThreshold: () => consts.minValidThreshold,
-  timeoutStabilization: () => 0,
   validPeaks: () => generateValidPeaksModel(),
   nextIndexPeaks: () => generateNextIndexPeaksModel(),
   skipIndexes: () => 1,
+  effectiveBufferTime: () => 0,
 };
 
 /**
@@ -32,10 +32,6 @@ export class RealTimeBpmAnalyzer {
    */
   minValidThreshold: Threshold = initialValue.minValidThreshold();
   /**
-   * Schedule timeout triggered when the stabilizationTime is reached
-   */
-  timeoutStabilization: number = initialValue.timeoutStabilization();
-  /**
    * Contain all valid peaks
    */
   validPeaks: ValidPeaks = initialValue.validPeaks();
@@ -47,6 +43,7 @@ export class RealTimeBpmAnalyzer {
    * Number / Position of chunks
    */
   skipIndexes: number = initialValue.skipIndexes();
+  effectiveBufferTime: number = initialValue.effectiveBufferTime();
 
   /**
    * @constructor
@@ -78,10 +75,10 @@ export class RealTimeBpmAnalyzer {
    */
   reset(): void {
     this.minValidThreshold = initialValue.minValidThreshold();
-    this.timeoutStabilization = initialValue.timeoutStabilization();
     this.validPeaks = initialValue.validPeaks();
     this.nextIndexPeaks = initialValue.nextIndexPeaks();
     this.skipIndexes = initialValue.skipIndexes();
+    this.effectiveBufferTime = initialValue.effectiveBufferTime();
   }
 
   /**
@@ -90,7 +87,6 @@ export class RealTimeBpmAnalyzer {
    * @returns {void}
    */
   async clearValidPeaks(minThreshold: Threshold): Promise<void> {
-    console.log(`[clearValidPeaks] function: under ${minThreshold}, this.minValidThreshold has been setted to that threshold.`);
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
 
     await descendingOverThresholds(async threshold => {
@@ -106,12 +102,14 @@ export class RealTimeBpmAnalyzer {
   /**
    * Attach this function to an audioprocess event on a audio/video node to compute BPM / Tempo in realtime
    * @param {Float32Array} channelData Channel data
-   * @param {number} audioSampleRate Audio sample rate
+   * @param {number} audioSampleRate Audio sample rate (44100)
    * @param {number} bufferSize Buffer size
    * @param {(data: any) => void} postMessage Function to post a message to the processor node
    * @returns {Promise<void>}
    */
-  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: BpmEventData) => void): Promise<void> {
+  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: BpmEventData | AnalyzerResetedEventData) => void): Promise<void> {
+    this.effectiveBufferTime += bufferSize; // Ex: (1000000/44100=22s)
+
     /**
      * Compute the maximum index with all previous chunks
      */
@@ -144,12 +142,9 @@ export class RealTimeBpmAnalyzer {
     /**
      * After x milliseconds, we reinit the analyzer
      */
-    if (this.options.continuousAnalysis) {
-      clearTimeout(this.timeoutStabilization);
-      this.timeoutStabilization = window.setTimeout(() => {
-        console.log('[timeoutStabilization] setTimeout: Fired !');
-        this.reset();
-      }, this.options.stabilizationTime);
+    if (this.options.continuousAnalysis && this.effectiveBufferTime / audioSampleRate > this.options.stabilizationTime / 1000) {
+      this.reset();
+      postMessage({message: 'ANALYZER_RESETED'});
     }
   }
 

@@ -35,55 +35,6 @@ To install this module to your project, just launch the command below:
 npm install realtime-bpm-analyzer
 ```
 
-**Important** - You need to expose the file located at `dist/realtime-bpm-processor.js` (already bundled) to your public root diretory. Typically, this file must be available at http://yourdomain/realtime-bpm-processor.js. Here some examples on how to integrate this into your project.
-
-### NextJS
-```javascript
-// For NextJS check your next.config.js and add this:
-// You also need to install copy-webpack-plugin, `npm install copy-webpack-plugin@6.4.1 -D`
-// Note that the latest version (11.0.0) didn't worked properly with NextJS 12
-const path = require('path');
-const CopyPlugin = require('copy-webpack-plugin');
-module.exports = {
-  webpack: config => {
-    config.plugins.push(
-      new CopyPlugin({
-        patterns: [
-          {
-            from: './node_modules/realtime-bpm-analyzer/dist/realtime-bpm-processor.js',
-            to: path.resolve(__dirname, 'public'),
-          },
-        ],
-      },
-      ));
-
-    return config;
-  },
-};
-```
-
-### Esbuild
-```javascript
-// In order to use the copy plugin of esbuild you will need to use a custom build process.
-// This example is based on esbuild(^0.17.7) and esbuild-plugin-copy(^2.0.2).
-import * as esbuild from 'esbuild';
-import {copy} from 'esbuild-plugin-copy';
-
-const outdir = 'build';
-
-const esbuildConfig: BuildOptions = {
-  plugins: [
-    copy({
-      resolveFrom: 'cwd',
-      assets: {
-        from: ['./node_modules/realtime-bpm-analyzer/dist/realtime-bpm-processor.js*'],
-        to: [`./${outdir}/`],
-      },
-    }),
-  ],
-};
-```
-
 To learn more about how to use the library, you can check out [the documentation](https://www.realtime-bpm-analyzer.com).
 
 ## Features

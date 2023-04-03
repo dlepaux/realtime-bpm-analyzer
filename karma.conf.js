@@ -2,7 +2,6 @@
 // Generated on Fri Feb 10 2023 04:59:26 GMT+0100 (Central European Standard Time)
 module.exports = config => { // eslint-disable-line unicorn/prefer-module
   config.set({
-
     // Base path that will be used to resolve all patterns (eg. files, exclude)
     basePath: '',
 
@@ -15,11 +14,6 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
       pattern: 'tests/**/*.ts',
     }, {
       pattern: 'src/**/*.ts',
-    }, {
-      pattern: 'processor/realtime-bpm-processor.ts',
-      included: false,
-      served: true,
-      nocache: false,
     }, {
       pattern: 'tests/fixtures/*.wav',
       watched: false,
@@ -37,7 +31,6 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
     preprocessors: {
       'src/**/*.ts': ['karma-typescript'],
       'tests/**/*.ts': ['karma-typescript'],
-      'processor/*.ts': ['esbuild'],
     },
 
     esbuild: {

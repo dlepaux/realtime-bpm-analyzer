@@ -17,23 +17,11 @@ export default () => {
         it('should create a realTimeBpmProcessor', function(done: Mocha.Done) {
             this.timeout(30 * 1000);
             askUserGesture(async (audioContext: AudioContext) => { // Path: /base/processor/realtime-bpm-processor.js
-                const processor = await createRealTimeBpmProcessor(audioContext, `/base/processor/${realtimeBpmProcessorName}.js`);
+                const processor = await createRealTimeBpmProcessor(audioContext);
                 expect(processor).to.be.instanceOf(AudioWorkletNode);
                 await audioContext.close();
                 done();
-            })
-        });
-
-        it('should not create a realTimeBpmProcessor', function(done: Mocha.Done) {
-            this.timeout(30 * 1000);
-            askUserGesture(async (audioContext: AudioContext) => {
-                try {
-                    await createRealTimeBpmProcessor(audioContext);
-                } catch (error) {
-                    await audioContext.close();
-                    done();
-                }
-            })
+            });
         });
 
         it('should create the biquad filters', function(done: Mocha.Done) {
@@ -44,7 +32,7 @@ export default () => {
                 expect(highpass).to.be.instanceOf(BiquadFilterNode);
                 await audioContext.close();
                 done();
-            })
+            });
         });
     });
 };

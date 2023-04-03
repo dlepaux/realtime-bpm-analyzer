@@ -1,5 +1,7 @@
 import {realtimeBpmProcessorName} from './consts';
 
+import realtimeBpmProcessorContent from './generated-processor';
+
 export * from './realtime-bpm-analyzer';
 export {analyzeFullBuffer, getBiquadFilters} from './analyzer';
 export * from './types';
@@ -11,8 +13,8 @@ export * from './types';
  * @returns {Promise<AudioWorkletNode>}
  * @public
  */
-export async function createRealTimeBpmProcessor(audioContext: AudioContext, realtimeBpmProcessorPath = `/${realtimeBpmProcessorName}.js`): Promise<AudioWorkletNode> {
-  const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorPath, realtimeBpmProcessorName);
+export async function createRealTimeBpmProcessor(audioContext: AudioContext): Promise<AudioWorkletNode> {
+  const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName);
 
   await audioContext.resume();
 
@@ -26,15 +28,14 @@ export async function createRealTimeBpmProcessor(audioContext: AudioContext, rea
  * @return {Promise<AudioWorkletNode>} Recording node related components for the app.
  * @private
  */
-async function setupAudioWorkletNode(audioContext: AudioContext, pathToProcessor: string, processorName: string): Promise<AudioWorkletNode> {
-  try {
-    await audioContext.audioWorklet.addModule(pathToProcessor);
+async function setupAudioWorkletNode(audioContext: AudioContext, processorName: string): Promise<AudioWorkletNode> {
+  const blob = new Blob([realtimeBpmProcessorContent], {type: 'application/javascript'});
 
-    const audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
+  const objectUrl = URL.createObjectURL(blob);
 
-    return audioWorkletNode;
-  } catch (error: unknown) {
-    console.error('setupAudioWorkletNode ERROR', error);
-    throw error;
-  }
+  await audioContext.audioWorklet.addModule(objectUrl);
+
+  const audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
+
+  return audioWorkletNode;
 }

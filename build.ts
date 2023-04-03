@@ -36,7 +36,7 @@ async function main() {
   }
 
   // Generate processor file inlined
-  const generatedProcessor = ['export default `', processor, '`'].join('');
+  const generatedProcessor = ['export default `', processor, '`;'].join('');
   await promises.writeFile('src/generated-processor.ts', generatedProcessor, 'utf8');
 
   const esbuildEsmConfig: BuildOptions = {

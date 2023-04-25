@@ -130,6 +130,15 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 /**
  * Mandatory Registration to use the processor
  */
-registerProcessor(realtimeBpmProcessorName, RealTimeBpmProcessor);
+try {
+  registerProcessor(realtimeBpmProcessorName, RealTimeBpmProcessor);
+}
+catch (error) {
+  if (error?.name === 'NotSupportedError') {
+    console.warn(`Failed to register ${realtimeBpmProcessorName}. This probably means it was already registered.`);
+    return;
+  }
+  throw error;
+}
 
 export default {};

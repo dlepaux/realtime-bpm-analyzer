@@ -59,20 +59,6 @@ export class RealTimeBpmAnalyzer {
   effectiveBufferTime: number = initialValue.effectiveBufferTime();
 
   /**
-   * @constructor
-   * @param {object} config Configuration
-   * @param {boolean} config.continuousAnalysis Flag indicating if we need to analyze continuously, typically used for streams
-   * @param {number} config.stabilizationTime The algorithm needs aproximatly 10s to compute accurate results
-   * @param {number} config.muteTimeInIndexes Arbitrary time to mute the analysis to improve the bpm detection by jumping data right after a peak
-   */
-  constructor(config: RealTimeBpmAnalyzerParameters = {}) {
-    /**
-     * Overriding default configuration
-     */
-    Object.assign(this.options, config);
-  }
-
-  /**
    * Method to apply a configuration on the fly
    * @param {RealtimeBpmAnalyzerAsyncOptions} key Key of the configuration in this.options
    * @param {unknown} value The value you need to set

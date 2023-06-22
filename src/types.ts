@@ -73,7 +73,7 @@ export type AsyncConfigurationEvent = {
 export type PostMessageEventData = BpmEventData | AnalyzerResetedEventData | AnalyzeChunkEventData | ValidPeakEventData;
 
 /**
- * BPM Types
+ * Analyzer Types
  */
 export type Interval = {
   interval: number;
@@ -115,4 +115,9 @@ export type AggregateData = {
   isBufferFull: boolean;
   buffer: Float32Array;
   bufferSize: number;
+};
+
+export type NormalizedFilters = {
+  lowpass: BiquadFilterNode;
+  highpass: BiquadFilterNode;
 };

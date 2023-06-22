@@ -61,7 +61,7 @@ This example shows how to deal with a simple `audio` node.
 
 2. Create the AudioWorkletProcessor with `createRealTimeBpmProcessor`, create and pipe the filters to the AudioWorkletNode (`realtimeAnalyzerNode`).
 ```javascript
-import { createRealTimeBpmProcessor, getBiquadFilters } from 'realtime-bpm-analyzer';
+import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
 
 const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
 
@@ -69,11 +69,8 @@ const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
 const track = document.getElementById('track');
 const source = audioContext.createMediaElementSource(track);
 
-// The library provides built in biquad filters, so no need to configure them
-const {lowpass, highpass} = getBiquadFilters(audioContext);
-
 // Connect nodes together
-source.connect(lowpass).connect(highpass).connect(realtimeAnalyzerNode);
+source.connect(realtimeAnalyzerNode);
 source.connect(audioContext.destination);
 
 realtimeAnalyzerNode.port.onmessage = (event) => {
@@ -98,7 +95,7 @@ NB: Thank you [IbizaSonica](http://ibizasonica.com) for the stream.
 
 2. As for the [Realtime/Onfly strategy](#realtimeonfly-strategy), except that we need to turn on the `continuousAnalysis` flag to periodically RESET collected data.
 ```javascript
-import { createRealTimeBpmProcessor, getBiquadFilters } from 'realtime-bpm-analyzer';
+import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
 
 const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
 
@@ -106,11 +103,8 @@ const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
 const track = document.getElementById('track');
 const source = audioContext.createMediaElementSource(track);
 
-// The library provides built in biquad filters, so no need to configure them
-const {lowpass, highpass} = getBiquadFilters(audioContext);
-
 // Connect nodes together
-source.connect(lowpass).connect(highpass).connect(realtimeAnalyzerNode);
+source.connect(realtimeAnalyzerNode);
 source.connect(audioContext.destination);
 
 // Set continuousAnalysis to true

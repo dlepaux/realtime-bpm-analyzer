@@ -57,6 +57,22 @@ export class RealTimeBpmAnalyzer {
    */
   skipIndexes: number = initialValue.skipIndexes();
   effectiveBufferTime: number = initialValue.effectiveBufferTime();
+  /**
+   * Stable BPM
+   */
+  lastTopBpmCandidate: number | undefined = undefined;
+  topBpmCandidateCount = 0;
+  /**
+   * Computed values
+   */
+  computedStabilizationTimeInSeconds = 0;
+
+  /**
+   * @constructor
+   */
+  constructor() {
+    this.updateComputedValues();
+  }
 
   /**
    * Method to apply a configuration on the fly
@@ -66,6 +82,15 @@ export class RealTimeBpmAnalyzer {
    */
   setAsyncConfiguration(parameters: RealTimeBpmAnalyzerParameters): void {
     Object.assign(this.options, parameters);
+    this.updateComputedValues();
+  }
+
+  /**
+   * Update the computed values
+   * @returns {void}
+   */
+  updateComputedValues() {
+    this.computedStabilizationTimeInSeconds = this.options.stabilizationTime / 1000;
   }
 
   /**
@@ -102,7 +127,7 @@ export class RealTimeBpmAnalyzer {
    * Attach this function to an audioprocess event on a audio/video node to compute BPM / Tempo in realtime
    * @param {Float32Array} channelData Channel data
    * @param {number} audioSampleRate Audio sample rate (44100)
-   * @param {number} bufferSize Buffer size
+   * @param {number} bufferSize Buffer size (4096)
    * @param {(data: PostMessageEventData) => void} postMessage Function to post a message to the processor node
    * @returns {Promise<void>}
    */
@@ -111,7 +136,11 @@ export class RealTimeBpmAnalyzer {
       postMessage({message: 'ANALYZE_CHUNK', data: channelData});
     }
 
-    this.effectiveBufferTime += bufferSize; // Ex: (1000000/44100=22s)
+    /**
+     * We are summing up the size of each analyzed chunks in order to compute later if we reached the stabilizationTime
+     * Ex: effectiveBufferTime / audioSampleRate = timeInSeconds (1000000/44100=22s)
+     */
+    this.effectiveBufferTime += bufferSize;
 
     /**
      * Compute the maximum index with all previous chunks
@@ -137,15 +166,34 @@ export class RealTimeBpmAnalyzer {
     const {threshold} = result;
     postMessage({message: 'BPM', result});
 
-    if (this.minValidThreshold < threshold) {
+    /**
+     * Save latest top BPM candidate
+     */
+    if (result.bpm.length > 0) {
+      const latestBpmCandidate = result.bpm[0].tempo;
+
+      if (this.lastTopBpmCandidate === latestBpmCandidate) {
+        this.topBpmCandidateCount++;
+      } else {
+        this.topBpmCandidateCount = 1;
+        this.lastTopBpmCandidate = latestBpmCandidate;
+      }
+    }
+
+    /**
+     * If the results found have a "high" threshold, the BPM is considered stable/strong
+     * If the audio source is weak, the threshold won't move, so we check if the top candidate
+     * is stable during the last 50 chunks (50 * 4096 = 204_800 ~ 4,6s), this value (50) is totally arbitrary
+     */
+    if (this.minValidThreshold < threshold || this.topBpmCandidateCount >= 50) {
       postMessage({message: 'BPM_STABLE', result});
       await this.clearValidPeaks(threshold);
     }
 
     /**
-     * After x milliseconds, we reinit the analyzer
+     * After x time, we reinit the analyzer
      */
-    if (this.options.continuousAnalysis && this.effectiveBufferTime / audioSampleRate > this.options.stabilizationTime / 1000) {
+    if (this.options.continuousAnalysis && this.effectiveBufferTime / audioSampleRate > this.computedStabilizationTimeInSeconds) {
       this.reset();
       postMessage({message: 'ANALYZER_RESETED'});
     }

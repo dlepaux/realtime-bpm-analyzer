@@ -1,6 +1,18 @@
 import {findPeaksAtThreshold, computeBpm} from './analyzer';
-import type {RealTimeBpmAnalyzerOptions, AnalyzerResetedEventData, RealTimeBpmAnalyzerParameters, ValidPeaks, NextIndexPeaks, BpmCandidates, Threshold, BpmEventData} from './types';
-import {generateValidPeaksModel, generateNextIndexPeaksModel, descendingOverThresholds} from './utils';
+import type {
+  RealTimeBpmAnalyzerOptions,
+  RealTimeBpmAnalyzerParameters,
+  ValidPeaks,
+  NextIndexPeaks,
+  BpmCandidates,
+  Threshold,
+  PostMessageEventData,
+} from './types';
+import {
+  generateValidPeaksModel,
+  generateNextIndexPeaksModel,
+  descendingOverThresholds,
+} from './utils';
 import * as consts from './consts';
 
 /**
@@ -25,6 +37,7 @@ export class RealTimeBpmAnalyzer {
     continuousAnalysis: false,
     stabilizationTime: 20000,
     muteTimeInIndexes: 10000,
+    debug: false,
   };
 
   /**
@@ -104,10 +117,14 @@ export class RealTimeBpmAnalyzer {
    * @param {Float32Array} channelData Channel data
    * @param {number} audioSampleRate Audio sample rate (44100)
    * @param {number} bufferSize Buffer size
-   * @param {(data: any) => void} postMessage Function to post a message to the processor node
+   * @param {(data: PostMessageEventData) => void} postMessage Function to post a message to the processor node
    * @returns {Promise<void>}
    */
-  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: BpmEventData | AnalyzerResetedEventData) => void): Promise<void> {
+  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: PostMessageEventData) => void): Promise<void> {
+    if (this.options.debug) {
+      postMessage({message: 'ANALYZE_CHUNK', data: channelData});
+    }
+
     this.effectiveBufferTime += bufferSize; // Ex: (1000000/44100=22s)
 
     /**
@@ -123,7 +140,7 @@ export class RealTimeBpmAnalyzer {
     /**
      * Mutate nextIndexPeaks and validPeaks if possible
      */
-    await this.findPeaks(channelData, bufferSize, currentMinIndex, currentMaxIndex);
+    await this.findPeaks(channelData, bufferSize, currentMinIndex, currentMaxIndex, postMessage);
 
     /**
      * Increment chunk
@@ -154,9 +171,10 @@ export class RealTimeBpmAnalyzer {
    * @param {number} bufferSize Buffer size
    * @param {number} currentMinIndex Current minimum index
    * @param {number} currentMaxIndex Current maximum index
+   * @param {(data: PostMessageEventData) => void} postMessage Function to post a message to the processor node
    * @returns {void}
    */
-  async findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number): Promise<void> {
+  async findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number, postMessage: (data: PostMessageEventData) => void): Promise<void> {
     await descendingOverThresholds(async threshold => {
       if (this.nextIndexPeaks[threshold] >= currentMaxIndex) {
         return false;
@@ -177,15 +195,27 @@ export class RealTimeBpmAnalyzer {
       }
 
       for (const relativeChunkPeak of peaks) {
+        const index = currentMinIndex + relativeChunkPeak;
+
         /**
          * Add current Index + muteTimeInIndexes (10000/44100=0.22s)
          */
-        this.nextIndexPeaks[atThreshold] = currentMinIndex + relativeChunkPeak + this.options.muteTimeInIndexes;
+        this.nextIndexPeaks[atThreshold] = index + this.options.muteTimeInIndexes;
 
         /**
          * Store valid relativeChunkPeak Indexes
          */
-        this.validPeaks[atThreshold].push(currentMinIndex + relativeChunkPeak);
+        this.validPeaks[atThreshold].push(index);
+
+        if (this.options.debug) {
+          postMessage({
+            message: 'VALID_PEAK',
+            data: {
+              threshold: atThreshold,
+              index,
+            },
+          });
+        }
       }
 
       return false;

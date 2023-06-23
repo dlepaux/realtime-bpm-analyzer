@@ -103,32 +103,32 @@ export function getBiquadFilters(context: AudioContext | OfflineAudioContext): N
  * @param {AudioBuffer} buffer Audio buffer
  * @returns {AudioBufferSourceNode}
  */
-export async function getOfflineLowPassSource(buffer: AudioBuffer): Promise<AudioBuffer> {
-  const {length, numberOfChannels, sampleRate} = buffer;
-  const context = new OfflineAudioContext(numberOfChannels, length, sampleRate);
+// export async function getOfflineLowPassSource(buffer: AudioBuffer): Promise<AudioBuffer> {
+//   const {length, numberOfChannels, sampleRate} = buffer;
+//   const context = new OfflineAudioContext(numberOfChannels, length, sampleRate);
 
-  /**
-   * Create buffer source
-   */
-  const source = context.createBufferSource();
-  source.buffer = buffer;
+//   /**
+//    * Create buffer source
+//    */
+//   const source = context.createBufferSource();
+//   source.buffer = buffer;
 
-  const {lowpass, highpass} = getBiquadFilters(context);
+//   const {lowpass, highpass} = getBiquadFilters(context);
 
-  /**
-   * Pipe the song into the filter, and the filter into the offline context
-   */
-  source.connect(lowpass);
-  source.connect(highpass);
-  lowpass.connect(highpass);
-  highpass.connect(context.destination);
+//   /**
+//    * Pipe the song into the filter, and the filter into the offline context
+//    */
+//   source.connect(lowpass);
+//   source.connect(highpass);
+//   lowpass.connect(highpass);
+//   highpass.connect(context.destination);
 
-  source.start(0);
+//   source.start(0);
 
-  const audioBuffer = await context.startRendering();
+//   const audioBuffer = await context.startRendering();
 
-  return audioBuffer;
-}
+//   return audioBuffer;
+// }
 
 /**
  * Return the computed bpm from data

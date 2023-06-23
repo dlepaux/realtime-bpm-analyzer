@@ -107,7 +107,7 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Remve all validPeaks between the minThreshold pass in param to optimize the weight of datas
-   * @param {Threshold} minThreshold Value between 0.9 and 0.3
+   * @param {Threshold} minThreshold Value between 0.9 and 0.2
    * @returns {void}
    */
   async clearValidPeaks(minThreshold: Threshold): Promise<void> {

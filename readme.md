@@ -19,7 +19,7 @@ Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScri
   - [Esbuild](#esbuild)
 - [Features](#features)
 - [Usages](#usages)
-  - [Realtime/Onfly strategy](#realtimeonfly-strategy)
+  - [Player strategy](#player-strategy)
   - [Continuous Analysis strategy](#continuous-analysis-strategy)
   - [Local/Offline strategy](#localoffline-strategy)
 - [Roadmap](#roadmap)
@@ -48,9 +48,9 @@ To learn more about how to use the library, you can check out [the documentation
 
 If you encounter issues along the way, remember we have a [discord server](https://discord.gg/3xV7TGmq) and a [chat](https://gitter.im/realtime-bpm-analyzer/Lobby) !
 
-### Realtime/Onfly strategy
+### Player strategy
 
-Mesure or detect the BPM from a **player** (Typically if you don't own the audio file) ? The library provide an `AudioWorkletProcessor` that will compute BPM while the music is played.
+Mesure or detect the BPM from a web **player**.
 
 This example shows how to deal with a simple `audio` node.
 
@@ -85,15 +85,17 @@ realtimeAnalyzerNode.port.onmessage = (event) => {
 
 ### Continuous Analysis strategy
 
-Analyze the BPM from a stream or a source where you can't determine the start/end of a music.
+Analyze the BPM of a source continuously. This feature is quite simple and basically get rid of all data inside the analyzer after the stabilizationTime is reached. Why ? Because we store all the "valid peaks" for each thresholds in order to find the best candidates. And we would keep all those data forever, we would have memory leaks.
 
-1. Streams can be played with [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode), so the approch is quite similar to the [Realtime/Onfly strategy](#realtimeonfly-strategy).
+Note: This approach is **NOT recommended** if you are using a microphone as source. Except if the microphone gets correct audio source. Typically, if the BPM is never computed using this approach, you probably capture low intensity audio with your microphone (too far from the source, too much noise, directional microphone could be reasons why it's not working).
+
+1. Streams can be played with [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode), so the approch is quite similar to the [Player strategy](#player-strategy).
 ```html
 <audio src="https://ssl1.viastreaming.net:7005/;listen.mp3" id="track"></audio>
 ```
-NB: Thank you [IbizaSonica](http://ibizasonica.com) for the stream.
+Thank you [IbizaSonica](http://ibizasonica.com) for the stream.
 
-2. As for the [Realtime/Onfly strategy](#realtimeonfly-strategy), except that we need to turn on the `continuousAnalysis` flag to periodically RESET collected data.
+2. As for the [Player strategy](#player-strategy), except that we need to turn on the `continuousAnalysis` flag to periodically delete collected data.
 ```javascript
 import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
 
@@ -107,7 +109,7 @@ const source = audioContext.createMediaElementSource(track);
 source.connect(realtimeAnalyzerNode);
 source.connect(audioContext.destination);
 
-// Set continuousAnalysis to true
+// Enable the continuous feature
 realtimeAnalyzerNode.port.postMessage({
   message: 'ASYNC_CONFIGURATION',
   parameters: {
@@ -126,7 +128,6 @@ realtimeAnalyzerNode.port.onmessage = (event) => {
 };
 ```
 
-
 ### Local/Offline strategy
 
 Analyze the BPM from **files** located in your **desktop, tablet or mobile** !
@@ -144,11 +145,11 @@ import * as realtimeBpm from 'realtime-bpm-analyzer';
 3. You can listen the `change` event like so, and analyze the BPM of the selected files. You don't need to be connected to Internet for this to work.
 ```javascript
 function onFileChange(event) {
+  const audioContext = new AudioContext();
   // Get the first file from the list
   const file = event.target.files[0];
   const reader = new FileReader();
   reader.addEventListener('load', () => {
-    const audioContext = new window.AudioContext();
     // The file is uploaded, now we decode it
     audioContext.decodeAudioData(reader.result, audioBuffer => {
       // The result is passed to the analyzer

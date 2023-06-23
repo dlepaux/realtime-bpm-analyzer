@@ -74,7 +74,7 @@ export default () => {
     it('should not compute BPM from empty array of peaks', async () => {
       const validPeaks = utils.generateValidPeaksModel();
       const {threshold, bpm} = await analyzer.computeBpm(validPeaks, sampleRate);
-      expect(threshold).to.be.equal(0.3);
+      expect(threshold).to.be.equal(0.2);
       expect(bpm.length).to.be.equal(0);
     });
   });
@@ -87,7 +87,7 @@ export default () => {
         const buffer = await response.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(buffer);
         const tempo = await analyzeFullBuffer(audioBuffer);
-        expect(tempo[0].tempo).to.be.equal(126);
+        expect(tempo[0].tempo).to.be.equal(125);
         await audioContext.close();
         done();
       });

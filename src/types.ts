@@ -12,6 +12,30 @@ export type BpmCandidates = {
   threshold: Threshold;
 };
 
+/**
+ * Events
+ */
+export type AnalyzeChunkEventData = {
+  message: 'ANALYZE_CHUNK';
+  data: Float32Array;
+};
+
+export type AnalyzeChunkEvent = {
+  data: AnalyzeChunkEventData;
+};
+
+export type ValidPeakEventData = {
+  message: 'VALID_PEAK';
+  data: {
+    threshold: number;
+    index: number;
+  };
+};
+
+export type ValidPeakEvent = {
+  data: ValidPeakEventData;
+};
+
 export type BpmEventData = {
   message: 'BPM' | 'BPM_STABLE';
   result: BpmCandidates;
@@ -46,6 +70,11 @@ export type AsyncConfigurationEvent = {
   data: AsyncConfigurationEventData | ResetEventData | StopEventData;
 };
 
+export type PostMessageEventData = BpmEventData | AnalyzerResetedEventData | AnalyzeChunkEventData | ValidPeakEventData;
+
+/**
+ * Analyzer Types
+ */
 export type Interval = {
   interval: number;
   count: number;
@@ -66,12 +95,14 @@ export type RealTimeBpmAnalyzerParameters = {
   continuousAnalysis?: boolean;
   stabilizationTime?: number;
   muteTimeInIndexes?: number;
+  debug?: boolean;
 };
 
 export type RealTimeBpmAnalyzerOptions = {
   continuousAnalysis: boolean;
   stabilizationTime: number;
   muteTimeInIndexes: number;
+  debug: boolean;
 };
 
 export type ValidPeaks = Record<string, Peaks>;
@@ -84,4 +115,9 @@ export type AggregateData = {
   isBufferFull: boolean;
   buffer: Float32Array;
   bufferSize: number;
+};
+
+export type NormalizedFilters = {
+  lowpass: BiquadFilterNode;
+  highpass: BiquadFilterNode;
 };

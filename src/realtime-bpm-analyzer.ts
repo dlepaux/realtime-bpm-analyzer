@@ -1,6 +1,18 @@
 import {findPeaksAtThreshold, computeBpm} from './analyzer';
-import type {RealTimeBpmAnalyzerOptions, AnalyzerResetedEventData, RealTimeBpmAnalyzerParameters, ValidPeaks, NextIndexPeaks, BpmCandidates, Threshold, BpmEventData} from './types';
-import {generateValidPeaksModel, generateNextIndexPeaksModel, descendingOverThresholds} from './utils';
+import type {
+  RealTimeBpmAnalyzerOptions,
+  RealTimeBpmAnalyzerParameters,
+  ValidPeaks,
+  NextIndexPeaks,
+  BpmCandidates,
+  Threshold,
+  PostMessageEventData,
+} from './types';
+import {
+  generateValidPeaksModel,
+  generateNextIndexPeaksModel,
+  descendingOverThresholds,
+} from './utils';
 import * as consts from './consts';
 
 /**
@@ -25,6 +37,7 @@ export class RealTimeBpmAnalyzer {
     continuousAnalysis: false,
     stabilizationTime: 20000,
     muteTimeInIndexes: 10000,
+    debug: false,
   };
 
   /**
@@ -44,19 +57,21 @@ export class RealTimeBpmAnalyzer {
    */
   skipIndexes: number = initialValue.skipIndexes();
   effectiveBufferTime: number = initialValue.effectiveBufferTime();
+  /**
+   * Stable BPM
+   */
+  lastTopBpmCandidate: number | undefined = undefined;
+  topBpmCandidateCount = 0;
+  /**
+   * Computed values
+   */
+  computedStabilizationTimeInSeconds = 0;
 
   /**
    * @constructor
-   * @param {object} config Configuration
-   * @param {boolean} config.continuousAnalysis Flag indicating if we need to analyze continuously, typically used for streams
-   * @param {number} config.stabilizationTime The algorithm needs aproximatly 10s to compute accurate results
-   * @param {number} config.muteTimeInIndexes Arbitrary time to mute the analysis to improve the bpm detection by jumping data right after a peak
    */
-  constructor(config: RealTimeBpmAnalyzerParameters = {}) {
-    /**
-     * Overriding default configuration
-     */
-    Object.assign(this.options, config);
+  constructor() {
+    this.updateComputedValues();
   }
 
   /**
@@ -67,6 +82,15 @@ export class RealTimeBpmAnalyzer {
    */
   setAsyncConfiguration(parameters: RealTimeBpmAnalyzerParameters): void {
     Object.assign(this.options, parameters);
+    this.updateComputedValues();
+  }
+
+  /**
+   * Update the computed values
+   * @returns {void}
+   */
+  updateComputedValues() {
+    this.computedStabilizationTimeInSeconds = this.options.stabilizationTime / 1000;
   }
 
   /**
@@ -83,7 +107,7 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Remve all validPeaks between the minThreshold pass in param to optimize the weight of datas
-   * @param {Threshold} minThreshold Value between 0.9 and 0.3
+   * @param {Threshold} minThreshold Value between 0.9 and 0.2
    * @returns {void}
    */
   async clearValidPeaks(minThreshold: Threshold): Promise<void> {
@@ -103,12 +127,20 @@ export class RealTimeBpmAnalyzer {
    * Attach this function to an audioprocess event on a audio/video node to compute BPM / Tempo in realtime
    * @param {Float32Array} channelData Channel data
    * @param {number} audioSampleRate Audio sample rate (44100)
-   * @param {number} bufferSize Buffer size
-   * @param {(data: any) => void} postMessage Function to post a message to the processor node
+   * @param {number} bufferSize Buffer size (4096)
+   * @param {(data: PostMessageEventData) => void} postMessage Function to post a message to the processor node
    * @returns {Promise<void>}
    */
-  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: BpmEventData | AnalyzerResetedEventData) => void): Promise<void> {
-    this.effectiveBufferTime += bufferSize; // Ex: (1000000/44100=22s)
+  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: PostMessageEventData) => void): Promise<void> {
+    if (this.options.debug) {
+      postMessage({message: 'ANALYZE_CHUNK', data: channelData});
+    }
+
+    /**
+     * We are summing up the size of each analyzed chunks in order to compute later if we reached the stabilizationTime
+     * Ex: effectiveBufferTime / audioSampleRate = timeInSeconds (1000000/44100=22s)
+     */
+    this.effectiveBufferTime += bufferSize;
 
     /**
      * Compute the maximum index with all previous chunks
@@ -123,7 +155,7 @@ export class RealTimeBpmAnalyzer {
     /**
      * Mutate nextIndexPeaks and validPeaks if possible
      */
-    await this.findPeaks(channelData, bufferSize, currentMinIndex, currentMaxIndex);
+    await this.findPeaks(channelData, bufferSize, currentMinIndex, currentMaxIndex, postMessage);
 
     /**
      * Increment chunk
@@ -134,15 +166,34 @@ export class RealTimeBpmAnalyzer {
     const {threshold} = result;
     postMessage({message: 'BPM', result});
 
-    if (this.minValidThreshold < threshold) {
+    /**
+     * Save latest top BPM candidate
+     */
+    if (result.bpm.length > 0) {
+      const latestBpmCandidate = result.bpm[0].tempo;
+
+      if (this.lastTopBpmCandidate === latestBpmCandidate) {
+        this.topBpmCandidateCount++;
+      } else {
+        this.topBpmCandidateCount = 1;
+        this.lastTopBpmCandidate = latestBpmCandidate;
+      }
+    }
+
+    /**
+     * If the results found have a "high" threshold, the BPM is considered stable/strong
+     * If the audio source is weak, the threshold won't move, so we check if the top candidate
+     * is stable during the last 50 chunks (50 * 4096 = 204_800 ~ 4,6s), this value (50) is totally arbitrary
+     */
+    if (this.minValidThreshold < threshold || this.topBpmCandidateCount >= 50) {
       postMessage({message: 'BPM_STABLE', result});
       await this.clearValidPeaks(threshold);
     }
 
     /**
-     * After x milliseconds, we reinit the analyzer
+     * After x time, we reinit the analyzer
      */
-    if (this.options.continuousAnalysis && this.effectiveBufferTime / audioSampleRate > this.options.stabilizationTime / 1000) {
+    if (this.options.continuousAnalysis && this.effectiveBufferTime / audioSampleRate > this.computedStabilizationTimeInSeconds) {
       this.reset();
       postMessage({message: 'ANALYZER_RESETED'});
     }
@@ -154,9 +205,10 @@ export class RealTimeBpmAnalyzer {
    * @param {number} bufferSize Buffer size
    * @param {number} currentMinIndex Current minimum index
    * @param {number} currentMaxIndex Current maximum index
+   * @param {(data: PostMessageEventData) => void} postMessage Function to post a message to the processor node
    * @returns {void}
    */
-  async findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number): Promise<void> {
+  async findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number, postMessage: (data: PostMessageEventData) => void): Promise<void> {
     await descendingOverThresholds(async threshold => {
       if (this.nextIndexPeaks[threshold] >= currentMaxIndex) {
         return false;
@@ -177,15 +229,27 @@ export class RealTimeBpmAnalyzer {
       }
 
       for (const relativeChunkPeak of peaks) {
+        const index = currentMinIndex + relativeChunkPeak;
+
         /**
          * Add current Index + muteTimeInIndexes (10000/44100=0.22s)
          */
-        this.nextIndexPeaks[atThreshold] = currentMinIndex + relativeChunkPeak + this.options.muteTimeInIndexes;
+        this.nextIndexPeaks[atThreshold] = index + this.options.muteTimeInIndexes;
 
         /**
          * Store valid relativeChunkPeak Indexes
          */
-        this.validPeaks[atThreshold].push(currentMinIndex + relativeChunkPeak);
+        this.validPeaks[atThreshold].push(index);
+
+        if (this.options.debug) {
+          postMessage({
+            message: 'VALID_PEAK',
+            data: {
+              threshold: atThreshold,
+              index,
+            },
+          });
+        }
       }
 
       return false;

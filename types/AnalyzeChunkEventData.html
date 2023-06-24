@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="default" lang="en"><head><meta charset="utf-8"><meta http-equiv="x-ua-compatible" content="IE=edge"><title>Type Interval</title><meta name="description" content="RealTimeBpmAnalyzer Interval Type"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../assets/style.css"><link rel="stylesheet" href="../assets/highlight.css"><link rel="stylesheet" href="../assets/custom.css"><script async src="../assets/search.js" id="search-script"></script><link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+<!DOCTYPE html><html class="default" lang="en"><head><meta charset="utf-8"><meta http-equiv="x-ua-compatible" content="IE=edge"><title>AnalyzeChunkEventData | Realtime BPM Analyzer</title><meta name="description" content="Documentation for Realtime BPM Analyzer"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="../assets/style.css"><link rel="stylesheet" href="../assets/highlight.css"><link rel="stylesheet" href="../assets/custom.css"><script async src="../assets/search.js" id="search-script"></script><link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
 <link rel="manifest" href="/favicon/site.webmanifest">
@@ -21,20 +21,20 @@
 <div class="tsd-page-title">
 <ul class="tsd-breadcrumb">
 <li><a href="../modules.html">Realtime BPM Analyzer</a></li>
-<li><a href="Interval.html">Interval</a></li></ul>
-<h1>Type alias Interval</h1></div>
-<div class="tsd-signature">Interval<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span><br><span>    </span>count<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span><br><span>    </span>interval<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span><br><span class="tsd-signature-symbol">}</span></div>
-<div class="tsd-comment tsd-typography"><p>Analyzer Types</p>
+<li><a href="AnalyzeChunkEventData.html">AnalyzeChunkEventData</a></li></ul>
+<h1>Type alias AnalyzeChunkEventData</h1></div>
+<div class="tsd-signature">Analyze<wbr>Chunk<wbr>Event<wbr>Data<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span><br><span>    </span>data<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Float32Array</span><span class="tsd-signature-symbol">; </span><br><span>    </span>message<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">&quot;ANALYZE_CHUNK&quot;</span><span class="tsd-signature-symbol">; </span><br><span class="tsd-signature-symbol">}</span></div>
+<div class="tsd-comment tsd-typography"><p>Events</p>
 </div>
 <div class="tsd-type-declaration">
 <h4>Type declaration</h4>
 <ul class="tsd-parameters">
 <li class="tsd-parameter">
-<h5>count<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span></h5></li>
+<h5>data<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Float32Array</span></h5></li>
 <li class="tsd-parameter">
-<h5>interval<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span></h5></li></ul></div><aside class="tsd-sources">
+<h5>message<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">&quot;ANALYZE_CHUNK&quot;</span></h5></li></ul></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/80e471e/src/types.ts#L78">types.ts:78</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/dlepaux/realtime-bpm-analyzer/blob/80e471e/src/types.ts#L18">types.ts:18</a></li></ul></aside></div>
 <div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 <div class="tsd-navigation settings">
 <details class="tsd-index-accordion"><summary class="tsd-accordion-summary">
@@ -61,7 +61,7 @@
 <li class="tsd-kind-class"><a href="../classes/RealTimeBpmAnalyzer.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-class)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6" id="icon-128-path"/><path d="M11.898 16.1201C11.098 16.1201 10.466 15.8961 10.002 15.4481C9.53803 15.0001 9.30603 14.3841 9.30603 13.6001V9.64012C9.30603 8.85612 9.53803 8.24012 10.002 7.79212C10.466 7.34412 11.098 7.12012 11.898 7.12012C12.682 7.12012 13.306 7.34812 13.77 7.80412C14.234 8.25212 14.466 8.86412 14.466 9.64012H13.386C13.386 9.14412 13.254 8.76412 12.99 8.50012C12.734 8.22812 12.37 8.09212 11.898 8.09212C11.426 8.09212 11.054 8.22412 10.782 8.48812C10.518 8.75212 10.386 9.13212 10.386 9.62812V13.6001C10.386 14.0961 10.518 14.4801 10.782 14.7521C11.054 15.0161 11.426 15.1481 11.898 15.1481C12.37 15.1481 12.734 15.0161 12.99 14.7521C13.254 14.4801 13.386 14.0961 13.386 13.6001H14.466C14.466 14.3761 14.234 14.9921 13.77 15.4481C13.306 15.8961 12.682 16.1201 11.898 16.1201Z" fill="var(--color-text)" id="icon-128-text"/></svg>Real<wbr>Time<wbr>Bpm<wbr>Analyzer</a></li>
 <li class="tsd-kind-type-alias"><a href="AggregateData.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><rect fill="var(--color-icon-background)" stroke="var(--color-ts)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6" id="icon-4194304-path"/><path d="M11.31 16V8.224H8.91V7.24H14.79V8.224H12.39V16H11.31Z" fill="var(--color-text)" id="icon-4194304-text"/></svg>Aggregate<wbr>Data</a></li>
 <li class="tsd-kind-type-alias"><a href="AnalyzeChunkEvent.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Analyze<wbr>Chunk<wbr>Event</a></li>
-<li class="tsd-kind-type-alias"><a href="AnalyzeChunkEventData.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Analyze<wbr>Chunk<wbr>Event<wbr>Data</a></li>
+<li class="current tsd-kind-type-alias"><a href="AnalyzeChunkEventData.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Analyze<wbr>Chunk<wbr>Event<wbr>Data</a></li>
 <li class="tsd-kind-type-alias"><a href="AnalyzerResetedEvent.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Analyzer<wbr>Reseted<wbr>Event</a></li>
 <li class="tsd-kind-type-alias"><a href="AnalyzerResetedEventData.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Analyzer<wbr>Reseted<wbr>Event<wbr>Data</a></li>
 <li class="tsd-kind-type-alias"><a href="AsyncConfigurationEvent.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Async<wbr>Configuration<wbr>Event</a></li>
@@ -70,7 +70,7 @@
 <li class="tsd-kind-type-alias"><a href="BpmEvent.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Bpm<wbr>Event</a></li>
 <li class="tsd-kind-type-alias"><a href="BpmEventData.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Bpm<wbr>Event<wbr>Data</a></li>
 <li class="tsd-kind-type-alias"><a href="Group.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Group</a></li>
-<li class="current tsd-kind-type-alias"><a href="Interval.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Interval</a></li>
+<li class="tsd-kind-type-alias"><a href="Interval.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Interval</a></li>
 <li class="tsd-kind-type-alias"><a href="NextIndexPeaks.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Next<wbr>Index<wbr>Peaks</a></li>
 <li class="tsd-kind-type-alias"><a href="NormalizedFilters.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>Normalized<wbr>Filters</a></li>
 <li class="tsd-kind-type-alias"><a href="OnThresholdFunction.html" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewbox="0 0 24 24"><use href="#icon-4194304-path"/><use href="#icon-4194304-text"/></svg>On<wbr>Threshold<wbr>Function</a></li>

@@ -135,7 +135,9 @@ export function getBiquadFilters(context: AudioContext | OfflineAudioContext): N
  * @param {Record<string, number[]>} data Contain valid peaks
  * @param {number} audioSampleRate Audio sample rate
  */
-export async function computeBpm(data: ValidPeaks, audioSampleRate: number, minPeaks = consts.minPeaks): Promise<BpmCandidates> {
+export async function computeBpm(data: ValidPeaks, audioSampleRate: number): Promise<BpmCandidates> {
+  const minPeaks = consts.minPeaks;
+
   /**
    * Flag to fix Object.keys looping
    */

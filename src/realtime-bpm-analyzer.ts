@@ -58,11 +58,6 @@ export class RealTimeBpmAnalyzer {
   skipIndexes: number = initialValue.skipIndexes();
   effectiveBufferTime: number = initialValue.effectiveBufferTime();
   /**
-   * Stable BPM
-   */
-  lastTopBpmCandidate: number | undefined = undefined;
-  topBpmCandidateCount = 0;
-  /**
    * Computed values
    */
   computedStabilizationTimeInSeconds = 0;
@@ -114,7 +109,7 @@ export class RealTimeBpmAnalyzer {
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
 
     await descendingOverThresholds(async threshold => {
-      if (threshold < minThreshold) {
+      if (threshold < minThreshold && typeof this.validPeaks[threshold] !== 'undefined') {
         delete this.validPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
         delete this.nextIndexPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
       }
@@ -167,25 +162,9 @@ export class RealTimeBpmAnalyzer {
     postMessage({message: 'BPM', result});
 
     /**
-     * Save latest top BPM candidate
-     */
-    if (result.bpm.length > 0) {
-      const latestBpmCandidate = result.bpm[0].tempo;
-
-      if (this.lastTopBpmCandidate === latestBpmCandidate) {
-        this.topBpmCandidateCount++;
-      } else {
-        this.topBpmCandidateCount = 1;
-        this.lastTopBpmCandidate = latestBpmCandidate;
-      }
-    }
-
-    /**
      * If the results found have a "high" threshold, the BPM is considered stable/strong
-     * If the audio source is weak, the threshold won't move, so we check if the top candidate
-     * is stable during the last 50 chunks (50 * 4096 = 204_800 ~ 4,6s), this value (50) is totally arbitrary
      */
-    if (this.minValidThreshold < threshold || this.topBpmCandidateCount >= 50) {
+    if (this.minValidThreshold < threshold) {
       postMessage({message: 'BPM_STABLE', result});
       await this.clearValidPeaks(threshold);
     }

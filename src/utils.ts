@@ -2,7 +2,7 @@ import * as consts from './consts';
 import type {Peaks, ValidPeaks, NextIndexPeaks, OnThresholdFunction, AggregateData} from './types';
 
 /**
- * Loop between .9 and minValidThreshold at .3 by default, passoing the threshold to the function
+ * Loop between .9 and minValidThreshold at .2 by default, passing the threshold to the function
  * @param {OnThresholdFunction} onThreshold Function for each iteration, you must return a boolean, true will exit the loop process
  * @param {number} minValidThreshold minValidThreshold usualy 0.2
  * @param {number} startThreshold startThreshold usualy 0.9

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.2.0...v3.2.1) (2023-06-24)
+
+
+### Bug Fixes
+
+* better generation of processor from build source ([e63d1e0](https://github.com/dlepaux/realtime-bpm-analyzer/commit/e63d1e0048b95363006ba217950249ed9a7ee13e))
+* https://github.com/dlepaux/realtime-bpm-analyzer/issues/55 ([f910fa9](https://github.com/dlepaux/realtime-bpm-analyzer/commit/f910fa9c5f95dd79bafa1cf11f30dfde833d67ea))
+* remove useless stable bpm concept ([0142d70](https://github.com/dlepaux/realtime-bpm-analyzer/commit/0142d70162492fe7bc7d2bc0468bf3ff5f631703))
+
 ## [3.2.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.1.5...v3.2.0) (2023-04-03)
 
 ### [3.1.5](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.1.4...v3.1.5) (2023-04-01)

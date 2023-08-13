@@ -15,8 +15,6 @@
 Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of an audio or video source in real-time.
 
 - [Getting started](#getting-started)
-  - [NextJS](#nextjs)
-  - [Esbuild](#esbuild)
 - [Features](#features)
 - [Usages](#usages)
   - [Player strategy](#player-strategy)
@@ -46,7 +44,7 @@ To learn more about how to use the library, you can check out [the documentation
 
 ## Usages
 
-If you encounter issues along the way, remember we have a [discord server](https://discord.gg/3xV7TGmq) and a [chat](https://gitter.im/realtime-bpm-analyzer/Lobby) !
+If you encounter issues along the way, remember we have a [chat](https://gitter.im/realtime-bpm-analyzer/Lobby) and the new [discussion feature of github](https://github.com/dlepaux/realtime-bpm-analyzer/discussions) !
 
 ### Player strategy
 

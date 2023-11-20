@@ -11,3 +11,6 @@ docs
 # Others
 .next
 *.DS_Store
+
+# Datasets
+tests/datasets

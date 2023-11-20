@@ -40,6 +40,8 @@
     "build:types": "npm run build:types:index && npm run build:types:realtime:processor",
     "build:types:index": "tsc src/index.ts --emitDeclarationOnly --outdir dist --declaration",
     "build:types:realtime:processor": "tsc processor/realtime-bpm-processor.ts --emitDeclarationOnly --target es6 --declaration --outfile dist/realtime-bpm-processor.d.ts",
+    "get-metadata": "node tests/dataset-reader.mjs",
+    "set-metadata": "node tests/set-bpm-to-file-metadata.mjs",
     "coverage": "codecov -f coverage/lcov.info",
     "dev": "rm -Rf dist && npm run build && rm -Rf ../allegro/.next/ && rm -Rf ../allegro/node_modules/realtime-bpm-analyzer/dist/ && mkdir ../allegro/node_modules/realtime-bpm-analyzer/dist/ && cp ./dist/* ../allegro/node_modules/realtime-bpm-analyzer/dist/",
     "lint": "xo --fix",
@@ -52,6 +54,7 @@
     "release:patch": "npm run release:before && standard-version --release-as patch && git push && npm run release:after",
     "release:minor": "npm run release:before && standard-version --release-as minor && git push && npm run release:after",
     "release:major": "npm run release:before && standard-version --release-as major && git push && npm run release:after",
+    "test:node": "NODE_ENV=test mocha tests/index-node.ts",
     "test": "NODE_ENV=test karma start"
   },
   "repository": {
@@ -79,6 +82,9 @@
     "karma-mocha": "^2.0.1",
     "karma-typescript": "^5.5.3",
     "mocha": "^9.2.0",
+    "music-metadata": "^8.1.4",
+    "music-metadata-browser": "^2.5.10",
+    "node-id3": "^0.2.6",
     "puppeteer": "^19.6.3",
     "standard-version": "^9.5.0",
     "typedoc": "^0.23.24",

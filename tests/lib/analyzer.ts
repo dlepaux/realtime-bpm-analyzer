@@ -1,6 +1,6 @@
 import {expect} from 'chai';
 import {analyzeFullBuffer} from '../../src/analyzer';
-import {readChannelData, askUserGesture} from '../utils';
+import {readChannelData} from '../utils';
 
 import {data as assertIntervals} from '../fixtures/bass-test-intervals';
 import {data as assertTempo} from '../fixtures/bass-test-tempo';
@@ -79,17 +79,15 @@ export default () => {
   });
 
   describe('Analyzer - Integration tests', () => {
-    it('should be able to detect the BPM from an AudioBuffer', function (done) {
+    it('should be able to detect the BPM from an AudioBuffer', async function () {
       this.timeout(30 * 1000);
-      askUserGesture(async (audioContext) => {
-        const response = await fetch('http://localhost:9876/base/tests/fixtures/bass-test.wav');
-        const buffer = await response.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(buffer);
-        const tempo = await analyzeFullBuffer(audioBuffer);
-        expect(tempo[0].tempo).to.be.equal(125);
-        await audioContext.close();
-        done();
-      });
+      const audioContext = new AudioContext();
+      const response = await fetch('http://localhost:9876/base/tests/fixtures/bass-test.wav');
+      const buffer = await response.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(buffer);
+      const tempo = await analyzeFullBuffer(audioBuffer);
+      expect(tempo[0].tempo).to.be.equal(125);
+      await audioContext.close();
     });
   });
 };

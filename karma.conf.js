@@ -71,13 +71,13 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
 
     // Start these browsers
     // available browser launchers: https://www.npmjs.com/search?q=keywords:karma-launcher
-    browsers: ['chromeWithoutSecurity'], // You may use 'Chrome', 'ChromeCanary', 'Chromium' or any other supported browser
+    browsers: ['ChromeHeadlessWithoutAutoplayPolicy'], // You may use 'Chrome', 'ChromeCanary', 'Chromium' or any other supported browser
 
     // you can define custom flags
     customLaunchers: {
-      chromeWithoutSecurity: {
-        base: 'Chrome',
-        flags: ['--disable-web-security', '--disable-site-isolation-trials'],
+      ChromeHeadlessWithoutAutoplayPolicy: {
+        base: 'ChromeHeadless',
+        flags: ['--autoplay-policy=no-user-gesture-required'],
       },
     },
 

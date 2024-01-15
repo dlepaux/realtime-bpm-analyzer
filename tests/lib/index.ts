@@ -1,6 +1,5 @@
 import {expect} from 'chai';
 import {createRealTimeBpmProcessor, analyzeFullBuffer, getBiquadFilters} from '../../src/index';
-import { askUserGesture } from '../utils';
 
 /**
  * Unit test for the RealTime BPM Analyzer
@@ -13,25 +12,22 @@ export default () => {
     });
 
     describe('Index - Intergration tests', () => {
-        it('should create a realTimeBpmProcessor', function(done: Mocha.Done) {
+        it('should create a realTimeBpmProcessor', async function() {
             this.timeout(30 * 1000);
-            askUserGesture(async (audioContext: AudioContext) => { // Path: /base/processor/realtime-bpm-processor.js
-                const processor = await createRealTimeBpmProcessor(audioContext);
-                expect(processor).to.be.instanceOf(AudioWorkletNode);
-                await audioContext.close();
-                done();
-            });
+            // Path: /base/processor/realtime-bpm-processor.js
+            const audioContext = new AudioContext();
+            const processor = await createRealTimeBpmProcessor(audioContext);
+            expect(processor).to.be.instanceOf(AudioWorkletNode);
+            await audioContext.close();
         });
 
-        it('should create the biquad filters', function(done: Mocha.Done) {
+        it('should create the biquad filters', async function() {
             this.timeout(30 * 1000);
-            askUserGesture(async (audioContext: AudioContext) => {
-                const {lowpass, highpass} = await getBiquadFilters(audioContext);
-                expect(lowpass).to.be.instanceOf(BiquadFilterNode);
-                expect(highpass).to.be.instanceOf(BiquadFilterNode);
-                await audioContext.close();
-                done();
-            });
+            const audioContext = new AudioContext();
+            const {lowpass, highpass} = await getBiquadFilters(audioContext);
+            expect(lowpass).to.be.instanceOf(BiquadFilterNode);
+            expect(highpass).to.be.instanceOf(BiquadFilterNode);
+            await audioContext.close();
         });
     });
 };

@@ -1,6 +1,5 @@
 import {expect} from 'chai';
 import {analyzeFullBuffer} from '../../src/analyzer';
-import type {Tempo} from '../../src/types';
 import {readChannelData} from '../utils';
 
 import {data as assertIntervals} from '../fixtures/bass-test-intervals';

@@ -20,6 +20,12 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
       included: false,
       served: true,
       nocache: false,
+    }, {
+      pattern: 'tests/datasets/*',
+      watched: false,
+      included: false,
+      served: true,
+      nocache: false,
     }],
 
     // List of files / patterns to exclude

@@ -1,7 +1,6 @@
 import {expect} from 'chai';
 import {createRealTimeBpmProcessor, analyzeFullBuffer, getBiquadFilters} from '../../src/index';
 import { askUserGesture } from '../utils';
-import {realtimeBpmProcessorName} from '../../src/consts';
 
 /**
  * Unit test for the RealTime BPM Analyzer

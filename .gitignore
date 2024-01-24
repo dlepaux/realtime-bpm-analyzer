@@ -1,16 +1,8 @@
-# Vendors
-node_modules
-
-# Coverage
-coverage
-
-# Documentation
-dist
-docs
-
-# Others
 .next
 *.DS_Store
-
-# Datasets
-tests/datasets
+coverage
+dist
+docs
+node_modules
+testing/datasets
+testing/manifest.json

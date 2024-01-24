@@ -1,5 +1,3 @@
-// Karma configuration
-// Generated on Fri Feb 10 2023 04:59:26 GMT+0100 (Central European Standard Time)
 module.exports = config => { // eslint-disable-line unicorn/prefer-module
   config.set({
     // Base path that will be used to resolve all patterns (eg. files, exclude)
@@ -20,17 +18,10 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
       included: false,
       served: true,
       nocache: false,
-    }, {
-      pattern: 'tests/datasets/*',
-      watched: false,
-      included: false,
-      served: true,
-      nocache: false,
     }],
 
     // List of files / patterns to exclude
-    exclude: [
-    ],
+    exclude: [],
 
     // Preprocess matching files before serving them to the browser
     // available preprocessors: https://www.npmjs.com/search?q=keywords:karma-preprocessor
@@ -43,6 +34,9 @@ module.exports = config => { // eslint-disable-line unicorn/prefer-module
       bundle: true,
       sourcemap: true,
       singleBundle: false,
+      minify: true,
+      metafile: true,
+      platform: 'browser',
     },
 
     // Test results reporter to use

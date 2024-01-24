@@ -2,7 +2,7 @@
     "compilerOptions": {
         "target": "es6",
         "module": "commonjs",
-        "lib": ["dom", "dom.iterable", "es2017"],
+        "lib": ["dom", "dom.iterable", "es6"],
         "skipLibCheck": true,
         "declaration": true,
         "strict": true,
@@ -10,6 +10,6 @@
         "sourceMap": true,
         "types" : ["mocha"]
     },
-    "include": ["tests/**/*.ts", "types/*.ts", "src/*.ts", "processor/*.ts", "deploy/*.ts", "testing/tools/datasets.ts"],
+    "include": ["tests/**/*.ts", "testing/**/*.ts", "types/*.ts", "src/*.ts", "processor/*.ts", "deploy/*.ts", "testing/tools/datasets.ts"],
     "exclude": ["node_modules"]
 }

@@ -35,7 +35,8 @@
     "release:major": "bash bin/release/version major",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
     "testing": "NODE_ENV=test karma start karma.testing.js",
-    "test": "NODE_ENV=test karma start karma.test.js"
+    "test:karma": "NODE_ENV=test karma start karma.test.js",
+    "test": "web-test-runner --node-resolve"
   },
   "repository": {
     "type": "git",
@@ -44,19 +45,16 @@
   "devDependencies": {
     "@commitlint/cli": "^18.5.0",
     "@commitlint/config-conventional": "^18.5.0",
+    "@esm-bundle/chai": "^4.3.4-fix.0",
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
-    "chai": "^5.0.0",
+    "@web/dev-server-esbuild": "^1.0.1",
+    "@web/test-runner": "^0.18.0",
+    "chai": "^5.0.3",
     "codecov": "^3.8.3",
     "esbuild": "^0.19.12",
     "gh-pages": "^6.1.1",
     "husky": "^8.0.3",
-    "karma": "^6.4.2",
-    "karma-chrome-launcher": "^3.2.0",
-    "karma-coverage-istanbul-reporter": "^3.0.3",
-    "karma-esbuild": "^2.3.0",
-    "karma-mocha": "^2.0.1",
-    "karma-typescript": "^5.5.4",
     "mocha": "^10.2.0",
     "music-metadata": "^7.14.0",
     "standard-version": "^9.5.0",

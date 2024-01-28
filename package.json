@@ -47,6 +47,7 @@
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
     "@web/dev-server": "^0.4.1",
+    "@web/dev-server-esbuild": "^1.0.1",
     "@web/test-runner": "^0.18.0",
     "@web/test-runner-puppeteer": "^0.15.0",
     "chai": "^5.0.3",

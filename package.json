@@ -33,8 +33,7 @@
     "release:minor": "bash bin/release/version minor",
     "release:major": "bash bin/release/version major",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
-    "testing": "NODE_ENV=test karma start karma.testing.js",
-    "test:karma": "NODE_ENV=test karma start karma.test.js",
+    "testing": "web-dev-server --open /testing/ --node-resolve",
     "test": "web-test-runner --node-resolve"
   },
   "repository": {
@@ -46,6 +45,7 @@
     "@commitlint/config-conventional": "^18.5.0",
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
+    "@web/dev-server": "^0.4.1",
     "@web/test-runner": "^0.18.0",
     "@web/test-runner-puppeteer": "^0.15.0",
     "chai": "^5.0.3",

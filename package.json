@@ -29,9 +29,9 @@
     "lint": "xo",
     "lint:fix": "xo --fix",
     "prepare": "husky install",
-    "release:patch": "bash bin/release/version patch",
-    "release:minor": "bash bin/release/version minor",
-    "release:major": "bash bin/release/version major",
+    "release:patch": "bash bin/release/version.sh patch",
+    "release:minor": "bash bin/release/version.sh minor",
+    "release:major": "bash bin/release/version.sh major",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
     "testing": "web-dev-server --open /testing/ --node-resolve",
     "test": "web-test-runner --node-resolve"

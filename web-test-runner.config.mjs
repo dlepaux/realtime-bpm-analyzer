@@ -6,8 +6,8 @@ export default {
   browsers: [
     puppeteerLauncher({
       launchOptions: {
-        headless: false,
-        devtools: true,
+        headless: 'new',
+        devtools: false,
         args: [
           '--autoplay-policy=no-user-gesture-required',
         ],

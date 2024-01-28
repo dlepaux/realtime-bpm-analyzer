@@ -1,5 +1,7 @@
 #!bin/bash
 
+set -e
+
 if [ -z "$1" ]; then
   echo "\e[31mError: You need to provide the name of the project that is right next to this one\e[0m"
   exit 1

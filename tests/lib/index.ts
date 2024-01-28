@@ -11,17 +11,22 @@ describe('Index - Unit tests', () => {
 });
 
 describe('Index - Intergration tests', () => {
-  it('should create a realTimeBpmProcessor', async function () {
-    this.timeout(30 * 1000);
+  it('should create a valid AudioContext instance', async () => {
     const audioContext = new AudioContext();
-    console.log('audioContext', audioContext);
+    expect(audioContext).to.be.instanceOf(AudioContext);
+    await audioContext.close();
+  });
+
+  it('should create a realTimeBpmProcessor', async function () {
+    this.timeout(5000);
+    const audioContext = new AudioContext();
     const processor = await createRealTimeBpmProcessor(audioContext);
     expect(processor).to.be.instanceOf(AudioWorkletNode);
     await audioContext.close();
   });
 
   it('should create the biquad filters', async function () {
-    this.timeout(30 * 1000);
+    this.timeout(5000);
     const audioContext = new AudioContext();
     const {lowpass, highpass} = getBiquadFilters(audioContext);
     expect(lowpass).to.be.instanceOf(BiquadFilterNode);

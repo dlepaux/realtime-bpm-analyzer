@@ -1,19 +1,15 @@
 import {esbuildPlugin} from '@web/dev-server-esbuild';
-import {chromeLauncher} from '@web/test-runner-chrome';
+import {puppeteerLauncher} from '@web/test-runner-puppeteer';
 
 export default {
   files: ['tests/**/*.ts'],
   browsers: [
-    chromeLauncher({
+    puppeteerLauncher({
       launchOptions: {
         headless: false,
         devtools: true,
         args: [
           '--autoplay-policy=no-user-gesture-required',
-          '--disable-web-security',
-          // '--no-user-gesture-required',
-          // '--autoplay-policy=no-user-gesture-required',
-          // '--disable-web-security',
         ],
       },
     }),

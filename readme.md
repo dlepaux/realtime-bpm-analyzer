@@ -192,7 +192,7 @@ To test a whole dataset of audio files you have to drop those files into `testin
 
 You also need to build the library with `npm run build`.
 
-Once those steps are done you can run `npm run testing` to challenge the library against your dataset.
+Once those steps are done you can run `npm run testing` to challenge the library against your dataset. The [Local/Offline strategy](#localoffline-strategy) is used here.
 
 ### New features
 

@@ -70,16 +70,17 @@
       "window"
     ],
     "rules": {
-      "unicorn/no-array-reduce": "off",
       "n/prefer-global/process": "off",
       "node/prefer-global/process": 0,
-      "unicorn/numeric-separators-style": "off",
+      "no-await-in-loop": "off",
       "import/no-unassigned-import": "off",
       "import/no-anonymous-default-export": "off",
       "import/extensions": "off",
-      "no-await-in-loop": "off",
+      "unicorn/no-array-reduce": "off",
+      "unicorn/numeric-separators-style": "off",
+      "unicorn/prefer-top-level-await": "off",
       "@typescript-eslint/triple-slash-reference": "off",
-      "unicorn/prefer-top-level-await": "off"
+      "@typescript-eslint/no-loss-of-precision": "off"
     }
   },
   "lint-staged": {

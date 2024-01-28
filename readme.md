@@ -182,7 +182,7 @@ To run the unit tests you just have to run `npm test`.
 
 ### Dataset Testing
 
-To test a whole dataset of audio files you have to drop those files into `testing/datasets` and then run: `npm run testing:prepare` to create a manifest that contains the file name and the BPM (typically the verified one).
+To test a whole dataset of audio files you have to drop those files into `testing/datasets` and then run: `npm run testing:prepare` to create a manifest that contains the file name and the BPM (typically the verified one) from the metadata.
 
 ```json
 {

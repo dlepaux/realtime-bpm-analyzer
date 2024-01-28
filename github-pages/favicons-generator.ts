@@ -29,7 +29,7 @@ async function init() {
   }
 
   await promises.writeFile(join(dest, htmlBasename), response.html.join('\n'));
-  console.time('⚡ Favicons Generated ⚡');
+  console.timeEnd('⚡ Favicons Generated ⚡');
 }
 
 init().catch(error => {

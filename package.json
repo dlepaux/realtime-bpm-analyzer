@@ -45,10 +45,8 @@
   "devDependencies": {
     "@commitlint/cli": "^18.5.0",
     "@commitlint/config-conventional": "^18.5.0",
-    "@esm-bundle/chai": "^4.3.4-fix.0",
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
-    "@web/dev-server-esbuild": "^1.0.1",
     "@web/test-runner": "^0.18.0",
     "@web/test-runner-puppeteer": "^0.15.0",
     "chai": "^5.0.3",

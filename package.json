@@ -26,7 +26,6 @@
   "scripts": {
     "build": "bash bin/build/library.sh",
     "build:docs": "bash bin/build/github-pages.sh",
-    "deploy": "bash bin/deploy.sh",
     "lint": "xo",
     "lint:fix": "xo --fix",
     "prepare": "husky install",

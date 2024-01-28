@@ -1,7 +1,7 @@
 #!bin/bash
-
+set -e
 npm test
-npm run coverage
 npm run build
 npm publish
-npm run deploy
+
+bin/deploy.sh

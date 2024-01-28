@@ -25,7 +25,7 @@
   "module": "./dist/index.esm.js",
   "scripts": {
     "build": "bash bin/build/library.sh",
-    "build:docs": "bash bin/build/library.sh",
+    "build:docs": "bash bin/build/github-pages.sh",
     "lint": "xo",
     "lint:fix": "xo --fix",
     "prepare": "husky install",

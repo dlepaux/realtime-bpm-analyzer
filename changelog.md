@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.2.1...v3.3.0) (2024-01-28)
+
+
+### Features
+
+* **datasets:** add manifest generator for datasets ([dc927c5](https://github.com/dlepaux/realtime-bpm-analyzer/commit/dc927c50f7e3cb83077a1ad0b90dc7b82c6f5638))
+
 ### [3.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.2.0...v3.2.1) (2023-06-24)
 
 

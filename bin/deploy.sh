@@ -2,4 +2,4 @@
 
 rm -Rf docs
 npm run build:docs
-gh-pages -d docs -b gh-pages
+npx gh-pages -d docs -b gh-pages

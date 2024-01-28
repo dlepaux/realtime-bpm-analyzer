@@ -20,9 +20,8 @@ types
 build.ts
 changelog.md
 code-of-conduct.md
-codevoc.yml
+codecov.yml
 contributing.md
-licence.md
 tsconfig.json
 typedoc.json
 web-test-runner.config.mjs

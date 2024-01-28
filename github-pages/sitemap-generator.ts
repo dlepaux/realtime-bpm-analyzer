@@ -14,6 +14,8 @@ async function getRootFiles() {
 }
 
 async function main(): Promise<boolean> {
+  console.time('⚡ Sitemap Generated ⚡');
+
   const rootFiles = await getRootFiles();
   const rootPages = rootFiles.filter((name: string) => name.includes('.html'));
   const pages = rootPages;
@@ -32,6 +34,8 @@ async function main(): Promise<boolean> {
   </urlset>`;
 
   await promises.writeFile('docs/sitemap.xml', xml, 'utf8');
+
+  console.timeEnd('⚡ Sitemap Generated ⚡');
 
   return true;
 }

@@ -26,6 +26,7 @@
   "scripts": {
     "build": "bash bin/build/library.sh",
     "build:docs": "bash bin/build/github-pages.sh",
+    "deploy": "bash bin/deploy.sh",
     "lint": "xo",
     "lint:fix": "xo --fix",
     "prepare": "husky install",
@@ -50,6 +51,7 @@
     "@web/test-runner-puppeteer": "^0.15.0",
     "chai": "^5.0.3",
     "esbuild": "^0.19.12",
+    "favicons": "^7.1.5",
     "gh-pages": "^6.1.1",
     "husky": "^8.0.3",
     "mocha": "^10.2.0",

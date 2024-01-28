@@ -10,6 +10,6 @@
         "sourceMap": true,
         "types" : ["mocha"]
     },
-    "include": ["tests/**/*.ts", "testing/**/*.ts", "types/*.ts", "src/*.ts", "processor/*.ts", "deploy/*.ts", "testing/tools/datasets.ts"],
+    "include": ["tests/**/*.ts", "testing/**/*.ts", "github-pages/*.ts", "types/*.ts", "src/*.ts", "processor/*.ts"],
     "exclude": ["node_modules"]
 }

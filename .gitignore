@@ -3,6 +3,7 @@
 coverage
 dist
 docs
+github-pages/favicons
 node_modules
 testing/datasets
 testing/manifest.json

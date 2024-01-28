@@ -2,7 +2,7 @@
     "$schema": "https://typedoc.org/schema.json",
     "hideGenerator": true,
     "name": "Realtime BPM Analyzer",
-    "customCss": "./deploy/styles/global.css",
+    "customCss": "./github-pages/styles/global.css",
     "gaID": "G-S911G9WQTM",
     "navigationLinks": {
         "Github": "http://github.com/dlepaux/realtime-bpm-analyzer",

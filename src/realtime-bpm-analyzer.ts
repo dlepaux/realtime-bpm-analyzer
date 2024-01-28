@@ -71,8 +71,7 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Method to apply a configuration on the fly
-   * @param {RealtimeBpmAnalyzerAsyncOptions} key Key of the configuration in this.options
-   * @param {unknown} value The value you need to set
+   * @param {RealTimeBpmAnalyzerParameters} parameters Object containing optional parameters
    * @returns {void}
    */
   setAsyncConfiguration(parameters: RealTimeBpmAnalyzerParameters): void {

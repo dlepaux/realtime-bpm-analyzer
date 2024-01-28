@@ -26,7 +26,6 @@
   "scripts": {
     "build": "bash bin/build/library.sh",
     "build:docs": "bash bin/build/library.sh",
-    "coverage": "codecov -f coverage/lcov.info",
     "lint": "xo",
     "lint:fix": "xo --fix",
     "prepare": "husky install",
@@ -35,7 +34,8 @@
     "release:major": "bash bin/release/version major",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
     "testing": "NODE_ENV=test karma start karma.testing.js",
-    "test": "NODE_ENV=test karma start karma.test.js"
+    "test:karma": "NODE_ENV=test karma start karma.test.js",
+    "test": "web-test-runner --node-resolve"
   },
   "repository": {
     "type": "git",
@@ -46,17 +46,12 @@
     "@commitlint/config-conventional": "^18.5.0",
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
-    "chai": "^5.0.0",
-    "codecov": "^3.8.3",
+    "@web/test-runner": "^0.18.0",
+    "@web/test-runner-puppeteer": "^0.15.0",
+    "chai": "^5.0.3",
     "esbuild": "^0.19.12",
     "gh-pages": "^6.1.1",
     "husky": "^8.0.3",
-    "karma": "^6.4.2",
-    "karma-chrome-launcher": "^3.2.0",
-    "karma-coverage-istanbul-reporter": "^3.0.3",
-    "karma-esbuild": "^2.3.0",
-    "karma-mocha": "^2.0.1",
-    "karma-typescript": "^5.5.4",
     "mocha": "^10.2.0",
     "music-metadata": "^7.14.0",
     "standard-version": "^9.5.0",

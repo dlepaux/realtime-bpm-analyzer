@@ -71,8 +71,7 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Method to apply a configuration on the fly
-   * @param {RealtimeBpmAnalyzerAsyncOptions} key Key of the configuration in this.options
-   * @param {unknown} value The value you need to set
+   * @param {RealTimeBpmAnalyzerParameters} parameters Object containing optional parameters
    * @returns {void}
    */
   setAsyncConfiguration(parameters: RealTimeBpmAnalyzerParameters): void {
@@ -109,7 +108,7 @@ export class RealTimeBpmAnalyzer {
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
 
     await descendingOverThresholds(async threshold => {
-      if (threshold < minThreshold && typeof this.validPeaks[threshold] !== 'undefined') {
+      if (threshold < minThreshold && this.validPeaks[threshold] !== undefined) {
         delete this.validPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
         delete this.nextIndexPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
       }

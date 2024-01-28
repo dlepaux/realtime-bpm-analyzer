@@ -56,8 +56,6 @@ async function main() {
   console.timeEnd('⚡ Build complete! ⚡');
 }
 
-main().then(() => {
-  console.log('Done');
-}).catch(error => {
+main().catch(error => {
   console.error(error);
 });

@@ -20,9 +20,13 @@ Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScri
   - [Player strategy](#player-strategy)
   - [Continuous Analysis strategy](#continuous-analysis-strategy)
   - [Local/Offline strategy](#localoffline-strategy)
-- [Roadmap](#roadmap)
 - [Development](#development)
+  - [Unit Tests](#unit-tests)
+  - [Dataset Testing](#dataset-testing)
+  - [New features](#new-features)
+  - [Techincal Documentation](#technical-documentation)
 - [Tests & Coverage](#tests--coverage)
+- [Roadmap](#roadmap)
 - [Credits](#credits)
 
 ## Getting started
@@ -161,6 +165,43 @@ function onFileChange(event) {
 };
 ```
 
+## Development
+
+Realtime BPM Analyzer is using [Web Test Runner](https://modern-web.dev/docs/test-runner/overview/) to handle **Unit tests** and [Web Dev Server](https://modern-web.dev/docs/dev-server/overview/) to handle **Dataset testing**.
+
+You will first need to install the project following those commands:
+
+```bash
+npm install
+npm run prepare
+```
+
+### Unit Tests
+
+To run the unit tests you just have to run `npm test`.
+
+### Dataset Testing
+
+To test a whole dataset of audio files you have to drop those files into `testing/datasets` and then run: `npm run testing:prepare` to create a manifest that contains the file name and the BPM (typically the verified one) from the metadata.
+
+```json
+{
+  'my music file.mp3': 130
+}
+```
+
+You also need to build the library with `npm run build`.
+
+Once those steps are done you can run `npm run testing` to challenge the library against your dataset. The [Local/Offline strategy](#localoffline-strategy) is used here.
+
+### New features
+
+If you're developping a new feature and you wand to test in another project, you can run `bin/build/to-project allegro`. This command will build the library and copy the built atrifacts into the project `allegro` sitting next to this one. You will then be able to test a production like package.
+
+### Techincal Documentation
+
+[TypeDoc](https://www.npmjs.com/package/typedoc) is used to buid the technical documentation of realtime-bpm-analyzer. To build the documentation run: `npm run build:docs`;
+
 ## Roadmap
 
 - [ ] Add confidence level of Tempo
@@ -169,27 +210,6 @@ function onFileChange(event) {
 - [ ] Monitore memory usage
 
 Let us know what is your most wanted feature by opening [an issue](https://github.com/dlepaux/realtime-bpm-analyzer/issues).
-
-## Development
-
-The test suite is built on top of karma and is very practical to test new features. Before running tests switch the `singleRun` property of `karma.config.js` to leave the browser open after the tests.
-
-```bash
-npm install
-npm run prepare
-npm test
-```
-
-## Tests & Coverage
-
-To launch the test suite, just launch the command below:
-
-```bash
-open http://localhost:9876
-npm test
-```
-
-Note that tests requires real human gesture to be successfully run!
 
 ## Credits
 

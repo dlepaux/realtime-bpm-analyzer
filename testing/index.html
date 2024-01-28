@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <script type="module">
+            import * as realtimeBpm from '../dist/index.esm.js';
+
+            const audioContext = new OfflineAudioContext(2, 44100 * 40, 44100);
+            const response = await fetch('/testing/datasets/manifest.json');
+            const json = await response.json();
+
+            for (const fileName of Object.keys(json)) {
+                const bpm = json[fileName];
+                const response = await fetch(`/testing/datasets/${encodeURIComponent(fileName)}`);
+                const buffer = await response.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(buffer);
+                const tempo = await realtimeBpm.analyzeFullBuffer(audioBuffer);
+                console.log(tempo[0].tempo === bpm, 'The computed tempo is not matching');
+            }
+        </script>
+    </body>
+</html>

@@ -1,8 +1,0 @@
-User-agent: Googlebot
-Disallow: /nogooglebot/
-
-User-agent: *
-Allow: /
-Allow: /*
-
-Sitemap: https://www.realtime-bpm-analyzer.com/sitemap.xml

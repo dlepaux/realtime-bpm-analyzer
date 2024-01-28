@@ -2,22 +2,14 @@
     "compilerOptions": {
         "target": "es6",
         "module": "commonjs",
-        "lib": [
-            "dom",
-            "dom.iterable",
-            "es2017"
-        ],
+        "lib": ["dom", "dom.iterable", "es6"],
         "skipLibCheck": true,
         "declaration": true,
         "strict": true,
         "moduleResolution": "node",
         "sourceMap": true,
-        "types" : [
-            "mocha"
-        ]
+        "types" : ["mocha"]
     },
-    "include": ["tests/**/*.ts", "types/*.ts", "src/*.ts", "processor/*.ts", "deploy/*.ts"],
-    "exclude": [
-        "node_modules"
-    ]
+    "include": ["tests/**/*.ts", "testing/**/*.ts", "github-pages/*.ts", "types/*.ts", "src/*.ts", "processor/*.ts"],
+    "exclude": ["node_modules"]
 }

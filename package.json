@@ -33,8 +33,8 @@
     "release:minor": "bash bin/release/version.sh minor",
     "release:major": "bash bin/release/version.sh major",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
-    "testing": "web-dev-server --open /testing/ --node-resolve",
-    "test": "web-test-runner --node-resolve"
+    "testing": "web-dev-server",
+    "test": "web-test-runner"
   },
   "repository": {
     "type": "git",

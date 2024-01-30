@@ -9,12 +9,9 @@ function calculateMae(audioFiles: AudioFile[]): number {
 
   for (const file of audioFiles) {
     const errors = file.tempos.map(candidate => Math.abs(file.bpm - candidate.tempo));
-    console.log('errors', errors);
     totalError += Math.min(...errors); // Consider the minimum error among candidates
   }
 
-  console.log('totalError', totalError);
-  console.log('audioFiles.length', audioFiles.length);
   return totalError / audioFiles.length;
 }
 

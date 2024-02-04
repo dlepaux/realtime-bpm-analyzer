@@ -46,6 +46,7 @@ To learn more about how to use the library, you can check out [the documentation
 - Can be used to analyze **audio or video** nodes, streams as well as **files**.
 - Allows you to compute the BPM while the audio or video is playing.
 - Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
+- Supports MP3, FLAC and WAV formats.
 
 ## Usages
 
@@ -102,7 +103,10 @@ Thank you [IbizaSonica](http://ibizasonica.com) for the stream.
 ```javascript
 import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
 
-const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext, {
+  continuousAnalysis: true,
+  stabilizationTime: 20_000, // Default value is 20_000ms after what the library will automatically delete all collected data and restart analyzing BPM
+});
 
 // Set the source with the HTML Audio Node
 const track = document.getElementById('track');
@@ -111,15 +115,6 @@ const source = audioContext.createMediaElementSource(track);
 // Connect nodes together
 source.connect(realtimeAnalyzerNode);
 source.connect(audioContext.destination);
-
-// Enable the continuous feature
-realtimeAnalyzerNode.port.postMessage({
-  message: 'ASYNC_CONFIGURATION',
-  parameters: {
-    continuousAnalysis: true,
-    stabilizationTime: 20_000, // Default value is 20_000ms after what the library will automatically delete all collected data and restart analyzing BPM
-  }
-})
 
 realtimeAnalyzerNode.port.onmessage = (event) => {
   if (event.data.message === 'BPM') {
@@ -142,7 +137,7 @@ import * as realtimeBpm from 'realtime-bpm-analyzer';
 
 2. Use an `input[type=file]` to get the files you want.
 ```jsx
-<input type="file" accept="wav,mp3" onChange={event => this.onFileChange(event)}/>
+<input type="file" accept="wav,mp3,flac" onChange={event => this.onFileChange(event)}/>
 ```
 
 3. You can listen to the `change` event like so, and analyze the BPM of the selected files. You don't need to be connected to the Internet for this to work.

@@ -38,7 +38,7 @@ async function main(): Promise<boolean> {
   }
 
   const outdatedDefinitions = definitonPaths.filter(definiton => !pages.includes(definiton));
-  if (missingDefinitions.length > 0) {
+  if (outdatedDefinitions.length > 0) {
     console.error(outdatedDefinitions);
     throw new Error('[warning] There is outdated definitions, fix them before continuing.');
   }

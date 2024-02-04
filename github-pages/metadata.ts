@@ -26,8 +26,8 @@ export const data: Array<{path: string; title: string; description: string}> = [
     description: 'Create an audio worklet and compute BPM in realtime from a stream or a microphone',
   },
   {
-    path: 'functions/getBiquadFilters.html',
-    title: 'Function getBiquadFilters',
+    path: 'functions/getBiquadFilter.html',
+    title: 'Function getBiquadFilter',
     description: 'this handy function will permits you to create low and high filters easily.',
   },
   {
@@ -41,9 +41,9 @@ export const data: Array<{path: string; title: string; description: string}> = [
     description: 'RealTimeBpmAnalyzer AnalyzeChunkEvent Type',
   },
   {
-    path: 'types/AnalyzeChunkEventData.html',
-    title: 'Type AnalyzeChunkEventData',
-    description: 'RealTimeBpmAnalyzer AnalyzeChunkEventData Type',
+    path: 'types/AnalyzeChunkEventMessage.html',
+    title: 'Type AnalyzeChunkEventMessage',
+    description: 'RealTimeBpmAnalyzer AnalyzeChunkEventMessage Type',
   },
   {
     path: 'types/AnalyzerResetedEvent.html',
@@ -51,9 +51,9 @@ export const data: Array<{path: string; title: string; description: string}> = [
     description: 'RealTimeBpmAnalyzer AnalyzerResetedEvent Type',
   },
   {
-    path: 'types/AnalyzerResetedEventData.html',
-    title: 'Type AnalyzerResetedEventData',
-    description: 'RealTimeBpmAnalyzer AnalyzerResetedEventData Type',
+    path: 'types/AnalyzerResetedEventMessage.html',
+    title: 'Type AnalyzerResetedEventMessage',
+    description: 'RealTimeBpmAnalyzer AnalyzerResetedEventMessage Type',
   },
   {
     path: 'types/RealtimeBpmAnalyzerEvents.html',
@@ -76,9 +76,29 @@ export const data: Array<{path: string; title: string; description: string}> = [
     description: 'RealTimeBpmAnalyzer BpmEvent Type',
   },
   {
-    path: 'types/BpmEventData.html',
-    title: 'Type BpmEventData',
-    description: 'RealTimeBpmAnalyzer BpmEventData Type',
+    path: 'types/BpmEventMessage.html',
+    title: 'Type BpmEventMessage',
+    description: 'RealTimeBpmAnalyzer BpmEventMessage Type',
+  },
+  {
+    path: 'types/DebugEvent.html',
+    title: 'Type DebugEvent',
+    description: 'RealTimeBpmAnalyzer DebugEvent Type',
+  },
+  {
+    path: 'types/DebugEventDataMessage.html',
+    title: 'Type DebugEventDataMessage',
+    description: 'RealTimeBpmAnalyzer DebugEventDataMessage Type',
+  },
+  {
+    path: 'types/EventBuilder.html',
+    title: 'Type EventBuilder',
+    description: 'RealTimeBpmAnalyzer EventBuilder Type',
+  },
+  {
+    path: 'types/EventMessageBuilder.html',
+    title: 'Type EventMessageBuilder',
+    description: 'RealTimeBpmAnalyzer EventMessageBuilder Type',
   },
   {
     path: 'types/Group.html',
@@ -116,9 +136,9 @@ export const data: Array<{path: string; title: string; description: string}> = [
     description: 'RealTimeBpmAnalyzer PeaksAndThreshold Type',
   },
   {
-    path: 'types/PostMessageEventData.html',
-    title: 'Type PostMessageEventData',
-    description: 'RealTimeBpmAnalyzer PostMessageEventData Type',
+    path: 'types/PostMessageEvents.html',
+    title: 'Type PostMessageEvents',
+    description: 'RealTimeBpmAnalyzer PostMessageEvents Type',
   },
   {
     path: 'types/RealTimeBpmAnalyzerOptions.html',
@@ -131,14 +151,14 @@ export const data: Array<{path: string; title: string; description: string}> = [
     description: 'RealTimeBpmAnalyzer RealTimeBpmAnalyzerParameters Type',
   },
   {
-    path: 'types/ResetEventData.html',
-    title: 'Type ResetEventData',
-    description: 'RealTimeBpmAnalyzer ResetEventData Type',
+    path: 'types/ResetEvent.html',
+    title: 'Type ResetEvent',
+    description: 'RealTimeBpmAnalyzer ResetEvent Type',
   },
   {
-    path: 'types/StopEventData.html',
-    title: 'Type StopEventData',
-    description: 'RealTimeBpmAnalyzer StopEventData Type',
+    path: 'types/StopEvent.html',
+    title: 'Type StopEvent',
+    description: 'RealTimeBpmAnalyzer StopEvent Type',
   },
   {
     path: 'types/Tempo.html',
@@ -161,8 +181,8 @@ export const data: Array<{path: string; title: string; description: string}> = [
     description: 'RealTimeBpmAnalyzer ValidPeakEvent Type',
   },
   {
-    path: 'types/ValidPeakEventData.html',
-    title: 'Type ValidPeakEventData',
-    description: 'RealTimeBpmAnalyzer ValidPeakEventData Type',
+    path: 'types/ValidPeakEventMessage.html',
+    title: 'Type ValidPeakEventMessage',
+    description: 'RealTimeBpmAnalyzer ValidPeakEventMessage Type',
   },
 ];

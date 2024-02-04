@@ -7,17 +7,17 @@ import type {
   Interval,
   Tempo,
   Threshold,
-  NormalizedFilters,
+  BiquadFilterOptions,
 } from './types';
 import * as consts from './consts';
 
 /**
  * Find peaks when the signal if greater than the threshold, then move 10_000 indexes (represents ~0.23s) to ignore the descending phase of the parabol
- * @param {Float32Array} data Buffer channel data
- * @param {number} threshold Threshold for qualifying as a peak
- * @param {number} offset Position where we start to loop
- * @param {number} skipForwardIndexes Numbers of index to skip when a peak is detected
- * @return {PeaksAndThreshold} Peaks found that are greater than the threshold
+ * @param data Buffer channel data
+ * @param threshold Threshold for qualifying as a peak
+ * @param offset Position where we start to loop
+ * @param skipForwardIndexes Numbers of index to skip when a peak is detected
+ * @returns Peaks found that are greater than the threshold
  */
 export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, offset = 0, skipForwardIndexes = consts.skipForwardIndexes): PeaksAndThreshold {
   const peaks: Peaks = [];
@@ -46,8 +46,8 @@ export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, o
 
 /**
  * Find the minimum amount of peaks from top to bottom threshold, it's necessary to analyze at least 10seconds at 90bpm
- * @param {Float32Array} channelData Channel data
- * @returns {Promise<PeaksAndThreshold>} Suffisent amount of peaks in order to continue further the process
+ * @param channelData Channel data
+ * @returns Suffisent amount of peaks in order to continue further the process
  */
 export async function findPeaks(channelData: Float32Array): Promise<PeaksAndThreshold> {
   let validPeaks: Peaks = [];
@@ -77,63 +77,57 @@ export async function findPeaks(channelData: Float32Array): Promise<PeaksAndThre
 
 /**
  * Helpfull function to create standard and shared lowpass and highpass filters
- * Important Note: The original library wasn't using properly the lowpass filter and it was not applied at all. This method should not be used unitl more research and documented tests will be acheived.
- * @param {AudioContext | OfflineAudioContext} context AudioContext instance
- * @returns {NormalizedFilters} Normalized biquad filters
+ * Important Note: The original library wasn't using properly the lowpass filter and it was not applied at all.
+ * This method should not be used unitl more research and documented tests will be acheived.
+ * @param context AudioContext instance
+ * @param options Optionnal BiquadFilterOptions
+ * @returns BiquadFilterNode
  */
-export function getBiquadFilters(context: AudioContext | OfflineAudioContext): NormalizedFilters {
+export function getBiquadFilter(context: OfflineAudioContext | AudioContext, options?: BiquadFilterOptions): BiquadFilterNode {
   const lowpass = context.createBiquadFilter();
   lowpass.type = 'lowpass';
-  lowpass.frequency.value = consts.offlineLowPassFrequencyValue;
-  lowpass.Q.value = consts.offlineLowPassQualityValue;
+  lowpass.frequency.value = options?.frequencyValue ?? consts.frequencyValue;
+  lowpass.Q.value = options?.qualityValue ?? consts.qualityValue;
 
-  const highpass = context.createBiquadFilter();
-  highpass.type = 'highpass';
-  highpass.frequency.value = consts.offlineHighPassFrequencyValue;
-  highpass.Q.value = consts.offlineHighPassQualityValue;
-
-  return {
-    lowpass,
-    highpass,
-  };
+  return lowpass;
 }
 
 /**
  * Apply to the source a biquad lowpass filter
- * @param {AudioBuffer} buffer Audio buffer
- * @returns {AudioBufferSourceNode}
+ * @param buffer Audio buffer
+ * @param options Optionnal BiquadFilterOptions
+ * @returns A Promise that resolves an AudioBuffer instance
  */
-// export async function getOfflineLowPassSource(buffer: AudioBuffer): Promise<AudioBuffer> {
-//   const {length, numberOfChannels, sampleRate} = buffer;
-//   const context = new OfflineAudioContext(numberOfChannels, length, sampleRate);
+export async function getOfflineLowPassSource(buffer: AudioBuffer, options?: BiquadFilterOptions): Promise<AudioBuffer> {
+  const {length, numberOfChannels, sampleRate} = buffer;
+  const offlineAudioContext = new OfflineAudioContext(numberOfChannels, length, sampleRate);
 
-//   /**
-//    * Create buffer source
-//    */
-//   const source = context.createBufferSource();
-//   source.buffer = buffer;
+  /**
+   * Create buffer source
+   */
+  const source = offlineAudioContext.createBufferSource();
+  source.buffer = buffer;
 
-//   const {lowpass, highpass} = getBiquadFilters(context);
+  const lowpass = getBiquadFilter(offlineAudioContext, options);
 
-//   /**
-//    * Pipe the song into the filter, and the filter into the offline context
-//    */
-//   source.connect(lowpass);
-//   source.connect(highpass);
-//   lowpass.connect(highpass);
-//   highpass.connect(context.destination);
+  /**
+   * Pipe the song into the filter, and the filter into the offline context
+   */
+  source.connect(lowpass);
+  lowpass.connect(offlineAudioContext.destination);
 
-//   source.start(0);
+  source.start(0);
 
-//   const audioBuffer = await context.startRendering();
+  const audioBuffer = await offlineAudioContext.startRendering();
 
-//   return audioBuffer;
-// }
+  return audioBuffer;
+}
 
 /**
  * Return the computed bpm from data
- * @param {Record<string, number[]>} data Contain valid peaks
- * @param {number} audioSampleRate Audio sample rate
+ * @param data Contain valid peaks
+ * @param audioSampleRate Audio sample rate
+ * @returns A Promise that resolves BPM Candidates
  */
 export async function computeBpm(data: ValidPeaks, audioSampleRate: number): Promise<BpmCandidates> {
   const minPeaks = consts.minPeaks;
@@ -178,9 +172,9 @@ export async function computeBpm(data: ValidPeaks, audioSampleRate: number): Pro
 
 /**
  * Sort results by count and return top candidate
- * @param {Tempo[]} candidates (BPMs) with count
- * @param {number} length Amount of returned candidates (default: 5)
- * @return {Tempo[]} Returns the 5 top candidates with highest counts
+ * @param candidates BPMs with count
+ * @param length Amount of returned candidates (default: 5)
+ * @returns Returns the 5 top candidates with highest counts
  */
 export function getTopCandidates(candidates: Tempo[], length = 5): Tempo[] {
   return candidates.sort((a, b) => (b.count - a.count)).splice(0, length);
@@ -188,8 +182,8 @@ export function getTopCandidates(candidates: Tempo[], length = 5): Tempo[] {
 
 /**
  * Gets the top candidate from the array
- * @param {Tempo[]} candidates - (BPMs) with counts.
- * @returns {number} - Returns the top candidate with the highest count.
+ * @param candidates BPMs with counts.
+ * @returns Returns the top candidate with the highest count.
  */
 export function getTopCandidate(candidates: Tempo[]): number {
   if (candidates.length === 0) {
@@ -203,8 +197,8 @@ export function getTopCandidate(candidates: Tempo[]): number {
 
 /**
  * Identify intervals between bass peaks
- * @param {array} peaks Array of qualified bass peaks
- * @return {array} Return a collection of intervals between peaks
+ * @param peaks Array of qualified bass peaks
+ * @returns Return a collection of intervals between peaks
  */
 export function identifyIntervals(peaks: Peaks): Interval[] {
   const intervals: Interval[] = [];
@@ -245,9 +239,9 @@ export function identifyIntervals(peaks: Peaks): Interval[] {
 
 /**
  * Figure out best possible tempo candidates
- * @param  {number} audioSampleRate Audio sample rate
- * @param  {Interval[]} intervalCounts List of identified intervals
- * @return {Tempo[]} Intervals grouped with similar values
+ * @param audioSampleRate Audio sample rate
+ * @param intervalCounts List of identified intervals
+ * @returns Intervals grouped with similar values
  */
 export function groupByTempo(audioSampleRate: number, intervalCounts: Interval[]): Tempo[] {
   const tempoCounts: Tempo[] = [];
@@ -315,16 +309,17 @@ export function groupByTempo(audioSampleRate: number, intervalCounts: Interval[]
 /**
  * Function to detect the BPM from an AudioBuffer (which can be a whole file)
  * It is the fastest way to detect the BPM
- * @param {AudioBuffer} buffer AudioBuffer
- * @returns {Promise<Tempo[]>} Returns the 5 bests candidates
+ * @param originalBuffer AudioBuffer
+ * @param options BiquadFilterOptions
+ * @returns Returns the best candidates
  */
-export async function analyzeFullBuffer(buffer: AudioBuffer): Promise<Tempo[]> {
+export async function analyzeFullBuffer(originalBuffer: AudioBuffer, options?: BiquadFilterOptions): Promise<Tempo[]> {
+  const buffer = await getOfflineLowPassSource(originalBuffer, options);
   const channelData = buffer.getChannelData(0);
-
   const {peaks} = await findPeaks(channelData);
   const intervals = identifyIntervals(peaks);
   const tempos = groupByTempo(buffer.sampleRate, intervals);
-  const topCandidates = getTopCandidates(tempos, channelData.length);
+  const topCandidates = getTopCandidates(tempos);
 
   return topCandidates;
 }

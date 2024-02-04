@@ -25,3 +25,4 @@ contributing.md
 tsconfig.json
 typedoc.json
 web-test-runner.config.mjs
+web-dev-server.config.mjs

@@ -197,7 +197,7 @@ Once those steps are done you can run `npm run testing` to challenge the library
 
 ### New features
 
-If you're developing a new feature and you want to test it in another project, you can run `bin/build/to-project allegro`. This command will build the library and copy the built artifacts into the project `allegro` sitting next to this one. You will then be able to test a production-like package.
+If you're developing a new feature and you want to test it in another project, you can run `bin/build/to-project.sh nameOfTheProject`. This command will create package with `npm pack` and copy it into the target project `nameOfTheProject` sitting next to this one. You will then be able to test a production-like package.
 
 ### Technical Documentation
 

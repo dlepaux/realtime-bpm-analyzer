@@ -1,7 +1,7 @@
 import {realtimeBpmProcessorName} from '../src/consts';
 import {chunckAggregator} from '../src/utils';
 import {RealTimeBpmAnalyzer} from '../src/realtime-bpm-analyzer';
-import type {AsyncConfigurationEvent, AggregateData} from '../src/types';
+import type {RealtimeBpmAnalyzerEvents, AggregateData, RealTimeBpmAnalyzerParameters, PostMessageEvents} from '../src/types';
 
 /**
  * Those declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.
@@ -10,12 +10,23 @@ import type {AsyncConfigurationEvent, AggregateData} from '../src/types';
 declare var sampleRate: number;
 
 interface AudioWorkletProcessor {
-  readonly port: MessagePort;
+  readonly port: AuthorizedMessagePort;
 }
+
+// Define a type for a message port that only accepts specific message types
+interface AuthorizedMessagePort extends MessagePort {
+  postMessage(message: PostMessageEvents): void;
+}
+
+type AudioWorkletProcessorParameters = {
+  numberOfInputs: number;
+  numberOfOutputs: number;
+  processorOptions: RealTimeBpmAnalyzerParameters;
+};
 
 declare var AudioWorkletProcessor: {
   prototype: AudioWorkletProcessor;
-  new(): AudioWorkletProcessor;
+  new(options?: AudioWorkletProcessorParameters): AudioWorkletProcessor;
 };
 
 interface AudioWorkletProcessorImpl extends AudioWorkletProcessor {
@@ -48,19 +59,16 @@ interface AudioWorkletProcessorConstructor {
 declare function registerProcessor(name: string, processorCtor: AudioWorkletProcessorConstructor): void;
 /* eslint-enable no-var, @typescript-eslint/prefer-function-type, @typescript-eslint/no-empty-interface, @typescript-eslint/consistent-type-definitions, @typescript-eslint/no-redeclare, @typescript-eslint/naming-convention */
 
-/**
- * @class RealTimeBpmProcessor
- * @extends AudioWorkletProcessor
- **/
 export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   aggregate: (pcmData: Float32Array) => AggregateData;
-  realTimeBpmAnalyzer: RealTimeBpmAnalyzer = new RealTimeBpmAnalyzer();
+  realTimeBpmAnalyzer: RealTimeBpmAnalyzer;
   stopped = false;
 
-  constructor() {
-    super();
+  constructor(options: AudioWorkletProcessorParameters) {
+    super(options);
 
     this.aggregate = chunckAggregator();
+    this.realTimeBpmAnalyzer = new RealTimeBpmAnalyzer(options.processorOptions);
 
     this.port.addEventListener('message', this.onMessage.bind(this));
     this.port.start();
@@ -68,16 +76,9 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
   /**
    * Handle message event
-   * @param {object} event Contain event data from main process
-   * @returns {void}
+   * @param event Contain event data from main process
    */
-  onMessage(event: AsyncConfigurationEvent): void {
-    // Handle custom event ASYNC_CONFIGURATION, to set configuration asynchronously
-    if (event.data.message === 'ASYNC_CONFIGURATION') {
-      console.log('[processor.onMessage] ASYNC_CONFIGURATION');
-      this.realTimeBpmAnalyzer.setAsyncConfiguration(event.data.parameters);
-    }
-
+  onMessage(event: RealtimeBpmAnalyzerEvents): void {
     // Handle custom event RESET
     if (event.data.message === 'RESET') {
       console.log('[processor.onMessage] RESET');
@@ -96,10 +97,10 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
   /**
    * Process function to handle chunks of data
-   * @param {Float32Array[][]} inputs Inputs (the data we need to process)
-   * @param {Float32Array[][]} _outputs Outputs (not useful for now)
-   * @param {Record<string, Float32Array>} _parameters Parameters
-   * @returns {boolean} Process ended successfully
+   * @param inputs Inputs (the data we need to process)
+   * @param _outputs Outputs (not useful for now)
+   * @param _parameters Parameters
+   * @returns Process ended successfully
    */
   process(inputs: Float32Array[][], _outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
     const currentChunk = inputs[0][0];

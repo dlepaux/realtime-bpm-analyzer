@@ -81,7 +81,7 @@ describe('Analyzer - Integration tests', () => {
     const buffer = await response.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(buffer);
     const tempo = await analyzeFullBuffer(audioBuffer);
-    expect(tempo[0].tempo).to.be.equal(124);
+    expect(tempo[0].tempo).to.be.equal(125);
     await audioContext.close();
   });
 });

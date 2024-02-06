@@ -200,13 +200,13 @@ If you're developing a new feature and you want to test it in another project, y
 
 ## Commercial Usage
 
-This library is distributed under the terms of the GNU General Public License (GPLv3), which allows free and open use by the community. However, if you are interested in using this library in a commercial context or require a commercial license, please feel free to contact me.
+This library is distributed under the terms of the Apache License, Version 2.0. However, if you are interested in using this library in a commercial context or require a commercial license, please feel free to contact me.
 
 For inquiries regarding commercial usage, licensing options, or any other questions, please contact me:
-
+```
 David Lepaux
-[d.lepaux@gmail.com](d.lepaux@gmail.com)
-
+d.lepaux@gmail.com
+```
 I am open to discussing custom licensing arrangements to meet your specific needs and ensure that you can use this library in your commercial projects with confidence.
 
 ## Roadmap

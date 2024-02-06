@@ -64,7 +64,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   realTimeBpmAnalyzer: RealTimeBpmAnalyzer;
   stopped = false;
 
-  // TODO: Rehabilitation of lowpass source here
   constructor(options: AudioWorkletProcessorParameters) {
     super(options);
 

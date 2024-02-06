@@ -72,9 +72,10 @@ const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
 // Set the source with the HTML Audio Node
 const track = document.getElementById('track');
 const source = audioContext.createMediaElementSource(track);
+const lowpass = getBiquadFilter(audioContext);
 
 // Connect nodes together
-source.connect(realtimeAnalyzerNode);
+source.connect(lowpass).connect(realtimeAnalyzerNode);
 source.connect(audioContext.destination);
 
 realtimeAnalyzerNode.port.onmessage = (event) => {
@@ -101,7 +102,7 @@ Thank you [IbizaSonica](http://ibizasonica.com) for the stream.
 
 2. As for the [Player strategy](#player-strategy), except that we need to turn on the `continuousAnalysis` flag to periodically delete collected data.
 ```javascript
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
 
 const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext, {
   continuousAnalysis: true,
@@ -111,9 +112,10 @@ const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext, {
 // Set the source with the HTML Audio Node
 const track = document.getElementById('track');
 const source = audioContext.createMediaElementSource(track);
+const lowpass = getBiquadFilter(audioContext);
 
 // Connect nodes together
-source.connect(realtimeAnalyzerNode);
+source.connect(lowpass).connect(realtimeAnalyzerNode);
 source.connect(audioContext.destination);
 
 realtimeAnalyzerNode.port.onmessage = (event) => {
@@ -182,7 +184,7 @@ To test a whole dataset of audio files you have to drop those files into `testin
 
 ```json
 {
-  'my music file.mp3': 130
+  "my music file.mp3": 130
 }
 ```
 

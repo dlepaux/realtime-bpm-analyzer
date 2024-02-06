@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.0.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.3.0...v4.0.0) (2024-02-06)
+
+
+### Features
+
+* **testing-tools:** add testing tools to challenge bpm accuracy ([1899296](https://github.com/dlepaux/realtime-bpm-analyzer/commit/1899296531b32598c62935adc23cdf8de8c27f4f))
+* **testing-tools:** cleanup logs ([6ff5615](https://github.com/dlepaux/realtime-bpm-analyzer/commit/6ff5615e87eadef685cb190653a0753e83a62b7b))
+
 ## [3.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v3.2.1...v3.3.0) (2024-01-28)
 
 

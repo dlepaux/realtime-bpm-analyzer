@@ -4,7 +4,6 @@ import type {Manifest} from './types';
 
 /**
  * Testing the lowpass filter from 50 Hz to 500 Hz
- * @returns An empty Promise
  */
 async function setup(): Promise<void> {
   const allLogs: Record<number, {mae: number; rmse: number; accuracy: number}> = {};

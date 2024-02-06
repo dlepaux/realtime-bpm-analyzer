@@ -85,7 +85,6 @@ export class RealTimeBpmAnalyzer {
   /**
    * Remve all validPeaks between the minThreshold pass in param to optimize the weight of datas
    * @param minThreshold Value between 0.9 and 0.2
-   * @returns An empty Promise
    */
   async clearValidPeaks(minThreshold: Threshold): Promise<void> {
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
@@ -106,7 +105,6 @@ export class RealTimeBpmAnalyzer {
    * @param audioSampleRate Audio sample rate (44100)
    * @param bufferSize Buffer size (4096)
    * @param postMessage Function to post a message to the processor node
-   * @returns An empty Promise
    */
   async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (message: PostMessageEvents) => void): Promise<void> {
     if (this.options.debug) {
@@ -167,7 +165,6 @@ export class RealTimeBpmAnalyzer {
    * @param currentMinIndex Current minimum index
    * @param currentMaxIndex Current maximum index
    * @param postMessage Function to post a message to the processor node
-   * @returns An empty Promise
    */
   async findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number, postMessage: (data: PostMessageEvents) => void): Promise<void> {
     await descendingOverThresholds(async threshold => {

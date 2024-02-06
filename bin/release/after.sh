@@ -4,4 +4,4 @@ npm test
 npm run build
 npm publish
 
-bin/deploy.sh
+bash bin/deploy.sh

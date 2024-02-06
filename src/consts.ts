@@ -4,8 +4,6 @@ export const minValidThreshold = 0.2;
 export const minPeaks = 15;
 export const thresholdStep = 0.05;
 export const skipForwardIndexes = 10000;
-export const offlineLowPassFrequencyValue = 150;
-export const offlineLowPassQualityValue = 1;
-export const offlineHighPassFrequencyValue = 100;
-export const offlineHighPassQualityValue = 1;
+export const frequencyValue = 200;
+export const qualityValue = 1;
 

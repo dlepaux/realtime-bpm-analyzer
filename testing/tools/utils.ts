@@ -1,5 +1,6 @@
 import * as realtimeBpm from '../../src/index';
 import type {Manifest, Closure, AudioFile} from '../types';
+import type {BiquadFilterOptions} from '../../src/types';
 
 /**
  * Batch an array of closure that triggers a Promise
@@ -30,13 +31,15 @@ export async function batchPromises(closures: Array<Closure<AudioFile>>, batchSi
  * @param audioContext
  * @returns
  */
-export function buildPromises(manifest: Manifest, audioContext: AudioContext | OfflineAudioContext): Array<Closure<AudioFile>> {
+export function buildPromises(manifest: Manifest, options?: BiquadFilterOptions): Array<Closure<AudioFile>> {
+  const audioContext = new AudioContext();
+
   return Object.keys(manifest).map(filename => async () => {
     const bpm = manifest[filename];
     const response = await fetch(`/testing/datasets/${encodeURIComponent(filename)}`);
     const buffer = await response.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(buffer);
-    const tempos = await realtimeBpm.analyzeFullBuffer(audioBuffer);
+    const tempos = await realtimeBpm.analyzeFullBuffer(audioBuffer, options);
 
     const audioFile: AudioFile = {
       filename,

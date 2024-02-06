@@ -1,3 +1,41 @@
+/**
+ * Events
+ */
+export type EventBuilder<S extends string, T = undefined> = T extends undefined
+  ? {message: S}
+  : {message: S; data: T};
+export type EventMessageBuilder<T> = {
+  data: T;
+};
+
+export type AnalyzeChunkEvent = EventBuilder<'ANALYZE_CHUNK', Float32Array>;
+export type AnalyzeChunkEventMessage = EventMessageBuilder<AnalyzeChunkEvent>;
+
+export type ValidPeakEvent = EventBuilder<'VALID_PEAK', {threshold: Threshold; index: number}>;
+export type ValidPeakEventMessage = EventMessageBuilder<ValidPeakEvent>;
+
+export type DebugEvent = EventBuilder<'DEBUG', unknown>;
+export type DebugEventDataMessage = EventMessageBuilder<DebugEvent>;
+
+export type BpmEvent = EventBuilder<'BPM' | 'BPM_STABLE', BpmCandidates>;
+export type BpmEventMessage = EventMessageBuilder<BpmEvent>;
+
+export type AnalyzerResetedEvent = EventBuilder<'ANALYZER_RESETED'>;
+export type AnalyzerResetedEventMessage = EventMessageBuilder<AnalyzerResetedEvent>;
+
+export type ResetEvent = EventBuilder<'RESET'>;
+
+export type StopEvent = EventBuilder<'STOP'>;
+
+export type RealtimeBpmAnalyzerEvents = {
+  data: ResetEvent | StopEvent;
+};
+
+export type PostMessageEvents = BpmEvent | AnalyzerResetedEvent | AnalyzeChunkEvent | ValidPeakEvent | DebugEvent;
+
+/**
+ * Analyzer Types
+ */
 export type Threshold = number;
 
 export type Peaks = number[];
@@ -12,69 +50,6 @@ export type BpmCandidates = {
   threshold: Threshold;
 };
 
-/**
- * Events
- */
-export type AnalyzeChunkEventData = {
-  message: 'ANALYZE_CHUNK';
-  data: Float32Array;
-};
-
-export type AnalyzeChunkEvent = {
-  data: AnalyzeChunkEventData;
-};
-
-export type ValidPeakEventData = {
-  message: 'VALID_PEAK';
-  data: {
-    threshold: number;
-    index: number;
-  };
-};
-
-export type ValidPeakEvent = {
-  data: ValidPeakEventData;
-};
-
-export type BpmEventData = {
-  message: 'BPM' | 'BPM_STABLE';
-  result: BpmCandidates;
-};
-
-export type BpmEvent = {
-  data: BpmEventData;
-};
-
-export type AsyncConfigurationEventData = {
-  message: 'ASYNC_CONFIGURATION';
-  parameters: RealTimeBpmAnalyzerParameters;
-};
-
-export type AnalyzerResetedEvent = {
-  data: AnalyzerResetedEventData;
-};
-
-export type AnalyzerResetedEventData = {
-  message: 'ANALYZER_RESETED';
-};
-
-export type ResetEventData = {
-  message: 'RESET';
-};
-
-export type StopEventData = {
-  message: 'STOP';
-};
-
-export type AsyncConfigurationEvent = {
-  data: AsyncConfigurationEventData | ResetEventData | StopEventData;
-};
-
-export type PostMessageEventData = BpmEventData | AnalyzerResetedEventData | AnalyzeChunkEventData | ValidPeakEventData;
-
-/**
- * Analyzer Types
- */
 export type Interval = {
   interval: number;
   count: number;
@@ -120,4 +95,9 @@ export type AggregateData = {
 export type NormalizedFilters = {
   lowpass: BiquadFilterNode;
   highpass: BiquadFilterNode;
+};
+
+export type BiquadFilterOptions = {
+  frequencyValue?: number;
+  qualityValue?: number;
 };

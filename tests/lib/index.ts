@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {createRealTimeBpmProcessor, analyzeFullBuffer, getBiquadFilters} from '../../src/index';
+import {createRealTimeBpmProcessor, analyzeFullBuffer, getBiquadFilter} from '../../src/index';
 
 /**
  * Unit test for the RealTime BPM Analyzer
@@ -25,12 +25,22 @@ describe('Index - Intergration tests', () => {
     await audioContext.close();
   });
 
-  it('should create the biquad filters', async function () {
+  it('should create the biquad filters without options', async function () {
     this.timeout(5000);
     const audioContext = new AudioContext();
-    const {lowpass, highpass} = getBiquadFilters(audioContext);
+    const lowpass = getBiquadFilter(audioContext);
     expect(lowpass).to.be.instanceOf(BiquadFilterNode);
-    expect(highpass).to.be.instanceOf(BiquadFilterNode);
+    await audioContext.close();
+  });
+
+  it('should create the biquad filters without options', async function () {
+    this.timeout(5000);
+    const audioContext = new AudioContext();
+    const lowpass = getBiquadFilter(audioContext, {
+      frequencyValue: 200,
+      qualityValue: 1,
+    });
+    expect(lowpass).to.be.instanceOf(BiquadFilterNode);
     await audioContext.close();
   });
 });

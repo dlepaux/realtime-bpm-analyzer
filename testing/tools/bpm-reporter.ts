@@ -52,7 +52,15 @@ function calculateAccuracy(audioFiles: AudioFile[], tolerance: number): number {
 }
 
 export function log(audioFiles: AudioFile[]) {
-  console.log('MAE:', calculateMae(audioFiles));
-  console.log('RMSE:', calculateRmse(audioFiles));
-  console.log('Accuracy:', calculateAccuracy(audioFiles, 1));
+  const stats = {
+    mae: calculateMae(audioFiles),
+    rmse: calculateRmse(audioFiles),
+    accuracy: calculateAccuracy(audioFiles, 1),
+  };
+
+  console.log('MAE:', stats.mae);
+  console.log('RMSE:', stats.rmse);
+  console.log('Accuracy:', stats.accuracy);
+
+  return stats;
 }

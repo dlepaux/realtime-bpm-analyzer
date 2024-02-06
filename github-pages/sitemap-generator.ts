@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import {promises} from 'node:fs';
+import {data} from './metadata';
 
 const baseUrl = 'https://www.realtime-bpm-analyzer.com/';
 
@@ -26,6 +27,20 @@ async function main(): Promise<boolean> {
     for (const directoryPage of directoryPages) {
       pages.push(`${directory}/${directoryPage}`);
     }
+  }
+
+  // Checking missing and outdated meta definitions
+  const excludes = new Set(['favicons/index.html']);
+  const definitonPaths = data.map(definition => definition.path);
+  const missingDefinitions = pages.filter(page => !definitonPaths.includes(page) && !excludes.has(page));
+  if (missingDefinitions.length > 0) {
+    console.warn('[warning] There is missing definitions', missingDefinitions);
+  }
+
+  const outdatedDefinitions = definitonPaths.filter(definiton => !pages.includes(definiton));
+  if (outdatedDefinitions.length > 0) {
+    console.error(outdatedDefinitions);
+    throw new Error('[warning] There is outdated definitions, fix them before continuing.');
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

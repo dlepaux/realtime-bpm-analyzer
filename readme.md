@@ -24,8 +24,9 @@ Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScri
   - [Unit Tests](#unit-tests)
   - [Dataset Testing](#dataset-testing)
   - [New features](#new-features)
-  - [Techincal Documentation](#technical-documentation)
+  - [Technical Documentation](#technical-documentation)
 - [Tests & Coverage](#tests--coverage)
+- [Commercial Usage](#commercial-usage)
 - [Roadmap](#roadmap)
 - [Credits](#credits)
 
@@ -45,14 +46,15 @@ To learn more about how to use the library, you can check out [the documentation
 - Can be used to analyze **audio or video** nodes, streams as well as **files**.
 - Allows you to compute the BPM while the audio or video is playing.
 - Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
+- Supports MP3, FLAC and WAV formats.
 
 ## Usages
 
-If you encounter issues along the way, remember we have a [chat](https://gitter.im/realtime-bpm-analyzer/Lobby) and the new [discussion feature of github](https://github.com/dlepaux/realtime-bpm-analyzer/discussions) !
+If you encounter issues along the way, remember I have a [chat](https://gitter.im/realtime-bpm-analyzer/Lobby) and the new [discussion feature of github](https://github.com/dlepaux/realtime-bpm-analyzer/discussions) !
 
 ### Player strategy
 
-Mesure or detect the BPM from a web **player**.
+Measure or detect the BPM from a web **player**.
 
 This example shows how to deal with a simple `audio` node.
 
@@ -70,9 +72,10 @@ const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
 // Set the source with the HTML Audio Node
 const track = document.getElementById('track');
 const source = audioContext.createMediaElementSource(track);
+const lowpass = getBiquadFilter(audioContext);
 
 // Connect nodes together
-source.connect(realtimeAnalyzerNode);
+source.connect(lowpass).connect(realtimeAnalyzerNode);
 source.connect(audioContext.destination);
 
 realtimeAnalyzerNode.port.onmessage = (event) => {
@@ -91,7 +94,7 @@ Analyze the BPM of a source continuously. This feature is quite simple and basic
 
 Note: This approach is **NOT recommended** if you are using a microphone as source. Except if the microphone gets correct audio source. Typically, if the BPM is never computed using this approach, you probably capture low intensity audio with your microphone (too far from the source, too much noise, directional microphone could be reasons why it's not working).
 
-1. Streams can be played with [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode), so the approch is quite similar to the [Player strategy](#player-strategy).
+1. Streams can be played with [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode), so the approach is quite similar to the [Player strategy](#player-strategy).
 ```html
 <audio src="https://ssl1.viastreaming.net:7005/;listen.mp3" id="track"></audio>
 ```
@@ -99,26 +102,21 @@ Thank you [IbizaSonica](http://ibizasonica.com) for the stream.
 
 2. As for the [Player strategy](#player-strategy), except that we need to turn on the `continuousAnalysis` flag to periodically delete collected data.
 ```javascript
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
 
-const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext, {
+  continuousAnalysis: true,
+  stabilizationTime: 20_000, // Default value is 20_000ms after what the library will automatically delete all collected data and restart analyzing BPM
+});
 
 // Set the source with the HTML Audio Node
 const track = document.getElementById('track');
 const source = audioContext.createMediaElementSource(track);
+const lowpass = getBiquadFilter(audioContext);
 
 // Connect nodes together
-source.connect(realtimeAnalyzerNode);
+source.connect(lowpass).connect(realtimeAnalyzerNode);
 source.connect(audioContext.destination);
-
-// Enable the continuous feature
-realtimeAnalyzerNode.port.postMessage({
-  message: 'ASYNC_CONFIGURATION',
-  parameters: {
-    continuousAnalysis: true,
-    stabilizationTime: 20_000, // Default value is 20_000ms after what the library will automatically delete all collected data and restart analysing BPM
-  }
-})
 
 realtimeAnalyzerNode.port.onmessage = (event) => {
   if (event.data.message === 'BPM') {
@@ -132,7 +130,7 @@ realtimeAnalyzerNode.port.onmessage = (event) => {
 
 ### Local/Offline strategy
 
-Analyze the BPM from **files** located in your **desktop, tablet or mobile** !
+Analyze the BPM from **files** located on your **desktop, tablet or mobile**!
 
 1. Import the library
 ```javascript
@@ -141,10 +139,10 @@ import * as realtimeBpm from 'realtime-bpm-analyzer';
 
 2. Use an `input[type=file]` to get the files you want.
 ```jsx
-<input type="file" accept="wav,mp3" onChange={event => this.onFileChange(event)}/>
+<input type="file" accept="wav,mp3,flac" onChange={event => this.onFileChange(event)}/>
 ```
 
-3. You can listen the `change` event like so, and analyze the BPM of the selected files. You don't need to be connected to Internet for this to work.
+3. You can listen to the `change` event like so, and analyze the BPM of the selected files. You don't need to be connected to the Internet for this to work.
 ```javascript
 function onFileChange(event) {
   const audioContext = new AudioContext();
@@ -169,7 +167,7 @@ function onFileChange(event) {
 
 Realtime BPM Analyzer is using [Web Test Runner](https://modern-web.dev/docs/test-runner/overview/) to handle **Unit tests** and [Web Dev Server](https://modern-web.dev/docs/dev-server/overview/) to handle **Dataset testing**.
 
-You will first need to install the project following those commands:
+You will first need to install the project following these commands:
 
 ```bash
 npm install
@@ -178,7 +176,7 @@ npm run prepare
 
 ### Unit Tests
 
-To run the unit tests you just have to run `npm test`.
+To run the unit tests, you just have to run `npm test`.
 
 ### Dataset Testing
 
@@ -186,7 +184,7 @@ To test a whole dataset of audio files you have to drop those files into `testin
 
 ```json
 {
-  'my music file.mp3': 130
+  "my music file.mp3": 130
 }
 ```
 
@@ -196,20 +194,31 @@ Once those steps are done you can run `npm run testing` to challenge the library
 
 ### New features
 
-If you're developping a new feature and you wand to test in another project, you can run `bin/build/to-project allegro`. This command will build the library and copy the built atrifacts into the project `allegro` sitting next to this one. You will then be able to test a production like package.
+If you're developing a new feature and you want to test it in another project, you can run `bin/build/to-project.sh nameOfTheProject`. This command will create package with `npm pack` and copy it into the target project `nameOfTheProject` sitting next to this one. You will then be able to test a production-like package.
 
-### Techincal Documentation
+### Technical Documentation
 
-[TypeDoc](https://www.npmjs.com/package/typedoc) is used to buid the technical documentation of realtime-bpm-analyzer. To build the documentation run: `npm run build:docs`;
+[TypeDoc](https://www.npmjs.com/package/typedoc) is used to build the technical documentation of Realtime BPM Analyzer. To build the documentation run: `npm run build:docs`;
+
+## Commercial Usage
+
+This library is distributed under the terms of the Apache License, Version 2.0. However, if you are interested in using this library in a commercial context or require a commercial license, please feel free to contact me.
+
+For inquiries regarding commercial usage, licensing options, or any other questions, please contact me:
+```
+David Lepaux
+d.lepaux@gmail.com
+```
+I am open to discussing custom licensing arrangements to meet your specific needs and ensure that you can use this library in your commercial projects with confidence.
 
 ## Roadmap
 
 - [ ] Add confidence level of Tempo
 - [ ] Combine Amplitude Thresholding strategy with others to improve BPM accuracy
-- [ ] Improve the continous analysis in order to ignore drops and cuts
-- [ ] Monitore memory usage
+- [ ] Improve the continuous analysis in order to ignore drops and cuts
+- [ ] Monitor memory usage
 
-Let us know what is your most wanted feature by opening [an issue](https://github.com/dlepaux/realtime-bpm-analyzer/issues).
+Let me know what your most wanted feature is by opening [an issue](https://github.com/dlepaux/realtime-bpm-analyzer/issues).
 
 ## Credits
 

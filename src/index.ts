@@ -1,18 +1,19 @@
 import {realtimeBpmProcessorName} from './consts';
 import realtimeBpmProcessorContent from './generated-processor';
+import {type RealTimeBpmAnalyzerParameters} from './types';
 
 export * from './realtime-bpm-analyzer';
-export {analyzeFullBuffer, getBiquadFilters} from './analyzer';
+export {analyzeFullBuffer, getBiquadFilter} from './analyzer';
 export * from './types';
 
 /**
  * Create the RealTimeBpmProcessor needed to run the realtime strategy
- * @param {AudioContext} audioContext AudioContext instance
- * @returns {Promise<AudioWorkletNode>}
- * @public
+ * @param audioContext AudioContext instance
+ * @param processorOptions RealTimeBpmAnalyzerParameters
+ * @returns An AudioWorkletNode instance
  */
-export async function createRealTimeBpmProcessor(audioContext: AudioContext): Promise<AudioWorkletNode> {
-  const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName);
+export async function createRealTimeBpmProcessor(audioContext: AudioContext, processorOptions?: RealTimeBpmAnalyzerParameters): Promise<AudioWorkletNode> {
+  const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName, processorOptions);
 
   await audioContext.resume();
 
@@ -21,19 +22,21 @@ export async function createRealTimeBpmProcessor(audioContext: AudioContext): Pr
 
 /**
  * Creates AudioWorkletNode for the Processor
- * @param {AudioContext} audioContext AudioContext instance
- * @param {string} processorName Name of the audio processor, without the extension
- * @return {Promise<AudioWorkletNode>} Recording node related components for the app.
- * @private
+ * @param audioContext AudioContext instance
+ * @param processorName Name of the audio processor, without the extension
+ * @param processorOptions RealTimeBpmAnalyzerParameters
+ * @returns Recording node related components for the app.
  */
-async function setupAudioWorkletNode(audioContext: AudioContext, processorName: string): Promise<AudioWorkletNode> {
+async function setupAudioWorkletNode(audioContext: AudioContext, processorName: string, processorOptions?: RealTimeBpmAnalyzerParameters): Promise<AudioWorkletNode> {
   const blob = new Blob([realtimeBpmProcessorContent], {type: 'application/javascript'});
 
   const objectUrl = URL.createObjectURL(blob);
 
   await audioContext.audioWorklet.addModule(objectUrl);
 
-  const audioWorkletNode = new AudioWorkletNode(audioContext, processorName);
+  const audioWorkletNode = new AudioWorkletNode(audioContext, processorName, {
+    processorOptions,
+  });
 
   return audioWorkletNode;
 }

@@ -6,7 +6,7 @@ import type {
   NextIndexPeaks,
   BpmCandidates,
   Threshold,
-  PostMessageEventData,
+  PostMessageEvents,
 } from './types';
 import {
   generateValidPeaksModel,
@@ -26,9 +26,6 @@ const initialValue = {
   effectiveBufferTime: () => 0,
 };
 
-/**
- * @class RealTimeBpmAnalyzer
- **/
 export class RealTimeBpmAnalyzer {
   /**
    * Default configuration
@@ -62,26 +59,13 @@ export class RealTimeBpmAnalyzer {
    */
   computedStabilizationTimeInSeconds = 0;
 
-  /**
-   * @constructor
-   */
-  constructor() {
-    this.updateComputedValues();
-  }
-
-  /**
-   * Method to apply a configuration on the fly
-   * @param {RealTimeBpmAnalyzerParameters} parameters Object containing optional parameters
-   * @returns {void}
-   */
-  setAsyncConfiguration(parameters: RealTimeBpmAnalyzerParameters): void {
-    Object.assign(this.options, parameters);
+  constructor(options: RealTimeBpmAnalyzerParameters = {}) {
+    Object.assign(this.options, options);
     this.updateComputedValues();
   }
 
   /**
    * Update the computed values
-   * @returns {void}
    */
   updateComputedValues() {
     this.computedStabilizationTimeInSeconds = this.options.stabilizationTime / 1000;
@@ -89,7 +73,6 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Reset BPM computation properties to get a fresh start
-   * @returns {void}
    */
   reset(): void {
     this.minValidThreshold = initialValue.minValidThreshold();
@@ -101,8 +84,7 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Remve all validPeaks between the minThreshold pass in param to optimize the weight of datas
-   * @param {Threshold} minThreshold Value between 0.9 and 0.2
-   * @returns {void}
+   * @param minThreshold Value between 0.9 and 0.2
    */
   async clearValidPeaks(minThreshold: Threshold): Promise<void> {
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
@@ -119,13 +101,12 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Attach this function to an audioprocess event on a audio/video node to compute BPM / Tempo in realtime
-   * @param {Float32Array} channelData Channel data
-   * @param {number} audioSampleRate Audio sample rate (44100)
-   * @param {number} bufferSize Buffer size (4096)
-   * @param {(data: PostMessageEventData) => void} postMessage Function to post a message to the processor node
-   * @returns {Promise<void>}
+   * @param channelData Channel data
+   * @param audioSampleRate Audio sample rate (44100)
+   * @param bufferSize Buffer size (4096)
+   * @param postMessage Function to post a message to the processor node
    */
-  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (data: PostMessageEventData) => void): Promise<void> {
+  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (message: PostMessageEvents) => void): Promise<void> {
     if (this.options.debug) {
       postMessage({message: 'ANALYZE_CHUNK', data: channelData});
     }
@@ -156,15 +137,15 @@ export class RealTimeBpmAnalyzer {
      */
     this.skipIndexes++;
 
-    const result: BpmCandidates = await computeBpm(this.validPeaks, audioSampleRate);
-    const {threshold} = result;
-    postMessage({message: 'BPM', result});
+    const data: BpmCandidates = await computeBpm(this.validPeaks, audioSampleRate);
+    const {threshold} = data;
+    postMessage({message: 'BPM', data});
 
     /**
      * If the results found have a "high" threshold, the BPM is considered stable/strong
      */
     if (this.minValidThreshold < threshold) {
-      postMessage({message: 'BPM_STABLE', result});
+      postMessage({message: 'BPM_STABLE', data});
       await this.clearValidPeaks(threshold);
     }
 
@@ -179,14 +160,13 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Find the best threshold with enought peaks
-   * @param {Float32Array} channelData Channel data
-   * @param {number} bufferSize Buffer size
-   * @param {number} currentMinIndex Current minimum index
-   * @param {number} currentMaxIndex Current maximum index
-   * @param {(data: PostMessageEventData) => void} postMessage Function to post a message to the processor node
-   * @returns {void}
+   * @param channelData Channel data
+   * @param bufferSize Buffer size
+   * @param currentMinIndex Current minimum index
+   * @param currentMaxIndex Current maximum index
+   * @param postMessage Function to post a message to the processor node
    */
-  async findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number, postMessage: (data: PostMessageEventData) => void): Promise<void> {
+  async findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number, postMessage: (data: PostMessageEvents) => void): Promise<void> {
     await descendingOverThresholds(async threshold => {
       if (this.nextIndexPeaks[threshold] >= currentMaxIndex) {
         return false;

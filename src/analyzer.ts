@@ -10,6 +10,7 @@ import type {
   BiquadFilterOptions,
 } from './types';
 import * as consts from './consts';
+import * as utils from './utils';
 
 /**
  * Find peaks when the signal if greater than the threshold, then move 10_000 indexes (represents ~0.23s) to ignore the descending phase of the parabol
@@ -19,8 +20,9 @@ import * as consts from './consts';
  * @param skipForwardIndexes Numbers of index to skip when a peak is detected
  * @returns Peaks found that are greater than the threshold
  */
-export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, offset = 0, skipForwardIndexes = consts.skipForwardIndexes): PeaksAndThreshold {
+export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, audioSampleRate: number, offset = 0): PeaksAndThreshold {
   const peaks: Peaks = [];
+  const skipForwardIndexes = utils.computeIndexesToSkip(0.23, audioSampleRate);
 
   const {length} = data;
 
@@ -49,12 +51,12 @@ export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, o
  * @param channelData Channel data
  * @returns Suffisent amount of peaks in order to continue further the process
  */
-export async function findPeaks(channelData: Float32Array): Promise<PeaksAndThreshold> {
+export async function findPeaks(channelData: Float32Array, audioSampleRate: number): Promise<PeaksAndThreshold> {
   let validPeaks: Peaks = [];
   let validThreshold = 0;
 
   await descendingOverThresholds(async threshold => {
-    const {peaks} = findPeaksAtThreshold(channelData, threshold);
+    const {peaks} = findPeaksAtThreshold(channelData, threshold, audioSampleRate);
 
     /**
      * Loop over peaks
@@ -321,7 +323,7 @@ export function groupByTempo(audioSampleRate: number, intervalCounts: Interval[]
 export async function analyzeFullBuffer(originalBuffer: AudioBuffer, options?: BiquadFilterOptions): Promise<Tempo[]> {
   const buffer = await getOfflineLowPassSource(originalBuffer, options);
   const channelData = buffer.getChannelData(0);
-  const {peaks} = await findPeaks(channelData);
+  const {peaks} = await findPeaks(channelData, buffer.sampleRate);
   console.log('peaks', peaks);
   const intervals = identifyIntervals(peaks);
   console.log('intervals', intervals);

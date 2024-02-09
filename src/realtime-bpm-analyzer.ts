@@ -6,6 +6,7 @@ import type {
   NextIndexPeaks,
   BpmCandidates,
   Threshold,
+  FindPeaksOptions,
   PostMessageEvents,
 } from './types';
 import {
@@ -130,7 +131,14 @@ export class RealTimeBpmAnalyzer {
     /**
      * Mutate nextIndexPeaks and validPeaks if possible
      */
-    await this.findPeaks(channelData, bufferSize, currentMinIndex, currentMaxIndex, postMessage);
+    await this.findPeaks({
+      channelData,
+      bufferSize,
+      audioSampleRate,
+      currentMinIndex,
+      currentMaxIndex,
+      postMessage,
+    });
 
     /**
      * Increment chunk
@@ -160,13 +168,16 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Find the best threshold with enought peaks
-   * @param channelData Channel data
-   * @param bufferSize Buffer size
-   * @param currentMinIndex Current minimum index
-   * @param currentMaxIndex Current maximum index
-   * @param postMessage Function to post a message to the processor node
+   * @param options Find Peaks Options
    */
-  async findPeaks(channelData: Float32Array, bufferSize: number, currentMinIndex: number, currentMaxIndex: number, postMessage: (data: PostMessageEvents) => void): Promise<void> {
+  async findPeaks({
+    channelData,
+    bufferSize,
+    audioSampleRate,
+    currentMinIndex,
+    currentMaxIndex,
+    postMessage,
+  }: FindPeaksOptions): Promise<void> {
     await descendingOverThresholds(async threshold => {
       if (this.nextIndexPeaks[threshold] >= currentMaxIndex) {
         return false;
@@ -177,7 +188,7 @@ export class RealTimeBpmAnalyzer {
        */
       const offsetForNextPeak = this.nextIndexPeaks[threshold] % bufferSize; // 0 - 4095
 
-      const {peaks, threshold: atThreshold} = findPeaksAtThreshold(channelData, threshold, offsetForNextPeak);
+      const {peaks, threshold: atThreshold} = findPeaksAtThreshold(channelData, threshold, audioSampleRate, offsetForNextPeak);
 
       /**
        * Loop over peaks

@@ -80,6 +80,15 @@ export type RealTimeBpmAnalyzerOptions = {
   debug: boolean;
 };
 
+export type FindPeaksOptions = {
+  channelData: Float32Array;
+  bufferSize: number;
+  audioSampleRate: number;
+  currentMinIndex: number;
+  currentMaxIndex: number;
+  postMessage: (data: PostMessageEvents) => void;
+};
+
 export type ValidPeaks = Record<string, Peaks>;
 
 export type NextIndexPeaks = Record<string, number>;

@@ -317,8 +317,11 @@ export async function analyzeFullBuffer(originalBuffer: AudioBuffer, options?: B
   const buffer = await getOfflineLowPassSource(originalBuffer, options);
   const channelData = buffer.getChannelData(0);
   const {peaks} = await findPeaks(channelData);
+  console.log('peaks', peaks);
   const intervals = identifyIntervals(peaks);
+  console.log('intervals', intervals);
   const tempos = groupByTempo(buffer.sampleRate, intervals);
+  console.log('tempos', tempos);
   const topCandidates = getTopCandidates(tempos);
 
   return topCandidates;

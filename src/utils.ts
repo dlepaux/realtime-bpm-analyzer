@@ -122,3 +122,7 @@ export function chunckAggregator(): (pcmData: Float32Array) => AggregateData {
     };
   };
 }
+
+export function computeIndexesToSkip(durationSeconds: number, sampleRate: number): number {
+  return Math.round(durationSeconds * sampleRate);
+}

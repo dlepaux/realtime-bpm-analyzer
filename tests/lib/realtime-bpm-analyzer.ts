@@ -13,13 +13,13 @@ describe('RealTimeBpmAnalyzer - Unit tests', () => {
 
 describe('RealTimeBpmAnalyzer - Integration tests', () => {
   it('should analyze a chunk of PCM Data', async () => {
+    const audioContext = new AudioContext();
     const realTimeBpmAnalyzer = new RealTimeBpmAnalyzer();
     const bufferSize = 4096;
-    const sampleRate = 48000;
-    const channelData = readChannelDataToChunk(bufferSize);
+    const channelData = await readChannelDataToChunk(audioContext, bufferSize);
 
     for (const chunk of channelData) {
-      await realTimeBpmAnalyzer.analyzeChunck(chunk, sampleRate, bufferSize, (data: PostMessageEvents) => {
+      await realTimeBpmAnalyzer.analyzeChunck(chunk, audioContext.sampleRate, bufferSize, (data: PostMessageEvents) => {
         // TODO: Do something
       });
     }
@@ -28,6 +28,7 @@ describe('RealTimeBpmAnalyzer - Integration tests', () => {
   });
 
   it('should analyze a chunk of PCM Data (continuously)', async () => {
+    const audioContext = new AudioContext();
     const realTimeBpmAnalyzer = new RealTimeBpmAnalyzer({
       continuousAnalysis: true,
       stabilizationTime: 1,
@@ -35,11 +36,10 @@ describe('RealTimeBpmAnalyzer - Integration tests', () => {
     });
 
     const bufferSize = 4096;
-    const sampleRate = 48000;
-    const channelData = readChannelDataToChunk(bufferSize);
+    const channelData = await readChannelDataToChunk(audioContext, bufferSize);
 
     for (const chunk of channelData) {
-      await realTimeBpmAnalyzer.analyzeChunck(chunk, sampleRate, bufferSize, (data: PostMessageEvents) => {
+      await realTimeBpmAnalyzer.analyzeChunck(chunk, audioContext.sampleRate, bufferSize, (data: PostMessageEvents) => {
         // TODO: Do something
       });
     }

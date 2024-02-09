@@ -123,6 +123,12 @@ export function chunckAggregator(): (pcmData: Float32Array) => AggregateData {
   };
 }
 
+/**
+ * Computes the number of indexes we need to skip based on sampleRate
+ * @param durationSeconds Duration expressed in seconds
+ * @param sampleRate Sample rate, typically 48000, 441000, etc
+ * @returns The number of indexes we need to skip
+ */
 export function computeIndexesToSkip(durationSeconds: number, sampleRate: number): number {
   return Math.round(durationSeconds * sampleRate);
 }

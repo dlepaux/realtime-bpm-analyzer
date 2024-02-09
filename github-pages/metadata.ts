@@ -46,6 +46,26 @@ export const data: Array<{path: string; title: string; description: string}> = [
     description: 'RealTimeBpmAnalyzer AnalyzeChunkEventMessage Type',
   },
   {
+    path: 'types/AnalyzerComputeBpmOptions.html',
+    title: 'Type AnalyzerComputeBpmOptions',
+    description: 'RealTimeBpmAnalyzer AnalyzerComputeBpmOptions Type',
+  },
+  {
+    path: 'types/AnalyzerFindPeaksAtTheshold.html',
+    title: 'Type AnalyzerFindPeaksAtTheshold',
+    description: 'RealTimeBpmAnalyzer AnalyzerFindPeaksAtTheshold Type',
+  },
+  {
+    path: 'types/AnalyzerFindPeaksOptions.html',
+    title: 'Type AnalyzerFindPeaksOptions',
+    description: 'RealTimeBpmAnalyzer AnalyzerFindPeaksOptions Type',
+  },
+  {
+    path: 'types/AnalyzerGroupByTempoOptions.html',
+    title: 'Type AnalyzerGroupByTempoOptions',
+    description: 'RealTimeBpmAnalyzer AnalyzerGroupByTempoOptions Type',
+  },
+  {
     path: 'types/AnalyzerResetedEvent.html',
     title: 'Type AnalyzerResetedEvent',
     description: 'RealTimeBpmAnalyzer AnalyzerResetedEvent Type',
@@ -141,6 +161,11 @@ export const data: Array<{path: string; title: string; description: string}> = [
     description: 'RealTimeBpmAnalyzer PostMessageEvents Type',
   },
   {
+    path: 'types/RealtimeAnalyzeChunkOptions.html',
+    title: 'Type RealtimeAnalyzeChunkOptions',
+    description: 'RealTimeBpmAnalyzer RealtimeAnalyzeChunkOptions Type',
+  },
+  {
     path: 'types/RealTimeBpmAnalyzerOptions.html',
     title: 'Type RealTimeBpmAnalyzerOptions',
     description: 'RealTimeBpmAnalyzer RealTimeBpmAnalyzerOptions Type',
@@ -149,6 +174,11 @@ export const data: Array<{path: string; title: string; description: string}> = [
     path: 'types/RealTimeBpmAnalyzerParameters.html',
     title: 'Type RealTimeBpmAnalyzerParameters',
     description: 'RealTimeBpmAnalyzer RealTimeBpmAnalyzerParameters Type',
+  },
+  {
+    path: 'types/RealtimeFindPeaksOptions.html',
+    title: 'Type RealtimeFindPeaksOptions',
+    description: 'RealTimeBpmAnalyzer RealtimeFindPeaksOptions Type',
   },
   {
     path: 'types/ResetEvent.html',

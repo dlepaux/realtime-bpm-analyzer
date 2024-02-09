@@ -16,12 +16,12 @@ describe('RealTimeBpmAnalyzer - Integration tests', () => {
     const audioContext = new AudioContext();
     const realTimeBpmAnalyzer = new RealTimeBpmAnalyzer();
     const bufferSize = 4096;
-    const channelData = await readChannelDataToChunk(audioContext, bufferSize);
+    const chunks = await readChannelDataToChunk(audioContext, bufferSize);
 
-    for (const chunk of channelData) {
-      await realTimeBpmAnalyzer.analyzeChunck(chunk, audioContext.sampleRate, bufferSize, (data: PostMessageEvents) => {
+    for (const channelData of chunks) {
+      await realTimeBpmAnalyzer.analyzeChunck({audioSampleRate: audioContext.sampleRate, channelData, bufferSize, postMessage(data: PostMessageEvents) {
         // TODO: Do something
-      });
+      }});
     }
 
     expect(realTimeBpmAnalyzer).to.be.instanceOf(RealTimeBpmAnalyzer);
@@ -36,12 +36,12 @@ describe('RealTimeBpmAnalyzer - Integration tests', () => {
     });
 
     const bufferSize = 4096;
-    const channelData = await readChannelDataToChunk(audioContext, bufferSize);
+    const chunks = await readChannelDataToChunk(audioContext, bufferSize);
 
-    for (const chunk of channelData) {
-      await realTimeBpmAnalyzer.analyzeChunck(chunk, audioContext.sampleRate, bufferSize, (data: PostMessageEvents) => {
+    for (const channelData of chunks) {
+      await realTimeBpmAnalyzer.analyzeChunck({audioSampleRate: audioContext.sampleRate, channelData, bufferSize, postMessage(data: PostMessageEvents) {
         // TODO: Do something
-      });
+      }});
     }
 
     expect(realTimeBpmAnalyzer).to.be.instanceOf(RealTimeBpmAnalyzer);

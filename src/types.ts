@@ -80,12 +80,41 @@ export type RealTimeBpmAnalyzerOptions = {
   debug: boolean;
 };
 
-export type FindPeaksOptions = {
+export type AnalyzerGroupByTempoOptions = {
+  audioSampleRate: number;
+  intervalCounts: Interval[];
+};
+
+export type AnalyzerFindPeaksOptions = {
+  audioSampleRate: number;
+  channelData: Float32Array;
+};
+
+export type AnalyzerComputeBpmOptions = {
+  audioSampleRate: number;
+  data: ValidPeaks;
+};
+
+export type AnalyzerFindPeaksAtTheshold = {
+  audioSampleRate: number;
+  data: Float32Array;
+  threshold: Threshold;
+  offset?: number;
+};
+
+export type RealtimeFindPeaksOptions = {
+  audioSampleRate: number;
   channelData: Float32Array;
   bufferSize: number;
-  audioSampleRate: number;
   currentMinIndex: number;
   currentMaxIndex: number;
+  postMessage: (data: PostMessageEvents) => void;
+};
+
+export type RealtimeAnalyzeChunkOptions = {
+  audioSampleRate: number;
+  channelData: Float32Array;
+  bufferSize: number;
   postMessage: (data: PostMessageEvents) => void;
 };
 

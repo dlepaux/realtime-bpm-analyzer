@@ -6,8 +6,8 @@ import type {
   NextIndexPeaks,
   BpmCandidates,
   Threshold,
-  FindPeaksOptions,
-  PostMessageEvents,
+  RealtimeFindPeaksOptions,
+  RealtimeAnalyzeChunkOptions,
 } from './types';
 import {
   generateValidPeaksModel,
@@ -85,7 +85,7 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Remve all validPeaks between the minThreshold pass in param to optimize the weight of datas
-   * @param minThreshold Value between 0.9 and 0.2
+   * @param minThreshold - Value between 0.9 and 0.2
    */
   async clearValidPeaks(minThreshold: Threshold): Promise<void> {
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
@@ -102,12 +102,13 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Attach this function to an audioprocess event on a audio/video node to compute BPM / Tempo in realtime
-   * @param channelData Channel data
-   * @param audioSampleRate Audio sample rate (44100)
-   * @param bufferSize Buffer size (4096)
-   * @param postMessage Function to post a message to the processor node
+   * @param options - RealtimeAnalyzeChunkOptions
+   * @param options.audioSampleRate - Audio sample rate (44100)
+   * @param options.channelData - Channel data
+   * @param options.bufferSize - Buffer size (4096)
+   * @param options.postMessage - Function to post a message to the processor node
    */
-  async analyzeChunck(channelData: Float32Array, audioSampleRate: number, bufferSize: number, postMessage: (message: PostMessageEvents) => void): Promise<void> {
+  async analyzeChunck({audioSampleRate, channelData, bufferSize, postMessage}: RealtimeAnalyzeChunkOptions): Promise<void> {
     if (this.options.debug) {
       postMessage({message: 'ANALYZE_CHUNK', data: channelData});
     }
@@ -132,9 +133,9 @@ export class RealTimeBpmAnalyzer {
      * Mutate nextIndexPeaks and validPeaks if possible
      */
     await this.findPeaks({
+      audioSampleRate,
       channelData,
       bufferSize,
-      audioSampleRate,
       currentMinIndex,
       currentMaxIndex,
       postMessage,
@@ -145,7 +146,7 @@ export class RealTimeBpmAnalyzer {
      */
     this.skipIndexes++;
 
-    const data: BpmCandidates = await computeBpm(this.validPeaks, audioSampleRate);
+    const data: BpmCandidates = await computeBpm({audioSampleRate, data: this.validPeaks});
     const {threshold} = data;
     postMessage({message: 'BPM', data});
 
@@ -168,16 +169,22 @@ export class RealTimeBpmAnalyzer {
 
   /**
    * Find the best threshold with enought peaks
-   * @param options Find Peaks Options
+   * @param options - Options for finding peaks
+   * @param options.audioSampleRate - Sample rate
+   * @param options.channelData - Channel data
+   * @param options.bufferSize - Buffer size
+   * @param options.currentMinIndex - Current minimum index
+   * @param options.currentMaxIndex - Current maximum index
+   * @param options.postMessage - Function to post a message to the processor node
    */
   async findPeaks({
+    audioSampleRate,
     channelData,
     bufferSize,
-    audioSampleRate,
     currentMinIndex,
     currentMaxIndex,
     postMessage,
-  }: FindPeaksOptions): Promise<void> {
+  }: RealtimeFindPeaksOptions): Promise<void> {
     await descendingOverThresholds(async threshold => {
       if (this.nextIndexPeaks[threshold] >= currentMaxIndex) {
         return false;
@@ -188,7 +195,7 @@ export class RealTimeBpmAnalyzer {
        */
       const offsetForNextPeak = this.nextIndexPeaks[threshold] % bufferSize; // 0 - 4095
 
-      const {peaks, threshold: atThreshold} = findPeaksAtThreshold(channelData, threshold, audioSampleRate, offsetForNextPeak);
+      const {peaks, threshold: atThreshold} = findPeaksAtThreshold({audioSampleRate, data: channelData, threshold, offset: offsetForNextPeak});
 
       /**
        * Loop over peaks

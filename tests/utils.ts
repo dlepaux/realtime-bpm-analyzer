@@ -1,5 +1,6 @@
 /**
  * Reads the fixtures channelDataJson
+ * @param audioContext AudioContext instance
  * @returns A Float32Array
  */
 export async function readChannelData(audioContext: AudioContext): Promise<Float32Array> {
@@ -11,6 +12,7 @@ export async function readChannelData(audioContext: AudioContext): Promise<Float
 
 /**
  * Reads the fixtures channelDataJson and returns chunks of it
+ * @param audioContext AudioContext instance
  * @param bufferSize Size of the buffer
  * @returns A Float32Array representing the PCM Data
  */

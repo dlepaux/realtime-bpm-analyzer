@@ -10,7 +10,7 @@ describe('Analyzer - Unit tests', () => {
   it('should not find peaks from empty channel data', async () => {
     const audioContext = new AudioContext();
     const channelData = new Float32Array([0, 0, 0, 0]);
-    const {peaks, threshold} = await analyzer.findPeaks(channelData, audioContext.sampleRate);
+    const {peaks, threshold} = await analyzer.findPeaks({audioSampleRate: audioContext.sampleRate, channelData});
     expect(threshold).to.be.equal(0);
     expect(peaks.length).to.be.equal(0);
   });
@@ -29,7 +29,7 @@ describe('Analyzer - Unit tests', () => {
   it('should not compute BPM from empty array of peaks', async () => {
     const audioContext = new AudioContext();
     const validPeaks = utils.generateValidPeaksModel();
-    const {threshold, bpm} = await analyzer.computeBpm(validPeaks, audioContext.sampleRate);
+    const {threshold, bpm} = await analyzer.computeBpm({audioSampleRate: audioContext.sampleRate, data: validPeaks});
     expect(threshold).to.be.equal(0.2);
     expect(bpm.length).to.be.equal(0);
   });

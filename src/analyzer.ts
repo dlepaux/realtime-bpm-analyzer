@@ -22,7 +22,7 @@ import * as utils from './utils';
  */
 export function findPeaksAtThreshold(data: Float32Array, threshold: Threshold, audioSampleRate: number, offset = 0): PeaksAndThreshold {
   const peaks: Peaks = [];
-  const skipForwardIndexes = utils.computeIndexesToSkip(0.23, audioSampleRate);
+  const skipForwardIndexes = utils.computeIndexesToSkip(0.25, audioSampleRate);
 
   const {length} = data;
 
@@ -87,11 +87,10 @@ export async function findPeaks(channelData: Float32Array, audioSampleRate: numb
  */
 export function getBiquadFilter(context: OfflineAudioContext | AudioContext, options?: BiquadFilterOptions): BiquadFilterNode {
   const lowpass = context.createBiquadFilter();
+
   lowpass.type = 'lowpass';
   lowpass.frequency.value = options?.frequencyValue ?? consts.frequencyValue;
-  console.log('lowpass.frequency.value', lowpass.frequency.value);
   lowpass.Q.value = options?.qualityValue ?? consts.qualityValue;
-  console.log('lowpass.Q.value', lowpass.Q.value);
 
   return lowpass;
 }
@@ -104,9 +103,6 @@ export function getBiquadFilter(context: OfflineAudioContext | AudioContext, opt
  */
 export async function getOfflineLowPassSource(buffer: AudioBuffer, options?: BiquadFilterOptions): Promise<AudioBuffer> {
   const {length, numberOfChannels, sampleRate} = buffer;
-  console.log('length', length);
-  console.log('numberOfChannels', numberOfChannels);
-  console.log('sampleRate', sampleRate);
   const offlineAudioContext = new OfflineAudioContext(numberOfChannels, length, sampleRate);
 
   /**
@@ -324,11 +320,8 @@ export async function analyzeFullBuffer(originalBuffer: AudioBuffer, options?: B
   const buffer = await getOfflineLowPassSource(originalBuffer, options);
   const channelData = buffer.getChannelData(0);
   const {peaks} = await findPeaks(channelData, buffer.sampleRate);
-  console.log('peaks', peaks);
   const intervals = identifyIntervals(peaks);
-  console.log('intervals', intervals);
   const tempos = groupByTempo(buffer.sampleRate, intervals);
-  console.log('tempos', tempos);
   const topCandidates = getTopCandidates(tempos);
 
   return topCandidates;

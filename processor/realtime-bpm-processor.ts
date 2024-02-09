@@ -117,9 +117,9 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
     if (isBufferFull) {
       // The variable sampleRate is global ! thanks to the AudioWorkletProcessor
-      this.realTimeBpmAnalyzer.analyzeChunck(buffer, sampleRate, bufferSize, event => {
+      this.realTimeBpmAnalyzer.analyzeChunck({audioSampleRate: sampleRate, channelData: buffer, bufferSize, postMessage: event => {
         this.port.postMessage(event);
-      }).catch((error: unknown) => {
+      }}).catch((error: unknown) => {
         console.error(error);
       });
     }

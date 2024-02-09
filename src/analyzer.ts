@@ -87,7 +87,9 @@ export function getBiquadFilter(context: OfflineAudioContext | AudioContext, opt
   const lowpass = context.createBiquadFilter();
   lowpass.type = 'lowpass';
   lowpass.frequency.value = options?.frequencyValue ?? consts.frequencyValue;
+  console.log('lowpass.frequency.value', lowpass.frequency.value);
   lowpass.Q.value = options?.qualityValue ?? consts.qualityValue;
+  console.log('lowpass.Q.value', lowpass.Q.value);
 
   return lowpass;
 }
@@ -100,6 +102,9 @@ export function getBiquadFilter(context: OfflineAudioContext | AudioContext, opt
  */
 export async function getOfflineLowPassSource(buffer: AudioBuffer, options?: BiquadFilterOptions): Promise<AudioBuffer> {
   const {length, numberOfChannels, sampleRate} = buffer;
+  console.log('length', length);
+  console.log('numberOfChannels', numberOfChannels);
+  console.log('sampleRate', sampleRate);
   const offlineAudioContext = new OfflineAudioContext(numberOfChannels, length, sampleRate);
 
   /**

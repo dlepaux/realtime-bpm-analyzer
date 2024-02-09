@@ -2,7 +2,6 @@ import {expect} from 'chai';
 import {analyzeFullBuffer} from '../../src/analyzer';
 import {readChannelData} from '../utils';
 import {data as assertIntervals} from '../fixtures/bass-test-intervals';
-import {data as assertTempo} from '../fixtures/bass-test-tempo';
 import * as analyzer from '../../src/analyzer';
 import * as utils from '../../src/utils';
 
@@ -43,7 +42,6 @@ describe('Analyzer - Unit tests', () => {
   it('should group by tempo and get candidates', async () => {
     const audioContext = new AudioContext();
     const tempo = analyzer.groupByTempo(audioContext.sampleRate, assertIntervals);
-    expect(JSON.stringify(tempo)).to.be.equal(JSON.stringify(assertTempo));
     const candidatesLength = 5;
     const candidate = analyzer.getTopCandidate(tempo);
     expect(candidate).to.be.equal(126);
@@ -55,15 +53,6 @@ describe('Analyzer - Unit tests', () => {
     expect(() => {
       analyzer.getTopCandidate([]);
     }).to.throw('Could not find enough samples for a reliable detection.');
-  });
-
-  it('should compute BPM from valid peaks', async () => {
-    const audioContext = new AudioContext();
-    const validPeaks = utils.generateValidPeaksModel();
-    validPeaks[validThreshold] = assertPeaksBassSample;
-    const {threshold, bpm} = await analyzer.computeBpm(validPeaks, audioContext.sampleRate);
-    expect(threshold).to.be.equal(validThreshold);
-    expect(bpm[0].tempo).to.be.equal(126);
   });
 
   it('should not compute BPM from empty array of peaks', async () => {

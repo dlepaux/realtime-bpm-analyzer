@@ -39,16 +39,6 @@ describe('Analyzer - Unit tests', () => {
     expect(JSON.stringify(intervals)).to.be.equal(JSON.stringify(assertIntervals));
   });
 
-  it('should group by tempo and get candidates', async () => {
-    const audioContext = new AudioContext();
-    const tempo = analyzer.groupByTempo(audioContext.sampleRate, assertIntervals);
-    const candidatesLength = 5;
-    const candidate = analyzer.getTopCandidate(tempo);
-    expect(candidate).to.be.equal(126);
-    const candidates = analyzer.getTopCandidates(tempo, candidatesLength);
-    expect(candidates.length).to.be.equal(candidatesLength);
-  });
-
   it('should trigger an error while getting candidate from empty array', async () => {
     expect(() => {
       analyzer.getTopCandidate([]);

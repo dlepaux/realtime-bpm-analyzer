@@ -1,12 +1,12 @@
-import {data as channelDataJson} from './fixtures/bass-test-lowpassed-channel-data';
-
 /**
  * Reads the fixtures channelDataJson
  * @returns A Float32Array
  */
-export function readChannelData(): Float32Array {
-  const channelData = new Float32Array(channelDataJson);
-  return channelData;
+export async function readChannelData(audioContext: AudioContext): Promise<Float32Array> {
+  const response = await fetch('/tests/fixtures/bass-test.wav');
+  const buffer = await response.arrayBuffer();
+  const audioBuffer = await audioContext.decodeAudioData(buffer);
+  return audioBuffer.getChannelData(0);
 }
 
 /**
@@ -14,11 +14,12 @@ export function readChannelData(): Float32Array {
  * @param bufferSize Size of the buffer
  * @returns A Float32Array representing the PCM Data
  */
-export function readChannelDataToChunk(bufferSize: number): Float32Array[] {
+export async function readChannelDataToChunk(audioContext: AudioContext, bufferSize: number): Promise<Float32Array[]> {
+  const channelData = await readChannelData(audioContext);
   const chunks: Float32Array[] = [];
 
   let currentChunk: number[] = [];
-  for (const value of channelDataJson) {
+  for (const value of channelData) {
     currentChunk.push(value);
 
     if (currentChunk.length === bufferSize) {

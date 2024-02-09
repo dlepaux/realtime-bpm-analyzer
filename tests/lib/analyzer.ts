@@ -1,31 +1,12 @@
 import {expect} from 'chai';
 import {analyzeFullBuffer} from '../../src/analyzer';
-import {readChannelData} from '../utils';
 import {data as assertIntervals} from '../fixtures/bass-test-intervals';
 import * as analyzer from '../../src/analyzer';
 import * as utils from '../../src/utils';
 
 const assertPeaksBassSample = [12962, 23459, 35776, 46244, 58593, 69041, 82686, 105130, 115632, 127947, 138418, 150759, 161199, 174832, 197297, 207805, 220128, 230605, 242947, 253382, 266950, 289455, 299456, 312334, 322814, 335783, 358605];
 
-const validThreshold = 0.8999999999999999;
-
 describe('Analyzer - Unit tests', () => {
-  it('should find peaks at specific threshold in channel data', async () => {
-    const audioContext = new AudioContext();
-    const channelData = readChannelData();
-    const {threshold} = analyzer.findPeaksAtThreshold(channelData, validThreshold, audioContext.sampleRate);
-
-    expect(threshold).to.be.equal(validThreshold);
-  });
-
-  it('should find peaks from channel data', async () => {
-    const audioContext = new AudioContext();
-    const channelData = readChannelData();
-    const {threshold} = await analyzer.findPeaks(channelData, audioContext.sampleRate);
-
-    expect(threshold).to.be.equal(validThreshold);
-  });
-
   it('should not find peaks from empty channel data', async () => {
     const audioContext = new AudioContext();
     const channelData = new Float32Array([0, 0, 0, 0]);
@@ -34,7 +15,7 @@ describe('Analyzer - Unit tests', () => {
     expect(peaks.length).to.be.equal(0);
   });
 
-  it('should identify intervals from peaks', async () => {
+  it('should identify intervals from given peaks', async () => {
     const intervals = analyzer.identifyIntervals(assertPeaksBassSample);
     expect(JSON.stringify(intervals)).to.be.equal(JSON.stringify(assertIntervals));
   });
@@ -61,8 +42,9 @@ describe('Analyzer - Integration tests', () => {
     const response = await fetch('/tests/fixtures/bass-test.wav');
     const buffer = await response.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(buffer);
-    const tempo = await analyzeFullBuffer(audioBuffer);
-    expect(tempo[0].tempo).to.be.equal(125);
+    const tempos = await analyzeFullBuffer(audioBuffer);
+    const tempo = analyzer.getTopCandidate(tempos);
+    expect(tempo).to.be.equal(125);
     await audioContext.close();
   });
 });

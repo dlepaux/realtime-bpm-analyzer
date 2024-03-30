@@ -2,7 +2,7 @@ import {esbuildPlugin} from '@web/dev-server-esbuild';
 
 export default {
   open: false,
-  watch: true,
+  watch: false,
   nodeResolve: true,
   appIndex: 'testing/index.html',
   rootDir: '.',

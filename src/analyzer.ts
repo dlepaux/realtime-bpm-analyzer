@@ -1,7 +1,6 @@
 import {descendingOverThresholds} from './utils';
 import type {
   Peaks,
-  ValidPeaks,
   PeaksAndThreshold,
   BpmCandidates,
   Interval,

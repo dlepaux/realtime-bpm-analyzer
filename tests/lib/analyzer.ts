@@ -39,8 +39,8 @@ describe('Analyzer - Integration tests', () => {
   it('should be able to detect the BPM from an AudioBuffer', async function () {
     this.timeout(30 * 1000);
     const audioContext = new AudioContext();
-    const response = await fetch('/tests/fixtures/bass-test.wav');
-    const buffer = await response.arrayBuffer();
+    const request = await fetch('/tests/fixtures/bass-test.wav');
+    const buffer = await request.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(buffer);
     const tempos = await analyzeFullBuffer(audioBuffer);
     const tempo = analyzer.getTopCandidate(tempos);

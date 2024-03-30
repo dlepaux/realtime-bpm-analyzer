@@ -14,21 +14,21 @@
 
 Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of an audio or video source in real-time.
 
-- [Getting started](#getting-started)
-- [Features](#features)
-- [Usages](#usages)
-  - [Player strategy](#player-strategy)
-  - [Continuous Analysis strategy](#continuous-analysis-strategy)
-  - [Local/Offline strategy](#localoffline-strategy)
-- [Development](#development)
-  - [Unit Tests](#unit-tests)
-  - [Dataset Testing](#dataset-testing)
-  - [New features](#new-features)
-  - [Technical Documentation](#technical-documentation)
-- [Tests & Coverage](#tests--coverage)
-- [Commercial Usage](#commercial-usage)
-- [Roadmap](#roadmap)
-- [Credits](#credits)
+- [Realtime BPM Analyzer](#realtime-bpm-analyzer)
+  - [Getting started](#getting-started)
+  - [Features](#features)
+  - [Usages](#usages)
+    - [Player strategy](#player-strategy)
+    - [Continuous Analysis strategy](#continuous-analysis-strategy)
+    - [Local/Offline strategy](#localoffline-strategy)
+  - [Development](#development)
+    - [Unit Tests](#unit-tests)
+    - [Dataset Testing](#dataset-testing)
+    - [New features](#new-features)
+    - [Technical Documentation](#technical-documentation)
+  - [Commercial Usage](#commercial-usage)
+  - [Roadmap](#roadmap)
+  - [Credits](#credits)
 
 ## Getting started
 
@@ -65,7 +65,7 @@ This example shows how to deal with a simple `audio` node.
 
 2. Create the AudioWorkletProcessor with `createRealTimeBpmProcessor`, create and pipe the filters to the AudioWorkletNode (`realtimeAnalyzerNode`).
 ```javascript
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
 
 const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
 
@@ -80,10 +80,10 @@ source.connect(audioContext.destination);
 
 realtimeAnalyzerNode.port.onmessage = (event) => {
   if (event.data.message === 'BPM') {
-    console.log('BPM', event.data.result);
+    console.log('BPM', event.data.data.bpm);
   }
   if (event.data.message === 'BPM_STABLE') {
-    console.log('BPM_STABLE', event.data.result);
+    console.log('BPM_STABLE', event.data.data.bpm);
   }
 };
 ```
@@ -120,10 +120,10 @@ source.connect(audioContext.destination);
 
 realtimeAnalyzerNode.port.onmessage = (event) => {
   if (event.data.message === 'BPM') {
-    console.log('BPM', event.data.result);
+    console.log('BPM', event.data.data.bpm);
   }
   if (event.data.message === 'BPM_STABLE') {
-    console.log('BPM_STABLE', event.data.result);
+    console.log('BPM_STABLE', event.data.data.bpm);
   }
 };
 ```

@@ -10,6 +10,8 @@ export default {
         headless: 'new',
         devtools: false,
         args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
           '--autoplay-policy=no-user-gesture-required',
         ],
       },

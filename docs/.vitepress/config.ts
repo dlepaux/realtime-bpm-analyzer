@@ -18,7 +18,7 @@ export default defineConfig({
   ignoreDeadLinks: [],
   
   head: [
-    ['link', { rel: 'icon', href: '/realtime-bpm-analyzer/favicon.ico' }],
+    ['link', { rel: 'icon', href: '/favicon.ico' }],
     ['meta', { name: 'theme-color', content: '#646cff' }],
     ['meta', { name: 'og:type', content: 'website' }],
     ['meta', { name: 'og:locale', content: 'en' }],

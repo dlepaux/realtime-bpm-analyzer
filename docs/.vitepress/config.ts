@@ -15,17 +15,7 @@ export default defineConfig({
   lastUpdated: true,
   
   // Ignore dead links for pages we haven't created yet
-  ignoreDeadLinks: [
-    /\/guide\/player-strategy/,
-    /\/guide\/continuous-analysis/,
-    /\/guide\/offline-analysis/,
-    /\/examples\/microphone-input/,
-    /\/examples\/file-upload/,
-    /\/examples\/streaming-audio/,
-    /\/examples\/nextjs/,
-    /\/examples\/react/,
-    /\/examples\/vue/,
-  ],
+  ignoreDeadLinks: [],
   
   head: [
     ['link', { rel: 'icon', href: '/realtime-bpm-analyzer/favicon.ico' }],
@@ -64,14 +54,6 @@ export default defineConfig({
           ]
         },
         {
-          text: 'Usage Strategies',
-          items: [
-            { text: 'Player Strategy', link: '/guide/player-strategy' },
-            { text: 'Continuous Analysis', link: '/guide/continuous-analysis' },
-            { text: 'Offline Analysis', link: '/guide/offline-analysis' }
-          ]
-        },
-        {
           text: 'Advanced',
           items: [
             { text: 'How It Works', link: '/guide/how-it-works' },
@@ -95,8 +77,7 @@ export default defineConfig({
           items: [
             { text: 'Next.js', link: '/examples/nextjs' },
             { text: 'React', link: '/examples/react' },
-            { text: 'Vue', link: '/examples/vue' },
-            { text: 'Vanilla JavaScript', link: '/examples/vanilla-js' }
+            { text: 'Vue', link: '/examples/vue' }
           ]
         }
       ]

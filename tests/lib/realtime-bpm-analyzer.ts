@@ -1,6 +1,6 @@
 import {expect} from 'chai';
-import type {PostMessageEvents} from '../../src';
-import {RealTimeBpmAnalyzer} from '../../src/realtime-bpm-analyzer';
+import type {ProcessorOutputEvent} from '../../src';
+import {RealTimeBpmAnalyzer} from '../../src/core/realtime-bpm-analyzer';
 import {readChannelDataToChunk} from '../utils';
 
 describe('RealTimeBpmAnalyzer - Unit tests', () => {
@@ -19,7 +19,7 @@ describe('RealTimeBpmAnalyzer - Integration tests', () => {
     const chunks = await readChannelDataToChunk(audioContext, bufferSize);
 
     for (const channelData of chunks) {
-      await realTimeBpmAnalyzer.analyzeChunck({audioSampleRate: audioContext.sampleRate, channelData, bufferSize, postMessage(data: PostMessageEvents) {
+      await realTimeBpmAnalyzer.analyzeChunck({audioSampleRate: audioContext.sampleRate, channelData, bufferSize, postMessage(data: ProcessorOutputEvent) {
         // TODO: Do something
       }});
     }
@@ -39,7 +39,7 @@ describe('RealTimeBpmAnalyzer - Integration tests', () => {
     const chunks = await readChannelDataToChunk(audioContext, bufferSize);
 
     for (const channelData of chunks) {
-      await realTimeBpmAnalyzer.analyzeChunck({audioSampleRate: audioContext.sampleRate, channelData, bufferSize, postMessage(data: PostMessageEvents) {
+      await realTimeBpmAnalyzer.analyzeChunck({audioSampleRate: audioContext.sampleRate, channelData, bufferSize, postMessage(data: ProcessorOutputEvent) {
         // TODO: Do something
       }});
     }

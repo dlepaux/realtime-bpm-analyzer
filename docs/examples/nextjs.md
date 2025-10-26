@@ -35,11 +35,10 @@ export default function BPMAnalyzer() {
 
     source.connect(analyzer).connect(audioContext.destination);
 
-    analyzer.port.onmessage = (event) => {
-      if (event.data.message === 'BPM_STABLE') {
-        setBpm(event.data.data.bpm[0]?.tempo || 0);
-      }
-    };
+    // Use typed event listeners
+    analyzer.on('bpmStable', (data) => {
+      setBpm(data.bpm[0]?.tempo || 0);
+    });
 
     audioRef.current.play();
   };
@@ -80,11 +79,12 @@ Create a reusable hook at `hooks/useBPMAnalyzer.ts`:
 
 import { useEffect, useRef, useState } from 'react';
 import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer } from 'realtime-bpm-analyzer';
 
 export function useBPMAnalyzer() {
   const [bpm, setBpm] = useState(0);
   const contextRef = useRef<AudioContext>();
-  const analyzerRef = useRef<AudioWorkletNode>();
+  const analyzerRef = useRef<BpmAnalyzer>();
 
   const analyze = async (audioElement: HTMLAudioElement) => {
     const ctx = new AudioContext();
@@ -93,11 +93,10 @@ export function useBPMAnalyzer() {
 
     source.connect(analyzer).connect(ctx.destination);
 
-    analyzer.port.onmessage = (event) => {
-      if (event.data.message === 'BPM_STABLE') {
-        setBpm(event.data.data.bpm[0]?.tempo || 0);
-      }
-    };
+    // Use typed event listeners
+    analyzer.on('bpmStable', (data) => {
+      setBpm(data.bpm[0]?.tempo || 0);
+    });
 
     contextRef.current = ctx;
     analyzerRef.current = analyzer;
@@ -105,6 +104,7 @@ export function useBPMAnalyzer() {
 
   useEffect(() => {
     return () => {
+      analyzerRef.current?.removeAllListeners();
       contextRef.current?.close();
     };
   }, []);

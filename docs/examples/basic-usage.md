@@ -82,18 +82,14 @@ The most straightforward use case - analyzing an HTML audio element:
         lowpass.connect(realtimeAnalyzerNode);
         source.connect(audioContext.destination);
         
-        // Listen for BPM events
-        realtimeAnalyzerNode.port.onmessage = (event) => {
-          const { message, data } = event.data;
-          
-          if (message === 'BPM') {
-            updateBPMDisplay(data.bpm, false);
-          }
-          
-          if (message === 'BPM_STABLE') {
-            updateBPMDisplay(data.bpm, true);
-          }
-        };
+        // Listen for BPM events with typed listeners
+        realtimeAnalyzerNode.on('bpm', (data) => {
+          updateBPMDisplay(data.bpm, false);
+        });
+        
+        realtimeAnalyzerNode.on('bpmStable', (data) => {
+          updateBPMDisplay(data.bpm, true);
+        });
         
         statusDisplay.textContent = 'Analyzing...';
         
@@ -156,21 +152,24 @@ export class BPMAnalyzer {
     lowpass.connect(this.analyzerNode);
     source.connect(this.audioContext.destination);
     
-    // Handle messages
-    this.analyzerNode.port.onmessage = (event) => {
-      const { message, data } = event.data;
-      
-      if (message === 'BPM' && this.onBPMUpdate) {
+    // Handle BPM events with typed listeners
+    this.analyzerNode.on('bpm', (data) => {
+      if (this.onBPMUpdate) {
         this.onBPMUpdate(data.bpm);
       }
-      
-      if (message === 'BPM_STABLE' && this.onStableBPM) {
+    });
+    
+    this.analyzerNode.on('bpmStable', (data) => {
+      if (this.onStableBPM) {
         this.onStableBPM(data.bpm);
       }
-    };
+    });
   }
   
   destroy() {
+    if (this.analyzerNode) {
+      this.analyzerNode.removeAllListeners();
+    }
     if (this.audioContext) {
       this.audioContext.close();
     }
@@ -288,11 +287,9 @@ const updateUI = debounceBPMUpdate((bpm) => {
   document.getElementById('bpm').textContent = `${bpm[0].tempo} BPM`;
 }, 100);
 
-realtimeAnalyzerNode.port.onmessage = (event) => {
-  if (event.data.message === 'BPM') {
-    updateUI(event.data.data.bpm);
-  }
-};
+realtimeAnalyzerNode.on('bpm', (data) => {
+  updateUI(data.bpm);
+});
 ```
 
 ## Next Steps

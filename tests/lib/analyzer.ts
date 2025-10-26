@@ -1,8 +1,8 @@
 import {expect} from 'chai';
-import {analyzeFullBuffer} from '../../src/analyzer';
+import {analyzeFullBuffer} from '../../src/core/analyzer';
 import {data as assertIntervals} from '../fixtures/bass-test-intervals';
-import * as analyzer from '../../src/analyzer';
-import * as utils from '../../src/utils';
+import * as analyzer from '../../src/core/analyzer';
+import * as utils from '../../src/core/utils';
 
 const assertPeaksBassSample = [12962, 23459, 35776, 46244, 58593, 69041, 82686, 105130, 115632, 127947, 138418, 150759, 161199, 174832, 197297, 207805, 220128, 230605, 242947, 253382, 266950, 289455, 299456, 312334, 322814, 335783, 358605];
 

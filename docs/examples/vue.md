@@ -34,11 +34,10 @@ export function useBPMAnalyzer() {
       source.connect(analyzerNode);
       source.connect(audioContext.destination);
       
-      analyzerNode.port.onmessage = (event) => {
-        if (event.data.message === 'BPM_STABLE') {
-          bpm.value = event.data.data.bpm[0]?.tempo || 0;
-        }
-      };
+      // Use typed event listeners
+      analyzerNode.on('bpmStable', (data) => {
+        bpm.value = data.bpm[0]?.tempo || 0;
+      });
       
       isAnalyzing.value = true;
     } catch (error) {
@@ -47,6 +46,9 @@ export function useBPMAnalyzer() {
   };
 
   const stopAnalysis = async () => {
+    if (analyzerNode) {
+      analyzerNode.removeAllListeners();
+    }
     if (audioContext) {
       await audioContext.close();
       audioContext = null;

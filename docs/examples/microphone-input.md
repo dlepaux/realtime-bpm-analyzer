@@ -72,22 +72,18 @@ async function setupMicrophoneAnalysis(stream: MediaStream) {
 
 ```typescript
 function setupBPMListener(analyzerNode: AudioWorkletNode) {
-  analyzerNode.port.addEventListener('message', (event) => {
-    if (event.data.message === 'BPM_STABLE') {
-      const bpms = event.data.data.bpm;
+  analyzerNode.on('bpmStable', (data) => {
+    const bpms = data.bpm;
+    
+    if (bpms.length > 0) {
+      console.log('Primary BPM:', bpms[0].tempo);
+      console.log('Confidence:', bpms[0].count);
       
-      if (bpms.length > 0) {
-        console.log('Primary BPM:', bpms[0].tempo);
-        console.log('Confidence:', bpms[0].count);
-        
-        if (bpms.length > 1) {
-          console.log('Alternative BPM:', bpms[1].tempo);
-        }
+      if (bpms.length > 1) {
+        console.log('Alternative BPM:', bpms[1].tempo);
       }
     }
   });
-  
-  analyzerNode.port.start();
 }
 ```
 
@@ -220,9 +216,8 @@ async function startRecording() {
     source.connect(visualAnalyser);
     visualAnalyser.connect(analyzerNode);
     
-    // Listen for BPM
-    analyzerNode.port.addEventListener('message', handleBPMMessage);
-    analyzerNode.port.start();
+    // Listen for BPM with typed event listeners
+    analyzerNode.on('bpmStable', handleBPMMessage);
     
     isRecording.value = true;
     
@@ -236,12 +231,11 @@ async function startRecording() {
   }
 }
 
-function handleBPMMessage(event) {
-  if (event.data.message === 'BPM_STABLE') {
-    const bpms = event.data.data.bpm;
-    if (bpms.length > 0) {
-      currentBPM.value = bpms[0].tempo;
-      if (bpms.length > 1) {
+function handleBPMMessage(data) {
+  const bpms = data.bpm;
+  if (bpms.length > 0) {
+    currentBPM.value = bpms[0].tempo;
+    if (bpms.length > 1) {
         alternativeBPM.value = bpms[1].tempo;
       }
     }
@@ -495,18 +489,15 @@ onUnmounted(() => {
         
         source.connect(analyser).connect(analyzerNode);
         
-        // Listen for BPM
-        analyzerNode.port.addEventListener('message', (event) => {
-          if (event.data.message === 'BPM_STABLE') {
-            const bpms = event.data.data.bpm;
-            document.getElementById('bpmValue').textContent = bpms[0].tempo;
-            if (bpms.length > 1) {
-              document.getElementById('alternative').textContent = 
-                'Alternative: ' + bpms[1].tempo + ' BPM';
-            }
+        // Listen for BPM with typed event listeners
+        analyzerNode.on('bpmStable', (data) => {
+          const bpms = data.bpm;
+          document.getElementById('bpmValue').textContent = bpms[0].tempo;
+          if (bpms.length > 1) {
+            document.getElementById('alternative').textContent = 
+              'Alternative: ' + bpms[1].tempo + ' BPM';
           }
         });
-        analyzerNode.port.start();
         
         // Update UI
         document.getElementById('startBtn').style.display = 'none';
@@ -518,6 +509,7 @@ onUnmounted(() => {
     });
     
     document.getElementById('stopBtn').addEventListener('click', async () => {
+      analyzerNode.removeAllListeners();
       await audioContext.suspend();
       source.disconnect();
       analyzerNode.disconnect();

@@ -1,100 +1,60 @@
 /**
- * Event message types for the BPM analyzer
+ * Events emitted by the BPM analyzer processor (Processor → Main Thread)
  * @group Events
  */
-export type EventBuilder<S extends string, T = undefined> = T extends undefined
-  ? {message: S}
-  : {message: S; data: T};
+export type ProcessorOutputEvent =
+  | {type: 'bpm'; data: BpmCandidates}
+  | {type: 'bpmStable'; data: BpmCandidates}
+  | {type: 'analyzerReset'}
+  | {type: 'analyzeChunk'; data: Float32Array}
+  | {type: 'validPeak'; data: {threshold: Threshold; index: number}};
 
 /**
+ * Control events sent to the processor (Main Thread → Processor)
  * @group Events
  */
-export type EventMessageBuilder<T> = {
-  data: T;
+export type ProcessorInputEvent =
+  | {type: 'reset'}
+  | {type: 'stop'};
+
+/**
+ * MessagePort message wrapper for processor input events
+ * @group Events
+ */
+export type ProcessorInputMessage = {
+  data: ProcessorInputEvent;
 };
 
 /**
- * Event emitted when analyzing audio chunks in debug mode
+ * Type-safe event listener map for BPM analyzer events
  * @group Events
  */
-export type AnalyzeChunkEvent = EventBuilder<'ANALYZE_CHUNK', Float32Array>;
-
-/**
- * @group Events
- */
-export type AnalyzeChunkEventMessage = EventMessageBuilder<AnalyzeChunkEvent>;
-
-/**
- * Event emitted when a valid peak is detected
- * @group Events
- */
-export type ValidPeakEvent = EventBuilder<'VALID_PEAK', {threshold: Threshold; index: number}>;
-
-/**
- * @group Events
- */
-export type ValidPeakEventMessage = EventMessageBuilder<ValidPeakEvent>;
-
-/**
- * Debug event for internal diagnostics
- * @group Events
- */
-export type DebugEvent = EventBuilder<'DEBUG', unknown>;
-
-/**
- * @group Events
- */
-export type DebugEventDataMessage = EventMessageBuilder<DebugEvent>;
-
-/**
- * BPM event emitted during analysis.
- * - 'BPM': Emitted continuously during analysis
- * - 'BPM_STABLE': Emitted when BPM has stabilized
- * @group Events
- */
-export type BpmEvent = EventBuilder<'BPM' | 'BPM_STABLE', BpmCandidates>;
-
-/**
- * @group Events
- */
-export type BpmEventMessage = EventMessageBuilder<BpmEvent>;
-
-/**
- * Event emitted when the analyzer is reset
- * @group Events
- */
-export type AnalyzerResetedEvent = EventBuilder<'ANALYZER_RESETED'>;
-
-/**
- * @group Events
- */
-export type AnalyzerResetedEventMessage = EventMessageBuilder<AnalyzerResetedEvent>;
-
-/**
- * Event to reset the analyzer
- * @group Events
- */
-export type ResetEvent = EventBuilder<'RESET'>;
-
-/**
- * Event to stop the analyzer
- * @group Events
- */
-export type StopEvent = EventBuilder<'STOP'>;
-
-/**
- * Union of all analyzer control events
- * @group Events
- */
-export type RealtimeBpmAnalyzerEvents = {
-  data: ResetEvent | StopEvent;
+export type BpmAnalyzerEventMap = {
+  /** Emitted continuously during BPM analysis with current tempo candidates */
+  bpm: BpmCandidates;
+  /** Emitted when BPM detection has stabilized with high confidence */
+  bpmStable: BpmCandidates;
+  /** Emitted when the analyzer state has been reset */
+  analyzerReset: void;
+  /** Emitted in debug mode when analyzing audio chunks */
+  analyzeChunk: Float32Array;
+  /** Emitted in debug mode when a valid peak is detected */
+  validPeak: {threshold: Threshold; index: number};
 };
 
 /**
- * Union of all events that can be posted from the processor
+ * Event listener callback type
  * @group Events
  */
-export type PostMessageEvents = BpmEvent | AnalyzerResetedEvent | AnalyzeChunkEvent | ValidPeakEvent | DebugEvent;
+export type EventListener<T> = (data: T) => void;
+
+/**
+ * Map of event names to their listener arrays
+ * @group Events
+ */
+export type EventListenerMap = {
+  [K in keyof BpmAnalyzerEventMap]?: Array<EventListener<BpmAnalyzerEventMap[K]>>;
+};
 
 /**
  * Threshold value for peak detection (0.0 to 1.0)
@@ -217,14 +177,14 @@ export type RealtimeFindPeaksOptions = {
   bufferSize: number;
   currentMinIndex: number;
   currentMaxIndex: number;
-  postMessage: (data: PostMessageEvents) => void;
+  postMessage: (data: ProcessorOutputEvent) => void;
 };
 
 export type RealtimeAnalyzeChunkOptions = {
   audioSampleRate: number;
   channelData: Float32Array;
   bufferSize: number;
-  postMessage: (data: PostMessageEvents) => void;
+  postMessage: (data: ProcessorOutputEvent) => void;
 };
 
 export type ValidPeaks = Record<string, Peaks>;

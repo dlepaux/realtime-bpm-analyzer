@@ -36,13 +36,11 @@ export function useBPMAnalyzer() {
       source.connect(analyzer);
       source.connect(audioContext.destination);
       
-      // Listen for BPM events
-      analyzer.port.onmessage = (event) => {
-        if (event.data.message === 'BPM_STABLE') {
-          const detected = event.data.data.bpm[0]?.tempo || 0;
-          setBpm(detected);
-        }
-      };
+      // Listen for BPM events with typed listeners
+      analyzer.on('bpmStable', (data) => {
+        const detected = data.bpm[0]?.tempo || 0;
+        setBpm(detected);
+      });
       
       audioContextRef.current = audioContext;
       analyzerRef.current = analyzer;
@@ -53,6 +51,9 @@ export function useBPMAnalyzer() {
   };
 
   const stopAnalysis = async () => {
+    if (analyzerRef.current) {
+      analyzerRef.current.removeAllListeners();
+    }
     if (audioContextRef.current) {
       await audioContextRef.current.close();
       audioContextRef.current = null;

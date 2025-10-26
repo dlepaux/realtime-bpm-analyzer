@@ -58,23 +58,17 @@ async function setupStreamAnalysis(audioElement: HTMLAudioElement) {
 ### Step 3: Listen for BPM Events
 
 ```typescript
-function setupBPMListener(analyzerNode: AudioWorkletNode) {
-  analyzerNode.port.addEventListener('message', (event) => {
-    switch (event.data.message) {
-      case 'BPM':
-        // Continuous BPM updates
-        console.log('Current BPM:', event.data.data.bpm[0].tempo);
-        break;
-        
-      case 'BPM_STABLE':
-        // Stable BPM detected
-        console.log('Stable BPM:', event.data.data.bpm[0].tempo);
-        console.log('Confidence:', event.data.data.bpm[0].count);
-        break;
-    }
+function setupBPMListener(analyzerNode: BpmAnalyzer) {
+  // Continuous BPM updates
+  analyzerNode.on('bpm', (data) => {
+    console.log('Current BPM:', data.bpm[0].tempo);
   });
   
-  analyzerNode.port.start();
+  // Stable BPM detected
+  analyzerNode.on('bpmStable', (data) => {
+    console.log('Stable BPM:', data.bpm[0].tempo);
+    console.log('Confidence:', data.bpm[0].count);
+  });
 }
 ```
 
@@ -186,25 +180,23 @@ async function startAnalyzing() {
     filter.connect(analyzerNode);
     source.connect(audioContext.destination);
     
-    // Listen for BPM
-    analyzerNode.port.addEventListener('message', (event) => {
-      if (event.data.message === 'BPM_STABLE') {
-        const bpms = event.data.data.bpm;
-        if (bpms.length > 0) {
-          currentBPM.value = bpms[0].tempo;
-          if (bpms.length > 1) {
-            alternativeBPM.value = bpms[1].tempo;
-          }
+    // Listen for BPM with typed event listeners
+    analyzerNode.on('bpmStable', (data) => {
+      const bpms = data.bpm;
+      if (bpms.length > 0) {
+        currentBPM.value = bpms[0].tempo;
+        if (bpms.length > 1) {
+          alternativeBPM.value = bpms[1].tempo;
         }
       }
     });
-    analyzerNode.port.start();
     
     // Start playback
     await audio.play();
     
     // Store cleanup
     cleanup = async () => {
+      analyzerNode.removeAllListeners();
       await audioContext.suspend();
       source.disconnect();
       filter.disconnect();
@@ -347,17 +339,15 @@ async function stopAnalyzing() {
       source.connect(filter).connect(analyzerNode);
       source.connect(audioContext.destination);
       
-      analyzerNode.port.addEventListener('message', (event) => {
-        if (event.data.message === 'BPM_STABLE') {
-          const bpms = event.data.data.bpm;
-          document.getElementById('bpmValue').textContent = bpms[0].tempo + ' BPM';
-          if (bpms.length > 1) {
-            document.getElementById('alternative').textContent = 
-              'Alternative: ' + bpms[1].tempo + ' BPM';
-          }
+      // Use typed event listeners
+      analyzerNode.on('bpmStable', (data) => {
+        const bpms = data.bpm;
+        document.getElementById('bpmValue').textContent = bpms[0].tempo + ' BPM';
+        if (bpms.length > 1) {
+          document.getElementById('alternative').textContent = 
+            'Alternative: ' + bpms[1].tempo + ' BPM';
         }
       });
-      analyzerNode.port.start();
       
       await audio.play();
       
@@ -366,6 +356,7 @@ async function stopAnalyzing() {
       document.getElementById('bpmDisplay').style.display = 'block';
       
       cleanup = async () => {
+        analyzerNode.removeAllListeners();
         await audioContext.suspend();
         source.disconnect();
         filter.disconnect();

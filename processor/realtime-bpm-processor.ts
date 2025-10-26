@@ -1,7 +1,7 @@
 import {realtimeBpmProcessorName} from '../src/core/consts';
 import {chunckAggregator} from '../src/core/utils';
 import {RealTimeBpmAnalyzer} from '../src/core/realtime-bpm-analyzer';
-import type {RealtimeBpmAnalyzerEvents, AggregateData, RealTimeBpmAnalyzerParameters, PostMessageEvents} from '../src/core/types';
+import type {ProcessorInputMessage, AggregateData, RealTimeBpmAnalyzerParameters, ProcessorOutputEvent} from '../src/core/types';
 
 /**
  * Those declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.
@@ -15,7 +15,7 @@ interface AudioWorkletProcessor {
 
 // Define a type for a message port that only accepts specific message types
 interface AuthorizedMessagePort extends MessagePort {
-  postMessage(message: PostMessageEvents): void;
+  postMessage(message: ProcessorOutputEvent): void;
 }
 
 type AudioWorkletProcessorParameters = {
@@ -78,16 +78,16 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
    * Handle message event
    * @param event Contain event data from main process
    */
-  onMessage(event: RealtimeBpmAnalyzerEvents): void {
+  onMessage(event: ProcessorInputMessage): void {
     // Handle custom event RESET
-    if (event.data.message === 'RESET') {
+    if (event.data.type === 'reset') {
       console.log('[processor.onMessage] RESET');
       this.aggregate = chunckAggregator();
       this.stopped = false;
       this.realTimeBpmAnalyzer.reset();
     }
 
-    if (event.data.message === 'STOP') {
+    if (event.data.type === 'stop') {
       console.log('[processor.onMessage] STOP');
       this.aggregate = chunckAggregator();
       this.stopped = true;

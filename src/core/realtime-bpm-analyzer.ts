@@ -122,7 +122,7 @@ export class RealTimeBpmAnalyzer {
    */
   async analyzeChunck({audioSampleRate, channelData, bufferSize, postMessage}: RealtimeAnalyzeChunkOptions): Promise<void> {
     if (this.options.debug) {
-      postMessage({message: 'ANALYZE_CHUNK', data: channelData});
+      postMessage({type: 'analyzeChunk', data: channelData});
     }
 
     /**
@@ -160,13 +160,13 @@ export class RealTimeBpmAnalyzer {
 
     const data: BpmCandidates = await computeBpm({audioSampleRate, data: this.validPeaks});
     const {threshold} = data;
-    postMessage({message: 'BPM', data});
+    postMessage({type: 'bpm', data});
 
     /**
      * If the results found have a "high" threshold, the BPM is considered stable/strong
      */
     if (this.minValidThreshold < threshold) {
-      postMessage({message: 'BPM_STABLE', data});
+      postMessage({type: 'bpmStable', data});
       await this.clearValidPeaks(threshold);
     }
 
@@ -175,7 +175,7 @@ export class RealTimeBpmAnalyzer {
      */
     if (this.options.continuousAnalysis && this.effectiveBufferTime / audioSampleRate > this.computedStabilizationTimeInSeconds) {
       this.reset();
-      postMessage({message: 'ANALYZER_RESETED'});
+      postMessage({type: 'analyzerReset'});
     }
   }
 
@@ -231,7 +231,7 @@ export class RealTimeBpmAnalyzer {
 
         if (this.options.debug) {
           postMessage({
-            message: 'VALID_PEAK',
+            type: 'validPeak',
             data: {
               threshold: atThreshold,
               index,

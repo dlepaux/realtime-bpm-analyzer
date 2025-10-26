@@ -1,10 +1,10 @@
-import {realtimeBpmProcessorName} from './consts';
+import {realtimeBpmProcessorName} from './core/consts';
 import realtimeBpmProcessorContent from './generated-processor';
-import {type RealTimeBpmAnalyzerParameters} from './types';
+import {type RealTimeBpmAnalyzerParameters} from './core/types';
 
-export * from './realtime-bpm-analyzer';
-export {analyzeFullBuffer, getBiquadFilter} from './analyzer';
-export * from './types';
+export * from './core/realtime-bpm-analyzer';
+export {analyzeFullBuffer, getBiquadFilter} from './core/analyzer';
+export * from './core/types';
 
 /**
  * Create the RealTimeBpmProcessor needed to run the realtime strategy

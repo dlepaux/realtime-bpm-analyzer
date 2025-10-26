@@ -1,7 +1,7 @@
-import {realtimeBpmProcessorName} from '../src/consts';
-import {chunckAggregator} from '../src/utils';
-import {RealTimeBpmAnalyzer} from '../src/realtime-bpm-analyzer';
-import type {RealtimeBpmAnalyzerEvents, AggregateData, RealTimeBpmAnalyzerParameters, PostMessageEvents} from '../src/types';
+import {realtimeBpmProcessorName} from '../src/core/consts';
+import {chunckAggregator} from '../src/core/utils';
+import {RealTimeBpmAnalyzer} from '../src/core/realtime-bpm-analyzer';
+import type {RealtimeBpmAnalyzerEvents, AggregateData, RealTimeBpmAnalyzerParameters, PostMessageEvents} from '../src/core/types';
 
 /**
  * Those declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.

@@ -8,3 +8,6 @@ node_modules
 tests/datasets/*
 testing/datasets
 testing/manifest.json
+
+# Generated files (auto-created during build)
+src/generated-processor.ts

@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import * as utils from '../../src/utils';
+import * as utils from '../../src/core/utils';
 import {readChannelDataToChunk} from '../utils';
 
 describe('Utils - Unit tests', () => {

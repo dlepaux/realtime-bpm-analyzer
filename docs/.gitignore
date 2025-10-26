@@ -1,0 +1,14 @@
+# VitePress build output
+.vitepress/dist
+.vitepress/cache
+.vitepress/.temp
+
+# TypeDoc legacy HTML output (we use markdown now)
+docs/
+api/
+
+# Dependencies
+node_modules/
+
+# System files
+.DS_Store

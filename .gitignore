@@ -2,8 +2,6 @@
 *.DS_Store
 coverage
 dist
-docs
-github-pages/favicons
 node_modules
 tests/datasets/*
 testing/datasets
@@ -11,3 +9,8 @@ testing/manifest.json
 
 # Generated files (auto-created during build)
 src/generated-processor.ts
+
+# VitePress documentation build output
+docs/.vitepress/dist
+docs/.vitepress/cache
+docs/node_modules

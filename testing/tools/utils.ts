@@ -1,6 +1,6 @@
 import * as realtimeBpm from '../../src/index';
 import type {Manifest, Closure, AudioFile} from '../types';
-import type {BiquadFilterOptions} from '../../src/types';
+import type {BiquadFilterOptions} from '../../src/core/types';
 
 /**
  * Batch an array of closure that triggers a Promise

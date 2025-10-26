@@ -22,6 +22,27 @@ export async function descendingOverThresholds(onThreshold: OnThresholdFunction,
 }
 
 /**
+ * Generic helper to generate a threshold-indexed map
+ * @param initialValue The initial value for each threshold key
+ * @param minValidThreshold Minimum threshold (default: 0.2)
+ * @param startThreshold Starting threshold (default: 0.95)
+ * @param thresholdStep Step size between thresholds (default: 0.05)
+ * @returns Object with threshold strings as keys and initialValue as values
+ */
+function generateThresholdMap<T>(initialValue: T, minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): Record<string, T> {
+  const object: Record<string, T> = {};
+  let threshold = startThreshold;
+
+  do {
+    threshold -= thresholdStep;
+    // Use toFixed to handle floating point precision issues (e.g., 0.7499999 -> "0.75")
+    object[threshold.toFixed(2)] = initialValue;
+  } while (threshold > minValidThreshold);
+
+  return object;
+}
+
+/**
  * Generate an object with keys as thresholds and will containes validPeaks
  * @param minValidThreshold minValidThreshold usualy 0.2
  * @param startThreshold startThreshold usualy 0.9
@@ -29,15 +50,7 @@ export async function descendingOverThresholds(onThreshold: OnThresholdFunction,
  * @returns Collection of validPeaks by thresholds
  */
 export function generateValidPeaksModel(minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): ValidPeaks {
-  const object: Record<string, Peaks> = {};
-  let threshold = startThreshold;
-
-  do {
-    threshold -= thresholdStep;
-    object[threshold.toString()] = [];
-  } while (threshold > minValidThreshold);
-
-  return object;
+  return generateThresholdMap<Peaks>([], minValidThreshold, startThreshold, thresholdStep);
 }
 
 /**
@@ -48,24 +61,15 @@ export function generateValidPeaksModel(minValidThreshold = consts.minValidThres
  * @returns Collection of NextIndexPeaks by thresholds
  */
 export function generateNextIndexPeaksModel(minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): NextIndexPeaks {
-  const object: Record<string, number> = {};
-  let threshold = startThreshold;
-
-  do {
-    threshold -= thresholdStep;
-    object[threshold.toString()] = 0;
-  } while (threshold > minValidThreshold);
-
-  return object;
+  return generateThresholdMap<number>(0, minValidThreshold, startThreshold, thresholdStep);
 }
 
 /**
  * Creates a function that aggregates incoming PCM data into chunks.
+ * @param bufferSize - Size of the buffer to aggregate (default: 4096)
  * @returns A function that accepts PCM data and aggregates it into chunks.
  */
-export function chunckAggregator(): (pcmData: Float32Array) => AggregateData {
-  const bufferSize = 4096;
-
+export function chunkAggregator(bufferSize = consts.defaultBufferSize): (pcmData: Float32Array) => AggregateData {
   /**
    * Track the current buffer fill level.
    */

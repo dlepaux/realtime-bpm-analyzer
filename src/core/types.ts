@@ -7,7 +7,8 @@ export type ProcessorOutputEvent =
   | {type: 'bpmStable'; data: BpmCandidates}
   | {type: 'analyzerReset'}
   | {type: 'analyzeChunk'; data: Float32Array}
-  | {type: 'validPeak'; data: {threshold: Threshold; index: number}};
+  | {type: 'validPeak'; data: {threshold: Threshold; index: number}}
+  | {type: 'error'; data: {message: string; error: Error}};
 
 /**
  * Control events sent to the processor (Main Thread → Processor)
@@ -40,20 +41,8 @@ export type BpmAnalyzerEventMap = {
   analyzeChunk: Float32Array;
   /** Emitted in debug mode when a valid peak is detected */
   validPeak: {threshold: Threshold; index: number};
-};
-
-/**
- * Event listener callback type
- * @group Events
- */
-export type EventListener<T> = (data: T) => void;
-
-/**
- * Map of event names to their listener arrays
- * @group Events
- */
-export type EventListenerMap = {
-  [K in keyof BpmAnalyzerEventMap]?: Array<EventListener<BpmAnalyzerEventMap[K]>>;
+  /** Emitted when an error occurs during processing */
+  error: {message: string; error: Error};
 };
 
 /**

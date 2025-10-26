@@ -1,7 +1,7 @@
-import {realtimeBpmProcessorName} from '../src/core/consts';
-import {chunckAggregator} from '../src/core/utils';
-import {RealTimeBpmAnalyzer} from '../src/core/realtime-bpm-analyzer';
-import type {ProcessorInputMessage, AggregateData, RealTimeBpmAnalyzerParameters, ProcessorOutputEvent} from '../src/core/types';
+import {realtimeBpmProcessorName} from '../core/consts';
+import {chunkAggregator} from '../core/utils';
+import {RealTimeBpmAnalyzer} from '../core/realtime-bpm-analyzer';
+import type {ProcessorInputMessage, AggregateData, RealTimeBpmAnalyzerParameters, ProcessorOutputEvent} from '../core/types';
 
 /**
  * Those declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.
@@ -67,7 +67,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   constructor(options: AudioWorkletProcessorParameters) {
     super(options);
 
-    this.aggregate = chunckAggregator();
+    this.aggregate = chunkAggregator();
     this.realTimeBpmAnalyzer = new RealTimeBpmAnalyzer(options.processorOptions);
 
     this.port.addEventListener('message', this.onMessage.bind(this));
@@ -82,14 +82,14 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     // Handle custom event RESET
     if (event.data.type === 'reset') {
       console.log('[processor.onMessage] RESET');
-      this.aggregate = chunckAggregator();
+      this.aggregate = chunkAggregator();
       this.stopped = false;
       this.realTimeBpmAnalyzer.reset();
     }
 
     if (event.data.type === 'stop') {
       console.log('[processor.onMessage] STOP');
-      this.aggregate = chunckAggregator();
+      this.aggregate = chunkAggregator();
       this.stopped = true;
       this.realTimeBpmAnalyzer.reset();
     }
@@ -117,10 +117,18 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
     if (isBufferFull) {
       // The variable sampleRate is global ! thanks to the AudioWorkletProcessor
-      this.realTimeBpmAnalyzer.analyzeChunck({audioSampleRate: sampleRate, channelData: buffer, bufferSize, postMessage: event => {
+      this.realTimeBpmAnalyzer.analyzeChunk({audioSampleRate: sampleRate, channelData: buffer, bufferSize, postMessage: event => {
         this.port.postMessage(event);
       }}).catch((error: unknown) => {
-        console.error(error);
+        console.error('[RealTimeBpmProcessor] Error during analysis:', error);
+        // Emit error event to allow user-level error handling
+        this.port.postMessage({
+          type: 'error',
+          data: {
+            message: error instanceof Error ? error.message : 'Unknown error during BPM analysis',
+            error: error instanceof Error ? error : new Error(String(error)),
+          },
+        });
       });
     }
 

@@ -103,9 +103,11 @@ export class RealTimeBpmAnalyzer {
     this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
 
     await descendingOverThresholds(async threshold => {
-      if (threshold < minThreshold && this.validPeaks[threshold] !== undefined) {
-        delete this.validPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
-        delete this.nextIndexPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
+      const thresholdKey = threshold.toFixed(2);
+
+      if (threshold < minThreshold && this.validPeaks[thresholdKey] !== undefined) {
+        delete this.validPeaks[thresholdKey]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
+        delete this.nextIndexPeaks[thresholdKey]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
       }
 
       return false;
@@ -120,7 +122,7 @@ export class RealTimeBpmAnalyzer {
    * @param options.bufferSize - Buffer size (4096)
    * @param options.postMessage - Function to post a message to the processor node
    */
-  async analyzeChunck({audioSampleRate, channelData, bufferSize, postMessage}: RealtimeAnalyzeChunkOptions): Promise<void> {
+  async analyzeChunk({audioSampleRate, channelData, bufferSize, postMessage}: RealtimeAnalyzeChunkOptions): Promise<void> {
     if (this.options.debug) {
       postMessage({type: 'analyzeChunk', data: channelData});
     }
@@ -198,14 +200,16 @@ export class RealTimeBpmAnalyzer {
     postMessage,
   }: RealtimeFindPeaksOptions): Promise<void> {
     await descendingOverThresholds(async threshold => {
-      if (this.nextIndexPeaks[threshold] >= currentMaxIndex) {
+      const thresholdKey = threshold.toFixed(2);
+
+      if (this.nextIndexPeaks[thresholdKey] >= currentMaxIndex) {
         return false;
       }
 
       /**
        * Get the next index in the next chunk
        */
-      const offsetForNextPeak = this.nextIndexPeaks[threshold] % bufferSize; // 0 - 4095
+      const offsetForNextPeak = this.nextIndexPeaks[thresholdKey] % bufferSize; // 0 - 4095
 
       const {peaks, threshold: atThreshold} = findPeaksAtThreshold({audioSampleRate, data: channelData, threshold, offset: offsetForNextPeak});
 
@@ -216,18 +220,20 @@ export class RealTimeBpmAnalyzer {
         return false;
       }
 
+      const atThresholdKey = atThreshold.toFixed(2);
+
       for (const relativeChunkPeak of peaks) {
         const index = currentMinIndex + relativeChunkPeak;
 
         /**
          * Add current Index + muteTimeInIndexes (10000/44100=0.22s)
          */
-        this.nextIndexPeaks[atThreshold] = index + this.options.muteTimeInIndexes;
+        this.nextIndexPeaks[atThresholdKey] = index + this.options.muteTimeInIndexes;
 
         /**
          * Store valid relativeChunkPeak Indexes
          */
-        this.validPeaks[atThreshold].push(index);
+        this.validPeaks[atThresholdKey].push(index);
 
         if (this.options.debug) {
           postMessage({

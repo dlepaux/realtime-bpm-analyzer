@@ -194,13 +194,30 @@ export class BpmAnalyzer extends EventTarget {
    * Remove all listeners for all events
    *
    * @remarks
-   * Note: This is a convenience method. Native EventTarget doesn't have a built-in
-   * way to remove all listeners, so users should keep references to their handlers
-   * if they need to remove them individually.
+   * **Important limitation:** This is a no-op method provided for API compatibility.
+   *
+   * Native EventTarget does not provide a way to enumerate or remove all listeners.
+   * To properly remove listeners, you must:
+   * 1. Keep a reference to your listener function
+   * 2. Call `.off(eventName, listenerReference)` for each listener
+   *
+   * Alternative approaches:
+   * - Store listener references in your application code
+   * - Recreate the analyzer instance to start fresh
+   * - Use the native `removeEventListener()` method directly
    *
    * @example
    * ```typescript
+   * // ❌ This won't actually remove listeners:
    * analyzer.removeAllListeners();
+   *
+   * // ✅ Proper way to remove listeners:
+   * const handler = (data) => console.log(data);
+   * analyzer.on('bpm', handler);
+   * analyzer.off('bpm', handler);  // Must use the same reference
+   *
+   * // ✅ Alternative: recreate the analyzer
+   * const newAnalyzer = await createRealTimeBpmProcessor(audioContext);
    * ```
    */
   removeAllListeners(): void {
@@ -315,6 +332,11 @@ export class BpmAnalyzer extends EventTarget {
 
         case 'validPeak': {
           this.emit('validPeak', eventData.data);
+          break;
+        }
+
+        case 'error': {
+          this.emit('error', eventData.data);
           break;
         }
       }

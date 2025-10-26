@@ -19,7 +19,7 @@ describe('RealTimeBpmAnalyzer - Integration tests', () => {
     const chunks = await readChannelDataToChunk(audioContext, bufferSize);
 
     for (const channelData of chunks) {
-      await realTimeBpmAnalyzer.analyzeChunck({audioSampleRate: audioContext.sampleRate, channelData, bufferSize, postMessage(data: ProcessorOutputEvent) {
+      await realTimeBpmAnalyzer.analyzeChunk({audioSampleRate: audioContext.sampleRate, channelData, bufferSize, postMessage(data: ProcessorOutputEvent) {
         // TODO: Do something
       }});
     }
@@ -39,7 +39,7 @@ describe('RealTimeBpmAnalyzer - Integration tests', () => {
     const chunks = await readChannelDataToChunk(audioContext, bufferSize);
 
     for (const channelData of chunks) {
-      await realTimeBpmAnalyzer.analyzeChunck({audioSampleRate: audioContext.sampleRate, channelData, bufferSize, postMessage(data: ProcessorOutputEvent) {
+      await realTimeBpmAnalyzer.analyzeChunk({audioSampleRate: audioContext.sampleRate, channelData, bufferSize, postMessage(data: ProcessorOutputEvent) {
         // TODO: Do something
       }});
     }

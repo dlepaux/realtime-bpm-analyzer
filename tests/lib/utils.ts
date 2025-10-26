@@ -60,7 +60,7 @@ describe('Utils - Unit tests', () => {
 
   it('should use the chunk aggregator', async () => {
     const audioContext = new AudioContext();
-    const aggregate = utils.chunckAggregator();
+    const aggregate = utils.chunkAggregator();
     const bufferSize = 1024;
     const channelData = await readChannelDataToChunk(audioContext, bufferSize);
 

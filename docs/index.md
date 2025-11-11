@@ -5,9 +5,6 @@ hero:
   name: "Realtime BPM Analyzer"
   text: "Detect Tempo in Real-Time"
   tagline: A powerful, dependency-free TypeScript library for analyzing beats-per-minute (BPM) of audio and video sources directly in your browser
-  image:
-    src: /hero-logo.svg
-    alt: Realtime BPM Analyzer
   actions:
     - theme: brand
       text: Get Started
@@ -85,15 +82,14 @@ const lowpass = getBiquadFilter(audioContext);
 source.connect(lowpass).connect(realtimeAnalyzerNode);
 source.connect(audioContext.destination);
 
-// Listen for BPM events
-realtimeAnalyzerNode.port.onmessage = (event) => {
-  if (event.data.message === 'BPM') {
-    console.log('Current BPM:', event.data.data.bpm);
-  }
-  if (event.data.message === 'BPM_STABLE') {
-    console.log('Stable BPM detected:', event.data.data.bpm);
-  }
-};
+// Listen for BPM events with typed listeners
+realtimeAnalyzerNode.on('bpm', (data) => {
+  console.log('Current BPM:', data.bpm);
+});
+
+realtimeAnalyzerNode.on('bpmStable', (data) => {
+  console.log('Stable BPM detected:', data.bpm);
+});
 ```
 
 ## Why Realtime BPM Analyzer?
@@ -108,27 +104,3 @@ realtimeAnalyzerNode.port.onmessage = (event) => {
 - Interactive audio experiences
 
 </div>
-
-## Trusted by Developers
-
-<div class="badges">
-
-[![npm](https://img.shields.io/npm/dm/realtime-bpm-analyzer.svg)](https://www.npmjs.com/package/realtime-bpm-analyzer)
-[![npm](https://img.shields.io/npm/l/realtime-bpm-analyzer.svg)](https://github.com/dlepaux/realtime-bpm-analyzer/blob/main/licence.md)
-[![CI Actions Status](https://github.com/dlepaux/realtime-bpm-analyzer/workflows/CI/badge.svg)](https://github.com/dlepaux/realtime-bpm-analyzer/actions)
-[![codecov](https://codecov.io/gh/dlepaux/realtime-bpm-analyzer/branch/main/graph/badge.svg)](https://codecov.io/gh/dlepaux/realtime-bpm-analyzer)
-
-</div>
-
-<style>
-.badges {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 16px;
-}
-
-.badges img {
-  height: 20px;
-}
-</style>

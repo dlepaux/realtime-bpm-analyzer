@@ -36,7 +36,7 @@ function generateThresholdMap<T>(initialValue: T, minValidThreshold = consts.min
   do {
     threshold -= thresholdStep;
     // Use toFixed to handle floating point precision issues (e.g., 0.7499999 -> "0.75")
-    object[threshold.toFixed(2)] = initialValue;
+    object[threshold.toString()] = initialValue;
   } while (threshold > minValidThreshold);
 
   return object;

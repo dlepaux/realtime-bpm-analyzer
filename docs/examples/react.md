@@ -14,13 +14,13 @@ Create a reusable hook for BPM analysis:
 
 ```tsx
 import { useEffect, useRef, useState } from 'react';
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import { createRealTimeBpmProcessor, type BpmAnalyzer } from 'realtime-bpm-analyzer';
 
 export function useBPMAnalyzer() {
   const [bpm, setBpm] = useState<number>(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const analyzerRef = useRef<AudioWorkletNode | null>(null);
+  const analyzerRef = useRef<BpmAnalyzer | null>(null);
 
   const startAnalysis = async (audioElement: HTMLAudioElement) => {
     try {

@@ -8,6 +8,8 @@ export {analyzeFullBuffer, getBiquadFilter} from './core/analyzer';
 export * from './core/types';
 export {BpmAnalyzer} from './core/bpm-analyzer';
 
+console.log('realtimeBpmProcessorContent', realtimeBpmProcessorContent);
+
 /**
  * Creates a real-time BPM analyzer for live audio streams.
  *
@@ -119,10 +121,11 @@ export {BpmAnalyzer} from './core/bpm-analyzer';
  * @group Functions
  */
 export async function createRealTimeBpmProcessor(audioContext: AudioContext, processorOptions?: RealTimeBpmAnalyzerParameters): Promise<BpmAnalyzer> {
+  console.log('0');
   const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName, processorOptions);
-
+  console.log('1');
   await audioContext.resume();
-
+  console.log('2');
   return new BpmAnalyzer(processorNode);
 }
 

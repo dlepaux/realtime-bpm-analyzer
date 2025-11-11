@@ -71,7 +71,7 @@ async function setupMicrophoneAnalysis(stream: MediaStream) {
 ### Step 3: Listen for BPM Events
 
 ```typescript
-function setupBPMListener(analyzerNode: AudioWorkletNode) {
+function setupBPMListener(analyzerNode: BpmAnalyzer) {
   analyzerNode.on('bpmStable', (data) => {
     const bpms = data.bpm;
     
@@ -256,7 +256,6 @@ async function stopRecording() {
   }
   
   if (analyzerNode) {
-    analyzerNode.port.removeEventListener('message', handleBPMMessage);
     analyzerNode.disconnect();
   }
   

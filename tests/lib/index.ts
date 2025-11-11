@@ -17,11 +17,10 @@ describe('Index - Intergration tests', () => {
     await audioContext.close();
   });
 
-  it('should create a realTimeBpmProcessor', async function () {
-    this.timeout(5000);
+  it('should create a realTimeBpmProcessor (extending EventTarget class)', async () => {
     const audioContext = new AudioContext();
     const processor = await createRealTimeBpmProcessor(audioContext);
-    expect(processor).to.be.instanceOf(AudioWorkletNode);
+    expect(processor).to.be.instanceOf(EventTarget);
     await audioContext.close();
   });
 

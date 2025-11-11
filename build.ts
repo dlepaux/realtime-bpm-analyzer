@@ -16,7 +16,7 @@ const outdir = 'dist';
 async function main() {
   const processorConfig: BuildOptions = {
     entryPoints: [
-      'processor/realtime-bpm-processor.ts',
+      'src/processor/realtime-bpm-processor.ts',
     ],
     outfile: `${outdir}/realtime-bpm-processor.js`,
     ...commonConfig,

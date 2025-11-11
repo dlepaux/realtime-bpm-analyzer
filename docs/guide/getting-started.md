@@ -82,22 +82,18 @@ async function setupBPMAnalyzer() {
   lowpass.connect(realtimeAnalyzerNode);
   source.connect(audioContext.destination);
   
-  // Listen for BPM events
-  realtimeAnalyzerNode.port.onmessage = (event) => {
-    const { message, data } = event.data;
-    
-    if (message === 'BPM') {
-      // Continuous BPM updates
-      console.log('Current BPM candidates:', data.bpm);
-      updateDisplay(data.bpm);
-    }
-    
-    if (message === 'BPM_STABLE') {
-      // Stable BPM detected (more confident result)
-      console.log('Stable BPM:', data.bpm);
-      updateDisplay(data.bpm, true);
-    }
-  };
+  // Listen for BPM events with typed event listeners
+  realtimeAnalyzerNode.on('bpm', (data) => {
+    // Continuous BPM updates
+    console.log('Current BPM candidates:', data.bpm);
+    updateDisplay(data.bpm);
+  });
+  
+  realtimeAnalyzerNode.on('bpmStable', (data) => {
+    // Stable BPM detected (more confident result)
+    console.log('Stable BPM:', data.bpm);
+    updateDisplay(data.bpm, true);
+  });
   
   // Start playback when user clicks play
   audioElement.play();
@@ -140,13 +136,13 @@ async function setupBPMAnalyzer(): Promise<void> {
   source.connect(lowpass).connect(realtimeAnalyzerNode);
   source.connect(audioContext.destination);
   
-  realtimeAnalyzerNode.port.onmessage = (event: MessageEvent<BpmEvent>) => {
-    const { message, data } = event.data;
-    
-    if (message === 'BPM' || message === 'BPM_STABLE') {
-      handleBPMUpdate(data, message === 'BPM_STABLE');
-    }
-  };
+  realtimeAnalyzerNode.on('bpm', (data: BpmCandidates) => {
+    handleBPMUpdate(data, false);
+  });
+  
+  realtimeAnalyzerNode.on('bpmStable', (data: BpmCandidates) => {
+    handleBPMUpdate(data, true);
+  });
 }
 
 function handleBPMUpdate(data: BpmCandidates, isStable: boolean): void {
@@ -159,15 +155,15 @@ function handleBPMUpdate(data: BpmCandidates, isStable: boolean): void {
 
 ## Understanding the Events
 
-The analyzer emits two types of BPM events:
+The analyzer emits two main types of BPM events:
 
-### `BPM` Event
+### `bpm` Event
 - Emitted frequently during analysis
 - Contains multiple BPM candidates with confidence scores
 - Values may fluctuate as more data is analyzed
 - Use for real-time display or progressive analysis
 
-### `BPM_STABLE` Event
+### `bpmStable` Event
 - Emitted when a stable, confident BPM is detected
 - Indicates the analyzer has gathered enough data
 - More reliable for final BPM determination

@@ -163,31 +163,29 @@ Don't update the UI on every BPM event:
 
 ❌ **Bad:**
 ```typescript
-analyzerNode.port.onmessage = (event) => {
-  if (event.data.message === 'BPM') {
-    // Updates too frequently!
-    document.getElementById('bpm').textContent = event.data.data.bpm[0].tempo;
-  }
-};
+analyzerNode.on('bpm', (data) => {
+  // Updates too frequently!
+  document.getElementById('bpm').textContent = data.bpm[0].tempo;
+});
 ```
 
 ✅ **Good:**
 ```typescript
 let lastUpdate = 0;
 
-analyzerNode.port.onmessage = (event) => {
+analyzerNode.on('bpm', (data) => {
   const now = Date.now();
   
-  if (event.data.message === 'BPM' && now - lastUpdate > 1000) {
-    document.getElementById('bpm').textContent = event.data.data.bpm[0].tempo;
+  if (now - lastUpdate > 1000) {
+    document.getElementById('bpm').textContent = data.bpm[0].tempo;
     lastUpdate = now;
   }
-  
-  // Always update on stable BPM
-  if (event.data.message === 'BPM_STABLE') {
-    document.getElementById('bpm').textContent = event.data.data.bpm[0].tempo;
-  }
-};
+});
+
+// Always update on stable BPM
+analyzerNode.on('bpmStable', (data) => {
+  document.getElementById('bpm').textContent = data.bpm[0].tempo;
+});
 ```
 
 ## Mobile Optimization
@@ -196,14 +194,12 @@ analyzerNode.port.onmessage = (event) => {
 
 On mobile devices, audio processing consumes battery. Optimize by:
 
-1. **Use `BPM_STABLE` instead of continuous `BPM` updates:**
+1. **Use `bpmStable` instead of continuous `bpm` updates:**
 ```typescript
-analyzerNode.port.onmessage = (event) => {
-  // Only act on stable BPM to reduce processing
-  if (event.data.message === 'BPM_STABLE') {
-    handleBPMUpdate(event.data.data.bpm);
-  }
-};
+// Only act on stable BPM to reduce processing
+analyzerNode.on('bpmStable', (data) => {
+  handleBPMUpdate(data.bpm);
+});
 ```
 
 2. **Stop analysis when not needed:**
@@ -344,10 +340,10 @@ if (performance.memory) {
 // Use Performance API
 const start = performance.now();
 
-analyzerNode.port.onmessage = (event) => {
+analyzerNode.on('bpmStable', (data) => {
   const duration = performance.now() - start;
   console.log('Time to BPM:', duration);
-};
+});
 ```
 
 ### Network Monitoring (for streams)
@@ -370,7 +366,7 @@ audioElement.addEventListener('playing', () => {
 - ✅ Set reasonable `stabilizationTime` for continuous analysis
 - ✅ Clean up AudioContext and nodes when done
 - ✅ Throttle UI updates to 1 update/second
-- ✅ Use `BPM_STABLE` events when possible
+- ✅ Use `bpmStable` events when possible
 - ✅ Create AudioContext in response to user gesture (mobile)
 - ✅ Process files sequentially, not in parallel
 - ✅ Monitor memory on long-running applications

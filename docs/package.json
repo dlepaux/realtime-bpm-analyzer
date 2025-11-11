@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "docs:generate": "cd .. && npx typedoc",
+    "docs:generate": "cd .. && typedoc",
     "dev": "npm run docs:generate && vitepress dev",
     "build": "npm run docs:generate && vitepress build",
     "preview": "vitepress preview"

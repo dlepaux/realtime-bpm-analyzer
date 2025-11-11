@@ -36,7 +36,7 @@
     "release:major": "bash bin/release/version.sh major",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
     "testing": "web-dev-server",
-    "test": "web-test-runner"
+    "test": "web-test-runner --debug"
   },
   "repository": {
     "type": "git",

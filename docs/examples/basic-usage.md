@@ -166,7 +166,7 @@ export class BPMAnalyzer {
     });
   }
   
-  destroy() {
+  function destroy() {
     if (this.analyzerNode) {
       this.analyzerNode.removeAllListeners();
     }

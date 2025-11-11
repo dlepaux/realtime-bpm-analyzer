@@ -82,10 +82,13 @@ export async function findPeaks({
     throw new Error('Invalid channel data: buffer is empty or undefined.');
   }
 
+  console.log('hello');
+
   let validPeaks: Peaks = [];
   let validThreshold = 0;
 
   await descendingOverThresholds(async threshold => {
+    console.log('threshold', threshold);
     const {peaks} = findPeaksAtThreshold({audioSampleRate, data: channelData, threshold});
 
     /**
@@ -100,6 +103,8 @@ export async function findPeaks({
 
     return true;
   });
+
+  console.log('end');
 
   return {
     peaks: validPeaks,

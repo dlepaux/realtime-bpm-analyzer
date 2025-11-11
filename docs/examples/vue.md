@@ -14,14 +14,14 @@ Create a reusable composable at `composables/useBPMAnalyzer.ts`:
 
 ```typescript
 import { ref, onUnmounted } from 'vue';
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import { createRealTimeBpmProcessor, type BpmAnalyzer } from 'realtime-bpm-analyzer';
 
 export function useBPMAnalyzer() {
   const bpm = ref(0);
   const isAnalyzing = ref(false);
   
   let audioContext: AudioContext | null = null;
-  let analyzerNode: AudioWorkletNode | null = null;
+  let analyzerNode: BpmAnalyzer | null = null;
 
   const startAnalysis = async (audioElement: HTMLAudioElement) => {
     try {

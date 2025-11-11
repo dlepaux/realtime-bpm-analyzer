@@ -192,43 +192,37 @@ const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext, {
 
 ## Events Reference
 
-### `BPM`
+### `bpm`
 Emitted continuously during analysis:
 
 ```typescript
-{
-  message: 'BPM',
-  data: {
-    bpm: [
-      { tempo: 128, count: 45, confidence: 0 }
-    ],
-    threshold: 0.85
-  }
-}
+analyzer.on('bpm', (data) => {
+  // data.bpm: Array of tempo candidates
+  // data.threshold: Current detection threshold
+  console.log('BPM:', data.bpm[0].tempo);
+  console.log('Threshold:', data.threshold);
+});
 ```
 
-### `BPM_STABLE`
+### `bpmStable`
 Emitted when stable BPM detected:
 
 ```typescript
-{
-  message: 'BPM_STABLE',
-  data: {
-    bpm: [
-      { tempo: 128, count: 120, confidence: 0 }
-    ],
-    threshold: 0.90
-  }
-}
+analyzer.on('bpmStable', (data) => {
+  // More confident detection
+  console.log('Stable BPM:', data.bpm[0].tempo);
+  console.log('Confidence:', data.bpm[0].count);
+  console.log('Threshold:', data.threshold);
+});
 ```
 
-### `ANALYZER_RESETED`
+### `analyzerReset`
 Emitted when continuous analysis resets:
 
 ```typescript
-{
-  message: 'ANALYZER_RESETED'
-}
+analyzer.on('analyzerReset', () => {
+  console.log('Analyzer reset - starting fresh analysis');
+});
 ```
 
 ## Best Practices

@@ -121,11 +121,8 @@ console.log('realtimeBpmProcessorContent', realtimeBpmProcessorContent);
  * @group Functions
  */
 export async function createRealTimeBpmProcessor(audioContext: AudioContext, processorOptions?: RealTimeBpmAnalyzerParameters): Promise<BpmAnalyzer> {
-  console.log('0');
   const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName, processorOptions);
-  console.log('1');
   await audioContext.resume();
-  console.log('2');
   return new BpmAnalyzer(processorNode);
 }
 

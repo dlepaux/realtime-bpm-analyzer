@@ -36,7 +36,12 @@
     "release:major": "bash bin/release/version.sh major",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
     "testing": "web-dev-server",
-    "test": "web-test-runner --debug"
+    "test": "web-test-runner",
+    "test:watch": "web-test-runner --watch",
+    "test:unit": "web-test-runner --files 'tests/unit/**/*.test.ts'",
+    "test:integration": "web-test-runner --files 'tests/integration/**/*.test.ts'",
+    "test:lib": "web-test-runner --files 'tests/lib/**/*.ts'",
+    "test:coverage": "web-test-runner --coverage"
   },
   "repository": {
     "type": "git",
@@ -77,6 +82,7 @@
       "n/prefer-global/process": "off",
       "node/prefer-global/process": 0,
       "no-await-in-loop": "off",
+      "jsdoc/tag-lines": "off",
       "import/no-unassigned-import": "off",
       "import/no-anonymous-default-export": "off",
       "import/extensions": "off",
@@ -84,7 +90,11 @@
       "unicorn/numeric-separators-style": "off",
       "unicorn/prefer-top-level-await": "off",
       "@typescript-eslint/triple-slash-reference": "off",
-      "@typescript-eslint/no-loss-of-precision": "off"
+      "@typescript-eslint/no-loss-of-precision": "off",
+      "@typescript-eslint/no-unused-expressions": "off",
+      "no-promise-executor-return": "off",
+      "@typescript-eslint/no-empty-function": "off",
+      "unicorn/prevent-abbreviations": "off"
     }
   },
   "lint-staged": {

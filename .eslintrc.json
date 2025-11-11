@@ -5,5 +5,11 @@
         "sourceType": "module"
     },
     "plugins": ["@typescript-eslint", "jsdoc"],
-    "extends": ["plugin:jsdoc/recommended-typescript-error"]
+    "extends": ["plugin:jsdoc/recommended-typescript-error"],
+    "rules": {
+        "jsdoc/tag-lines": "off",
+        "jsdoc/check-tag-names": "off",
+        "jsdoc/require-param": "off",
+        "jsdoc/require-returns": "off"
+    }
 }

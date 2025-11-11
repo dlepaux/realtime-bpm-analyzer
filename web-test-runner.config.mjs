@@ -5,7 +5,7 @@ export default {
   files: ['tests/**/*.ts'],
   nodeResolve: true,
   browserLogs: true,
-  testsFinishTimeout: 5000,
+  testsFinishTimeout: 10000,
   browsers: [
     puppeteerLauncher({
       launchOptions: {

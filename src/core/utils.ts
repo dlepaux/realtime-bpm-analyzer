@@ -23,20 +23,20 @@ export async function descendingOverThresholds(onThreshold: OnThresholdFunction,
 
 /**
  * Generic helper to generate a threshold-indexed map
- * @param initialValue The initial value for each threshold key
+ * @param initialValueFactory Function that creates the initial value for each threshold key
  * @param minValidThreshold Minimum threshold (default: 0.2)
  * @param startThreshold Starting threshold (default: 0.95)
  * @param thresholdStep Step size between thresholds (default: 0.05)
  * @returns Object with threshold strings as keys and initialValue as values
  */
-function generateThresholdMap<T>(initialValue: T, minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): Record<string, T> {
+function generateThresholdMap<T>(initialValueFactory: () => T, minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): Record<string, T> {
   const object: Record<string, T> = {};
   let threshold = startThreshold;
 
   do {
     threshold -= thresholdStep;
     // Use toFixed to handle floating point precision issues (e.g., 0.7499999 -> "0.75")
-    object[threshold.toString()] = initialValue;
+    object[threshold.toString()] = initialValueFactory();
   } while (threshold > minValidThreshold);
 
   return object;
@@ -50,7 +50,7 @@ function generateThresholdMap<T>(initialValue: T, minValidThreshold = consts.min
  * @returns Collection of validPeaks by thresholds
  */
 export function generateValidPeaksModel(minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): ValidPeaks {
-  return generateThresholdMap<Peaks>([], minValidThreshold, startThreshold, thresholdStep);
+  return generateThresholdMap<Peaks>(() => [], minValidThreshold, startThreshold, thresholdStep);
 }
 
 /**
@@ -61,7 +61,7 @@ export function generateValidPeaksModel(minValidThreshold = consts.minValidThres
  * @returns Collection of NextIndexPeaks by thresholds
  */
 export function generateNextIndexPeaksModel(minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): NextIndexPeaks {
-  return generateThresholdMap<number>(0, minValidThreshold, startThreshold, thresholdStep);
+  return generateThresholdMap<number>(() => 0, minValidThreshold, startThreshold, thresholdStep);
 }
 
 /**

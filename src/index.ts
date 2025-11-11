@@ -8,8 +8,6 @@ export {analyzeFullBuffer, getBiquadFilter} from './core/analyzer';
 export * from './core/types';
 export {BpmAnalyzer} from './core/bpm-analyzer';
 
-console.log('realtimeBpmProcessorContent', realtimeBpmProcessorContent);
-
 /**
  * Creates a real-time BPM analyzer for live audio streams.
  *

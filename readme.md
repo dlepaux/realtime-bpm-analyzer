@@ -14,7 +14,7 @@
 
 Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of an audio or video source in real-time.
 
-> **New in v4.0**: Clean typed event API with full TypeScript support! See the [migration guide](https://www.realtime-bpm-analyzer.com/guide/migration-v4) if upgrading from v3.x.
+> **New in v5.0**: Clean typed event API with full TypeScript support! See the [migration guide](https://www.realtime-bpm-analyzer.com/guide/migration-v4) if upgrading from v3.x.
 
 ```typescript
 // Simple, typed event listeners with autocomplete
@@ -55,7 +55,7 @@ To learn more about how to use the library, you can check out [the documentation
 
 ## Features
 
-- **Typed Event API** (new in v4.0) with full TypeScript autocomplete support
+- **Typed Event API** (new in v5.0) with full TypeScript autocomplete support
 - **Dependency-free** library that utilizes the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) to analyze audio or video sources and provide accurate BPM detection.
 - Can be used to analyze **audio or video** nodes, streams as well as **files**.
 - Allows you to compute the BPM while the audio or video is playing.

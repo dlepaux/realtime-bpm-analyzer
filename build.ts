@@ -7,7 +7,7 @@ import type {BuildOptions} from 'esbuild/lib/main';
 const commonConfig = {
   bundle: true,
   sourcemap: true,
-  minify: true,
+  minify: false,
   metafile: true,
 };
 
@@ -44,11 +44,14 @@ async function main() {
     outfile: `${outdir}/index.esm.js`,
     ...commonConfig,
     platform: 'neutral',
+    format: 'esm',
   };
 
   const esbuildConfig = Object.assign({}, esbuildEsmConfig);
   delete esbuildConfig.platform;
+  delete esbuildConfig.format;
   esbuildConfig.outfile = `${outdir}/index.js`;
+  esbuildConfig.format = 'cjs';
 
   await esbuild.build(esbuildEsmConfig);
   await esbuild.build(esbuildConfig);

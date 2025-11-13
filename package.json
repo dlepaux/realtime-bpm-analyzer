@@ -20,9 +20,28 @@
     "beats",
     "analyzer"
   ],
-  "license": "MIT",
-  "main": "./dist/index.js",
-  "module": "./dist/index.esm.js",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js"
+    },
+    "./processor": {
+      "types": "./dist/realtime-bpm-processor.d.ts",
+      "default": "./dist/realtime-bpm-processor.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "readme.md",
+    "licence.md"
+  ],
+  "sideEffects": false,
   "scripts": {
     "build": "bash bin/build/library.sh",
     "docs:dev": "cd docs && npm run dev",

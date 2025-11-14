@@ -72,9 +72,9 @@ export type PeaksAndThreshold = {
  */
 export type BpmCandidates = {
   /** Array of tempo candidates sorted by confidence */
-  bpm: Tempo[];
+  readonly bpm: readonly Tempo[];
   /** Threshold value used for peak detection */
-  threshold: Threshold;
+  readonly threshold: Threshold;
 };
 
 /**
@@ -83,9 +83,9 @@ export type BpmCandidates = {
  */
 export type Interval = {
   /** Time interval in audio samples */
-  interval: number;
+  readonly interval: number;
   /** Number of times this interval was detected */
-  count: number;
+  readonly count: number;
 };
 
 /**
@@ -94,9 +94,9 @@ export type Interval = {
  */
 export type Group = {
   /** Tempo in BPM */
-  tempo: number;
+  readonly tempo: number;
   /** Number of intervals matching this tempo */
-  count: number;
+  readonly count: number;
 };
 
 /**
@@ -105,11 +105,11 @@ export type Group = {
  */
 export type Tempo = {
   /** Detected tempo in beats per minute */
-  tempo: number;
+  readonly tempo: number;
   /** Number of matching intervals (higher = more confident) */
-  count: number;
+  readonly count: number;
   /** Confidence score (0-1 scale) */
-  confidence: number;
+  readonly confidence: number;
 };
 
 /**
@@ -183,9 +183,9 @@ export type NextIndexPeaks = Record<string, number>;
 export type OnThresholdFunction = (threshold: Threshold) => Promise<boolean>;
 
 export type AggregateData = {
-  isBufferFull: boolean;
-  buffer: Float32Array;
-  bufferSize: number;
+  readonly isBufferFull: boolean;
+  readonly buffer: Float32Array;
+  readonly bufferSize: number;
 };
 
 export type NormalizedFilters = {

@@ -183,19 +183,16 @@ Filtering out higher frequencies reduces false positives from:
 
 ## Event System
 
-### BPM Event
+### `bpm` Event
 
 Emitted continuously during analysis:
 ```typescript
-{
-  message: 'BPM',
-  data: {
-    bpm: [
-      { tempo: 128, count: 45 },
-      { tempo: 64, count: 23 }
-    ]
-  }
-}
+analyzer.on('bpm', (data) => {
+  // data.bpm: Array of tempo candidates
+  // data.threshold: Detection threshold used
+  console.log('Current BPM:', data.bpm[0].tempo);
+  console.log('Count:', data.bpm[0].count);
+});
 ```
 
 **Characteristics:**
@@ -203,18 +200,15 @@ Emitted continuously during analysis:
 - May fluctuate as more data arrives
 - Useful for progressive display
 
-### BPM_STABLE Event
+### `bpmStable` Event
 
 Emitted when confident detection is achieved:
 ```typescript
-{
-  message: 'BPM_STABLE',
-  data: {
-    bpm: [
-      { tempo: 128, count: 150 }
-    ]
-  }
-}
+analyzer.on('bpmStable', (data) => {
+  // More reliable, higher confidence result
+  console.log('Stable BPM:', data.bpm[0].tempo);
+  console.log('Confidence count:', data.bpm[0].count);
+});
 ```
 
 **Characteristics:**
@@ -272,28 +266,6 @@ The algorithm works best with:
 - **Compressed/loud**: Works well
 - **Very quiet**: May need lower threshold
 - **Heavy noise**: Use low-pass filter
-
-## Technical Constants
-
-```typescript
-// Minimum peaks required for analysis
-MIN_PEAKS = 30
-
-// Threshold range
-THRESHOLD_MIN = 0.3
-THRESHOLD_MAX = 0.9
-THRESHOLD_STEP = 0.05
-
-// Skip duration after peak
-SKIP_DURATION = 0.25 // seconds
-
-// Tempo grouping tolerance
-TEMPO_TOLERANCE = 0.05 // 5%
-
-// Valid BPM range
-MIN_BPM = 60
-MAX_BPM = 200
-```
 
 ## Further Reading
 

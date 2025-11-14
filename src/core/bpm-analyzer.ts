@@ -53,6 +53,21 @@ class BpmAnalyzerEvent<T> extends CustomEvent<T> {
  * ```
  *
  * @example
+ * **Removing Listeners**
+ * ```typescript
+ * // Store handler reference for cleanup
+ * const handleBPM = (event) => {
+ *   console.log('BPM:', event.detail.bpm);
+ * };
+ *
+ * // Add listener using native EventTarget API
+ * analyzer.addEventListener('bpm', handleBPM);
+ *
+ * // Remove with same reference
+ * analyzer.removeEventListener('bpm', handleBPM);
+ * ```
+ *
+ * @example
  * **Controlling the Analyzer**
  * ```typescript
  * // Reset the analyzer state
@@ -77,7 +92,6 @@ export class BpmAnalyzer extends EventTarget {
   readonly node: AudioWorkletNode;
 
   /**
-   * @internal
    * Creates a new BpmAnalyzer instance
    * @param workletNode - The AudioWorkletNode to wrap
    */
@@ -169,64 +183,6 @@ export class BpmAnalyzer extends EventTarget {
   }
 
   /**
-   * Remove an event listener
-   *
-   * @param event - The event name
-   * @param listener - The listener function to remove
-   *
-   * @example
-   * ```typescript
-   * const handler = (data) => console.log(data);
-   * analyzer.on('bpm', handler);
-   * analyzer.off('bpm', handler);
-   * ```
-   */
-  off<K extends keyof BpmAnalyzerEventMap>(
-    event: K,
-    listener: (data: BpmAnalyzerEventMap[K]) => void,
-  ): void {
-    // Note: This won't work perfectly with EventTarget because we wrap the listener
-    // Users should keep a reference to remove it properly, or use the native removeEventListener
-    this.removeEventListener(event, listener as unknown as EventListener);
-  }
-
-  /**
-   * Remove all listeners for all events
-   *
-   * @remarks
-   * **Important limitation:** This is a no-op method provided for API compatibility.
-   *
-   * Native EventTarget does not provide a way to enumerate or remove all listeners.
-   * To properly remove listeners, you must:
-   * 1. Keep a reference to your listener function
-   * 2. Call `.off(eventName, listenerReference)` for each listener
-   *
-   * Alternative approaches:
-   * - Store listener references in your application code
-   * - Recreate the analyzer instance to start fresh
-   * - Use the native `removeEventListener()` method directly
-   *
-   * @example
-   * ```typescript
-   * // ❌ This won't actually remove listeners:
-   * analyzer.removeAllListeners();
-   *
-   * // ✅ Proper way to remove listeners:
-   * const handler = (data) => console.log(data);
-   * analyzer.on('bpm', handler);
-   * analyzer.off('bpm', handler);  // Must use the same reference
-   *
-   * // ✅ Alternative: recreate the analyzer
-   * const newAnalyzer = await createRealTimeBpmProcessor(audioContext);
-   * ```
-   */
-  removeAllListeners(): void {
-    // Note: EventTarget doesn't provide a way to enumerate listeners
-    // This is a no-op for compatibility with the previous API
-    // Users should use .off() to remove specific listeners
-  }
-
-  /**
    * Connect the analyzer to an audio destination
    *
    * @param destinationNode - The destination node to connect to
@@ -290,7 +246,6 @@ export class BpmAnalyzer extends EventTarget {
   }
 
   /**
-   * @internal
    * Emit an event to all registered listeners
    */
   private emit<K extends keyof BpmAnalyzerEventMap>(event: K, data: BpmAnalyzerEventMap[K]): void {
@@ -298,12 +253,10 @@ export class BpmAnalyzer extends EventTarget {
   }
 
   /**
-   * @internal
    * Set up the message handler to convert MessagePort events to typed events
    */
   private setupMessageHandler(): void {
-    // Onmessage is the standard pattern for MessagePort - addEventListener would require more boilerplate
-    // eslint-disable-next-line unicorn/prefer-add-event-listener
+    // Using onmessage is the standard pattern for MessagePort
     this.node.port.onmessage = (event: MessageEvent<ProcessorOutputEvent>) => {
       const eventData = event.data;
 
@@ -344,7 +297,6 @@ export class BpmAnalyzer extends EventTarget {
   }
 
   /**
-   * @internal
    * Send a control message to the processor
    */
   private sendControlMessage(message: ProcessorInputEvent): void {

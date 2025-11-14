@@ -53,7 +53,7 @@ Perfect for:
 
 Works in all modern browsers that support:
 - ✅ Web Audio API
-- ✅ AudioWorklet (Chrome 66+, Firefox 76+, Safari 14.1+, Edge 79+)
+- ✅ AudioWorklet
 
 ::: tip
 For older browser support, consider using a polyfill or fallback strategy.

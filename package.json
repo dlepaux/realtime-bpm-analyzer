@@ -108,6 +108,7 @@
       "unicorn/no-array-reduce": "off",
       "unicorn/numeric-separators-style": "off",
       "unicorn/prefer-top-level-await": "off",
+      "unicorn/prefer-add-event-listener": "off",
       "@typescript-eslint/triple-slash-reference": "off",
       "@typescript-eslint/no-loss-of-precision": "off",
       "@typescript-eslint/no-unused-expressions": "off",

@@ -167,9 +167,6 @@ export class BPMAnalyzer {
   }
   
   function destroy() {
-    if (this.analyzerNode) {
-      this.analyzerNode.removeAllListeners();
-    }
     if (this.audioContext) {
       this.audioContext.close();
     }

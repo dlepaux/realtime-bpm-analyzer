@@ -14,40 +14,77 @@ The library uses Web Audio API which **only works in the browser**. You must use
 
 ### App Router (Next.js 13+)
 
-Add `'use client'` directive:
+Add `'use client'` directive and implement with proper state management:
 
 ```tsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import { useState, useRef } from 'react';
+import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
 
 export default function BPMAnalyzer() {
-  const [bpm, setBpm] = useState(0);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [currentBpm, setCurrentBpm] = useState<number>(0);
+  const [concurrentBpm, setConcurrentBpm] = useState<number>(0);
+  const [audioContext, setAudioContext] = useState<AudioContext>();
+  const [source, setSource] = useState<MediaElementAudioSourceNode>();
+  const [realtimeAnalyzerNode, setRealtimeAnalyzerNode] = useState<BpmAnalyzer>();
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const analyze = async () => {
+  async function analyze() {
     if (!audioRef.current) return;
 
-    const audioContext = new AudioContext();
-    const analyzer = await createRealTimeBpmProcessor(audioContext);
-    const source = audioContext.createMediaElementSource(audioRef.current);
+    const audioCtx = audioContext ?? new AudioContext();
+    setAudioContext(audioCtx);
+    await audioCtx.resume();
 
-    source.connect(analyzer).connect(audioContext.destination);
+    const bpmAnalyzer = await createRealTimeBpmProcessor(audioCtx);
+    setRealtimeAnalyzerNode(bpmAnalyzer);
 
-    // Use typed event listeners
-    analyzer.on('bpmStable', (data) => {
-      setBpm(data.bpm[0]?.tempo || 0);
+    const filter = getBiquadFilter(audioCtx);
+    const src = source ?? audioCtx.createMediaElementSource(audioRef.current);
+    setSource(src);
+
+    src.connect(filter).connect(audioCtx.destination);
+
+    // Always check array length before accessing
+    bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
+      if (data.bpm.length > 0) {
+        setCurrentBpm(data.bpm[0].tempo);
+        if (data.bpm.length > 1) {
+          setConcurrentBpm(data.bpm[1].tempo);
+        }
+      }
     });
 
     audioRef.current.play();
-  };
+    setIsAnalyzing(true);
+  }
+
+  async function stop() {
+    if (!audioContext || !source || !realtimeAnalyzerNode) return;
+
+    await audioContext.suspend();
+    source.disconnect();
+    realtimeAnalyzerNode.disconnect();
+
+    setCurrentBpm(0);
+    setConcurrentBpm(0);
+    setIsAnalyzing(false);
+  }
 
   return (
     <div>
       <audio ref={audioRef} src="/audio/song.mp3" />
-      <button onClick={analyze}>Analyze BPM</button>
-      {bpm > 0 && <p>BPM: {bpm}</p>}
+      <button onClick={analyze} disabled={isAnalyzing}>Analyze BPM</button>
+      <button onClick={stop} disabled={!isAnalyzing}>Stop</button>
+      {currentBpm > 0 && (
+        <div>
+          <p>BPM: {currentBpm}</p>
+          {concurrentBpm > 0 && <p>Alternative: {concurrentBpm}</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -77,39 +114,63 @@ Create a reusable hook at `hooks/useBPMAnalyzer.ts`:
 ```tsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
-import type { BpmAnalyzer } from 'realtime-bpm-analyzer';
+import { useEffect, useState } from 'react';
+import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
 
 export function useBPMAnalyzer() {
-  const [bpm, setBpm] = useState(0);
-  const contextRef = useRef<AudioContext>();
-  const analyzerRef = useRef<BpmAnalyzer>();
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [currentBpm, setCurrentBpm] = useState<number>(0);
+  const [concurrentBpm, setConcurrentBpm] = useState<number>(0);
+  const [audioContext, setAudioContext] = useState<AudioContext>();
+  const [source, setSource] = useState<MediaElementAudioSourceNode>();
+  const [realtimeAnalyzerNode, setRealtimeAnalyzerNode] = useState<BpmAnalyzer>();
 
   const analyze = async (audioElement: HTMLAudioElement) => {
-    const ctx = new AudioContext();
-    const analyzer = await createRealTimeBpmProcessor(ctx);
-    const source = ctx.createMediaElementSource(audioElement);
+    const ctx = audioContext ?? new AudioContext();
+    setAudioContext(ctx);
+    await ctx.resume();
 
-    source.connect(analyzer).connect(ctx.destination);
+    const bpmAnalyzer = await createRealTimeBpmProcessor(ctx);
+    setRealtimeAnalyzerNode(bpmAnalyzer);
 
-    // Use typed event listeners
-    analyzer.on('bpmStable', (data) => {
-      setBpm(data.bpm[0]?.tempo || 0);
+    const filter = getBiquadFilter(ctx);
+    const src = source ?? ctx.createMediaElementSource(audioElement);
+    setSource(src);
+
+    src.connect(filter).connect(ctx.destination);
+
+    bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
+      if (data.bpm.length > 0) {
+        setCurrentBpm(data.bpm[0].tempo);
+        if (data.bpm.length > 1) {
+          setConcurrentBpm(data.bpm[1].tempo);
+        }
+      }
     });
 
-    contextRef.current = ctx;
-    analyzerRef.current = analyzer;
+    setIsAnalyzing(true);
+  };
+
+  const stop = async () => {
+    if (!audioContext || !source || !realtimeAnalyzerNode) return;
+
+    await audioContext.suspend();
+    source.disconnect();
+    realtimeAnalyzerNode.disconnect();
+
+    setCurrentBpm(0);
+    setConcurrentBpm(0);
+    setIsAnalyzing(false);
   };
 
   useEffect(() => {
     return () => {
-      analyzerRef.current?.removeAllListeners();
-      contextRef.current?.close();
+      stop().catch(console.error);
     };
   }, []);
 
-  return { bpm, analyze };
+  return { currentBpm, concurrentBpm, isAnalyzing, analyze, stop };
 }
 ```
 
@@ -147,9 +208,14 @@ Ensure `tsconfig.json` includes:
 
 - ✅ Always use `'use client'` in App Router
 - ✅ Use dynamic imports with `ssr: false` in Pages Router
-- ✅ Clean up AudioContext in useEffect
+- ✅ Manage state with `useState` for proper cleanup tracking
+- ✅ Use `suspend()` instead of `close()` if reusing AudioContext
+- ✅ Always check `data.bpm.length` before accessing array elements
+- ✅ Use ref pattern for cleanup in useEffect to avoid stale closures
 - ✅ Place audio files in `public/` folder
+- ✅ Use `getBiquadFilter` for better low-frequency detection
 - ❌ Never import the library in server components
+- ❌ Don't create multiple sources for the same audio element
 
 ## Complete Examples
 

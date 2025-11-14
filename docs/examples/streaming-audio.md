@@ -95,7 +95,144 @@ async function startAnalysis(audioElement: HTMLAudioElement) {
 }
 ```
 
-## Complete Example
+## Complete React/Next.js Example
+
+```tsx
+'use client';
+
+import { useRef, useState } from 'react';
+import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
+
+export default function StreamAnalyzer() {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [streamUrl, setStreamUrl] = useState('https://ssl1.viastreaming.net:7005/;listen.mp3');
+  const [currentBpm, setCurrentBpm] = useState<number>(0);
+  const [concurrentBpm, setConcurrentBpm] = useState<number>(0);
+  const [audioContext, setAudioContext] = useState<AudioContext>();
+  const [source, setSource] = useState<MediaElementAudioSourceNode>();
+  const [analyser, setAnalyser] = useState<AnalyserNode>();
+  const [biquadFilterNode, setBiquadFilterNode] = useState<BiquadFilterNode>();
+  const [realtimeAnalyzerNode, setRealtimeAnalyzerNode] = useState<BpmAnalyzer>();
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  async function handleStart() {
+    if (!audioRef.current) return;
+
+    setIsAnalyzing(true);
+
+    try {
+      const audioCtx = audioContext ?? new AudioContext();
+      setAudioContext(audioCtx);
+      await audioCtx.resume();
+
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      setAnalyser(analyser);
+
+      const bpmAnalyzer = await createRealTimeBpmProcessor(audioCtx);
+      setRealtimeAnalyzerNode(bpmAnalyzer);
+
+      const filter = getBiquadFilter(audioCtx);
+      setBiquadFilterNode(filter);
+
+      const src = source ?? audioCtx.createMediaElementSource(audioRef.current);
+      setSource(src);
+
+      // Connect everything together
+      src.connect(filter).connect(analyser);
+
+      // Setup event listeners
+      bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
+        if (data.bpm.length > 0) {
+          setCurrentBpm(data.bpm[0].tempo);
+          if (data.bpm.length > 1) {
+            setConcurrentBpm(data.bpm[1].tempo);
+          }
+        }
+      });
+
+      bpmAnalyzer.on('analyzerReset', () => {
+        console.log('Analyzer reset - song changed or stream interrupted');
+      });
+
+      await audioRef.current.play();
+    } catch (error) {
+      console.error('Error starting stream analysis:', error);
+      setIsAnalyzing(false);
+    }
+  }
+
+  async function handleStop() {
+    if (!audioContext || !source || !realtimeAnalyzerNode || !analyser || !biquadFilterNode) {
+      return;
+    }
+
+    await audioContext.suspend();
+
+    // Disconnect everything
+    source.disconnect();
+    analyser.disconnect();
+    biquadFilterNode.disconnect();
+    realtimeAnalyzerNode.disconnect();
+
+    // Reset state
+    setCurrentBpm(0);
+    setConcurrentBpm(0);
+    setIsAnalyzing(false);
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+  }
+
+  return (
+    <div>
+      <div>
+        <input
+          type="text"
+          value={streamUrl}
+          onChange={(e) => setStreamUrl(e.target.value)}
+          disabled={isAnalyzing}
+          placeholder="Enter stream URL"
+        />
+      </div>
+
+      <audio 
+        ref={audioRef} 
+        src={streamUrl} 
+        crossOrigin="anonymous"
+        style={{ display: 'none' }}
+      />
+
+      {!isAnalyzing ? (
+        <button onClick={handleStart}>
+          Start Stream Analysis
+        </button>
+      ) : (
+        <button onClick={handleStop}>
+          Stop
+        </button>
+      )}
+
+      {isAnalyzing && (
+        <div>
+          {currentBpm === 0 ? (
+            <p>Analyzing stream...</p>
+          ) : (
+            <div>
+              <h2>{currentBpm} BPM</h2>
+              {concurrentBpm > 0 && <p>Alternative: {concurrentBpm} BPM</p>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Complete Vue Example
 
 ```vue
 <template>
@@ -196,7 +333,6 @@ async function startAnalyzing() {
     
     // Store cleanup
     cleanup = async () => {
-      analyzerNode.removeAllListeners();
       await audioContext.suspend();
       source.disconnect();
       filter.disconnect();
@@ -356,7 +492,6 @@ async function stopAnalyzing() {
       document.getElementById('bpmDisplay').style.display = 'block';
       
       cleanup = async () => {
-        analyzerNode.removeAllListeners();
         await audioContext.suspend();
         source.disconnect();
         filter.disconnect();

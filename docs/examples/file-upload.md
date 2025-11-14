@@ -44,17 +44,26 @@ async function readAsArrayBuffer(file: File): Promise<ArrayBuffer> {
 
 ```typescript
 import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
+import type { Tempo } from 'realtime-bpm-analyzer';
 
-async function processAudioFile(audioContext: AudioContext, arrayBuffer: ArrayBuffer) {
+interface ProcessResult {
+  tempos: Tempo[];
+  audioBuffer: AudioBuffer;
+}
+
+async function processAudioFile(
+  audioContext: AudioContext, 
+  arrayBuffer: ArrayBuffer
+): Promise<ProcessResult> {
   // Decode the audio data
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
   
-  // Analyze BPM
+  // Analyze BPM - returns array of tempo candidates
   const tempos = await analyzeFullBuffer(audioBuffer);
   
   return {
     tempos,
-    duration: audioBuffer.duration
+    audioBuffer
   };
 }
 ```
@@ -62,30 +71,216 @@ async function processAudioFile(audioContext: AudioContext, arrayBuffer: ArrayBu
 ### Step 3: Handle File Upload
 
 ```typescript
-async function handleFileUpload(files: FileList) {
+interface AudioFileResult {
+  name: string;
+  duration: number;
+  bpm?: number;
+  confidence?: number;
+  isBpmComputing: boolean;
+}
+
+async function handleFileUpload(files: FileList): Promise<AudioFileResult[]> {
   const audioContext = new AudioContext();
-  const results = [];
+  const results: AudioFileResult[] = [];
   
   for (const file of files) {
-    // Read the file
-    const arrayBuffer = await readAsArrayBuffer(file);
-    
-    // Process and analyze
-    const { tempos, duration } = await processAudioFile(audioContext, arrayBuffer);
-    
-    results.push({
+    // Create initial result object
+    const result: AudioFileResult = {
       name: file.name,
-      duration,
-      bpm: tempos[0]?.tempo,
-      confidence: tempos[0]?.count
-    });
+      duration: 0,
+      isBpmComputing: true
+    };
+    results.push(result);
+    
+    // Read and process the file
+    const arrayBuffer = await readAsArrayBuffer(file);
+    const { tempos, audioBuffer } = await processAudioFile(audioContext, arrayBuffer);
+    
+    // Update with computed values
+    result.duration = audioBuffer.duration;
+    result.bpm = tempos[0]?.tempo;
+    result.confidence = tempos[0]?.count;
+    result.isBpmComputing = false;
   }
   
   return results;
 }
 ```
 
-## Complete Example
+## Complete React/Next.js Example
+
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
+import type { Tempo } from 'realtime-bpm-analyzer';
+
+interface AudioFile {
+  name: string;
+  size: number;
+  duration?: number;
+  bpm?: number;
+  isBpmComputing: boolean;
+}
+
+export default function FileAnalyzer() {
+  const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
+  const [computationTime, setComputationTime] = useState<number>(0);
+
+  async function readAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.addEventListener('load', () => {
+        if (typeof reader.result === 'string' || reader.result === null) {
+          reject(new Error('Could not load the audio file'));
+          return;
+        }
+        resolve(reader.result);
+      });
+      
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  async function processArrayBuffer(
+    audioContext: AudioContext, 
+    arrayBuffer: ArrayBuffer
+  ) {
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    const tempos = await analyzeFullBuffer(audioBuffer);
+    return { tempos, audioBuffer };
+  }
+
+  async function handleFiles(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const startTime = Date.now();
+    const audioContext = new AudioContext();
+    const newAudioFiles: AudioFile[] = [];
+
+    for (const file of files) {
+      // Create initial file object
+      const audioFile: AudioFile = {
+        name: file.name,
+        size: file.size,
+        isBpmComputing: true
+      };
+      newAudioFiles.push(audioFile);
+
+      // Update UI immediately
+      setAudioFiles([...newAudioFiles]);
+
+      // Process file
+      try {
+        const arrayBuffer = await readAsArrayBuffer(file);
+        const { tempos, audioBuffer } = await processArrayBuffer(audioContext, arrayBuffer);
+        
+        audioFile.duration = audioBuffer.duration;
+        audioFile.bpm = tempos[0]?.tempo;
+        audioFile.isBpmComputing = false;
+
+        // Update UI with result
+        setAudioFiles([...newAudioFiles]);
+      } catch (error) {
+        console.error(`Error processing ${file.name}:`, error);
+        audioFile.isBpmComputing = false;
+        setAudioFiles([...newAudioFiles]);
+      }
+    }
+
+    setComputationTime(Date.now() - startTime);
+  }
+
+  function formatSeconds(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  function downloadCSV() {
+    const headers = ['name', 'duration', 'bpm'];
+    const rows = audioFiles.map(file => [
+      file.name,
+      formatSeconds(file.duration ?? 0),
+      file.bpm ?? ''
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'bpm-analysis.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleRestart() {
+    setAudioFiles([]);
+    setComputationTime(0);
+  }
+
+  return (
+    <div>
+      {audioFiles.length === 0 ? (
+        <div>
+          <input
+            type="file"
+            multiple
+            accept="audio/*"
+            onChange={handleFiles}
+          />
+          <p>Select audio files to analyze their BPM</p>
+        </div>
+      ) : (
+        <div>
+          <h3>{audioFiles.length} files analyzed</h3>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Duration</th>
+                <th>BPM</th>
+              </tr>
+            </thead>
+            <tbody>
+              {audioFiles.map((file, index) => (
+                <tr key={index}>
+                  <td>{file.name}</td>
+                  <td>{formatSeconds(file.duration ?? 0)}</td>
+                  <td>
+                    {file.isBpmComputing ? (
+                      <span>Computing...</span>
+                    ) : (
+                      <strong>{file.bpm}</strong>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          <div>
+            <button onClick={downloadCSV}>Download CSV</button>
+            <button onClick={handleRestart}>Analyze Other Files</button>
+            <p>Computation completed in {computationTime}ms</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Complete Vue Example
 
 ```vue
 <template>

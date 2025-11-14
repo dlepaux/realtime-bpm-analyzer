@@ -34,17 +34,17 @@ source.connect(lowpass).connect(analyzerNode);
 
 **Performance Impact:** Negligible (~0.1% CPU overhead)
 
-### 3. Choose the Right Strategy
+### 3. Choose the Right Analysis Mode
 
-Pick the analysis strategy that matches your use case:
+Pick the mode that matches your use case:
 
-| Use Case | Strategy | Memory | CPU | Accuracy |
-|----------|----------|--------|-----|----------|
-| Audio/Video Player | Standard | Low | Low | High |
+| Use Case | Mode | Memory | CPU | Accuracy |
+|----------|------|--------|-----|----------|
+| Audio/Video Player | Real-time | Low | Low | High |
 | Radio Stream | Continuous | Medium | Medium | Medium |
 | File Upload | Offline | High | High | Highest |
 
-#### Standard Strategy
+#### Real-time Mode
 
 ```typescript
 const analyzerNode = await createRealTimeBpmProcessor(audioContext);
@@ -54,7 +54,7 @@ const analyzerNode = await createRealTimeBpmProcessor(audioContext);
 - **CPU**: Consistent low usage
 - **Best for**: Songs with fixed length
 
-#### Continuous Strategy
+#### Continuous Mode
 
 ```typescript
 const analyzerNode = await createRealTimeBpmProcessor(audioContext, {
@@ -67,7 +67,7 @@ const analyzerNode = await createRealTimeBpmProcessor(audioContext, {
 - **CPU**: Periodic spikes during cleanup
 - **Best for**: Infinite streams, radio, live input
 
-#### Offline Strategy
+#### Offline Mode
 
 ```typescript
 import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
@@ -362,7 +362,7 @@ audioElement.addEventListener('playing', () => {
 ## Performance Checklist
 
 - ✅ Use `getBiquadFilter()` for better detection
-- ✅ Choose appropriate analysis strategy
+- ✅ Choose appropriate analysis mode
 - ✅ Set reasonable `stabilizationTime` for continuous analysis
 - ✅ Clean up AudioContext and nodes when done
 - ✅ Throttle UI updates to 1 update/second
@@ -376,11 +376,11 @@ audioElement.addEventListener('playing', () => {
 
 Typical performance on modern devices:
 
-| Device | Strategy | CPU Usage | Memory | Time to Stable |
-|--------|----------|-----------|--------|----------------|
-| Desktop (Chrome) | Standard | <5% | ~10MB | 10-15s |
+| Device | Mode | CPU Usage | Memory | Time to Stable |
+|--------|------|-----------|--------|----------------|
+| Desktop (Chrome) | Real-time | <5% | ~10MB | 10-15s |
 | Desktop (Chrome) | Continuous | <8% | ~15MB | 15-20s |
-| Mobile (Safari) | Standard | <15% | ~15MB | 15-20s |
+| Mobile (Safari) | Real-time | <15% | ~15MB | 15-20s |
 | Mobile (Safari) | Continuous | <20% | ~20MB | 20-25s |
 
 *Based on typical 128kbps MP3 files*

@@ -38,8 +38,8 @@ features:
     details: Written in TypeScript with full type definitions for excellent IDE integration and type safety.
   
   - icon: 🎛️
-    title: Flexible Strategies
-    details: Choose between player, continuous analysis, or offline strategies based on your use case.
+    title: Flexible Usage
+    details: Works with live audio, continuous monitoring, or offline file analysis based on your use case.
   
   - icon: 🌐
     title: Browser Compatible
@@ -82,14 +82,16 @@ const lowpass = getBiquadFilter(audioContext);
 source.connect(lowpass).connect(realtimeAnalyzerNode);
 source.connect(audioContext.destination);
 
-// Listen for BPM events with typed listeners
-realtimeAnalyzerNode.on('bpm', (data) => {
-  console.log('Current BPM:', data.bpm);
-});
+// Listen for BPM events
+const handleBpm = (data) => console.log('Current BPM:', data.bpm);
+const handleStable = (data) => console.log('Stable BPM detected:', data.bpm);
 
-realtimeAnalyzerNode.on('bpmStable', (data) => {
-  console.log('Stable BPM detected:', data.bpm);
-});
+realtimeAnalyzerNode.on('bpm', handleBpm);
+realtimeAnalyzerNode.on('bpmStable', handleStable);
+
+// Cleanup when done
+// realtimeAnalyzerNode.removeEventListener('bpm', handleBpm);
+// realtimeAnalyzerNode.removeEventListener('bpmStable', handleStable);
 ```
 
 ## Why Realtime BPM Analyzer?

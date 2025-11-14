@@ -278,14 +278,17 @@ export function identifyIntervals(peaks: Peaks): Interval[] {
       /**
        * Try and find a matching interval and increase it's count
        */
-      const foundInterval = intervals.some((intervalCount: Interval) => {
-        if (intervalCount.interval === interval) {
-          intervalCount.count += 1;
-          return intervalCount.count;
-        }
+      let foundInterval = intervals.find((intervalCount: Interval) => intervalCount.interval === interval);
 
-        return false;
-      });
+      if (foundInterval) {
+        // Create new object with incremented count (immutable update)
+        const index = intervals.indexOf(foundInterval);
+        intervals[index] = {
+          interval: foundInterval.interval,
+          count: foundInterval.count + 1,
+        };
+        foundInterval = intervals[index];
+      }
 
       /**
        * Add the interval to the collection if it's unique
@@ -351,14 +354,18 @@ export function groupByTempo({
     /**
      * See if another interval resolved to the same tempo
      */
-    const foundTempo: boolean = tempoCounts.some((tempoCount: Tempo) => {
-      if (tempoCount.tempo === theoreticalTempo) {
-        tempoCount.count += intervalCount.count;
-        return tempoCount.count;
-      }
+    let foundTempo = tempoCounts.find((tempoCount: Tempo) => tempoCount.tempo === theoreticalTempo);
 
-      return false;
-    });
+    if (foundTempo) {
+      // Create new object with aggregated count (immutable update)
+      const index = tempoCounts.indexOf(foundTempo);
+      tempoCounts[index] = {
+        tempo: foundTempo.tempo,
+        count: foundTempo.count + intervalCount.count,
+        confidence: foundTempo.confidence,
+      };
+      foundTempo = tempoCounts[index];
+    }
 
     /**
      * Add a unique tempo to the collection

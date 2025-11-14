@@ -8,42 +8,142 @@ How to integrate Realtime BPM Analyzer in React applications.
 npm install realtime-bpm-analyzer
 ```
 
-## Basic Hook Pattern
+## Inline Implementation Pattern (Recommended)
 
-Create a reusable hook for BPM analysis:
+For better control and flexibility, implement the analyzer directly in your component:
 
 ```tsx
-import { useEffect, useRef, useState } from 'react';
-import { createRealTimeBpmProcessor, type BpmAnalyzer } from 'realtime-bpm-analyzer';
+'use client'; // Required for Next.js App Router
+
+import { useState } from 'react';
+import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
+
+export default function BPMAnalyzer() {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [currentBpm, setCurrentBpm] = useState<number>(0);
+  const [concurrentBpm, setConcurrentBpm] = useState<number>(0);
+  const [audioContext, setAudioContext] = useState<AudioContext>();
+  const [source, setSource] = useState<MediaElementAudioSourceNode>();
+  const [analyser, setAnalyser] = useState<AnalyserNode>();
+  const [realtimeAnalyzerNode, setRealtimeAnalyzerNode] = useState<BpmAnalyzer>();
+  const [biquadFilterNode, setBiquadFilterNode] = useState<BiquadFilterNode>();
+
+  async function startAnalysis(audioElement: HTMLAudioElement) {
+    try {
+      // Reuse or create audio context
+      const audioCtx = audioContext ?? new AudioContext();
+      setAudioContext(audioCtx);
+      await audioCtx.resume();
+
+      // Create analyzer nodes
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      setAnalyser(analyser);
+
+      const bpmAnalyzer = await createRealTimeBpmProcessor(audioCtx);
+      setRealtimeAnalyzerNode(bpmAnalyzer);
+
+      // Optional: Add filtering for better accuracy
+      const filter = getBiquadFilter(audioCtx);
+      setBiquadFilterNode(filter);
+
+      // Create source (reuse if exists to avoid errors)
+      const src = source ?? audioCtx.createMediaElementSource(audioElement);
+      setSource(src);
+
+      // Connect audio graph with filter
+      src.connect(filter).connect(analyser);
+
+      // Setup event listeners - check array length before accessing
+      bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
+        if (data.bpm.length > 0) {
+          setCurrentBpm(data.bpm[0].tempo);
+          if (data.bpm.length > 1) {
+            setConcurrentBpm(data.bpm[1].tempo);
+          }
+        }
+      });
+
+      setIsAnalyzing(true);
+    } catch (error) {
+      console.error('Failed to start BPM analysis:', error);
+    }
+  }
+
+  async function stopAnalysis() {
+    if (!audioContext || !source || !realtimeAnalyzerNode) {
+      return;
+    }
+
+    // Suspend instead of close to allow reuse
+    await audioContext.suspend();
+
+    // Disconnect all nodes
+    source.disconnect();
+    analyser?.disconnect();
+    biquadFilterNode?.disconnect();
+    realtimeAnalyzerNode.disconnect();
+
+    // Reset state
+    setCurrentBpm(0);
+    setConcurrentBpm(0);
+    setIsAnalyzing(false);
+  }
+
+  return { currentBpm, concurrentBpm, isAnalyzing, startAnalysis, stopAnalysis };
+}
+```
+
+## Custom Hook Pattern (Alternative)
+
+If you prefer reusable hooks, extract the logic:
+
+```tsx
+import { useEffect, useState } from 'react';
+import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
 
 export function useBPMAnalyzer() {
-  const [bpm, setBpm] = useState<number>(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyzerRef = useRef<BpmAnalyzer | null>(null);
+  const [currentBpm, setCurrentBpm] = useState<number>(0);
+  const [concurrentBpm, setConcurrentBpm] = useState<number>(0);
+  const [audioContext, setAudioContext] = useState<AudioContext>();
+  const [source, setSource] = useState<MediaElementAudioSourceNode>();
+  const [analyser, setAnalyser] = useState<AnalyserNode>();
+  const [realtimeAnalyzerNode, setRealtimeAnalyzerNode] = useState<BpmAnalyzer>();
+  const [biquadFilterNode, setBiquadFilterNode] = useState<BiquadFilterNode>();
 
   const startAnalysis = async (audioElement: HTMLAudioElement) => {
     try {
-      // Create audio context
-      const audioContext = new AudioContext();
-      await audioContext.resume();
-      
-      // Create analyzer
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
-      
-      // Create source and connect
-      const source = audioContext.createMediaElementSource(audioElement);
-      source.connect(analyzer);
-      source.connect(audioContext.destination);
-      
-      // Listen for BPM events with typed listeners
-      analyzer.on('bpmStable', (data) => {
-        const detected = data.bpm[0]?.tempo || 0;
-        setBpm(detected);
+      const audioCtx = audioContext ?? new AudioContext();
+      setAudioContext(audioCtx);
+      await audioCtx.resume();
+
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      setAnalyser(analyser);
+
+      const bpmAnalyzer = await createRealTimeBpmProcessor(audioCtx);
+      setRealtimeAnalyzerNode(bpmAnalyzer);
+
+      const filter = getBiquadFilter(audioCtx);
+      setBiquadFilterNode(filter);
+
+      const src = source ?? audioCtx.createMediaElementSource(audioElement);
+      setSource(src);
+
+      src.connect(filter).connect(analyser);
+
+      bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
+        if (data.bpm.length > 0) {
+          setCurrentBpm(data.bpm[0].tempo);
+          if (data.bpm.length > 1) {
+            setConcurrentBpm(data.bpm[1].tempo);
+          }
+        }
       });
-      
-      audioContextRef.current = audioContext;
-      analyzerRef.current = analyzer;
+
       setIsAnalyzing(true);
     } catch (error) {
       console.error('Failed to start BPM analysis:', error);
@@ -51,25 +151,28 @@ export function useBPMAnalyzer() {
   };
 
   const stopAnalysis = async () => {
-    if (analyzerRef.current) {
-      analyzerRef.current.removeAllListeners();
+    if (!audioContext || !source || !realtimeAnalyzerNode) {
+      return;
     }
-    if (audioContextRef.current) {
-      await audioContextRef.current.close();
-      audioContextRef.current = null;
-      analyzerRef.current = null;
-      setIsAnalyzing(false);
-      setBpm(0);
-    }
+
+    await audioContext.suspend();
+    source.disconnect();
+    analyser?.disconnect();
+    biquadFilterNode?.disconnect();
+    realtimeAnalyzerNode.disconnect();
+
+    setCurrentBpm(0);
+    setConcurrentBpm(0);
+    setIsAnalyzing(false);
   };
 
   useEffect(() => {
     return () => {
-      stopAnalysis();
+      stopAnalysis().catch(console.error);
     };
   }, []);
 
-  return { bpm, isAnalyzing, startAnalysis, stopAnalysis };
+  return { currentBpm, concurrentBpm, isAnalyzing, startAnalysis, stopAnalysis };
 }
 ```
 
@@ -81,7 +184,7 @@ import { useBPMAnalyzer } from './hooks/useBPMAnalyzer';
 
 export default function MusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const { bpm, isAnalyzing, startAnalysis, stopAnalysis } = useBPMAnalyzer();
+  const { currentBpm, concurrentBpm, isAnalyzing, startAnalysis, stopAnalysis } = useBPMAnalyzer();
 
   const handlePlay = async () => {
     if (audioRef.current && !isAnalyzing) {
@@ -90,21 +193,35 @@ export default function MusicPlayer() {
     }
   };
 
+  const handleStop = async () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      await stopAnalysis();
+    }
+  };
+
   return (
     <div>
       <audio ref={audioRef} src="/audio/song.mp3" />
       
-      <button onClick={handlePlay}>
+      <button onClick={handlePlay} disabled={isAnalyzing}>
         Play & Analyze
       </button>
       
-      <button onClick={stopAnalysis}>
+      <button onClick={handleStop} disabled={!isAnalyzing}>
         Stop
       </button>
       
       {isAnalyzing && (
         <div>
-          <p>BPM: {bpm || 'Detecting...'}</p>
+          {currentBpm === 0 ? (
+            <p>Analyzing...</p>
+          ) : (
+            <div>
+              <p>BPM: {currentBpm}</p>
+              {concurrentBpm > 0 && <p>Alternative: {concurrentBpm} BPM</p>}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -115,10 +232,22 @@ export default function MusicPlayer() {
 ## TypeScript Types
 
 ```tsx
-import type { BpmCandidates } from 'realtime-bpm-analyzer';
+import type { BpmCandidates, BpmAnalyzer } from 'realtime-bpm-analyzer';
+
+interface BPMAnalyzerState {
+  currentBpm: number;
+  concurrentBpm: number;
+  isAnalyzing: boolean;
+  audioContext?: AudioContext;
+  source?: MediaElementAudioSourceNode;
+  analyser?: AnalyserNode;
+  realtimeAnalyzerNode?: BpmAnalyzer;
+  biquadFilterNode?: BiquadFilterNode;
+}
 
 interface BPMAnalyzerHook {
-  bpm: number;
+  currentBpm: number;
+  concurrentBpm: number;
   isAnalyzing: boolean;
   startAnalysis: (audio: HTMLAudioElement) => Promise<void>;
   stopAnalysis: () => Promise<void>;
@@ -127,10 +256,14 @@ interface BPMAnalyzerHook {
 
 ## Key Considerations
 
-- **Cleanup**: Always clean up audio context in `useEffect` return
-- **Refs**: Use refs for audio context and analyzer to persist across renders
-- **User Gesture**: Start AudioContext after user interaction (button click)
-- **Single Instance**: Avoid creating multiple analyzers for the same source
+- **Cleanup**: Always clean up audio context and remove event listeners in cleanup functions
+- **State vs Refs**: Use `useState` for nodes that need cleanup tracking; refs for values that don't trigger renders
+- **User Gesture**: Start AudioContext after user interaction (button click) due to browser autoplay policies
+- **Single Instance**: Reuse existing AudioContext when possible; avoid creating multiple sources for the same element
+- **Context Reuse**: Use `suspend()` instead of `close()` if you plan to reuse the AudioContext
+- **Array Safety**: Always check `data.bpm.length` before accessing array elements
+- **Filtering**: Use `getBiquadFilter` for better low-frequency detection accuracy
+- **Cleanup Pattern**: Use ref pattern in useEffect to avoid stale closures; remove listeners with `off()` using same handler reference
 
 ## Complete Examples
 

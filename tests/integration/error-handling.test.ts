@@ -230,31 +230,7 @@ describe('Error Handling & Edge Cases', function () {
       const handler = () => {};
 
       expect(() => {
-        processor.off('bpm', handler);
-      }).to.not.throw();
-
-      processor.disconnect();
-    });
-
-    it('should handle removeAllListeners on empty listener set', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
-
-      expect(() => {
-        processor.removeAllListeners();
-      }).to.not.throw();
-
-      processor.disconnect();
-    });
-
-    it('should handle multiple removeAllListeners calls', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
-
-      processor.on('bpm', () => {});
-
-      expect(() => {
-        processor.removeAllListeners();
-        processor.removeAllListeners();
-        processor.removeAllListeners();
+        processor.removeEventListener('bpm', handler);
       }).to.not.throw();
 
       processor.disconnect();
@@ -267,11 +243,11 @@ describe('Error Handling & Edge Cases', function () {
 
       expect(() => {
         for (const handler of handlers) {
-          processor.on('bpm', handler);
+          processor.addEventListener('bpm', handler);
         }
 
         for (const handler of handlers) {
-          processor.off('bpm', handler);
+          processor.removeEventListener('bpm', handler);
         }
       }).to.not.throw();
 

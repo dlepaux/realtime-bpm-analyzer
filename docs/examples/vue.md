@@ -46,9 +46,6 @@ export function useBPMAnalyzer() {
   };
 
   const stopAnalysis = async () => {
-    if (analyzerNode) {
-      analyzerNode.removeAllListeners();
-    }
     if (audioContext) {
       await audioContext.close();
       audioContext = null;

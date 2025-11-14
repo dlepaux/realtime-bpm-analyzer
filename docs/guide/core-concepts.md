@@ -2,43 +2,51 @@
 
 Understanding these core concepts will help you use Realtime BPM Analyzer effectively.
 
-## Analysis Strategies
+## Usage Modes
 
-The library provides three main strategies for BPM analysis, each suited for different use cases:
+The library supports different usage patterns depending on your needs:
 
-### 1. Player Strategy (Default)
-**Use when:** Analyzing audio/video players with defined duration
+### Real-Time Analysis (Default)
+Analyze audio while it's playing:
 
-- Analyzes while media is playing
 - Accumulates data throughout playback
-- Provides increasingly accurate results
+- Provides increasingly accurate results  
 - No automatic reset
+- Best for: Music players, video players, defined-length audio
 
-**Best for:** Music players, video players, one-time analysis
+```typescript
+const analyzer = await createRealTimeBpmProcessor(audioContext);
+// Analyzes continuously, accumulates confidence
+```
 
-[Learn more →](/guide/player-strategy)
+### Continuous Analysis (Auto-Reset)
+For long-running or infinite streams:
 
-### 2. Continuous Analysis Strategy
-**Use when:** Analyzing long-running or infinite streams
+- Automatically resets after stabilization period
+- Prevents memory buildup in 24/7 scenarios
+- Best for: Radio streams, live broadcasts, streaming services
 
-- Automatically resets after a stabilization period
-- Prevents memory buildup
-- Suitable for 24/7 streams
+```typescript
+const analyzer = await createRealTimeBpmProcessor(audioContext, {
+  continuousAnalysis: true,
+  stabilizationTime: 20000 // Reset every 20 seconds
+});
+```
 
-**Best for:** Radio streams, live broadcasts, streaming services
+### Offline/Buffer Analysis
+Analyze complete audio files without real-time constraints:
 
-[Learn more →](/guide/continuous-analysis)
+- Processes entire buffer at once
+- Fastest results
+- Best for: File uploads, music libraries, batch processing
 
-### 3. Offline/File Analysis Strategy
-**Use when:** Analyzing complete audio files
+```typescript
+import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
 
-- Analyzes entire audio buffer at once
-- Fastest results (no real-time constraint)
-- Works offline
-
-**Best for:** File uploads, music libraries, batch processing
-
-[Learn more →](/guide/offline-analysis)
+const buffer = await audioContext.decodeAudioData(arrayBuffer);
+const tempos = await analyzeFullBuffer(buffer);
+console.log('BPM:', tempos[0].tempo);
+```
 
 ## Audio Graph Architecture
 
@@ -126,15 +134,14 @@ Results are returned as an array of candidates:
 
 ```typescript
 [
-  { tempo: 128, count: 45, confidence: 0 },
-  { tempo: 64,  count: 23, confidence: 0 },
-  { tempo: 96,  count: 12, confidence: 0 }
+  { tempo: 128, count: 45 },
+  { tempo: 64,  count: 23 },
+  { tempo: 96,  count: 12 }
 ]
 ```
 
 - **tempo**: Detected BPM value
 - **count**: Number of matching intervals (higher = more confident)
-- **confidence**: Reserved for future use
 
 The **first candidate** (highest count) is usually the most accurate.
 
@@ -229,7 +236,7 @@ analyzer.on('analyzerReset', () => {
 
 ### ✅ Do
 - Use low-pass filter for music with prominent bass
-- Wait for `BPM_STABLE` before displaying final result
+- Wait for `bpmStable` event before displaying final result
 - Handle multiple candidates (show top 3-5)
 - Create `AudioContext` on user interaction
 
@@ -243,7 +250,7 @@ analyzer.on('analyzerReset', () => {
 
 Now that you understand the core concepts:
 
-- [Player Strategy →](/guide/player-strategy)
-- [Continuous Analysis →](/guide/continuous-analysis)
-- [Offline Analysis →](/guide/offline-analysis)
-- [See Examples →](/examples/basic-usage)
+- [Basic Usage Examples →](/examples/basic-usage)
+- [React Integration →](/examples/react)
+- [Microphone Input →](/examples/microphone-input)
+- [How It Works →](/guide/how-it-works)

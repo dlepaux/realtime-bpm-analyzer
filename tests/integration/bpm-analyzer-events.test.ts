@@ -93,17 +93,17 @@ describe('BpmAnalyzer - Event System', function () {
     });
   });
 
-  describe('.off() method', () => {
+  describe('removeEventListener method', () => {
     it('should remove registered event listeners', async () => {
       const analyzer = await createRealTimeBpmProcessor(audioContext);
-      const handler = () => {
+      const handler = (event: Event) => {
         // Handler logic
       };
 
-      analyzer.on('bpm', handler);
-      analyzer.off('bpm', handler);
+      analyzer.addEventListener('bpm', handler);
+      analyzer.removeEventListener('bpm', handler);
 
-      expect(analyzer.off).to.be.a('function');
+      expect(analyzer.removeEventListener).to.be.a('function');
     });
   });
 
@@ -235,18 +235,7 @@ describe('BpmAnalyzer - Event System', function () {
       const handler = () => {};
 
       expect(() => {
-        analyzer.off('bpm', handler);
-      }).to.not.throw();
-    });
-
-    it('should handle removeAllListeners call', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
-
-      analyzer.on('bpm', () => {});
-      analyzer.on('bpmStable', () => {});
-
-      expect(() => {
-        analyzer.removeAllListeners();
+        analyzer.removeEventListener('bpm', handler);
       }).to.not.throw();
     });
   });

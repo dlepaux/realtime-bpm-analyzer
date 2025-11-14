@@ -121,7 +121,6 @@ For TypeScript projects, you get full type safety:
 import { 
   createRealTimeBpmProcessor, 
   getBiquadFilter,
-  type BpmEvent,
   type BpmCandidates
 } from 'realtime-bpm-analyzer';
 
@@ -146,9 +145,9 @@ async function setupBPMAnalyzer(): Promise<void> {
 }
 
 function handleBPMUpdate(data: BpmCandidates, isStable: boolean): void {
-  if (data.bpm && data.bpm.length > 0) {
+  if (data.bpm.length > 0) {
     const topCandidate = data.bpm[0];
-    console.log(`Detected BPM: ${topCandidate.tempo} (confidence: ${topCandidate.count})`);
+    console.log(`Detected BPM: ${topCandidate.tempo} (count: ${topCandidate.count})`);
   }
 }
 ```
@@ -171,13 +170,13 @@ The analyzer emits two main types of BPM events:
 
 ## Next Steps
 
-Now that you have the basics, explore different usage strategies:
+Now that you have the basics, check out practical examples:
 
-- [Player Strategy](/guide/player-strategy) - Analyze audio/video players
-- [Continuous Analysis](/guide/continuous-analysis) - Long-running analysis for streams
-- [Offline Analysis](/guide/offline-analysis) - Analyze uploaded files
-
-Or check out [examples](/examples/basic-usage) for more practical use cases!
+- [Basic Usage](/examples/basic-usage) - Complete vanilla JS examples
+- [React Integration](/examples/react) - React hooks and patterns
+- [Next.js Integration](/examples/nextjs) - App Router and Server Components
+- [Microphone Input](/examples/microphone-input) - Real-time audio from mic
+- [File Upload](/examples/file-upload) - Analyze uploaded audio files
 
 ::: tip Pro Tip
 Always create the `AudioContext` in response to a user action (like a button click) to avoid browser autoplay restrictions.

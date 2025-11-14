@@ -41,46 +41,44 @@ async function getMicrophoneStream(): Promise<MediaStream> {
 
 ```typescript
 import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer } from 'realtime-bpm-analyzer';
 
 async function setupMicrophoneAnalysis(stream: MediaStream) {
   const audioContext = new AudioContext();
   await audioContext.resume();
   
   // Create the BPM analyzer
-  const analyzerNode = await createRealTimeBpmProcessor(audioContext, {
-    continuousAnalysis: true, // Keep analyzing
-    stabilizationTime: 20000,  // 20 seconds for stability
-  });
+  const bpmAnalyzer = await createRealTimeBpmProcessor(audioContext);
+  
+  // Create analyzer for visualization (optional)
+  const analyser = audioContext.createAnalyser();
+  analyser.fftSize = 2048;
   
   // Create source from microphone
   const source = audioContext.createMediaStreamSource(stream);
   
-  // Optional: Create analyzer for visualization
-  const analyser = audioContext.createAnalyser();
-  analyser.fftSize = 2048;
-  
   // Connect the audio graph
+  // IMPORTANT: Don't connect to destination to avoid audio feedback
   source.connect(analyser);
-  analyser.connect(analyzerNode);
-  // Note: Don't connect to destination to avoid audio feedback
   
-  return { audioContext, analyzerNode, source, analyser };
+  return { audioContext, bpmAnalyzer, source, analyser };
 }
 ```
 
 ### Step 3: Listen for BPM Events
 
 ```typescript
-function setupBPMListener(analyzerNode: BpmAnalyzer) {
-  analyzerNode.on('bpmStable', (data) => {
-    const bpms = data.bpm;
-    
-    if (bpms.length > 0) {
-      console.log('Primary BPM:', bpms[0].tempo);
-      console.log('Confidence:', bpms[0].count);
+import type { BpmCandidates } from 'realtime-bpm-analyzer';
+
+function setupBPMListener(bpmAnalyzer: BpmAnalyzer) {
+  bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
+    // Always check array length before accessing
+    if (data.bpm.length > 0) {
+      console.log('Primary BPM:', data.bpm[0].tempo);
+      console.log('Confidence:', data.bpm[0].count);
       
-      if (bpms.length > 1) {
-        console.log('Alternative BPM:', bpms[1].tempo);
+      if (data.bpm.length > 1) {
+        console.log('Alternative BPM:', data.bpm[1].tempo);
       }
     }
   });
@@ -93,24 +91,133 @@ function setupBPMListener(analyzerNode: BpmAnalyzer) {
 async function stopAnalysis(
   audioContext: AudioContext,
   source: MediaStreamAudioSourceNode,
-  analyzerNode: AudioWorkletNode,
+  bpmAnalyzer: BpmAnalyzer,
+  analyser: AnalyserNode,
   stream: MediaStream
 ) {
-  // Suspend audio context
+  // Suspend audio context (use suspend instead of close for potential reuse)
   await audioContext.suspend();
   
   // Disconnect nodes
   source.disconnect();
-  analyzerNode.disconnect();
+  analyser.disconnect();
+  bpmAnalyzer.disconnect();
   
   // Stop microphone
   stream.getTracks().forEach(track => track.stop());
 }
 ```
 
-## Complete Example
+## Complete React Example
 
-```vue
+```tsx
+'use client';
+
+import { useState } from 'react';
+import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
+
+export default function MicrophoneAnalyzer() {
+  const [isRecording, setIsRecording] = useState(false);
+  const [currentBpm, setCurrentBpm] = useState<number>(0);
+  const [concurrentBpm, setConcurrentBpm] = useState<number>(0);
+  const [audioContext, setAudioContext] = useState<AudioContext>();
+  const [source, setSource] = useState<MediaStreamAudioSourceNode>();
+  const [analyser, setAnalyser] = useState<AnalyserNode>();
+  const [realtimeAnalyzerNode, setRealtimeAnalyzerNode] = useState<BpmAnalyzer>();
+
+  async function handleStart() {
+    try {
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false
+      });
+
+      // Setup audio context
+      const audioCtx = audioContext ?? new AudioContext();
+      setAudioContext(audioCtx);
+      await audioCtx.resume();
+
+      // Create BPM analyzer
+      const bpmAnalyzer = await createRealTimeBpmProcessor(audioCtx);
+      setRealtimeAnalyzerNode(bpmAnalyzer);
+
+      // Create analyzer for visualization
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      setAnalyser(analyser);
+
+      // Create source from microphone
+      const mediaStreamSource = audioCtx.createMediaStreamSource(stream);
+      setSource(mediaStreamSource);
+
+      // Connect audio graph (no destination to avoid feedback)
+      mediaStreamSource.connect(analyser);
+
+      // Setup event listener
+      bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
+        if (data.bpm.length > 0) {
+          setCurrentBpm(data.bpm[0].tempo);
+          if (data.bpm.length > 1) {
+            setConcurrentBpm(data.bpm[1].tempo);
+          }
+        }
+      });
+
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Microphone access denied:', error);
+      alert('Please grant microphone access to use this feature.');
+    }
+  }
+
+  async function handleStop() {
+    if (!audioContext || !source || !realtimeAnalyzerNode || !analyser) {
+      return;
+    }
+
+    await audioContext.suspend();
+
+    // Disconnect everything
+    source.disconnect();
+    analyser.disconnect();
+    realtimeAnalyzerNode.disconnect();
+
+    // Reset state
+    setCurrentBpm(0);
+    setConcurrentBpm(0);
+    setIsRecording(false);
+  }
+
+  return (
+    <div>
+      {!isRecording ? (
+        <button onClick={handleStart}>
+          🎤 Start Microphone Analysis
+        </button>
+      ) : (
+        <button onClick={handleStop}>
+          ⏹ Stop
+        </button>
+      )}
+
+      {isRecording && (
+        <div>
+          {currentBpm === 0 ? (
+            <p>🎵 Listening...</p>
+          ) : (
+            <div>
+              <h2>{currentBpm} BPM</h2>
+              {concurrentBpm > 0 && <p>Alternative: {concurrentBpm} BPM</p>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+```
 <template>
   <div class="microphone-analyzer">
     <div class="controls">
@@ -508,7 +615,6 @@ onUnmounted(() => {
     });
     
     document.getElementById('stopBtn').addEventListener('click', async () => {
-      analyzerNode.removeAllListeners();
       await audioContext.suspend();
       source.disconnect();
       analyzerNode.disconnect();

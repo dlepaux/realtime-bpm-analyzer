@@ -95,13 +95,16 @@ export {BpmAnalyzer} from './core/bpm-analyzer';
  * // Stop the analyzer
  * analyzer.stop();
  *
- * // Remove specific listeners
- * const handler = (data) => console.log(data);
- * analyzer.on('bpm', handler);
- * analyzer.off('bpm', handler);
+ * // Remove listeners with native API
+ * const handler = (event) => console.log(event.detail);
+ * analyzer.addEventListener('bpm', handler);
+ * analyzer.removeEventListener('bpm', handler);
  *
- * // Remove all listeners
- * analyzer.removeAllListeners();
+ * // Or use once() for automatic cleanup
+ * analyzer.once('bpmStable', (data) => console.log('First detection'));
+ *
+ * // Disconnect and cleanup
+ * analyzer.disconnect();
  * ```
  *
  * @remarks
@@ -136,11 +139,16 @@ async function setupAudioWorkletNode(audioContext: AudioContext, processorName: 
 
   const objectUrl = URL.createObjectURL(blob);
 
-  await audioContext.audioWorklet.addModule(objectUrl);
+  try {
+    await audioContext.audioWorklet.addModule(objectUrl);
 
-  const audioWorkletNode = new AudioWorkletNode(audioContext, processorName, {
-    processorOptions,
-  });
+    const audioWorkletNode = new AudioWorkletNode(audioContext, processorName, {
+      processorOptions,
+    });
 
-  return audioWorkletNode;
+    return audioWorkletNode;
+  } finally {
+    // Clean up the blob URL to prevent memory leaks
+    URL.revokeObjectURL(objectUrl);
+  }
 }

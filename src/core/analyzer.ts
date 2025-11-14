@@ -205,9 +205,7 @@ export async function computeBpm({
       return true;
     }
 
-    const thresholdKey = threshold.toFixed(2);
-
-    if (data[thresholdKey] && data[thresholdKey].length > minPeaks) {
+    if (data[threshold] && data[threshold].length > minPeaks) {
       hasPeaks = true;
       foundThreshold = threshold;
     }
@@ -216,8 +214,7 @@ export async function computeBpm({
   });
 
   if (hasPeaks && foundThreshold) {
-    const foundThresholdKey = foundThreshold.toFixed(2);
-    const intervals = identifyIntervals(data[foundThresholdKey]);
+    const intervals = identifyIntervals(data[foundThreshold]);
     const tempos = groupByTempo({audioSampleRate, intervalCounts: intervals});
     const candidates = getTopCandidates(tempos);
 

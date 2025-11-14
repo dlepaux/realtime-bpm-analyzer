@@ -76,23 +76,10 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
   /**
    * Handle message event
-   * @param event Contain event data from main process
+   * @param _event Contain event data from main process
    */
-  onMessage(event: ProcessorInputMessage): void {
-    // Handle custom event RESET
-    if (event.data.type === 'reset') {
-      console.log('[processor.onMessage] RESET');
-      this.aggregate = chunkAggregator();
-      this.stopped = false;
-      this.realTimeBpmAnalyzer.reset();
-    }
-
-    if (event.data.type === 'stop') {
-      console.log('[processor.onMessage] STOP');
-      this.aggregate = chunkAggregator();
-      this.stopped = true;
-      this.realTimeBpmAnalyzer.reset();
-    }
+  onMessage(_event: ProcessorInputMessage): void {
+    // Handle custom message client
   }
 
   /**
@@ -120,7 +107,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       this.realTimeBpmAnalyzer.analyzeChunk({audioSampleRate: sampleRate, channelData: buffer, bufferSize, postMessage: event => {
         this.port.postMessage(event);
       }}).catch((error: unknown) => {
-        console.error('[RealTimeBpmProcessor] Error during analysis:', error);
         // Emit error event to allow user-level error handling
         this.port.postMessage({
           type: 'error',

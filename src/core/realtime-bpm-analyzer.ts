@@ -100,14 +100,12 @@ export class RealTimeBpmAnalyzer {
    * @param minThreshold - Value between 0.9 and 0.2
    */
   async clearValidPeaks(minThreshold: Threshold): Promise<void> {
-    this.minValidThreshold = Number.parseFloat(minThreshold.toFixed(2));
+    this.minValidThreshold = minThreshold;
 
     await descendingOverThresholds(async threshold => {
-      const thresholdKey = threshold.toFixed(2);
-
-      if (threshold < minThreshold && this.validPeaks[thresholdKey] !== undefined) {
-        delete this.validPeaks[thresholdKey]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
-        delete this.nextIndexPeaks[thresholdKey]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
+      if (threshold < minThreshold && this.validPeaks[threshold] !== undefined) {
+        delete this.validPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
+        delete this.nextIndexPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
       }
 
       return false;
@@ -200,16 +198,14 @@ export class RealTimeBpmAnalyzer {
     postMessage,
   }: RealtimeFindPeaksOptions): Promise<void> {
     await descendingOverThresholds(async threshold => {
-      const thresholdKey = threshold.toFixed(2);
-
-      if (this.nextIndexPeaks[thresholdKey] >= currentMaxIndex) {
+      if (this.nextIndexPeaks[threshold] >= currentMaxIndex) {
         return false;
       }
 
       /**
        * Get the next index in the next chunk
        */
-      const offsetForNextPeak = this.nextIndexPeaks[thresholdKey] % bufferSize; // 0 - 4095
+      const offsetForNextPeak = this.nextIndexPeaks[threshold] % bufferSize; // 0 - 4095
 
       const {peaks, threshold: atThreshold} = findPeaksAtThreshold({audioSampleRate, data: channelData, threshold, offset: offsetForNextPeak});
 
@@ -220,20 +216,18 @@ export class RealTimeBpmAnalyzer {
         return false;
       }
 
-      const atThresholdKey = atThreshold.toFixed(2);
-
       for (const relativeChunkPeak of peaks) {
         const index = currentMinIndex + relativeChunkPeak;
 
         /**
          * Add current Index + muteTimeInIndexes (10000/44100=0.22s)
          */
-        this.nextIndexPeaks[atThresholdKey] = index + this.options.muteTimeInIndexes;
+        this.nextIndexPeaks[atThreshold] = index + this.options.muteTimeInIndexes;
 
         /**
          * Store valid relativeChunkPeak Indexes
          */
-        this.validPeaks[atThresholdKey].push(index);
+        this.validPeaks[atThreshold].push(index);
 
         if (this.options.debug) {
           postMessage({

@@ -1,6 +1,40 @@
 # React Integration
 
-How to integrate Realtime BPM Analyzer in React applications.
+How to integrate Realtime BPM Analyzer in React applications with hooks and best practices.
+
+## Live Examples
+
+We've built complete React examples demonstrating different use cases. Each is a fully functional application you can interact with:
+
+### Basic File Upload
+
+Upload and analyze audio files to detect their BPM.
+
+<ExampleEmbed example="04-react-basic" height="500px" />
+
+::: tip View Source
+Full source: [`examples/04-react-basic`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/04-react-basic)
+:::
+
+### Streaming Audio
+
+Analyze BPM from live audio streams or URLs.
+
+<ExampleEmbed example="05-react-streaming" height="600px" />
+
+::: tip View Source
+Full source: [`examples/05-react-streaming`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/05-react-streaming)
+:::
+
+### Microphone Input
+
+Real-time BPM detection from your microphone.
+
+<ExampleEmbed example="06-react-microphone" height="500px" />
+
+::: tip View Source
+Full source: [`examples/06-react-microphone`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/06-react-microphone)
+:::
 
 ## Installation
 
@@ -8,272 +42,100 @@ How to integrate Realtime BPM Analyzer in React applications.
 npm install realtime-bpm-analyzer
 ```
 
-## Inline Implementation Pattern (Recommended)
+## Key Concepts for React
 
-For better control and flexibility, implement the analyzer directly in your component:
+### 1. Use State for Audio Context
 
-```tsx
-import { useState } from 'react';
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
-import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
+Create and store the audio context in component state to reuse it:
 
-export default function BPMAnalyzer() {
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [currentBpm, setCurrentBpm] = useState<number>(0);
-  const [concurrentBpm, setConcurrentBpm] = useState<number>(0);
-  const [audioContext, setAudioContext] = useState<AudioContext>();
-  const [source, setSource] = useState<MediaElementAudioSourceNode>();
-  const [analyser, setAnalyser] = useState<AnalyserNode>();
-  const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer>();
-  const [biquadFilterNode, setBiquadFilterNode] = useState<BiquadFilterNode>();
-
-  async function startAnalysis(audioElement: HTMLAudioElement) {
-    try {
-      // Reuse or create audio context
-      const audioCtx = audioContext ?? new AudioContext();
-      setAudioContext(audioCtx);
-      await audioCtx.resume();
-
-      // Create analyzer nodes
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 2048;
-      setAnalyser(analyser);
-
-      const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioCtx);
-      setBpmAnalyzer(bpmAnalyzer);
-
-      // Optional: Add filtering for better accuracy
-      const filter = getBiquadFilter(audioCtx);
-      setBiquadFilterNode(filter);
-
-      // Create source (reuse if exists to avoid errors)
-      const src = source ?? audioCtx.createMediaElementSource(audioElement);
-      setSource(src);
-
-      // Connect audio graph with filter - use .node for audio connections
-      src.connect(filter).connect(bpmAnalyzer.node);
-      src.connect(analyser);
-
-      // Setup event listeners - check array length before accessing
-      bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
-        if (data.bpm.length > 0) {
-          setCurrentBpm(data.bpm[0].tempo);
-          if (data.bpm.length > 1) {
-            setConcurrentBpm(data.bpm[1].tempo);
-          }
-        }
-      });
-
-      setIsAnalyzing(true);
-    } catch (error) {
-      console.error('Failed to start BPM analysis:', error);
-    }
-  }
-
-  async function stopAnalysis() {
-    if (!audioContext || !source || !bpmAnalyzer) {
-      return;
-    }
-
-    // Suspend instead of close to allow reuse
-    await audioContext.suspend();
-
-    // Disconnect all nodes
-    source.disconnect();
-    analyser?.disconnect();
-    biquadFilterNode?.disconnect();
-    bpmAnalyzer.disconnect();
-
-    // Reset state
-    setCurrentBpm(0);
-    setConcurrentBpm(0);
-    setIsAnalyzing(false);
-  }
-
-  return { currentBpm, concurrentBpm, isAnalyzing, startAnalysis, stopAnalysis };
-}
+```typescript
+const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer | null>(null);
 ```
 
-## Custom Hook Pattern (Alternative)
+### 2. Cleanup in useEffect
 
-If you prefer reusable hooks, extract the logic:
+Always cleanup audio nodes when component unmounts:
 
-```tsx
-import { useEffect, useState } from 'react';
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
-import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
-
-export function useBPMAnalyzer() {
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [currentBpm, setCurrentBpm] = useState<number>(0);
-  const [concurrentBpm, setConcurrentBpm] = useState<number>(0);
-  const [audioContext, setAudioContext] = useState<AudioContext>();
-  const [source, setSource] = useState<MediaElementAudioSourceNode>();
-  const [analyser, setAnalyser] = useState<AnalyserNode>();
-  const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer>();
-  const [biquadFilterNode, setBiquadFilterNode] = useState<BiquadFilterNode>();
-
-  const startAnalysis = async (audioElement: HTMLAudioElement) => {
-    try {
-      const audioCtx = audioContext ?? new AudioContext();
-      setAudioContext(audioCtx);
-      await audioCtx.resume();
-
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 2048;
-      setAnalyser(analyser);
-
-      const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioCtx);
-      setBpmAnalyzer(bpmAnalyzer);
-
-      const filter = getBiquadFilter(audioCtx);
-      setBiquadFilterNode(filter);
-
-      const src = source ?? audioCtx.createMediaElementSource(audioElement);
-      setSource(src);
-
-      // Connect audio graph - use .node for audio connections
-      src.connect(filter).connect(analyzer.node);
-      src.connect(analyser);
-
-      analyzer.on('bpmStable', (data: BpmCandidates) => {
-        if (data.bpm.length > 0) {
-          setCurrentBpm(data.bpm[0].tempo);
-          if (data.bpm.length > 1) {
-            setConcurrentBpm(data.bpm[1].tempo);
-          }
-        }
-      });
-
-      setIsAnalyzing(true);
-    } catch (error) {
-      console.error('Failed to start BPM analysis:', error);
-    }
+```typescript
+useEffect(() => {
+  return () => {
+    bpmAnalyzer?.disconnect();
+    audioContext?.close();
   };
+}, []); // Empty deps - cleanup only on unmount
+```
 
-  const stopAnalysis = async () => {
-    if (!audioContext || !source || !bpmAnalyzer) {
-      return;
-    }
+### 3. Handle Events with State Updates
 
-    await audioContext.suspend();
-    source.disconnect();
-    analyser?.disconnect();
-    biquadFilterNode?.disconnect();
-    bpmAnalyzer.disconnect();
+Convert BPM events to React state updates:
 
-    setCurrentBpm(0);
-    setConcurrentBpm(0);
-    setIsAnalyzing(false);
+```typescript
+bpmAnalyzer.on('bpmStable', (data) => {
+  if (data.bpm.length > 0) {
+    setCurrentBpm(data.bpm[0].tempo);
+  }
+});
+```
+
+## Basic Pattern
+
+Here's the essential pattern for any React integration:
+
+```typescript
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
+import { useState, useEffect } from 'react';
+
+function BPMAnalyzer() {
+  const [bpm, setBpm] = useState<number | null>(null);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer | null>(null);
+
+  const startAnalysis = async () => {
+    // Create audio context
+    const ctx = new AudioContext();
+    setAudioContext(ctx);
+
+    // Create analyzer
+    const analyzer = await createRealtimeBpmAnalyzer(ctx);
+    setBpmAnalyzer(analyzer);
+
+    // Listen for BPM
+    analyzer.on('bpmStable', (data) => {
+      if (data.bpm.length > 0) {
+        setBpm(data.bpm[0].tempo);
+      }
+    });
+
+    // Connect your audio source here...
   };
 
   useEffect(() => {
     return () => {
-      stopAnalysis().catch(console.error);
+      bpmAnalyzer?.disconnect();
+      audioContext?.close();
     };
-  }, []);
-
-  return { currentBpm, concurrentBpm, isAnalyzing, startAnalysis, stopAnalysis };
-}
-```
-
-## Usage Example
-
-```tsx
-import { useRef } from 'react';
-import { useBPMAnalyzer } from './hooks/useBPMAnalyzer';
-
-export default function MusicPlayer() {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const { currentBpm, concurrentBpm, isAnalyzing, startAnalysis, stopAnalysis } = useBPMAnalyzer();
-
-  const handlePlay = async () => {
-    if (audioRef.current && !isAnalyzing) {
-      await startAnalysis(audioRef.current);
-      audioRef.current.play();
-    }
-  };
-
-  const handleStop = async () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      await stopAnalysis();
-    }
-  };
+  }, []); // Cleanup only on unmount
 
   return (
     <div>
-      <audio ref={audioRef} src="/audio/song.mp3" />
-      
-      <button onClick={handlePlay} disabled={isAnalyzing}>
-        Play & Analyze
-      </button>
-      
-      <button onClick={handleStop} disabled={!isAnalyzing}>
-        Stop
-      </button>
-      
-      {isAnalyzing && (
-        <div>
-          {currentBpm === 0 ? (
-            <p>Analyzing...</p>
-          ) : (
-            <div>
-              <p>BPM: {currentBpm}</p>
-              {concurrentBpm > 0 && <p>Alternative: {concurrentBpm} BPM</p>}
-            </div>
-          )}
-        </div>
-      )}
+      <button onClick={startAnalysis}>Start Analysis</button>
+      {bpm && <div>BPM: {bpm}</div>}
     </div>
   );
 }
 ```
 
-## TypeScript Types
+## TypeScript Support
 
-```tsx
-import type { BpmCandidates, BpmAnalyzer } from 'realtime-bpm-analyzer';
+The library is fully typed. Import types as needed:
 
-interface BPMAnalyzerState {
-  currentBpm: number;
-  concurrentBpm: number;
-  isAnalyzing: boolean;
-  audioContext?: AudioContext;
-  source?: MediaElementAudioSourceNode;
-  analyser?: AnalyserNode;
-  bpmAnalyzer?: BpmAnalyzer;
-  biquadFilterNode?: BiquadFilterNode;
-}
-
-interface BPMAnalyzerHook {
-  currentBpm: number;
-  concurrentBpm: number;
-  isAnalyzing: boolean;
-  startAnalysis: (audio: HTMLAudioElement) => Promise<void>;
-  stopAnalysis: () => Promise<void>;
-}
+```typescript
+import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
 ```
-
-## Key Considerations
-
-- **Cleanup**: Always clean up audio context and remove event listeners in cleanup functions
-- **State vs Refs**: Use `useState` for nodes that need cleanup tracking; refs for values that don't trigger renders
-- **User Gesture**: Start AudioContext after user interaction (button click) due to browser autoplay policies
-- **Single Instance**: Reuse existing AudioContext when possible; avoid creating multiple sources for the same element
-- **Context Reuse**: Use `suspend()` instead of `close()` if you plan to reuse the AudioContext
-- **Array Safety**: Always check `data.bpm.length` before accessing array elements
-- **Filtering**: Use `getBiquadFilter` for better low-frequency detection accuracy
-- **Cleanup Pattern**: Use ref pattern in useEffect to avoid stale closures; remove listeners with `off()` using same handler reference
-
-## Complete Examples
-
-See our working examples:
-- [Microphone Input](/examples/microphone-input) - Real-time analysis
-- [File Upload](/examples/file-upload) - Batch processing
-- [Streaming Audio](/examples/streaming-audio) - Online streams
 
 ## Next Steps
 
-- [Vue Integration](/examples/vue) - Vue 3 Composition API
-- [API Reference](/api/) - Full API documentation
+- Explore the [live examples above](#live-examples) to see complete implementations
+- Check out [Vue Integration](/examples/vue) for Vue.js
+- Read the [API Documentation](/api/) for detailed reference

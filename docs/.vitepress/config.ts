@@ -5,8 +5,8 @@ export default defineConfig({
   title: "Realtime BPM Analyzer",
   description: "A powerful TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of audio or video sources in real-time",
   
-  // Base URL for GitHub Pages (will be /realtime-bpm-analyzer/)
-  base: '/realtime-bpm-analyzer/',
+  // Base URL - using root since deployed to www.realtime-bpm-analyzer.com
+  base: '/',
   
   // Clean URLs (remove .html extension)
   cleanUrls: true,
@@ -67,9 +67,8 @@ export default defineConfig({
           text: 'Examples',
           items: [
             { text: 'Basic Usage', link: '/examples/basic-usage' },
-            { text: 'Microphone Input', link: '/examples/microphone-input' },
-            { text: 'File Upload', link: '/examples/file-upload' },
-            { text: 'Streaming Audio', link: '/examples/streaming-audio' }
+            { text: 'Streaming Audio', link: '/examples/streaming-audio' },
+            { text: 'Microphone Input', link: '/examples/microphone-input' }
           ]
         },
         {

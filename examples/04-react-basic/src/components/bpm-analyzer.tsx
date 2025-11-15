@@ -84,6 +84,12 @@ function BpmAnalyzer() {
         </div>
       )}
 
+      {!error && !isAnalyzing && bpm !== undefined && (
+        <div className="status success">
+          Analysis complete!
+        </div>
+      )}
+
       <div className={`bpm-display ${bpm !== undefined ? 'visible' : ''}`}>
         <div className="bpm-value">{bpm !== undefined ? Math.round(bpm) : '--'}</div>
         <div className="bpm-label">BPM</div>

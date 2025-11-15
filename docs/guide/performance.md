@@ -375,19 +375,6 @@ audioElement.addEventListener('playing', () => {
 - ✅ Monitor memory on long-running applications
 - ✅ Suspend AudioContext when app is backgrounded
 
-## Benchmarks
-
-Typical performance on modern devices:
-
-| Device | Mode | CPU Usage | Memory | Time to Stable |
-|--------|------|-----------|--------|----------------|
-| Desktop (Chrome) | Real-time | <5% | ~10MB | 10-15s |
-| Desktop (Chrome) | Continuous | <8% | ~15MB | 15-20s |
-| Mobile (Safari) | Real-time | <15% | ~15MB | 15-20s |
-| Mobile (Safari) | Continuous | <20% | ~20MB | 20-25s |
-
-*Based on typical 128kbps MP3 files*
-
 ## Next Steps
 
 - [Browser Compatibility](/guide/browser-compatibility) - Platform support

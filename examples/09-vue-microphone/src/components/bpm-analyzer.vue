@@ -134,7 +134,11 @@ onUnmounted(() => {
       {{ error }}
     </div>
 
-    <div v-if="isRecording && !error" class="status success">
+    <div v-if="isRecording && !error && bpm !== undefined" class="status success">
+      Stable BPM detected: {{ Math.round(bpm) }}
+    </div>
+
+    <div v-if="isRecording && !error && bpm === undefined" class="status success">
       Listening for music - play something!
     </div>
 

@@ -2,6 +2,6 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   server: {
-    port: 3002,
+    port: process.env.PORT ? parseInt(process.env.PORT) : 3003,
   },
 });

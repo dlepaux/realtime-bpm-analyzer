@@ -28,7 +28,7 @@ You can also use the library directly from a CDN:
 
 ```html
 <script type="module">
-  import { createRealtimeBpmAnalyzer } from 'https://cdn.jsdelivr.net/npm/realtime-bpm-analyzer/+esm';
+  import { createRealtimeBpmAnalyzer } from 'https://cdn.jsdelivr.net/npm/realtime-bpm-analyzer@5/+esm';
 </script>
 ```
 
@@ -171,11 +171,11 @@ The analyzer emits two main types of BPM events:
 
 Now that you have the basics, check out practical examples:
 
-- [Basic Usage](/examples/basic-usage) - Complete vanilla JS examples
+- [Basic Usage](/examples/basic-usage) - File upload and offline analysis
+- [Streaming Audio](/examples/streaming-audio) - Real-time stream analysis
+- [Microphone Input](/examples/microphone-input) - Real-time audio from microphone
 - [React Integration](/examples/react) - React hooks and patterns
-- [Next.js Integration](/examples/nextjs) - App Router and Server Components
-- [Microphone Input](/examples/microphone-input) - Real-time audio from mic
-- [File Upload](/examples/file-upload) - Analyze uploaded audio files
+- [Vue Integration](/examples/vue) - Vue 3 Composition API patterns
 
 ::: tip Pro Tip
 Always create the `AudioContext` in response to a user action (like a button click) to avoid browser autoplay restrictions.

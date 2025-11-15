@@ -1,4 +1,4 @@
-import BpmAnalyzer from './components/BpmAnalyzer';
+import BpmAnalyzer from './components/bpm-analyzer';
 import './app.css';
 
 function App() {

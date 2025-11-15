@@ -188,6 +188,14 @@ onUnmounted(() => {
       Loading audio stream...
     </div>
 
+    <div v-if="!error && !isLoading && isPlaying" class="status playing">
+      Playing and analyzing...
+    </div>
+
+    <div v-if="!error && !isLoading && audioElement && !isPlaying" class="status playing">
+      Audio loaded - ready to play!
+    </div>
+
     <div :class="['bpm-display', { visible: bpm !== undefined }]">
       <div class="bpm-value">{{ bpm !== undefined ? Math.round(bpm) : '--' }}</div>
       <div class="bpm-label">BPM</div>
@@ -281,6 +289,12 @@ button:disabled {
   background: #fff3cd;
   color: #856404;
   border: 1px solid #ffeaa7;
+}
+
+.status.playing {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
 }
 
 .status.error {

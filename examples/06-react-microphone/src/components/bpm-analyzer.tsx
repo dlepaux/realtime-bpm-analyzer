@@ -4,7 +4,7 @@ import {
   type BpmAnalyzer as BpmAnalyzerType, 
   type BpmCandidates 
 } from 'realtime-bpm-analyzer';
-import './BpmAnalyzer.css';
+import './bpm-analyzer.css';
 
 function BpmAnalyzer() {
   const [bpm, setBpm] = useState<number | undefined>();
@@ -141,7 +141,13 @@ function BpmAnalyzer() {
         </div>
       )}
 
-      {isRecording && !error && (
+      {isRecording && !error && bpm !== undefined && (
+        <div className="status success">
+          Stable BPM detected: {Math.round(bpm)}
+        </div>
+      )}
+
+      {isRecording && !error && bpm === undefined && (
         <div className="status success">
           Listening for music - play something!
         </div>

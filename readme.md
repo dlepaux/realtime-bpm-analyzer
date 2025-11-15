@@ -14,7 +14,7 @@
 
 Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of an audio or video source in real-time.
 
-> **New in v5.0**: Clean typed event API with full TypeScript support! See the [migration guide](https://www.realtime-bpm-analyzer.com/guide/migration-v5) if upgrading from v4.x.
+> **New in v5.0**: Clean typed event API with full TypeScript support! See the [migration guide](https://www.realtime-bpm-analyzer.com/guide/migration-v5) if upgrading from v4.x or v3.x.
 
 ```typescript
 // Simple, typed event listeners with autocomplete
@@ -75,20 +75,31 @@ npm run dev --workspace=examples/01-vanilla-basic
 
 ### Available Examples
 
-- `examples/01-vanilla-basic` - Basic usage with vanilla JavaScript
-- `examples/02-vanilla-streaming` - Streaming audio analysis
+**Vanilla JavaScript:**
+- `examples/01-vanilla-basic` - File upload and offline BPM analysis
+- `examples/02-vanilla-streaming` - Real-time audio stream analysis
 - `examples/03-vanilla-microphone` - Real-time microphone input analysis
-- `examples/04-react` - React integration example
-- `examples/05-nextjs` - Next.js integration example
-- `examples/06-vue` - Vue.js integration example
+
+**React:**
+- `examples/04-react-basic` - File upload with React
+- `examples/05-react-streaming` - Audio stream analysis with React
+- `examples/06-react-microphone` - Microphone analysis with React
+
+**Vue 3:**
+- `examples/07-vue-basic` - File upload with Vue 3 Composition API
+- `examples/08-vue-streaming` - Audio stream analysis with Vue 3
+- `examples/09-vue-microphone` - Microphone analysis with Vue 3
 
 ### Running Multiple Examples
 
 To run different examples, simply change the workspace path:
 
 ```bash
-# Run the React example
-npm run dev --workspace=examples/04-react
+# Run a React example
+npm run dev --workspace=examples/04-react-basic
+
+# Run a Vue example
+npm run dev --workspace=examples/07-vue-basic
 
 # Run the streaming example
 npm run dev --workspace=examples/02-vanilla-streaming

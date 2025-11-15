@@ -198,6 +198,18 @@ function BpmAnalyzer() {
         </div>
       )}
 
+      {!error && !isLoading && isPlaying && (
+        <div className="status playing">
+          Playing and analyzing...
+        </div>
+      )}
+
+      {!error && !isLoading && audioElementRef.current && !isPlaying && (
+        <div className="status playing">
+          Audio loaded - ready to play!
+        </div>
+      )}
+
       <div className={`bpm-display ${bpm !== undefined ? 'visible' : ''}`}>
         <div className="bpm-value">{bpm !== undefined ? Math.round(bpm) : '--'}</div>
         <div className="bpm-label">BPM</div>

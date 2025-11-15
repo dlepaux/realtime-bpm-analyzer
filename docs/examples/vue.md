@@ -1,6 +1,40 @@
 # Vue Integration
 
-How to integrate Realtime BPM Analyzer in Vue 3 applications using Composition API.
+How to integrate Realtime BPM Analyzer in Vue 3 applications using the Composition API.
+
+## Live Examples
+
+We've built complete Vue 3 examples demonstrating different use cases. Each is a fully functional application you can interact with:
+
+### Basic File Upload
+
+Upload and analyze audio files to detect their BPM.
+
+<ExampleEmbed example="07-vue-basic" height="500px" />
+
+::: tip View Source
+Full source: [`examples/07-vue-basic`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/07-vue-basic)
+:::
+
+### Streaming Audio
+
+Analyze BPM from live audio streams or URLs.
+
+<ExampleEmbed example="08-vue-streaming" height="600px" />
+
+::: tip View Source
+Full source: [`examples/08-vue-streaming`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/08-vue-streaming)
+:::
+
+### Microphone Input
+
+Real-time BPM detection from your microphone.
+
+<ExampleEmbed example="09-vue-microphone" height="500px" />
+
+::: tip View Source
+Full source: [`examples/09-vue-microphone`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/09-vue-microphone)
+:::
 
 ## Installation
 
@@ -8,151 +42,141 @@ How to integrate Realtime BPM Analyzer in Vue 3 applications using Composition A
 npm install realtime-bpm-analyzer
 ```
 
-## Composable Pattern
+## Key Concepts for Vue
 
-Create a reusable composable at `composables/useBPMAnalyzer.ts`:
+### 1. Use Refs for Reactive State
+
+Store BPM and analyzer state in Vue refs:
 
 ```typescript
+import { ref } from 'vue';
+
+const bpm = ref<number>(0);
+const audioContext = ref<AudioContext | null>(null);
+const bpmAnalyzer = ref<BpmAnalyzer | null>(null);
+```
+
+### 2. Cleanup with onUnmounted
+
+Always cleanup audio nodes when component unmounts:
+
+```typescript
+import { onUnmounted } from 'vue';
+
+onUnmounted(() => {
+  bpmAnalyzer.value?.disconnect();
+  audioContext.value?.close();
+});
+```
+
+### 3. Handle Events with Ref Updates
+
+Convert BPM events to reactive updates:
+
+```typescript
+bpmAnalyzer.value?.on('bpmStable', (data) => {
+  if (data.bpm.length > 0) {
+    bpm.value = data.bpm[0].tempo;
+  }
+});
+```
+
+## Basic Pattern
+
+Here's the essential pattern for Vue integration using Composition API:
+
+```vue
+<script setup lang="ts">
 import { ref, onUnmounted } from 'vue';
 import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
 
-export function useBPMAnalyzer() {
-  const bpm = ref(0);
+const bpm = ref<number>(0);
+const audioContext = ref<AudioContext | null>(null);
+const bpmAnalyzer = ref<BpmAnalyzer | null>(null);
+
+const startAnalysis = async () => {
+  // Create audio context
+  audioContext.value = new AudioContext();
+  await audioContext.value.resume();
+
+  // Create analyzer
+  bpmAnalyzer.value = await createRealtimeBpmAnalyzer(audioContext.value);
+
+  // Listen for BPM
+  bpmAnalyzer.value.on('bpmStable', (data) => {
+    if (data.bpm.length > 0) {
+      bpm.value = data.bpm[0].tempo;
+    }
+  });
+
+  // Connect your audio source here...
+};
+
+onUnmounted(() => {
+  bpmAnalyzer.value?.disconnect();
+  audioContext.value?.close();
+});
+</script>
+
+<template>
+  <div>
+    <button @click="startAnalysis">Start Analysis</button>
+    <div v-if="bpm">BPM: {{ bpm }}</div>
+  </div>
+</template>
+```
+
+## Composables Pattern
+
+You can create a reusable composable for BPM analysis:
+
+```typescript
+// composables/useBpmAnalyzer.ts
+import { ref, onUnmounted } from 'vue';
+import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
+
+export function useBpmAnalyzer() {
+  const bpm = ref<number>(0);
   const isAnalyzing = ref(false);
   
   let audioContext: AudioContext | null = null;
-  let bpmAnalyzer: BpmAnalyzer | null = null;
+  let analyzer: BpmAnalyzer | null = null;
 
-  const startAnalysis = async (audioElement: HTMLAudioElement) => {
-    try {
-      audioContext = new AudioContext();
-      await audioContext.resume();
-      
-      bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
-      const source = audioContext.createMediaElementSource(audioElement);
-      
-      // Connect audio graph - use .node for audio connections
-      source.connect(bpmAnalyzer.node);
-      bpmAnalyzer.node.connect(audioContext.destination);
-      
-      // Use typed event listeners
-      bpmAnalyzer.on('bpmStable', (data) => {
-        bpm.value = data.bpm[0]?.tempo || 0;
-      });
-      
-      isAnalyzing.value = true;
-    } catch (error) {
-      console.error('Failed to start analysis:', error);
-    }
+  const start = async (audioSource: AudioNode) => {
+    audioContext = new AudioContext();
+    analyzer = await createRealtimeBpmAnalyzer(audioContext);
+    
+    audioSource.connect(analyzer.node);
+    
+    analyzer.on('bpmStable', (data) => {
+      bpm.value = data.bpm[0]?.tempo || 0;
+    });
+    
+    isAnalyzing.value = true;
   };
 
-  const stopAnalysis = async () => {
-    if (audioContext) {
-      await audioContext.close();
-      audioContext = null;
-      analyzerNode = null;
-      isAnalyzing.value = false;
-      bpm.value = 0;
-    }
+  const stop = async () => {
+    analyzer?.disconnect();
+    await audioContext?.close();
+    isAnalyzing.value = false;
   };
 
-  onUnmounted(() => {
-    stopAnalysis();
-  });
+  onUnmounted(() => stop());
 
-  return {
-    bpm,
-    isAnalyzing,
-    startAnalysis,
-    stopAnalysis
-  };
+  return { bpm, isAnalyzing, start, stop };
 }
-```
-
-## Component Usage
-
-```vue
-<template>
-  <div class="bpm-analyzer">
-    <audio ref="audioElement" src="/audio/song.mp3" />
-    
-    <button @click="handlePlay" :disabled="isAnalyzing">
-      {{ isAnalyzing ? 'Analyzing...' : 'Play & Analyze' }}
-    </button>
-    
-    <button @click="stopAnalysis" :disabled="!isAnalyzing">
-      Stop
-    </button>
-    
-    <div v-if="isAnalyzing" class="result">
-      <p>BPM: {{ bpm || 'Detecting...' }}</p>
-    </div>
-  </div>
-</template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-import { useBPMAnalyzer } from '@/composables/useBPMAnalyzer';
-
-const audioElement = ref<HTMLAudioElement>();
-const { bpm, isAnalyzing, startAnalysis, stopAnalysis } = useBPMAnalyzer();
-
-const handlePlay = async () => {
-  if (audioElement.value) {
-    await startAnalysis(audioElement.value);
-    audioElement.value.play();
-  }
-};
-</script>
 ```
 
 ## TypeScript Support
 
-For full type safety:
+The library is fully typed. Import types as needed:
 
 ```typescript
-import type { Ref } from 'vue';
-import type { BpmCandidates } from 'realtime-bpm-analyzer';
-
-interface BPMAnalyzerComposable {
-  bpm: Ref<number>;
-  isAnalyzing: Ref<boolean>;
-  startAnalysis: (audio: HTMLAudioElement) => Promise<void>;
-  stopAnalysis: () => Promise<void>;
-}
+import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
 ```
-
-## Vite Configuration
-
-If using Vite, ensure proper asset handling in `vite.config.ts`:
-
-```typescript
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-
-export default defineConfig({
-  plugins: [vue()],
-  assetsInclude: ['**/*.mp3', '**/*.wav', '**/*.flac']
-});
-```
-
-## Key Points
-
-- ✅ Use Composition API for cleaner code
-- ✅ Clean up in `onUnmounted` hook
-- ✅ Use `ref` for reactive BPM values
-- ✅ Start AudioContext after user interaction
-- ❌ Don't create multiple analyzers for the same source
-
-## Complete Examples
-
-All our examples use Vue components:
-- [Microphone Input](/examples/microphone-input) - Full Vue 3 example
-- [File Upload](/examples/file-upload) - Batch processing
-- [Streaming Audio](/examples/streaming-audio) - Online streams
 
 ## Next Steps
 
-- [React Integration](/examples/react) - React hooks pattern
-- [Next.js Integration](/examples/nextjs) - SSR considerations
-- [API Reference](/api/) - Full documentation
+- Explore the [live examples above](#live-examples) to see complete implementations
+- Check out [React Integration](/examples/react) for React
+- Read the [API Documentation](/api/) for detailed reference

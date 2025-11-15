@@ -98,7 +98,8 @@
     "space": 2,
     "semicolon": true,
     "ignores": [
-      "examples/**"
+      "examples/**",
+      "docs/scripts/**"
     ],
     "globals": [
       "process",

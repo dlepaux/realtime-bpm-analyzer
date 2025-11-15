@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BpmAnalyzer from './components/BpmAnalyzer.vue';
+import BpmAnalyzer from './components/bpm-analyzer.vue';
 </script>
 
 <template>

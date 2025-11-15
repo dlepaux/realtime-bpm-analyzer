@@ -78,6 +78,10 @@ const handleFileChange = async (event: Event) => {
       Analyzing audio...
     </div>
 
+    <div v-if="!error && !isAnalyzing && bpm !== undefined" class="status success">
+      Analysis complete!
+    </div>
+
     <div class="bpm-display" :class="{ visible: bpm !== undefined }">
       <div class="bpm-value">{{ bpm !== undefined ? Math.round(bpm) : '--' }}</div>
       <div class="bpm-label">BPM</div>
@@ -127,6 +131,12 @@ const handleFileChange = async (event: Event) => {
   background: #fff3cd;
   color: #856404;
   border: 1px solid #ffeaa7;
+}
+
+.status.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
 }
 
 .status.error {

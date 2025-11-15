@@ -28,7 +28,7 @@ You can also use the library directly from a CDN:
 
 ```html
 <script type="module">
-  import { createRealTimeBpmProcessor } from 'https://cdn.jsdelivr.net/npm/realtime-bpm-analyzer/+esm';
+  import { createRealtimeBpmAnalyzer } from 'https://cdn.jsdelivr.net/npm/realtime-bpm-analyzer/+esm';
 </script>
 ```
 
@@ -58,14 +58,14 @@ Create an audio element:
 ### 2. JavaScript Implementation
 
 ```javascript
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 
 async function setupBPMAnalyzer() {
   // Create audio context
   const audioContext = new AudioContext();
   
-  // Create the BPM analyzer processor
-  const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+  // Create the BPM analyzer (returns event emitter wrapping AudioWorkletNode)
+  const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
   
   // Get audio element
   const audioElement = document.getElementById('track');
@@ -76,20 +76,19 @@ async function setupBPMAnalyzer() {
   // Create and configure low-pass filter (helps isolate bass frequencies)
   const lowpass = getBiquadFilter(audioContext);
   
-  // Connect the audio graph:
-  // source → filter → analyzer → (back to) source → destination (speakers)
+  // Connect the audio graph - use .node to connect the AudioWorkletNode
   source.connect(lowpass);
-  lowpass.connect(realtimeAnalyzerNode);
+  lowpass.connect(bpmAnalyzer.node);
   source.connect(audioContext.destination);
   
-  // Listen for BPM events with typed event listeners
-  realtimeAnalyzerNode.on('bpm', (data) => {
+  // Listen for BPM events using the event emitter API
+  bpmAnalyzer.on('bpm', (data) => {
     // Continuous BPM updates
     console.log('Current BPM candidates:', data.bpm);
     updateDisplay(data.bpm);
   });
   
-  realtimeAnalyzerNode.on('bpmStable', (data) => {
+  bpmAnalyzer.on('bpmStable', (data) => {
     // Stable BPM detected (more confident result)
     console.log('Stable BPM:', data.bpm);
     updateDisplay(data.bpm, true);
@@ -119,27 +118,27 @@ For TypeScript projects, you get full type safety:
 
 ```typescript
 import { 
-  createRealTimeBpmProcessor, 
+  createRealtimeBpmAnalyzer, 
   getBiquadFilter,
   type BpmCandidates
 } from 'realtime-bpm-analyzer';
 
 async function setupBPMAnalyzer(): Promise<void> {
   const audioContext = new AudioContext();
-  const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+  const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
   
   const audioElement = document.getElementById('track') as HTMLAudioElement;
   const source = audioContext.createMediaElementSource(audioElement);
   const lowpass = getBiquadFilter(audioContext);
   
-  source.connect(lowpass).connect(realtimeAnalyzerNode);
+  source.connect(lowpass).connect(bpmAnalyzer.node);
   source.connect(audioContext.destination);
   
-  realtimeAnalyzerNode.on('bpm', (data: BpmCandidates) => {
+  bpmAnalyzer.on('bpm', (data: BpmCandidates) => {
     handleBPMUpdate(data, false);
   });
   
-  realtimeAnalyzerNode.on('bpmStable', (data: BpmCandidates) => {
+  bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
     handleBPMUpdate(data, true);
   });
 }

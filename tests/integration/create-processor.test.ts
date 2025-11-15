@@ -1,11 +1,11 @@
 import {expect} from 'chai';
-import {createRealTimeBpmProcessor, analyzeFullBuffer, getBiquadFilter, BpmAnalyzer} from '../../src/index';
+import {createRealtimeBpmAnalyzer, analyzeFullBuffer, getBiquadFilter, BpmAnalyzer} from '../../src/index';
 import {createTestAudioContext, closeAudioContext} from '../setup';
 
 /**
- * Integration tests for createRealTimeBpmProcessor function
+ * Integration tests for createRealtimeBpmAnalyzer function
  */
-describe('createRealTimeBpmProcessor', function () {
+describe('createRealtimeBpmAnalyzer', function () {
   // AudioWorklet loading takes time, set higher timeout
   this.timeout(5000);
 
@@ -21,22 +21,22 @@ describe('createRealTimeBpmProcessor', function () {
 
   describe('initialization', () => {
     it('should return a BpmAnalyzer instance', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
       expect(processor).to.be.instanceOf(BpmAnalyzer);
     });
 
     it('should return an instance that extends EventTarget', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
       expect(processor).to.be.instanceOf(EventTarget);
     });
 
     it('should create an AudioWorkletNode internally', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
       expect(processor.node).to.be.instanceOf(AudioWorkletNode);
     });
 
     it('should accept processor options', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext, {
+      const processor = await createRealtimeBpmAnalyzer(audioContext, {
         continuousAnalysis: true,
         stabilizationTime: 10000,
         muteTimeInIndexes: 5000,
@@ -48,14 +48,14 @@ describe('createRealTimeBpmProcessor', function () {
 
   describe('AudioNode capabilities', () => {
     it('should be connectable to audio destination', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
       expect(() => {
         processor.connect(audioContext.destination);
       }).to.not.throw();
     });
 
     it('should be disconnectable', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
       processor.connect(audioContext.destination);
       expect(() => {
         processor.disconnect();
@@ -148,8 +148,8 @@ describe('Public API exports', () => {
     expect(typeof getBiquadFilter === 'function').to.be.equal(true);
   });
 
-  it('should export createRealTimeBpmProcessor function', () => {
-    expect(typeof createRealTimeBpmProcessor === 'function').to.be.equal(true);
+  it('should export createRealtimeBpmAnalyzer function', () => {
+    expect(typeof createRealtimeBpmAnalyzer === 'function').to.be.equal(true);
   });
 });
 

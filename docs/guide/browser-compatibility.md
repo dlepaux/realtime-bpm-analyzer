@@ -39,7 +39,7 @@ function isSupported() {
 if (isSupported()) {
   // Safe to use the library
   const audioContext = new AudioContext();
-  const analyzer = await createRealTimeBpmProcessor(audioContext);
+  const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 } else {
   // Show error message
   alert('Your browser does not support BPM analysis. Please update your browser.');

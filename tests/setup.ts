@@ -163,7 +163,7 @@ export function audioBufferToChunks(
  * @throws Error if timeout is reached before event is emitted
  * @example
  * ```typescript
- * const analyzer = await createRealTimeBpmProcessor(audioContext);
+ * const analyzer = await createRealtimeBpmAnalyzer(audioContext);
  *
  * // Start audio processing...
  * source.connect(analyzer);

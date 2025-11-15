@@ -1,0 +1,77 @@
+.bpm-analyzer {
+  width: 100%;
+}
+
+.file-input-wrapper {
+  margin-bottom: 20px;
+}
+
+.file-input {
+  width: 100%;
+  padding: 15px;
+  border: 2px dashed #667eea;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.file-input:hover:not(:disabled) {
+  border-color: #764ba2;
+  background: #f8f9ff;
+}
+
+.file-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status {
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.status.analyzing {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.status.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.bpm-display {
+  text-align: center;
+  padding: 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.5s ease;
+}
+
+.bpm-display.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.bpm-value {
+  font-size: 64px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 5px;
+}
+
+.bpm-label {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}

@@ -47,7 +47,7 @@ The most straightforward use case - analyzing an HTML audio element:
   <div class="status" id="status">Press play to analyze</div>
   
   <script type="module">
-    import { createRealTimeBpmProcessor, getBiquadFilter } from 'https://cdn.jsdelivr.net/npm/realtime-bpm-analyzer/+esm';
+    import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'https://cdn.jsdelivr.net/npm/realtime-bpm-analyzer/+esm';
     
     let audioContext;
     let isSetup = false;
@@ -68,8 +68,8 @@ The most straightforward use case - analyzing an HTML audio element:
         // Create audio context
         audioContext = new AudioContext();
         
-        // Create BPM analyzer
-        const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+        // Create BPM analyzer (event emitter wrapping AudioWorkletNode)
+        const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
         
         // Create audio source
         const source = audioContext.createMediaElementSource(audioPlayer);
@@ -77,17 +77,17 @@ The most straightforward use case - analyzing an HTML audio element:
         // Create low-pass filter
         const lowpass = getBiquadFilter(audioContext);
         
-        // Connect audio graph
+        // Connect audio graph - use .node to connect the AudioWorkletNode
         source.connect(lowpass);
-        lowpass.connect(realtimeAnalyzerNode);
+        lowpass.connect(bpmAnalyzer.node);
         source.connect(audioContext.destination);
         
-        // Listen for BPM events with typed listeners
-        realtimeAnalyzerNode.on('bpm', (data) => {
+        // Listen for BPM events using the event emitter API
+        bpmAnalyzer.on('bpm', (data) => {
           updateBPMDisplay(data.bpm, false);
         });
         
-        realtimeAnalyzerNode.on('bpmStable', (data) => {
+        bpmAnalyzer.on('bpmStable', (data) => {
           updateBPMDisplay(data.bpm, true);
         });
         
@@ -123,7 +123,7 @@ For modern build setups (Vite, Webpack, etc.):
 
 ```javascript
 // analyzer.js
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 
 export class BPMAnalyzer {
   constructor(audioElement) {
@@ -139,7 +139,7 @@ export class BPMAnalyzer {
     this.audioContext = new AudioContext();
     
     // Create analyzer
-    this.analyzerNode = await createRealTimeBpmProcessor(this.audioContext);
+    this.analyzerNode = await createRealtimeBpmAnalyzer(this.audioContext);
     
     // Create source
     const source = this.audioContext.createMediaElementSource(this.audioElement);
@@ -247,7 +247,7 @@ async function setupWithErrorHandling() {
     }
     
     const audioContext = new AudioContext();
-    const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+    const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
     
     // ... rest of setup
     
@@ -284,7 +284,7 @@ const updateUI = debounceBPMUpdate((bpm) => {
   document.getElementById('bpm').textContent = `${bpm[0].tempo} BPM`;
 }, 100);
 
-realtimeAnalyzerNode.on('bpm', (data) => {
+bpmAnalyzer.on('bpm', (data) => {
   updateUI(data.bpm);
 });
 ```

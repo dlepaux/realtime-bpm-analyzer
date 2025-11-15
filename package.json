@@ -42,11 +42,17 @@
     "licence.md"
   ],
   "sideEffects": false,
+  "workspaces": [
+    "examples/*"
+  ],
   "scripts": {
     "build": "bash bin/build/library.sh",
     "docs:dev": "cd docs && npm run dev",
     "docs:build": "cd docs && npm run build",
     "docs:preview": "cd docs && npm run preview",
+    "examples:install": "npm install --workspaces",
+    "examples:build": "npm run build --workspaces --if-present",
+    "examples:dev": "echo 'Run npm run dev in a specific example directory'",
     "lint": "xo",
     "lint:fix": "xo --fix",
     "prepare": "husky install",
@@ -91,6 +97,9 @@
   "xo": {
     "space": 2,
     "semicolon": true,
+    "ignores": [
+      "examples/**"
+    ],
     "globals": [
       "process",
       "document",

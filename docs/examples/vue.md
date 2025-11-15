@@ -14,28 +14,29 @@ Create a reusable composable at `composables/useBPMAnalyzer.ts`:
 
 ```typescript
 import { ref, onUnmounted } from 'vue';
-import { createRealTimeBpmProcessor, type BpmAnalyzer } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
 
 export function useBPMAnalyzer() {
   const bpm = ref(0);
   const isAnalyzing = ref(false);
   
   let audioContext: AudioContext | null = null;
-  let analyzerNode: BpmAnalyzer | null = null;
+  let bpmAnalyzer: BpmAnalyzer | null = null;
 
   const startAnalysis = async (audioElement: HTMLAudioElement) => {
     try {
       audioContext = new AudioContext();
       await audioContext.resume();
       
-      analyzerNode = await createRealTimeBpmProcessor(audioContext);
+      bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
       const source = audioContext.createMediaElementSource(audioElement);
       
-      source.connect(analyzerNode);
-      source.connect(audioContext.destination);
+      // Connect audio graph - use .node for audio connections
+      source.connect(bpmAnalyzer.node);
+      bpmAnalyzer.node.connect(audioContext.destination);
       
       // Use typed event listeners
-      analyzerNode.on('bpmStable', (data) => {
+      bpmAnalyzer.on('bpmStable', (data) => {
         bpm.value = data.bpm[0]?.tempo || 0;
       });
       

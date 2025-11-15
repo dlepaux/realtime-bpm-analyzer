@@ -1,0 +1,18 @@
+{
+  "name": "realtime-bpm-analyzer-example-vanilla-microphone",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "realtime-bpm-analyzer": "file:../.."
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0"
+  }
+}

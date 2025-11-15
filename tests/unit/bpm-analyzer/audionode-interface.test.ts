@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {createRealTimeBpmProcessor} from '../../../src/index';
+import {createRealtimeBpmAnalyzer} from '../../../src/index';
 import {createTestAudioContext, closeAudioContext} from '../../setup';
 
 /**
@@ -21,18 +21,18 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
 
   describe('readonly properties', () => {
     it('should expose context property', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       expect(analyzer.context).to.equal(audioContext);
     });
 
     it('should expose numberOfInputs property', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       expect(analyzer.numberOfInputs).to.be.a('number');
       expect(analyzer.numberOfInputs).to.equal(1);
     });
 
     it('should expose numberOfOutputs property', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       expect(analyzer.numberOfOutputs).to.be.a('number');
       expect(analyzer.numberOfOutputs).to.equal(1);
     });
@@ -40,7 +40,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
 
   describe('channelCount property', () => {
     it('should get channelCount from underlying node', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       const channelCount = analyzer.channelCount;
 
       expect(channelCount).to.be.a('number');
@@ -49,7 +49,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should set channelCount on underlying node', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       analyzer.channelCount = 2;
 
@@ -58,7 +58,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should accept valid channel count values', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       const validValues = [1, 2];
       for (const value of validValues) {
@@ -68,7 +68,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should proxy channelCount changes bidirectionally', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       // Set via analyzer
       analyzer.channelCount = 2;
@@ -82,7 +82,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
 
   describe('channelCountMode property', () => {
     it('should get channelCountMode from underlying node', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       const mode = analyzer.channelCountMode;
 
       expect(mode).to.be.a('string');
@@ -91,7 +91,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should set channelCountMode on underlying node', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       analyzer.channelCountMode = 'explicit';
 
@@ -100,7 +100,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should accept all valid channel count modes', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       const validModes: ChannelCountMode[] = ['max', 'clamped-max', 'explicit'];
       for (const mode of validModes) {
@@ -110,7 +110,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should proxy channelCountMode changes bidirectionally', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       // Set via analyzer
       analyzer.channelCountMode = 'explicit';
@@ -124,7 +124,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
 
   describe('channelInterpretation property', () => {
     it('should get channelInterpretation from underlying node', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       const interpretation = analyzer.channelInterpretation;
 
       expect(interpretation).to.be.a('string');
@@ -133,7 +133,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should set channelInterpretation on underlying node', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       analyzer.channelInterpretation = 'discrete';
 
@@ -142,7 +142,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should accept all valid channel interpretations', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       const validInterpretations: ChannelInterpretation[] = ['speakers', 'discrete'];
       for (const interpretation of validInterpretations) {
@@ -152,7 +152,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should proxy channelInterpretation changes bidirectionally', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       // Set via analyzer
       analyzer.channelInterpretation = 'discrete';
@@ -166,7 +166,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
 
   describe('integration with audio graph', () => {
     it('should work in audio graph with custom channel configuration', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       // Configure channels
       analyzer.channelCount = 2;
@@ -187,7 +187,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should maintain channel settings after connect/disconnect', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       analyzer.channelCount = 2;
       analyzer.channelCountMode = 'explicit';
@@ -202,7 +202,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
 
   describe('AudioNode compatibility', () => {
     it('should behave like a standard AudioNode', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       // Should have AudioNode-like properties
       expect(analyzer.context).to.exist;
@@ -218,7 +218,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
     });
 
     it('should be usable interchangeably with other AudioNodes', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       const gainNode = audioContext.createGain();
 
       // Should connect in both directions
@@ -234,7 +234,7 @@ describe('BpmAnalyzer - AudioNode Interface', function () {
 
   describe('property consistency', () => {
     it('should maintain property sync with underlying node', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       // Verify initial sync
       expect(analyzer.channelCount).to.equal(analyzer.node.channelCount);

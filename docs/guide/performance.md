@@ -14,17 +14,20 @@ The library automatically uses **AudioWorklet** instead of ScriptProcessorNode:
 - Lower latency
 - Better battery life on mobile
 
-No configuration needed - this is handled automatically by `createRealTimeBpmProcessor()`.
+No configuration needed - this is handled automatically by `createRealtimeBpmAnalyzer()`.
 
 ### 2. Apply Low-Pass Filtering
 
 Always use the optional low-pass filter for better accuracy:
 
 ```typescript
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
 const lowpass = getBiquadFilter(audioContext);
-source.connect(lowpass).connect(analyzerNode);
+
+// Connect with filter
+source.connect(lowpass).connect(bpmAnalyzer.node);
 ```
 
 **Benefits:**
@@ -47,7 +50,7 @@ Pick the mode that matches your use case:
 #### Real-time Mode
 
 ```typescript
-const analyzerNode = await createRealTimeBpmProcessor(audioContext);
+const analyzerNode = await createRealtimeBpmAnalyzer(audioContext);
 ```
 
 - **Memory**: Grows with playback time
@@ -57,7 +60,7 @@ const analyzerNode = await createRealTimeBpmProcessor(audioContext);
 #### Continuous Mode
 
 ```typescript
-const analyzerNode = await createRealTimeBpmProcessor(audioContext, {
+const analyzerNode = await createRealtimeBpmAnalyzer(audioContext, {
   continuousAnalysis: true,
   stabilizationTime: 20000 // Clear data every 20s
 });
@@ -86,7 +89,7 @@ const bpm = await analyzeFullBuffer(audioBuffer);
 For long-running applications (streams, radio, microphone):
 
 ```typescript
-createRealTimeBpmProcessor(audioContext, {
+createRealtimeBpmAnalyzer(audioContext, {
   continuousAnalysis: true,
   stabilizationTime: 20000, // Adjust based on needs
 });
@@ -131,7 +134,7 @@ Don't create multiple analyzers for the same source:
 ```typescript
 // Creating analyzers in a loop
 setInterval(() => {
-  const analyzer = await createRealTimeBpmProcessor(audioContext);
+  const analyzer = await createRealtimeBpmAnalyzer(audioContext);
   // ...
 }, 1000);
 ```
@@ -139,7 +142,7 @@ setInterval(() => {
 ✅ **Good:**
 ```typescript
 // Create once, reuse
-const analyzer = await createRealTimeBpmProcessor(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 // Listen for events over time
 ```
 
@@ -217,7 +220,7 @@ document.addEventListener('visibilitychange', () => {
 3. **Use lower stabilization times:**
 ```typescript
 // Faster results = less battery drain
-createRealTimeBpmProcessor(audioContext, {
+createRealtimeBpmAnalyzer(audioContext, {
   continuousAnalysis: true,
   stabilizationTime: 15000 // Lower than default
 });
@@ -300,7 +303,7 @@ async function analyzeLargeFile(file) {
 ### Fast Detection (Lower Accuracy)
 
 ```typescript
-createRealTimeBpmProcessor(audioContext, {
+createRealtimeBpmAnalyzer(audioContext, {
   stabilizationTime: 10000 // Faster, less accurate
 });
 ```
@@ -313,7 +316,7 @@ createRealTimeBpmProcessor(audioContext, {
 ### High Accuracy (Slower Detection)
 
 ```typescript
-createRealTimeBpmProcessor(audioContext, {
+createRealtimeBpmAnalyzer(audioContext, {
   stabilizationTime: 30000 // Slower, more accurate
 });
 ```

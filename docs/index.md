@@ -47,7 +47,7 @@ features:
   
   - icon: 🔧
     title: Easy Integration
-    details: Simple API that works with vanilla JS, React, Vue, Next.js, and any modern framework.
+    details: Simple API that works with vanilla JS, React, Vue, and any modern framework.
   
   - icon: 🎨
     title: Customizable
@@ -65,13 +65,13 @@ npm install realtime-bpm-analyzer
 Analyze BPM in real-time:
 
 ```typescript
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 
 // Create audio context
 const audioContext = new AudioContext();
 
 // Create the BPM analyzer processor
-const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
 
 // Set up audio source
 const track = document.getElementById('audio') as HTMLAudioElement;
@@ -79,19 +79,19 @@ const source = audioContext.createMediaElementSource(track);
 const lowpass = getBiquadFilter(audioContext);
 
 // Connect nodes
-source.connect(lowpass).connect(realtimeAnalyzerNode);
+source.connect(lowpass).connect(bpmAnalyzer.node);
 source.connect(audioContext.destination);
 
 // Listen for BPM events
 const handleBpm = (data) => console.log('Current BPM:', data.bpm);
 const handleStable = (data) => console.log('Stable BPM detected:', data.bpm);
 
-realtimeAnalyzerNode.on('bpm', handleBpm);
-realtimeAnalyzerNode.on('bpmStable', handleStable);
+bpmAnalyzer.on('bpm', handleBpm);
+bpmAnalyzer.on('bpmStable', handleStable);
 
 // Cleanup when done
-// realtimeAnalyzerNode.removeEventListener('bpm', handleBpm);
-// realtimeAnalyzerNode.removeEventListener('bpmStable', handleStable);
+// bpmAnalyzer.removeEventListener('bpm', handleBpm);
+// bpmAnalyzer.removeEventListener('bpmStable', handleStable);
 ```
 
 ## Why Realtime BPM Analyzer?

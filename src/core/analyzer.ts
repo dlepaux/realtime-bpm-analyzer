@@ -444,13 +444,13 @@ export function groupByTempo({
  *
  * @remarks
  * - This is a synchronous/offline analysis method (analyzes complete audio at once)
- * - For real-time streaming audio, use {@link createRealTimeBpmProcessor} instead
+ * - For real-time streaming audio, use {@link createRealtimeBpmAnalyzer} instead
  * - The function returns multiple candidates sorted by confidence (count)
  * - Analysis applies a lowpass filter to isolate bass frequencies for better beat detection
  * - BPM values are normalized to the 90-180 range (doubles/halves if outside this range)
  * - Higher `count` values indicate more confidence in the detected tempo
  *
- * @see {@link createRealTimeBpmProcessor} for real-time streaming audio analysis
+ * @see {@link createRealtimeBpmAnalyzer} for real-time streaming audio analysis
  * @see {@link getBiquadFilter} for the lowpass filter used internally
  * @see {@link Tempo} for the structure of returned tempo candidates
  * @see {@link BiquadFilterOptions} for filter configuration options

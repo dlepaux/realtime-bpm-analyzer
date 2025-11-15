@@ -25,22 +25,22 @@ class BpmAnalyzerEvent<T> extends CustomEvent<T> {
  * **Basic Usage**
  * ```typescript
  * const audioContext = new AudioContext();
- * const analyzer = await createRealTimeBpmProcessor(audioContext);
+ * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
  *
  * // Listen for BPM events with full type safety
- * analyzer.on('bpm', (data) => {
+ * bpmAnalyzer.on('bpm', (data) => {
  *   console.log('Current BPM:', data.bpm[0].tempo);
  * });
  *
- * analyzer.on('bpmStable', (data) => {
+ * bpmAnalyzer.on('bpmStable', (data) => {
  *   console.log('Stable BPM:', data.bpm[0].tempo);
- *   console.log('Confidence:', data.bpm[0].confidence);
+ *   console.log('Confidence:', data.bpm[0].count);
  * });
  *
- * // Connect to audio source
+ * // Connect to audio source - use .node for audio connections
  * const source = audioContext.createMediaElementSource(audioElement);
- * source.connect(analyzer);
- * analyzer.connect(audioContext.destination);
+ * source.connect(bpmAnalyzer.node);
+ * bpmAnalyzer.node.connect(audioContext.destination);
  * ```
  *
  * @example

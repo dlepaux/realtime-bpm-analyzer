@@ -230,7 +230,7 @@ AudioWorklet runs on a separate audio rendering thread:
 
 For continuous analysis (streams):
 ```typescript
-createRealTimeBpmProcessor(audioContext, {
+createRealtimeBpmAnalyzer(audioContext, {
   continuousAnalysis: true,
   stabilizationTime: 20000 // Clear data every 20 seconds
 });

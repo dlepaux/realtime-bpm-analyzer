@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {createRealTimeBpmProcessor} from '../../src/index';
+import {createRealtimeBpmAnalyzer} from '../../src/index';
 import {createTestAudioContext, closeAudioContext, loadTestAudio, audioBufferToChunks, waitForEvent} from '../setup';
 
 /**
@@ -22,7 +22,7 @@ describe('BpmAnalyzer - Event System', function () {
 
   describe('.on() method', () => {
     it('should register event listeners for bpm events', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       let eventReceived = false;
 
       analyzer.on('bpm', () => {
@@ -36,7 +36,7 @@ describe('BpmAnalyzer - Event System', function () {
     });
 
     it('should receive typed event data for bpm events', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       let receivedData: any;
 
       analyzer.on('bpm', data => {
@@ -50,7 +50,7 @@ describe('BpmAnalyzer - Event System', function () {
     });
 
     it('should support multiple listeners on the same event', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       let listener1Called = false;
       let listener2Called = false;
 
@@ -69,7 +69,7 @@ describe('BpmAnalyzer - Event System', function () {
 
   describe('.once() method', () => {
     it('should register one-time event listeners', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       let callCount = 0;
 
       analyzer.once('bpm', () => {
@@ -80,7 +80,7 @@ describe('BpmAnalyzer - Event System', function () {
     });
 
     it('should support once listeners for bpmStable events', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       let stableDetected = false;
 
       analyzer.once('bpmStable', data => {
@@ -95,7 +95,7 @@ describe('BpmAnalyzer - Event System', function () {
 
   describe('removeEventListener method', () => {
     it('should remove registered event listeners', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       const handler = (event: Event) => {
         // Handler logic
       };
@@ -109,7 +109,7 @@ describe('BpmAnalyzer - Event System', function () {
 
   describe('event types', () => {
     it('should support bpm event type', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       analyzer.on('bpm', data => {
         expect(data).to.have.property('bpm');
@@ -122,7 +122,7 @@ describe('BpmAnalyzer - Event System', function () {
     });
 
     it('should support bpmStable event type', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       analyzer.on('bpmStable', data => {
         expect(data).to.have.property('bpm');
@@ -135,7 +135,7 @@ describe('BpmAnalyzer - Event System', function () {
     });
 
     it('should support analyzerReset event type', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       analyzer.on('analyzerReset', () => {
         // This event has no data (void)
@@ -145,7 +145,7 @@ describe('BpmAnalyzer - Event System', function () {
     });
 
     it('should support error event type', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       analyzer.on('error', data => {
         expect(data).to.have.property('message');
@@ -160,7 +160,7 @@ describe('BpmAnalyzer - Event System', function () {
     it('should emit bpm events during audio processing', async function () {
       this.timeout(10000);
 
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       const audioBuffer = await loadTestAudio(audioContext);
       const source = audioContext.createBufferSource();
       source.buffer = audioBuffer;
@@ -195,7 +195,7 @@ describe('BpmAnalyzer - Event System', function () {
     it('should emit events with valid BPM data structure', async function () {
       this.timeout(10000);
 
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       const audioBuffer = await loadTestAudio(audioContext);
       const source = audioContext.createBufferSource();
       source.buffer = audioBuffer;
@@ -231,7 +231,7 @@ describe('BpmAnalyzer - Event System', function () {
 
   describe('event listener management', () => {
     it('should not throw when removing non-existent listener', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       const handler = () => {};
 
       expect(() => {
@@ -242,7 +242,7 @@ describe('BpmAnalyzer - Event System', function () {
 
   describe('control methods integration with events', () => {
     it('should work with reset() method', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       let resetEventReceived = false;
 
       analyzer.on('analyzerReset', () => {
@@ -258,7 +258,7 @@ describe('BpmAnalyzer - Event System', function () {
     });
 
     it('should work with stop() method', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
       expect(() => {
         analyzer.stop();
@@ -268,7 +268,7 @@ describe('BpmAnalyzer - Event System', function () {
 
   describe('debug mode events', () => {
     it('should support debug events when enabled', async () => {
-      const analyzer = await createRealTimeBpmProcessor(audioContext, {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
         debug: true,
       });
 

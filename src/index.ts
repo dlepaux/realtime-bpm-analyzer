@@ -17,36 +17,41 @@ export {BpmAnalyzer} from './core/bpm-analyzer';
  *
  * @param audioContext - The Web Audio API AudioContext to use for processing
  * @param processorOptions - Optional configuration parameters for the analyzer
- * @returns A promise that resolves to a BpmAnalyzer instance with typed event listeners
+ * @returns A promise that resolves to a BpmAnalyzer instance (event emitter wrapping AudioWorkletNode)
+ *
+ * @remarks
+ * The returned `BpmAnalyzer` is an event emitter that wraps an AudioWorkletNode.
+ * - Use the analyzer directly for event listening: `analyzer.on('bpm', ...)`
+ * - Use `.node` property for Web Audio API connections: `source.connect(analyzer.node)`
  *
  * @example
- * **Basic Usage with Microphone**
+ * **Basic Usage with Audio Element**
  * ```typescript
  * const audioContext = new AudioContext();
- * const analyzer = await createRealTimeBpmProcessor(audioContext);
+ * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+ *
+ * // Connect audio graph - use .node for AudioWorkletNode connections
+ * const audioElement = document.querySelector('audio');
+ * const source = audioContext.createMediaElementSource(audioElement);
+ * source.connect(bpmAnalyzer.node);
+ * bpmAnalyzer.node.connect(audioContext.destination);
  *
  * // Listen for BPM events with full type safety
- * analyzer.on('bpm', (data) => {
+ * bpmAnalyzer.on('bpm', (data) => {
  *   console.log('Current BPM:', data.bpm[0].tempo);
- *   console.log('Confidence:', data.bpm[0].confidence);
+ *   console.log('Confidence:', data.bpm[0].count);
  * });
  *
- * analyzer.on('bpmStable', (data) => {
+ * bpmAnalyzer.on('bpmStable', (data) => {
  *   console.log('Stable BPM detected:', data.bpm[0].tempo);
  * });
- *
- * // Connect microphone
- * const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
- * const source = audioContext.createMediaStreamSource(stream);
- * source.connect(analyzer);
- * analyzer.connect(audioContext.destination);
  * ```
  *
  * @example
  * **With Custom Configuration**
  * ```typescript
  * const audioContext = new AudioContext();
- * const analyzer = await createRealTimeBpmProcessor(audioContext, {
+ * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
  *   continuousAnalysis: true,    // Keep analyzing after stable BPM found
  *   stabilizationTime: 20000,    // Time in ms to consider BPM stable
  *   muteTimeInIndexes: 10000,    // Audio indexes to skip between peaks
@@ -55,28 +60,29 @@ export {BpmAnalyzer} from './core/bpm-analyzer';
  * ```
  *
  * @example
- * **With Audio Element**
+ * **With Microphone**
  * ```typescript
  * const audioContext = new AudioContext();
- * const analyzer = await createRealTimeBpmProcessor(audioContext);
+ * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
  *
- * const audioElement = document.querySelector('audio');
- * const source = audioContext.createMediaElementSource(audioElement);
- * source.connect(analyzer);
- * analyzer.connect(audioContext.destination);
+ * // Connect microphone - use .node for audio connections
+ * const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+ * const source = audioContext.createMediaStreamSource(stream);
+ * source.connect(bpmAnalyzer.node);
+ * // Note: Don't connect to destination to avoid feedback
  *
  * // Handle different event types
- * analyzer.on('bpm', (data) => {
+ * bpmAnalyzer.on('bpm', (data) => {
  *   console.log('Analyzing:', data.bpm[0].tempo);
  * });
  *
- * analyzer.on('bpmStable', (data) => {
+ * bpmAnalyzer.on('bpmStable', (data) => {
  *   console.log('Stable BPM:', data.bpm[0].tempo);
- *   console.log('Confidence:', data.bpm[0].confidence);
+ *   console.log('Confidence:', data.bpm[0].count);
  * });
  *
  * // One-time listener
- * analyzer.once('bpmStable', (data) => {
+ * bpmAnalyzer.once('bpmStable', (data) => {
  *   console.log('First stable detection!');
  * });
  * ```
@@ -85,33 +91,34 @@ export {BpmAnalyzer} from './core/bpm-analyzer';
  * **Controlling the Analyzer**
  * ```typescript
  * // Reset the analyzer state
- * analyzer.reset();
+ * bpmAnalyzer.reset();
  *
  * // Listen for reset events
- * analyzer.on('analyzerReset', () => {
+ * bpmAnalyzer.on('analyzerReset', () => {
  *   console.log('Analyzer was reset');
  * });
  *
  * // Stop the analyzer
- * analyzer.stop();
+ * bpmAnalyzer.stop();
  *
  * // Remove listeners with native API
  * const handler = (event) => console.log(event.detail);
- * analyzer.addEventListener('bpm', handler);
- * analyzer.removeEventListener('bpm', handler);
+ * bpmAnalyzer.addEventListener('bpm', handler);
+ * bpmAnalyzer.removeEventListener('bpm', handler);
  *
  * // Or use once() for automatic cleanup
- * analyzer.once('bpmStable', (data) => console.log('First detection'));
+ * bpmAnalyzer.once('bpmStable', (data) => console.log('First detection'));
  *
  * // Disconnect and cleanup
- * analyzer.disconnect();
+ * bpmAnalyzer.disconnect();
  * ```
  *
  * @remarks
  * - The analyzer uses AudioWorklet technology for efficient real-time processing
- * - Events are emitted via a typed EventEmitter with full autocomplete support
+ * - Returns a BpmAnalyzer (event emitter) that wraps an AudioWorkletNode
+ * - Use `.node` property to connect in Web Audio API graphs: `source.connect(analyzer.node)`
+ * - Events are emitted via typed EventEmitter with full autocomplete support
  * - Event types: 'bpm' (continuous), 'bpmStable' (when stabilized), 'analyzerReset'
- * - The analyzer can be connected in Web Audio API graphs like any AudioNode
  * - For offline/synchronous analysis of audio files, use {@link analyzeFullBuffer} instead
  *
  * @see {@link BpmAnalyzer} for the analyzer class API
@@ -121,11 +128,14 @@ export {BpmAnalyzer} from './core/bpm-analyzer';
  *
  * @group Functions
  */
-export async function createRealTimeBpmProcessor(audioContext: AudioContext, processorOptions?: RealTimeBpmAnalyzerParameters): Promise<BpmAnalyzer> {
+export async function createRealtimeBpmAnalyzer(audioContext: AudioContext, processorOptions?: RealTimeBpmAnalyzerParameters): Promise<BpmAnalyzer> {
   const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName, processorOptions);
   await audioContext.resume();
   return new BpmAnalyzer(processorNode);
 }
+
+/** @deprecated Use createRealtimeBpmAnalyzer instead, will be removed in next major release */
+export const createRealTimeBpmProcessor = createRealtimeBpmAnalyzer;
 
 /**
  * Creates AudioWorkletNode for the Processor

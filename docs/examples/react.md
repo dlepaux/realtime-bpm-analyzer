@@ -13,10 +13,8 @@ npm install realtime-bpm-analyzer
 For better control and flexibility, implement the analyzer directly in your component:
 
 ```tsx
-'use client'; // Required for Next.js App Router
-
 import { useState } from 'react';
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
 
 export default function BPMAnalyzer() {
@@ -26,7 +24,7 @@ export default function BPMAnalyzer() {
   const [audioContext, setAudioContext] = useState<AudioContext>();
   const [source, setSource] = useState<MediaElementAudioSourceNode>();
   const [analyser, setAnalyser] = useState<AnalyserNode>();
-  const [realtimeAnalyzerNode, setRealtimeAnalyzerNode] = useState<BpmAnalyzer>();
+  const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer>();
   const [biquadFilterNode, setBiquadFilterNode] = useState<BiquadFilterNode>();
 
   async function startAnalysis(audioElement: HTMLAudioElement) {
@@ -41,8 +39,8 @@ export default function BPMAnalyzer() {
       analyser.fftSize = 2048;
       setAnalyser(analyser);
 
-      const bpmAnalyzer = await createRealTimeBpmProcessor(audioCtx);
-      setRealtimeAnalyzerNode(bpmAnalyzer);
+      const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioCtx);
+      setBpmAnalyzer(bpmAnalyzer);
 
       // Optional: Add filtering for better accuracy
       const filter = getBiquadFilter(audioCtx);
@@ -52,8 +50,9 @@ export default function BPMAnalyzer() {
       const src = source ?? audioCtx.createMediaElementSource(audioElement);
       setSource(src);
 
-      // Connect audio graph with filter
-      src.connect(filter).connect(analyser);
+      // Connect audio graph with filter - use .node for audio connections
+      src.connect(filter).connect(bpmAnalyzer.node);
+      src.connect(analyser);
 
       // Setup event listeners - check array length before accessing
       bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
@@ -72,7 +71,7 @@ export default function BPMAnalyzer() {
   }
 
   async function stopAnalysis() {
-    if (!audioContext || !source || !realtimeAnalyzerNode) {
+    if (!audioContext || !source || !bpmAnalyzer) {
       return;
     }
 
@@ -83,7 +82,7 @@ export default function BPMAnalyzer() {
     source.disconnect();
     analyser?.disconnect();
     biquadFilterNode?.disconnect();
-    realtimeAnalyzerNode.disconnect();
+    bpmAnalyzer.disconnect();
 
     // Reset state
     setCurrentBpm(0);
@@ -101,7 +100,7 @@ If you prefer reusable hooks, extract the logic:
 
 ```tsx
 import { useEffect, useState } from 'react';
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
 
 export function useBPMAnalyzer() {
@@ -111,7 +110,7 @@ export function useBPMAnalyzer() {
   const [audioContext, setAudioContext] = useState<AudioContext>();
   const [source, setSource] = useState<MediaElementAudioSourceNode>();
   const [analyser, setAnalyser] = useState<AnalyserNode>();
-  const [realtimeAnalyzerNode, setRealtimeAnalyzerNode] = useState<BpmAnalyzer>();
+  const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer>();
   const [biquadFilterNode, setBiquadFilterNode] = useState<BiquadFilterNode>();
 
   const startAnalysis = async (audioElement: HTMLAudioElement) => {
@@ -124,8 +123,8 @@ export function useBPMAnalyzer() {
       analyser.fftSize = 2048;
       setAnalyser(analyser);
 
-      const bpmAnalyzer = await createRealTimeBpmProcessor(audioCtx);
-      setRealtimeAnalyzerNode(bpmAnalyzer);
+      const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioCtx);
+      setBpmAnalyzer(bpmAnalyzer);
 
       const filter = getBiquadFilter(audioCtx);
       setBiquadFilterNode(filter);
@@ -133,9 +132,11 @@ export function useBPMAnalyzer() {
       const src = source ?? audioCtx.createMediaElementSource(audioElement);
       setSource(src);
 
-      src.connect(filter).connect(analyser);
+      // Connect audio graph - use .node for audio connections
+      src.connect(filter).connect(analyzer.node);
+      src.connect(analyser);
 
-      bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
+      analyzer.on('bpmStable', (data: BpmCandidates) => {
         if (data.bpm.length > 0) {
           setCurrentBpm(data.bpm[0].tempo);
           if (data.bpm.length > 1) {
@@ -151,7 +152,7 @@ export function useBPMAnalyzer() {
   };
 
   const stopAnalysis = async () => {
-    if (!audioContext || !source || !realtimeAnalyzerNode) {
+    if (!audioContext || !source || !bpmAnalyzer) {
       return;
     }
 
@@ -159,7 +160,7 @@ export function useBPMAnalyzer() {
     source.disconnect();
     analyser?.disconnect();
     biquadFilterNode?.disconnect();
-    realtimeAnalyzerNode.disconnect();
+    bpmAnalyzer.disconnect();
 
     setCurrentBpm(0);
     setConcurrentBpm(0);
@@ -241,7 +242,7 @@ interface BPMAnalyzerState {
   audioContext?: AudioContext;
   source?: MediaElementAudioSourceNode;
   analyser?: AnalyserNode;
-  realtimeAnalyzerNode?: BpmAnalyzer;
+  bpmAnalyzer?: BpmAnalyzer;
   biquadFilterNode?: BiquadFilterNode;
 }
 
@@ -274,6 +275,5 @@ See our working examples:
 
 ## Next Steps
 
-- [Next.js Integration](/examples/nextjs) - Server-side rendering considerations
 - [Vue Integration](/examples/vue) - Vue 3 Composition API
 - [API Reference](/api/) - Full API documentation

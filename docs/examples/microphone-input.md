@@ -40,15 +40,15 @@ async function getMicrophoneStream(): Promise<MediaStream> {
 ### Step 2: Setup Audio Context and Processor
 
 ```typescript
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 import type { BpmAnalyzer } from 'realtime-bpm-analyzer';
 
 async function setupMicrophoneAnalysis(stream: MediaStream) {
   const audioContext = new AudioContext();
   await audioContext.resume();
   
-  // Create the BPM analyzer
-  const bpmAnalyzer = await createRealTimeBpmProcessor(audioContext);
+  // Create the BPM analyzer (event emitter wrapping AudioWorkletNode)
+  const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
   
   // Create analyzer for visualization (optional)
   const analyser = audioContext.createAnalyser();
@@ -57,8 +57,9 @@ async function setupMicrophoneAnalysis(stream: MediaStream) {
   // Create source from microphone
   const source = audioContext.createMediaStreamSource(stream);
   
-  // Connect the audio graph
+  // Connect the audio graph - use .node for audio connections
   // IMPORTANT: Don't connect to destination to avoid audio feedback
+  source.connect(bpmAnalyzer.node);
   source.connect(analyser);
   
   return { audioContext, bpmAnalyzer, source, analyser };
@@ -114,7 +115,7 @@ async function stopAnalysis(
 'use client';
 
 import { useState } from 'react';
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
 
 export default function MicrophoneAnalyzer() {
@@ -124,7 +125,7 @@ export default function MicrophoneAnalyzer() {
   const [audioContext, setAudioContext] = useState<AudioContext>();
   const [source, setSource] = useState<MediaStreamAudioSourceNode>();
   const [analyser, setAnalyser] = useState<AnalyserNode>();
-  const [realtimeAnalyzerNode, setRealtimeAnalyzerNode] = useState<BpmAnalyzer>();
+  const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer>();
 
   async function handleStart() {
     try {
@@ -140,8 +141,8 @@ export default function MicrophoneAnalyzer() {
       await audioCtx.resume();
 
       // Create BPM analyzer
-      const bpmAnalyzer = await createRealTimeBpmProcessor(audioCtx);
-      setRealtimeAnalyzerNode(bpmAnalyzer);
+      const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioCtx);
+      setBpmAnalyzer(bpmAnalyzer);
 
       // Create analyzer for visualization
       const analyser = audioCtx.createAnalyser();
@@ -152,7 +153,9 @@ export default function MicrophoneAnalyzer() {
       const mediaStreamSource = audioCtx.createMediaStreamSource(stream);
       setSource(mediaStreamSource);
 
-      // Connect audio graph (no destination to avoid feedback)
+      // Connect audio graph - use .node for audio connections
+      // (no destination connection to avoid feedback)
+      mediaStreamSource.connect(bpmAnalyzer.node);
       mediaStreamSource.connect(analyser);
 
       // Setup event listener
@@ -173,7 +176,7 @@ export default function MicrophoneAnalyzer() {
   }
 
   async function handleStop() {
-    if (!audioContext || !source || !realtimeAnalyzerNode || !analyser) {
+    if (!audioContext || !source || !bpmAnalyzer || !analyser) {
       return;
     }
 
@@ -182,7 +185,7 @@ export default function MicrophoneAnalyzer() {
     // Disconnect everything
     source.disconnect();
     analyser.disconnect();
-    realtimeAnalyzerNode.disconnect();
+    bpmAnalyzer.disconnect();
 
     // Reset state
     setCurrentBpm(0);
@@ -279,7 +282,7 @@ export default function MicrophoneAnalyzer() {
 
 <script setup>
 import { ref, onUnmounted } from 'vue';
-import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 const isRecording = ref(false);
 const currentBPM = ref(0);
@@ -305,8 +308,8 @@ async function startRecording() {
     audioContext = new AudioContext();
     await audioContext.resume();
     
-    // Create analyzer node
-    analyzerNode = await createRealTimeBpmProcessor(audioContext, {
+    // Create BPM analyzer
+    analyzerNode = await createRealtimeBpmAnalyzer(audioContext, {
       continuousAnalysis: true,
       stabilizationTime: 20000
     });
@@ -319,9 +322,10 @@ async function startRecording() {
     // Create source
     source = audioContext.createMediaStreamSource(stream);
     
-    // Connect graph (don't connect to destination to avoid feedback)
+    // Connect graph - use .node for audio connections
+    // (don't connect to destination to avoid feedback)
+    source.connect(analyzerNode.node);
     source.connect(visualAnalyser);
-    visualAnalyser.connect(analyzerNode);
     
     // Listen for BPM with typed event listeners
     analyzerNode.on('bpmStable', handleBPMMessage);
@@ -573,7 +577,7 @@ onUnmounted(() => {
   </div>
 
   <script type="module">
-    import { createRealTimeBpmProcessor } from 'realtime-bpm-analyzer';
+    import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
     
     let audioContext, source, analyzerNode, stream;
     
@@ -586,14 +590,16 @@ onUnmounted(() => {
         audioContext = new AudioContext();
         await audioContext.resume();
         
-        analyzerNode = await createRealTimeBpmProcessor(audioContext, {
+        analyzerNode = await createRealtimeBpmAnalyzer(audioContext, {
           continuousAnalysis: true
         });
         
         source = audioContext.createMediaStreamSource(stream);
         const analyser = audioContext.createAnalyser();
         
-        source.connect(analyser).connect(analyzerNode);
+        // Connect audio graph - use .node for audio connections
+        source.connect(analyzerNode.node);
+        source.connect(analyser);
         
         // Listen for BPM with typed event listeners
         analyzerNode.on('bpmStable', (data) => {

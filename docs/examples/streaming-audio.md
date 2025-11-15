@@ -23,7 +23,7 @@ This approach is ideal for:
 ### Step 1: Create Audio Element
 
 ```typescript
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 
 // Create audio element for the stream
 const audio = new Audio();
@@ -37,8 +37,8 @@ audio.crossOrigin = 'anonymous'; // Required for CORS
 async function setupStreamAnalysis(audioElement: HTMLAudioElement) {
   const audioContext = new AudioContext();
   
-  // Create the BPM analyzer processor
-  const analyzerNode = await createRealTimeBpmProcessor(audioContext);
+  // Create the BPM analyzer (event emitter wrapping AudioWorkletNode)
+  const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
   
   // Create lowpass filter for better beat detection
   const filter = getBiquadFilter(audioContext);
@@ -46,26 +46,26 @@ async function setupStreamAnalysis(audioElement: HTMLAudioElement) {
   // Create source from audio element
   const source = audioContext.createMediaElementSource(audioElement);
   
-  // Connect the audio graph
+  // Connect the audio graph - use .node to connect the AudioWorkletNode
   source.connect(filter);
-  filter.connect(analyzerNode);
+  filter.connect(bpmAnalyzer.node);
   source.connect(audioContext.destination);
   
-  return { audioContext, analyzerNode, source, filter };
+  return { audioContext, bpmAnalyzer, source, filter };
 }
 ```
 
 ### Step 3: Listen for BPM Events
 
 ```typescript
-function setupBPMListener(analyzerNode: BpmAnalyzer) {
+function setupBPMListener(bpmAnalyzer: BpmAnalyzer) {
   // Continuous BPM updates
-  analyzerNode.on('bpm', (data) => {
+  bpmAnalyzer.on('bpm', (data) => {
     console.log('Current BPM:', data.bpm[0].tempo);
   });
   
   // Stable BPM detected
-  analyzerNode.on('bpmStable', (data) => {
+  bpmAnalyzer.on('bpmStable', (data) => {
     console.log('Stable BPM:', data.bpm[0].tempo);
     console.log('Confidence:', data.bpm[0].count);
   });
@@ -76,10 +76,10 @@ function setupBPMListener(analyzerNode: BpmAnalyzer) {
 
 ```typescript
 async function startAnalysis(audioElement: HTMLAudioElement) {
-  const { audioContext, analyzerNode, source, filter } = 
+  const { audioContext, bpmAnalyzer, source, filter } = 
     await setupStreamAnalysis(audioElement);
   
-  setupBPMListener(analyzerNode);
+  setupBPMListener(bpmAnalyzer);
   
   // Start playback
   await audioElement.play();
@@ -89,7 +89,7 @@ async function startAnalysis(audioElement: HTMLAudioElement) {
     await audioContext.suspend();
     source.disconnect();
     filter.disconnect();
-    analyzerNode.disconnect();
+    bpmAnalyzer.disconnect();
     audioElement.pause();
   };
 }
@@ -101,7 +101,7 @@ async function startAnalysis(audioElement: HTMLAudioElement) {
 'use client';
 
 import { useRef, useState } from 'react';
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
 
 export default function StreamAnalyzer() {
@@ -113,7 +113,7 @@ export default function StreamAnalyzer() {
   const [source, setSource] = useState<MediaElementAudioSourceNode>();
   const [analyser, setAnalyser] = useState<AnalyserNode>();
   const [biquadFilterNode, setBiquadFilterNode] = useState<BiquadFilterNode>();
-  const [realtimeAnalyzerNode, setRealtimeAnalyzerNode] = useState<BpmAnalyzer>();
+  const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer>();
   const audioRef = useRef<HTMLAudioElement>(null);
 
   async function handleStart() {
@@ -130,8 +130,8 @@ export default function StreamAnalyzer() {
       analyser.fftSize = 2048;
       setAnalyser(analyser);
 
-      const bpmAnalyzer = await createRealTimeBpmProcessor(audioCtx);
-      setRealtimeAnalyzerNode(bpmAnalyzer);
+      const analyzer = await createRealtimeBpmAnalyzer(audioCtx);
+      setBpmAnalyzer(analyzer);
 
       const filter = getBiquadFilter(audioCtx);
       setBiquadFilterNode(filter);
@@ -139,11 +139,12 @@ export default function StreamAnalyzer() {
       const src = source ?? audioCtx.createMediaElementSource(audioRef.current);
       setSource(src);
 
-      // Connect everything together
-      src.connect(filter).connect(analyser);
+      // Connect everything together - use .node to connect the AudioWorkletNode
+      src.connect(filter).connect(analyzer.node);
+      src.connect(analyser);
 
       // Setup event listeners
-      bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
+      analyzer.on('bpmStable', (data: BpmCandidates) => {
         if (data.bpm.length > 0) {
           setCurrentBpm(data.bpm[0].tempo);
           if (data.bpm.length > 1) {
@@ -152,7 +153,7 @@ export default function StreamAnalyzer() {
         }
       });
 
-      bpmAnalyzer.on('analyzerReset', () => {
+      analyzer.on('analyzerReset', () => {
         console.log('Analyzer reset - song changed or stream interrupted');
       });
 
@@ -164,7 +165,7 @@ export default function StreamAnalyzer() {
   }
 
   async function handleStop() {
-    if (!audioContext || !source || !realtimeAnalyzerNode || !analyser || !biquadFilterNode) {
+    if (!audioContext || !source || !bpmAnalyzer || !analyser || !biquadFilterNode) {
       return;
     }
 
@@ -174,7 +175,7 @@ export default function StreamAnalyzer() {
     source.disconnect();
     analyser.disconnect();
     biquadFilterNode.disconnect();
-    realtimeAnalyzerNode.disconnect();
+    bpmAnalyzer.disconnect();
 
     // Reset state
     setCurrentBpm(0);
@@ -288,7 +289,7 @@ export default function StreamAnalyzer() {
 
 <script setup>
 import { ref } from 'vue';
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 
 const streamUrl = ref('https://ssl1.viastreaming.net:7005/;listen.mp3');
 const isAnalyzing = ref(false);
@@ -308,7 +309,7 @@ async function startAnalyzing() {
     const audioContext = new AudioContext();
     
     // Create analyzer
-    const analyzerNode = await createRealTimeBpmProcessor(audioContext);
+    const analyzerNode = await createRealtimeBpmAnalyzer(audioContext);
     const filter = getBiquadFilter(audioContext);
     const source = audioContext.createMediaElementSource(audio);
     
@@ -458,7 +459,7 @@ async function stopAnalyzing() {
   <audio id="audio" crossorigin="anonymous" style="display:none"></audio>
 
   <script type="module">
-    import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+    import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
     
     let cleanup = null;
     
@@ -468,7 +469,7 @@ async function stopAnalyzing() {
       audio.src = streamUrl;
       
       const audioContext = new AudioContext();
-      const analyzerNode = await createRealTimeBpmProcessor(audioContext);
+      const analyzerNode = await createRealtimeBpmAnalyzer(audioContext);
       const filter = getBiquadFilter(audioContext);
       const source = audioContext.createMediaElementSource(audio);
       
@@ -531,7 +532,7 @@ Here are some test streams (availability may vary):
 
 ```typescript
 const testStreams = [
-  'https://ssl1.viastreaming.net:7005/;listen.mp3', // IbizaSonica
+  'https://stream.techno.fm/radio1.mp3',
   // Add your own streams here
 ];
 ```
@@ -546,7 +547,7 @@ The algorithm needs approximately 10-20 seconds of audio to accurately detect BP
 By default, the analyzer stops after detecting a stable BPM. Set `continuousAnalysis: true` in the options to keep analyzing:
 
 ```typescript
-const analyzerNode = await createRealTimeBpmProcessor(audioContext, {
+const analyzerNode = await createRealtimeBpmAnalyzer(audioContext, {
   continuousAnalysis: true
 });
 ```

@@ -75,7 +75,6 @@ export default defineConfig({
         {
           text: 'Framework Integration',
           items: [
-            { text: 'Next.js', link: '/examples/nextjs' },
             { text: 'React', link: '/examples/react' },
             { text: 'Vue', link: '/examples/vue' }
           ]

@@ -34,7 +34,7 @@ const initialValue = {
  * to detect beats per minute. It's used internally by the AudioWorklet processor.
  *
  * @remarks
- * Most users should use {@link createRealTimeBpmProcessor} instead of instantiating
+ * Most users should use {@link createRealtimeBpmAnalyzer} instead of instantiating
  * this class directly. This class is primarily for internal use or advanced scenarios.
  *
  * @group Classes

@@ -15,7 +15,7 @@ Analyze audio while it's playing:
 - Best for: Music players, video players, defined-length audio
 
 ```typescript
-const analyzer = await createRealTimeBpmProcessor(audioContext);
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
 // Analyzes continuously, accumulates confidence
 ```
 
@@ -27,7 +27,7 @@ For long-running or infinite streams:
 - Best for: Radio streams, live broadcasts, streaming services
 
 ```typescript
-const analyzer = await createRealTimeBpmProcessor(audioContext, {
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
   continuousAnalysis: true,
   stabilizationTime: 20000 // Reset every 20 seconds
 });
@@ -164,7 +164,7 @@ Benefits:
 When creating the processor, you can customize behavior:
 
 ```typescript
-const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext, {
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
   // Enable continuous analysis with auto-reset
   continuousAnalysis: false,
   

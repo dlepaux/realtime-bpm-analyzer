@@ -29,6 +29,10 @@ analyzer.on('bpmStable', (data) => {
 
 - [Realtime BPM Analyzer](#realtime-bpm-analyzer)
   - [Getting started](#getting-started)
+  - [Running Examples](#running-examples)
+    - [Quick Start](#quick-start)
+    - [Available Examples](#available-examples)
+    - [Running Multiple Examples](#running-multiple-examples)
   - [Features](#features)
   - [Usages](#usages)
     - [Player strategy](#player-strategy)
@@ -52,6 +56,45 @@ npm install realtime-bpm-analyzer
 ```
 
 To learn more about how to use the library, you can check out [the documentation](https://www.realtime-bpm-analyzer.com).
+
+## Running Examples
+
+This repository includes several examples demonstrating different use cases of the library. To run any example in development mode:
+
+### Quick Start
+
+1. **Install dependencies** from the root directory:
+```bash
+npm install
+```
+
+2. **Run an example** using the workspace command:
+```bash
+npm run dev --workspace=examples/01-vanilla-basic
+```
+
+### Available Examples
+
+- `examples/01-vanilla-basic` - Basic usage with vanilla JavaScript
+- `examples/02-vanilla-streaming` - Streaming audio analysis
+- `examples/03-vanilla-microphone` - Real-time microphone input analysis
+- `examples/04-react` - React integration example
+- `examples/05-nextjs` - Next.js integration example
+- `examples/06-vue` - Vue.js integration example
+
+### Running Multiple Examples
+
+To run different examples, simply change the workspace path:
+
+```bash
+# Run the React example
+npm run dev --workspace=examples/04-react
+
+# Run the streaming example
+npm run dev --workspace=examples/02-vanilla-streaming
+```
+
+Each example will start a local development server (typically on different ports) where you can test the library functionality.
 
 ## Features
 
@@ -77,27 +120,28 @@ This example shows how to deal with a simple `audio` node.
 <audio src="./new_order-blue_monday.mp3" id="track"></audio>
 ```
 
-2. Create the AudioWorkletProcessor with `createRealTimeBpmProcessor`, create and pipe the filters to the AudioWorkletNode (`realtimeAnalyzerNode`).
+2. Create the BPM analyzer with `createRealtimeBpmAnalyzer`, which returns a `BpmAnalyzer` instance (an event emitter wrapping an AudioWorkletNode). Connect the audio nodes using the `.node` property.
 ```javascript
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 
-const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+// Create the BPM analyzer (returns an event emitter)
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
 
 // Set the source with the HTML Audio Node
 const track = document.getElementById('track');
 const source = audioContext.createMediaElementSource(track);
 const lowpass = getBiquadFilter(audioContext);
 
-// Connect nodes together
-source.connect(lowpass).connect(realtimeAnalyzerNode);
+// Connect nodes together - use .node to access the underlying AudioWorkletNode
+source.connect(lowpass).connect(bpmAnalyzer.node);
 source.connect(audioContext.destination);
 
-// Listen for BPM events with typed listeners
-realtimeAnalyzerNode.on('bpm', (data) => {
+// Listen for BPM events using the event emitter API
+bpmAnalyzer.on('bpm', (data) => {
   console.log('BPM', data.bpm);
 });
 
-realtimeAnalyzerNode.on('bpmStable', (data) => {
+bpmAnalyzer.on('bpmStable', (data) => {
   console.log('BPM_STABLE', data.bpm);
 });
 ```
@@ -110,15 +154,15 @@ Note: This approach is **NOT recommended** if you are using a microphone as sour
 
 1. Streams can be played with [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode), so the approach is quite similar to the [Player strategy](#player-strategy).
 ```html
-<audio src="https://ssl1.viastreaming.net:7005/;listen.mp3" id="track"></audio>
+<audio src="https://stream.techno.fm/radio1.mp3" id="track"></audio>
 ```
-Thank you [IbizaSonica](http://ibizasonica.com) for the stream.
+Thank you [Techno.fm](https://techno.fm) for the stream.
 
 2. As for the [Player strategy](#player-strategy), except that we need to turn on the `continuousAnalysis` flag to periodically delete collected data.
 ```javascript
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 
-const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext, {
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
   continuousAnalysis: true,
   stabilizationTime: 20_000, // Default value is 20_000ms after what the library will automatically delete all collected data and restart analyzing BPM
 });
@@ -128,21 +172,21 @@ const track = document.getElementById('track');
 const source = audioContext.createMediaElementSource(track);
 const lowpass = getBiquadFilter(audioContext);
 
-// Connect nodes together
-source.connect(lowpass).connect(realtimeAnalyzerNode);
+// Connect nodes together - use .node to access the underlying AudioWorkletNode
+source.connect(lowpass).connect(bpmAnalyzer.node);
 source.connect(audioContext.destination);
 
-// Listen for BPM events with typed listeners
-realtimeAnalyzerNode.on('bpm', (data) => {
+// Listen for BPM events using the event emitter API
+bpmAnalyzer.on('bpm', (data) => {
   console.log('BPM', data.bpm);
 });
 
-realtimeAnalyzerNode.on('bpmStable', (data) => {
+bpmAnalyzer.on('bpmStable', (data) => {
   console.log('BPM_STABLE', data.bpm);
 });
 
 // Listen for when analyzer resets (after stabilizationTime)
-realtimeAnalyzerNode.on('analyzerReset', () => {
+bpmAnalyzer.on('analyzerReset', () => {
   console.log('Analyzer reset - starting fresh analysis');
 });
 ```

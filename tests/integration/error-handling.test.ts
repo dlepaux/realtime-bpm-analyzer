@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {createRealTimeBpmProcessor, analyzeFullBuffer} from '../../src/index';
+import {createRealtimeBpmAnalyzer, analyzeFullBuffer} from '../../src/index';
 import {
   createTestAudioContext,
   closeAudioContext,
@@ -126,10 +126,10 @@ describe('Error Handling & Edge Cases', function () {
     });
   });
 
-  describe('createRealTimeBpmProcessor - edge cases', () => {
+  describe('createRealtimeBpmAnalyzer - edge cases', () => {
     it('should handle multiple processor instances', async () => {
-      const processor1 = await createRealTimeBpmProcessor(audioContext);
-      const processor2 = await createRealTimeBpmProcessor(audioContext);
+      const processor1 = await createRealtimeBpmAnalyzer(audioContext);
+      const processor2 = await createRealtimeBpmAnalyzer(audioContext);
 
       expect(processor1).to.exist;
       expect(processor2).to.exist;
@@ -140,7 +140,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should accept all valid processor options', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext, {
+      const processor = await createRealtimeBpmAnalyzer(audioContext, {
         continuousAnalysis: true,
         stabilizationTime: 30000,
         muteTimeInIndexes: 15000,
@@ -152,13 +152,13 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should work with minimal options', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext, {});
+      const processor = await createRealtimeBpmAnalyzer(audioContext, {});
       expect(processor).to.exist;
       processor.disconnect();
     });
 
     it('should work without any options', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
       expect(processor).to.exist;
       processor.disconnect();
     });
@@ -166,7 +166,7 @@ describe('Error Handling & Edge Cases', function () {
 
   describe('processor control methods - edge cases', () => {
     it('should handle multiple reset() calls', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       expect(() => {
         processor.reset();
@@ -178,7 +178,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should handle multiple stop() calls', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       expect(() => {
         processor.stop();
@@ -190,7 +190,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should handle reset() after stop()', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       expect(() => {
         processor.stop();
@@ -201,7 +201,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should handle stop() after reset()', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       expect(() => {
         processor.reset();
@@ -212,7 +212,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should handle operations after disconnect', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       processor.disconnect();
 
@@ -225,7 +225,7 @@ describe('Error Handling & Edge Cases', function () {
 
   describe('event listener edge cases', () => {
     it('should handle removing non-existent listeners', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       const handler = () => {};
 
@@ -237,7 +237,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should handle rapid event listener addition/removal', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       const handlers = Array.from({length: 100}, () => () => {});
 
@@ -255,7 +255,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should handle error event listeners', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
       let errorReceived = false;
 
       processor.on('error', () => {
@@ -270,7 +270,7 @@ describe('Error Handling & Edge Cases', function () {
 
   describe('audio connection edge cases', () => {
     it('should handle connect then immediate disconnect', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       expect(() => {
         processor.connect(audioContext.destination);
@@ -279,7 +279,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should handle multiple connect calls', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       expect(() => {
         processor.connect(audioContext.destination);
@@ -290,7 +290,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should handle multiple disconnect calls', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       processor.connect(audioContext.destination);
 
@@ -302,7 +302,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should handle connection to multiple destinations', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
       const gainNode1 = audioContext.createGain();
       const gainNode2 = audioContext.createGain();
 
@@ -394,7 +394,7 @@ describe('Error Handling & Edge Cases', function () {
     });
 
     it('should handle processor with many chunks', async () => {
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
 
       // Just verify it doesn't crash with long processing
       expect(processor).to.exist;
@@ -408,7 +408,7 @@ describe('Error Handling & Edge Cases', function () {
       await audioContext.resume();
       expect(audioContext.state).to.equal('running');
 
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
       expect(processor).to.exist;
 
       processor.disconnect();
@@ -418,7 +418,7 @@ describe('Error Handling & Edge Cases', function () {
       await audioContext.suspend();
       expect(audioContext.state).to.equal('suspended');
 
-      const processor = await createRealTimeBpmProcessor(audioContext);
+      const processor = await createRealtimeBpmAnalyzer(audioContext);
       expect(processor).to.exist;
 
       await audioContext.resume();

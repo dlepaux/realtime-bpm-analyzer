@@ -307,3 +307,4 @@ Let me know what your most wanted feature is by opening [an issue](https://githu
 ## Credits
 
 This library was inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective), which was also based on [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/). Thank you to both of them.
+

@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "target": "es6",
+        "target": "ES2015",
         "module": "commonjs",
         "lib": ["dom", "dom.iterable", "es6"],
         "skipLibCheck": true,

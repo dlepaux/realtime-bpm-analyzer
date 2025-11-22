@@ -42,6 +42,10 @@
     "licence.md"
   ],
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "workspaces": [
     "examples/*"
   ],

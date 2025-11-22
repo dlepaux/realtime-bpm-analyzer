@@ -30,6 +30,12 @@ jobs:
     - run: npm install
     - run: npm run build
     - run: npm test
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist-${{ matrix.node-version }}
+        path: dist/
+        retention-days: 1
     - name: Codecov
       uses: codecov/codecov-action@v3.1.5
             

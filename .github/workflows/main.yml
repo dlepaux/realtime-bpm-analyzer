@@ -1,0 +1,141 @@
+name: Main Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+  pages: write
+
+concurrency:
+  group: main-pipeline
+  cancel-in-progress: false
+
+jobs:
+  # Build and test once
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          rm -f package-lock.json
+          npm install
+
+      - name: Verify integrity
+        run: npm audit signatures
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+
+  # Release to GitHub and npm
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: |
+          rm -f package-lock.json
+          npm install
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+      - name: Publish to npm
+        run: npm publish
+
+  # Deploy documentation
+  docs:
+    name: Deploy Documentation
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Install docs dependencies
+        run: cd docs && npm ci
+
+      - name: Build documentation
+        run: cd docs && npm run build
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

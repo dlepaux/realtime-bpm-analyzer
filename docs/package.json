@@ -10,11 +10,13 @@
     "build:examples": "tsx scripts/build-examples.ts",
     "dev:examples": "tsx scripts/dev-examples.ts",
     "dev": "npm run copy:markdown && npm run docs:generate && vitepress dev",
-    "build": "npm run copy:markdown && npm run docs:generate && vitepress build && npm run build:examples",
+    "build": "npm run copy:markdown && npm run build:favicon && npm run docs:generate && vitepress build && npm run build:examples",
+    "build:favicon": "npx realfavicon generate ../brand/icon.svg favicon-settings.json favicon.json public/favicon",
     "preview": "vitepress preview"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "realfavicon": "^0.5.0",
     "tsx": "^4.19.2",
     "typedoc": "^0.28.14",
     "typedoc-plugin-markdown": "^4.9.0",

@@ -18,3 +18,7 @@ contributing.md
 code-of-conduct.md
 security.md
 privacy.md
+
+# Generated assets
+public/favicon/
+favicon.json

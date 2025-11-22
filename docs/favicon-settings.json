@@ -1,0 +1,35 @@
+{
+  "icon": {
+    "desktop": {
+      "regularIconTransformation": {
+        "type": "background",
+        "backgroundColor": "#646cff",
+        "backgroundRadius": 1,
+        "imageScale": 0.7
+      },
+      "darkIconType": "none"
+    },
+    "touch": {
+      "transformation": {
+        "type": "background",
+        "backgroundColor": "#646cff",
+        "backgroundRadius": 0,
+        "imageScale": 0.7
+      },
+      "appTitle": "Realtime BPM Analyzer"
+    },
+    "webAppManifest": {
+      "transformation": {
+        "type": "background",
+        "backgroundColor": "#646cff",
+        "backgroundRadius": 0,
+        "imageScale": 0.7
+      },
+      "backgroundColor": "#ffffff",
+      "name": "Realtime BPM Analyzer",
+      "shortName": "BPM",
+      "themeColor": "#ffffff"
+    }
+  },
+  "path": "/"
+}

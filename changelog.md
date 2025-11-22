@@ -1,3 +1,18 @@
+# [5.0.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v4.0.2...v5.0.0) (2025-11-22)
+
+
+* feat!: replace documentation generation with improvements BREAKING CHANGE: change api with event emitter ([791fb1e](https://github.com/dlepaux/realtime-bpm-analyzer/commit/791fb1ec091cd743093022fd6d97d2334329a5ee))
+
+
+### Bug Fixes
+
+* ci ([7cf453a](https://github.com/dlepaux/realtime-bpm-analyzer/commit/7cf453ac724b09b78086b4559455da529951ac6a))
+
+
+### BREAKING CHANGES
+
+* change api with event emitter
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

@@ -109,3 +109,4 @@ For commercial licensing inquiries, contact: d.lepaux@gmail.com
 ## Credits
 
 Inspired by [Tornqvist's bpm-detective](https://github.com/tornqvist/bpm-detective) and [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/).
+

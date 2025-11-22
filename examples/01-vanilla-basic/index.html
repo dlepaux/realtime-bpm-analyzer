@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BPM Analyzer - Basic Usage</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 40px;
+        max-width: 500px;
+        width: 100%;
+      }
+
+      h1 {
+        font-size: 28px;
+        margin-bottom: 10px;
+        color: #333;
+      }
+
+      .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 14px;
+      }
+
+      .file-input-wrapper {
+        position: relative;
+        margin-bottom: 20px;
+      }
+
+      input[type="file"] {
+        width: 100%;
+        padding: 15px;
+        border: 2px dashed #667eea;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s ease;
+      }
+
+      input[type="file"]:hover {
+        border-color: #764ba2;
+        background: #f8f9ff;
+      }
+
+      .bpm-display {
+        text-align: center;
+        padding: 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        margin-bottom: 20px;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: all 0.5s ease;
+      }
+
+      .bpm-display.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .bpm-value {
+        font-size: 64px;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 5px;
+      }
+
+      .bpm-label {
+        font-size: 18px;
+        color: rgba(255, 255, 255, 0.9);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+
+      .status {
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        text-align: center;
+        display: none;
+      }
+
+      .status.visible {
+        display: block;
+      }
+
+      .status.analyzing {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+      }
+
+      .status.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .status.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎵 BPM Analyzer</h1>
+      <p class="subtitle">Upload an audio file to detect its tempo</p>
+
+      <div class="file-input-wrapper">
+        <input type="file" id="audioFile" accept="audio/*" />
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <div class="bpm-display" id="bpmDisplay">
+        <div class="bpm-value" id="bpmValue">--</div>
+        <div class="bpm-label">BPM</div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

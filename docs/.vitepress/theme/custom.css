@@ -1,0 +1,20 @@
+/* Custom styles for documentation */
+
+/* Enhance code blocks */
+.vp-doc div[class*='language-'] {
+  margin: 1.5rem 0;
+}
+
+/* Make example embeds stand out */
+.example-embed {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode adjustments */
+.dark .example-embed {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dark .example-frame {
+  background: #1a1a1a;
+}

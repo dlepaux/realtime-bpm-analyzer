@@ -20,21 +20,50 @@
     "beats",
     "analyzer"
   ],
-  "license": "MIT",
-  "main": "./dist/index.js",
-  "module": "./dist/index.esm.js",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js"
+    },
+    "./processor": {
+      "types": "./dist/realtime-bpm-processor.d.ts",
+      "default": "./dist/realtime-bpm-processor.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "readme.md",
+    "licence.md"
+  ],
+  "sideEffects": false,
+  "workspaces": [
+    "examples/*"
+  ],
   "scripts": {
     "build": "bash bin/build/library.sh",
-    "build:docs": "bash bin/build/github-pages.sh",
+    "docs:dev": "cd docs && npm run dev",
+    "docs:build": "cd docs && npm run build",
+    "docs:preview": "cd docs && npm run preview",
+    "examples:install": "npm install --workspaces",
+    "examples:build": "npm run build --workspaces --if-present",
+    "examples:dev": "cd docs && npm run dev:examples",
     "lint": "xo",
     "lint:fix": "xo --fix",
-    "prepare": "husky install",
-    "release:patch": "bash bin/release/version.sh patch",
-    "release:minor": "bash bin/release/version.sh minor",
-    "release:major": "bash bin/release/version.sh major",
+    "prepare": "husky",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
     "testing": "web-dev-server",
-    "test": "web-test-runner"
+    "test": "web-test-runner",
+    "test:watch": "web-test-runner --watch",
+    "test:unit": "web-test-runner --files 'tests/unit/**/*.test.ts'",
+    "test:integration": "web-test-runner --files 'tests/integration/**/*.test.ts'",
+    "test:lib": "web-test-runner --files 'tests/lib/**/*.ts'",
+    "test:coverage": "web-test-runner --coverage"
   },
   "repository": {
     "type": "git",
@@ -43,9 +72,13 @@
   "devDependencies": {
     "@commitlint/cli": "^18.5.0",
     "@commitlint/config-conventional": "^18.5.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/npm": "^12.0.2",
+    "@semantic-release/release-notes-generator": "^14.1.0",
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
-    "@typescript-eslint/parser": "^6.20.0",
     "@web/dev-server": "^0.4.1",
     "@web/dev-server-esbuild": "^1.0.1",
     "@web/test-runner": "^0.18.0",
@@ -53,21 +86,21 @@
     "chai": "^5.0.3",
     "esbuild": "^0.25.0",
     "eslint": "^8.56.0",
-    "eslint-plugin-jsdoc": "^48.0.4",
-    "favicons": "^7.1.5",
-    "gh-pages": "^6.1.1",
     "husky": "^8.0.3",
     "mocha": "^10.2.0",
     "music-metadata": "^7.14.0",
-    "standard-version": "^9.5.0",
+    "semantic-release": "^24.2.9",
     "ts-node": "^10.9.2",
-    "typedoc": "^0.25.7",
     "typescript": "^5.3.3",
     "xo": "^0.56.0"
   },
   "xo": {
     "space": 2,
     "semicolon": true,
+    "ignores": [
+      "examples/**",
+      "docs/scripts/**"
+    ],
     "globals": [
       "process",
       "document",
@@ -78,14 +111,20 @@
       "n/prefer-global/process": "off",
       "node/prefer-global/process": 0,
       "no-await-in-loop": "off",
+      "jsdoc/tag-lines": "off",
       "import/no-unassigned-import": "off",
       "import/no-anonymous-default-export": "off",
       "import/extensions": "off",
       "unicorn/no-array-reduce": "off",
       "unicorn/numeric-separators-style": "off",
       "unicorn/prefer-top-level-await": "off",
+      "unicorn/prefer-add-event-listener": "off",
       "@typescript-eslint/triple-slash-reference": "off",
-      "@typescript-eslint/no-loss-of-precision": "off"
+      "@typescript-eslint/no-loss-of-precision": "off",
+      "@typescript-eslint/no-unused-expressions": "off",
+      "no-promise-executor-return": "off",
+      "@typescript-eslint/no-empty-function": "off",
+      "unicorn/prevent-abbreviations": "off"
     }
   },
   "lint-staged": {

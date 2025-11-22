@@ -1,9 +1,0 @@
-{
-    "parser": "@typescript-eslint/parser",
-    "parserOptions": {
-        "ecmaVersion": 2018,
-        "sourceType": "module"
-    },
-    "plugins": ["@typescript-eslint", "jsdoc"],
-    "extends": ["plugin:jsdoc/recommended-typescript-error"]
-}

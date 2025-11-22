@@ -1,11 +1,57 @@
 {
-    "$schema": "https://typedoc.org/schema.json",
-    "hideGenerator": true,
-    "name": "Realtime BPM Analyzer",
-    "customCss": "./github-pages/styles/global.css",
-    "gaID": "G-S911G9WQTM",
-    "navigationLinks": {
-        "Github": "http://github.com/dlepaux/realtime-bpm-analyzer",
-        "Examples": "http://www.allegro-project.com",
-    }
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "API Reference",
+  "entryPoints": ["./src/index.ts"],
+  "out": "./docs/api",
+  "plugin": ["typedoc-plugin-markdown"],
+  "tsconfig": "./tsconfig.docs.json",
+  
+  "exclude": ["**/tests/**", "**/testing/**", "**/node_modules/**"],
+  
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeProtected": true,
+  "excludeNotDocumented": false,
+  "hideGenerator": true,
+  "readme": "none",
+  
+  "sort": ["source-order", "required-first", "kind"],
+  "kindSortOrder": [
+    "Function",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Enum",
+    "Variable"
+  ],
+  
+  "categorizeByGroup": true,
+  "groupOrder": [
+    "Functions",
+    "Classes",
+    "Interfaces",
+    "Type Aliases",
+    "Events"
+  ],
+  
+  "outputFileStrategy": "members",
+  "flattenOutputFiles": false,
+  "useCodeBlocks": true,
+  "expandObjects": true,
+  "parametersFormat": "table",
+  "propertiesFormat": "table",
+  "enumMembersFormat": "table",
+  "typeDeclarationFormat": "table",
+  "indexFormat": "table",
+  
+  "entryFileName": "index.md",
+  "membersWithOwnFile": [
+    "Function",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Enum"
+  ],
+  "disableSources": false,
+  "sourceLinkTemplate": "https://github.com/dlepaux/realtime-bpm-analyzer/blob/{gitRevision}/{path}#L{line}"
 }

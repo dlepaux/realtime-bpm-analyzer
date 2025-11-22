@@ -1,0 +1,24 @@
+{
+  "name": "realtime-bpm-analyzer-docs",
+  "version": "1.0.0",
+  "description": "Documentation for Realtime BPM Analyzer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "copy:markdown": "cp ../contributing.md . && cp ../code-of-conduct.md . && cp ../security.md . && cp ../privacy.md .",
+    "docs:generate": "cd .. && typedoc",
+    "build:examples": "tsx scripts/build-examples.ts",
+    "dev:examples": "tsx scripts/dev-examples.ts",
+    "dev": "npm run copy:markdown && npm run docs:generate && vitepress dev",
+    "build": "npm run copy:markdown && npm run docs:generate && vitepress build && npm run build:examples",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typedoc": "^0.28.14",
+    "typedoc-plugin-markdown": "^4.9.0",
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.13"
+  }
+}

@@ -4,6 +4,8 @@ import {puppeteerLauncher} from '@web/test-runner-puppeteer';
 export default {
   files: ['tests/**/*.ts'],
   nodeResolve: true,
+  browserLogs: true,
+  testsFinishTimeout: 30000, // Increased from 10000 for integration tests
   browsers: [
     puppeteerLauncher({
       launchOptions: {

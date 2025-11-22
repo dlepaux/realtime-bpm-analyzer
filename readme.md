@@ -14,8 +14,25 @@
 
 Welcome to Realtime BPM Analyzer, a powerful and easy-to-use TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of an audio or video source in real-time.
 
+> **New in v5.0**: Clean typed event API with full TypeScript support! See the [migration guide](https://www.realtime-bpm-analyzer.com/guide/migration-v5) if upgrading from v4.x or v3.x.
+
+```typescript
+// Simple, typed event listeners with autocomplete
+analyzer.on('bpm', (data) => {
+  console.log('BPM:', data.bpm[0].tempo);
+});
+
+analyzer.on('bpmStable', (data) => {
+  console.log('Stable BPM:', data.bpm[0].tempo);
+});
+```
+
 - [Realtime BPM Analyzer](#realtime-bpm-analyzer)
   - [Getting started](#getting-started)
+  - [Running Examples](#running-examples)
+    - [Quick Start](#quick-start)
+    - [Available Examples](#available-examples)
+    - [Running Multiple Examples](#running-multiple-examples)
   - [Features](#features)
   - [Usages](#usages)
     - [Player strategy](#player-strategy)
@@ -40,13 +57,74 @@ npm install realtime-bpm-analyzer
 
 To learn more about how to use the library, you can check out [the documentation](https://www.realtime-bpm-analyzer.com).
 
+## Running Examples
+
+This repository includes several examples demonstrating different use cases of the library. To run any example in development mode:
+
+### Quick Start
+
+1. **Install dependencies** from the root directory:
+```bash
+npm install
+```
+
+2. **Run an example** using the workspace command:
+```bash
+npm run dev --workspace=examples/01-vanilla-basic
+```
+
+### Available Examples
+
+**Vanilla JavaScript:**
+- `examples/01-vanilla-basic` - File upload and offline BPM analysis
+- `examples/02-vanilla-streaming` - Real-time audio stream analysis
+- `examples/03-vanilla-microphone` - Real-time microphone input analysis
+
+**React:**
+- `examples/04-react-basic` - File upload with React
+- `examples/05-react-streaming` - Audio stream analysis with React
+- `examples/06-react-microphone` - Microphone analysis with React
+
+**Vue 3:**
+- `examples/07-vue-basic` - File upload with Vue 3 Composition API
+- `examples/08-vue-streaming` - Audio stream analysis with Vue 3
+- `examples/09-vue-microphone` - Microphone analysis with Vue 3
+
+### Running Multiple Examples
+
+To run different examples, simply change the workspace path:
+
+```bash
+# Run a React example
+npm run dev --workspace=examples/04-react-basic
+
+# Run a Vue example
+npm run dev --workspace=examples/07-vue-basic
+
+# Run the streaming example
+npm run dev --workspace=examples/02-vanilla-streaming
+```
+
+Each example will start a local development server (typically on different ports) where you can test the library functionality.
+
 ## Features
 
+- **Typed Event API** (new in v5.0) with full TypeScript autocomplete support
 - **Dependency-free** library that utilizes the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) to analyze audio or video sources and provide accurate BPM detection.
 - Can be used to analyze **audio or video** nodes, streams as well as **files**.
 - Allows you to compute the BPM while the audio or video is playing.
 - Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
 - Supports MP3, FLAC and WAV formats.
+
+## 🔒 Privacy & Security
+
+- **100% client-side** - All processing happens in your browser
+- **No data collection** - We don't collect, store, or transmit any data
+- **No audio recording** - Audio is analyzed in real-time, never saved
+- **Open source** - Fully auditable code
+- **Dependency-free** - No third-party concerns
+
+See [privacy.md](privacy.md) and [security.md](security.md) for details.
 
 ## Usages
 
@@ -63,29 +141,30 @@ This example shows how to deal with a simple `audio` node.
 <audio src="./new_order-blue_monday.mp3" id="track"></audio>
 ```
 
-2. Create the AudioWorkletProcessor with `createRealTimeBpmProcessor`, create and pipe the filters to the AudioWorkletNode (`realtimeAnalyzerNode`).
+2. Create the BPM analyzer with `createRealtimeBpmAnalyzer`, which returns a `BpmAnalyzer` instance (an event emitter wrapping an AudioWorkletNode). Connect the audio nodes using the `.node` property.
 ```javascript
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 
-const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext);
+// Create the BPM analyzer (returns an event emitter)
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
 
 // Set the source with the HTML Audio Node
 const track = document.getElementById('track');
 const source = audioContext.createMediaElementSource(track);
 const lowpass = getBiquadFilter(audioContext);
 
-// Connect nodes together
-source.connect(lowpass).connect(realtimeAnalyzerNode);
+// Connect nodes together - use .node to access the underlying AudioWorkletNode
+source.connect(lowpass).connect(bpmAnalyzer.node);
 source.connect(audioContext.destination);
 
-realtimeAnalyzerNode.port.onmessage = (event) => {
-  if (event.data.message === 'BPM') {
-    console.log('BPM', event.data.data.bpm);
-  }
-  if (event.data.message === 'BPM_STABLE') {
-    console.log('BPM_STABLE', event.data.data.bpm);
-  }
-};
+// Listen for BPM events using the event emitter API
+bpmAnalyzer.on('bpm', (data) => {
+  console.log('BPM', data.bpm);
+});
+
+bpmAnalyzer.on('bpmStable', (data) => {
+  console.log('BPM_STABLE', data.bpm);
+});
 ```
 
 ### Continuous Analysis strategy
@@ -96,15 +175,15 @@ Note: This approach is **NOT recommended** if you are using a microphone as sour
 
 1. Streams can be played with [AudioNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioNode), so the approach is quite similar to the [Player strategy](#player-strategy).
 ```html
-<audio src="https://ssl1.viastreaming.net:7005/;listen.mp3" id="track"></audio>
+<audio src="https://stream.techno.fm/radio1.mp3" id="track"></audio>
 ```
-Thank you [IbizaSonica](http://ibizasonica.com) for the stream.
+Thank you [Techno.fm](https://techno.fm) for the stream.
 
 2. As for the [Player strategy](#player-strategy), except that we need to turn on the `continuousAnalysis` flag to periodically delete collected data.
 ```javascript
-import { createRealTimeBpmProcessor, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
 
-const realtimeAnalyzerNode = await createRealTimeBpmProcessor(audioContext, {
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
   continuousAnalysis: true,
   stabilizationTime: 20_000, // Default value is 20_000ms after what the library will automatically delete all collected data and restart analyzing BPM
 });
@@ -114,18 +193,23 @@ const track = document.getElementById('track');
 const source = audioContext.createMediaElementSource(track);
 const lowpass = getBiquadFilter(audioContext);
 
-// Connect nodes together
-source.connect(lowpass).connect(realtimeAnalyzerNode);
+// Connect nodes together - use .node to access the underlying AudioWorkletNode
+source.connect(lowpass).connect(bpmAnalyzer.node);
 source.connect(audioContext.destination);
 
-realtimeAnalyzerNode.port.onmessage = (event) => {
-  if (event.data.message === 'BPM') {
-    console.log('BPM', event.data.data.bpm);
-  }
-  if (event.data.message === 'BPM_STABLE') {
-    console.log('BPM_STABLE', event.data.data.bpm);
-  }
-};
+// Listen for BPM events using the event emitter API
+bpmAnalyzer.on('bpm', (data) => {
+  console.log('BPM', data.bpm);
+});
+
+bpmAnalyzer.on('bpmStable', (data) => {
+  console.log('BPM_STABLE', data.bpm);
+});
+
+// Listen for when analyzer resets (after stabilizationTime)
+bpmAnalyzer.on('analyzerReset', () => {
+  console.log('Analyzer reset - starting fresh analysis');
+});
 ```
 
 ### Local/Offline strategy
@@ -223,3 +307,4 @@ Let me know what your most wanted feature is by opening [an issue](https://githu
 ## Credits
 
 This library was inspired by the [Tornqvist project](https://github.com/tornqvist/bpm-detective), which was also based on [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/). Thank you to both of them.
+

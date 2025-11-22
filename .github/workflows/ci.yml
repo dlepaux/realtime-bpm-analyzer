@@ -26,7 +26,8 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     # End Environment Variables
-    - run: npm install --include=optional
+    - run: rm -f package-lock.json
+    - run: npm install
     - run: npm run build
     - run: npm test
     - name: Codecov

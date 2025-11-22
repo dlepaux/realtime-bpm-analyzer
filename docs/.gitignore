@@ -12,3 +12,7 @@ node_modules/
 
 # System files
 .DS_Store
+
+# Copied from root
+contributing.md
+code-of-conduct.md

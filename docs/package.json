@@ -5,11 +5,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "copy:markdown": "cp ../contributing.md . && cp ../code-of-conduct.md .",
     "docs:generate": "cd .. && typedoc",
     "build:examples": "tsx scripts/build-examples.ts",
     "dev:examples": "tsx scripts/dev-examples.ts",
-    "dev": "npm run docs:generate && vitepress dev",
-    "build": "npm run docs:generate && vitepress build && npm run build:examples",
+    "dev": "npm run copy:markdown && npm run docs:generate && vitepress dev",
+    "build": "npm run copy:markdown && npm run docs:generate && vitepress build && npm run build:examples",
     "preview": "vitepress preview"
   },
   "devDependencies": {

@@ -52,7 +52,7 @@
     "docs:preview": "cd docs && npm run preview",
     "examples:install": "npm install --workspaces",
     "examples:build": "npm run build --workspaces --if-present",
-    "examples:dev": "echo 'Run npm run dev in a specific example directory'",
+    "examples:dev": "cd docs && npm run dev:examples",
     "lint": "xo",
     "lint:fix": "xo --fix",
     "prepare": "husky install",

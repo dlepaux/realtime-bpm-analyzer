@@ -134,7 +134,10 @@ export async function createRealtimeBpmAnalyzer(audioContext: AudioContext, proc
   return new BpmAnalyzer(processorNode);
 }
 
-/** @deprecated Use createRealtimeBpmAnalyzer instead, will be removed in next major release */
+/**
+ * @deprecated Use {@link createRealtimeBpmAnalyzer} instead, will be removed in next major release
+ * @hidden
+ */
 export const createRealTimeBpmProcessor = createRealtimeBpmAnalyzer;
 
 /**

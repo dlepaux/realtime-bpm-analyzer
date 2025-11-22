@@ -2,20 +2,7 @@
 
 Realtime BPM Analyzer works in all modern browsers that support the Web Audio API and AudioWorklet.
 
-## Browser Support Matrix
-
-| Browser | Minimum Version | AudioWorklet | Status |
-|---------|----------------|--------------|--------|
-| **Chrome** | 66+ | ✅ | Fully Supported |
-| **Edge** | 79+ | ✅ | Fully Supported |
-| **Firefox** | 76+ | ✅ | Fully Supported |
-| **Safari** | 14.1+ | ✅ | Fully Supported |
-| **Opera** | 53+ | ✅ | Fully Supported |
-| **Chrome Android** | 66+ | ✅ | Fully Supported |
-| **Safari iOS** | 14.5+ | ✅ | Fully Supported |
-| **Samsung Internet** | 9.0+ | ✅ | Fully Supported |
-
-### Legacy Browser Support
+## Legacy Browser Support
 
 For older browsers (pre-2019), AudioWorklet is not available. The library **requires** AudioWorklet and will not work with older ScriptProcessorNode-based fallbacks.
 
@@ -121,7 +108,7 @@ if (isSupported()) {
 ✅ **Excellent Support**
 - Full feature parity with desktop Chrome
 - Good battery efficiency
-- Reliable AudioWorklet
+- Reliable AudioWorkletcreateRealTimeBpmProcessor
 
 **Tips:**
 - Test battery impact on target devices

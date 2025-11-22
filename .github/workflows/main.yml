@@ -120,13 +120,23 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: docs/package-lock.json
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+      - name: Install root dependencies
+        run: |
+          rm -f package-lock.json
+          npm install --include-workspace-root
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
 
       - name: Install docs dependencies
         run: cd docs && npm ci
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
 
       - name: Build documentation
         run: cd docs && npm run build

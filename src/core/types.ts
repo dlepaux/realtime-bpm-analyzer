@@ -138,21 +138,37 @@ export type RealTimeBpmAnalyzerOptions = {
   debug: boolean;
 };
 
+/**
+ * Options for grouping intervals by tempo
+ * @internal
+ */
 export type AnalyzerGroupByTempoOptions = {
   audioSampleRate: number;
   intervalCounts: Interval[];
 };
 
+/**
+ * Options for finding peaks in audio data
+ * @internal
+ */
 export type AnalyzerFindPeaksOptions = {
   audioSampleRate: number;
   channelData: Float32Array;
 };
 
+/**
+ * Options for computing BPM from detected peaks
+ * @internal
+ */
 export type AnalyzerComputeBpmOptions = {
   audioSampleRate: number;
   data: ValidPeaks;
 };
 
+/**
+ * Options for finding peaks at a specific threshold level
+ * @internal
+ */
 export type AnalyzerFindPeaksAtTheshold = {
   audioSampleRate: number;
   data: Float32Array;
@@ -160,6 +176,10 @@ export type AnalyzerFindPeaksAtTheshold = {
   offset?: number;
 };
 
+/**
+ * Options for real-time peak detection in audio worklet
+ * @internal
+ */
 export type RealtimeFindPeaksOptions = {
   audioSampleRate: number;
   channelData: Float32Array;
@@ -169,6 +189,10 @@ export type RealtimeFindPeaksOptions = {
   postMessage: (data: ProcessorOutputEvent) => void;
 };
 
+/**
+ * Options for analyzing audio chunks in real-time
+ * @internal
+ */
 export type RealtimeAnalyzeChunkOptions = {
   audioSampleRate: number;
   channelData: Float32Array;
@@ -176,23 +200,46 @@ export type RealtimeAnalyzeChunkOptions = {
   postMessage: (data: ProcessorOutputEvent) => void;
 };
 
+/**
+ * Map of threshold values to their corresponding detected peaks
+ * @internal
+ */
 export type ValidPeaks = Record<string, Peaks>;
 
+/**
+ * Map of threshold values to the next peak index to search from
+ * @internal
+ */
 export type NextIndexPeaks = Record<string, number>;
 
+/**
+ * Callback function executed when processing each threshold level
+ * @internal
+ */
 export type OnThresholdFunction = (threshold: Threshold) => Promise<boolean>;
 
+/**
+ * Aggregated audio buffer data for real-time analysis
+ * @internal
+ */
 export type AggregateData = {
   readonly isBufferFull: boolean;
   readonly buffer: Float32Array;
   readonly bufferSize: number;
 };
 
+/**
+ * Normalized biquad filter nodes for audio processing
+ * @internal
+ */
 export type NormalizedFilters = {
   lowpass: BiquadFilterNode;
   highpass: BiquadFilterNode;
 };
 
+/**
+ * Configuration options for biquad filter creation
+ */
 export type BiquadFilterOptions = {
   frequencyValue?: number;
   qualityValue?: number;

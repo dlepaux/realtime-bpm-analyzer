@@ -39,7 +39,9 @@ export default defineConfig({
         items: [
           { text: 'Changelog', link: 'https://github.com/dlepaux/realtime-bpm-analyzer/blob/main/changelog.md' },
           { text: 'Contributing', link: '/contributing' },
-          { text: 'Code of Conduct', link: '/code-of-conduct' }
+          { text: 'Code of Conduct', link: '/code-of-conduct' },
+          { text: 'Security', link: '/security' },
+          { text: 'Privacy', link: '/privacy' }
         ]
       }
     ],

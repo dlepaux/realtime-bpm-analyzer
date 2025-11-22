@@ -116,6 +116,16 @@ Each example will start a local development server (typically on different ports
 - Lightweight and easy to use, making it a great option for web-based music production and DJing applications.
 - Supports MP3, FLAC and WAV formats.
 
+## 🔒 Privacy & Security
+
+- **100% client-side** - All processing happens in your browser
+- **No data collection** - We don't collect, store, or transmit any data
+- **No audio recording** - Audio is analyzed in real-time, never saved
+- **Open source** - Fully auditable code
+- **Dependency-free** - No third-party concerns
+
+See [privacy.md](privacy.md) and [security.md](security.md) for details.
+
 ## Usages
 
 If you encounter issues along the way, remember I have a [chat](https://gitter.im/realtime-bpm-analyzer/Lobby) and the new [discussion feature of github](https://github.com/dlepaux/realtime-bpm-analyzer/discussions) !

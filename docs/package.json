@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "copy:markdown": "cp ../contributing.md . && cp ../code-of-conduct.md .",
+    "copy:markdown": "cp ../contributing.md . && cp ../code-of-conduct.md . && cp ../security.md . && cp ../privacy.md .",
     "docs:generate": "cd .. && typedoc",
     "build:examples": "tsx scripts/build-examples.ts",
     "dev:examples": "tsx scripts/dev-examples.ts",

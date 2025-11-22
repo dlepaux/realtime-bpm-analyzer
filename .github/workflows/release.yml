@@ -49,5 +49,4 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: fake-token-for-testing
-        run: npx semantic-release --dry-run
+        run: npx semantic-release

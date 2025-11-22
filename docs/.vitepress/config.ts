@@ -35,7 +35,7 @@ export default defineConfig({
       { text: 'Examples', link: '/examples/basic-usage' },
       { text: 'API Reference', link: '/api/' },
       { 
-        text: 'v4.0.2',
+        text: 'v5.0.0',
         items: [
           { text: 'Changelog', link: 'https://github.com/dlepaux/realtime-bpm-analyzer/blob/main/changelog.md' },
           { text: 'Contributing', link: '/contributing' },

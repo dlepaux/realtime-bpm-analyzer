@@ -97,9 +97,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
-      - name: Publish to npm
-        run: npm publish
-
   # Deploy documentation
   docs:
     name: Deploy Documentation
@@ -126,11 +123,8 @@ jobs:
           rm -f package-lock.json
           npm install --include-workspace-root
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
+      - name: Build library
+        run: npm run build
 
       - name: Install docs dependencies
         run: cd docs && npm ci

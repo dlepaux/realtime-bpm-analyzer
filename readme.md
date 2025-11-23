@@ -17,7 +17,7 @@
 <p align="center">
   <a href="https://www.realtime-bpm-analyzer.com">📚 Documentation</a> •
   <a href="https://www.realtime-bpm-analyzer.com/examples">🎯 Examples</a> •
-  <a href="https://www.realtime-bpm-analyzer.com/guide/quick-start">🚀 Quick Start</a>
+  <a href="https://www.realtime-bpm-analyzer.com/guide/getting-started">🚀 Getting Started</a>
 </p>
 
 ---

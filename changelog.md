@@ -1,3 +1,10 @@
+## [5.0.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.0...v5.0.1) (2026-02-15)
+
+
+### Bug Fixes
+
+* upgrade minor dev dependencies ([f19547b](https://github.com/dlepaux/realtime-bpm-analyzer/commit/f19547b4b559bcc9196a5fcf3f600c78b0a39e0a))
+
 # [5.0.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v4.0.2...v5.0.0) (2025-11-22)
 
 

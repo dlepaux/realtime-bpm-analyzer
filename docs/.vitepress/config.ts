@@ -23,15 +23,39 @@ export default defineConfig({
   
   head: [
     ['meta', { name: 'theme-color', content: '#646cff' }],
-    ['meta', { name: 'og:type', content: 'website' }],
-    ['meta', { name: 'og:locale', content: 'en' }],
-    ['meta', { name: 'og:site_name', content: 'Realtime BPM Analyzer' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:locale', content: 'en' }],
+    ['meta', { property: 'og:site_name', content: 'Realtime BPM Analyzer' }],
+    ['meta', { property: 'og:title', content: 'Realtime BPM Analyzer' }],
+    ['meta', { property: 'og:description', content: 'A powerful TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of audio or video sources in real-time' }],
+    ['meta', { property: 'og:url', content: 'https://www.realtime-bpm-analyzer.com' }],
+    ['meta', { property: 'og:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
+    ['meta', { property: 'og:image:width', content: '1280' }],
+    ['meta', { property: 'og:image:height', content: '640' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
     ['link', { rel: 'icon', type: 'image/png', href: '/favicon/favicon-96x96.png', sizes: '96x96' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon/favicon.svg' }],
     ['link', { rel: 'shortcut icon', href: '/favicon/favicon.ico' }],
     ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/favicon/apple-touch-icon.png' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: 'Realtime BPM Analyzer' }],
     ['link', { rel: 'manifest', href: '/favicon/site.webmanifest'}],
+    ['script', { type: 'application/ld+json' }, JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareSourceCode',
+      name: 'Realtime BPM Analyzer',
+      description: 'A powerful TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of audio or video sources in real-time',
+      url: 'https://www.realtime-bpm-analyzer.com',
+      codeRepository: 'https://github.com/dlepaux/realtime-bpm-analyzer',
+      programmingLanguage: ['TypeScript', 'JavaScript'],
+      runtimePlatform: 'Browser',
+      license: 'https://spdx.org/licenses/Apache-2.0',
+      author: {
+        '@type': 'Person',
+        name: 'David Lepaux',
+        url: 'https://david.lepaux.com',
+      },
+    })],
   ],
 
 
@@ -100,7 +124,7 @@ export default defineConfig({
 
     footer: {
       message: 'Released under the Apache License 2.0',
-      copyright: 'Copyright © 2025 David Lepaux'
+      copyright: 'Copyright © 2025 <a href="https://david.lepaux.com">David Lepaux</a>'
     },
 
     search: {

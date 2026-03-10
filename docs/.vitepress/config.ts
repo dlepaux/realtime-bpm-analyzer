@@ -1,4 +1,8 @@
 import { defineConfig } from 'vitepress'
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
+const pkg = require('../../package.json')
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -40,7 +44,7 @@ export default defineConfig({
       { text: 'Examples', link: '/examples/basic-usage' },
       { text: 'API Reference', link: '/api/' },
       { 
-        text: 'v5.0.0',
+        text: `v${pkg.version}`,
         items: [
           { text: 'Changelog', link: 'https://github.com/dlepaux/realtime-bpm-analyzer/blob/main/changelog.md' },
           { text: 'Contributing', link: '/contributing' },

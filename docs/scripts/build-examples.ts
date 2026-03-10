@@ -49,8 +49,9 @@ examples.forEach((example, index) => {
       execSync('npm install', { cwd: examplePath, stdio: 'inherit' });
     }
     
-    // Build the example
-    execSync('npm run build', { cwd: examplePath, stdio: 'pipe' });
+    // Build the example with the correct base path for production
+    const basePath = `/examples/${example}/`;
+    execSync(`npx vite build --base ${basePath}`, { cwd: examplePath, stdio: 'pipe' });
     
     // Copy built files to docs
     const distPath = join(examplePath, 'dist');

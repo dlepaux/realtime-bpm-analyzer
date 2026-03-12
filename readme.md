@@ -27,7 +27,7 @@
 
 - **Zero dependencies** - Uses native Web Audio API
 - **Real-time analysis** - Analyze audio/video as it plays
-- **Multiple sources** - Works with files, streams, microphone, or any audio node
+- **Multiple sources** - Works with files, streams, microphone, or any audio/video node
 - **Typed events** - Full TypeScript support with autocomplete
 - **Client-side only** - 100% privacy-focused, no data collection
 - **Supports MP3, FLAC, WAV** formats

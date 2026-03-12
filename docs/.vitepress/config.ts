@@ -22,6 +22,8 @@ export default defineConfig({
   ignoreDeadLinks: [],
   
   head: [
+    ['script', { async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-S911G9WQTM' }],
+    ['script', {}, `window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-S911G9WQTM');`],
     ['meta', { name: 'theme-color', content: '#646cff' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:locale', content: 'en' }],

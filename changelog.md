@@ -1,3 +1,10 @@
+## [5.0.2](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.1...v5.0.2) (2026-03-26)
+
+
+### Bug Fixes
+
+* remove explicit download path to prevent dist/dist/ nesting in npm package ([6648525](https://github.com/dlepaux/realtime-bpm-analyzer/commit/66485255f5c48ce09e9dfa1febb6c27394128a28))
+
 ## [5.0.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.0...v5.0.1) (2026-02-15)
 
 

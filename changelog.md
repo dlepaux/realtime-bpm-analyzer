@@ -1,3 +1,10 @@
+## [5.0.3](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.2...v5.0.3) (2026-04-02)
+
+
+### Bug Fixes
+
+* **deps-dev:** bump lodash-es from 4.17.23 to 4.18.1 in the npm_and_yarn group across 1 directory ([2f651ef](https://github.com/dlepaux/realtime-bpm-analyzer/commit/2f651efb5266eb4615011a2a955a7d5a8c5bb2fc))
+
 ## [5.0.2](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.1...v5.0.2) (2026-03-26)
 
 

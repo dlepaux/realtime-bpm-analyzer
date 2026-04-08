@@ -1,3 +1,10 @@
+## [5.0.5](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.4...v5.0.5) (2026-04-08)
+
+
+### Bug Fixes
+
+* **deps:** bump basic-ftp from 5.2.0 to 5.2.1 in the npm_and_yarn group across 1 directory ([6e29a45](https://github.com/dlepaux/realtime-bpm-analyzer/commit/6e29a45e992061e43c1db2cb8b1793805a1e03e1))
+
 ## [5.0.4](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.3...v5.0.4) (2026-04-02)
 
 

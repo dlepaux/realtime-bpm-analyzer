@@ -1,0 +1,5 @@
+# https://www.realtime-bpm-analyzer.com
+User-agent: *
+Allow: /
+
+Sitemap: https://www.realtime-bpm-analyzer.com/sitemap.xml

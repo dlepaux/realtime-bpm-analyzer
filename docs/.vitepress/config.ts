@@ -8,15 +8,20 @@ const pkg = require('../../package.json')
 export default defineConfig({
   title: "Realtime BPM Analyzer",
   description: "A powerful TypeScript/JavaScript library for detecting the beats-per-minute (BPM) of audio or video sources in real-time",
-  
+
   // Base URL - using root since deployed to www.realtime-bpm-analyzer.com
   base: '/',
-  
+
   // Clean URLs (remove .html extension)
   cleanUrls: true,
-  
+
   // Last updated timestamp
   lastUpdated: true,
+
+  // Sitemap generation
+  sitemap: {
+    hostname: 'https://www.realtime-bpm-analyzer.com',
+  },
   
   // Ignore dead links for pages we haven't created yet
   ignoreDeadLinks: [],

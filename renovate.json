@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "description": "Auto-merge patch updates for devDependencies",
+      "matchUpdateTypes": ["patch"],
+      "matchDepTypes": ["devDependencies"],
+      "automerge": true
+    },
+    {
+      "description": "Group all GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "automerge": true
+    },
+    {
+      "description": "Group lint-related packages",
+      "matchPackageNames": ["xo", "eslint"],
+      "groupName": "linting"
+    },
+    {
+      "description": "Group semantic-release packages",
+      "matchPackageNames": ["semantic-release"],
+      "matchPackagePrefixes": ["@semantic-release/"],
+      "groupName": "semantic-release"
+    },
+    {
+      "description": "Group test-related packages",
+      "matchPackagePrefixes": ["@web/", "@types/"],
+      "matchPackageNames": ["chai", "mocha"],
+      "groupName": "testing"
+    }
+  ]
+}

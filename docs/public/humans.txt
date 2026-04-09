@@ -1,0 +1,12 @@
+/* TEAM */
+Developer: David Lepaux
+Site: https://david.lepaux.com
+GitHub: https://github.com/dlepaux
+Location: Switzerland
+
+/* SITE */
+Last update: 2026-04-09
+Language: English
+Standards: HTML5, CSS3, JavaScript, TypeScript
+Components: VitePress, Web Audio API
+Software: VS Code, GitHub Actions

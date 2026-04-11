@@ -1,3 +1,12 @@
+## [5.0.6](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.5...v5.0.6) (2026-04-11)
+
+
+### Bug Fixes
+
+* **ci:** use npm ci with committed lockfile for reproducible builds ([969e86f](https://github.com/dlepaux/realtime-bpm-analyzer/commit/969e86ff246e2ca76521ff6b7ef2d7e5de975633))
+* **deps:** bump @vitejs/plugin-react to v6 for Vite 8 compatibility ([61f04e2](https://github.com/dlepaux/realtime-bpm-analyzer/commit/61f04e25d8da18915822e86509ec239b6d95978e))
+* **deps:** bump Vite plugins to v6 for Vite 8 compatibility in all examples ([f5b7879](https://github.com/dlepaux/realtime-bpm-analyzer/commit/f5b78793a34210d7ee0574d6c59e523bbfa3a770))
+
 ## [5.0.5](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.4...v5.0.5) (2026-04-08)
 
 

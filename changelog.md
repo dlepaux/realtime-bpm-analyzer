@@ -1,3 +1,11 @@
+## [5.0.7](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.6...v5.0.7) (2026-04-14)
+
+
+### Bug Fixes
+
+* **deps:** regenerate package-lock.json to include rolldown for Vite 8 ([42c13c8](https://github.com/dlepaux/realtime-bpm-analyzer/commit/42c13c8511c988fb17bb8634dce727a7daf6dc36))
+* **deps:** regenerate package-lock.json to include rolldown for Vite 8 ([5805f9e](https://github.com/dlepaux/realtime-bpm-analyzer/commit/5805f9e08557ee4f8f950cda2835ab1bd5f5fea9))
+
 ## [5.0.6](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.5...v5.0.6) (2026-04-11)
 
 

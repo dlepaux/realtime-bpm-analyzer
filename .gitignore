@@ -14,3 +14,7 @@ src/generated-processor.ts
 docs/.vitepress/dist
 docs/.vitepress/cache
 docs/node_modules
+
+# Product-management docs kept local only — not tracked in git.
+CLAUDE.md
+NORTH-STAR.md

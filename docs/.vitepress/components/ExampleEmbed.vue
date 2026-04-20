@@ -62,18 +62,31 @@ const exampleName = computed(() => {
         sandbox="allow-scripts allow-same-origin allow-forms"
         loading="lazy"
         :title="`${exampleName} Demo`"
-      />
-      <div v-else class="example-error">
+      ></iframe>
+      <div
+        v-else
+        class="example-error"
+      >
         <p>⚠️ Example not available in development mode.</p>
         <p>Run the example locally: <code>cd examples/{{ example }} && npm run dev</code></p>
       </div>
     </div>
     
     <div class="example-links">
-      <a :href="iframeUrl" target="_blank" rel="noopener" class="link-button primary">
+      <a
+        :href="iframeUrl"
+        target="_blank"
+        rel="noopener"
+        class="link-button primary"
+      >
         🚀 Open in new tab
       </a>
-      <a :href="githubUrl" target="_blank" rel="noopener" class="link-button">
+      <a
+        :href="githubUrl"
+        target="_blank"
+        rel="noopener"
+        class="link-button"
+      >
         📖 View source on GitHub
       </a>
     </div>

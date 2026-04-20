@@ -11,7 +11,7 @@ const GTM_CONTAINER_ID = 'GTM-WF758H3P'
 export default defineConfig({
   title: "Realtime BPM Analyzer",
   titleTemplate: ":title | Realtime BPM Analyzer",
-  description: "Find the BPM of any song in your browser — free, private, no upload. Detect tempo from files, microphone, or streams in real time.",
+  description: "Free, private BPM detector — find the tempo of any song right in your browser. From MP3, microphone, or a radio stream. No upload, no account.",
 
   // Base URL - using root since deployed to www.realtime-bpm-analyzer.com
   base: '/',
@@ -46,13 +46,15 @@ export default defineConfig({
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:locale', content: 'en' }],
     ['meta', { property: 'og:site_name', content: 'Realtime BPM Analyzer' }],
-    ['meta', { property: 'og:title', content: 'Realtime BPM Analyzer — Detect BPM Online, Free & Private' }],
-    ['meta', { property: 'og:description', content: 'Find the BPM of any song in your browser — free, private, no upload. Detect tempo from files, microphone, or streams in real time.' }],
+    ['meta', { property: 'og:title', content: 'Realtime BPM Analyzer — Find the BPM of Any Song, Free' }],
+    ['meta', { property: 'og:description', content: 'Free, private BPM detector — find the tempo of any song right in your browser. From MP3, microphone, or a radio stream. No upload, no account.' }],
     ['meta', { property: 'og:url', content: 'https://www.realtime-bpm-analyzer.com' }],
     ['meta', { property: 'og:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
     ['meta', { property: 'og:image:width', content: '1280' }],
     ['meta', { property: 'og:image:height', content: '640' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:title', content: 'Realtime BPM Analyzer — Find the BPM of Any Song, Free' }],
+    ['meta', { name: 'twitter:description', content: 'Free, private BPM detector — find the tempo of any song right in your browser. From MP3, microphone, or a radio stream. No upload, no account.' }],
     ['meta', { name: 'twitter:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
     ['link', { rel: 'icon', type: 'image/png', href: '/favicon/favicon-96x96.png', sizes: '96x96' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon/favicon.svg' }],
@@ -60,11 +62,14 @@ export default defineConfig({
     ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/favicon/apple-touch-icon.png' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: 'Realtime BPM Analyzer' }],
     ['link', { rel: 'manifest', href: '/favicon/site.webmanifest'}],
+    // Structured data — three schemas on the same page: one covers the library
+    // (for developer search), one covers the consumer tool (for "bpm analyzer"
+    // search), and one covers the FAQ for rich result eligibility.
     ['script', { type: 'application/ld+json' }, JSON.stringify({
       '@context': 'https://schema.org',
       '@type': 'SoftwareSourceCode',
       name: 'Realtime BPM Analyzer',
-      description: 'Find the BPM of any song in your browser — free, private, no upload. A consumer tool and zero-dependency TypeScript library for detecting tempo in real time.',
+      description: 'Zero-dependency TypeScript library for detecting beats-per-minute (BPM) of audio or video sources in real time in the browser.',
       url: 'https://www.realtime-bpm-analyzer.com',
       codeRepository: 'https://github.com/dlepaux/realtime-bpm-analyzer',
       programmingLanguage: ['TypeScript', 'JavaScript'],
@@ -75,6 +80,91 @@ export default defineConfig({
         name: 'David Lepaux',
         url: 'https://david.lepaux.com',
       },
+    })],
+    ['script', { type: 'application/ld+json' }, JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebApplication',
+      name: 'Realtime BPM Analyzer',
+      description: 'Free online BPM analyzer — find the tempo of any song directly in your browser from a file, your microphone, or a live radio stream. No upload, no account.',
+      url: 'https://www.realtime-bpm-analyzer.com',
+      applicationCategory: 'MultimediaApplication',
+      operatingSystem: 'Web Browser',
+      browserRequirements: 'Requires Web Audio API support (any modern browser).',
+      inLanguage: 'en',
+      isAccessibleForFree: true,
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
+      featureList: [
+        'Analyze audio files (MP3, WAV, FLAC)',
+        'Detect BPM from microphone input',
+        'Detect BPM from a live radio stream',
+        'Audio processed locally in the browser — never uploaded',
+      ],
+    })],
+    ['script', { type: 'application/ld+json' }, JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: [
+        {
+          '@type': 'Question',
+          name: 'What is BPM?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'BPM stands for beats per minute — the tempo of a piece of music. It is the count of the underlying beats in one minute. A typical house track runs at 120–130 BPM, drum and bass at 160–180, ambient and downtempo below 100.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'How does the BPM analyzer work?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'The analyzer uses the Web Audio API to decode audio directly in your browser, applies a low-pass filter to isolate the low-frequency transients that usually carry the beat, and counts the intervals between detected peaks. The most frequent interval gives the BPM.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Is my audio sent to a server?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'No. Files you drop, microphone input, and stream audio are all processed locally in your browser. Nothing is uploaded. The site is pure client-side JavaScript.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Which audio formats are supported?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'MP3, WAV, and FLAC are supported for file analysis. Microphone input and live streams are handled directly via the Web Audio API without a format constraint.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Does it work on mobile?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. The tool works on modern mobile browsers (iOS Safari and Android Chrome). File upload, microphone permission, and stream playback all function on touch devices.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'How accurate is the BPM detection?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'For most modern music with a steady beat, detection is accurate within 1–2 BPM. Ambient, rubato, or beatless tracks are harder and may not produce a confident result. The analyzer always returns the top candidates so you can compare.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can I use this as a library in my own app?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes. Install realtime-bpm-analyzer from npm. It is zero-dependency, written in TypeScript, and works with vanilla JS, React, Vue, or any modern framework. See the developer docs for integration examples.',
+          },
+        },
+      ],
     })],
   ],
 

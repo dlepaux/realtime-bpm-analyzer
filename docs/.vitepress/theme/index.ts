@@ -1,12 +1,13 @@
 import DefaultTheme from 'vitepress/theme'
-import type { Theme } from 'vitepress'
+import type { EnhanceAppContext, Theme } from 'vitepress'
 import ExampleEmbed from '../components/ExampleEmbed.vue'
+import Layout from './Layout.vue'
 import './custom.css'
 
 export default {
   extends: DefaultTheme,
-  enhanceApp({ app }: { app: any }) {
-    // Register ExampleEmbed component globally
+  Layout,
+  enhanceApp({ app }: EnhanceAppContext) {
     app.component('ExampleEmbed', ExampleEmbed)
-  }
+  },
 } satisfies Theme

@@ -1,5 +1,108 @@
 /* Custom styles for documentation */
 
+/* ── Hero right-column overrides for BpmHeroTool ───────────────────────── */
+
+/* Hide the decorative blurred background circle at all sizes —
+   it's just noise behind an interactive tool. */
+.VPHero .image-bg {
+  display: none !important;
+}
+
+/* Base overrides that apply at every breakpoint:
+   let our tool own the image slot with auto height + full width of the slot,
+   no fixed square, no padding/background/transform tricks. */
+.VPHero .image-container {
+  width: 100% !important;
+  height: auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  transform: none !important;
+  margin: 0 auto !important;
+  aspect-ratio: auto !important;
+}
+
+.VPHero .image-src {
+  display: none !important;
+}
+
+/* Desktop: the tool sits on the right, vertically centered against the copy. */
+@media (min-width: 960px) {
+  .VPHero .image {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .VPHero .image-container {
+    max-width: 440px;
+  }
+}
+
+/* Mobile-only headline block shown ABOVE the tool (see Layout.vue). Hidden on
+   desktop where the VitePress-rendered .VPHero .main copy is visible on the left. */
+.bpm-mobile-hero-head {
+  display: none;
+}
+
+/* Mobile: VitePress default applies negative margins (-76px top, -24px sides,
+   -48px bottom) on .VPHero .image, which drags the tool under the navbar and
+   into the copy below. Reset those — our tool owns its own spacing. */
+@media (max-width: 959px) {
+  .VPHero .image {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100%;
+  }
+  .VPHero .image-container {
+    max-width: 420px;
+    margin: 0 auto 2rem !important;
+  }
+
+  /* Hide the original hero name + text on mobile — we render them above the tool instead. */
+  .VPHero .main .name,
+  .VPHero .main .text {
+    display: none;
+  }
+
+  .bpm-mobile-hero-head {
+    display: block;
+    text-align: center;
+    max-width: 100%;
+    margin: 0 auto 1.75rem;
+  }
+
+  /* Mobile hero name — brand-colored, matches VitePress native .name sizing. */
+  .bpm-mobile-hero-name {
+    font-size: 32px;
+    line-height: 40px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--vp-home-hero-name-color, var(--vp-c-brand-1));
+    background: var(--vp-home-hero-name-background);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: var(--vp-home-hero-name-color, transparent);
+  }
+
+  /* Mobile hero text — the pitch line, paired right under the name. */
+  .bpm-mobile-hero-text {
+    font-size: 32px;
+    line-height: 40px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--vp-c-text-1);
+    margin-top: 0.25rem;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 959px) {
+  .bpm-mobile-hero-name,
+  .bpm-mobile-hero-text {
+    font-size: 56px;
+    line-height: 64px;
+  }
+}
+
 /* Enhance code blocks */
 .vp-doc div[class*='language-'] {
   margin: 1.5rem 0;

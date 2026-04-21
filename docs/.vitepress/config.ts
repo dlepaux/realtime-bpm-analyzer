@@ -7,9 +7,9 @@ const pkg = require('../../package.json')
 // GTM container for analytics. Change here if the container is ever rotated.
 const GTM_CONTAINER_ID = 'GTM-WF758H3P'
 
-// Copyright year range — first commit landed in 2018. End year auto-updates
+// Copyright year range — first commit landed in 2015. End year auto-updates
 // on every build so deployed docs always show the current year.
-const COPYRIGHT_START_YEAR = 2018
+const COPYRIGHT_START_YEAR = 2015
 const COPYRIGHT_END_YEAR = new Date().getFullYear()
 const COPYRIGHT_YEARS = COPYRIGHT_END_YEAR > COPYRIGHT_START_YEAR
   ? `${COPYRIGHT_START_YEAR}–${COPYRIGHT_END_YEAR}`

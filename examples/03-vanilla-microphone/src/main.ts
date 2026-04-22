@@ -126,6 +126,14 @@ async function disconnect(): Promise<void> {
   analyser.disconnect();
   bpmAnalyzer.disconnect();
 
+  // Stop microphone tracks so the browser releases the device.
+  // Without this, the mic LED stays on and the track keeps capturing
+  // until the tab is closed.
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(track => track.stop());
+    mediaStream = null;
+  }
+
   // Reset UI
   startBtn.disabled = false;
   stopBtn.disabled = true;

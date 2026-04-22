@@ -135,8 +135,5 @@
       "@typescript-eslint/no-empty-function": "off",
       "unicorn/prevent-abbreviations": "off"
     }
-  },
-  "lint-staged": {
-    "**/*": "xo --fix"
   }
 }

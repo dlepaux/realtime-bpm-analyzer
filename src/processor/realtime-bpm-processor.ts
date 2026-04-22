@@ -148,7 +148,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     if (isBufferFull && !this.analysisInProgress) {
       this.analysisInProgress = true;
       // The variable sampleRate is global ! thanks to the AudioWorkletProcessor
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       this.realTimeBpmAnalyzer
         .analyzeChunk({
           audioSampleRate: sampleRate,

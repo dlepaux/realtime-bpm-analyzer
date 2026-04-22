@@ -286,7 +286,7 @@ export class BpmAnalyzer extends EventTarget {
       const eventData = event.data;
 
       // Map processor event types to emitter event names
-      // eslint-disable-next-line default-case -- all event types are handled
+       
       switch (eventData.type) {
         case 'bpm': {
           this.emit('bpm', eventData.data);

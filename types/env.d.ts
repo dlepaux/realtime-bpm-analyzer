@@ -2,7 +2,7 @@ export {};
 
 declare global {
   namespace NodeJS {
-    interface ProcessEnv { // eslint-disable-line @typescript-eslint/consistent-type-definitions
+    interface ProcessEnv {  
       processors: Record<string, string>;
     }
   }

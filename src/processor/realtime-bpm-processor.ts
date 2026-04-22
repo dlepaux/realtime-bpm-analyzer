@@ -11,7 +11,7 @@ import type {
 /**
  * Those declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.
  */
-/* eslint-disable no-var, @typescript-eslint/prefer-function-type, @typescript-eslint/no-empty-interface, @typescript-eslint/consistent-type-definitions, @typescript-eslint/no-redeclare, @typescript-eslint/naming-convention */
+/* eslint-disable no-var */
 declare var sampleRate: number;
 
 interface AudioWorkletProcessor {
@@ -72,7 +72,7 @@ declare function registerProcessor(
   name: string,
   processorCtor: AudioWorkletProcessorConstructor,
 ): void;
-/* eslint-enable no-var, @typescript-eslint/prefer-function-type, @typescript-eslint/no-empty-interface, @typescript-eslint/consistent-type-definitions, @typescript-eslint/no-redeclare, @typescript-eslint/naming-convention */
+/* eslint-enable no-var */
 
 export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   aggregate: (pcmData: Float32Array) => AggregateData;

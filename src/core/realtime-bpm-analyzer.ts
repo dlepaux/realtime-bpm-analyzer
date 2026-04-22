@@ -111,8 +111,8 @@ export class RealTimeBpmAnalyzer {
         threshold < minThreshold
         && this.validPeaks[threshold] !== undefined
       ) {
-        delete this.validPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
-        delete this.nextIndexPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
+        delete this.validPeaks[threshold];  
+        delete this.nextIndexPeaks[threshold];  
       }
 
       return false;

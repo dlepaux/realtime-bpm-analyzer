@@ -34,7 +34,7 @@ describe('Utils - Unit tests', () => {
 
     it('should respect custom minThreshold parameter', async () => {
       const object: Record<string, number> = {
-        0.4: 0, // eslint-disable-line @typescript-eslint/naming-convention
+        0.4: 0,  
       };
 
       await utils.descendingOverThresholds(async threshold => {

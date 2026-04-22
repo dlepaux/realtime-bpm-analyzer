@@ -37,6 +37,9 @@ const initialValue = {
  * Most users should use {@link createRealtimeBpmAnalyzer} instead of instantiating
  * this class directly. This class is primarily for internal use or advanced scenarios.
  *
+ * @deprecated This class is an internal implementation detail and will be removed
+ * in a future major release. Use {@link createRealtimeBpmAnalyzer} instead.
+ *
  * @group Classes
  */
 export class RealTimeBpmAnalyzer {

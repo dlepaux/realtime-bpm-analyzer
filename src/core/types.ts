@@ -14,13 +14,11 @@ export type ProcessorOutputEvent =
  * Control events sent to the processor (Main Thread → Processor)
  * @group Events
  */
-export type ProcessorInputEvent =
-  | {type: 'reset'}
-  | {type: 'stop'};
+export type ProcessorInputEvent = {type: 'reset'} | {type: 'stop'};
 
 /**
  * MessagePort message wrapper for processor input events
- * @group Events
+ * @internal
  */
 export type ProcessorInputMessage = {
   data: ProcessorInputEvent;
@@ -59,7 +57,7 @@ export type Peaks = number[];
 
 /**
  * Peaks with their associated threshold
- * @group Type Aliases
+ * @internal
  */
 export type PeaksAndThreshold = {
   peaks: Peaks;
@@ -79,7 +77,7 @@ export type BpmCandidates = {
 
 /**
  * Interval between beats
- * @group Type Aliases
+ * @internal
  */
 export type Interval = {
   /** Time interval in audio samples */
@@ -90,7 +88,7 @@ export type Interval = {
 
 /**
  * Tempo group with occurrence count
- * @group Type Aliases
+ * @internal
  */
 export type Group = {
   /** Tempo in BPM */
@@ -129,7 +127,7 @@ export type RealTimeBpmAnalyzerParameters = {
 
 /**
  * Internal analyzer options with required fields
- * @group Type Aliases
+ * @internal
  */
 export type RealTimeBpmAnalyzerOptions = {
   continuousAnalysis: boolean;
@@ -226,15 +224,6 @@ export type AggregateData = {
   readonly isBufferFull: boolean;
   readonly buffer: Float32Array;
   readonly bufferSize: number;
-};
-
-/**
- * Normalized biquad filter nodes for audio processing
- * @internal
- */
-export type NormalizedFilters = {
-  lowpass: BiquadFilterNode;
-  highpass: BiquadFilterNode;
 };
 
 /**

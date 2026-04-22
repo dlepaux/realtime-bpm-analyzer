@@ -175,6 +175,7 @@ export function getBiquadFilter(
  * @param buffer - Audio buffer
  * @param options - Optionnal BiquadFilterOptions
  * @returns A Promise that resolves an AudioBuffer instance
+ * @internal
  */
 export async function getOfflineLowPassSource(
   buffer: AudioBuffer,

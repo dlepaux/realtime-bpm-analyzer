@@ -32,9 +32,13 @@ describe('Analyzer - Unit tests', () => {
   });
 
   it('should trigger an error while getting candidate from empty array', async () => {
+    const {minPeaks} = await import('../../src/core/consts');
     expect(() => {
       getTopCandidate([]);
-    }).to.throw('Could not find enough samples for a reliable detection.');
+    }).to.throw(/no candidates found/);
+    expect(() => {
+      getTopCandidate([]);
+    }).to.throw(String(minPeaks));
   });
 
   it('should not compute BPM from empty array of peaks', async () => {

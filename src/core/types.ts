@@ -39,7 +39,20 @@ export type BpmAnalyzerEventMap = {
   analyzeChunk: Float32Array;
   /** Emitted in debug mode when a valid peak is detected */
   validPeak: {threshold: Threshold; index: number};
-  /** Emitted when an error occurs during processing */
+  /**
+   * Emitted when an error occurs during processing.
+   * @remarks
+   * Worklet-load failures thrown by `createRealtimeBpmAnalyzer` wrap the
+   * underlying cause via `Error.cause` (ES2022). Inspect `error.cause`
+   * to read the originating DOMException.
+   * @example
+   * ```ts
+   * analyzer.on('error', ({error}) => {
+   *   console.log(error.message);
+   *   console.log((error as Error).cause);
+   * });
+   * ```
+   */
   error: {message: string; error: Error};
 };
 

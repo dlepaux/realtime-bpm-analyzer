@@ -79,7 +79,10 @@ export function getTopCandidates(candidates: Tempo[], length = 5): Tempo[] {
  */
 export function getTopCandidate(candidates: Tempo[]): number {
   if (candidates.length === 0) {
-    throw new Error('Could not find enough samples for a reliable detection.');
+    throw new Error(
+      `getTopCandidate: no candidates found (0 peaks detected; minimum required is ${consts.minPeaks}). `
+      + 'Audio may be too silent or too short — ensure at least ~10 seconds of audio at 90 BPM.',
+    );
   }
 
   const [first] = candidates.sort((a, b) => b.count - a.count);

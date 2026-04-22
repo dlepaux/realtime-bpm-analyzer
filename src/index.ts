@@ -184,13 +184,15 @@ async function setupAudioWorkletNode(
   try {
     await audioContext.audioWorklet.addModule(objectUrl);
 
-    const audioWorkletNode = new AudioWorkletNode(audioContext, processorName, {
+    return new AudioWorkletNode(audioContext, processorName, {
       processorOptions,
     });
-
-    return audioWorkletNode;
+  } catch (err) {
+    throw new Error(
+      `Failed to load realtime-bpm-analyzer worklet: ${err instanceof Error ? err.message : String(err)}`,
+      {cause: err},
+    );
   } finally {
-    // Clean up the blob URL to prevent memory leaks
     URL.revokeObjectURL(objectUrl);
   }
 }

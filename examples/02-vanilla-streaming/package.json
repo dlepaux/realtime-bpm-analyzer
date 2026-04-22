@@ -12,7 +12,7 @@
     "realtime-bpm-analyzer": "file:../.."
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
+    "typescript": "^5.6.3",
     "vite": "^8.0.7"
   }
 }

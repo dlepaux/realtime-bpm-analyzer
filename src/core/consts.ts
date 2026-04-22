@@ -45,3 +45,21 @@ export const maxIntervalComparisons = 10;
  * Larger values provide more context but increase latency.
  */
 export const defaultBufferSize = 4096;
+
+/**
+ * Default stabilization window for continuous-analysis mode
+ * @remarks
+ * After this many milliseconds without a change in the dominant BPM,
+ * the analyzer considers the tempo stable and resets the buffer.
+ * Unit: milliseconds.
+ */
+export const defaultStabilizationTime = 20_000;
+
+/**
+ * Default mute window applied after each detected peak
+ * @remarks
+ * Prevents re-detecting the same peak during its decay phase.
+ * Expressed as a sample-index count, not wall-clock time.
+ * Unit: audio sample indexes.
+ */
+export const defaultMuteTimeInIndexes = 10_000;

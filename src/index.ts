@@ -69,8 +69,8 @@ export type {
  * const audioContext = new AudioContext();
  * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
  *   continuousAnalysis: true,    // Keep analyzing after stable BPM found
- *   stabilizationTime: 20000,    // Time in ms to consider BPM stable
- *   muteTimeInIndexes: 10000,    // Audio indexes to skip between peaks
+ *   stabilizationTime: 20_000,   // ms — matches defaultStabilizationTime, see consts.ts
+ *   muteTimeInIndexes: 10_000,   // sample indexes — matches defaultMuteTimeInIndexes, see consts.ts
  *   debug: false                 // Enable debug logging
  * });
  * ```

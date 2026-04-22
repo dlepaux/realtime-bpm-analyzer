@@ -117,9 +117,9 @@ export type Tempo = {
 export type RealTimeBpmAnalyzerParameters = {
   /** Continue analyzing after stable BPM is found (default: false) */
   continuousAnalysis?: boolean;
-  /** Time in milliseconds to consider BPM stable (default: 20000) */
+  /** Time in milliseconds to consider BPM stable (default: `defaultStabilizationTime` — 20 000 ms) */
   stabilizationTime?: number;
-  /** Audio samples to skip between peaks (default: 10000) */
+  /** Audio samples to skip between peaks (default: `defaultMuteTimeInIndexes` — 10 000 sample indexes) */
   muteTimeInIndexes?: number;
   /** Enable debug event logging (default: false) */
   debug?: boolean;

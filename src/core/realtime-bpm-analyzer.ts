@@ -49,8 +49,8 @@ export class RealTimeBpmAnalyzer {
    */
   options: RealTimeBpmAnalyzerOptions = {
     continuousAnalysis: false,
-    stabilizationTime: 20000,
-    muteTimeInIndexes: 10000,
+    stabilizationTime: consts.defaultStabilizationTime,
+    muteTimeInIndexes: consts.defaultMuteTimeInIndexes,
     debug: false,
   };
 
@@ -63,7 +63,7 @@ export class RealTimeBpmAnalyzer {
    */
   validPeaks: ValidPeaks = initialValue.validPeaks();
   /**
-   * Next index (+10000 ...) to take care about peaks
+   * Next index (+muteTimeInIndexes samples, see consts.defaultMuteTimeInIndexes) to take care about peaks
    */
   nextIndexPeaks: NextIndexPeaks = initialValue.nextIndexPeaks();
   /**
@@ -250,7 +250,7 @@ export class RealTimeBpmAnalyzer {
         const index = currentMinIndex + relativeChunkPeak;
 
         /**
-         * Add current Index + muteTimeInIndexes (10000/44100=0.22s)
+         * Add current Index + muteTimeInIndexes (default 10_000 / 44_100 Hz ≈ 0.22s)
          */
         this.nextIndexPeaks[atThreshold]
           = index + this.options.muteTimeInIndexes;

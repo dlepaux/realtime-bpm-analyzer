@@ -1,3 +1,15 @@
+## [5.0.11](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.10...v5.0.11) (2026-04-22)
+
+
+### Bug Fixes
+
+* **analyzer:** remove 0 and NaN intervals from identifyIntervals ([bb1cc02](https://github.com/dlepaux/realtime-bpm-analyzer/commit/bb1cc02ebd245546b3c09062d475222ce18c26f4))
+* **ci:** run full-project xo in pre-commit to match CI lint ([4056470](https://github.com/dlepaux/realtime-bpm-analyzer/commit/40564706a41360d983056331fb74962981317bb5)), closes [#112](https://github.com/dlepaux/realtime-bpm-analyzer/issues/112) [#113](https://github.com/dlepaux/realtime-bpm-analyzer/issues/113)
+* **examples:** release mic tracks on stop in vanilla-microphone ([2f5566d](https://github.com/dlepaux/realtime-bpm-analyzer/commit/2f5566d4fdcc9d7fa0e9fd57b5fb426ba7631a68))
+* **processor:** guard analyzeChunk against re-entrant calls ([bcb4dc9](https://github.com/dlepaux/realtime-bpm-analyzer/commit/bcb4dc9313f8f6f7299fd0a9385862eaeb8700e2))
+* **processor:** handle reset and stop messages in onMessage ([0ca2573](https://github.com/dlepaux/realtime-bpm-analyzer/commit/0ca2573c9b4f6f84654e7f27472c32944049c9d3))
+* **utils:** eliminate per-frame allocation and overshoot in chunkAggregator ([ed1feda](https://github.com/dlepaux/realtime-bpm-analyzer/commit/ed1feda4c6fa8ff62465e80bdfdc86297f9fd43f))
+
 ## [5.0.10](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.9...v5.0.10) (2026-04-22)
 
 

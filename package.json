@@ -37,9 +37,10 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
     "readme.md",
-    "licence.md"
+    "license.md"
   ],
   "sideEffects": false,
   "publishConfig": {

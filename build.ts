@@ -15,9 +15,7 @@ const outdir = 'dist';
 
 async function main() {
   const processorConfig: BuildOptions = {
-    entryPoints: [
-      'src/processor/realtime-bpm-processor.ts',
-    ],
+    entryPoints: ['src/processor/realtime-bpm-processor.ts'],
     outfile: `${outdir}/realtime-bpm-processor.js`,
     ...commonConfig,
   };
@@ -29,15 +27,27 @@ async function main() {
 
   let processor: string | undefined;
   try {
-    processor = await promises.readFile('./dist/realtime-bpm-processor.js', 'utf8');
+    processor = await promises.readFile(
+      './dist/realtime-bpm-processor.js',
+      'utf8',
+    );
   } catch (error: unknown) {
     console.warn(error);
     console.warn('NO PROCESSOR BUILT !');
   }
 
-  // Generate processor file inlined
-  const generatedProcessor = ['export default `', processor, '`;\n'].join('');
-  await promises.writeFile('src/generated-processor.ts', generatedProcessor, 'utf8');
+  // Generate processor file inlined.
+  // Typed `string` stops tsc from baking the full content into a literal type in the emitted .d.ts.
+  const generatedProcessor = [
+    'const realtimeBpmProcessor: string = `',
+    processor,
+    '`;\nexport default realtimeBpmProcessor;\n',
+  ].join('');
+  await promises.writeFile(
+    'src/generated-processor.ts',
+    generatedProcessor,
+    'utf8',
+  );
 
   const esbuildEsmConfig: BuildOptions = {
     entryPoints: ['src/index.ts'],

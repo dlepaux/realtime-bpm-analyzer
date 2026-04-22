@@ -1,5 +1,11 @@
 import * as consts from './consts';
-import type {Peaks, ValidPeaks, NextIndexPeaks, OnThresholdFunction, AggregateData} from './types';
+import type {
+  Peaks,
+  ValidPeaks,
+  NextIndexPeaks,
+  OnThresholdFunction,
+  AggregateData,
+} from './types';
 
 /**
  * Loop between .9 and minValidThreshold at .2 by default, passing the threshold to the function
@@ -9,7 +15,12 @@ import type {Peaks, ValidPeaks, NextIndexPeaks, OnThresholdFunction, AggregateDa
  * @param thresholdStep thresholdStep usuably 0.05
  * @returns A promise that resolves nothing
  */
-export async function descendingOverThresholds(onThreshold: OnThresholdFunction, minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): Promise<void> {
+export async function descendingOverThresholds(
+  onThreshold: OnThresholdFunction,
+  minValidThreshold = consts.minValidThreshold,
+  startThreshold = consts.startThreshold,
+  thresholdStep = consts.thresholdStep,
+): Promise<void> {
   let threshold = startThreshold;
 
   do {
@@ -29,7 +40,12 @@ export async function descendingOverThresholds(onThreshold: OnThresholdFunction,
  * @param thresholdStep Step size between thresholds (default: 0.05)
  * @returns Object with threshold strings as keys and initialValue as values
  */
-function generateThresholdMap<T>(initialValueFactory: () => T, minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): Record<string, T> {
+function generateThresholdMap<T>(
+  initialValueFactory: () => T,
+  minValidThreshold = consts.minValidThreshold,
+  startThreshold = consts.startThreshold,
+  thresholdStep = consts.thresholdStep,
+): Record<string, T> {
   const object: Record<string, T> = {};
   let threshold = startThreshold;
 
@@ -49,8 +65,17 @@ function generateThresholdMap<T>(initialValueFactory: () => T, minValidThreshold
  * @param thresholdStep thresholdStep usuably 0.05
  * @returns Collection of validPeaks by thresholds
  */
-export function generateValidPeaksModel(minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): ValidPeaks {
-  return generateThresholdMap<Peaks>(() => [], minValidThreshold, startThreshold, thresholdStep);
+export function generateValidPeaksModel(
+  minValidThreshold = consts.minValidThreshold,
+  startThreshold = consts.startThreshold,
+  thresholdStep = consts.thresholdStep,
+): ValidPeaks {
+  return generateThresholdMap<Peaks>(
+    () => [],
+    minValidThreshold,
+    startThreshold,
+    thresholdStep,
+  );
 }
 
 /**
@@ -60,8 +85,17 @@ export function generateValidPeaksModel(minValidThreshold = consts.minValidThres
  * @param thresholdStep Usually 0.05
  * @returns Collection of NextIndexPeaks by thresholds
  */
-export function generateNextIndexPeaksModel(minValidThreshold = consts.minValidThreshold, startThreshold = consts.startThreshold, thresholdStep = consts.thresholdStep): NextIndexPeaks {
-  return generateThresholdMap<number>(() => 0, minValidThreshold, startThreshold, thresholdStep);
+export function generateNextIndexPeaksModel(
+  minValidThreshold = consts.minValidThreshold,
+  startThreshold = consts.startThreshold,
+  thresholdStep = consts.thresholdStep,
+): NextIndexPeaks {
+  return generateThresholdMap<number>(
+    () => 0,
+    minValidThreshold,
+    startThreshold,
+    thresholdStep,
+  );
 }
 
 /**
@@ -69,39 +103,14 @@ export function generateNextIndexPeaksModel(minValidThreshold = consts.minValidT
  * @param bufferSize - Size of the buffer to aggregate (default: 4096)
  * @returns A function that accepts PCM data and aggregates it into chunks.
  */
-export function chunkAggregator(bufferSize = consts.defaultBufferSize): (pcmData: Float32Array) => AggregateData {
-  /**
-   * Track the current buffer fill level.
-   */
-  let _bytesWritten = 0;
-
-  /**
-   * Create a buffer of fixed size.
-   */
-  let buffer: Float32Array = new Float32Array(0);
-
-  /**
-   * Initialize the buffer.
-   */
-  function initBuffer(): void {
-    _bytesWritten = 0;
-    buffer = new Float32Array(0);
-  }
-
-  /**
-   * Checks if the buffer is full.
-   * @returns True if the buffer is full, otherwise false.
-   */
-  function isBufferFull(): boolean {
-    return _bytesWritten === bufferSize;
-  }
-
-  /**
-   * Flushes the buffer.
-   */
-  function flush(): void {
-    initBuffer();
-  }
+export function chunkAggregator(
+  bufferSize = consts.defaultBufferSize,
+): (pcmData: Float32Array) => AggregateData {
+  // One allocation for the lifetime of the aggregator. Previous implementation
+  // allocated a fresh Float32Array on every call (375+ times/second inside the
+  // AudioWorklet callback), producing enough GC pressure to cause audible glitches.
+  const buffer = new Float32Array(bufferSize);
+  let bytesWritten = 0;
 
   /**
    * Aggregates incoming PCM data into chunks.
@@ -109,19 +118,25 @@ export function chunkAggregator(bufferSize = consts.defaultBufferSize): (pcmData
    * @returns Object containing aggregated data and buffer information.
    */
   return function (pcmData: Float32Array): AggregateData {
-    if (isBufferFull()) {
-      flush();
+    if (bytesWritten >= bufferSize) {
+      bytesWritten = 0;
     }
 
-    const newBuffer = new Float32Array(buffer.length + pcmData.length);
-    newBuffer.set(buffer, 0);
-    newBuffer.set(pcmData, buffer.length);
-    buffer = newBuffer;
-    _bytesWritten += pcmData.length;
+    // Clamp to available space. Oversized chunks would otherwise overshoot the
+    // buffer and leave isBufferFull stuck at false (prior bug: `=== bufferSize` check).
+    const writable = Math.min(pcmData.length, bufferSize - bytesWritten);
+    buffer.set(pcmData.subarray(0, writable), bytesWritten);
+    bytesWritten += writable;
+
+    const full = bytesWritten >= bufferSize;
 
     return {
-      isBufferFull: isBufferFull(),
-      buffer,
+      isBufferFull: full,
+      // Full case: return the shared buffer (safe because RealTimeBpmProcessor's
+      // analysisInProgress guard prevents a second analyzeChunk from reading
+      // the buffer while a new chunk is being written).
+      // Partial case: zero-copy view matching the written length.
+      buffer: full ? buffer : buffer.subarray(0, bytesWritten),
       bufferSize,
     };
   };
@@ -133,6 +148,9 @@ export function chunkAggregator(bufferSize = consts.defaultBufferSize): (pcmData
  * @param sampleRate Sample rate, typically 48000, 441000, etc
  * @returns The number of indexes we need to skip
  */
-export function computeIndexesToSkip(durationSeconds: number, sampleRate: number): number {
+export function computeIndexesToSkip(
+  durationSeconds: number,
+  sampleRate: number,
+): number {
   return Math.round(durationSeconds * sampleRate);
 }

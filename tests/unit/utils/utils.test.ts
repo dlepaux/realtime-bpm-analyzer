@@ -48,10 +48,15 @@ describe('utils - comprehensive tests', () => {
     it('should iterate from startThreshold down to minThreshold', async () => {
       const thresholds: number[] = [];
 
-      await utils.descendingOverThresholds(async threshold => {
-        thresholds.push(threshold);
-        return false; // Continue iteration
-      }, 0.2, 0.5, 0.1);
+      await utils.descendingOverThresholds(
+        async threshold => {
+          thresholds.push(threshold);
+          return false; // Continue iteration
+        },
+        0.2,
+        0.5,
+        0.1,
+      );
 
       // Algorithm decrements first: 0.5 -> 0.4, 0.3, 0.2, 0.1 (stops when <= 0.2 after iteration)
       expect(thresholds.length).to.equal(4);
@@ -307,10 +312,10 @@ describe('utils - comprehensive tests', () => {
       const largeChunk = new Float32Array(2048);
       const result = aggregate(largeChunk);
 
-      expect(result.buffer.length).to.equal(2048);
-      // Buffer is not "full" because _bytesWritten (2048) !== bufferSize (1024)
-      // It's actually overfull
-      expect(result.isBufferFull).to.be.false;
+      // Oversized chunks are clamped to bufferSize: the first bufferSize
+      // samples are written and isBufferFull reports true. Excess is dropped.
+      expect(result.buffer.length).to.equal(1024);
+      expect(result.isBufferFull).to.be.true;
       expect(result.bufferSize).to.equal(1024);
     });
 
@@ -415,12 +420,56 @@ describe('utils - comprehensive tests', () => {
     });
   });
 
+  // Tests codifying the correctness contract.
+  // See plan/backlog/lib-bug-chunk-aggregator-allocation.md
+  describe('chunkAggregator - correctness contract', () => {
+    it('should report isBufferFull: true when an oversized chunk fills the buffer', () => {
+      const bufferSize = 1024;
+      const aggregate = utils.chunkAggregator(bufferSize);
+
+      const oversized = new Float32Array(2048).fill(0.7);
+      const result = aggregate(oversized);
+
+      expect(
+        result.isBufferFull,
+        'a chunk at least as large as bufferSize must fill the buffer',
+      ).to.be.true;
+    });
+
+    it('should not overshoot the buffer when chunk is larger than bufferSize', () => {
+      const bufferSize = 1024;
+      const aggregate = utils.chunkAggregator(bufferSize);
+
+      const oversized = new Float32Array(5000).fill(0.5);
+      const result = aggregate(oversized);
+
+      expect(
+        result.buffer.length,
+        'returned buffer must be bufferSize-bounded, not overflow',
+      ).to.equal(bufferSize);
+    });
+
+    it('should reuse the same underlying ArrayBuffer across successive chunks (no per-frame allocation)', () => {
+      const aggregate = utils.chunkAggregator(1024);
+
+      const first = aggregate(new Float32Array(256).fill(1));
+      const second = aggregate(new Float32Array(256).fill(2));
+
+      expect(
+        second.buffer.buffer === first.buffer.buffer,
+        'chunkAggregator must not allocate a new ArrayBuffer per call',
+      ).to.be.true;
+    });
+  });
+
   describe('model consistency', () => {
     it('should generate models with consistent threshold ranges', () => {
       const validPeaks = utils.generateValidPeaksModel();
       const nextIndex = utils.generateNextIndexPeaksModel();
 
-      expect(Object.keys(validPeaks).length).to.equal(Object.keys(nextIndex).length);
+      expect(Object.keys(validPeaks).length).to.equal(
+        Object.keys(nextIndex).length,
+      );
     });
 
     it('should allow threshold iteration over generated models', async () => {

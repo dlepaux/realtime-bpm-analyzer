@@ -24,6 +24,9 @@
     "lucide-vue-next": "^1.0.0",
     "realtime-bpm-analyzer": "file:.."
   },
+  "overrides": {
+    "vite": "^6.4.2"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.10.2",

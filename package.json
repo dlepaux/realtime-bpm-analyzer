@@ -5,7 +5,7 @@
   "author": {
     "name": "David Lepaux",
     "email": "d.lepaux@gmail.com",
-    "url": "https://github.com/dlepaux"
+    "url": "https://david.lepaux.com"
   },
   "keywords": [
     "webaudioapi",
@@ -49,6 +49,9 @@
   "workspaces": [
     "examples/*"
   ],
+  "overrides": {
+    "serialize-javascript": "^7.0.5"
+  },
   "scripts": {
     "build": "bash bin/build/library.sh",
     "docs:dev": "npm run build && cd docs && npm run dev",
@@ -69,6 +72,7 @@
     "test:lib": "web-test-runner --files 'tests/lib/**/*.ts'",
     "test:coverage": "web-test-runner --coverage"
   },
+  "homepage": "https://www.realtime-bpm-analyzer.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/dlepaux/realtime-bpm-analyzer"

@@ -1,3 +1,11 @@
+## [5.0.10](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.9...v5.0.10) (2026-04-22)
+
+
+### Bug Fixes
+
+* **analyzer:** scan full chunk when nextIndexPeaks is stale ([35ab66f](https://github.com/dlepaux/realtime-bpm-analyzer/commit/35ab66ff88106f425cfe3db19541becd093a3355))
+* **analyzer:** scan full chunk when nextIndexPeaks is stale ([275bad0](https://github.com/dlepaux/realtime-bpm-analyzer/commit/275bad05a84269a0b79b7cbafc5fc2e84985fbaf)), closes [hi#threshold](https://github.com/hi/issues/threshold)
+
 ## [5.0.9](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.8...v5.0.9) (2026-04-22)
 
 

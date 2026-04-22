@@ -1,7 +1,12 @@
 import {realtimeBpmProcessorName} from '../core/consts';
 import {chunkAggregator} from '../core/utils';
 import {RealTimeBpmAnalyzer} from '../core/realtime-bpm-analyzer';
-import type {ProcessorInputMessage, AggregateData, RealTimeBpmAnalyzerParameters, ProcessorOutputEvent} from '../core/types';
+import type {
+  ProcessorInputMessage,
+  AggregateData,
+  RealTimeBpmAnalyzerParameters,
+  ProcessorOutputEvent,
+} from '../core/types';
 
 /**
  * Those declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.
@@ -26,49 +31,65 @@ type AudioWorkletProcessorParameters = {
 
 declare var AudioWorkletProcessor: {
   prototype: AudioWorkletProcessor;
-  new(options?: AudioWorkletProcessorParameters): AudioWorkletProcessor;
+  new (options?: AudioWorkletProcessorParameters): AudioWorkletProcessor;
 };
 
 interface AudioWorkletProcessorImpl extends AudioWorkletProcessor {
-  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean;
+  process(
+    inputs: Float32Array[][],
+    outputs: Float32Array[][],
+    parameters: Record<string, Float32Array>,
+  ): boolean;
 }
 
 interface WorkletGlobalScope {}
 
 declare var WorkletGlobalScope: {
   prototype: WorkletGlobalScope;
-  new(): WorkletGlobalScope;
+  new (): WorkletGlobalScope;
 };
 
 interface AudioWorkletGlobalScope extends WorkletGlobalScope {
   readonly currentFrame: number;
   readonly currentTime: number;
   readonly sampleRate: number;
-  registerProcessor(name: string, processorCtor: AudioWorkletProcessorConstructor): void;
+  registerProcessor(
+    name: string,
+    processorCtor: AudioWorkletProcessorConstructor,
+  ): void;
 }
 
 declare var AudioWorkletGlobalScope: {
   prototype: AudioWorkletGlobalScope;
-  new(): AudioWorkletGlobalScope;
+  new (): AudioWorkletGlobalScope;
 };
 
 interface AudioWorkletProcessorConstructor {
   new (options: any): AudioWorkletProcessorImpl;
 }
 
-declare function registerProcessor(name: string, processorCtor: AudioWorkletProcessorConstructor): void;
+declare function registerProcessor(
+  name: string,
+  processorCtor: AudioWorkletProcessorConstructor,
+): void;
 /* eslint-enable no-var, @typescript-eslint/prefer-function-type, @typescript-eslint/no-empty-interface, @typescript-eslint/consistent-type-definitions, @typescript-eslint/no-redeclare, @typescript-eslint/naming-convention */
 
 export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   aggregate: (pcmData: Float32Array) => AggregateData;
   realTimeBpmAnalyzer: RealTimeBpmAnalyzer;
   stopped = false;
+  // Guards against re-entrant analyzeChunk calls. process() is invoked every
+  // render quantum; without this flag, a slow analysis could have multiple
+  // concurrent invocations mutating the analyzer's shared state.
+  analysisInProgress = false;
 
   constructor(options: AudioWorkletProcessorParameters) {
     super(options);
 
     this.aggregate = chunkAggregator();
-    this.realTimeBpmAnalyzer = new RealTimeBpmAnalyzer(options.processorOptions);
+    this.realTimeBpmAnalyzer = new RealTimeBpmAnalyzer(
+      options.processorOptions,
+    );
 
     this.port.addEventListener('message', this.onMessage.bind(this));
     this.port.start();
@@ -89,7 +110,11 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
    * @param _parameters Parameters
    * @returns Process ended successfully
    */
-  process(inputs: Float32Array[][], _outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
+  process(
+    inputs: Float32Array[][],
+    _outputs: Float32Array[][],
+    _parameters: Record<string, Float32Array>,
+  ): boolean {
     const currentChunk = inputs[0][0];
 
     if (this.stopped) {
@@ -102,20 +127,35 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
     const {isBufferFull, buffer, bufferSize} = this.aggregate(currentChunk);
 
-    if (isBufferFull) {
+    if (isBufferFull && !this.analysisInProgress) {
+      this.analysisInProgress = true;
       // The variable sampleRate is global ! thanks to the AudioWorkletProcessor
-      this.realTimeBpmAnalyzer.analyzeChunk({audioSampleRate: sampleRate, channelData: buffer, bufferSize, postMessage: event => {
-        this.port.postMessage(event);
-      }}).catch((error: unknown) => {
-        // Emit error event to allow user-level error handling
-        this.port.postMessage({
-          type: 'error',
-          data: {
-            message: error instanceof Error ? error.message : 'Unknown error during BPM analysis',
-            error: error instanceof Error ? error : new Error(String(error)),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      this.realTimeBpmAnalyzer
+        .analyzeChunk({
+          audioSampleRate: sampleRate,
+          channelData: buffer,
+          bufferSize,
+          postMessage: event => {
+            this.port.postMessage(event);
           },
+        })
+        .catch((error: unknown) => {
+          // Emit error event to allow user-level error handling
+          this.port.postMessage({
+            type: 'error',
+            data: {
+              message:
+                error instanceof Error
+                  ? error.message
+                  : 'Unknown error during BPM analysis',
+              error: error instanceof Error ? error : new Error(String(error)),
+            },
+          });
+        })
+        .finally(() => {
+          this.analysisInProgress = false;
         });
-      });
     }
 
     return true;

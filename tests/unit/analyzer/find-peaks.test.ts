@@ -197,7 +197,8 @@ describe('analyzer - findPeaksAtThreshold', () => {
       const beatInterval = Math.floor(sampleRate / 4); // 4 beats per second
 
       for (let i = 0; i < 4; i++) {
-        const index = (i * beatInterval) + 1000; // Add some offset
+        const beatOffset = i * beatInterval;
+        const index = beatOffset + 1000; // Add some offset
         if (index < data.length) {
           data[index] = 0.9;
         }
@@ -219,7 +220,8 @@ describe('analyzer - findPeaksAtThreshold', () => {
 
       // Add peaks every second
       for (let i = 0; i < 10; i++) {
-        const index = (i * sampleRate) + 1000;
+        const secondOffset = i * sampleRate;
+        const index = secondOffset + 1000;
         if (index < data.length) {
           data[index] = 0.9;
         }
@@ -270,6 +272,45 @@ describe('analyzer - findPeaksAtThreshold', () => {
         expect(peak).to.be.at.least(0);
         expect(peak).to.be.lessThan(data.length);
       }
+    });
+  });
+
+  // Tests codifying the correct skip-forward contract.
+  // See plan/backlog/lib-bug-find-peaks-skip-off-by-one.md
+  describe('skip-forward behaviour after a detected peak', () => {
+    // PeakSkipDuration (0.25s) * 44100 = 11025 samples
+    const skipForwardIndexes = 11025;
+
+    it('should detect a second peak located exactly skipForwardIndexes after the first', () => {
+      const firstPeakIndex = 100;
+      const secondPeakIndex = firstPeakIndex + skipForwardIndexes;
+      const data = new Float32Array(secondPeakIndex + 1000);
+      data[firstPeakIndex] = 1;
+      data[secondPeakIndex] = 1;
+
+      const result = findPeaksAtThreshold({
+        audioSampleRate: sampleRate,
+        data,
+        threshold: 0.5,
+      });
+
+      expect(result.peaks).to.deep.equal([firstPeakIndex, secondPeakIndex]);
+    });
+
+    it('should not detect a peak located one sample BEFORE skipForwardIndexes (inside mute zone)', () => {
+      const firstPeakIndex = 100;
+      const insideMuteZoneIndex = firstPeakIndex + skipForwardIndexes - 1;
+      const data = new Float32Array(insideMuteZoneIndex + 1000);
+      data[firstPeakIndex] = 1;
+      data[insideMuteZoneIndex] = 1;
+
+      const result = findPeaksAtThreshold({
+        audioSampleRate: sampleRate,
+        data,
+        threshold: 0.5,
+      });
+
+      expect(result.peaks).to.deep.equal([firstPeakIndex]);
     });
   });
 });

@@ -31,15 +31,26 @@ export function findPeaksAtThreshold({
   offset = 0,
 }: AnalyzerFindPeaksAtTheshold): PeaksAndThreshold {
   if (threshold < 0 || threshold > 1) {
-    throw new Error('Invalid threshold: ' + threshold + '. Threshold must be between 0 and 1.');
+    throw new Error(
+      'Invalid threshold: '
+        + threshold
+        + '. Threshold must be between 0 and 1.',
+    );
   }
 
   if (audioSampleRate <= 0) {
-    throw new Error('Invalid sample rate: ' + audioSampleRate + '. Sample rate must be positive.');
+    throw new Error(
+      'Invalid sample rate: '
+        + audioSampleRate
+        + '. Sample rate must be positive.',
+    );
   }
 
   const peaks: Peaks = [];
-  const skipForwardIndexes = utils.computeIndexesToSkip(consts.peakSkipDuration, audioSampleRate);
+  const skipForwardIndexes = utils.computeIndexesToSkip(
+    consts.peakSkipDuration,
+    audioSampleRate,
+  );
 
   const {length} = data;
 
@@ -50,10 +61,10 @@ export function findPeaksAtThreshold({
     if (data[i] > threshold) {
       peaks.push(i);
 
-      /**
-       * Skip forward ~0.25s to pass this peak
-       */
-      i += skipForwardIndexes;
+      // Skip forward ~0.25s to pass this peak. Subtract 1 because the for-loop
+      // will also increment i on the next iteration; without this adjustment
+      // we would actually skip skipForwardIndexes+1 samples per peak.
+      i += skipForwardIndexes - 1;
     }
   }
 
@@ -75,7 +86,9 @@ export async function findPeaks({
   channelData,
 }: AnalyzerFindPeaksOptions): Promise<PeaksAndThreshold> {
   if (audioSampleRate <= 0) {
-    throw new Error(`Invalid sample rate: ${audioSampleRate}. Sample rate must be positive.`);
+    throw new Error(
+      `Invalid sample rate: ${audioSampleRate}. Sample rate must be positive.`,
+    );
   }
 
   if (!channelData || channelData.length === 0) {
@@ -86,7 +99,11 @@ export async function findPeaks({
   let validThreshold = 0;
 
   await descendingOverThresholds(async threshold => {
-    const {peaks} = findPeaksAtThreshold({audioSampleRate, data: channelData, threshold});
+    const {peaks} = findPeaksAtThreshold({
+      audioSampleRate,
+      data: channelData,
+      threshold,
+    });
 
     /**
      * Loop over peaks
@@ -140,7 +157,10 @@ export async function findPeaks({
  *
  * @group Functions
  */
-export function getBiquadFilter(context: OfflineAudioContext | AudioContext, options?: BiquadFilterOptions): BiquadFilterNode {
+export function getBiquadFilter(
+  context: OfflineAudioContext | AudioContext,
+  options?: BiquadFilterOptions,
+): BiquadFilterNode {
   const lowpass = context.createBiquadFilter();
 
   lowpass.type = 'lowpass';
@@ -156,9 +176,16 @@ export function getBiquadFilter(context: OfflineAudioContext | AudioContext, opt
  * @param options - Optionnal BiquadFilterOptions
  * @returns A Promise that resolves an AudioBuffer instance
  */
-export async function getOfflineLowPassSource(buffer: AudioBuffer, options?: BiquadFilterOptions): Promise<AudioBuffer> {
+export async function getOfflineLowPassSource(
+  buffer: AudioBuffer,
+  options?: BiquadFilterOptions,
+): Promise<AudioBuffer> {
   const {length, numberOfChannels, sampleRate} = buffer;
-  const offlineAudioContext = new OfflineAudioContext(numberOfChannels, length, sampleRate);
+  const offlineAudioContext = new OfflineAudioContext(
+    numberOfChannels,
+    length,
+    sampleRate,
+  );
 
   /**
    * Create buffer source
@@ -239,7 +266,7 @@ export async function computeBpm({
  * @returns Returns the 5 top candidates with highest counts
  */
 export function getTopCandidates(candidates: Tempo[], length = 5): Tempo[] {
-  return candidates.sort((a, b) => (b.count - a.count)).slice(0, length);
+  return candidates.sort((a, b) => b.count - a.count).slice(0, length);
 }
 
 /**
@@ -253,7 +280,7 @@ export function getTopCandidate(candidates: Tempo[]): number {
     throw new Error('Could not find enough samples for a reliable detection.');
   }
 
-  const [first] = candidates.sort((a, b) => (b.count - a.count));
+  const [first] = candidates.sort((a, b) => b.count - a.count);
 
   return first.tempo;
 }
@@ -275,7 +302,9 @@ export function identifyIntervals(peaks: Peaks): Interval[] {
       /**
        * Try and find a matching interval and increase it's count
        */
-      let foundInterval = intervals.find((intervalCount: Interval) => intervalCount.interval === interval);
+      let foundInterval = intervals.find(
+        (intervalCount: Interval) => intervalCount.interval === interval,
+      );
 
       if (foundInterval) {
         // Create new object with incremented count (immutable update)
@@ -330,7 +359,7 @@ export function groupByTempo({
     /**
      * Convert an interval to tempo
      */
-    let theoreticalTempo = (60 / (absoluteInterval / audioSampleRate));
+    let theoreticalTempo = 60 / (absoluteInterval / audioSampleRate);
 
     /**
      * Adjust the tempo to fit within the 90-180 BPM range
@@ -351,7 +380,9 @@ export function groupByTempo({
     /**
      * See if another interval resolved to the same tempo
      */
-    let foundTempo = tempoCounts.find((tempoCount: Tempo) => tempoCount.tempo === theoreticalTempo);
+    let foundTempo = tempoCounts.find(
+      (tempoCount: Tempo) => tempoCount.tempo === theoreticalTempo,
+    );
 
     if (foundTempo) {
       // Create new object with aggregated count (immutable update)
@@ -457,20 +488,31 @@ export function groupByTempo({
  *
  * @group Functions
  */
-export async function analyzeFullBuffer(originalBuffer: AudioBuffer, options?: BiquadFilterOptions): Promise<Tempo[]> {
+export async function analyzeFullBuffer(
+  originalBuffer: AudioBuffer,
+  options?: BiquadFilterOptions,
+): Promise<Tempo[]> {
   if (!originalBuffer || originalBuffer.length === 0) {
     throw new Error('Invalid audio buffer: buffer is empty or undefined.');
   }
 
   if (originalBuffer.sampleRate <= 0) {
-    throw new Error(`Invalid sample rate: ${originalBuffer.sampleRate}. Sample rate must be positive.`);
+    throw new Error(
+      `Invalid sample rate: ${originalBuffer.sampleRate}. Sample rate must be positive.`,
+    );
   }
 
   const buffer = await getOfflineLowPassSource(originalBuffer, options);
   const channelData = buffer.getChannelData(0);
-  const {peaks} = await findPeaks({audioSampleRate: buffer.sampleRate, channelData});
+  const {peaks} = await findPeaks({
+    audioSampleRate: buffer.sampleRate,
+    channelData,
+  });
   const intervals = identifyIntervals(peaks);
-  const tempos = groupByTempo({audioSampleRate: buffer.sampleRate, intervalCounts: intervals});
+  const tempos = groupByTempo({
+    audioSampleRate: buffer.sampleRate,
+    intervalCounts: intervals,
+  });
   const topCandidates = getTopCandidates(tempos);
 
   return topCandidates;

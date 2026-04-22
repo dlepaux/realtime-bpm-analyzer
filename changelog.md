@@ -1,3 +1,10 @@
+## [5.0.8](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.7...v5.0.8) (2026-04-22)
+
+
+### Bug Fixes
+
+* **deps:** patch vite and serialize-javascript advisories ([45b5f92](https://github.com/dlepaux/realtime-bpm-analyzer/commit/45b5f92e7e38b752ab2a93edf90b674edc3033dc)), closes [#148](https://github.com/dlepaux/realtime-bpm-analyzer/issues/148) [#152](https://github.com/dlepaux/realtime-bpm-analyzer/issues/152)
+
 ## [5.0.7](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.6...v5.0.7) (2026-04-14)
 
 

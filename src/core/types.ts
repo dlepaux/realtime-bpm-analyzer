@@ -14,13 +14,11 @@ export type ProcessorOutputEvent =
  * Control events sent to the processor (Main Thread → Processor)
  * @group Events
  */
-export type ProcessorInputEvent =
-  | {type: 'reset'}
-  | {type: 'stop'};
+export type ProcessorInputEvent = {type: 'reset'} | {type: 'stop'};
 
 /**
  * MessagePort message wrapper for processor input events
- * @group Events
+ * @internal
  */
 export type ProcessorInputMessage = {
   data: ProcessorInputEvent;
@@ -41,7 +39,20 @@ export type BpmAnalyzerEventMap = {
   analyzeChunk: Float32Array;
   /** Emitted in debug mode when a valid peak is detected */
   validPeak: {threshold: Threshold; index: number};
-  /** Emitted when an error occurs during processing */
+  /**
+   * Emitted when an error occurs during processing.
+   * @remarks
+   * Worklet-load failures thrown by `createRealtimeBpmAnalyzer` wrap the
+   * underlying cause via `Error.cause` (ES2022). Inspect `error.cause`
+   * to read the originating DOMException.
+   * @example
+   * ```ts
+   * analyzer.on('error', ({error}) => {
+   *   console.log(error.message);
+   *   console.log((error as Error).cause);
+   * });
+   * ```
+   */
   error: {message: string; error: Error};
 };
 
@@ -59,7 +70,7 @@ export type Peaks = number[];
 
 /**
  * Peaks with their associated threshold
- * @group Type Aliases
+ * @internal
  */
 export type PeaksAndThreshold = {
   peaks: Peaks;
@@ -79,7 +90,7 @@ export type BpmCandidates = {
 
 /**
  * Interval between beats
- * @group Type Aliases
+ * @internal
  */
 export type Interval = {
   /** Time interval in audio samples */
@@ -90,7 +101,7 @@ export type Interval = {
 
 /**
  * Tempo group with occurrence count
- * @group Type Aliases
+ * @internal
  */
 export type Group = {
   /** Tempo in BPM */
@@ -119,9 +130,9 @@ export type Tempo = {
 export type RealTimeBpmAnalyzerParameters = {
   /** Continue analyzing after stable BPM is found (default: false) */
   continuousAnalysis?: boolean;
-  /** Time in milliseconds to consider BPM stable (default: 20000) */
+  /** Time in milliseconds to consider BPM stable (default: `defaultStabilizationTime` — 20 000 ms) */
   stabilizationTime?: number;
-  /** Audio samples to skip between peaks (default: 10000) */
+  /** Audio samples to skip between peaks (default: `defaultMuteTimeInIndexes` — 10 000 sample indexes) */
   muteTimeInIndexes?: number;
   /** Enable debug event logging (default: false) */
   debug?: boolean;
@@ -129,7 +140,7 @@ export type RealTimeBpmAnalyzerParameters = {
 
 /**
  * Internal analyzer options with required fields
- * @group Type Aliases
+ * @internal
  */
 export type RealTimeBpmAnalyzerOptions = {
   continuousAnalysis: boolean;
@@ -226,15 +237,6 @@ export type AggregateData = {
   readonly isBufferFull: boolean;
   readonly buffer: Float32Array;
   readonly bufferSize: number;
-};
-
-/**
- * Normalized biquad filter nodes for audio processing
- * @internal
- */
-export type NormalizedFilters = {
-  lowpass: BiquadFilterNode;
-  highpass: BiquadFilterNode;
 };
 
 /**

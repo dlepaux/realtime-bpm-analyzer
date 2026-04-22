@@ -46,6 +46,30 @@ describe('createRealtimeBpmAnalyzer', function () {
     });
   });
 
+  describe('error wrapping', () => {
+    it('wraps addModule rejection with library context and preserves cause', async () => {
+      const originalAddModule = audioContext.audioWorklet.addModule.bind(audioContext.audioWorklet);
+      const underlying = new Error('boom');
+      audioContext.audioWorklet.addModule = async () => {
+        throw underlying;
+      };
+
+      let caught: unknown;
+      try {
+        await createRealtimeBpmAnalyzer(audioContext);
+      } catch (err) {
+        caught = err;
+      } finally {
+        audioContext.audioWorklet.addModule = originalAddModule;
+      }
+
+      expect(caught).to.be.instanceOf(Error);
+      expect((caught as Error).message).to.contain('Failed to load realtime-bpm-analyzer worklet');
+      expect((caught as Error).message).to.contain('boom');
+      expect((caught as Error).cause).to.equal(underlying);
+    });
+  });
+
   describe('AudioNode capabilities', () => {
     it('should be connectable to audio destination', async () => {
       const processor = await createRealtimeBpmAnalyzer(audioContext);

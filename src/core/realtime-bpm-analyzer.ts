@@ -1,4 +1,5 @@
-import {findPeaksAtThreshold, computeBpm} from './analyzer';
+import {findPeaksAtThreshold} from './peak-detection';
+import {computeBpm} from './tempo';
 import type {
   RealTimeBpmAnalyzerOptions,
   RealTimeBpmAnalyzerParameters,
@@ -37,6 +38,9 @@ const initialValue = {
  * Most users should use {@link createRealtimeBpmAnalyzer} instead of instantiating
  * this class directly. This class is primarily for internal use or advanced scenarios.
  *
+ * @deprecated This class is an internal implementation detail and will be removed
+ * in a future major release. Use {@link createRealtimeBpmAnalyzer} instead.
+ *
  * @group Classes
  */
 export class RealTimeBpmAnalyzer {
@@ -45,8 +49,8 @@ export class RealTimeBpmAnalyzer {
    */
   options: RealTimeBpmAnalyzerOptions = {
     continuousAnalysis: false,
-    stabilizationTime: 20000,
-    muteTimeInIndexes: 10000,
+    stabilizationTime: consts.defaultStabilizationTime,
+    muteTimeInIndexes: consts.defaultMuteTimeInIndexes,
     debug: false,
   };
 
@@ -59,7 +63,7 @@ export class RealTimeBpmAnalyzer {
    */
   validPeaks: ValidPeaks = initialValue.validPeaks();
   /**
-   * Next index (+10000 ...) to take care about peaks
+   * Next index (+muteTimeInIndexes samples, see consts.defaultMuteTimeInIndexes) to take care about peaks
    */
   nextIndexPeaks: NextIndexPeaks = initialValue.nextIndexPeaks();
   /**
@@ -108,8 +112,8 @@ export class RealTimeBpmAnalyzer {
         threshold < minThreshold
         && this.validPeaks[threshold] !== undefined
       ) {
-        delete this.validPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
-        delete this.nextIndexPeaks[threshold]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
+        delete this.validPeaks[threshold];  
+        delete this.nextIndexPeaks[threshold];  
       }
 
       return false;
@@ -246,7 +250,7 @@ export class RealTimeBpmAnalyzer {
         const index = currentMinIndex + relativeChunkPeak;
 
         /**
-         * Add current Index + muteTimeInIndexes (10000/44100=0.22s)
+         * Add current Index + muteTimeInIndexes (default 10_000 / 44_100 Hz ≈ 0.22s)
          */
         this.nextIndexPeaks[atThreshold]
           = index + this.options.muteTimeInIndexes;

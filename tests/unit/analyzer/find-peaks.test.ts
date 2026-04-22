@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {findPeaksAtThreshold} from '../../../src/core/analyzer';
+import {findPeaksAtThreshold} from '../../../src/core/peak-detection';
 
 const sampleRate = 44_100;
 

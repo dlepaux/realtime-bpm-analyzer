@@ -1,8 +1,12 @@
-import type {BpmAnalyzerEventMap, ProcessorOutputEvent, ProcessorInputEvent} from './types';
+import type {
+  BpmAnalyzerEventMap,
+  ProcessorOutputEvent,
+  ProcessorInputEvent,
+} from './types';
 
 /**
- * Custom event class for BPM analyzer events with typed data
- * @internal
+ * Custom event class for BPM analyzer events with typed data.
+ * Local-only, not exported.
  */
 class BpmAnalyzerEvent<T> extends CustomEvent<T> {
   constructor(type: string, data: T) {
@@ -152,7 +156,9 @@ export class BpmAnalyzer extends EventTarget {
     event: K,
     listener: (data: BpmAnalyzerEventMap[K]) => void,
   ): void {
-    this.addEventListener(event, ((event_: BpmAnalyzerEvent<BpmAnalyzerEventMap[K]>) => {
+    this.addEventListener(event, ((
+      event_: BpmAnalyzerEvent<BpmAnalyzerEventMap[K]>,
+    ) => {
       listener(event_.detail);
     }) as EventListener);
   }
@@ -195,9 +201,17 @@ export class BpmAnalyzer extends EventTarget {
    * analyzer.connect(audioContext.destination);
    * ```
    */
-  connect(destinationNode: AudioNode, outputIndex?: number, inputIndex?: number): AudioNode;
+  connect(
+    destinationNode: AudioNode,
+    outputIndex?: number,
+    inputIndex?: number,
+  ): AudioNode;
   connect(destinationParameter: AudioParam, outputIndex?: number): void;
-  connect(destination: AudioNode | AudioParam, outputIndex = 0, inputIndex = 0): AudioNode | void {
+  connect(
+    destination: AudioNode | AudioParam,
+    outputIndex = 0,
+    inputIndex = 0,
+  ): AudioNode | void {
     if (destination instanceof AudioNode) {
       return this.node.connect(destination, outputIndex, inputIndex);
     }
@@ -221,9 +235,17 @@ export class BpmAnalyzer extends EventTarget {
    * analyzer.disconnect(audioContext.destination);
    * ```
    */
-  disconnect(destinationNode?: AudioNode, outputIndex?: number, inputIndex?: number): void;
+  disconnect(
+    destinationNode?: AudioNode,
+    outputIndex?: number,
+    inputIndex?: number,
+  ): void;
   disconnect(destinationParameter?: AudioParam, outputIndex?: number): void;
-  disconnect(destination?: AudioNode | AudioParam | number, output?: number, input?: number): void {
+  disconnect(
+    destination?: AudioNode | AudioParam | number,
+    output?: number,
+    input?: number,
+  ): void {
     if (destination === undefined) {
       this.node.disconnect();
     } else if (typeof destination === 'number') {
@@ -248,7 +270,10 @@ export class BpmAnalyzer extends EventTarget {
   /**
    * Emit an event to all registered listeners
    */
-  private emit<K extends keyof BpmAnalyzerEventMap>(event: K, data: BpmAnalyzerEventMap[K]): void {
+  private emit<K extends keyof BpmAnalyzerEventMap>(
+    event: K,
+    data: BpmAnalyzerEventMap[K],
+  ): void {
     this.dispatchEvent(new BpmAnalyzerEvent(event as string, data));
   }
 
@@ -261,7 +286,7 @@ export class BpmAnalyzer extends EventTarget {
       const eventData = event.data;
 
       // Map processor event types to emitter event names
-      // eslint-disable-next-line default-case -- all event types are handled
+       
       switch (eventData.type) {
         case 'bpm': {
           this.emit('bpm', eventData.data);

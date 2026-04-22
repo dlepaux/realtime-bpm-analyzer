@@ -3,10 +3,26 @@ import realtimeBpmProcessorContent from './generated-processor';
 import {type RealTimeBpmAnalyzerParameters} from './core/types';
 import {BpmAnalyzer} from './core/bpm-analyzer';
 
-export * from './core/realtime-bpm-analyzer';
-export {analyzeFullBuffer, getBiquadFilter} from './core/analyzer';
-export * from './core/types';
+// Public API surface — explicit named re-exports only.
+// Internal types stay in core/types.ts and are emitted into dist/core/types.d.ts
+// but unreachable for consumers because package.json `exports` only publishes
+// the `.` and `./processor` entry points. Consumers cannot deep-import.
+// See plan/active/library-quality-audit-01/02-public-types-surface-cleanup.md
+
 export {BpmAnalyzer} from './core/bpm-analyzer';
+export {analyzeFullBuffer, getBiquadFilter} from './core/offline-pipeline';
+export {RealTimeBpmAnalyzer} from './core/realtime-bpm-analyzer';
+export type {
+  BpmCandidates,
+  Tempo,
+  Threshold,
+  Peaks,
+  ProcessorOutputEvent,
+  ProcessorInputEvent,
+  BpmAnalyzerEventMap,
+  RealTimeBpmAnalyzerParameters,
+  BiquadFilterOptions,
+} from './core/types';
 
 /**
  * Creates a real-time BPM analyzer for live audio streams.
@@ -53,8 +69,8 @@ export {BpmAnalyzer} from './core/bpm-analyzer';
  * const audioContext = new AudioContext();
  * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
  *   continuousAnalysis: true,    // Keep analyzing after stable BPM found
- *   stabilizationTime: 20000,    // Time in ms to consider BPM stable
- *   muteTimeInIndexes: 10000,    // Audio indexes to skip between peaks
+ *   stabilizationTime: 20_000,   // ms — matches defaultStabilizationTime, see consts.ts
+ *   muteTimeInIndexes: 10_000,   // sample indexes — matches defaultMuteTimeInIndexes, see consts.ts
  *   debug: false                 // Enable debug logging
  * });
  * ```
@@ -128,8 +144,15 @@ export {BpmAnalyzer} from './core/bpm-analyzer';
  *
  * @group Functions
  */
-export async function createRealtimeBpmAnalyzer(audioContext: AudioContext, processorOptions?: RealTimeBpmAnalyzerParameters): Promise<BpmAnalyzer> {
-  const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName, processorOptions);
+export async function createRealtimeBpmAnalyzer(
+  audioContext: AudioContext,
+  processorOptions?: RealTimeBpmAnalyzerParameters,
+): Promise<BpmAnalyzer> {
+  const processorNode = await setupAudioWorkletNode(
+    audioContext,
+    realtimeBpmProcessorName,
+    processorOptions,
+  );
   await audioContext.resume();
   return new BpmAnalyzer(processorNode);
 }
@@ -147,21 +170,29 @@ export const createRealTimeBpmProcessor = createRealtimeBpmAnalyzer;
  * @param processorOptions RealTimeBpmAnalyzerParameters
  * @returns Recording node related components for the app.
  */
-async function setupAudioWorkletNode(audioContext: AudioContext, processorName: string, processorOptions?: RealTimeBpmAnalyzerParameters): Promise<AudioWorkletNode> {
-  const blob = new Blob([realtimeBpmProcessorContent], {type: 'application/javascript'});
+async function setupAudioWorkletNode(
+  audioContext: AudioContext,
+  processorName: string,
+  processorOptions?: RealTimeBpmAnalyzerParameters,
+): Promise<AudioWorkletNode> {
+  const blob = new Blob([realtimeBpmProcessorContent], {
+    type: 'application/javascript',
+  });
 
   const objectUrl = URL.createObjectURL(blob);
 
   try {
     await audioContext.audioWorklet.addModule(objectUrl);
 
-    const audioWorkletNode = new AudioWorkletNode(audioContext, processorName, {
+    return new AudioWorkletNode(audioContext, processorName, {
       processorOptions,
     });
-
-    return audioWorkletNode;
+  } catch (err) {
+    throw new Error(
+      `Failed to load realtime-bpm-analyzer worklet: ${err instanceof Error ? err.message : String(err)}`,
+      {cause: err},
+    );
   } finally {
-    // Clean up the blob URL to prevent memory leaks
     URL.revokeObjectURL(objectUrl);
   }
 }

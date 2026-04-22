@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {identifyIntervals} from '../../../src/core/analyzer';
+import {identifyIntervals} from '../../../src/core/tempo';
 import type {Peaks} from '../../../src/core/types';
 
 /**

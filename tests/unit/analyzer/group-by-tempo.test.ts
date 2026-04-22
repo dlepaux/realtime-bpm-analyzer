@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {groupByTempo} from '../../../src/core/analyzer';
+import {groupByTempo} from '../../../src/core/tempo';
 import type {Interval} from '../../../src/core/types';
 
 /**

@@ -1,3 +1,10 @@
+## [5.0.12](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.11...v5.0.12) (2026-04-22)
+
+
+### Bug Fixes
+
+* **ci:** raise tsconfig lib to es2018 for Promise.finally ([b68a979](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b68a9791ff629ea49cae2ee0f95a09ef098e79a0))
+
 ## [5.0.11](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.10...v5.0.11) (2026-04-22)
 
 

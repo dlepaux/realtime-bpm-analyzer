@@ -1,3 +1,10 @@
+## [5.0.9](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.8...v5.0.9) (2026-04-22)
+
+
+### Bug Fixes
+
+* **analyzer:** correct off-by-one in findPeaksAtThreshold skip-forward ([97492cb](https://github.com/dlepaux/realtime-bpm-analyzer/commit/97492cb2f60ac959d685a39010f1290f517e5487))
+
 ## [5.0.8](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.7...v5.0.8) (2026-04-22)
 
 

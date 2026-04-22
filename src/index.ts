@@ -10,7 +10,7 @@ import {BpmAnalyzer} from './core/bpm-analyzer';
 // See plan/active/library-quality-audit-01/02-public-types-surface-cleanup.md
 
 export {BpmAnalyzer} from './core/bpm-analyzer';
-export {analyzeFullBuffer, getBiquadFilter} from './core/analyzer';
+export {analyzeFullBuffer, getBiquadFilter} from './core/offline-pipeline';
 export {RealTimeBpmAnalyzer} from './core/realtime-bpm-analyzer';
 export type {
   BpmCandidates,

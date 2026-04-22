@@ -1,4 +1,5 @@
-import {findPeaksAtThreshold, computeBpm} from './analyzer';
+import {findPeaksAtThreshold} from './peak-detection';
+import {computeBpm} from './tempo';
 import type {
   RealTimeBpmAnalyzerOptions,
   RealTimeBpmAnalyzerParameters,

@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {getOfflineLowPassSource, getBiquadFilter} from '../../../src/core/analyzer';
+import {getOfflineLowPassSource, getBiquadFilter} from '../../../src/core/offline-pipeline';
 import {createTestAudioContext, closeAudioContext, createSyntheticBeat} from '../../setup';
 
 /**

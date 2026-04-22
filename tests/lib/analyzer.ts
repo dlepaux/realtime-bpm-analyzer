@@ -1,7 +1,8 @@
 import {expect} from 'chai';
-import {analyzeFullBuffer} from '../../src/core/analyzer';
+import {analyzeFullBuffer} from '../../src/core/offline-pipeline';
 import {data as assertIntervals} from '../fixtures/bass-test-intervals';
-import * as analyzer from '../../src/core/analyzer';
+import {findPeaks} from '../../src/core/peak-detection';
+import {identifyIntervals, getTopCandidate, computeBpm} from '../../src/core/tempo';
 import * as utils from '../../src/core/utils';
 import {createTestAudioContext, closeAudioContext, loadTestAudio} from '../setup';
 
@@ -20,25 +21,25 @@ describe('Analyzer - Unit tests', () => {
 
   it('should not find peaks from empty channel data', async () => {
     const channelData = new Float32Array([0, 0, 0, 0]);
-    const {peaks, threshold} = await analyzer.findPeaks({audioSampleRate: audioContext.sampleRate, channelData});
+    const {peaks, threshold} = await findPeaks({audioSampleRate: audioContext.sampleRate, channelData});
     expect(threshold).to.be.equal(0);
     expect(peaks.length).to.be.equal(0);
   });
 
   it('should identify intervals from given peaks', async () => {
-    const intervals = analyzer.identifyIntervals(assertPeaksBassSample);
+    const intervals = identifyIntervals(assertPeaksBassSample);
     expect(JSON.stringify(intervals)).to.be.equal(JSON.stringify(assertIntervals));
   });
 
   it('should trigger an error while getting candidate from empty array', async () => {
     expect(() => {
-      analyzer.getTopCandidate([]);
+      getTopCandidate([]);
     }).to.throw('Could not find enough samples for a reliable detection.');
   });
 
   it('should not compute BPM from empty array of peaks', async () => {
     const validPeaks = utils.generateValidPeaksModel();
-    const {threshold, bpm} = await analyzer.computeBpm({audioSampleRate: audioContext.sampleRate, data: validPeaks});
+    const {threshold, bpm} = await computeBpm({audioSampleRate: audioContext.sampleRate, data: validPeaks});
     expect(threshold).to.be.equal(0.2);
     expect(bpm.length).to.be.equal(0);
   });
@@ -59,7 +60,7 @@ describe('Analyzer - Integration tests', () => {
     this.timeout(30 * 1000);
     const audioBuffer = await loadTestAudio(audioContext);
     const tempos = await analyzeFullBuffer(audioBuffer);
-    const tempo = analyzer.getTopCandidate(tempos);
+    const tempo = getTopCandidate(tempos);
     expect(tempo).to.be.equal(125);
   });
 });

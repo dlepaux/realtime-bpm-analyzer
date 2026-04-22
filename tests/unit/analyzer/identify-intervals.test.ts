@@ -21,9 +21,9 @@ describe('analyzer - identifyIntervals', () => {
     it('should handle single peak', () => {
       const peaks: Peaks = [1000];
       const intervals = identifyIntervals(peaks);
-      // Single peak compares with next 10 positions (all undefined), creating intervals
+      // A single peak has no pair to form an interval
       expect(intervals).to.be.an('array');
-      expect(intervals.length).to.be.greaterThan(0);
+      expect(intervals).to.have.lengthOf(0);
     });
 
     it('should handle two peaks', () => {
@@ -117,12 +117,11 @@ describe('analyzer - identifyIntervals', () => {
   describe('realistic musical patterns', () => {
     it('should handle 4/4 time signature pattern', () => {
       const beatInterval = 11025; // ~0.25s at 44100Hz
-      const peaks: Peaks = [
-        1000,
-        1000 + beatInterval,
-        1000 + (beatInterval * 2),
-        1000 + (beatInterval * 3),
-      ];
+      const firstBeat = 1000;
+      const secondBeat = firstBeat + beatInterval;
+      const thirdBeat = secondBeat + beatInterval;
+      const fourthBeat = thirdBeat + beatInterval;
+      const peaks: Peaks = [firstBeat, secondBeat, thirdBeat, fourthBeat];
 
       const intervals = identifyIntervals(peaks);
 
@@ -153,7 +152,8 @@ describe('analyzer - identifyIntervals', () => {
       const beatInterval = 22050; // 0.5s at 44100Hz
 
       for (let i = 0; i < 20; i++) {
-        peaks.push(1000 + (i * beatInterval));
+        const offset = i * beatInterval;
+        peaks.push(1000 + offset);
       }
 
       const intervals = identifyIntervals(peaks);
@@ -171,7 +171,9 @@ describe('analyzer - identifyIntervals', () => {
       const intervals = identifyIntervals(peaks);
 
       // Should have small intervals
-      const hasSmallIntervals = intervals.some(i => i.interval > 0 && i.interval <= 2);
+      const hasSmallIntervals = intervals.some(
+        i => i.interval > 0 && i.interval <= 2,
+      );
       expect(hasSmallIntervals).to.be.true;
     });
 
@@ -222,17 +224,13 @@ describe('analyzer - identifyIntervals', () => {
       }
     });
 
-    it('should have positive or zero interval values', () => {
+    it('should have positive interval values for ascending peaks', () => {
       const peaks: Peaks = [1000, 2000, 3000];
       const intervals = identifyIntervals(peaks);
 
-      // Filter out zero and NaN intervals
-      const validNonZeroIntervals = intervals.filter(i =>
-        i.interval !== 0 && !Number.isNaN(i.interval),
-      );
-      expect(validNonZeroIntervals.length).to.be.greaterThan(0);
+      expect(intervals.length).to.be.greaterThan(0);
 
-      for (const interval of validNonZeroIntervals) {
+      for (const interval of intervals) {
         expect(interval.interval).to.be.greaterThan(0);
       }
     });
@@ -264,13 +262,9 @@ describe('analyzer - identifyIntervals', () => {
       const peaks: Peaks = [0, 1000, 2000, 3000];
       const intervals = identifyIntervals(peaks);
 
-      // For peaks in ascending order, non-zero valid intervals should be positive
-      const validNonZeroIntervals = intervals.filter(i =>
-        i.interval !== 0 && !Number.isNaN(i.interval),
-      );
-      expect(validNonZeroIntervals.length).to.be.greaterThan(0);
+      expect(intervals.length).to.be.greaterThan(0);
 
-      for (const interval of validNonZeroIntervals) {
+      for (const interval of intervals) {
         expect(interval.interval).to.be.greaterThan(0);
       }
     });
@@ -288,6 +282,58 @@ describe('analyzer - identifyIntervals', () => {
       const hasNegative = intervals.some(i => i.interval < 0);
       const hasPositive = intervals.some(i => i.interval > 0);
       expect(hasNegative || hasPositive).to.be.true;
+    });
+  });
+
+  // Tests codifying the correct contract — these fail on the current buggy code
+  // and pass after the fix. See plan/backlog/lib-bug-identify-intervals-garbage-values.md
+  describe('correctness contract', () => {
+    it('should not emit zero intervals from self-comparison', () => {
+      const peaks: Peaks = [100, 300, 500];
+      const intervals = identifyIntervals(peaks);
+
+      const zeroInterval = intervals.find(i => i.interval === 0);
+      expect(
+        zeroInterval,
+        'self-compare (peaks[n] - peaks[n]) must not land in intervals',
+      ).to.be.undefined;
+    });
+
+    it('should not emit NaN intervals from out-of-bounds peak reads', () => {
+      // Two peaks with maxIntervalComparisons=10 → inner loop attempts peaks[2..11] which are undefined
+      const peaks: Peaks = [100, 300];
+      const intervals = identifyIntervals(peaks);
+
+      const nanIntervals = intervals.filter(i => Number.isNaN(i.interval));
+      expect(
+        nanIntervals,
+        'out-of-bounds reads must not produce NaN intervals',
+      ).to.have.lengthOf(0);
+    });
+
+    it('should return empty array for a single peak (no valid pairs)', () => {
+      const peaks: Peaks = [1000];
+      const intervals = identifyIntervals(peaks);
+
+      expect(
+        intervals,
+        'a single peak has no pair to form an interval',
+      ).to.have.lengthOf(0);
+    });
+
+    it('should emit only the valid pairwise intervals for 3 evenly-spaced peaks', () => {
+      // Valid pairs: (0,1)=200, (0,2)=400, (1,2)=200
+      // Expected: [{interval: 200, count: 2}, {interval: 400, count: 1}]
+      const peaks: Peaks = [100, 300, 500];
+      const intervals = identifyIntervals(peaks);
+
+      expect(intervals).to.have.lengthOf(2);
+
+      const interval200 = intervals.find(i => i.interval === 200);
+      const interval400 = intervals.find(i => i.interval === 400);
+
+      expect(interval200).to.deep.equal({interval: 200, count: 2});
+      expect(interval400).to.deep.equal({interval: 400, count: 1});
     });
   });
 });

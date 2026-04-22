@@ -294,15 +294,20 @@ export function identifyIntervals(peaks: Peaks): Interval[] {
   const intervals: Interval[] = [];
 
   for (let n = 0; n < peaks.length; n++) {
-    for (let i = 0; i < consts.maxIntervalComparisons; i++) {
-      const peak = peaks[n];
+    // I starts at 1: peaks[n]-peaks[n] would produce a spurious 0 interval on every pass
+    for (let i = 1; i < consts.maxIntervalComparisons; i++) {
       const peakIndex = n + i;
-      const interval = peaks[peakIndex] - peak;
+      // Bounds check: reading past peaks.length yields undefined, producing NaN intervals that leak downstream
+      if (peakIndex >= peaks.length) {
+        break;
+      }
+
+      const interval = peaks[peakIndex] - peaks[n];
 
       /**
        * Try and find a matching interval and increase it's count
        */
-      let foundInterval = intervals.find(
+      const foundInterval = intervals.find(
         (intervalCount: Interval) => intervalCount.interval === interval,
       );
 
@@ -313,18 +318,11 @@ export function identifyIntervals(peaks: Peaks): Interval[] {
           interval: foundInterval.interval,
           count: foundInterval.count + 1,
         };
-        foundInterval = intervals[index];
-      }
-
-      /**
-       * Add the interval to the collection if it's unique
-       */
-      if (!foundInterval) {
-        const item: Interval = {
+      } else {
+        intervals.push({
           interval,
           count: 1,
-        };
-        intervals.push(item);
+        });
       }
     }
   }

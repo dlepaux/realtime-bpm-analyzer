@@ -97,10 +97,28 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
   /**
    * Handle message event
-   * @param _event Contain event data from main process
+   * @param event Contain event data from main process
    */
-  onMessage(_event: ProcessorInputMessage): void {
-    // Handle custom message client
+  onMessage(event: ProcessorInputMessage): void {
+    if (!event?.data) {
+      return;
+    }
+
+    switch (event.data.type) {
+      case 'reset': {
+        this.realTimeBpmAnalyzer.reset();
+        break;
+      }
+
+      case 'stop': {
+        this.stopped = true;
+        break;
+      }
+
+      default:
+      // Silently ignore unknown message types so newer main-thread code
+      // sending future message shapes does not crash older workers.
+    }
   }
 
   /**

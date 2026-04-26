@@ -22,16 +22,6 @@
 
 ---
 
-## Sponsors
-
-If your product depends on this library, consider sponsoring its maintenance.
-
-**[→ Sponsor on GitHub](https://github.com/sponsors/dlepaux)**
-
-Sponsorship funds issue triage, bug fixes, and ongoing compatibility with the Web Audio API. Tier details on the [sponsor profile](https://github.com/sponsors/dlepaux).
-
----
-
 ## Features
 
 - **Zero dependencies** - Uses native Web Audio API
@@ -115,6 +105,10 @@ Contributions are welcome! See [contributing.md](contributing.md) for guidelines
 Apache-2.0 License - See [licence.md](licence.md) for details.
 
 For commercial licensing inquiries, contact: d.lepaux@gmail.com
+
+## Sponsors
+
+If your product depends on this library, consider sponsoring its maintenance via [GitHub Sponsors](https://github.com/sponsors/dlepaux).
 
 ## Credits
 

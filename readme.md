@@ -22,6 +22,16 @@
 
 ---
 
+## Sponsors
+
+If your product depends on this library, consider sponsoring its maintenance.
+
+**[→ Sponsor on GitHub](https://github.com/sponsors/dlepaux)**
+
+Sponsorship funds issue triage, bug fixes, and ongoing compatibility with the Web Audio API. Tier details on the [sponsor profile](https://github.com/sponsors/dlepaux).
+
+---
+
 ## Features
 
 - **Zero dependencies** - Uses native Web Audio API

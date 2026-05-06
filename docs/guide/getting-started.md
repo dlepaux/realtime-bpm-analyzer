@@ -1,3 +1,7 @@
+<script setup>
+import GithubStarSupport from '../.vitepress/components/GithubStarSupport.vue'
+</script>
+
 # Getting Started
 
 This guide will help you install and start using Realtime BPM Analyzer in your project.
@@ -180,3 +184,7 @@ Now that you have the basics, check out practical examples:
 ::: tip Pro Tip
 Always create the `AudioContext` in response to a user action (like a button click) to avoid browser autoplay restrictions.
 :::
+
+<div style="margin-top: 3rem; max-width: 480px; margin-left: auto; margin-right: auto;">
+  <GithubStarSupport variant="block" placement="getting-started-end" />
+</div>

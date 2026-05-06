@@ -64,7 +64,7 @@ function onClick() {
       Found this useful?
     </div>
     <div class="gh-star__sub">
-      Support the project on GitHub
+      Support the project
     </div>
     <div class="gh-star__cta">
       <a

@@ -51,7 +51,9 @@
     "examples/*"
   ],
   "overrides": {
-    "serialize-javascript": "^7.0.5"
+    "serialize-javascript": "^7.0.5",
+    "postcss": "^8.5.10",
+    "ip-address": "^10.1.1"
   },
   "scripts": {
     "build": "bash bin/build/library.sh",

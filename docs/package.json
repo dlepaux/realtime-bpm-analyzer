@@ -26,7 +26,8 @@
     "realtime-bpm-analyzer": "file:.."
   },
   "overrides": {
-    "vite": "^6.4.2"
+    "vite": "^6.4.2",
+    "postcss": "^8.5.10"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

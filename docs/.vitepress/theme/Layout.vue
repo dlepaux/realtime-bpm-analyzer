@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import DefaultTheme from 'vitepress/theme'
-import { defineClientComponent, useData } from 'vitepress'
+import { useData } from 'vitepress'
+import BpmHeroTool from '../components/BpmHeroTool.vue'
 
 const { Layout } = DefaultTheme
 const { frontmatter } = useData()
-
-const BpmHeroTool = defineClientComponent(() =>
-  import('../components/BpmHeroTool.vue')
-)
 </script>
 
 <template>

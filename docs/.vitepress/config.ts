@@ -4,6 +4,37 @@ import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 const pkg = require('../../package.json')
 
+// ── Build-time GitHub star count fetch ─────────────────────────────────────
+// Runs once when `vitepress dev` or `vitepress build` boots. The value is
+// baked into the bundle via `vite.define` below — zero runtime API calls,
+// no rate-limit exposure for visitors, no flaky network on shared IPs.
+//
+// Failure handling: any error (offline CI, GitHub down, rate limited, schema
+// drift) resolves to `null`. Components MUST treat `null` as "render without
+// the count" and never break. Stale count by hours/days is acceptable —
+// next deploy re-bakes it.
+async function fetchStarCount(): Promise<number | null> {
+  try {
+    const res = await fetch('https://api.github.com/repos/dlepaux/realtime-bpm-analyzer', {
+      headers: { 'Accept': 'application/vnd.github+json' },
+      // Don't hang the build forever if GitHub is slow.
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) {
+      console.warn(`[star-count] GitHub API returned ${res.status}; rendering without count`)
+      return null
+    }
+    const data = await res.json() as { stargazers_count?: unknown }
+    const count = data.stargazers_count
+    return typeof count === 'number' ? count : null
+  } catch (err) {
+    console.warn('[star-count] fetch failed, rendering without count:', err instanceof Error ? err.message : err)
+    return null
+  }
+}
+
+const GITHUB_STAR_COUNT = await fetchStarCount()
+
 // GTM container for analytics. Change here if the container is ever rotated.
 const GTM_CONTAINER_ID = 'GTM-WF758H3P'
 
@@ -37,6 +68,15 @@ export default defineConfig({
   
   // Ignore dead links for pages we haven't created yet
   ignoreDeadLinks: [],
+
+  // Pass-through to the underlying Vite build. We use `define` to bake the
+  // build-time star count into the bundle so the GithubStarSupport component
+  // can render it as a literal — no runtime fetch, no rate-limit risk.
+  vite: {
+    define: {
+      __GITHUB_STAR_COUNT__: JSON.stringify(GITHUB_STAR_COUNT),
+    },
+  },
 
   // Inject the GTM noscript fallback right after <body>
   transformHtml(code) {

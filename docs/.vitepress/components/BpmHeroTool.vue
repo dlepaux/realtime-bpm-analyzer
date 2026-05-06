@@ -15,6 +15,7 @@ import {
   type BpmCandidates,
 } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
+import GithubStarSupport from './GithubStarSupport.vue'
 
 type Mode = 'file' | 'mic' | 'stream'
 type Status = 'idle' | 'analysing' | 'result' | 'error'
@@ -569,13 +570,19 @@ function formatDuration(seconds: number): string {
               <span v-if="fileDuration !== null">{{ formatDuration(fileDuration) }}</span>
               <span v-if="fileElapsedMs !== null">· Done in {{ fileElapsedMs }} ms</span>
             </div>
-            <button
-              type="button"
-              class="bpm-restart-btn"
-              @click="restartFile"
-            >
-              Analyse another
-            </button>
+            <div class="bpm-result-actions">
+              <button
+                type="button"
+                class="bpm-restart-btn"
+                @click="restartFile"
+              >
+                Analyse another
+              </button>
+              <GithubStarSupport
+                variant="inline"
+                placement="demo-file-result"
+              />
+            </div>
           </div>
         </template>
 
@@ -670,13 +677,19 @@ function formatDuration(seconds: number): string {
             <div class="bpm-state-label">
               Stable from microphone
             </div>
-            <button
-              type="button"
-              class="bpm-restart-btn"
-              @click="stopMic"
-            >
-              Detect again
-            </button>
+            <div class="bpm-result-actions">
+              <button
+                type="button"
+                class="bpm-restart-btn"
+                @click="stopMic"
+              >
+                Detect again
+              </button>
+              <GithubStarSupport
+                variant="inline"
+                placement="demo-mic-stable"
+              />
+            </div>
           </div>
         </template>
 
@@ -783,6 +796,19 @@ function formatDuration(seconds: number): string {
               >
                 Stop
               </button>
+            </div>
+            <!-- Star CTA gated on stability — appears at the success moment
+                 (analyser stabilised) and shares the same v-if as the stable
+                 pill above. Sits in its own row below the controls toolbar to
+                 keep action vs. promo affordances visually separate. -->
+            <div
+              v-if="streamStableBpm !== null"
+              class="bpm-result-actions"
+            >
+              <GithubStarSupport
+                variant="inline"
+                placement="demo-stream-stable"
+              />
             </div>
           </div>
         </template>
@@ -1065,6 +1091,23 @@ function formatDuration(seconds: number): string {
 .bpm-restart-btn:hover {
   border-color: var(--vp-c-brand-1);
   color: var(--vp-c-brand-1);
+}
+
+/* Action row pairing the primary restart/stop button with the inline
+   GithubStarSupport CTA in success states (file-result, mic-stable, and
+   stream stability). The row owns the top margin so the restart button drops
+   its own (avoids double-stacking when nested here). */
+.bpm-result-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.bpm-result-actions .bpm-restart-btn {
+  margin-top: 0;
 }
 
 .bpm-stream-actions {

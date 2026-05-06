@@ -24,3 +24,9 @@ declare module '*.css' {
   const content: string
   export default content
 }
+
+// Build-time constants injected via `vite.define` in `.vitepress/config.ts`.
+// `__GITHUB_STAR_COUNT__` is the repo's stargazer count fetched once at build
+// start. It is `null` when the GitHub API call failed (rate limit, offline CI,
+// network blip) — components MUST handle the null case and degrade gracefully.
+declare const __GITHUB_STAR_COUNT__: number | null

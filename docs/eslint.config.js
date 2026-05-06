@@ -33,6 +33,10 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.es2022,
+        // Build-time constant injected via `vite.define` in `.vitepress/config.ts`.
+        // Declared as a TS ambient in `vite-env.d.ts`; ESLint needs the global hint
+        // separately because it doesn't read the .d.ts.
+        __GITHUB_STAR_COUNT__: 'readonly',
       },
       parser: vueParser,
       parserOptions: {

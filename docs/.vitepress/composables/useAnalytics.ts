@@ -26,6 +26,7 @@ export type BpmAnalyticsEvent =
   | 'bpm_stream_stopped'
   | 'bpm_stream_muted'
   | 'bpm_stream_unmuted'
+  | 'github_star_clicked'
 
 export function useAnalytics() {
   function track(event: BpmAnalyticsEvent, params: EventParams = {}): void {

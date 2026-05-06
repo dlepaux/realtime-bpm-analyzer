@@ -161,6 +161,15 @@ bpmAnalyzer.on('bpmStable', (data) => console.log('Stable BPM detected:', data.b
 bpmAnalyzer.disconnect();
 ```
 
+### Tutorials
+
+- [Realtime BPM Detection in the Browser](/guide/realtime-bpm-detection) —
+  AudioWorklet-native, file + mic + stream, the modern way.
+- [How to Detect BPM from a Microphone in JavaScript](/guide/bpm-from-microphone)
+  — `getUserMedia`, permissions, mobile gotchas, and a working pattern.
+- [useBpm — A React Hook for Realtime BPM Detection](/guide/react-bpm-hook) —
+  drop-in hook with full TypeScript types and StrictMode-safe cleanup.
+
 See the [full developer guide](/guide/getting-started), the
 [API reference](/api/), and the [examples](/examples/basic-usage) for file
 analysis, microphone input, streaming audio, and framework integrations.

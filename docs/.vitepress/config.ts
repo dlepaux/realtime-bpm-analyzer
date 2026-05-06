@@ -50,7 +50,7 @@ const COPYRIGHT_YEARS = COPYRIGHT_END_YEAR > COPYRIGHT_START_YEAR
 export default defineConfig({
   title: "Realtime BPM Analyzer",
   titleTemplate: ":title | Realtime BPM Analyzer",
-  description: "Free, private BPM detector — find the tempo of any song right in your browser. From MP3, microphone, or a radio stream. No upload, no account.",
+  description: "Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first. Includes a free online BPM tool.",
 
   // Base URL - using root since deployed to www.realtime-bpm-analyzer.com
   base: '/',
@@ -116,15 +116,15 @@ export default defineConfig({
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:locale', content: 'en' }],
     ['meta', { property: 'og:site_name', content: 'Realtime BPM Analyzer' }],
-    ['meta', { property: 'og:title', content: 'Realtime BPM Analyzer — Find the BPM of Any Song, Free' }],
-    ['meta', { property: 'og:description', content: 'Free, private BPM detector — find the tempo of any song right in your browser. From MP3, microphone, or a radio stream. No upload, no account.' }],
+    ['meta', { property: 'og:title', content: 'Realtime BPM Analyzer — Web Audio BPM Detection Library' }],
+    ['meta', { property: 'og:description', content: 'Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first. Includes a free online BPM tool.' }],
     // og:url is injected per-page via transformPageData so each URL is self-canonical.
     ['meta', { property: 'og:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
     ['meta', { property: 'og:image:width', content: '1280' }],
     ['meta', { property: 'og:image:height', content: '640' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-    ['meta', { name: 'twitter:title', content: 'Realtime BPM Analyzer — Find the BPM of Any Song, Free' }],
-    ['meta', { name: 'twitter:description', content: 'Free, private BPM detector — find the tempo of any song right in your browser. From MP3, microphone, or a radio stream. No upload, no account.' }],
+    ['meta', { name: 'twitter:title', content: 'Realtime BPM Analyzer — Web Audio BPM Detection Library' }],
+    ['meta', { name: 'twitter:description', content: 'Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first.' }],
     ['meta', { name: 'twitter:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
     ['link', { rel: 'icon', type: 'image/png', href: '/favicon/favicon-96x96.png', sizes: '96x96' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon/favicon.svg' }],
@@ -272,6 +272,14 @@ export default defineConfig({
             { text: 'What is Realtime BPM Analyzer?', link: '/guide/introduction' },
             { text: 'Getting Started', link: '/guide/getting-started' },
             { text: 'Core Concepts', link: '/guide/core-concepts' }
+          ]
+        },
+        {
+          text: 'Tutorials',
+          items: [
+            { text: 'Realtime BPM Detection in the Browser', link: '/guide/realtime-bpm-detection' },
+            { text: 'Detect BPM from a Microphone', link: '/guide/bpm-from-microphone' },
+            { text: 'useBpm — A React Hook for BPM Detection', link: '/guide/react-bpm-hook' }
           ]
         },
         {

@@ -45,6 +45,22 @@ export default defineConfig({
       `<body$1>\n<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
     )
   },
+
+  // Per-page canonical + og:url. GitHub Pages serves the same file at both
+  // `/foo.html` and `/foo`, so without a canonical tag Google treats the two as
+  // duplicates and demotes one ("Crawled, currently not indexed" in GSC). The
+  // canonical always points to the cleanUrls form on the apex host.
+  transformPageData(pageData) {
+    const slug = pageData.relativePath
+      .replace(/(^|\/)index\.md$/, '$1')
+      .replace(/\.md$/, '')
+    const canonical = `https://www.realtime-bpm-analyzer.com/${slug}`
+    pageData.frontmatter.head ??= []
+    pageData.frontmatter.head.push(
+      ['link', { rel: 'canonical', href: canonical }],
+      ['meta', { property: 'og:url', content: canonical }],
+    )
+  },
   
   head: [
     // Google Tag Manager — container loads GA4 + any future tags from the GTM dashboard.
@@ -56,7 +72,7 @@ export default defineConfig({
     ['meta', { property: 'og:site_name', content: 'Realtime BPM Analyzer' }],
     ['meta', { property: 'og:title', content: 'Realtime BPM Analyzer — Find the BPM of Any Song, Free' }],
     ['meta', { property: 'og:description', content: 'Free, private BPM detector — find the tempo of any song right in your browser. From MP3, microphone, or a radio stream. No upload, no account.' }],
-    ['meta', { property: 'og:url', content: 'https://www.realtime-bpm-analyzer.com' }],
+    // og:url is injected per-page via transformPageData so each URL is self-canonical.
     ['meta', { property: 'og:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
     ['meta', { property: 'og:image:width', content: '1280' }],
     ['meta', { property: 'og:image:height', content: '640' }],

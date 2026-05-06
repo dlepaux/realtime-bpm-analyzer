@@ -1,3 +1,11 @@
+## [5.0.13](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.12...v5.0.13) (2026-05-06)
+
+
+### Bug Fixes
+
+* **seo:** emit per-page canonical and og:url tags ([4cc34b2](https://github.com/dlepaux/realtime-bpm-analyzer/commit/4cc34b2ebb68e550cc0a263907a53dec676df0ea))
+* **seo:** redirect legacy TypeDoc URLs to closest current page ([ba43578](https://github.com/dlepaux/realtime-bpm-analyzer/commit/ba435787262fd3e3b0d7cdaee33be72de33c2cbe))
+
 ## [5.0.12](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.11...v5.0.12) (2026-04-22)
 
 

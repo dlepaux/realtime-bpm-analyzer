@@ -8,6 +8,7 @@
     "copy:markdown": "cp ../contributing.md . && cp ../code-of-conduct.md . && cp ../security.md . && cp ../privacy.md .",
     "docs:generate": "cd .. && typedoc",
     "build:examples": "tsx scripts/build-examples.ts",
+    "build:redirects": "tsx scripts/build-redirects.ts",
     "dev:examples": "tsx scripts/dev-examples.ts",
     "lib:build": "cd .. && npm run build",
     "predev": "npm run lib:build",
@@ -16,7 +17,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "verify": "npm run typecheck && npm run lint",
-    "build": "npm run copy:markdown && npm run build:favicon && npm run docs:generate && vitepress build && npm run build:examples",
+    "build": "npm run copy:markdown && npm run build:favicon && npm run docs:generate && vitepress build && npm run build:examples && npm run build:redirects",
     "build:favicon": "npx realfavicon generate ../brand/icon.svg favicon-settings.json favicon.json public/favicon",
     "preview": "vitepress preview"
   },

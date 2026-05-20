@@ -1,3 +1,8 @@
+---
+title: Detect BPM from Microphone — Live Demo and Code
+description: Live demo and full source for detecting BPM from a microphone in real time. Uses getUserMedia plus AudioWorklet. Works on desktop and mobile browsers.
+---
+
 # Microphone Input BPM Detection
 
 Detect BPM in real-time using your device's microphone. Perfect for analyzing music playing around you or for live performance tools.

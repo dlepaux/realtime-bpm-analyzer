@@ -1,3 +1,8 @@
+---
+title: Core Concepts — Real-Time vs Continuous BPM Analysis
+description: Understand realtime-bpm-analyzer's usage modes — real-time, continuous (auto-reset), and offline buffer analysis — and pick the right pattern for files, streams, or microphone input.
+---
+
 # Core Concepts
 
 Understanding these core concepts will help you use Realtime BPM Analyzer effectively.

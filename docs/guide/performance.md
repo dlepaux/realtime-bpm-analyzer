@@ -1,3 +1,8 @@
+---
+title: Performance Tips for Browser BPM Detection
+description: Optimise realtime-bpm-analyzer for accuracy, latency, and battery life — AudioWorklet, low-pass filtering, threshold tuning, mobile gotchas. Practical recommendations.
+---
+
 # Performance Tips
 
 Optimize Realtime BPM Analyzer for the best performance and accuracy in your application.

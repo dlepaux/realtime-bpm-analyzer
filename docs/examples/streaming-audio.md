@@ -1,3 +1,8 @@
+---
+title: BPM from Live Audio Stream — Radio and Online Music
+description: Detect BPM from any live audio stream — radio stations, online music, podcasts — in real time in the browser. Live demo with full vanilla JavaScript source.
+---
+
 # Streaming Audio BPM Detection
 
 Analyze the BPM of live audio streams like radio stations or online music services in real-time.

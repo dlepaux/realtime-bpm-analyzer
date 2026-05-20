@@ -1,3 +1,8 @@
+---
+title: What is Realtime BPM Analyzer?
+description: A zero-dependency TypeScript library for detecting tempo (BPM) in the browser from files, microphone, and live streams. AudioWorklet-native, < 5 KB gzipped, framework-agnostic.
+---
+
 # What is Realtime BPM Analyzer?
 
 Realtime BPM Analyzer is a powerful, dependency-free TypeScript/JavaScript library that enables you to detect the **beats-per-minute (BPM)** or **tempo** of audio and video sources directly in the browser.

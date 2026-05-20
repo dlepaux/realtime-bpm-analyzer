@@ -1,3 +1,8 @@
+---
+title: BPM Finder — Detect BPM from an Audio File
+description: Live demo — drop an MP3, WAV, or FLAC file and get the BPM in your browser. Vanilla JavaScript example with full source. Nothing uploaded, fully client-side.
+---
+
 # Basic Usage
 
 This guide demonstrates how to analyze BPM from audio files using Realtime BPM Analyzer.

@@ -1,3 +1,8 @@
+---
+title: How BPM Detection Works — Algorithm and Audio Pipeline
+description: How realtime-bpm-analyzer detects tempo — Web Audio API decoding, low-pass filtering, AudioWorklet peak detection, interval analysis. Architecture and algorithm explained.
+---
+
 # How It Works
 
 Understanding the technical approach behind Realtime BPM Analyzer helps you make better decisions when implementing it in your projects.

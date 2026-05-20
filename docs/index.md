@@ -1,6 +1,7 @@
 ---
 layout: home
 title: Find the BPM of Any Song, Free
+description: Find the BPM of any song free in your browser — drop a file, use your microphone, or paste a radio stream URL. Nothing uploaded. Also a zero-dependency TypeScript library for developers.
 
 hero:
   name: "Realtime BPM Analyzer"

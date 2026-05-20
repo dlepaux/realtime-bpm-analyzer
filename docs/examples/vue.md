@@ -1,3 +1,8 @@
+---
+title: Vue 3 BPM Detection — Composition API Examples
+description: Vue 3 integration examples for realtime-bpm-analyzer — file, streaming, and microphone BPM detection with the Composition API. Live demos and source code.
+---
+
 # Vue Integration
 
 How to integrate Realtime BPM Analyzer in Vue 3 applications using the Composition API.

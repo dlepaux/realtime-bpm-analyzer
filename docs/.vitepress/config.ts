@@ -86,19 +86,45 @@ export default defineConfig({
     )
   },
 
-  // Per-page canonical + og:url. GitHub Pages serves the same file at both
-  // `/foo.html` and `/foo`, so without a canonical tag Google treats the two as
-  // duplicates and demotes one ("Crawled, currently not indexed" in GSC). The
-  // canonical always points to the cleanUrls form on the apex host.
+  // Per-page canonical + og:url + per-page og/twitter title/description.
+  //
+  // Canonical: GitHub Pages serves the same file at both `/foo.html` and
+  // `/foo`, so without a canonical tag Google treats the two as duplicates
+  // and demotes one ("Crawled, currently not indexed" in GSC). The canonical
+  // always points to the cleanUrls form on the apex host.
+  //
+  // OG/Twitter title + description: injected per-page from the page's own
+  // frontmatter, falling back to the site-wide defaults below when a page
+  // doesn't set them. We deliberately do NOT also emit these from the
+  // global `head:` array — OpenGraph crawlers use the first occurrence of
+  // a property, so a duplicate would pin every inner page to the home-page
+  // value and defeat the per-page descriptions.
   transformPageData(pageData) {
     const slug = pageData.relativePath
       .replace(/(^|\/)index\.md$/, '$1')
       .replace(/\.md$/, '')
     const canonical = `https://www.realtime-bpm-analyzer.com/${slug}`
+
+    const SITE_NAME = 'Realtime BPM Analyzer'
+    const DEFAULT_OG_TITLE = 'Realtime BPM Analyzer — Web Audio BPM Detection Library'
+    const DEFAULT_DESCRIPTION = 'Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first. Includes a free online BPM tool.'
+
+    const pageTitle = pageData.frontmatter.title as string | undefined
+    const pageDesc = pageData.frontmatter.description as string | undefined
+
+    const ogTitle = pageTitle
+      ? `${pageTitle} | ${SITE_NAME}`
+      : DEFAULT_OG_TITLE
+    const ogDesc = pageDesc ?? DEFAULT_DESCRIPTION
+
     pageData.frontmatter.head ??= []
     pageData.frontmatter.head.push(
       ['link', { rel: 'canonical', href: canonical }],
       ['meta', { property: 'og:url', content: canonical }],
+      ['meta', { property: 'og:title', content: ogTitle }],
+      ['meta', { property: 'og:description', content: ogDesc }],
+      ['meta', { name: 'twitter:title', content: ogTitle }],
+      ['meta', { name: 'twitter:description', content: ogDesc }],
     )
   },
   
@@ -116,15 +142,13 @@ export default defineConfig({
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:locale', content: 'en' }],
     ['meta', { property: 'og:site_name', content: 'Realtime BPM Analyzer' }],
-    ['meta', { property: 'og:title', content: 'Realtime BPM Analyzer — Web Audio BPM Detection Library' }],
-    ['meta', { property: 'og:description', content: 'Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first. Includes a free online BPM tool.' }],
-    // og:url is injected per-page via transformPageData so each URL is self-canonical.
+    // og:url, og:title, og:description, twitter:title, twitter:description
+    // are injected per-page via transformPageData so each URL is
+    // self-canonical and each page surfaces its own meta.
     ['meta', { property: 'og:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
     ['meta', { property: 'og:image:width', content: '1280' }],
     ['meta', { property: 'og:image:height', content: '640' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-    ['meta', { name: 'twitter:title', content: 'Realtime BPM Analyzer — Web Audio BPM Detection Library' }],
-    ['meta', { name: 'twitter:description', content: 'Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first.' }],
     ['meta', { name: 'twitter:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
     ['link', { rel: 'icon', type: 'image/png', href: '/favicon/favicon-96x96.png', sizes: '96x96' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon/favicon.svg' }],

@@ -1,3 +1,8 @@
+---
+title: Getting Started — Install realtime-bpm-analyzer
+description: Install realtime-bpm-analyzer via npm, yarn, or pnpm and detect BPM from audio files, microphone, and streams in the browser. Zero dependencies, full TypeScript types.
+---
+
 <script setup>
 import GithubStarSupport from '../.vitepress/components/GithubStarSupport.vue'
 </script>

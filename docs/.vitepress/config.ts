@@ -287,7 +287,8 @@ export default defineConfig({
           items: [
             { text: 'How It Works', link: '/guide/how-it-works' },
             { text: 'Performance Tips', link: '/guide/performance' },
-            { text: 'Browser Compatibility', link: '/guide/browser-compatibility' }
+            { text: 'Browser Compatibility', link: '/guide/browser-compatibility' },
+            { text: 'Migration Guide (v4 → v5)', link: '/guide/migration-v5' }
           ]
         }
       ],

@@ -1,3 +1,10 @@
+---
+head:
+  - - meta
+    - name: robots
+      content: noindex, nofollow
+---
+
 # Documentation Development
 
 ## Running in Development Mode

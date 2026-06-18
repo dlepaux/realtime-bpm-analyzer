@@ -1,3 +1,10 @@
+## [5.0.14](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.13...v5.0.14) (2026-06-18)
+
+
+### Bug Fixes
+
+* **microphone:** disable voice-mode filters for mic capture in examples and docs ([1acc160](https://github.com/dlepaux/realtime-bpm-analyzer/commit/1acc1608b630fdb33be894431ebc9437fc78f3b3))
+
 ## [5.0.13](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.12...v5.0.13) (2026-05-06)
 
 

@@ -112,7 +112,7 @@
     "eslint": "^9.39.4",
     "globals": "^16.5.0",
     "husky": "^8.0.3",
-    "mocha": "^10.2.0",
+    "mocha": "^11.7.6",
     "music-metadata": "^11.12.3",
     "semantic-release": "^25.0.2",
     "ts-node": "^10.9.2",

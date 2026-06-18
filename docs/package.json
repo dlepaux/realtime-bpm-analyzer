@@ -38,7 +38,7 @@
     "eslint-plugin-vue": "^10.8.0",
     "globals": "^17.5.0",
     "lucide-static": "^1.8.0",
-    "realfavicon": "^0.5.0",
+    "realfavicon": "^0.8.3",
     "tsx": "^4.19.2",
     "typedoc": "^0.28.14",
     "typedoc-plugin-markdown": "^4.9.0",

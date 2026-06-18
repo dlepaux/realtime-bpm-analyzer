@@ -111,7 +111,7 @@
     "esbuild": "^0.28.1",
     "eslint": "^9.39.4",
     "globals": "^16.5.0",
-    "husky": "^8.0.3",
+    "husky": "^9.1.7",
     "mocha": "^10.2.0",
     "music-metadata": "^11.12.3",
     "semantic-release": "^25.0.2",

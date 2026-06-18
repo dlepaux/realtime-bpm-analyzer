@@ -116,7 +116,7 @@
     "music-metadata": "^11.12.3",
     "semantic-release": "^25.0.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.0"
   }
 }

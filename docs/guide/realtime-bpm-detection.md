@@ -145,7 +145,13 @@ import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyze
 const audioContext = new AudioContext();
 
 // HTTPS is required. getUserMedia only works on secure origins (or localhost).
-const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+const stream = await navigator.mediaDevices.getUserMedia({
+  audio: {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+  },
+});
 
 const source = audioContext.createMediaStreamSource(stream);
 const lowpass = getBiquadFilter(audioContext);

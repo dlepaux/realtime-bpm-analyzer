@@ -207,7 +207,16 @@ async function startMic() {
   const gen = ++generation
 
   try {
-    const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    // Disable the voice-mode filters so music from the device's own speakers
+    // isn't cancelled as echo (and the beat isn't flattened by AGC/denoise).
+    const localStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      },
+      video: false,
+    })
     if (gen !== generation) return disposeLocalMic(localStream, null, null)
 
     const localContext = new AudioContext()

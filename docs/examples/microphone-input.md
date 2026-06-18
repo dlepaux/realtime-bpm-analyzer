@@ -29,8 +29,12 @@ Real-time microphone analysis involves a few key steps:
 import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 // 1. Request microphone access
-const stream = await navigator.mediaDevices.getUserMedia({ 
-  audio: true 
+const stream = await navigator.mediaDevices.getUserMedia({
+  audio: {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+  },
 });
 
 // 2. Create audio context and analyzer

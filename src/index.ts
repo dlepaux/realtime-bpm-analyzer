@@ -82,7 +82,9 @@ export type {
  * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
  *
  * // Connect microphone - use .node for audio connections
- * const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+ * const stream = await navigator.mediaDevices.getUserMedia({
+ *   audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+ * });
  * const source = audioContext.createMediaStreamSource(stream);
  * source.connect(bpmAnalyzer.node);
  * // Note: Don't connect to destination to avoid feedback

@@ -246,7 +246,13 @@ a deep link to browser settings.
 
 ```typescript
 try {
-  mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mediaStream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+    },
+  });
 } catch (err) {
   if (err instanceof DOMException && err.name === 'NotAllowedError') {
     showError('Microphone access denied. Click the lock icon in the URL bar.');

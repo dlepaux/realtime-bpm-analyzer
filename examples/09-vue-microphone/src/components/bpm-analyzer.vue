@@ -78,7 +78,16 @@ const handleStart = async () => {
     }
 
     // Request microphone access
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Disable the voice-mode filters. Echo cancellation removes audio coming
+    // from the device's own speakers, which silences music played on the same
+    // device; noise suppression and auto gain control distort the beat.
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      },
+    });
     mediaStream = stream;
 
     await handleStream(audioContext, stream);

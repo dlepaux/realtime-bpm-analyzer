@@ -1,0 +1,52 @@
+# Dependabot keeps dependencies patched so security alerts stay small and
+# actionable instead of piling up. All three npm manifests are covered: the
+# library root (which also owns the examples/* workspaces), the docs site, and
+# each example app. Updates are grouped so a week of patches lands as a couple
+# of PRs, not dozens.
+#
+# Commit prefix is "chore(deps)" on purpose: semantic-release treats chore as
+# non-releasing, so dev-dependency bumps never cut a library version. Only a
+# real fix/feat to the published code bumps the package.
+#
+# `cooldown` holds back newly published versions for 7 days. A freshly
+# published release is the prime window for a compromised/hijacked package;
+# waiting lets the ecosystem catch it before we pull it in.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directories:
+      - "/"
+      - "/docs"
+      - "/examples/*"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    groups:
+      # Batched so a week of dev-dep patches arrives as one PR to review and
+      # merge once CI is green, instead of dozens of individual PRs.
+      dev-minor-patch:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      prod-minor-patch:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      # Majors are intentionally left ungrouped so each arrives as its own PR
+      # for manual review — they carry breaking-change risk.
+
+  # Keep the GitHub Actions used by CI current too.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      github-actions:
+        patterns: ["*"]

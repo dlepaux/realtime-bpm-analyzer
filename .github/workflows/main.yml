@@ -43,6 +43,9 @@ jobs:
       - name: Verify integrity
         run: npm audit signatures
 
+      - name: Audit dependencies (fail on high)
+        run: npm audit --audit-level=high
+
       - name: Lint
         run: npm run lint
 
@@ -54,6 +57,9 @@ jobs:
 
       - name: Docs typecheck
         run: cd docs && npm ci && npm run typecheck
+
+      - name: Audit docs dependencies (fail on high)
+        run: cd docs && npm audit --audit-level=high
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7

@@ -64,7 +64,9 @@
   "overrides": {
     "serialize-javascript": "^7.0.5",
     "postcss": "^8.5.10",
-    "ip-address": "^10.1.1"
+    "ip-address": "^10.1.1",
+    "qs": "^6.15.2",
+    "esbuild": "^0.28.1"
   },
   "scripts": {
     "build": "bash bin/build/library.sh",
@@ -106,7 +108,7 @@
     "@web/test-runner": "^0.18.0",
     "@web/test-runner-puppeteer": "^0.18.0",
     "chai": "^5.0.3",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.1",
     "eslint": "^9.39.4",
     "globals": "^16.5.0",
     "husky": "^8.0.3",

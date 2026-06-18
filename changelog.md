@@ -1,3 +1,10 @@
+## [5.0.15](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.14...v5.0.15) (2026-06-18)
+
+
+### Bug Fixes
+
+* **deps:** patch dev-tooling security advisories ([17760ca](https://github.com/dlepaux/realtime-bpm-analyzer/commit/17760cacaa3147a56d4b42cb80fd8ef1bf57eafb)), closes [hi#severity](https://github.com/hi/issues/severity)
+
 ## [5.0.14](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.13...v5.0.14) (2026-06-18)
 
 

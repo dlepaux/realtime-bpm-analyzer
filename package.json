@@ -65,7 +65,7 @@
     "serialize-javascript": "^7.0.5",
     "postcss": "^8.5.10",
     "ip-address": "^10.1.1",
-    "qs": "^6.15.2",
+    "qs": "^6.16.0",
     "esbuild": "^0.28.1"
   },
   "scripts": {

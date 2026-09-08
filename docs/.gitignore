@@ -20,5 +20,7 @@ security.md
 privacy.md
 
 # Generated assets
-public/favicon/
+# Note: public/favicon/ is committed (pre-generated) so the docs build does not
+# depend on the `realfavicon` toolchain, which transitively pulls an unfixable
+# image-size advisory. Regenerate with `npm run build:favicon` if the brand icon changes.
 favicon.json

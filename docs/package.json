@@ -35,7 +35,7 @@
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.10.2",
     "eslint": "^10.2.1",
-    "eslint-plugin-vue": "^10.8.0",
+    "eslint-plugin-vue": "^10.11.0",
     "globals": "^17.5.0",
     "lucide-static": "^1.8.0",
     "realfavicon": "^0.8.6",

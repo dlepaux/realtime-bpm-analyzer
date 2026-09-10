@@ -62,7 +62,7 @@
     "examples/*"
   ],
   "overrides": {
-    "serialize-javascript": "^7.0.5",
+    "serialize-javascript": "^7.1.1",
     "postcss": "^8.5.10",
     "ip-address": "^10.7.0",
     "qs": "^6.16.0",

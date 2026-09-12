@@ -28,7 +28,7 @@
   "overrides": {
     "vite": "^6.4.3",
     "postcss": "^8.5.10",
-    "markdown-it": "^14.2.0",
+    "markdown-it": "^14.3.2",
     "js-cookie": "^3.0.8"
   },
   "devDependencies": {

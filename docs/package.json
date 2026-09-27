@@ -37,14 +37,14 @@
     "eslint": "^10.10.0",
     "eslint-plugin-vue": "^10.11.1",
     "globals": "^17.12.0",
-    "lucide-static": "^1.43.0",
-    "tsx": "^4.19.2",
+    "lucide-static": "^1.47.0",
+    "tsx": "^4.23.15",
     "typedoc": "^0.28.20",
-    "typedoc-plugin-markdown": "^4.13.0",
+    "typedoc-plugin-markdown": "^4.13.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.59.0",
     "vitepress": "^1.6.4",
-    "vue": "^3.5.42",
+    "vue": "^3.5.43",
     "vue-eslint-parser": "^10.4.1",
     "vue-tsc": "^3.3.11"
   }

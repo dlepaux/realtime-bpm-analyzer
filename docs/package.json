@@ -40,7 +40,7 @@
     "lucide-static": "^1.43.0",
     "tsx": "^4.19.2",
     "typedoc": "^0.28.20",
-    "typedoc-plugin-markdown": "^4.13.0",
+    "typedoc-plugin-markdown": "^4.13.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.59.0",
     "vitepress": "^1.6.4",

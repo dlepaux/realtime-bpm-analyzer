@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "realtime-bpm-analyzer": "file:../..",
-    "vue": "^3.5.42"
+    "vue": "^3.5.43"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.5",

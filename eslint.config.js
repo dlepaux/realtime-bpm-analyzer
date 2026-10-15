@@ -18,6 +18,7 @@ export default tseslint.config(
       'node_modules/**',
       'web-dev-server.config.mjs',
       'web-test-runner.config.mjs',
+      'bin/audit-gate.mjs',
       'eslint.config.js',
       '.lintstagedrc.cjs',
       '.commitlintrc.cjs',

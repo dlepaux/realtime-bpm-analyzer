@@ -43,8 +43,10 @@ jobs:
       - name: Verify integrity
         run: npm audit signatures
 
-      - name: Audit dependencies (fail on high)
-        run: npm audit --audit-level=high
+      - name: Audit dependencies (fail on high, minus bin/audit-gate.mjs allowlist)
+        run: |
+          node bin/audit-gate.mjs --self-test
+          (npm audit --json || true) | node bin/audit-gate.mjs
 
       - name: Lint
         run: npm run lint

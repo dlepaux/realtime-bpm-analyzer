@@ -15,8 +15,11 @@ permissions:
   id-token: write
   pages: write
 
+# Pushes to main share one group so releases and Pages deploys never overlap. Each PR
+# gets its own: GitHub keeps one pending run per group, so a shared group silently
+# cancelled the PR runs queued behind a Renovate batch (3 of 5 on 2026-10-15).
 concurrency:
-  group: main-pipeline
+  group: main-pipeline-${{ github.event_name == 'push' && 'main' || github.ref }}
   cancel-in-progress: false
 
 jobs:

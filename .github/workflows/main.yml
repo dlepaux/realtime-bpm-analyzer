@@ -109,22 +109,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
-  # Deploy documentation
+  # Build the docs and all examples on every run, so a dependency PR that breaks them
+  # goes red before it merges (#232 merged green, then broke three examples on main:
+  # this job used to run on push only). Only the Pages deploy stays push-only.
   docs:
-    name: Deploy Documentation
+    name: Build Documentation
     needs: build
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: main
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -150,16 +147,28 @@ jobs:
         run: cd docs && npm run lint
 
       - name: Setup Pages
+        if: github.event_name == 'push'
         uses: actions/configure-pages@v6
 
       - name: Build documentation
         run: cd docs && npm run build
 
       - name: Upload pages artifact
+        if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v5
         with:
           path: docs/.vitepress/dist
 
+  docs-deploy:
+    name: Deploy Documentation
+    needs: docs
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

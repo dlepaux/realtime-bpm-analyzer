@@ -1,3 +1,10 @@
+## [5.0.16](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.15...v5.0.16) (2026-10-16)
+
+
+### Reverts
+
+* Revert "chore(deps): update dependency postcss to ^8.5.30 ([#232](https://github.com/dlepaux/realtime-bpm-analyzer/issues/232))" ([28ae9bf](https://github.com/dlepaux/realtime-bpm-analyzer/commit/28ae9bfa941ff4854f92932ab17cc16205861a71))
+
 ## [5.0.15](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.14...v5.0.15) (2026-06-18)
 
 

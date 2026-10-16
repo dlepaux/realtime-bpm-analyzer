@@ -27,7 +27,7 @@
   },
   "overrides": {
     "vite": "^6.4.3",
-    "postcss": "^8.5.30",
+    "postcss": "^8.5.10",
     "markdown-it": "^15.0.3",
     "js-cookie": "^3.0.8"
   },

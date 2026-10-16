@@ -6,7 +6,18 @@
     ":semanticCommitTypeAll(chore)"
   ],
   "labels": ["dependencies"],
+  "description": "minimumReleaseAge and ignorePaths: Renovate is this repo's only version bot since 2026-10-16 (Dependabot version updates removed; security alerts stay on). minimumReleaseAge keeps the 7-day hold Dependabot's cooldown gave, because a freshly published release is the prime window for a compromised package. ignorePaths is config:recommended's list minus **/examples/**, so the examples/* apps Dependabot covered stay covered.",
   "rangeStrategy": "bump",
+  "minimumReleaseAge": "7 days",
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/__tests__/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/__fixtures__/**"
+  ],
   "packageRules": [
     {
       "description": "Auto-merge patch updates for devDependencies",

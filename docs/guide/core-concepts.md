@@ -92,7 +92,7 @@ You can skip it if analyzing music with prominent high-frequency beats.
 ## How BPM Detection Works
 
 ### 1. Peak Detection
-The analyzer scans the audio signal at multiple amplitude **thresholds** (0.95, 0.90, 0.85... down to 0.20):
+The analyzer scans the audio signal at multiple amplitude **thresholds** (0.90, 0.85, 0.80... down to 0.20):
 
 ```
 Amplitude

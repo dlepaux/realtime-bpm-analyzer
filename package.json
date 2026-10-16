@@ -63,7 +63,7 @@
   ],
   "overrides": {
     "serialize-javascript": "^7.1.2",
-    "postcss": "^8.5.10",
+    "postcss": "^8.5.30",
     "ip-address": "^10.7.4",
     "qs": "^6.16.0",
     "esbuild": "^0.28.2"

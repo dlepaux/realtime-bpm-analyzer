@@ -78,8 +78,8 @@ function findPeaksAtThreshold(data, threshold) {
 The algorithm tests multiple threshold levels (from high to low sensitivity) to find the optimal detection level:
 
 ```typescript
-// Try thresholds from 0.95 down to 0.20 in 0.05 steps
-for (let threshold = 0.95; threshold >= 0.2; threshold -= 0.05) {
+// The descending scan checks thresholds from 0.90 down to 0.20 in 0.05 steps
+for (let threshold = 0.9; threshold >= 0.2; threshold -= 0.05) {
   const peaks = findPeaksAtThreshold(data, threshold);
   
   if (peaks.length >= minPeaks) {

@@ -26,6 +26,13 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
+    # @types/node follows the Node major CI runs (node-version in main.yml), not
+    # the newest types: a newer major describes APIs the runtime lacks, so code
+    # type-checks and then fails at run time. Bump it by hand with the runtime.
+    # renovate.json carries the same hold.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       # Batched so a week of dev-dep patches arrives as one PR to review and
       # merge once CI is green, instead of dozens of individual PRs.

@@ -2,7 +2,12 @@
   "branches": ["main"],
   "repositoryUrl": "https://github.com/dlepaux/realtime-bpm-analyzer",
   "plugins": [
-    "@semantic-release/commit-analyzer",
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "releaseRules": [{ "scope": "site", "release": false }]
+      }
+    ],
     "@semantic-release/release-notes-generator",
     [
       "@semantic-release/npm",

@@ -26,6 +26,9 @@ export type BpmAnalyticsEvent =
   | 'bpm_stream_stopped'
   | 'bpm_stream_muted'
   | 'bpm_stream_unmuted'
+  | 'bpm_tap_measured'
+  | 'bpm_delay_copied'
+  | 'bpm_metronome_started'
   | 'github_star_clicked'
 
 export function useAnalytics() {

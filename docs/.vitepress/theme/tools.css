@@ -1,0 +1,245 @@
+/* Shared look of the free tool pages (tap tempo, BPM to ms, metronome).
+   Built on VitePress's own tokens so light and dark mode follow the theme.
+   The `.vp-doc` prefixes win over the doc layout's table, link and heading
+   styles, which would otherwise restyle the tools from the outside. */
+
+.tt-card {
+  position: relative;
+  margin: 1.5rem 0 2.5rem;
+  padding: clamp(1.25rem, 4vw, 2.25rem);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 24px;
+  background:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--vp-c-brand-1) 14%, transparent), transparent 70%),
+    var(--vp-c-bg-soft);
+  overflow: hidden;
+}
+
+.tt-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+  line-height: 1;
+}
+
+.tt-number {
+  font-size: clamp(4rem, 14vw, 6.5rem);
+  font-weight: 750;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+  color: var(--vp-c-brand-1);
+}
+
+.tt-number.is-empty { color: var(--vp-c-text-3); }
+
+.tt-unit {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--vp-c-text-2);
+}
+
+.tt-caption {
+  min-height: 1.5em;
+  margin-top: 0.6rem;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--vp-c-text-2);
+}
+
+.tt-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.tt-stat {
+  padding: 0.7rem 0.5rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 14px;
+  background: var(--vp-c-bg);
+  text-align: center;
+}
+
+.tt-stat-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+.tt-stat-value {
+  margin-top: 0.15rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--vp-c-text-1);
+}
+
+.tt-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.tt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.05rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 999px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.1s ease;
+}
+
+.tt-btn:hover { border-color: var(--vp-c-brand-1); color: var(--vp-c-brand-1); }
+.tt-btn:active { transform: scale(0.97); }
+.tt-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.tt-btn-primary {
+  border-color: transparent;
+  background: var(--vp-button-brand-bg);
+  color: var(--vp-button-brand-text);
+}
+
+.tt-btn-primary:hover {
+  border-color: transparent;
+  background: var(--vp-button-brand-hover-bg);
+  color: var(--vp-button-brand-hover-text);
+}
+
+.tt-btn-round {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+}
+
+.vp-doc a.tt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 999px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.vp-doc a.tt-chip:hover { border-color: var(--vp-c-brand-1); color: var(--vp-c-brand-1); }
+
+.tt-segmented {
+  display: inline-flex;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 999px;
+  background: var(--vp-c-bg);
+}
+
+.tt-segmented button {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  color: var(--vp-c-text-2);
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.tt-segmented button:hover { color: var(--vp-c-text-1); }
+
+.tt-segmented button[aria-pressed='true'] {
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+
+.tt-range {
+  width: 100%;
+  margin: 1.25rem 0 0;
+  accent-color: var(--vp-c-brand-1);
+  cursor: pointer;
+}
+
+.tt-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+.tt-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tt-hint {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--vp-c-text-3);
+}
+
+.tt-hint kbd {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--vp-c-divider);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--vp-c-bg);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.75rem;
+}
+
+/* Focus rings: the tools are keyboard-first, so make focus obvious. */
+.tt-card :is(button, a, input, select):focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+/* "More free tools" strip at the foot of each tool page. */
+.tt-tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 2rem;
+}
+
+.vp-doc a.tt-tool {
+  display: block;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 16px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  text-decoration: none;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.vp-doc a.tt-tool:hover { border-color: var(--vp-c-brand-1); transform: translateY(-2px); }
+.tt-tool strong { display: block; color: var(--vp-c-brand-1); }
+.tt-tool span { font-size: 0.85rem; color: var(--vp-c-text-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-card *,
+  .tt-tools * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

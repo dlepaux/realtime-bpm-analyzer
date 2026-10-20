@@ -1,0 +1,17 @@
+# Realtime BPM Analyzer
+
+> Free browser tools for tempo (BPM) work, plus the open-source TypeScript library that powers them. Audio is analysed locally in the browser.
+
+## Tools
+
+- [BPM Analyzer](https://www.realtime-bpm-analyzer.com/): detects the BPM of an audio file, the microphone or a live radio stream, in the browser
+- [Tap Tempo](https://www.realtime-bpm-analyzer.com/tap-tempo): measures a tempo from taps (least-squares fit over the last 16 taps)
+- [BPM to ms Calculator](https://www.realtime-bpm-analyzer.com/bpm-to-ms): note lengths in ms and Hz, straight, dotted and triplet; quarter note ms = 60000 / BPM
+- [Online Metronome](https://www.realtime-bpm-analyzer.com/metronome): 20-300 BPM, 1-12 beats per bar, subdivisions, tap to set
+
+## Library
+
+- [Getting started](https://www.realtime-bpm-analyzer.com/guide/getting-started): install `realtime-bpm-analyzer` from npm; zero dependencies, AudioWorklet-based
+- [How it works](https://www.realtime-bpm-analyzer.com/guide/how-it-works): peak detection, threshold scan and interval grouping
+- [API reference](https://www.realtime-bpm-analyzer.com/api/)
+- [Source code](https://github.com/dlepaux/realtime-bpm-analyzer): Apache-2.0

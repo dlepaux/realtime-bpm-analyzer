@@ -53,7 +53,9 @@ const COPYRIGHT_YEARS = COPYRIGHT_END_YEAR > COPYRIGHT_START_YEAR
 //     page (the lib is what the whole site is about), so it ships globally
 //     via transformPageData.
 //   - WebApplication:     describes the free online BPM tool. Only accurate
-//     on the home page (that's where the tool actually lives). Home-only.
+//     on the home page (that's where the tool actually lives). Home-only;
+//     the other tool pages build their own from frontmatter (see
+//     transformPageData).
 //   - FAQPage:            the 7 Q&A pairs in the home page's FAQ section.
 //     Home-only — emitting it on /api/* or /guide/* would be technically
 //     invalid (Google Rich Results) and could suppress eligibility.
@@ -247,9 +249,35 @@ export default defineConfig({
     // live on /). Single <script> tag per page — Google reads @graph
     // members independently.
     const isHome = pageData.relativePath === 'index.md'
-    const graph = isHome
+    const graph: object[] = isHome
       ? [SCHEMA_SOFTWARE_SOURCE_CODE, SCHEMA_WEB_APPLICATION, SCHEMA_FAQ_PAGE]
       : [SCHEMA_SOFTWARE_SOURCE_CODE]
+
+    // Tool pages (tap tempo, BPM to ms, metronome) describe themselves in
+    // frontmatter: `tool:` becomes their WebApplication and `faq:` their
+    // FAQPage. ToolFaq.vue renders the same `faq:` list on the page, which is
+    // what keeps the markup valid: Google requires the answers to be visible.
+    const tool = pageData.frontmatter.tool as { name: string; featureList: string[] } | undefined
+    const faq = pageData.frontmatter.faq as { q: string; a: string }[] | undefined
+    if (tool) {
+      graph.push({
+        ...SCHEMA_WEB_APPLICATION,
+        name: tool.name,
+        description: ogDesc,
+        url: canonical,
+        featureList: tool.featureList,
+      })
+    }
+    if (faq?.length) {
+      graph.push({
+        '@type': 'FAQPage',
+        mainEntity: faq.map(({ q, a }) => ({
+          '@type': 'Question',
+          name: q,
+          acceptedAnswer: { '@type': 'Answer', text: a },
+        })),
+      })
+    }
 
     pageData.frontmatter.head ??= []
     pageData.frontmatter.head.push(
@@ -307,6 +335,15 @@ export default defineConfig({
     logo: '/logo.svg',
     
     nav: [
+      {
+        text: 'Free Tools',
+        items: [
+          { text: 'BPM Analyzer', link: '/' },
+          { text: 'Tap Tempo', link: '/tap-tempo' },
+          { text: 'BPM to ms Calculator', link: '/bpm-to-ms' },
+          { text: 'Metronome', link: '/metronome' },
+        ],
+      },
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Examples', link: '/examples/basic-usage' },
       { text: 'API Reference', link: '/api/' },

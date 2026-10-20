@@ -15,8 +15,9 @@
     "dev": "npm run copy:markdown && npm run docs:generate && vitepress dev",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint .",
+    "test": "node --test scripts/*.test.ts",
     "lint:fix": "eslint . --fix",
-    "verify": "npm run typecheck && npm run lint",
+    "verify": "npm run typecheck && npm run lint && npm test",
     "build": "npm run copy:markdown && npm run docs:generate && vitepress build && npm run build:examples && npm run build:redirects",
     "build:favicon": "npx --yes realfavicon generate ../brand/icon.svg favicon-settings.json favicon.json public/favicon",
     "preview": "vitepress preview"

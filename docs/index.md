@@ -83,6 +83,12 @@ is analysed right in your browser. **Nothing is uploaded**, no account required.
 
 </div>
 
+## More free music tools
+
+- [Tap Tempo](/tap-tempo) — tap along to measure a tempo by hand
+- [BPM to ms Calculator](/bpm-to-ms) — delay and reverb times for every note value
+- [Online Metronome](/metronome) — accents, subdivisions and tap to set
+
 ## Frequently asked questions
 
 ### How does it work?

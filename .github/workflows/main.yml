@@ -146,6 +146,9 @@ jobs:
       - name: Docs lint
         run: cd docs && npm run lint
 
+      - name: Docs tests
+        run: cd docs && npm test
+
       - name: Setup Pages
         if: github.event_name == 'push'
         uses: actions/configure-pages@v6

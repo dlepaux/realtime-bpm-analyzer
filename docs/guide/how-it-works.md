@@ -82,7 +82,7 @@ The algorithm tests multiple threshold levels (from high to low sensitivity) to 
 for (let threshold = 0.9; threshold >= 0.2; threshold -= 0.05) {
   const peaks = findPeaksAtThreshold(data, threshold);
   
-  if (peaks.length >= minPeaks) {
+  if (peaks.length > minPeaks) {
     // Found enough peaks, use this threshold
     break;
   }

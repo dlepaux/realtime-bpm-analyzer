@@ -134,7 +134,9 @@ function onDragLeave() {
   isDragOver.value = false
 }
 
-async function analyseFile(file: File, source: 'drop' | 'browse') {
+// `input_method`, not `source`: GA4 reads an event parameter named `source` as the
+// session's traffic source, which credited 1,237 sessions to "drop"/"browse" (RBA-2).
+async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
   fileName.value = file.name
   fileStatus.value = 'analysing'
   fileError.value = null
@@ -142,18 +144,23 @@ async function analyseFile(file: File, source: 'drop' | 'browse') {
   fileDuration.value = null
   fileElapsedMs.value = null
 
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
   track('bpm_file_selected', {
-    source,
+    input_method: inputMethod,
     size_kb: Math.round(file.size / 1024),
-    extension: file.name.split('.').pop()?.toLowerCase() ?? '',
+    extension,
   })
 
   const started = performance.now()
+  // Which step failed decides both the message and the error_kind: the browser not
+  // decoding the file is a format problem, a decoded file with no beat is not.
+  let stage: 'decode' | 'analyse' = 'decode'
 
   try {
     const arrayBuffer = await file.arrayBuffer()
     const audioContext = new AudioContext()
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+    stage = 'analyse'
     const candidates = await analyzeFullBuffer(audioBuffer)
     audioContext.close().catch((e) => console.debug('[BpmHeroTool] file context close:', e))
 
@@ -166,16 +173,23 @@ async function analyseFile(file: File, source: 'drop' | 'browse') {
     fileStatus.value = 'result'
 
     track('bpm_file_result', {
-      source,
+      input_method: inputMethod,
       bpm: fileBpm.value,
       duration_s: Math.round(fileDuration.value),
       elapsed_ms: fileElapsedMs.value,
     })
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown'
-    fileError.value = 'Couldn’t read that file. Try MP3, WAV, or FLAC.'
+    fileError.value = stage === 'decode'
+      ? 'Your browser couldn’t decode that file. Try MP3, WAV, FLAC, M4A or OGG.'
+      : 'No clear beat found in that file. Try a section with drums or bass.'
     fileStatus.value = 'error'
-    track('bpm_file_error', { source, reason })
+    track('bpm_file_error', {
+      input_method: inputMethod,
+      error_kind: stage === 'decode' ? 'decode_failed' : 'no_bpm',
+      extension,
+      reason,
+    })
     console.error('[BpmHeroTool] file analysis failed:', error)
   }
 }
@@ -244,8 +258,11 @@ async function startMic() {
     localAnalyzer.on('bpmStable', (data: BpmCandidates) => {
       const top = data.bpm?.[0]?.tempo
       if (top === undefined) return
-      micStableBpm.value = Math.round(top)
-      track('bpm_mic_stable', { bpm: micStableBpm.value })
+      const bpm = Math.round(top)
+      // bpmStable repeats on every qualifying chunk (~1/s): report a tempo once, and
+      // again only when it changes (RBA-5).
+      if (bpm !== micStableBpm.value) track('bpm_mic_stable', { bpm })
+      micStableBpm.value = bpm
       micStatus.value = 'result'
     })
   } catch (error) {
@@ -319,6 +336,9 @@ async function startStream() {
   streamStatus.value = 'analysing'
 
   const gen = ++generation
+  // A source that answers but fails (404, CORS) fires the element's `error` event
+  // AND rejects play(): whichever comes first reports it, once (RBA-4).
+  let reported = false
 
   try {
     const localAudioEl = new Audio()
@@ -363,11 +383,13 @@ async function startStream() {
     localAnalyzer.on('bpmStable', (data: BpmCandidates) => {
       const top = data.bpm?.[0]?.tempo
       if (top === undefined) return
-      streamStableBpm.value = Math.round(top)
-      track('bpm_stream_stable', { bpm: streamStableBpm.value, url: sanitised })
+      const bpm = Math.round(top)
+      if (bpm !== streamStableBpm.value) track('bpm_stream_stable', { bpm, url: sanitised })
+      streamStableBpm.value = bpm
     })
 
     const handler = (): void => {
+      reported = true
       streamError.value = 'Stream failed to load. URL may be unreachable or blocked by CORS.'
       streamStatus.value = 'error'
       track('bpm_stream_error', { url: sanitised, reason: 'audio_error' })
@@ -379,6 +401,7 @@ async function startStream() {
     await localAudioEl.play()
   } catch (error) {
     if (gen !== generation) return // invalidated during setup — bail quietly
+    if (reported) return
     const reason = error instanceof Error ? error.message : 'unknown'
     streamError.value = 'Couldn’t play that stream. CORS or network may be blocking it.'
     streamStatus.value = 'error'

@@ -103,7 +103,8 @@ onBeforeUnmount(() => {
       <span
         class="tt-number"
         :class="{ 'is-empty': bpm === null }"
-      >{{ bpm ?? '—' }}</span>
+        :aria-hidden="bpm === null"
+      >{{ bpm ?? '000' }}</span>
       <span class="tt-unit">BPM</span>
     </div>
     <p class="tt-caption">

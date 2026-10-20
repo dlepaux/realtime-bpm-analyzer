@@ -110,7 +110,7 @@ onMounted(() => {
           :min="MIN_BPM"
           :max="MAX_BPM"
           step="0.01"
-          :style="{ width: `${Math.max(2, String(bpmInput).length) + 0.3}ch` }"
+          :style="{ width: `${Math.max(2, String(bpmInput).length)}ch` }"
           aria-label="Tempo in beats per minute"
           @change="commitBpm"
         />
@@ -252,7 +252,9 @@ onMounted(() => {
   padding: 0;
   border: 0;
   background: transparent;
-  text-align: center;
+  /* The negative letter-spacing makes the digits narrower than their ch
+     width; right-aligning puts that slack away from the BPM unit. */
+  text-align: right;
   font-family: inherit;
   line-height: 1;
   -moz-appearance: textfield;

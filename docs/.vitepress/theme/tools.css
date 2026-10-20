@@ -31,7 +31,12 @@
   color: var(--vp-c-brand-1);
 }
 
-.tt-number.is-empty { color: var(--vp-c-text-3); }
+/* Ghost digits, like an unlit display: a dash at this size reads as a bar
+   and sits off the baseline the unit aligns to. */
+.tt-number.is-empty {
+  color: var(--vp-c-text-3);
+  opacity: 0.3;
+}
 
 .tt-unit {
   font-size: 1rem;

@@ -78,8 +78,8 @@ function findPeaksAtThreshold(data, threshold) {
 The algorithm tests multiple threshold levels (from high to low sensitivity) to find the optimal detection level:
 
 ```typescript
-// Try thresholds from 0.9 down to 0.3
-for (let threshold = 0.9; threshold >= 0.3; threshold -= 0.05) {
+// The descending scan checks thresholds from 0.90 down to 0.20 in 0.05 steps
+for (let threshold = 0.9; threshold >= 0.2; threshold -= 0.05) {
   const peaks = findPeaksAtThreshold(data, threshold);
   
   if (peaks.length >= minPeaks) {
@@ -113,48 +113,38 @@ function computeIntervals(peaks, sampleRate) {
 
 ### Step 5: Tempo Grouping
 
-Intervals are grouped by tempo, allowing slight variations (within ±5%):
+The analyzer compares each detected peak with up to the next nine peaks. It converts each sample interval to BPM, normalizes it to the 90–180 range, rounds it to an integer, and groups intervals with the same rounded BPM. It does not merge tempos using a percentage tolerance.
 
 ```typescript
-function groupByTempo(intervals) {
-  const groups = [];
-  
-  for (const interval of intervals) {
-    const tempo = Math.round(60000 / interval); // Convert to BPM
-    
-    // Find existing group or create new one
-    let group = groups.find(g => 
-      Math.abs(g.tempo - tempo) / tempo < 0.05 // 5% tolerance
-    );
-    
-    if (!group) {
-      group = { tempo, count: 0, intervals: [] };
-      groups.push(group);
-    }
-    
-    group.count++;
-    group.intervals.push(interval);
+function groupByTempo(intervalCounts, sampleRate) {
+  const groups = new Map();
+
+  for (const {interval, count} of intervalCounts) {
+    if (interval === 0) continue;
+
+    let tempo = 60 / (Math.abs(interval) / sampleRate);
+    while (tempo < 90) tempo *= 2;
+    while (tempo > 180) tempo /= 2;
+    tempo = Math.round(tempo);
+
+    const group = groups.get(tempo) ?? {tempo, count: 0, confidence: 0};
+    group.count += count;
+    groups.set(tempo, group);
   }
-  
-  return groups;
+
+  return [...groups.values()].sort((a, b) => b.count - a.count).slice(0, 5);
 }
 ```
 
 ### Step 6: Candidate Ranking
 
-BPM candidates are sorted by:
-1. **Count** (how many intervals match this tempo)
-2. **Consistency** (how stable the intervals are)
+BPM candidates are sorted by **count** (how many interval comparisons resolve to that rounded tempo). The current grouping implementation does not calculate a separate consistency score; its `confidence` field remains `0`.
 
 ```typescript
 function getBPMCandidates(groups) {
   return groups
     .sort((a, b) => b.count - a.count) // Most common first
-    .map(group => ({
-      tempo: Math.round(group.tempo),
-      count: group.count,
-      confidence: calculateConfidence(group)
-    }));
+    .slice(0, 5);
 }
 ```
 
@@ -168,7 +158,7 @@ The optional `getBiquadFilter()` function creates a low-pass filter that:
 - Improves detection accuracy
 
 **Frequency Response:**
-- **Frequency**: 150 Hz cutoff
+- **Frequency**: 200 Hz cutoff by default (configurable)
 - **Q Factor**: 1 (mild slope)
 - **Type**: Lowpass
 

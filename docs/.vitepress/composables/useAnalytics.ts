@@ -29,6 +29,7 @@ export type BpmAnalyticsEvent =
   | 'bpm_tap_measured'
   | 'bpm_delay_copied'
   | 'bpm_metronome_started'
+  | 'bpm_tool_link_clicked'
   | 'github_star_clicked'
 
 export function useAnalytics() {

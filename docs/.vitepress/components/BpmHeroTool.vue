@@ -16,6 +16,7 @@ import {
 } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
 import GithubStarSupport from './GithubStarSupport.vue'
+import ResultToolLinks from './ResultToolLinks.vue'
 
 type Mode = 'file' | 'mic' | 'stream'
 type Status = 'idle' | 'analysing' | 'result' | 'error'
@@ -602,6 +603,11 @@ function formatDuration(seconds: number): string {
               <span v-if="fileDuration !== null">{{ formatDuration(fileDuration) }}</span>
               <span v-if="fileElapsedMs !== null">· Done in {{ fileElapsedMs }} ms</span>
             </div>
+            <ResultToolLinks
+              v-if="fileBpm !== null"
+              :bpm="fileBpm"
+              source="file"
+            />
             <div class="bpm-result-actions">
               <button
                 type="button"
@@ -709,6 +715,11 @@ function formatDuration(seconds: number): string {
             <div class="bpm-state-label">
               Stable from microphone
             </div>
+            <ResultToolLinks
+              v-if="micStableBpm !== null"
+              :bpm="micStableBpm"
+              source="mic"
+            />
             <div class="bpm-result-actions">
               <button
                 type="button"
@@ -842,6 +853,11 @@ function formatDuration(seconds: number): string {
                 placement="demo-stream-stable"
               />
             </div>
+            <ResultToolLinks
+              v-if="streamStableBpm !== null"
+              :bpm="streamStableBpm"
+              source="stream"
+            />
           </div>
         </template>
 

@@ -565,7 +565,7 @@ function formatDuration(seconds: number): string {
             @change="onFileChange"
           />
           <div class="bpm-formats">
-            Handles FLAC, WAV &amp; MP3
+            MP3, WAV, FLAC, M4A, OGG &amp; more
           </div>
         </template>
 

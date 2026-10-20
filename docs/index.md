@@ -1,7 +1,7 @@
 ---
 layout: home
 title: Find the BPM of Any Song, Free
-description: Find the BPM of any song free in your browser — drop a file, use your microphone, or paste a radio stream URL. Nothing uploaded. Also a zero-dependency TypeScript library for developers.
+description: Find the BPM of any song free in your browser — drop a file, use your microphone, or paste a radio stream URL. Your audio never leaves your device. Also a zero-dependency TypeScript library for developers.
 
 hero:
   name: "Realtime BPM Analyzer"
@@ -44,7 +44,7 @@ mix songs smoothly. Fitness instructors pick tracks by BPM to match exercise int
 Producers check BPM to build remixes. Dancers count BPM to choose routines.
 
 Drop a file, use your microphone, or paste a radio stream URL above — everything
-is analysed right in your browser. **Nothing is uploaded**, no account required.
+is analysed right in your browser. **Your audio never leaves your device**, and no account is required.
 
 ## Who is it for?
 
@@ -70,21 +70,20 @@ interval gives the BPM. Everything happens on your device.
 
 ### Is my audio sent to a server?
 
-**No.** Files you drop, microphone input, and stream audio are all processed
-locally in your browser. Nothing is uploaded. The site is pure client-side
-JavaScript — you can verify this by watching the Network tab in your browser's
-developer tools.
+**No.** Files you drop, microphone input and stream audio are all analysed in
+your browser by the open-source library, which sends nothing anywhere. Your audio
+never leaves your device.
 
 ### Which audio formats are supported?
 
-**MP3, WAV, and FLAC** are supported for file analysis. Microphone input and
-live streams are handled directly via the Web Audio API without a format
-constraint beyond what your browser can decode.
+**MP3, WAV, FLAC, M4A and OGG**, and in general any audio your browser can play,
+including the sound of a video file. Microphone input and live streams have no
+format constraint.
 
 ### Does it work on mobile?
 
 Yes. The tool works on modern mobile browsers (iOS Safari and Android Chrome).
-File upload, microphone permission, and stream playback all function on touch
+Choosing a file, microphone permission and stream playback all work on touch
 devices.
 
 ### How accurate is the BPM detection?

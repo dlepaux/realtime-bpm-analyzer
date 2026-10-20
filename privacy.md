@@ -1,8 +1,8 @@
-# Privacy Policy
+# Library Privacy
 
 ## Overview
 
-Realtime BPM Analyzer is designed with privacy as a core principle. All audio processing happens entirely in your browser using the Web Audio API.
+This page covers the `realtime-bpm-analyzer` library itself. It is designed with privacy as a core principle. All audio processing happens entirely in your browser using the Web Audio API.
 
 ## Data Processing
 

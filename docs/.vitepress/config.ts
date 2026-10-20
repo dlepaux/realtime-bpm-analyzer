@@ -90,7 +90,7 @@ const SCHEMA_SOFTWARE_SOURCE_CODE = {
 const SCHEMA_WEB_APPLICATION = {
   '@type': 'WebApplication',
   name: 'Realtime BPM Analyzer',
-  description: 'Free online BPM analyzer — find the tempo of any song directly in your browser from a file, your microphone, or a live radio stream. No upload, no account.',
+  description: 'Free online BPM analyzer — find the tempo of any song directly in your browser from a file, your microphone, or a live radio stream. Your audio never leaves your device, and no account is needed.',
   url: 'https://www.realtime-bpm-analyzer.com',
   applicationCategory: 'MultimediaApplication',
   operatingSystem: 'Web Browser',
@@ -103,7 +103,7 @@ const SCHEMA_WEB_APPLICATION = {
     priceCurrency: 'USD',
   },
   featureList: [
-    'Analyze audio files (MP3, WAV, FLAC)',
+    'Analyze audio files (MP3, WAV, FLAC, M4A, OGG)',
     'Detect BPM from microphone input',
     'Detect BPM from a live radio stream',
     'Audio processed locally in the browser — never uploaded',
@@ -134,7 +134,7 @@ const SCHEMA_FAQ_PAGE = {
       name: 'Is my audio sent to a server?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'No. Files you drop, microphone input, and stream audio are all processed locally in your browser. Nothing is uploaded. The site is pure client-side JavaScript.',
+        text: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends nothing anywhere. Your audio never leaves your device.',
       },
     },
     {
@@ -142,7 +142,7 @@ const SCHEMA_FAQ_PAGE = {
       name: 'Which audio formats are supported?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'MP3, WAV, and FLAC are supported for file analysis. Microphone input and live streams are handled directly via the Web Audio API without a format constraint.',
+        text: 'MP3, WAV, FLAC, M4A and OGG, and in general any audio your browser can play, including the sound of a video file. Microphone input and live streams have no format constraint.',
       },
     },
     {
@@ -150,7 +150,7 @@ const SCHEMA_FAQ_PAGE = {
       name: 'Does it work on mobile?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Yes. The tool works on modern mobile browsers (iOS Safari and Android Chrome). File upload, microphone permission, and stream playback all function on touch devices.',
+        text: 'Yes. The tool works on modern mobile browsers (iOS Safari and Android Chrome). Choosing a file, microphone permission and stream playback all work on touch devices.',
       },
     },
     {
@@ -354,7 +354,8 @@ export default defineConfig({
           { text: 'Contributing', link: '/contributing' },
           { text: 'Code of Conduct', link: '/code-of-conduct' },
           { text: 'Security', link: '/security' },
-          { text: 'Privacy', link: '/privacy' }
+          { text: 'Library Privacy', link: '/privacy' },
+          { text: 'Website Privacy', link: '/website-privacy' }
         ]
       }
     ],
@@ -412,7 +413,7 @@ export default defineConfig({
     ],
 
     footer: {
-      message: 'Released under the Apache License 2.0',
+      message: 'Released under the Apache License 2.0 · <a href="/website-privacy">Website privacy</a>',
       copyright: `Copyright © ${COPYRIGHT_YEARS} <a href="https://david.lepaux.com">David Lepaux</a>`,
     },
 

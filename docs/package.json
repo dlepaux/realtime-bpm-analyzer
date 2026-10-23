@@ -27,7 +27,7 @@
     "realtime-bpm-analyzer": "file:.."
   },
   "overrides": {
-    "vite": "^6.4.4",
+    "vite": "^8.3.4",
     "postcss": "^8.5.29",
     "markdown-it": "^15.0.3",
     "js-cookie": "^3.0.8"

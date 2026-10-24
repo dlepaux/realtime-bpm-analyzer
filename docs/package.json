@@ -38,7 +38,7 @@
     "eslint": "^10.13.0",
     "eslint-plugin-vue": "^10.11.1",
     "globals": "^17.13.0",
-    "lucide-static": "^1.58.0",
+    "lucide-static": "^1.59.0",
     "tsx": "^4.23.15",
     "typedoc": "^0.28.20",
     "typedoc-plugin-markdown": "^4.14.0",

@@ -1,0 +1,127 @@
+name: External Links
+
+# The PR check (main.yml, docs job) runs offline and never touches third-party hosts, so a
+# page that moves or dies elsewhere is only noticed here. Weekly and non-blocking: a dead
+# outside link is not a reason to stop a release, so it is reported as one issue instead.
+on:
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: external-links
+  cancel-in-progress: false
+
+jobs:
+  external-links:
+    name: Check external links
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # lychee's cache spares outside hosts a second round when a run is repeated the same
+      # day (a manual dispatch after a fix), while each weekly run checks afresh (1d max
+      # age). lychee caches failures too, timeouts included, so the cache is saved only
+      # after a run with no errors: a re-run never replays a failure.
+      - name: Restore lychee cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.run_id }}
+          restore-keys: lychee-
+
+      # npmjs.com and packagephobia.com answer scripted requests with 403 and 429 whether
+      # the page exists or not, so they are excluded rather than 403/429 accepted
+      # everywhere: an accepted 403 would also hide a link to a repo that went private.
+      # The two links they carry only break if the package is renamed, which a release
+      # would show first. --root-dir resolves docs/' root-relative links to files, which
+      # the http(s)-only scheme filter then skips: VitePress checks those.
+      # The changelog's compare links are excluded too: semantic-release writes them from
+      # tags it has just pushed, and the 20 that are dead name releases whose tags were
+      # never pushed (v2.0.0, v3.0.0-0 to -10, v4.0.1...). Only re-creating those tags
+      # fixes them, so reporting them every week would keep the issue open for good.
+      # docs/ is given as a directory, not a ** glob: lychee walks a directory the way git
+      # sees it (.gitignore honoured, so no node_modules), while a glob follows the
+      # node_modules/realtime-bpm-analyzer symlink back to the root and never ends.
+      # Pinned by commit: this and the issue action below run with an issues: write token.
+      - name: Check external links
+        id: lychee
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          lycheeVersion: v0.24.2
+          fail: false
+          args: >-
+            --no-progress
+            --cache --max-cache-age 1d
+            --scheme https --scheme http
+            --root-dir '${{ github.workspace }}/docs'
+            --extensions md
+            --exclude '^https://(www\.)?npmjs\.com/'
+            --exclude '^https://packagephobia\.com/'
+            --exclude '^https://github\.com/dlepaux/realtime-bpm-analyzer/compare/'
+            './*.md' docs
+
+      - name: Save lychee cache
+        if: steps.lychee.outputs.exit_code == '0'
+        uses: actions/cache/save@v6
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.run_id }}
+
+      # One open issue at a time: a run with dead links (lychee exits 2) replaces its body,
+      # a clean run closes it, so an open issue always describes links that are broken now.
+      # Exit codes are compared as strings: an unset output must not read as a clean run.
+      - name: Find the open link-report issue
+        id: issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label broken-links \
+            --json number --jq '.[0].number // empty')
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the link-report issue
+        if: steps.lychee.outputs.exit_code == '2'
+        uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
+        with:
+          title: External links report
+          content-filepath: ./lychee/out.md
+          labels: broken-links
+          issue-number: ${{ steps.issue.outputs.number }}
+
+      # Editing an issue's body notifies nobody, so a run that finds the issue already open
+      # also comments on it.
+      - name: Notify on the updated link-report issue
+        if: steps.lychee.outputs.exit_code == '2' && steps.issue.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ steps.issue.outputs.number }}
+        run: |
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body "Report updated by run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."
+
+      # Any other exit code is lychee failing (a bad argument, a config error), with no
+      # report behind it: fail the run rather than overwrite the issue with an empty one.
+      - name: Fail on a lychee error
+        if: steps.lychee.outputs.exit_code != '0' && steps.lychee.outputs.exit_code != '2'
+        env:
+          EXIT_CODE: ${{ steps.lychee.outputs.exit_code }}
+        run: |
+          echo "::error::lychee exited '$EXIT_CODE', which is not a link failure"
+          exit 1
+
+      - name: Close the link-report issue
+        if: steps.lychee.outputs.exit_code == '0' && steps.issue.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ steps.issue.outputs.number }}
+        run: |
+          gh issue close "$NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --comment "Every external link passed in run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."

@@ -156,6 +156,27 @@ jobs:
       - name: Build documentation
         run: cd docs && npm run build
 
+      # VitePress fails the build on dead links, but only inside docs/: the root markdown
+      # files are never read by it, and they point at the site through full URLs. Both dead
+      # README links (8b71c6b) slipped through that gap. This checks the root files offline:
+      # relative links on disk, and our own site's URLs remapped onto the dist just built.
+      # --offline only narrows the schemes to file, and lychee applies --remap before that
+      # filter (lychee-lib client.rs, v0.24.2), so remapped URLs are checked while every
+      # other host is skipped; third-party URLs belong to links.yml. cleanUrls pages resolve
+      # through the .html fallback, directories (the bare domain, /api, /examples) through
+      # index.html. The apex and http forms are remapped too, so none is skipped silently.
+      # Blocking on pushes as well: a dead link stops the Pages deploy, as a dead link
+      # inside docs/ already does.
+      - name: Check root markdown links against the built site
+        uses: lycheeverse/lychee-action@v2.9.0
+        with:
+          lycheeVersion: v0.24.2
+          args: >-
+            --offline --no-progress
+            --index-files index.html --fallback-extensions html
+            --remap '^https?://(?:www\.)?realtime-bpm-analyzer\.com(/.*)?$ file://${{ github.workspace }}/docs/.vitepress/dist$1'
+            './*.md'
+
       - name: Upload pages artifact
         if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v5

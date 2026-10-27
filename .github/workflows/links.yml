@@ -1,0 +1,77 @@
+name: External Links
+
+# The PR check (main.yml, docs job) runs offline and never touches third-party hosts, so a
+# page that moves or dies elsewhere is only noticed here. Weekly and non-blocking: a dead
+# outside link is not a reason to stop a release, so it is reported as one issue instead.
+on:
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: external-links
+  cancel-in-progress: false
+
+jobs:
+  external-links:
+    name: Check external links
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # lychee's cache keeps a day's results, so a re-run or a manual dispatch after a fix
+      # does not hit every outside host again, while each weekly run checks afresh. Saved
+      # under a new key each run, since a cache entry is immutable once written.
+      - name: Restore lychee cache
+        uses: actions/cache@v6
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.run_id }}
+          restore-keys: lychee-
+
+      # npmjs.com and packagephobia.com answer scripted requests with 403 and 429 whether
+      # the page exists or not, so they are excluded rather than 403/429 accepted
+      # everywhere: an accepted 403 would also hide a link to a repo that went private.
+      # The two links they carry only break if the package is renamed, which a release
+      # would show first. --root-dir resolves docs/' root-relative links to files, which
+      # the http(s)-only scheme filter then skips: VitePress checks those.
+      - name: Check external links
+        id: lychee
+        uses: lycheeverse/lychee-action@v2.9.0
+        with:
+          lycheeVersion: v0.24.2
+          fail: false
+          args: >-
+            --no-progress
+            --cache --max-cache-age 1d
+            --scheme https --scheme http
+            --root-dir '${{ github.workspace }}/docs'
+            --exclude '^https://(www\.)?npmjs\.com/'
+            --exclude '^https://packagephobia\.com/'
+            './*.md' './docs/**/*.md'
+
+      # One open issue at a time: the newest failing report replaces the last one's body.
+      - name: Find the open link-report issue
+        if: steps.lychee.outputs.exit_code != 0
+        id: issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label broken-links \
+            --json number --jq '.[0].number // empty')
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the link-report issue
+        if: steps.lychee.outputs.exit_code != 0
+        uses: peter-evans/create-issue-from-file@v6
+        with:
+          title: External links report
+          content-filepath: ./lychee/out.md
+          labels: broken-links
+          issue-number: ${{ steps.issue.outputs.number }}

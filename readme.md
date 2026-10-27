@@ -59,7 +59,7 @@ analyzer.on('bpm', (data) => {
 **📖 [Full Documentation](https://www.realtime-bpm-analyzer.com)** - Complete guides, API reference, and tutorials
 
 **Key sections:**
-- [Quick Start Guide](https://www.realtime-bpm-analyzer.com/guide/quick-start) - Get up and running
+- [Getting Started Guide](https://www.realtime-bpm-analyzer.com/guide/getting-started) - Get up and running
 - [API Reference](https://www.realtime-bpm-analyzer.com/api) - Complete API documentation
 - [Examples](https://www.realtime-bpm-analyzer.com/examples) - Live demos and code samples
 - [Migration to v5](https://www.realtime-bpm-analyzer.com/guide/migration-v5) - Upgrading from v4.x
@@ -102,7 +102,7 @@ Contributions are welcome! See [contributing.md](contributing.md) for guidelines
 
 ## License
 
-Apache-2.0 License - See [licence.md](licence.md) for details.
+Apache-2.0 License - See [license.md](license.md) for details.
 
 For commercial licensing inquiries, contact: d.lepaux@gmail.com
 

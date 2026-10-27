@@ -25,11 +25,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # lychee's cache keeps a day's results, so a re-run or a manual dispatch after a fix
-      # does not hit every outside host again, while each weekly run checks afresh. Saved
-      # under a new key each run, since a cache entry is immutable once written.
+      # lychee's cache spares outside hosts a second round when a run is repeated the same
+      # day (a manual dispatch after a fix), while each weekly run checks afresh (1d max
+      # age). lychee caches failures too, timeouts included, so the cache is saved only
+      # after a run with no errors: a re-run never replays a failure.
       - name: Restore lychee cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: .lycheecache
           key: lychee-${{ github.run_id }}
@@ -41,9 +42,17 @@ jobs:
       # The two links they carry only break if the package is renamed, which a release
       # would show first. --root-dir resolves docs/' root-relative links to files, which
       # the http(s)-only scheme filter then skips: VitePress checks those.
+      # The changelog's compare links are excluded too: semantic-release writes them from
+      # tags it has just pushed, and the 20 that are dead name releases whose tags were
+      # never pushed (v2.0.0, v3.0.0-0 to -10, v4.0.1...). Only re-creating those tags
+      # fixes them, so reporting them every week would keep the issue open for good.
+      # docs/ is given as a directory, not a ** glob: lychee walks a directory the way git
+      # sees it (.gitignore honoured, so no node_modules), while a glob follows the
+      # node_modules/realtime-bpm-analyzer symlink back to the root and never ends.
+      # Pinned by commit: this and the issue action below run with an issues: write token.
       - name: Check external links
         id: lychee
-        uses: lycheeverse/lychee-action@v2.9.0
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
           lycheeVersion: v0.24.2
           fail: false
@@ -52,13 +61,22 @@ jobs:
             --cache --max-cache-age 1d
             --scheme https --scheme http
             --root-dir '${{ github.workspace }}/docs'
+            --extensions md
             --exclude '^https://(www\.)?npmjs\.com/'
             --exclude '^https://packagephobia\.com/'
-            './*.md' './docs/**/*.md'
+            --exclude '^https://github\.com/dlepaux/realtime-bpm-analyzer/compare/'
+            './*.md' docs
 
-      # One open issue at a time: the newest failing report replaces the last one's body.
+      - name: Save lychee cache
+        if: steps.lychee.outputs.exit_code == 0
+        uses: actions/cache/save@v6
+        with:
+          path: .lycheecache
+          key: lychee-${{ github.run_id }}
+
+      # One open issue at a time: a failing run replaces its body, a clean run closes it,
+      # so an open issue always describes links that are broken now.
       - name: Find the open link-report issue
-        if: steps.lychee.outputs.exit_code != 0
         id: issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -69,9 +87,18 @@ jobs:
 
       - name: Open or update the link-report issue
         if: steps.lychee.outputs.exit_code != 0
-        uses: peter-evans/create-issue-from-file@v6
+        uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
         with:
           title: External links report
           content-filepath: ./lychee/out.md
           labels: broken-links
           issue-number: ${{ steps.issue.outputs.number }}
+
+      - name: Close the link-report issue
+        if: steps.lychee.outputs.exit_code == 0 && steps.issue.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ steps.issue.outputs.number }}
+        run: |
+          gh issue close "$NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --comment "Every external link passed in run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."

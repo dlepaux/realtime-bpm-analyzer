@@ -10,7 +10,7 @@
 
 ### Bug Fixes
 
-* **deps:** patch dev-tooling security advisories ([17760ca](https://github.com/dlepaux/realtime-bpm-analyzer/commit/17760cacaa3147a56d4b42cb80fd8ef1bf57eafb)), closes [hi#severity](https://github.com/hi/issues/severity)
+* **deps:** patch dev-tooling security advisories ([17760ca](https://github.com/dlepaux/realtime-bpm-analyzer/commit/17760cacaa3147a56d4b42cb80fd8ef1bf57eafb))
 
 ## [5.0.14](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.13...v5.0.14) (2026-06-18)
 
@@ -52,7 +52,7 @@
 ### Bug Fixes
 
 * **analyzer:** scan full chunk when nextIndexPeaks is stale ([35ab66f](https://github.com/dlepaux/realtime-bpm-analyzer/commit/35ab66ff88106f425cfe3db19541becd093a3355))
-* **analyzer:** scan full chunk when nextIndexPeaks is stale ([275bad0](https://github.com/dlepaux/realtime-bpm-analyzer/commit/275bad05a84269a0b79b7cbafc5fc2e84985fbaf)), closes [hi#threshold](https://github.com/hi/issues/threshold)
+* **analyzer:** scan full chunk when nextIndexPeaks is stale ([275bad0](https://github.com/dlepaux/realtime-bpm-analyzer/commit/275bad05a84269a0b79b7cbafc5fc2e84985fbaf))
 
 ## [5.0.9](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.8...v5.0.9) (2026-04-22)
 

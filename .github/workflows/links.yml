@@ -20,6 +20,7 @@ jobs:
   external-links:
     name: Check external links
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -68,14 +69,15 @@ jobs:
             './*.md' docs
 
       - name: Save lychee cache
-        if: steps.lychee.outputs.exit_code == 0
+        if: steps.lychee.outputs.exit_code == '0'
         uses: actions/cache/save@v6
         with:
           path: .lycheecache
           key: lychee-${{ github.run_id }}
 
-      # One open issue at a time: a failing run replaces its body, a clean run closes it,
-      # so an open issue always describes links that are broken now.
+      # One open issue at a time: a run with dead links (lychee exits 2) replaces its body,
+      # a clean run closes it, so an open issue always describes links that are broken now.
+      # Exit codes are compared as strings: an unset output must not read as a clean run.
       - name: Find the open link-report issue
         id: issue
         env:
@@ -86,7 +88,7 @@ jobs:
           echo "number=$number" >> "$GITHUB_OUTPUT"
 
       - name: Open or update the link-report issue
-        if: steps.lychee.outputs.exit_code != 0
+        if: steps.lychee.outputs.exit_code == '2'
         uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710 # v6.0.0
         with:
           title: External links report
@@ -94,8 +96,29 @@ jobs:
           labels: broken-links
           issue-number: ${{ steps.issue.outputs.number }}
 
+      # Editing an issue's body notifies nobody, so a run that finds the issue already open
+      # also comments on it.
+      - name: Notify on the updated link-report issue
+        if: steps.lychee.outputs.exit_code == '2' && steps.issue.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ steps.issue.outputs.number }}
+        run: |
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body "Report updated by run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."
+
+      # Any other exit code is lychee failing (a bad argument, a config error), with no
+      # report behind it: fail the run rather than overwrite the issue with an empty one.
+      - name: Fail on a lychee error
+        if: steps.lychee.outputs.exit_code != '0' && steps.lychee.outputs.exit_code != '2'
+        env:
+          EXIT_CODE: ${{ steps.lychee.outputs.exit_code }}
+        run: |
+          echo "::error::lychee exited '$EXIT_CODE', which is not a link failure"
+          exit 1
+
       - name: Close the link-report issue
-        if: steps.lychee.outputs.exit_code == 0 && steps.issue.outputs.number != ''
+        if: steps.lychee.outputs.exit_code == '0' && steps.issue.outputs.number != ''
         env:
           GH_TOKEN: ${{ github.token }}
           NUMBER: ${{ steps.issue.outputs.number }}

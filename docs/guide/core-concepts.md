@@ -206,6 +206,7 @@ const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
 - Default: `{ min: 90, max: 180 }`
 - Every tempo is doubled or halved until it lands inside the range, so this picks the octave: the default reads an 85 BPM hip-hop track as 170, `{ min: 70, max: 140 }` reads it as 85
 - `max` must be at least twice `min`; a narrower range throws a `RangeError`
+- Keep the expected tempo away from the bounds: a tempo right on an edge jitters across it and its votes split between the two octaves
 - `analyzeFullBuffer(buffer, { tempoRange })` takes the same option
 
 ### debug

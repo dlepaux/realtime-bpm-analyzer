@@ -217,10 +217,10 @@ bpmAnalyzer.on('bpmStable', ({ bpm }) => {
 
 `bpm` is sorted by `count`, the number of peak intervals that voted for
 each tempo. `bpm[0]` is the top candidate, and `bpm[0].confidence` is the
-share of all votes within ±1 BPM of it (0 to 1). Half-time and
-double-time aliases fold onto the same value inside the 90–180 BPM
-default range; pass `tempoRange: { min: 70, max: 140 }` for slower music
-so an 85 BPM track reads 85 rather than 170.
+share of all votes within ±1 BPM of it (0 to 1). Every tempo is folded
+into the 90–180 BPM default range, so half-time and double-time readings
+usually land on the same value; pass `tempoRange: { min: 70, max: 140 }`
+for slower music so an 85 BPM track reads 85 rather than 170.
 
 ## Mobile gotchas
 

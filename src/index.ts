@@ -155,12 +155,16 @@ export async function createRealtimeBpmAnalyzer(
   audioContext: AudioContext,
   processorOptions?: RealTimeBpmAnalyzerParameters,
 ): Promise<BpmAnalyzer> {
-  // Validate on the main thread: a throw inside the worklet constructor would not reach the caller
-  resolveTempoRange(processorOptions?.tempoRange);
+  // Validate on the main thread: a throw inside the worklet constructor would not reach the caller.
+  // The worklet receives the validated plain object, so structured cloning cannot alter it.
+  const options: RealTimeBpmAnalyzerParameters = {
+    ...processorOptions,
+    tempoRange: resolveTempoRange(processorOptions?.tempoRange),
+  };
   const processorNode = await setupAudioWorkletNode(
     audioContext,
     realtimeBpmProcessorName,
-    processorOptions,
+    options,
   );
   await audioContext.resume();
   return new BpmAnalyzer(processorNode);

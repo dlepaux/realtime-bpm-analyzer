@@ -244,9 +244,9 @@ or over time; no absolute cut-off has been calibrated on real music yet.
 
 The library folds every tempo into the **90–180 BPM** range by halving or
 doubling it. This is the convention for dance and pop music, but it reads
-an 85 BPM hip-hop track as 170. A tempo and its double fold onto the same
-value, so the half-time alias never shows up as a second candidate. Pick
-the octave with the `tempoRange` option instead:
+an 85 BPM hip-hop track as 170. A tempo and its double usually fold onto
+the same value, so you cannot pick the octave from the candidates. Pick it
+with the `tempoRange` option instead:
 
 ```typescript
 const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
@@ -255,7 +255,10 @@ const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
 ```
 
 `max` must be at least twice `min`, so that every tempo has an octave
-inside the range; anything narrower throws a `RangeError`. See
+inside the range; anything narrower throws a `RangeError`. Keep your
+music's tempo away from the edges: a tempo sitting right on a bound (140
+in a 70–140 range) jitters across it, and its votes split between 140 and
+70, which lowers its count and confidence. See
 [How It Works](/guide/how-it-works) for the algorithm.
 
 ## The lowpass filter — why it's there

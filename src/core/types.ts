@@ -142,6 +142,8 @@ export type Tempo = {
  * so it reports the octave that lands inside this range. The default, 90–180, reads an
  * 85 BPM hip-hop track as 170; a 70–140 range reads it as 85.
  * `max` must be at least twice `min`, so that every tempo has an octave inside the range.
+ * Keep the expected tempo away from the bounds: folding happens before rounding, so a tempo
+ * sitting on an edge splits its votes between the two octaves.
  *
  * @group Type Aliases
  */

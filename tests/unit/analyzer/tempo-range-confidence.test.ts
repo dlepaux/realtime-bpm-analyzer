@@ -108,18 +108,22 @@ describe('analyzer - tempo range', () => {
     }
   });
 
-  it('gives the same tempos and counts with no range as with the explicit 90-180 default', async () => {
-    for (const peaks of [clickTrain(128), clickTrain(85), randomPeaks(1), randomPeaks(2)]) {
-      const data = asValidPeaks(peaks);
-      const implicit = await computeBpm({audioSampleRate: sampleRate, data});
-      const explicit = await computeBpm({
-        audioSampleRate: sampleRate,
-        data,
-        tempoRange: {min: 90, max: 180},
-      });
-      expect(implicit).to.deep.equal(explicit);
-    }
-  });
+  /**
+   * [tempo, count] pairs produced by computeBpm at 4bd2442, before the range option existed.
+   * The default path must keep returning exactly these.
+   */
+  const baselineBeforeRba22: Array<[string, Peaks, Array<[number, number]>]> = [
+    ['clickTrain(128)', clickTrain(128), [[128, 145], [171, 71], [102, 35], [146, 33], [114, 31]]],
+    ['clickTrain(85)', clickTrain(85), [[170, 145], [113, 71], [136, 35], [97, 33], [151, 31]]],
+    ['randomPeaks(1)', randomPeaks(1), [[122, 12], [99, 10], [140, 9], [92, 8], [94, 8]]],
+  ];
+
+  for (const [name, peaks, expected] of baselineBeforeRba22) {
+    it(`returns the pre-RBA-22 tempos, counts and order with no range: ${name}`, async () => {
+      const {bpm} = await computeBpm({audioSampleRate: sampleRate, data: asValidPeaks(peaks)});
+      expect(bpm.map(t => [t.tempo, t.count])).to.deep.equal(expected);
+    });
+  }
 
   describe('resolveTempoRange', () => {
     it('defaults to 90-180', () => {
@@ -200,8 +204,9 @@ describe('analyzer - confidence', () => {
 
   /**
    * Calibration on synthetic fixtures. A perfect click train cannot reach 1:
-   * pairs 3, 5, 6, 7 and 9 beats apart fold to other tempos. The measured
-   * values are recorded in the RBA-22 PR; no docs threshold is derived here.
+   * pairs 3, 5, 6, 7 and 9 beats apart fold to other tempos. Measured: click 0.460,
+   * ±5/10/20 ms jitter down to 0.43/0.37/0.27, random peaks 0.048–0.092 (table in
+   * the RBA-22 PR). No docs threshold is derived here.
    */
   it('scores a perfect click train high and random peaks low', async () => {
     const clickScores: number[] = [];
@@ -230,12 +235,6 @@ describe('analyzer - confidence', () => {
       jitteredScores.set(jitterMs, scores);
     }
 
-    const format = (scores: number[]) => scores.map(s => s.toFixed(3)).join(', ');
-    console.log(`[RBA-22 calibration] click: ${format(clickScores)}`);
-    console.log(`[RBA-22 calibration] random: ${format(randomScores)}`);
-    for (const [jitterMs, scores] of jitteredScores) {
-      console.log(`[RBA-22 calibration] click 120 BPM ±${jitterMs} ms: ${format(scores)}`);
-    }
 
     expect(Math.min(...clickScores)).to.be.greaterThan(0.4);
     expect(Math.max(...randomScores)).to.be.lessThan(0.15);

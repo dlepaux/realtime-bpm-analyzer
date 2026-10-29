@@ -103,6 +103,46 @@
   }
 }
 
+/* ── Navbar: no horizontal scroll from 320px up ─────────────────────────── */
+
+/* VitePress never lets the title shrink, so below ~340px the logo + site name
+   push the hamburger off-screen. Let it shrink and ellipsize the name instead. */
+.VPNavBar .container > .title {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.VPNavBar .container > .title .title > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.VPNavBar .container > .title .title > .logo {
+  flex-shrink: 0;
+}
+
+/* VitePress shows the full menu from 768px, but our nav (4 entries + version
+   flyout + extras) needs ~920px, so tablets scrolled sideways. Keep the
+   hamburger and the nav screen up to the 960px sidebar breakpoint instead.
+   Known VitePress quirk kept as is: its resize handler closes an open nav
+   screen when a resize event fires at outerWidth >= 768 (e.g. rotation). */
+@media (min-width: 768px) and (max-width: 959px) {
+  .VPNavBar .content-body .VPNavBarMenu,
+  .VPNavBar .content-body .VPNavBarExtra {
+    display: none;
+  }
+
+  .VPNavBar .content-body .VPNavBarHamburger {
+    display: flex;
+  }
+
+  .VPNav .VPNavScreen {
+    display: block;
+  }
+}
+
 /* Enhance code blocks */
 .vp-doc div[class*='language-'] {
   margin: 1.5rem 0;

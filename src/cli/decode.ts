@@ -34,11 +34,22 @@ const ffmpegSampleRate = 44_100;
 
 /**
  * Identifies a format from its first bytes, so a misnamed file still decodes.
- * @param bytes Start of the file (at least 40 bytes when the file has them)
+ * @param bytes The file, or at least its first bytes past any ID3 tag
  * @returns The built-in decoder to use, or undefined to hand the file to ffmpeg
  */
 export function sniffFormat(bytes: Uint8Array): BuiltInFormat | undefined {
-  const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
+  const format = sniffAt(bytes, 0);
+  return format === 'aac' ? undefined : format;
+}
+
+/**
+ * @param bytes File bytes
+ * @param start Offset to sniff from
+ * @returns The format, 'aac' for ADTS AAC, or undefined when unrecognised
+ */
+function sniffAt(bytes: Uint8Array, start: number): BuiltInFormat | 'aac' | undefined {
+  const ascii = (from: number, to: number) => String.fromCharCode(...bytes.subarray(start + from, start + to));
+  const byte = (offset: number) => bytes[start + offset] ?? 0;
 
   if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WAVE') {
     return 'wav';
@@ -57,13 +68,21 @@ export function sniffFormat(bytes: Uint8Array): BuiltInFormat | undefined {
     return ascii(29, 35) === 'vorbis' ? 'vorbis' : undefined;
   }
 
-  if (ascii(0, 3) === 'ID3') {
-    return 'mp3';
+  if (ascii(0, 3) === 'ID3' && start === 0) {
+    // An ID3v2 tag can sit in front of FLAC or ADTS AAC too, so look behind it. Its size is
+    // 4 syncsafe bytes (7 bits each), plus 10 header bytes and 10 more with a footer.
+    const size = ((byte(6) & 0x7F) << 21) | ((byte(7) & 0x7F) << 14) | ((byte(8) & 0x7F) << 7) | (byte(9) & 0x7F);
+    const tagged = sniffAt(bytes, size + ((byte(5) & 0x10) === 0 ? 10 : 20));
+    // Padding or junk after the tag: MP3 is by far the format most likely to carry one
+    return tagged ?? 'mp3';
   }
 
-  // MPEG audio frame sync. Layer bits 00 are AAC in ADTS, which goes to ffmpeg.
-  const isFrameSync = bytes[0] === 0xFF && ((bytes[1] ?? 0) & 0xE0) === 0xE0;
-  return isFrameSync && (((bytes[1] ?? 0) >> 1) & 0b11) !== 0 ? 'mp3' : undefined;
+  // MPEG audio frame sync. Layer bits 00 mean AAC in ADTS.
+  if (byte(0) === 0xFF && (byte(1) & 0xE0) === 0xE0) {
+    return ((byte(1) >> 1) & 0b11) === 0 ? 'aac' : 'mp3';
+  }
+
+  return undefined;
 }
 
 /**
@@ -132,9 +151,9 @@ async function decodeWithFfmpeg(path: string, ffmpegPath: string, format: BuiltI
   child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
   child.stderr.on('data', (chunk: Buffer) => errors.push(chunk));
 
-  const exitCode = await new Promise<number | null>((resolveExit, rejectExit) => {
+  const exit = await new Promise<{code: number | null; signal: NodeJS.Signals | null}>((resolveExit, rejectExit) => {
     child.on('error', rejectExit);
-    child.on('close', resolveExit);
+    child.on('close', (code, signal) => resolveExit({code, signal}));
   }).catch((error: unknown) => {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       const why = format === undefined
@@ -146,8 +165,10 @@ async function decodeWithFfmpeg(path: string, ffmpegPath: string, format: BuiltI
     throw error;
   });
 
-  if (exitCode !== 0) {
-    const detail = Buffer.concat(errors).toString('utf8').trim().split('\n').at(-1) ?? '';
+  if (exit.code !== 0) {
+    const detail = exit.signal === null
+      ? Buffer.concat(errors).toString('utf8').trim().split('\n').at(-1) ?? ''
+      : `killed by ${exit.signal}`;
     throw new Error(`ffmpeg could not decode the file${detail === '' ? '' : `: ${detail}`}`);
   }
 

@@ -97,6 +97,16 @@ async function main(argv: readonly string[]): Promise<number> {
   }
 }
 
+// `realtime-bpm-analyzer ./music | head` closes the pipe early: stop quietly instead of
+// crashing on EPIPE with a stack trace. Exit 1, because the report was cut short.
+process.stdout.on('error', (error: NodeJS.ErrnoException) => {
+  if (error.code !== 'EPIPE') {
+    throw error;
+  }
+
+  process.exit(exitCodes.fileFailed);
+});
+
 main(process.argv.slice(2)).then(code => {
   process.exitCode = code;
 }, (error: unknown) => {

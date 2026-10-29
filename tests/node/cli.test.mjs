@@ -89,7 +89,7 @@ describe('realtime-bpm-analyzer CLI', () => {
     assert.equal(result.candidates[0].count, bassTestExpected.count);
   });
 
-  for (const [name, bpm] of [['cli/click-128.mp3', 128], ['cli/click-100.flac', 100], ['cli/click-140.ogg', 140], ['cli/click-140.opus', 140]]) {
+  for (const [name, bpm] of [['bass-test.wav', bassTestExpected.tempo], ['cli/click-128.mp3', 128], ['cli/click-100.flac', 100], ['cli/click-140.ogg', 140], ['cli/click-140.opus', 140]]) {
     it(`decodes ${name} with the bundled decoder`, async () => {
       // An unusable FFMPEG_PATH proves no ffmpeg was involved
       const {code, results: [result]} = await runJson([fixture(name)], {FFMPEG_PATH: '/nonexistent/ffmpeg'});
@@ -130,6 +130,77 @@ describe('realtime-bpm-analyzer CLI', () => {
     const {code, results: [result]} = await runJson([fixture('cli/click-128.m4a')]);
     assert.equal(code, 0);
     assert.equal(result.bpm, 128);
+  });
+
+  describe('format detection and ffmpeg', () => {
+    let root;
+    // An ID3v2.4 tag of 256 padding bytes, as taggers put in front of FLAC or ADTS AAC too
+    const id3Tag = Buffer.concat([Buffer.from([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 2, 0]), Buffer.alloc(256)]);
+
+    /**
+     * Writes an executable stand-in for ffmpeg that records its arguments.
+     * @param {string} name File name
+     * @param {string} body Script body; `args` holds the arguments
+     * @returns {Promise<string>} Its path
+     */
+    async function fakeFfmpeg(name, body) {
+      const path = join(root, name);
+      await writeFile(path, `#!/usr/bin/env node\nconst args = process.argv.slice(2);\n${body}\n`);
+      await chmod(path, 0o755);
+      return path;
+    }
+
+    before(async () => {
+      root = await mkdtemp(join(tmpdir(), 'rba-cli-fmt-'));
+    });
+
+    after(async () => {
+      await rm(root, {recursive: true, force: true});
+    });
+
+    it('looks behind an ID3 tag before picking a decoder', async () => {
+      const flac = join(root, 'tagged.flac');
+      await writeFile(flac, Buffer.concat([id3Tag, await readFile(clickFlac)]));
+      // ADTS AAC (sync word, layer bits 00) behind the tag must not reach the MP3 decoder
+      const aac = join(root, 'tagged.aac');
+      await writeFile(aac, Buffer.concat([id3Tag, Buffer.from([0xFF, 0xF1, 0x50, 0x80]), Buffer.alloc(512)]));
+
+      const {results} = await runJson([flac, aac], {FFMPEG_PATH: '/nonexistent/ffmpeg'});
+      assert.equal(results[0].bpm, 100);
+      assert.equal(results[1].ok, false);
+      assert.match(results[1].error, /bundled decoders do not read this format.*ffmpeg was not found/);
+    });
+
+    it('reads float PCM from ffmpeg and passes the file with a file: prefix', async () => {
+      const argsLog = join(root, 'args.json');
+      // 20 s of 60 Hz clicks at 120 BPM and 44.1 kHz, the rate the CLI asks ffmpeg for
+      const ffmpeg = await fakeFfmpeg('ffmpeg-ok.mjs', `
+        import {writeFileSync} from 'node:fs';
+        writeFileSync(${JSON.stringify(argsLog)}, JSON.stringify(args));
+        const rate = 44100, pcm = Buffer.alloc(rate * 20 * 4);
+        for (let i = 0; i < rate * 20; i += 1) {
+          const t = (i % (rate / 2)) / rate;
+          pcm.writeFloatLE(t < 0.08 ? 0.9 * Math.exp(-t * 40) * Math.sin(2 * Math.PI * 60 * t) : 0, i * 4);
+        }
+        process.stdout.write(pcm);`);
+
+      const {code, results: [result]} = await runJson([fixture('cli/click-128.m4a')], {FFMPEG_PATH: ffmpeg});
+      assert.equal(code, 0);
+      assert.equal(result.bpm, 120);
+      const args = JSON.parse(await readFile(argsLog, 'utf8'));
+      assert.equal(args[args.indexOf('-i') + 1], `file:${fixture('cli/click-128.m4a')}`);
+      assert.deepEqual(args.slice(-5), ['-f', 'f32le', '-ar', '44100', 'pipe:1']);
+    });
+
+    it('reports the last line ffmpeg printed when it fails', async () => {
+      const ffmpeg = await fakeFfmpeg('ffmpeg-fail.mjs', `
+        process.stderr.write('banner\\nInvalid data found when processing input\\n');
+        process.exitCode = 1;`);
+
+      const {code, results: [result]} = await runJson([fixture('cli/click-128.m4a')], {FFMPEG_PATH: ffmpeg});
+      assert.equal(code, 1);
+      assert.equal(result.error, 'ffmpeg could not decode the file: Invalid data found when processing input');
+    });
   });
 
   describe('folder mode', () => {

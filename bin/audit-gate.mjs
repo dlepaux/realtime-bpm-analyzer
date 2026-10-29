@@ -17,11 +17,7 @@
 //        node bin/audit-gate.mjs --self-test
 
 const ALLOWLIST = [
-  { ghsa: 'GHSA-vfj7-8cjw-p6xm', pkg: 'braces', until: '2026-11-15', why: 'no patched braces release exists' },
-  { ghsa: 'GHSA-rfgv-xxqx-mfg5', pkg: 'undici', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11; npm 11.21.0 still ships 6.28.0' },
-  { ghsa: 'GHSA-ch52-4w7c-c8xp', pkg: 'http-cache-semantics', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11' },
-  { ghsa: 'GHSA-qhr7-859c-m2p7', pkg: 'brace-expansion', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11' },
-  { ghsa: 'GHSA-6j4f-fj2g-mc7p', pkg: 'brace-expansion', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11' },
+  { ghsa: 'GHSA-xjj6-f33q-929c', pkg: 'undici', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11; npm 11.21.1 ships 6.29.0, fixed in 6.29.1. Bump requested in npm/cli#10163 (filed for GHSA-2m5v; the same 6.29.1 fixes this one)' },
 ];
 
 const BLOCKING = new Set(['high', 'critical']);

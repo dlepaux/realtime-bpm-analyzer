@@ -1,3 +1,12 @@
+## [5.0.17](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.16...v5.0.17) (2026-10-29)
+
+
+### Bug Fixes
+
+* **deps:** allowlist npm-bundled undici for two new TLS advisories ([#265](https://github.com/dlepaux/realtime-bpm-analyzer/issues/265)) ([543eeb5](https://github.com/dlepaux/realtime-bpm-analyzer/commit/543eeb51762d4faa93178f14d099df1b18d2b6ae)), closes [#262](https://github.com/dlepaux/realtime-bpm-analyzer/issues/262) [npm/cli#10170](https://github.com/npm/cli/issues/10170)
+* **deps:** patch undici and zod advisories that turned the audit gate red ([#262](https://github.com/dlepaux/realtime-bpm-analyzer/issues/262)) ([5484ce6](https://github.com/dlepaux/realtime-bpm-analyzer/commit/5484ce68b4d65e81fcfc23ee1b4a0f2a86df8133))
+* **site:** tighten the tempo readouts seen on the live pages ([c8558a3](https://github.com/dlepaux/realtime-bpm-analyzer/commit/c8558a3d2b77b9d7338c3748b18f952b94a95033))
+
 ## [5.0.16](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.15...v5.0.16) (2026-10-16)
 
 

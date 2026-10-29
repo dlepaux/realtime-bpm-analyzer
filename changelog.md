@@ -1,3 +1,10 @@
+# [5.1.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.17...v5.1.0) (2026-10-29)
+
+
+### Features
+
+* **tempo:** add a tempoRange option and compute a real confidence ([#264](https://github.com/dlepaux/realtime-bpm-analyzer/issues/264)) ([dde581e](https://github.com/dlepaux/realtime-bpm-analyzer/commit/dde581e8bf9478115a41c84b8d5ac01e2dc0a8d1))
+
 ## [5.0.17](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.16...v5.0.17) (2026-10-29)
 
 

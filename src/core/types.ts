@@ -82,7 +82,7 @@ export type PeaksAndThreshold = {
  * @group Type Aliases
  */
 export type BpmCandidates = {
-  /** Array of tempo candidates sorted by confidence */
+  /** Up to 5 tempo candidates, sorted by `count` (highest first) */
   readonly bpm: readonly Tempo[];
   /** Threshold value used for peak detection */
   readonly threshold: Threshold;
@@ -117,10 +117,48 @@ export type Group = {
 export type Tempo = {
   /** Detected tempo in beats per minute */
   readonly tempo: number;
-  /** Number of matching intervals (higher = more confident) */
+  /** Number of peak intervals that voted for this tempo. Candidates are ranked by it. */
   readonly count: number;
-  /** Confidence score (0-1 scale) */
+  /**
+   * Share of all interval votes that agree with this tempo, from 0 to 1.
+   *
+   * Computed as `(count(tempo − 1) + count(tempo) + count(tempo + 1)) / totalVotes`,
+   * where `totalVotes` sums the counts of every tempo group, not only the returned
+   * candidates. The ±1 BPM window absorbs rounding jitter.
+   *
+   * @remarks
+   * A perfect click train scores about 0.46, not 1: each peak is paired with the next
+   * 9 peaks, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. Compare values against each other; no absolute
+   * cut-off has been calibrated on real music yet.
+   */
   readonly confidence: number;
+};
+
+/**
+ * Tempo range, in BPM, that every detected tempo is folded into by doubling or halving.
+ *
+ * @remarks
+ * The detector cannot tell a tempo from its double or half from peak intervals alone,
+ * so it reports the octave that lands inside this range. The default, 90–180, reads an
+ * 85 BPM hip-hop track as 170; a 70–140 range reads it as 85.
+ * `max` must be at least twice `min`, so that every tempo has an octave inside the range.
+ *
+ * @group Type Aliases
+ */
+export type TempoRange = {
+  /** Lowest tempo reported, in BPM (default: 90) */
+  readonly min: number;
+  /** Highest tempo reported, in BPM (default: 180) */
+  readonly max: number;
+};
+
+/**
+ * Options for {@link analyzeFullBuffer}: lowpass filter settings plus the tempo range
+ * @group Type Aliases
+ */
+export type AnalyzeFullBufferOptions = BiquadFilterOptions & {
+  /** Range every tempo is folded into (default: 90–180 BPM) */
+  tempoRange?: TempoRange;
 };
 
 /**
@@ -136,6 +174,8 @@ export type RealTimeBpmAnalyzerParameters = {
   muteTimeInIndexes?: number;
   /** Enable debug event logging (default: false) */
   debug?: boolean;
+  /** Range every tempo is folded into (default: 90–180 BPM) */
+  tempoRange?: TempoRange;
 };
 
 /**
@@ -147,6 +187,7 @@ export type RealTimeBpmAnalyzerOptions = {
   stabilizationTime: number;
   muteTimeInIndexes: number;
   debug: boolean;
+  tempoRange: TempoRange;
 };
 
 /**
@@ -156,6 +197,7 @@ export type RealTimeBpmAnalyzerOptions = {
 export type AnalyzerGroupByTempoOptions = {
   audioSampleRate: number;
   intervalCounts: Interval[];
+  tempoRange?: TempoRange;
 };
 
 /**
@@ -174,6 +216,7 @@ export type AnalyzerFindPeaksOptions = {
 export type AnalyzerComputeBpmOptions = {
   audioSampleRate: number;
   data: ValidPeaks;
+  tempoRange?: TempoRange;
 };
 
 /**

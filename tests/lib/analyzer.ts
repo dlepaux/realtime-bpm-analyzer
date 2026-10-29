@@ -67,4 +67,25 @@ describe('Analyzer - Integration tests', () => {
     const tempo = getTopCandidate(tempos);
     expect(tempo).to.be.equal(125);
   });
+
+  it('should fold the detected BPM into a caller-supplied tempo range', async function () {
+    this.timeout(30 * 1000);
+    const audioBuffer = await loadTestAudio(audioContext);
+    const tempos = await analyzeFullBuffer(audioBuffer, {tempoRange: {min: 50, max: 100}});
+    // 125 BPM halved is 62.5; rounding after folding lands on either neighbour
+    expect(getTopCandidate(tempos)).to.be.within(62, 63);
+    expect(tempos[0].confidence).to.be.greaterThan(0);
+  });
+
+  it('should reject an invalid tempo range before analysing', async () => {
+    const audioBuffer = await loadTestAudio(audioContext);
+    let caught: unknown;
+    try {
+      await analyzeFullBuffer(audioBuffer, {tempoRange: {min: 90, max: 170}});
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).to.be.instanceOf(RangeError);
+  });
 });

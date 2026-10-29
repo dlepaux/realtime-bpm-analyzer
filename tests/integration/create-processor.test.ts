@@ -44,6 +44,25 @@ describe('createRealtimeBpmAnalyzer', function () {
       });
       expect(processor).to.be.instanceOf(BpmAnalyzer);
     });
+
+    it('should accept a tempo range', async () => {
+      const processor = await createRealtimeBpmAnalyzer(audioContext, {
+        tempoRange: {min: 70, max: 140},
+      });
+      expect(processor).to.be.instanceOf(BpmAnalyzer);
+    });
+
+    it('should reject an invalid tempo range on the main thread', async () => {
+      let caught: unknown;
+      try {
+        await createRealtimeBpmAnalyzer(audioContext, {tempoRange: {min: 100, max: 150}});
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught).to.be.instanceOf(RangeError);
+      expect((caught as Error).message).to.contain('tempoRange');
+    });
   });
 
   describe('error wrapping', () => {

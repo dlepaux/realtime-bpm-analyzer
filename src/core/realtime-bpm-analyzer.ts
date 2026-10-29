@@ -1,5 +1,5 @@
 import {findPeaksAtThreshold} from './peak-detection';
-import {computeBpm} from './tempo';
+import {computeBpm, resolveTempoRange} from './tempo';
 import type {
   RealTimeBpmAnalyzerOptions,
   RealTimeBpmAnalyzerParameters,
@@ -52,6 +52,7 @@ export class RealTimeBpmAnalyzer {
     stabilizationTime: consts.defaultStabilizationTime,
     muteTimeInIndexes: consts.defaultMuteTimeInIndexes,
     debug: false,
+    tempoRange: resolveTempoRange(),
   };
 
   /**
@@ -78,6 +79,7 @@ export class RealTimeBpmAnalyzer {
 
   constructor(options: RealTimeBpmAnalyzerParameters = {}) {
     Object.assign(this.options, options);
+    this.options.tempoRange = resolveTempoRange(options.tempoRange);
     this.updateComputedValues();
   }
 
@@ -174,6 +176,7 @@ export class RealTimeBpmAnalyzer {
     const data: BpmCandidates = await computeBpm({
       audioSampleRate,
       data: this.validPeaks,
+      tempoRange: this.options.tempoRange,
     });
     const {threshold} = data;
     postMessage({type: 'bpm', data});

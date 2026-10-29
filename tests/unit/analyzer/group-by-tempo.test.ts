@@ -295,14 +295,14 @@ describe('analyzer - groupByTempo', () => {
       expect(result[0].confidence).to.be.a('number');
     });
 
-    it('should set confidence to 0 by default', () => {
+    it('should set confidence to the share of votes (1 when all votes agree)', () => {
       const intervals: Interval[] = [
         {interval: 22050, count: 10},
       ];
 
       const result = groupByTempo({audioSampleRate: sampleRate, intervalCounts: intervals});
 
-      expect(result[0].confidence).to.equal(0);
+      expect(result[0].confidence).to.equal(1);
     });
 
     it('should preserve count values', () => {

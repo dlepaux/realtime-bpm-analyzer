@@ -342,7 +342,10 @@ This hook is intentionally small. Things you might add for production:
 - **Tap-tempo fallback**: when `state === 'error'` or `bpmStable` never
   fires, fall back to a manual tap input.
 - **Confidence threshold**: only update `stableBpm` when
-  `candidates[0].confidence > 0.7`.
+  `candidates[0].confidence` clears a cut-off you measured on your own
+  material. `confidence` is the share of interval votes within ±1 BPM of
+  the candidate: a perfect click track scores about 0.46 and random peaks
+  below 0.1. No cut-off has been calibrated on real music yet.
 
 All of these are 5–10 line additions. Keep the hook itself focused; let
 the consuming component compose.

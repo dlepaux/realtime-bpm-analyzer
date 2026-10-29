@@ -1,3 +1,10 @@
+# [5.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.2.0...v5.3.0) (2026-10-29)
+
+
+### Features
+
+* **node:** add a realtime-bpm-analyzer/node entry point ([#270](https://github.com/dlepaux/realtime-bpm-analyzer/issues/270)) ([52abfe8](https://github.com/dlepaux/realtime-bpm-analyzer/commit/52abfe8af9d1414b78909e7e1552a71dc6e91f0e))
+
 # [5.2.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.1.0...v5.2.0) (2026-10-29)
 
 

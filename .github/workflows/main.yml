@@ -62,6 +62,10 @@ jobs:
       - name: Test
         run: npm test
 
+      # The realtime-bpm-analyzer/node entry, built above, in plain Node without Web Audio
+      - name: Test Node entry
+        run: npm run test:node
+
       - name: Docs typecheck
         run: cd docs && npm ci && npm run typecheck
 

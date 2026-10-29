@@ -45,10 +45,17 @@
       "types": "./dist/realtime-bpm-processor.d.ts",
       "default": "./dist/realtime-bpm-processor.js"
     },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.mjs",
+      "require": "./dist/node.cjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "dist/**/*.js",
+    "dist/**/*.mjs",
+    "dist/**/*.cjs",
     "dist/**/*.d.ts",
     "readme.md",
     "license.md"
@@ -85,6 +92,7 @@
     "test:unit": "web-test-runner --files 'tests/unit/**/*.test.ts'",
     "test:integration": "web-test-runner --files 'tests/integration/**/*.test.ts'",
     "test:lib": "web-test-runner --files 'tests/lib/**/*.ts'",
+    "test:node": "node --test 'tests/node/**/*.test.mjs'",
     "test:coverage": "web-test-runner --coverage"
   },
   "homepage": "https://www.realtime-bpm-analyzer.com",

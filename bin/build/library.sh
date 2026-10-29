@@ -12,8 +12,8 @@ echo "📝 Generating TypeScript declarations..."
 # and `lib` settings are ignored when tsc receives file arguments, so we
 # pass them explicitly here.
 TSC_LIB="dom,dom.iterable,es2022"
-tsc --skipLibCheck --emitDeclarationOnly --module esnext --lib "$TSC_LIB" src/index.ts --declaration --outdir dist
+tsc --skipLibCheck --emitDeclarationOnly --module esnext --lib "$TSC_LIB" src/index.ts src/node.ts --declaration --outdir dist
 tsc --skipLibCheck --emitDeclarationOnly --module esnext --lib "$TSC_LIB" src/processor/realtime-bpm-processor.ts --declaration --outfile dist/realtime-bpm-processor.d.ts
 
 echo "✅ Build complete! Files in dist/:"
-ls -lh dist/ | grep -E '\.(js|d\.ts)$' | awk '{print "   " $9 " (" $5 ")"}'
+ls -lh dist/ | grep -E '\.(js|mjs|cjs|d\.ts)$' | awk '{print "   " $9 " (" $5 ")"}'

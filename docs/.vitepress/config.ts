@@ -385,6 +385,7 @@ export default defineConfig({
             { text: 'Performance Tips', link: '/guide/performance' },
             { text: 'Browser Compatibility', link: '/guide/browser-compatibility' },
             { text: 'Strict CSP and Browser Extensions', link: '/guide/strict-csp' },
+            { text: 'BPM Detection in Node.js', link: '/guide/node' },
             { text: 'Migration Guide (v4 → v5)', link: '/guide/migration-v5' }
           ]
         }

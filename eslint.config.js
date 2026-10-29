@@ -68,6 +68,12 @@ export default tseslint.config(
     },
   },
 
+  // Plain-JS Node tests (tests/node) sit outside the TS project, so lint them untyped
+  {
+    files: ['**/*.mjs'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+
   {
     files: ['tests/**/*.ts'],
     rules: {

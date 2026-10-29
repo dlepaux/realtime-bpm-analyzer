@@ -1,16 +1,3 @@
-# [5.2.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.1.0...v5.2.0) (2026-10-29)
-
-
-### Bug Fixes
-
-* **site:** send a station id instead of the stream URL to analytics ([#267](https://github.com/dlepaux/realtime-bpm-analyzer/issues/267)) ([27f889a](https://github.com/dlepaux/realtime-bpm-analyzer/commit/27f889a950433fc3ed0bef9e0054607d3fbba16f))
-
-
-### Features
-
-* **site:** explain platform links and offer tab audio in the stream input ([#266](https://github.com/dlepaux/realtime-bpm-analyzer/issues/266)) ([5848078](https://github.com/dlepaux/realtime-bpm-analyzer/commit/584807815a864d8f58df64585df6b8819e4d9117))
-* **worklet:** add a processorUrl option to load the processor without blob: ([#268](https://github.com/dlepaux/realtime-bpm-analyzer/issues/268)) ([d626f4a](https://github.com/dlepaux/realtime-bpm-analyzer/commit/d626f4aecc559b39988afd737cae049311664c0f))
-
 # [5.1.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.17...v5.1.0) (2026-10-29)
 
 

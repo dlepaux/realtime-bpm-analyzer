@@ -6,9 +6,11 @@ import {
   classifyTabCaptureError,
   detectPlatform,
   diagnoseStreamFailure,
+  streamEventParams,
   supportsTabAudio,
   type ProbeFetch,
 } from '../.vitepress/tools/stream-input.ts'
+import { isUrlShaped } from '../.vitepress/tools/analytics-params.ts'
 
 test('detectPlatform: YouTube in every shape people paste', () => {
   for (const link of [
@@ -143,4 +145,41 @@ test('classifyTabCaptureError: cancelling the picker is not an error', () => {
 test('STATIONS: https only, so the https site can play them', () => {
   assert.ok(STATIONS.length > 0)
   for (const { url } of STATIONS) assert.match(url, /^https:\/\//)
+})
+
+test('streamEventParams: a curated station sends its id, scheme and format', () => {
+  assert.deepEqual(streamEventParams('https://ice1.somafm.com/defcon-128-mp3'),
+    { station: 'somafm_defcon', scheme: 'https', format: 'mp3' })
+  assert.deepEqual(streamEventParams(' https://stream.radioparadise.com/mp3-128/?x=1 '),
+    { station: 'radio_paradise', scheme: 'https', format: 'mp3' })
+  assert.equal(new Set(STATIONS.map(s => s.id)).size, STATIONS.length)
+  for (const s of STATIONS) assert.equal(streamEventParams(s.url).station, s.id)
+})
+
+test('streamEventParams: anything else is custom, with what the path tells about the codec', () => {
+  assert.deepEqual(streamEventParams('http://radio.example.org:8000/live.aac'),
+    { station: 'custom', scheme: 'http', format: 'aac' })
+  assert.deepEqual(streamEventParams('https://ice1.somafm.com/defcon-256-ogg'),
+    { station: 'custom', scheme: 'https', format: 'ogg' })
+  assert.deepEqual(streamEventParams('https://cdn.example.com/u/secret-token-1234/stream'),
+    { station: 'custom', scheme: 'https', format: 'unknown' })
+  assert.deepEqual(streamEventParams('not a url'), { station: 'custom', scheme: 'other', format: 'unknown' })
+  assert.deepEqual(streamEventParams('ftp://files.example.com/a.mp3'),
+    { station: 'custom', scheme: 'other', format: 'mp3' })
+})
+
+test('streamEventParams: no value is URL-shaped or carries a piece of the address', () => {
+  const urls = [
+    ...STATIONS.map(s => s.url),
+    'https://user:pass@private.example.com/mounts/token-abc123/live.mp3?key=zzz#frag',
+    'http://192.168.1.20:8000/stream',
+    'https://radio.example.org/live.m3u8',
+  ]
+  for (const url of urls) {
+    for (const value of Object.values(streamEventParams(url))) {
+      assert.equal(isUrlShaped(value), false, `${url} → ${value}`)
+      assert.match(value, /^[a-z\d_]+$/, `${url} → ${value}`)
+      assert.ok(!['private', 'token', 'abc123', 'example', '192'].some(part => value.includes(part)), value)
+    }
+  }
 })

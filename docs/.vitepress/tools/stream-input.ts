@@ -152,6 +152,8 @@ export function classifyTabCaptureError(error: unknown): TabCaptureFailure {
 // ─── Curated stations ────────────────────────────────────────────────────
 
 export interface Station {
+  /** What analytics send instead of the URL. Stable: renaming one splits the GA4 data. */
+  id: string
   name: string
   url: string
 }
@@ -160,8 +162,53 @@ export interface Station {
 // which the analyser needs to read a cross-origin stream (RBA-4). Radio Paradise
 // also serves http://, which this https page would block, so keep the https URL.
 export const STATIONS: readonly Station[] = [
-  { name: 'SomaFM DEF CON', url: 'https://ice1.somafm.com/defcon-128-mp3' },
-  { name: 'Groove Salad', url: 'https://ice1.somafm.com/groovesalad-128-mp3' },
-  { name: 'Beat Blender', url: 'https://ice2.somafm.com/beatblender-128-mp3' },
-  { name: 'Radio Paradise', url: 'https://stream.radioparadise.com/mp3-128' },
+  { id: 'somafm_defcon', name: 'SomaFM DEF CON', url: 'https://ice1.somafm.com/defcon-128-mp3' },
+  { id: 'somafm_groovesalad', name: 'Groove Salad', url: 'https://ice1.somafm.com/groovesalad-128-mp3' },
+  { id: 'somafm_beatblender', name: 'Beat Blender', url: 'https://ice2.somafm.com/beatblender-128-mp3' },
+  { id: 'radio_paradise', name: 'Radio Paradise', url: 'https://stream.radioparadise.com/mp3-128' },
 ]
+
+// ─── Stream analytics ────────────────────────────────────────────────────
+
+export type StreamFormat = 'mp3' | 'aac' | 'ogg' | 'opus' | 'flac' | 'unknown'
+
+export type StreamEventParams = {
+  /** A curated station's id, or `custom` for anything the user pasted. */
+  station: string
+  scheme: 'http' | 'https' | 'other'
+  format: StreamFormat
+}
+
+// Icecast mounts rarely have an extension: SomaFM is `defcon-128-mp3`, Radio
+// Paradise `mp3-128`, so the codec is matched as a whole word in the path.
+const FORMAT_PATTERNS: ReadonlyArray<readonly [StreamFormat, RegExp]> = [
+  ['mp3', /\bmp3\b/],
+  ['aac', /\b(aac|aacp|m4a|adts)\b/],
+  ['ogg', /\b(ogg|oga|vorbis)\b/],
+  ['opus', /\bopus\b/],
+  ['flac', /\bflac\b/],
+]
+
+function sameStream(a: URL, b: URL): boolean {
+  const path = (u: URL) => u.pathname.replace(/\/+$/, '')
+  return a.origin === b.origin && path(a) === path(b)
+}
+
+/**
+ * What stream events send instead of the URL (RBA-35). Analytics never carry a
+ * URL: a pasted one can hold a private path or a token, and only an enumerated
+ * value leaves this function, never a piece of the address.
+ */
+export function streamEventParams(rawUrl: string): StreamEventParams {
+  let parsed: URL
+  try {
+    parsed = new URL(rawUrl.trim())
+  } catch {
+    return { station: 'custom', scheme: 'other', format: 'unknown' }
+  }
+  const station = STATIONS.find(s => sameStream(new URL(s.url), parsed))
+  const scheme = parsed.protocol === 'https:' ? 'https' : parsed.protocol === 'http:' ? 'http' : 'other'
+  const path = parsed.pathname.toLowerCase()
+  const format = FORMAT_PATTERNS.find(([, pattern]) => pattern.test(path))?.[0] ?? 'unknown'
+  return { station: station?.id ?? 'custom', scheme, format }
+}

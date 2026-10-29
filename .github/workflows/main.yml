@@ -162,6 +162,16 @@ jobs:
       - name: Build documentation
         run: cd docs && npm run build
 
+      # VitePress hydrates each page from a *.lean.js chunk. A Vite it doesn't support (vite 8, #218)
+      # builds green but emits none, and every page then 404s its chunk in the browser.
+      - name: Check VitePress lean chunks
+        run: |
+          dist=docs/.vitepress/dist
+          lean=$(find "$dist/assets" -name '*.lean.js' | wc -l)
+          pages=$(jq length "$dist/hashmap.json")
+          echo "lean chunks: $lean, pages: $pages"
+          test "$pages" -gt 0 && test "$lean" -ge "$pages"
+
       - name: Upload pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5

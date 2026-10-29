@@ -1,5 +1,5 @@
 import {findPeaksAtThreshold} from './peak-detection';
-import {computeBpm, resolveTempoRange} from './tempo';
+import {computeBpm, computeProgress, resolveTempoRange} from './tempo';
 import type {
   RealTimeBpmAnalyzerOptions,
   RealTimeBpmAnalyzerParameters,
@@ -173,6 +173,9 @@ export class RealTimeBpmAnalyzer {
      */
     this.skipIndexes++;
 
+    // Before bpm, so the chunk that yields the first tempo also reports a full progress
+    postMessage({type: 'progress', data: computeProgress(this.validPeaks)});
+
     const data: BpmCandidates = await computeBpm({
       audioSampleRate,
       data: this.validPeaks,
@@ -199,6 +202,7 @@ export class RealTimeBpmAnalyzer {
     ) {
       this.reset();
       postMessage({type: 'analyzerReset'});
+      postMessage({type: 'progress', data: computeProgress(this.validPeaks)});
     }
   }
 

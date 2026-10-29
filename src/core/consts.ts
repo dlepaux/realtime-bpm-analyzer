@@ -2,6 +2,10 @@ export const realtimeBpmProcessorName = 'realtime-bpm-processor' as const;
 export const startThreshold = 0.95;
 export const minValidThreshold = 0.2;
 export const minPeaks = 15;
+/**
+ * Peaks one threshold needs before a tempo is computed: `computeBpm` requires strictly more than `minPeaks`
+ */
+export const requiredPeaks = minPeaks + 1;
 export const thresholdStep = 0.05;
 export const frequencyValue = 200;
 export const qualityValue = 1;

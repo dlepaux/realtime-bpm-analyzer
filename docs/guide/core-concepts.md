@@ -248,6 +248,18 @@ analyzer.on('analyzerReset', () => {
 });
 ```
 
+### `progress`
+Emitted once per analysed chunk (about every 93 ms at 44.1 kHz) with how close the analyzer is to its first BPM. A tempo needs `requiredPeaks` peaks (16) at one threshold, so quiet intros or tracks without kicks can take a while:
+
+```typescript
+analyzer.on('progress', ({ peaks, requiredPeaks }) => {
+  // peaks is capped at requiredPeaks, so this is a fraction from 0 to 1
+  progressBar.value = peaks / requiredPeaks;
+});
+```
+
+It reaches `peaks === requiredPeaks` in the same chunk as the first `bpm` event with candidates, and drops back to `0` right after `analyzerReset`. It is always on, unlike the `debug` events.
+
 ## Best Practices
 
 ### ✅ Do

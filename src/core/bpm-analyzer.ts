@@ -303,6 +303,11 @@ export class BpmAnalyzer extends EventTarget {
           break;
         }
 
+        case 'progress': {
+          this.emit('progress', eventData.data);
+          break;
+        }
+
         case 'analyzeChunk': {
           this.emit('analyzeChunk', eventData.data);
           break;

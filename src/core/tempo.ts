@@ -2,12 +2,14 @@ import {descendingOverThresholds} from './utils';
 import type {
   Peaks,
   BpmCandidates,
+  BpmProgress,
   Interval,
   Tempo,
   Threshold,
   TempoRange,
   AnalyzerGroupByTempoOptions,
   AnalyzerComputeBpmOptions,
+  ValidPeaks,
 } from './types';
 import * as consts from './consts';
 
@@ -24,8 +26,6 @@ export async function computeBpm({
   data,
   tempoRange,
 }: AnalyzerComputeBpmOptions): Promise<BpmCandidates> {
-  const minPeaks = consts.minPeaks;
-
   /**
    * Flag to fix Object.keys looping
    */
@@ -37,7 +37,7 @@ export async function computeBpm({
       return true;
     }
 
-    if (data[threshold] && data[threshold].length > minPeaks) {
+    if (data[threshold] && data[threshold].length >= consts.requiredPeaks) {
       hasPeaks = true;
       foundThreshold = threshold;
     }
@@ -61,6 +61,21 @@ export async function computeBpm({
   return {
     bpm: [],
     threshold: foundThreshold,
+  };
+}
+
+/**
+ * Measure how close the valid peaks are to a first BPM result
+ * @param data - Valid peaks by threshold
+ * @returns The best-filled threshold's peak count, capped at the count `computeBpm` needs
+ */
+export function computeProgress(data: ValidPeaks): BpmProgress {
+  // computeBpm succeeds as soon as any threshold is full, so the fullest one is the progress
+  const mostPeaks = Math.max(0, ...Object.values(data).map(peaks => peaks.length));
+
+  return {
+    peaks: Math.min(mostPeaks, consts.requiredPeaks),
+    requiredPeaks: consts.requiredPeaks,
   };
 }
 

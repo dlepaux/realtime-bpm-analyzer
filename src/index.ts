@@ -15,6 +15,7 @@ export {analyzeFullBuffer, getBiquadFilter} from './core/offline-pipeline';
 export {RealTimeBpmAnalyzer} from './core/realtime-bpm-analyzer';
 export type {
   BpmCandidates,
+  BpmProgress,
   Tempo,
   Threshold,
   Peaks,

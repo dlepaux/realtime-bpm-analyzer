@@ -7,7 +7,7 @@ import {resolveTempoRange} from './core/tempo';
 // Public API surface — explicit named re-exports only.
 // Internal types stay in core/types.ts and are emitted into dist/core/types.d.ts
 // but unreachable for consumers because package.json `exports` only publishes
-// the `.` and `./processor` entry points. Consumers cannot deep-import.
+// the `.`, `./processor` and `./node` entry points. Consumers cannot deep-import.
 // See plan/active/library-quality-audit-01/02-public-types-surface-cleanup.md
 
 export {BpmAnalyzer} from './core/bpm-analyzer';

@@ -71,6 +71,17 @@ async function main() {
   await esbuild.build(esbuildEsmConfig);
   await esbuild.build(esbuildConfig);
 
+  // `realtime-bpm-analyzer/node`: explicit .mjs/.cjs extensions, because the package has no
+  // "type" field and Node would otherwise read a .js ESM bundle as CommonJS.
+  const nodeConfig: BuildOptions = {
+    entryPoints: ['src/node.ts'],
+    ...commonConfig,
+    platform: 'node',
+    target: 'node18',
+  };
+  await esbuild.build({...nodeConfig, outfile: `${outdir}/node.mjs`, format: 'esm'});
+  await esbuild.build({...nodeConfig, outfile: `${outdir}/node.cjs`, format: 'cjs'});
+
   console.timeEnd('⚡ Build complete! ⚡');
 }
 

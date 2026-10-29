@@ -66,6 +66,19 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
 
 See the [strict CSP guide](https://www.realtime-bpm-analyzer.com/guide/strict-csp) for Vite and extension setups.
 
+### Node.js
+
+`realtime-bpm-analyzer/node` analyses decoded PCM samples without Web Audio, in Node.js, Bun or Deno, with no added dependency. It returns the same candidates as `analyzeFullBuffer` for the same samples. Decoding is up to you (a WAV reader, ffmpeg, ...):
+
+```typescript
+import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
+
+const tempos = await analyzeChannelData(channelData, 44100); // Float32Array of one channel
+console.log(tempos[0]?.tempo);
+```
+
+See the [Node.js guide](https://www.realtime-bpm-analyzer.com/guide/node).
+
 ## Documentation
 
 **📖 [Full Documentation](https://www.realtime-bpm-analyzer.com)** - Complete guides, API reference, and tutorials

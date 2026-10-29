@@ -1,12 +1,7 @@
 import type {Tempo, BiquadFilterOptions, AnalyzeFullBufferOptions} from './types';
 import * as consts from './consts';
-import {findPeaks} from './peak-detection';
-import {
-  identifyIntervals,
-  groupByTempo,
-  getTopCandidates,
-  resolveTempoRange,
-} from './tempo';
+import {resolveTempoRange} from './tempo';
+import {detectTempo} from './detect-tempo';
 
 /**
  * Creates a biquad lowpass filter for audio processing.
@@ -196,18 +191,6 @@ export async function analyzeFullBuffer(
   const tempoRange = resolveTempoRange(options?.tempoRange);
 
   const buffer = await getOfflineLowPassSource(originalBuffer, options);
-  const channelData = buffer.getChannelData(0);
-  const {peaks} = await findPeaks({
-    audioSampleRate: buffer.sampleRate,
-    channelData,
-  });
-  const intervals = identifyIntervals(peaks);
-  const tempos = groupByTempo({
-    audioSampleRate: buffer.sampleRate,
-    intervalCounts: intervals,
-    tempoRange,
-  });
-  const topCandidates = getTopCandidates(tempos);
 
-  return topCandidates;
+  return detectTempo(buffer.getChannelData(0), buffer.sampleRate, tempoRange);
 }

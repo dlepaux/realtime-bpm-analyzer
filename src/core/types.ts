@@ -6,6 +6,7 @@ export type ProcessorOutputEvent =
   | {type: 'bpm'; data: BpmCandidates}
   | {type: 'bpmStable'; data: BpmCandidates}
   | {type: 'analyzerReset'}
+  | {type: 'progress'; data: BpmProgress}
   | {type: 'analyzeChunk'; data: Float32Array}
   | {type: 'validPeak'; data: {threshold: Threshold; index: number}}
   | {type: 'error'; data: {message: string; error: Error}};
@@ -35,6 +36,19 @@ export type BpmAnalyzerEventMap = {
   bpmStable: BpmCandidates;
   /** Emitted when the analyzer state has been reset */
   analyzerReset: void;
+  /**
+   * Emitted once per analysed chunk with how close the analyzer is to its first BPM.
+   * @remarks
+   * Not debug-only. After `analyzerReset` a `progress` event with `peaks: 0` follows,
+   * so a progress bar can restart in step with the analysis.
+   * @example
+   * ```ts
+   * analyzer.on('progress', ({peaks, requiredPeaks}) => {
+   *   progressBar.value = peaks / requiredPeaks;
+   * });
+   * ```
+   */
+  progress: BpmProgress;
   /** Emitted in debug mode when analyzing audio chunks */
   analyzeChunk: Float32Array;
   /** Emitted in debug mode when a valid peak is detected */
@@ -86,6 +100,20 @@ export type BpmCandidates = {
   readonly bpm: readonly Tempo[];
   /** Threshold value used for peak detection */
   readonly threshold: Threshold;
+};
+
+/**
+ * Progress toward the first BPM result of the realtime analyzer
+ * @group Type Aliases
+ */
+export type BpmProgress = {
+  /**
+   * Peaks found at the best-filled threshold, capped at `requiredPeaks`,
+   * so `peaks / requiredPeaks` is a fraction from 0 to 1
+   */
+  readonly peaks: number;
+  /** Peaks one threshold needs before the analyzer can report a tempo */
+  readonly requiredPeaks: number;
 };
 
 /**

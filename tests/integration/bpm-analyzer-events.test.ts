@@ -1,5 +1,6 @@
 import {expect} from 'chai';
 import {createRealtimeBpmAnalyzer} from '../../src/index';
+import type {BpmAnalyzerEventMap} from '../../src/index';
 import {createTestAudioContext, closeAudioContext, loadTestAudio, audioBufferToChunks, waitForEvent} from '../setup';
 
 /**
@@ -142,6 +143,17 @@ describe('BpmAnalyzer - Event System', function () {
       });
 
       expect(analyzer).to.exist;
+    });
+
+    it('should forward progress events from the processor', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const received: Array<BpmAnalyzerEventMap['progress']> = [];
+      analyzer.on('progress', data => received.push(data));
+
+      const data = {peaks: 3, requiredPeaks: 16};
+      analyzer.node.port.onmessage?.(new MessageEvent('message', {data: {type: 'progress', data}}));
+
+      expect(received).to.deep.equal([data]);
     });
 
     it('should support error event type', async () => {

@@ -25,6 +25,7 @@ import {
   diagnoseStreamFailure,
   supportsTabAudio,
   type NavigatorLike,
+  type StreamErrorKind,
   type TabCaptureFailure,
 } from '../tools/stream-input'
 import GithubStarSupport from './GithubStarSupport.vue'
@@ -98,8 +99,12 @@ const linkPlatform = computed(() => detectPlatform(streamUrl.value))
 const linkPlatformLabel = computed(() => (linkPlatform.value ? PLATFORM_LABELS[linkPlatform.value] : ''))
 
 // Lane privacy rule: only the platform name, never the link or any part of it.
+// Once per platform per page view, so clearing and re-pasting doesn't count twice.
+const reportedPlatforms = new Set<string>()
 watch(linkPlatform, (platform) => {
-  if (platform) track('bpm_link_detected', { platform })
+  if (!platform || reportedPlatforms.has(platform)) return
+  reportedPlatforms.add(platform)
+  track('bpm_link_detected', { platform })
 })
 
 const modes: readonly { id: Mode; label: string }[] = [
@@ -129,8 +134,21 @@ function sanitiseUrl(rawUrl: string): string {
 function setMode(next: Mode) {
   if (mode.value === next) return
   invalidate()
-  if (mode.value === 'mic') teardownMic()
-  if (mode.value === 'stream') teardownStream()
+  // Leaving a mode stops its audio, so only a finished mic result may stay on
+  // screen. A live panel or a pending "Checking why…" would show nothing running.
+  if (mode.value === 'mic') {
+    teardownMic()
+    if (micStatus.value !== 'result') {
+      micStatus.value = 'idle'
+      micLiveBpm.value = null
+      micError.value = null
+    }
+  }
+  if (mode.value === 'stream') {
+    teardownStream()
+    streamStatus.value = 'idle'
+    resetStreamReadings()
+  }
   mode.value = next
   track('bpm_tab_change', { mode: next })
 }
@@ -379,11 +397,11 @@ function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: Record<stri
 // The <audio> element only says "error". Show the failure at once, then ask the
 // server why (cors / network / decode / http / insecure) and send the one report
 // with that reason. The caller guarantees this runs once per attempt (RBA-4).
-async function reportStreamFailure(gen: number, url: string, sanitised: string, reason: string) {
+async function reportStreamFailure(gen: number, url: string, sanitised: string, reason: string, knownKind?: StreamErrorKind) {
   teardownStream()
   streamError.value = 'Couldn’t play that stream. Checking why…'
   streamStatus.value = 'error'
-  const kind = await diagnoseStreamFailure(url, window.location.protocol, (u, init) => fetch(u, init))
+  const kind = knownKind ?? await diagnoseStreamFailure(url, window.location.protocol, (u, init) => fetch(u, init))
   track('bpm_stream_error', { url: sanitised, reason, error_kind: kind })
   // The user may have moved on while the probe ran: report, but leave their new state alone.
   if (gen !== generation) return
@@ -407,10 +425,10 @@ async function startStream() {
   // A source that answers but fails (404, CORS) fires the element's `error` event
   // AND rejects play(): whichever comes first reports it, once (RBA-4).
   let reported = false
-  const fail = (reason: string) => {
+  const fail = (reason: string, knownKind?: StreamErrorKind) => {
     if (reported) return
     reported = true
-    void reportStreamFailure(gen, url, sanitised, reason)
+    void reportStreamFailure(gen, url, sanitised, reason, knownKind)
   }
 
   try {
@@ -457,7 +475,10 @@ async function startStream() {
   } catch (error) {
     if (gen !== generation) return // invalidated during setup — bail quietly
     console.error('[BpmHeroTool] stream setup failed:', error)
-    fail(error instanceof Error ? error.message : 'unknown')
+    // play() runs after two awaits, and Safari can drop the click's user gesture
+    // in between: that's a playback block, not a server problem, so skip the probe.
+    const blocked = error instanceof DOMException && error.name === 'NotAllowedError'
+    fail(error instanceof Error ? error.message : 'unknown', blocked ? 'autoplay' : undefined)
   }
 }
 

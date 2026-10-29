@@ -33,6 +33,10 @@ test('detectPlatform: YouTube in every shape people paste', () => {
 test('detectPlatform: the other platforms', () => {
   assert.equal(detectPlatform('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'), 'spotify')
   assert.equal(detectPlatform('spotify.link/abc'), 'spotify')
+  assert.equal(detectPlatform('https://spoti.fi/abc'), 'spotify')
+  assert.equal(detectPlatform('spotify:track:4uLU6hMCjMI75M1A2tKUQC'), 'spotify')
+  assert.equal(detectPlatform('https://soundcloud.app.goo.gl/abc'), 'soundcloud')
+  assert.equal(detectPlatform('https://apple.co/abc'), 'apple_music')
   assert.equal(detectPlatform('https://soundcloud.com/artist/track'), 'soundcloud')
   assert.equal(detectPlatform('m.soundcloud.com/artist/track'), 'soundcloud')
   assert.equal(detectPlatform('https://on.soundcloud.com/abc'), 'soundcloud')
@@ -51,6 +55,9 @@ test('detectPlatform: stream URLs and look-alikes are not platforms', () => {
     'https://notyoutube.com/watch?v=x',
     'https://youtube.com.evil.example/watch',
     'https://example.com/?u=youtube.com',
+    // A platform URL as a query value belongs to the stream URL.
+    'https://stream.example.com/live?ref=https://youtube.com/watch?v=x',
+    'https://stream.example.com/live?a=1&ref=https%3A%2F%2Fyoutu.be%2Fx',
     'https://www.apple.com/music/',
     'ftp://youtube.com/x',
     'not a url',

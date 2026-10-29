@@ -9,9 +9,9 @@ export type Platform = 'youtube' | 'spotify' | 'soundcloud' | 'apple_music' | 'd
 // music.youtube.com, m.soundcloud.com and artist.bandcamp.com all land here.
 const PLATFORM_DOMAINS: ReadonlyArray<readonly [Platform, readonly string[]]> = [
   ['youtube', ['youtube.com', 'youtu.be', 'youtube-nocookie.com']],
-  ['spotify', ['spotify.com', 'spotify.link']],
-  ['soundcloud', ['soundcloud.com', 'snd.sc']],
-  ['apple_music', ['music.apple.com', 'itunes.apple.com']],
+  ['spotify', ['spotify.com', 'spotify.link', 'spoti.fi']],
+  ['soundcloud', ['soundcloud.com', 'snd.sc', 'soundcloud.app.goo.gl']],
+  ['apple_music', ['music.apple.com', 'itunes.apple.com', 'apple.co']],
   ['deezer', ['deezer.com', 'deezer.page.link']],
   ['bandcamp', ['bandcamp.com']],
 ]
@@ -39,12 +39,16 @@ function hostOf(token: string): string | null {
 
 /**
  * The streaming platform a pasted link points to, or null for anything else.
- * Checks every token split on whitespace and before each scheme, so both
- * "listen: https://youtu.be/x" and a link pasted onto the end of the prefilled
- * example URL ("…defcon-128-mp3https://youtu.be/x") count.
+ * Checks every token split on whitespace and before a scheme glued onto other
+ * text, so both "listen: https://youtu.be/x" and a link pasted onto the end of
+ * the prefilled example URL ("…defcon-128-mp3https://youtu.be/x") count. A scheme
+ * after `=`, `?`, `&`, `/` or `%` is a query value (`?ref=https://youtube.com`)
+ * and stays part of the stream URL.
  */
 export function detectPlatform(raw: string): Platform | null {
-  for (const token of raw.trim().split(/\s+|(?=https?:\/\/)/i)) {
+  for (const token of raw.trim().split(/\s+|(?<![=?&/%])(?=https?:\/\/)/i)) {
+    // "Copy Spotify URI" in the desktop app gives spotify:track:… rather than a link.
+    if (/^spotify:/i.test(token)) return 'spotify'
     const host = hostOf(token)
     if (!host) continue
     const match = PLATFORM_DOMAINS.find(([, domains]) =>
@@ -57,7 +61,7 @@ export function detectPlatform(raw: string): Platform | null {
 
 // ─── Stream failure classification ───────────────────────────────────────
 
-export type StreamErrorKind = 'cors' | 'network' | 'decode' | 'http' | 'insecure'
+export type StreamErrorKind = 'cors' | 'network' | 'decode' | 'http' | 'insecure' | 'autoplay'
 
 export const STREAM_ERROR_MESSAGES: Record<StreamErrorKind, string> = {
   // A 404 without CORS headers looks the same to the browser, hence the second cause.
@@ -66,12 +70,15 @@ export const STREAM_ERROR_MESSAGES: Record<StreamErrorKind, string> = {
   decode: 'The server answered, but your browser can’t play that as audio. Use a direct MP3 or AAC stream URL.',
   http: 'The server refused that stream. Check the address, or try a station below.',
   insecure: 'This page is secure, so the browser blocks http:// streams. Try the https:// address.',
+  autoplay: 'Your browser blocked playback. Press Try again, then Analyse stream.',
 }
 
 /** The subset of `fetch` the probe needs, injected so tests run without a network. */
 export type ProbeFetch = (url: string, init: { mode: 'cors' | 'no-cors'; signal: AbortSignal }) => Promise<{ ok: boolean; type: string }>
 
-export const PROBE_TIMEOUT_MS = 5_000
+// Short, because the one bpm_stream_error is sent after the probe: a user who
+// leaves before it ends sends none. Two attempts at most, so 5 s worst case.
+export const PROBE_TIMEOUT_MS = 2_500
 
 /**
  * Asks why a stream that failed to play failed. The media element only says

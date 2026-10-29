@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import {
   FileAudio,
   Mic,
+  MonitorUp,
   Radio,
   Volume2,
   VolumeX,
@@ -15,6 +16,18 @@ import {
   type BpmCandidates,
 } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
+import {
+  PLATFORM_LABELS,
+  STATIONS,
+  STREAM_ERROR_MESSAGES,
+  classifyTabCaptureError,
+  detectPlatform,
+  diagnoseStreamFailure,
+  supportsTabAudio,
+  type NavigatorLike,
+  type StreamErrorKind,
+  type TabCaptureFailure,
+} from '../tools/stream-input'
 import GithubStarSupport from './GithubStarSupport.vue'
 import ResultToolLinks from './ResultToolLinks.vue'
 
@@ -71,6 +84,28 @@ const streamAudioEl = shallowRef<HTMLAudioElement | null>(null)
 const streamAnalyzer = shallowRef<BpmAnalyzer | null>(null)
 const streamGain = shallowRef<GainNode | null>(null)
 const streamErrorHandler = shallowRef<((event: Event) => void) | null>(null)
+// What feeds the live stream panel: a URL through an <audio> element, or another
+// tab's audio shared through getDisplayMedia (RBA-23).
+const streamInput = ref<'url' | 'tab'>('url')
+const streamTabCapture = shallowRef<MediaStream | null>(null)
+// The user pressed Chrome's "Stop sharing" after a stable reading: keep the BPM on screen.
+const tabSharingEnded = ref(false)
+// Decided on mount, not during SSR, because it reads `navigator`.
+const tabAudioSupported = ref(false)
+
+// A YouTube, Spotify… link can never play here: those sites stream through their
+// own player and send no CORS headers. Detect it as the user pastes, before any request.
+const linkPlatform = computed(() => detectPlatform(streamUrl.value))
+const linkPlatformLabel = computed(() => (linkPlatform.value ? PLATFORM_LABELS[linkPlatform.value] : ''))
+
+// Lane privacy rule: only the platform name, never the link or any part of it.
+// Once per platform per page view, so clearing and re-pasting doesn't count twice.
+const reportedPlatforms = new Set<string>()
+watch(linkPlatform, (platform) => {
+  if (!platform || reportedPlatforms.has(platform)) return
+  reportedPlatforms.add(platform)
+  track('bpm_link_detected', { platform })
+})
 
 const modes: readonly { id: Mode; label: string }[] = [
   { id: 'file', label: 'File' },
@@ -99,8 +134,21 @@ function sanitiseUrl(rawUrl: string): string {
 function setMode(next: Mode) {
   if (mode.value === next) return
   invalidate()
-  if (mode.value === 'mic') teardownMic()
-  if (mode.value === 'stream') teardownStream()
+  // Leaving a mode stops its audio, so only a finished mic result may stay on
+  // screen. A live panel or a pending "Checking why…" would show nothing running.
+  if (mode.value === 'mic') {
+    teardownMic()
+    if (micStatus.value !== 'result') {
+      micStatus.value = 'idle'
+      micLiveBpm.value = null
+      micError.value = null
+    }
+  }
+  if (mode.value === 'stream') {
+    teardownStream()
+    streamStatus.value = 'idle'
+    resetStreamReadings()
+  }
   mode.value = next
   track('bpm_tab_change', { mode: next })
 }
@@ -206,10 +254,10 @@ function restartFile() {
 }
 
 // ─── Mic flow ────────────────────────────────────────────────────────────
-async function startMic() {
+async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
   if (micStatus.value !== 'idle') return
 
-  track('bpm_mic_clicked')
+  track('bpm_mic_clicked', { input_method: entry })
 
   micError.value = null
   micLiveBpm.value = null
@@ -323,23 +371,65 @@ function stopMic() {
 // therefore stay in the `'analysing'` status and surface the stable reading
 // as a prominent pill inside the same panel, rather than transitioning to
 // `'result'` (which would imply the session is finished).
+function resetStreamReadings() {
+  streamError.value = null
+  streamLiveBpm.value = null
+  streamStableBpm.value = null
+  tabSharingEnded.value = false
+}
+
+function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: Record<string, string>) {
+  analyzer.on('bpm', (data: BpmCandidates) => {
+    const top = data.bpm?.[0]?.tempo
+    if (top === undefined) return
+    streamLiveBpm.value = Math.round(top)
+  })
+
+  analyzer.on('bpmStable', (data: BpmCandidates) => {
+    const top = data.bpm?.[0]?.tempo
+    if (top === undefined) return
+    const bpm = Math.round(top)
+    if (bpm !== streamStableBpm.value) track('bpm_stream_stable', { bpm, ...stableParams })
+    streamStableBpm.value = bpm
+  })
+}
+
+// The <audio> element only says "error". Show the failure at once, then ask the
+// server why (cors / network / decode / http / insecure) and send the one report
+// with that reason. The caller guarantees this runs once per attempt (RBA-4).
+async function reportStreamFailure(gen: number, url: string, sanitised: string, reason: string, knownKind?: StreamErrorKind) {
+  teardownStream()
+  streamError.value = 'Couldn’t play that stream. Checking why…'
+  streamStatus.value = 'error'
+  const kind = knownKind ?? await diagnoseStreamFailure(url, window.location.protocol, (u, init) => fetch(u, init))
+  track('bpm_stream_error', { url: sanitised, reason, error_kind: kind })
+  // The user may have moved on while the probe ran: report, but leave their new state alone.
+  if (gen !== generation) return
+  streamError.value = STREAM_ERROR_MESSAGES[kind]
+}
+
 async function startStream() {
   if (streamStatus.value !== 'idle') return
   const url = streamUrl.value.trim()
-  if (!url) return
+  // A platform link gets the alternatives instead, and never reaches analytics.
+  if (!url || linkPlatform.value) return
 
   const sanitised = sanitiseUrl(url)
   track('bpm_stream_clicked', { url: sanitised })
 
-  streamError.value = null
-  streamLiveBpm.value = null
-  streamStableBpm.value = null
+  resetStreamReadings()
+  streamInput.value = 'url'
   streamStatus.value = 'analysing'
 
   const gen = ++generation
   // A source that answers but fails (404, CORS) fires the element's `error` event
   // AND rejects play(): whichever comes first reports it, once (RBA-4).
   let reported = false
+  const fail = (reason: string, knownKind?: StreamErrorKind) => {
+    if (reported) return
+    reported = true
+    void reportStreamFailure(gen, url, sanitised, reason, knownKind)
+  }
 
   try {
     const localAudioEl = new Audio()
@@ -375,41 +465,128 @@ async function startStream() {
     streamAnalyzer.value = localAnalyzer
     streamGain.value = localGain
 
-    localAnalyzer.on('bpm', (data: BpmCandidates) => {
-      const top = data.bpm?.[0]?.tempo
-      if (top === undefined) return
-      streamLiveBpm.value = Math.round(top)
-    })
+    listenToStreamAnalyzer(localAnalyzer, { url: sanitised })
 
-    localAnalyzer.on('bpmStable', (data: BpmCandidates) => {
-      const top = data.bpm?.[0]?.tempo
-      if (top === undefined) return
-      const bpm = Math.round(top)
-      if (bpm !== streamStableBpm.value) track('bpm_stream_stable', { bpm, url: sanitised })
-      streamStableBpm.value = bpm
-    })
-
-    const handler = (): void => {
-      reported = true
-      streamError.value = 'Stream failed to load. URL may be unreachable or blocked by CORS.'
-      streamStatus.value = 'error'
-      track('bpm_stream_error', { url: sanitised, reason: 'audio_error' })
-      teardownStream()
-    }
+    const handler = (): void => fail('audio_error')
     streamErrorHandler.value = handler
     localAudioEl.addEventListener('error', handler)
 
     await localAudioEl.play()
   } catch (error) {
     if (gen !== generation) return // invalidated during setup — bail quietly
-    if (reported) return
-    const reason = error instanceof Error ? error.message : 'unknown'
-    streamError.value = 'Couldn’t play that stream. CORS or network may be blocking it.'
-    streamStatus.value = 'error'
-    track('bpm_stream_error', { url: sanitised, reason })
     console.error('[BpmHeroTool] stream setup failed:', error)
-    teardownStream()
+    // play() runs after two awaits, and Safari can drop the click's user gesture
+    // in between: that's a playback block, not a server problem, so skip the probe.
+    const blocked = error instanceof DOMException && error.name === 'NotAllowedError'
+    fail(error instanceof Error ? error.message : 'unknown', blocked ? 'autoplay' : undefined)
   }
+}
+
+function playStation(url: string) {
+  invalidate()
+  teardownStream()
+  streamStatus.value = 'idle'
+  streamUrl.value = url
+  startStream()
+}
+
+// ─── Tab audio flow ──────────────────────────────────────────────────────
+// For links we can't read (YouTube…): the user plays the track in another tab
+// and shares that tab's audio. Desktop Chrome and Edge only (supportsTabAudio).
+
+// Chrome's own hint, not yet in lib.dom: keep this tab out of the picker, since
+// sharing the analyser's own (silent) tab is never what the user meant.
+type TabCaptureOptions = NonNullable<Parameters<MediaDevices['getDisplayMedia']>[0]> & { selfBrowserSurface?: 'include' | 'exclude' }
+
+const TAB_CAPTURE_MESSAGES: Record<Exclude<TabCaptureFailure, 'cancelled'>, string> = {
+  no_audio: 'That share had no sound. Pick a Chrome tab and keep “Share tab audio” on.',
+  unsupported: 'This browser can’t share tab audio. Play the track next to your mic instead.',
+  error: 'Couldn’t start tab sharing. Try again, or play the track next to your mic.',
+}
+
+function failTabCapture(reason: TabCaptureFailure) {
+  track('bpm_tab_capture_failed', { reason })
+  // Cancelling the picker is a choice, not an error: leave the alternatives on screen.
+  if (reason === 'cancelled') return
+  streamError.value = TAB_CAPTURE_MESSAGES[reason]
+  streamStatus.value = 'error'
+}
+
+async function startTabCapture() {
+  if (streamStatus.value !== 'idle') return
+  resetStreamReadings()
+  const gen = ++generation
+
+  let captured: MediaStream
+  try {
+    const options: TabCaptureOptions = {
+      video: { displaySurface: 'browser' },
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      selfBrowserSurface: 'exclude',
+    }
+    captured = await navigator.mediaDevices.getDisplayMedia(options)
+  } catch (error) {
+    if (gen !== generation) return
+    console.debug('[BpmHeroTool] tab capture refused:', error)
+    return failTabCapture(classifyTabCaptureError(error))
+  }
+
+  // Only the sound is analysed: stop the video at once so Chrome stops capturing frames.
+  captured.getVideoTracks().forEach(t => t.stop())
+  const audioTrack = captured.getAudioTracks()[0]
+  if (gen !== generation || !audioTrack) {
+    captured.getTracks().forEach(t => t.stop())
+    if (gen === generation) failTabCapture('no_audio')
+    return
+  }
+
+  streamInput.value = 'tab'
+  streamStatus.value = 'analysing'
+  let localContext: AudioContext | null = null
+  let localAnalyzer: BpmAnalyzer | null = null
+  try {
+    localContext = new AudioContext()
+    await localContext.resume()
+    localAnalyzer = await createRealtimeBpmAnalyzer(localContext, {
+      continuousAnalysis: true,
+      stabilizationTime: STREAM_STABILIZATION_MS,
+    })
+    if (gen !== generation) throw new Error('superseded')
+
+    // Analysis only, never to the speakers: the shared tab already plays its own sound.
+    localContext.createMediaStreamSource(captured).connect(localAnalyzer.node)
+    streamTabCapture.value = captured
+    streamContext.value = localContext
+    streamAnalyzer.value = localAnalyzer
+    listenToStreamAnalyzer(localAnalyzer, { input_method: 'tab' })
+    audioTrack.addEventListener('ended', () => onTabSharingEnded(gen))
+    track('bpm_tab_capture_started')
+  } catch (error) {
+    captured.getTracks().forEach(t => t.stop())
+    disposeLocalStream(null, localContext, localAnalyzer, null)
+    if (gen !== generation) return
+    console.error('[BpmHeroTool] tab capture setup failed:', error)
+    failTabCapture('error')
+  }
+}
+
+// The user pressed the browser's "Stop sharing". Keep a stable reading on screen;
+// without one there is nothing to show, so go back to the input.
+function onTabSharingEnded(gen: number) {
+  if (gen !== generation) return
+  invalidate()
+  teardownStream()
+  if (streamStableBpm.value !== null) {
+    tabSharingEnded.value = true
+    return
+  }
+  streamStatus.value = 'idle'
+  resetStreamReadings()
+}
+
+function useMicInstead() {
+  setMode('mic')
+  startMic('link_fallback')
 }
 
 function disposeLocalStream(
@@ -452,6 +629,8 @@ function teardownStream() {
     audioEl.load()
     streamAudioEl.value = null
   }
+  streamTabCapture.value?.getTracks().forEach(t => t.stop())
+  streamTabCapture.value = null
   streamContext.value?.close().catch((e) => console.debug('[BpmHeroTool] teardownStream context:', e))
   streamContext.value = null
 }
@@ -469,10 +648,12 @@ function stopStream() {
   invalidate()
   teardownStream()
   streamStatus.value = 'idle'
-  streamLiveBpm.value = null
-  streamStableBpm.value = null
-  streamError.value = null
+  resetStreamReadings()
 }
+
+onMounted(() => {
+  tabAudioSupported.value = supportsTabAudio(navigator as NavigatorLike)
+})
 
 // ─── Cleanup on unmount ──────────────────────────────────────────────────
 onBeforeUnmount(() => {
@@ -486,6 +667,11 @@ const dropZoneClasses = computed(() => ({
   'bpm-drop-zone-inner': true,
   'is-drag-over': isDragOver.value,
 }))
+
+const streamLiveLabel = computed(() => {
+  if (streamInput.value === 'tab') return tabSharingEnded.value ? 'Sharing stopped' : 'Listening to tab'
+  return streamMuted.value ? 'Analysing (muted)' : 'Playing'
+})
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -656,7 +842,7 @@ function formatDuration(seconds: number): string {
             type="button"
             class="bpm-mic-button"
             aria-label="Detect BPM from microphone"
-            @click="startMic"
+            @click="startMic()"
           >
             <Mic
               :size="48"
@@ -774,20 +960,81 @@ function formatDuration(seconds: number): string {
             spellcheck="false"
             autocomplete="off"
           />
-          <button
-            type="button"
-            class="bpm-stream-btn"
-            @click="startStream"
-          >
-            Analyse stream
-          </button>
-          <div class="bpm-stream-hint">
-            Example from <a
-              href="https://somafm.com/defcon/"
-              target="_blank"
-              rel="noopener"
-            >SomaFM DEF CON Radio</a>
-          </div>
+          <!-- A platform link swaps the primary action for the alternative that
+               works here: tab audio on desktop Chrome/Edge, the mic elsewhere. -->
+          <template v-if="linkPlatform">
+            <div
+              class="bpm-link-note"
+              role="status"
+            >
+              {{ linkPlatformLabel }} plays only inside its own player, so this page can’t read the link.
+            </div>
+            <template v-if="tabAudioSupported">
+              <button
+                type="button"
+                class="bpm-stream-btn bpm-btn-with-icon bpm-btn-centered"
+                @click="startTabCapture"
+              >
+                <MonitorUp
+                  :size="16"
+                  :stroke-width="1.75"
+                  aria-hidden="true"
+                />
+                <span>Share this tab’s audio</span>
+              </button>
+              <div class="bpm-stream-hint">
+                Open the link in another tab, press play, then pick that tab.
+                Or <button
+                  type="button"
+                  class="bpm-text-btn"
+                  @click="useMicInstead"
+                >
+                  play it next to your mic
+                </button>.
+              </div>
+            </template>
+            <template v-else>
+              <button
+                type="button"
+                class="bpm-stream-btn bpm-btn-with-icon bpm-btn-centered"
+                @click="useMicInstead"
+              >
+                <Mic
+                  :size="16"
+                  :stroke-width="1.75"
+                  aria-hidden="true"
+                />
+                <span>Play it next to your mic</span>
+              </button>
+              <div class="bpm-stream-hint">
+                Play the track out loud on any device and hold it near this one.
+              </div>
+            </template>
+          </template>
+          <template v-else>
+            <button
+              type="button"
+              class="bpm-stream-btn"
+              @click="startStream"
+            >
+              Analyse stream
+            </button>
+            <div class="bpm-stream-hint">
+              Or try a station:
+              <template
+                v-for="(station, index) in STATIONS"
+                :key="station.url"
+              >
+                <button
+                  type="button"
+                  class="bpm-text-btn"
+                  @click="playStation(station.url)"
+                >
+                  {{ station.name }}
+                </button><span v-if="index < STATIONS.length - 1"> · </span>
+              </template>
+            </div>
+          </template>
         </template>
 
         <template v-else-if="streamStatus === 'analysing'">
@@ -799,8 +1046,11 @@ function formatDuration(seconds: number): string {
               class="bpm-live-indicator"
               aria-hidden="true"
             >
-              <span class="bpm-live-dot"></span>
-              {{ streamMuted ? 'Analysing (muted)' : 'Playing' }}
+              <span
+                v-if="!tabSharingEnded"
+                class="bpm-live-dot"
+              ></span>
+              {{ streamLiveLabel }}
             </div>
             <div class="bpm-result-bpm">
               <span class="bpm-result-number">{{ streamLiveBpm ?? '—' }}</span>
@@ -819,6 +1069,7 @@ function formatDuration(seconds: number): string {
             </div>
             <div class="bpm-stream-actions">
               <button
+                v-if="streamInput === 'url'"
                 type="button"
                 class="bpm-restart-btn bpm-btn-with-icon"
                 :aria-pressed="streamMuted"
@@ -876,6 +1127,24 @@ function formatDuration(seconds: number): string {
             >
               Try again
             </button>
+            <div
+              v-if="streamInput === 'url'"
+              class="bpm-stream-hint"
+            >
+              Stations that work here:
+              <template
+                v-for="(station, index) in STATIONS"
+                :key="station.url"
+              >
+                <button
+                  type="button"
+                  class="bpm-text-btn"
+                  @click="playStation(station.url)"
+                >
+                  {{ station.name }}
+                </button><span v-if="index < STATIONS.length - 1"> · </span>
+              </template>
+            </div>
           </div>
         </template>
       </div>
@@ -1278,6 +1547,31 @@ function formatDuration(seconds: number): string {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* Why a platform link can't be read: one plain line, not an error (nothing failed). */
+.bpm-link-note {
+  font-size: 0.85rem;
+  color: var(--vp-c-text-2);
+  text-align: center;
+  width: 100%;
+}
+
+/* Inline actions inside hint text (stations, mic fallback): styled as the hint's
+   links so the one filled button stays the only primary action. */
+.bpm-text-btn {
+  padding: 0;
+  font: inherit;
+  color: var(--vp-c-text-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bpm-text-btn:hover { color: var(--vp-c-brand-1); }
+
+.bpm-btn-centered { justify-content: center; }
 
 .bpm-badge {
   font-size: 0.75rem;

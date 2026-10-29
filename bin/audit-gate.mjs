@@ -17,7 +17,9 @@
 //        node bin/audit-gate.mjs --self-test
 
 const ALLOWLIST = [
-  { ghsa: 'GHSA-xjj6-f33q-929c', pkg: 'undici', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11; npm 11.21.1 ships 6.29.0, fixed in 6.29.1. Bump requested in npm/cli#10163 (filed for GHSA-2m5v; the same 6.29.1 fixes this one)' },
+  { ghsa: 'GHSA-xjj6-f33q-929c', pkg: 'undici', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11; npm 11.21.1 ships 6.29.0, fixed in 6.29.1. npm/cli#10170 bumped it (merged 2026-10-27); it ships in 11.21.2, unreleased as of 2026-10-29 (release PR npm/cli#10179)' },
+  { ghsa: 'GHSA-2m5v-pch6-74hx', pkg: 'undici', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11; npm 11.21.1 ships 6.29.0, fixed in 6.29.1. npm/cli#10170 bumped it (merged 2026-10-27); it ships in 11.21.2, unreleased as of 2026-10-29 (release PR npm/cli#10179)' },
+  { ghsa: 'GHSA-qrxm-fqhp-jwvm', pkg: 'undici', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11; npm 11.21.1 ships 6.29.0, fixed in 6.29.1. npm/cli#10170 bumped it (merged 2026-10-27); it ships in 11.21.2, unreleased as of 2026-10-29 (release PR npm/cli#10179)' },
 ];
 
 const BLOCKING = new Set(['high', 'critical']);

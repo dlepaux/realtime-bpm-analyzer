@@ -37,12 +37,6 @@
       "groupName": "linting"
     },
     {
-      "description": "Group semantic-release packages",
-      "matchPackageNames": ["semantic-release"],
-      "matchPackagePrefixes": ["@semantic-release/"],
-      "groupName": "semantic-release"
-    },
-    {
       "description": "Group test-related packages",
       "matchPackagePrefixes": ["@web/", "@types/"],
       "matchPackageNames": ["chai", "mocha"],

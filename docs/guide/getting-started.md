@@ -166,7 +166,7 @@ The analyzer emits two main types of BPM events:
 
 ### `bpm` Event
 - Emitted frequently during analysis
-- Contains multiple BPM candidates with confidence scores
+- Contains up to 5 BPM candidates, each with a vote `count` and a `confidence` share (0–1)
 - Values may fluctuate as more data is analyzed
 - Use for real-time display or progressive analysis
 

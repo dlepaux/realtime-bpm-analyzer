@@ -1,7 +1,12 @@
-import type {Tempo, BiquadFilterOptions} from './types';
+import type {Tempo, BiquadFilterOptions, AnalyzeFullBufferOptions} from './types';
 import * as consts from './consts';
 import {findPeaks} from './peak-detection';
-import {identifyIntervals, groupByTempo, getTopCandidates} from './tempo';
+import {
+  identifyIntervals,
+  groupByTempo,
+  getTopCandidates,
+  resolveTempoRange,
+} from './tempo';
 
 /**
  * Creates a biquad lowpass filter for audio processing.
@@ -96,8 +101,9 @@ export async function getOfflineLowPassSource(
  * have the complete audio data available.
  *
  * @param originalBuffer - The AudioBuffer containing the complete audio to analyze
- * @param options - Optional filter configuration to customize bass detection
- * @returns A promise that resolves to an array of tempo candidates sorted by confidence
+ * @param options - Optional filter configuration and tempo range
+ * @returns A promise that resolves to up to 5 tempo candidates, sorted by `count`
+ * @throws {RangeError} When `options.tempoRange` is invalid (see {@link TempoRange})
  *
  * @example
  * **Analyze an uploaded audio file**
@@ -113,7 +119,7 @@ export async function getOfflineLowPassSource(
  * const tempos = await analyzeFullBuffer(audioBuffer);
  *
  * console.log('Detected BPM:', tempos[0].tempo);
- * console.log('Confidence:', tempos[0].count);
+ * console.log('Confidence:', tempos[0].confidence);
  * console.log('Top 5 candidates:', tempos);
  * ```
  *
@@ -129,6 +135,14 @@ export async function getOfflineLowPassSource(
  *
  * // Get the most likely BPM
  * const mostLikelyBPM = tempos[0].tempo;
+ * ```
+ *
+ * @example
+ * **Slow genres: report 85 instead of 170**
+ * ```typescript
+ * const tempos = await analyzeFullBuffer(audioBuffer, {
+ *   tempoRange: {min: 70, max: 140},  // max must be at least 2 × min
+ * });
  * ```
  *
  * @example
@@ -152,10 +166,10 @@ export async function getOfflineLowPassSource(
  * @remarks
  * - This is a synchronous/offline analysis method (analyzes complete audio at once)
  * - For real-time streaming audio, use {@link createRealtimeBpmAnalyzer} instead
- * - The function returns multiple candidates sorted by confidence (count)
+ * - The function returns up to 5 candidates sorted by `count` (matching intervals)
  * - Analysis applies a lowpass filter to isolate bass frequencies for better beat detection
- * - BPM values are normalized to the 90-180 range (doubles/halves if outside this range)
- * - Higher `count` values indicate more confidence in the detected tempo
+ * - BPM values are folded into `tempoRange` (default 90-180) by doubling or halving
+ * - `confidence` is the share of interval votes within ±1 BPM of the candidate
  *
  * @see {@link createRealtimeBpmAnalyzer} for real-time streaming audio analysis
  * @see {@link getBiquadFilter} for the lowpass filter used internally
@@ -166,7 +180,7 @@ export async function getOfflineLowPassSource(
  */
 export async function analyzeFullBuffer(
   originalBuffer: AudioBuffer,
-  options?: BiquadFilterOptions,
+  options?: AnalyzeFullBufferOptions,
 ): Promise<Tempo[]> {
   if (!originalBuffer || originalBuffer.length === 0) {
     throw new Error('Invalid audio buffer: buffer is empty or undefined.');
@@ -178,6 +192,9 @@ export async function analyzeFullBuffer(
     );
   }
 
+  // Validate before the costly render, so a bad range fails fast
+  const tempoRange = resolveTempoRange(options?.tempoRange);
+
   const buffer = await getOfflineLowPassSource(originalBuffer, options);
   const channelData = buffer.getChannelData(0);
   const {peaks} = await findPeaks({
@@ -188,6 +205,7 @@ export async function analyzeFullBuffer(
   const tempos = groupByTempo({
     audioSampleRate: buffer.sampleRate,
     intervalCounts: intervals,
+    tempoRange,
   });
   const topCandidates = getTopCandidates(tempos);
 

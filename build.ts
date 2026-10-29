@@ -25,23 +25,25 @@ async function main() {
 
   await esbuild.build(processorConfig);
 
-  let processor: string | undefined;
+  let processor: string;
   try {
     processor = await promises.readFile(
       './dist/realtime-bpm-processor.js',
       'utf8',
     );
   } catch (error: unknown) {
-    console.warn(error);
-    console.warn('NO PROCESSOR BUILT !');
+    // Inlining nothing would publish a package whose worklet silently does nothing
+    throw new Error('Processor bundle missing: dist/realtime-bpm-processor.js could not be read', {cause: error});
   }
 
   // Generate processor file inlined.
   // Typed `string` stops tsc from baking the full content into a literal type in the emitted .d.ts.
+  // JSON.stringify escapes the bundle: raw inlining in a template literal broke on any
+  // backtick, `${` or backslash in worklet code (template strings, escaped characters).
   const generatedProcessor = [
-    'const realtimeBpmProcessor: string = `',
-    processor,
-    '`;\nexport default realtimeBpmProcessor;\n',
+    'const realtimeBpmProcessor: string = ',
+    JSON.stringify(processor),
+    ';\nexport default realtimeBpmProcessor;\n',
   ].join('');
   await promises.writeFile(
     'src/generated-processor.ts',
@@ -71,4 +73,5 @@ async function main() {
 
 main().catch(error => {
   console.error(error);
+  process.exitCode = 1;
 });

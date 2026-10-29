@@ -25,6 +25,19 @@ describe('RealTimeBpmAnalyzer - Unit tests', () => {
     expect(realTimeBpmAnalyzer.options.continuousAnalysis).to.be.true;
     expect(realTimeBpmAnalyzer.options.stabilizationTime).to.equal(10000);
   });
+
+  it('should default the tempo range to 90-180', () => {
+    expect(new RealTimeBpmAnalyzer().options.tempoRange).to.deep.equal({min: 90, max: 180});
+  });
+
+  it('should accept a custom tempo range', () => {
+    const realTimeBpmAnalyzer = new RealTimeBpmAnalyzer({tempoRange: {min: 70, max: 140}});
+    expect(realTimeBpmAnalyzer.options.tempoRange).to.deep.equal({min: 70, max: 140});
+  });
+
+  it('should reject an invalid tempo range', () => {
+    expect(() => new RealTimeBpmAnalyzer({tempoRange: {min: 100, max: 150}})).to.throw(RangeError);
+  });
 });
 
 describe('RealTimeBpmAnalyzer - Integration tests', () => {
@@ -62,6 +75,30 @@ describe('RealTimeBpmAnalyzer - Integration tests', () => {
     const firstEvent = bpmEvents[0];
     expect(firstEvent.data).to.have.property('bpm');
     expect(firstEvent.data).to.have.property('threshold');
+  });
+
+  it('should report tempos inside the configured tempo range', async () => {
+    const realTimeBpmAnalyzer = new RealTimeBpmAnalyzer({tempoRange: {min: 50, max: 100}});
+    const bufferSize = 4096;
+    const audioBuffer = await loadTestAudio(audioContext);
+    const chunks = audioBufferToChunks(audioBuffer, bufferSize);
+    const collector = createEventCollector();
+
+    for (const channelData of chunks) {
+      await realTimeBpmAnalyzer.analyzeChunk({
+        audioSampleRate: audioContext.sampleRate,
+        channelData,
+        bufferSize,
+        postMessage: collector.postMessage,
+      });
+    }
+
+    const tempos = collector.getEventsByType('bpm')
+      .flatMap(event => event.data.bpm.map(candidate => candidate.tempo));
+    expect(tempos.length).to.be.greaterThan(0);
+    for (const tempo of tempos) {
+      expect(tempo).to.be.within(50, 100);
+    }
   });
 
   it('should emit analyzerReset in continuous mode', async function () {

@@ -2,6 +2,7 @@ import {realtimeBpmProcessorName} from './core/consts';
 import realtimeBpmProcessorContent from './generated-processor';
 import {type RealTimeBpmAnalyzerParameters} from './core/types';
 import {BpmAnalyzer} from './core/bpm-analyzer';
+import {resolveTempoRange} from './core/tempo';
 
 // Public API surface — explicit named re-exports only.
 // Internal types stay in core/types.ts and are emitted into dist/core/types.d.ts
@@ -22,6 +23,8 @@ export type {
   BpmAnalyzerEventMap,
   RealTimeBpmAnalyzerParameters,
   BiquadFilterOptions,
+  TempoRange,
+  AnalyzeFullBufferOptions,
 } from './core/types';
 
 /**
@@ -34,6 +37,7 @@ export type {
  * @param audioContext - The Web Audio API AudioContext to use for processing
  * @param processorOptions - Optional configuration parameters for the analyzer
  * @returns A promise that resolves to a BpmAnalyzer instance (event emitter wrapping AudioWorkletNode)
+ * @throws {RangeError} When `processorOptions.tempoRange` is invalid (see {@link TempoRange})
  *
  * @remarks
  * The returned `BpmAnalyzer` is an event emitter that wraps an AudioWorkletNode.
@@ -55,7 +59,7 @@ export type {
  * // Listen for BPM events with full type safety
  * bpmAnalyzer.on('bpm', (data) => {
  *   console.log('Current BPM:', data.bpm[0].tempo);
- *   console.log('Confidence:', data.bpm[0].count);
+ *   console.log('Confidence:', data.bpm[0].confidence);
  * });
  *
  * bpmAnalyzer.on('bpmStable', (data) => {
@@ -71,6 +75,7 @@ export type {
  *   continuousAnalysis: true,    // Keep analyzing after stable BPM found
  *   stabilizationTime: 20_000,   // ms — matches defaultStabilizationTime, see consts.ts
  *   muteTimeInIndexes: 10_000,   // sample indexes — matches defaultMuteTimeInIndexes, see consts.ts
+ *   tempoRange: {min: 70, max: 140}, // BPM; default 90-180, max must be at least 2 × min
  *   debug: false                 // Enable debug logging
  * });
  * ```
@@ -96,7 +101,7 @@ export type {
  *
  * bpmAnalyzer.on('bpmStable', (data) => {
  *   console.log('Stable BPM:', data.bpm[0].tempo);
- *   console.log('Confidence:', data.bpm[0].count);
+ *   console.log('Confidence:', data.bpm[0].confidence);
  * });
  *
  * // One-time listener
@@ -150,10 +155,16 @@ export async function createRealtimeBpmAnalyzer(
   audioContext: AudioContext,
   processorOptions?: RealTimeBpmAnalyzerParameters,
 ): Promise<BpmAnalyzer> {
+  // Validate on the main thread: a throw inside the worklet constructor would not reach the caller.
+  // The worklet receives the validated plain object, so structured cloning cannot alter it.
+  const options: RealTimeBpmAnalyzerParameters = {
+    ...processorOptions,
+    tempoRange: resolveTempoRange(processorOptions?.tempoRange),
+  };
   const processorNode = await setupAudioWorkletNode(
     audioContext,
     realtimeBpmProcessorName,
-    processorOptions,
+    options,
   );
   await audioContext.resume();
   return new BpmAnalyzer(processorNode);

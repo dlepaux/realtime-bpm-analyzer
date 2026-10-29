@@ -5,6 +5,7 @@ import type {
   Interval,
   Tempo,
   Threshold,
+  TempoRange,
   AnalyzerGroupByTempoOptions,
   AnalyzerComputeBpmOptions,
 } from './types';
@@ -15,11 +16,13 @@ import * as consts from './consts';
  * @param options - AnalyzerComputeBpmOptions
  * @param options.data - Contain valid peaks
  * @param options.audioSampleRate - Audio sample rate
+ * @param options.tempoRange - Range every tempo is folded into (default: 90–180 BPM)
  * @returns A Promise that resolves BPM Candidates
  */
 export async function computeBpm({
   audioSampleRate,
   data,
+  tempoRange,
 }: AnalyzerComputeBpmOptions): Promise<BpmCandidates> {
   const minPeaks = consts.minPeaks;
 
@@ -44,7 +47,7 @@ export async function computeBpm({
 
   if (hasPeaks && foundThreshold) {
     const intervals = identifyIntervals(data[foundThreshold]);
-    const tempos = groupByTempo({audioSampleRate, intervalCounts: intervals});
+    const tempos = groupByTempo({audioSampleRate, intervalCounts: intervals, tempoRange});
     const candidates = getTopCandidates(tempos);
 
     const bpmCandidates: BpmCandidates = {
@@ -136,16 +139,51 @@ export function identifyIntervals(peaks: Peaks): Interval[] {
 }
 
 /**
+ * Validate a caller-supplied tempo range, or return the default 90–180 BPM
+ * @param tempoRange - Range from the caller's options
+ * @returns A range every tempo can be folded into
+ * @throws {RangeError} When a bound is not a positive finite number, or the range spans less than one octave
+ */
+export function resolveTempoRange(tempoRange?: TempoRange): TempoRange {
+  if (tempoRange === undefined) {
+    return {min: consts.minBpmRange, max: consts.maxBpmRange};
+  }
+
+  const min: unknown = tempoRange?.min;
+  const max: unknown = tempoRange?.max;
+  const isPositiveFinite = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0;
+
+  if (!isPositiveFinite(min) || !isPositiveFinite(max)) {
+    throw new RangeError(
+      `Invalid tempoRange: min and max must be positive finite numbers (got min=${String(min)}, max=${String(max)}).`,
+    );
+  }
+
+  // Folding moves a tempo by whole octaves, so a narrower range can leave it outside both bounds
+  if (max < min * 2) {
+    throw new RangeError(
+      `Invalid tempoRange: max (${max}) must be at least twice min (${min}) so that every tempo has an octave inside the range.`,
+    );
+  }
+
+  return {min, max};
+}
+
+/**
  * Figure out best possible tempo candidates
  * @param options - AnalyzerGroupByTempoOptions
  * @param options.audioSampleRate - Audio sample rate
  * @param options.intervalCounts - List of identified intervals
- * @returns Intervals grouped with similar values
+ * @param options.tempoRange - Range every tempo is folded into (default: 90–180 BPM)
+ * @returns Intervals grouped with similar values, each with its confidence
  */
 export function groupByTempo({
   audioSampleRate,
   intervalCounts,
+  tempoRange,
 }: AnalyzerGroupByTempoOptions): Tempo[] {
+  const {min, max} = resolveTempoRange(tempoRange);
   const tempoCounts: Tempo[] = [];
 
   for (const intervalCount of intervalCounts) {
@@ -165,13 +203,13 @@ export function groupByTempo({
     let theoreticalTempo = 60 / (absoluteInterval / audioSampleRate);
 
     /**
-     * Adjust the tempo to fit within the 90-180 BPM range
+     * Fold the tempo by octaves into the range (90-180 BPM by default)
      */
-    while (theoreticalTempo < consts.minBpmRange) {
+    while (theoreticalTempo < min) {
       theoreticalTempo *= 2;
     }
 
-    while (theoreticalTempo > consts.maxBpmRange) {
+    while (theoreticalTempo > max) {
       theoreticalTempo /= 2;
     }
 
@@ -212,5 +250,28 @@ export function groupByTempo({
     }
   }
 
-  return tempoCounts;
+  return withConfidence(tempoCounts);
+}
+
+/**
+ * Set each tempo's confidence: its ±1 BPM support over all votes (RBA-12 proposal v1).
+ * Pooling neighbours absorbs rounding jitter, since a true 128 splits its votes over 127–129.
+ * @param tempos - Every tempo group, so the total counts all votes
+ * @returns New tempo objects in the same order
+ */
+function withConfidence(tempos: Tempo[]): Tempo[] {
+  const countByTempo = new Map(tempos.map(t => [t.tempo, t.count]));
+  const totalVotes = tempos.reduce((sum, t) => sum + t.count, 0);
+
+  return tempos.map(t => {
+    const support = (countByTempo.get(t.tempo - 1) ?? 0)
+      + t.count
+      + (countByTempo.get(t.tempo + 1) ?? 0);
+
+    return {
+      tempo: t.tempo,
+      count: t.count,
+      confidence: totalVotes > 0 ? support / totalVotes : 0,
+    };
+  });
 }

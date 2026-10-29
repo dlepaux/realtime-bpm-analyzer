@@ -128,10 +128,10 @@ For the example above:
 
 ### 4. Tempo Grouping
 The algorithm then:
-- Normalizes BPM to common ranges (90-180 BPM)
-- Groups similar tempos together
-- Counts occurrences (confidence score)
-- Returns top candidates sorted by confidence
+- Folds each BPM into the tempo range (90-180 BPM by default) by doubling or halving
+- Groups intervals that round to the same tempo
+- Counts occurrences (votes)
+- Returns the top 5 candidates sorted by count, each with a confidence share
 
 ## BPM Candidates
 
@@ -139,14 +139,15 @@ Results are returned as an array of candidates:
 
 ```typescript
 [
-  { tempo: 128, count: 45 },
-  { tempo: 64,  count: 23 },
-  { tempo: 96,  count: 12 }
+  { tempo: 128, count: 45, confidence: 0.41 },
+  { tempo: 171, count: 23, confidence: 0.17 },
+  { tempo: 96,  count: 12, confidence: 0.09 }
 ]
 ```
 
-- **tempo**: Detected BPM value
-- **count**: Number of matching intervals (higher = more confident)
+- **tempo**: Detected BPM value, inside the tempo range
+- **count**: Number of matching intervals; candidates are ranked by it
+- **confidence**: Share of all interval votes within ±1 BPM of `tempo`, from 0 to 1. A perfect click track scores about 0.46; no cut-off is calibrated on real music yet
 
 The **first candidate** (highest count) is usually the most accurate.
 
@@ -178,6 +179,9 @@ const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
   
   // Minimum time between peaks at same threshold (prevents double-detection)
   muteTimeInIndexes: 10000,
+
+  // BPM range every tempo is folded into
+  tempoRange: { min: 90, max: 180 },
   
   // Enable debug events
   debug: false
@@ -197,6 +201,13 @@ const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
 - Default: `10000` samples
 - Prevents detecting the same beat twice
 - Adjust based on expected BPM range
+
+### tempoRange
+- Default: `{ min: 90, max: 180 }`
+- Every tempo is doubled or halved until it lands inside the range, so this picks the octave: the default reads an 85 BPM hip-hop track as 170, `{ min: 70, max: 140 }` reads it as 85
+- `max` must be at least twice `min`; a narrower range throws a `RangeError`
+- Keep the expected tempo away from the bounds: a tempo right on an edge jitters across it and its votes split between the two octaves
+- `analyzeFullBuffer(buffer, { tempoRange })` takes the same option
 
 ### debug
 - `false` (default): No debug events
@@ -223,7 +234,7 @@ Emitted when stable BPM detected:
 analyzer.on('bpmStable', (data) => {
   // More confident detection
   console.log('Stable BPM:', data.bpm[0].tempo);
-  console.log('Confidence:', data.bpm[0].count);
+  console.log('Confidence:', data.bpm[0].confidence);
   console.log('Threshold:', data.threshold);
 });
 ```
@@ -248,7 +259,7 @@ analyzer.on('analyzerReset', () => {
 ### ❌ Don't
 - Create `AudioContext` immediately on page load (autoplay restrictions)
 - Assume first BPM event is accurate (wait for stability)
-- Ignore the `count` property (it indicates confidence)
+- Ignore `count` and `confidence` (they tell a clear winner from a toss-up)
 - Use continuous analysis for short audio clips
 
 ## Next Steps

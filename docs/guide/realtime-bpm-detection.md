@@ -236,17 +236,30 @@ bpmAnalyzer.on('bpmStable', ({ bpm }) => {
 });
 ```
 
-The `bpm` array is sorted by confidence. `bpm[0]` is the top candidate;
-`bpm[1]` and beyond are alternatives. For tracks where the algorithm is
-torn between (say) 120 BPM and its half-time alias 60 BPM, both will
-appear, ranked. This is useful — you can render "120 BPM (or 60)" in the
-UI rather than guessing.
+The `bpm` array is sorted by `count`, the number of peak intervals that
+voted for each tempo. `bpm[0]` is the top candidate; `bpm[1]` and beyond
+are alternatives. Each candidate also carries a `confidence`: the share of
+all votes within ±1 BPM of it, from 0 to 1. Compare it between candidates
+or over time; no absolute cut-off has been calibrated on real music yet.
 
-The library normalises results to the **90–180 BPM** range by halving or
-doubling outliers. This is the convention for dance and pop music. If you
-need to detect BPM outside this range — drum & bass at 175, ambient at 60,
-classical accelerando — see [How It Works](/guide/how-it-works) for
-details on tuning.
+The library folds every tempo into the **90–180 BPM** range by halving or
+doubling it. This is the convention for dance and pop music, but it reads
+an 85 BPM hip-hop track as 170. A tempo and its double usually fold onto
+the same value, so you cannot pick the octave from the candidates. Pick it
+with the `tempoRange` option instead:
+
+```typescript
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  tempoRange: { min: 70, max: 140 }, // hip-hop, R&B, downtempo
+});
+```
+
+`max` must be at least twice `min`, so that every tempo has an octave
+inside the range; anything narrower throws a `RangeError`. Keep your
+music's tempo away from the edges: a tempo sitting right on a bound (140
+in a 70–140 range) jitters across it, and its votes split between 140 and
+70, which lowers its count and confidence. See
+[How It Works](/guide/how-it-works) for the algorithm.
 
 ## The lowpass filter — why it's there
 
@@ -307,8 +320,8 @@ sample-accurate tempo tracking through transitions, you may want to call
 **Non-4/4 time signatures.** All time-domain BPM detection algorithms
 struggle with irregular meters — jazz, classical, hip-hop with off-beats.
 This library is no exception. Confidence will be lower; alternative
-candidates more interesting. Use `bpm[0].confidence` to decide whether to
-display the result or fall back to a "tap tempo" UI.
+candidates more interesting. A `bpm[0].confidence` well below what your
+regular material scores is a cue to fall back to a "tap tempo" UI.
 
 **iOS Safari.** The audio context **must** be created or resumed inside a
 user gesture handler — a click, a touch. Browsers will silently keep the

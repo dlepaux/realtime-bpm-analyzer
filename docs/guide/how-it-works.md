@@ -35,7 +35,7 @@ BPM Candidates
 2. **Peak Detection**: Identifies rhythmic patterns in the audio signal
 3. **Threshold Analysis**: Tests multiple sensitivity levels to find optimal peaks
 4. **Interval Grouping**: Groups similar intervals to identify tempo patterns
-5. **Confidence Scoring**: Ranks BPM candidates by reliability
+5. **Candidate Ranking**: Ranks BPM candidates by vote count and scores their confidence
 
 ## The Algorithm
 
@@ -113,40 +113,46 @@ function computeIntervals(peaks, sampleRate) {
 
 ### Step 5: Tempo Grouping
 
-The analyzer compares each detected peak with up to the next nine peaks. It converts each sample interval to BPM, normalizes it to the 90–180 range, rounds it to an integer, and groups intervals with the same rounded BPM. It does not merge tempos using a percentage tolerance.
+The analyzer compares each detected peak with up to the next nine peaks. It converts each sample interval to BPM, folds it into the tempo range (90–180 by default, set with the `tempoRange` option) by doubling or halving, rounds it to an integer, and groups intervals with the same rounded BPM. It does not merge tempos using a percentage tolerance.
 
 ```typescript
-function groupByTempo(intervalCounts, sampleRate) {
+function groupByTempo(intervalCounts, sampleRate, {min, max} = {min: 90, max: 180}) {
   const groups = new Map();
 
   for (const {interval, count} of intervalCounts) {
     if (interval === 0) continue;
 
     let tempo = 60 / (Math.abs(interval) / sampleRate);
-    while (tempo < 90) tempo *= 2;
-    while (tempo > 180) tempo /= 2;
+    while (tempo < min) tempo *= 2;
+    while (tempo > max) tempo /= 2;
     tempo = Math.round(tempo);
 
-    const group = groups.get(tempo) ?? {tempo, count: 0, confidence: 0};
-    group.count += count;
-    groups.set(tempo, group);
+    groups.set(tempo, (groups.get(tempo) ?? 0) + count);
   }
 
-  return [...groups.values()].sort((a, b) => b.count - a.count).slice(0, 5);
+  return groups; // tempo → count
 }
 ```
 
 ### Step 6: Candidate Ranking
 
-BPM candidates are sorted by **count** (how many interval comparisons resolve to that rounded tempo). The current grouping implementation does not calculate a separate consistency score; its `confidence` field remains `0`.
+BPM candidates are sorted by **count** (how many interval comparisons resolve to that rounded tempo), and the top 5 are returned. Each one also gets a `confidence`: the share of all votes, across every tempo group, that land within ±1 BPM of it. Pooling the neighbours absorbs rounding jitter, since a true 128 BPM splits its votes over 127–129.
 
 ```typescript
 function getBPMCandidates(groups) {
-  return groups
+  const totalVotes = [...groups.values()].reduce((sum, count) => sum + count, 0);
+
+  return [...groups]
+    .map(([tempo, count]) => {
+      const support = (groups.get(tempo - 1) ?? 0) + count + (groups.get(tempo + 1) ?? 0);
+      return {tempo, count, confidence: support / totalVotes};
+    })
     .sort((a, b) => b.count - a.count) // Most common first
     .slice(0, 5);
 }
 ```
+
+A perfect click track scores about **0.46**, not 1: each peak is paired with the next nine, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. Randomly spaced peaks score below 0.1. No absolute cut-off has been calibrated on real music yet, so compare values rather than test them against a fixed number.
 
 ## Signal Processing Features
 
@@ -202,7 +208,7 @@ Emitted when confident detection is achieved:
 analyzer.on('bpmStable', (data) => {
   // More reliable, higher confidence result
   console.log('Stable BPM:', data.bpm[0].tempo);
-  console.log('Confidence count:', data.bpm[0].count);
+  console.log('Votes:', data.bpm[0].count, 'Confidence:', data.bpm[0].confidence);
 });
 ```
 

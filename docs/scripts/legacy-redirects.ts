@@ -9,8 +9,9 @@
 // every v5 minor, and every site link in the README and docs history.
 //
 // Served before, deliberately left as 404 (no successor page):
-// - google4e3a3e9414465dcf.html, docs/…, public/… — Search Console HTML verification
-//   files; a redirect would not verify, so they stay gone.
+// - docs/google4e3a3e9414465dcf.html, public/… — stray copies of the Search Console
+//   verification file. The root one is served again from docs/public: Google re-checks
+//   it, and a redirect would not verify.
 // - favicons/index.html — a favicon generator's manifest page, never content.
 // - dist/404.html, docs/404.html — old not-found pages.
 export const legacyRedirects: Readonly<Record<string, string>> = {

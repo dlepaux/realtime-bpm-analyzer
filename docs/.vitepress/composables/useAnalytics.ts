@@ -2,7 +2,7 @@
 // GTM forwards to GA4 (and any other configured tags) via the container dashboard.
 // SSR-safe — no-ops when `window` is undefined.
 
-type EventParams = Record<string, string | number | boolean>
+import { scrubEventParams, type EventParams } from '../tools/analytics-params'
 
 declare global {
   interface Window {
@@ -39,11 +39,13 @@ export function useAnalytics() {
   function track(event: BpmAnalyticsEvent, params: EventParams = {}): void {
     if (typeof window === 'undefined') return
 
+    // Never a URL in an event (RBA-35), even one quoted inside an error message.
+    const safe = scrubEventParams(params)
     window.dataLayer = window.dataLayer || []
-    window.dataLayer.push({ event, ...params })
+    window.dataLayer.push({ event, ...safe })
 
     if (import.meta.env.DEV) {
-      console.debug('[analytics]', event, params)
+      console.debug('[analytics]', event, safe)
     }
   }
 

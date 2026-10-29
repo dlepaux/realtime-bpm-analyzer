@@ -23,8 +23,10 @@ import {
   classifyTabCaptureError,
   detectPlatform,
   diagnoseStreamFailure,
+  streamEventParams,
   supportsTabAudio,
   type NavigatorLike,
+  type StreamEventParams,
   type StreamErrorKind,
   type TabCaptureFailure,
 } from '../tools/stream-input'
@@ -118,17 +120,6 @@ const iconForMode = {
   mic: Mic,
   stream: Radio,
 } as const
-
-// Strip query + hash from a URL before sending it to analytics — prevents
-// leakage of signed tokens, session IDs, or any other query-encoded secrets.
-function sanitiseUrl(rawUrl: string): string {
-  try {
-    const parsed = new URL(rawUrl)
-    return parsed.origin + parsed.pathname
-  } catch {
-    return ''
-  }
-}
 
 // ─── Mode switching (with teardown) ──────────────────────────────────────
 function setMode(next: Mode) {
@@ -378,7 +369,7 @@ function resetStreamReadings() {
   tabSharingEnded.value = false
 }
 
-function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: Record<string, string>) {
+function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: StreamEventParams | { input_method: 'tab' }) {
   analyzer.on('bpm', (data: BpmCandidates) => {
     const top = data.bpm?.[0]?.tempo
     if (top === undefined) return
@@ -397,12 +388,12 @@ function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: Record<stri
 // The <audio> element only says "error". Show the failure at once, then ask the
 // server why (cors / network / decode / http / insecure) and send the one report
 // with that reason. The caller guarantees this runs once per attempt (RBA-4).
-async function reportStreamFailure(gen: number, url: string, sanitised: string, reason: string, knownKind?: StreamErrorKind) {
+async function reportStreamFailure(gen: number, url: string, eventParams: StreamEventParams, reason: string, knownKind?: StreamErrorKind) {
   teardownStream()
   streamError.value = 'Couldn’t play that stream. Checking why…'
   streamStatus.value = 'error'
   const kind = knownKind ?? await diagnoseStreamFailure(url, window.location.protocol, (u, init) => fetch(u, init))
-  track('bpm_stream_error', { url: sanitised, reason, error_kind: kind })
+  track('bpm_stream_error', { ...eventParams, reason, error_kind: kind })
   // The user may have moved on while the probe ran: report, but leave their new state alone.
   if (gen !== generation) return
   streamError.value = STREAM_ERROR_MESSAGES[kind]
@@ -414,8 +405,9 @@ async function startStream() {
   // A platform link gets the alternatives instead, and never reaches analytics.
   if (!url || linkPlatform.value) return
 
-  const sanitised = sanitiseUrl(url)
-  track('bpm_stream_clicked', { url: sanitised })
+  // Station, scheme and format, never the URL itself (RBA-35).
+  const eventParams = streamEventParams(url)
+  track('bpm_stream_clicked', { ...eventParams })
 
   resetStreamReadings()
   streamInput.value = 'url'
@@ -428,7 +420,7 @@ async function startStream() {
   const fail = (reason: string, knownKind?: StreamErrorKind) => {
     if (reported) return
     reported = true
-    void reportStreamFailure(gen, url, sanitised, reason, knownKind)
+    void reportStreamFailure(gen, url, eventParams, reason, knownKind)
   }
 
   try {
@@ -465,7 +457,7 @@ async function startStream() {
     streamAnalyzer.value = localAnalyzer
     streamGain.value = localGain
 
-    listenToStreamAnalyzer(localAnalyzer, { url: sanitised })
+    listenToStreamAnalyzer(localAnalyzer, eventParams)
 
     const handler = (): void => fail('audio_error')
     streamErrorHandler.value = handler

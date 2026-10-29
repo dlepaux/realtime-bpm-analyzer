@@ -384,6 +384,7 @@ export default defineConfig({
             { text: 'How It Works', link: '/guide/how-it-works' },
             { text: 'Performance Tips', link: '/guide/performance' },
             { text: 'Browser Compatibility', link: '/guide/browser-compatibility' },
+            { text: 'Strict CSP and Browser Extensions', link: '/guide/strict-csp' },
             { text: 'Migration Guide (v4 → v5)', link: '/guide/migration-v5' }
           ]
         }

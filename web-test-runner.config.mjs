@@ -15,6 +15,8 @@ export default {
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--autoplay-policy=no-user-gesture-required',
+          // Tests start real audio graphs: never let them play through the speakers
+          '--mute-audio',
         ],
       },
     }),

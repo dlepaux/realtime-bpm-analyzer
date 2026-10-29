@@ -26,6 +26,9 @@ const filterCases: BiquadFilterOptions[] = [
   {frequencyValue: 150, qualityValue: 1},
   {frequencyValue: 500, qualityValue: 6},
   {frequencyValue: 100, qualityValue: -3},
+  // Both ends of the clamp, special-cased by the spec
+  {frequencyValue: 0},
+  {frequencyValue: 30_000},
 ];
 
 function audioBufferFrom(samples: Float32Array<ArrayBuffer>, sampleRate: number): AudioBuffer {
@@ -44,6 +47,8 @@ function maxAbsDifference(a: Float32Array, b: Float32Array): number {
 }
 
 function expectSameCandidates(node: Tempo[], browser: Tempo[]): void {
+  // Two empty results would agree without proving anything
+  expect(browser).to.not.be.empty;
   expect(node.map(t => t.tempo)).to.deep.equal(browser.map(t => t.tempo));
   expect(node.map(t => t.count)).to.deep.equal(browser.map(t => t.count));
   node.forEach((candidate, i) => {

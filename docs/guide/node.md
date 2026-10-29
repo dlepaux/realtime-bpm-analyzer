@@ -20,6 +20,11 @@ console.log('Detected BPM:', tempos[0]?.tempo);
 
 CommonJS works too: `const {analyzeChannelData} = require('realtime-bpm-analyzer/node')`.
 
+In TypeScript, the subpath needs a `moduleResolution` that reads package `exports`
+(`node16`, `nodenext` or `bundler`), and the shared type declarations mention
+`URL`, so keep `@types/node` (or the DOM lib) in the project, as Node projects
+usually do.
+
 ## Same results as the browser
 
 `analyzeChannelData` is the Node counterpart of

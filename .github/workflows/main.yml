@@ -66,19 +66,17 @@ jobs:
       - name: Test Node entry
         run: npm run test:node
 
+      # docs/ is a workspace now: the root install and audit above already cover it
       - name: Docs typecheck
-        run: cd docs && npm ci && npm run typecheck
-
-      - name: Audit docs dependencies (fail on high)
-        run: cd docs && npm audit --audit-level=high
+        run: npm run typecheck -w docs
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: dist
           path: |
-            dist/
-            src/generated-processor.ts
+            packages/realtime-bpm-analyzer/dist/
+            packages/realtime-bpm-analyzer/src/generated-processor.ts
           retention-days: 1
 
   # Release to GitHub and npm
@@ -109,6 +107,8 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: dist
+          # upload-artifact strips the paths' common ancestor (the package folder)
+          path: packages/realtime-bpm-analyzer
 
       - name: Release
         env:
@@ -135,32 +135,31 @@ jobs:
           node-version: 24.22.0
           cache: npm
 
-      - name: Install root dependencies
+      - name: Install dependencies (root, library, docs and examples workspaces)
         run: npm ci
 
       - name: Download build artifacts
         uses: actions/download-artifact@v8
         with:
           name: dist
-
-      - name: Install docs dependencies
-        run: cd docs && npm ci
+          # upload-artifact strips the paths' common ancestor (the package folder)
+          path: packages/realtime-bpm-analyzer
 
       - name: Docs typecheck
-        run: cd docs && npm run typecheck
+        run: npm run typecheck -w docs
 
       - name: Docs lint
-        run: cd docs && npm run lint
+        run: npm run lint -w docs
 
       - name: Docs tests
-        run: cd docs && npm test
+        run: npm test -w docs
 
       - name: Setup Pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v6
 
       - name: Build documentation
-        run: cd docs && npm run build
+        run: npm run build -w docs
 
       # VitePress hydrates each page from a *.lean.js chunk. A Vite it doesn't support (vite 8, #218)
       # builds green but emits none, and every page then 404s its chunk in the browser.

@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "realtime-bpm-analyzer": "file:../..",
+    "realtime-bpm-analyzer": "*",
     "vue": "^3.5.44"
   },
   "devDependencies": {

@@ -1,0 +1,54 @@
+{
+  "name": "realtime-bpm-analyzer-monorepo",
+  "private": true,
+  "description": "Workspace root: the realtime-bpm-analyzer library (packages/), its documentation site (docs/) and examples (examples/). Publishes nothing itself.",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "packages/*",
+    "docs",
+    "examples/*"
+  ],
+  "overrides": {
+    "serialize-javascript": "^7.1.2",
+    "ip-address": "^10.7.4",
+    "qs": "^6.16.1",
+    "esbuild": "^0.28.2",
+    "postcss": "^8.5.29",
+    "markdown-it": "^15.0.3",
+    "js-cookie": "^3.0.8",
+    "vitepress": {
+      "vite": {
+        ".": "^6.4.4",
+        "esbuild": "^0.25.12"
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run build -w realtime-bpm-analyzer",
+    "lint": "npm run lint -w realtime-bpm-analyzer",
+    "lint:fix": "npm run lint:fix -w realtime-bpm-analyzer",
+    "test": "npm test -w realtime-bpm-analyzer",
+    "test:node": "npm run test:node -w realtime-bpm-analyzer",
+    "docs:dev": "npm run build && npm run dev -w docs",
+    "docs:build": "npm run build && npm run build -w docs",
+    "docs:preview": "npm run preview -w docs",
+    "examples:build": "npm run build -w examples --if-present",
+    "examples:dev": "npm run dev:examples -w docs",
+    "prepare": "husky"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dlepaux/realtime-bpm-analyzer"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "husky": "^9.1.7",
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^11.0.1",
+    "@semantic-release/npm": "^13.2.0",
+    "@semantic-release/release-notes-generator": "^14.1.1",
+    "semantic-release": "^25.0.9"
+  }
+}

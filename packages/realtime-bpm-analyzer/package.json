@@ -65,26 +65,12 @@
     "access": "public",
     "provenance": true
   },
-  "workspaces": [
-    "examples/*"
-  ],
-  "overrides": {
-    "serialize-javascript": "^7.1.2",
-    "ip-address": "^10.7.4",
-    "qs": "^6.16.1",
-    "esbuild": "^0.28.2"
-  },
   "scripts": {
     "build": "bash bin/build/library.sh",
-    "docs:dev": "npm run build && cd docs && npm run dev",
-    "docs:build": "npm run build && cd docs && npm run build",
-    "docs:preview": "cd docs && npm run preview",
-    "examples:install": "npm install --workspaces",
-    "examples:build": "npm run build --workspaces --if-present",
-    "examples:dev": "cd docs && npm run dev:examples",
+    "prepack": "cp ../../readme.md ../../license.md .",
+    "postpack": "rm -f readme.md license.md",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "prepare": "husky",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
     "testing": "web-dev-server",
     "test": "web-test-runner",
@@ -101,13 +87,6 @@
     "url": "https://github.com/dlepaux/realtime-bpm-analyzer"
   },
   "devDependencies": {
-    "@commitlint/cli": "^21.2.3",
-    "@commitlint/config-conventional": "^21.2.3",
-    "@semantic-release/changelog": "^7.0.0",
-    "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/git": "^11.0.1",
-    "@semantic-release/npm": "^13.2.0",
-    "@semantic-release/release-notes-generator": "^14.1.1",
     "@types/chai": "^5.2.3",
     "@types/mocha": "^10.0.10",
     "@web/dev-server": "^1.0.0",
@@ -118,10 +97,8 @@
     "esbuild": "^0.28.2",
     "eslint": "^10.13.0",
     "globals": "^17.13.0",
-    "husky": "^9.1.7",
     "mocha": "^12.0.3",
     "music-metadata": "^12.2.1",
-    "semantic-release": "^25.0.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.71.2"

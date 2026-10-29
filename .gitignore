@@ -3,12 +3,16 @@
 coverage
 dist
 node_modules
-tests/datasets/*
-testing/datasets
-testing/manifest.json
+packages/realtime-bpm-analyzer/tests/datasets/*
+packages/realtime-bpm-analyzer/testing/datasets
+packages/realtime-bpm-analyzer/testing/manifest.json
 
 # Generated files (auto-created during build)
-src/generated-processor.ts
+packages/realtime-bpm-analyzer/src/generated-processor.ts
+
+# Copied in from the repo root by the library's prepack script, removed by postpack
+packages/realtime-bpm-analyzer/readme.md
+packages/realtime-bpm-analyzer/license.md
 
 # VitePress documentation build output
 docs/.vitepress/dist

@@ -2,7 +2,8 @@ import { defineConfig } from 'vitepress'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
-const pkg = require('../../package.json')
+// The library's version, through its workspace link (packages/realtime-bpm-analyzer)
+const pkg = require('realtime-bpm-analyzer/package.json')
 
 // ── Build-time GitHub star count fetch ─────────────────────────────────────
 // Runs once when `vitepress dev` or `vitepress build` boots. The value is
@@ -350,7 +351,7 @@ export default defineConfig({
       { 
         text: `v${pkg.version}`,
         items: [
-          { text: 'Changelog', link: 'https://github.com/dlepaux/realtime-bpm-analyzer/blob/main/changelog.md' },
+          { text: 'Changelog', link: 'https://github.com/dlepaux/realtime-bpm-analyzer/blob/main/packages/realtime-bpm-analyzer/changelog.md' },
           { text: 'Contributing', link: '/contributing' },
           { text: 'Code of Conduct', link: '/code-of-conduct' },
           { text: 'Security', link: '/security' },

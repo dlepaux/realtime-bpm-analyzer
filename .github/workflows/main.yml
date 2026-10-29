@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - main
+  # Manual retry when a release fails after its commit landed (e.g. npm's provenance step).
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -79,7 +81,7 @@ jobs:
   release:
     name: Release
     needs: build
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -150,14 +152,14 @@ jobs:
         run: cd docs && npm test
 
       - name: Setup Pages
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v6
 
       - name: Build documentation
         run: cd docs && npm run build
 
       - name: Upload pages artifact
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5
         with:
           path: docs/.vitepress/dist
@@ -165,7 +167,7 @@ jobs:
   docs-deploy:
     name: Deploy Documentation
     needs: docs
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

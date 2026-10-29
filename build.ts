@@ -38,10 +38,12 @@ async function main() {
 
   // Generate processor file inlined.
   // Typed `string` stops tsc from baking the full content into a literal type in the emitted .d.ts.
+  // JSON.stringify escapes the bundle: raw inlining in a template literal broke on any
+  // backtick, `${` or backslash in worklet code (template strings, escaped characters).
   const generatedProcessor = [
-    'const realtimeBpmProcessor: string = `',
-    processor,
-    '`;\nexport default realtimeBpmProcessor;\n',
+    'const realtimeBpmProcessor: string = ',
+    JSON.stringify(processor ?? ''),
+    ';\nexport default realtimeBpmProcessor;\n',
   ].join('');
   await promises.writeFile(
     'src/generated-processor.ts',

@@ -1,3 +1,15 @@
+# [5.4.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.3.0...v5.4.0) (2026-10-29)
+
+
+### Bug Fixes
+
+* **site:** stop the navbar from scrolling the page sideways ([#271](https://github.com/dlepaux/realtime-bpm-analyzer/issues/271)) ([9a7e0db](https://github.com/dlepaux/realtime-bpm-analyzer/commit/9a7e0db0ca9838244473feec13971109ca5e877c))
+
+
+### Features
+
+* **realtime:** report progress toward the first BPM ([#274](https://github.com/dlepaux/realtime-bpm-analyzer/issues/274)) ([d436284](https://github.com/dlepaux/realtime-bpm-analyzer/commit/d43628414ed44c5b7da4b1e849dfaefc455d3652))
+
 # [5.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.2.0...v5.3.0) (2026-10-29)
 
 

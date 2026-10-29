@@ -1,6 +1,6 @@
 {
   "name": "realtime-bpm-analyzer",
-  "version": "5.3.0",
+  "version": "5.4.0",
   "description": "Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first.",
   "author": {
     "name": "David Lepaux",

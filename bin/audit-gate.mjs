@@ -3,11 +3,12 @@
 // ALLOWLIST below, which have no fix anyone can install yet.
 //
 // Why not plain `npm audit --audit-level=high`: in 2026-10 four advisories
-// reached main's dev tooling with no installable fix (braces has no patched
-// release; undici, http-cache-semantics and brace-expansion are bundled inside
-// npm 11, which @semantic-release/npm requires). The plain gate then failed
+// reached main's dev tooling with no installable fix (braces had no patched
+// release; undici, http-cache-semantics and brace-expansion were bundled inside
+// npm 11, which @semantic-release/npm required). The plain gate then failed
 // every PR whatever it changed. The library ships no runtime dependencies, so
-// none of these reach consumers.
+// none of these reach consumers. The list is empty since release-please replaced
+// semantic-release (RBA-37) and took the bundled npm out of the tree.
 //
 // Each entry is scoped to one advisory in one package, optionally only under a
 // path prefix, and stops suppressing after `until`. CI then goes red again and
@@ -16,11 +17,7 @@
 // Usage: (npm audit --json || true) | node bin/audit-gate.mjs   (npm audit exits 1 whenever it finds anything)
 //        node bin/audit-gate.mjs --self-test
 
-const ALLOWLIST = [
-  { ghsa: 'GHSA-xjj6-f33q-929c', pkg: 'undici', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11; npm 11.21.1 ships 6.29.0, fixed in 6.29.1. npm/cli#10170 bumped it (merged 2026-10-27); it ships in 11.21.2, unreleased as of 2026-10-29 (release PR npm/cli#10179)' },
-  { ghsa: 'GHSA-2m5v-pch6-74hx', pkg: 'undici', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11; npm 11.21.1 ships 6.29.0, fixed in 6.29.1. npm/cli#10170 bumped it (merged 2026-10-27); it ships in 11.21.2, unreleased as of 2026-10-29 (release PR npm/cli#10179)' },
-  { ghsa: 'GHSA-qrxm-fqhp-jwvm', pkg: 'undici', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11; npm 11.21.1 ships 6.29.0, fixed in 6.29.1. npm/cli#10170 bumped it (merged 2026-10-27); it ships in 11.21.2, unreleased as of 2026-10-29 (release PR npm/cli#10179)' },
-];
+const ALLOWLIST = [];
 
 const BLOCKING = new Set(['high', 'critical']);
 

@@ -6,7 +6,7 @@
     ":semanticCommitTypeAll(chore)"
   ],
   "labels": ["dependencies"],
-  "description": "minimumReleaseAge and ignorePaths: Renovate is this repo's only version bot since 2026-10-16 (Dependabot version updates removed; security alerts stay on). minimumReleaseAge keeps the 7-day hold Dependabot's cooldown gave, because a freshly published release is the prime window for a compromised package. ignorePaths is config:recommended's list minus **/examples/**, so the examples/* apps Dependabot covered stay covered.",
+  "description": "minimumReleaseAge and ignorePaths: Renovate is this repo's only version bot since 2026-10-16 (Dependabot version updates removed; security alerts stay on). minimumReleaseAge keeps the 7-day hold Dependabot's cooldown gave, because a freshly published release is the prime window for a compromised package. ignorePaths is config:recommended's list minus **/examples/**, so the examples/* apps Dependabot covered stay covered. The root package.json override vitepress > vite > esbuild (^0.25) is deliberate: it keeps the root's esbuild ^0.28 security floor away from vitepress's vite 6, which the docs lockfile always ran on esbuild 0.25. Drop it once vitepress moves to a vite that accepts esbuild 0.28.",
   "rangeStrategy": "bump",
   "minimumReleaseAge": "7 days",
   "ignorePaths": [

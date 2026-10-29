@@ -125,10 +125,7 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install dependencies
-        if: steps.unpublished.outputs.publish == 'true'
-        run: npm ci
-
+      # No npm ci: the build job's artifact is the dist, and prepack is a plain cp
       - name: Download build artifacts
         if: steps.unpublished.outputs.publish == 'true'
         uses: actions/download-artifact@v8

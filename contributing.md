@@ -43,6 +43,8 @@ Releases are automated by [release-please](https://github.com/googleapis/release
 2. The release PR bumps the package's `package.json` version and prepends its changelog (`packages/realtime-bpm-analyzer/changelog.md`). Merging it is the decision to release.
 3. The pipeline that runs on that merge (`.github/workflows/main.yml`) tags the commit, writes the GitHub release and publishes to npm with provenance. The library keeps its `vX.Y.Z` tags.
 
+The tarball's `readme.md` and `license.md` come from the repo root, outside the package folder, so a commit that only touches them releases nothing: they ship with the next library release.
+
 The release PR is opened with the workflow's `GITHUB_TOKEN`, so GitHub runs no checks on it; it only changes a version and a changelog, and the full pipeline runs on `main` before anything is published. To retry a failed publish, re-run the pipeline: it publishes the version in the library's `package.json` only when npm does not have it yet.
 
 npm's trusted publisher is bound to the workflow file name, `main.yml`. Renaming that file means redoing the trusted-publisher setup on npmjs.com.

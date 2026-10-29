@@ -18,6 +18,9 @@ async function main() {
     entryPoints: ['src/processor/realtime-bpm-processor.ts'],
     outfile: `${outdir}/realtime-bpm-processor.js`,
     ...commonConfig,
+    // Published as `realtime-bpm-analyzer/processor` for callers that load it by URL (strict CSP,
+    // MV3 extensions). addModule always evaluates a module, so emit ESM; bundling leaves no imports.
+    format: 'esm',
   };
 
   // Generate JS Builds

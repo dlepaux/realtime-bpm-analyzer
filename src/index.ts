@@ -1,6 +1,6 @@
 import {realtimeBpmProcessorName} from './core/consts';
 import realtimeBpmProcessorContent from './generated-processor';
-import {type RealTimeBpmAnalyzerParameters} from './core/types';
+import {type RealTimeBpmAnalyzerParameters, type CreateRealtimeBpmAnalyzerOptions} from './core/types';
 import {BpmAnalyzer} from './core/bpm-analyzer';
 import {resolveTempoRange} from './core/tempo';
 
@@ -22,6 +22,7 @@ export type {
   ProcessorInputEvent,
   BpmAnalyzerEventMap,
   RealTimeBpmAnalyzerParameters,
+  CreateRealtimeBpmAnalyzerOptions,
   BiquadFilterOptions,
   TempoRange,
   AnalyzeFullBufferOptions,
@@ -35,9 +36,10 @@ export type {
  * microphones, audio elements, or live streams.
  *
  * @param audioContext - The Web Audio API AudioContext to use for processing
- * @param processorOptions - Optional configuration parameters for the analyzer
+ * @param processorOptions - Optional configuration parameters for the analyzer, and `processorUrl` to load the worklet from a URL instead of a `blob:` URL
  * @returns A promise that resolves to a BpmAnalyzer instance (event emitter wrapping AudioWorkletNode)
  * @throws {RangeError} When `processorOptions.tempoRange` is invalid (see {@link TempoRange})
+ * @throws {TypeError} When `processorOptions.processorUrl` is set but is neither a non-empty string nor a URL
  *
  * @remarks
  * The returned `BpmAnalyzer` is an event emitter that wraps an AudioWorkletNode.
@@ -77,6 +79,16 @@ export type {
  *   muteTimeInIndexes: 10_000,   // sample indexes — matches defaultMuteTimeInIndexes, see consts.ts
  *   tempoRange: {min: 70, max: 140}, // BPM; default 90-180, max must be at least 2 × min
  *   debug: false                 // Enable debug logging
+ * });
+ * ```
+ *
+ * @example
+ * **Strict CSP or browser extension (no `blob:` scripts)**
+ * ```typescript
+ * // Serve dist/realtime-bpm-processor.js (the `realtime-bpm-analyzer/processor` export) yourself
+ * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
+ *   processorUrl: '/realtime-bpm-processor.js',
+ *   // In an MV3 extension: chrome.runtime.getURL('realtime-bpm-processor.js')
  * });
  * ```
  *
@@ -146,25 +158,30 @@ export type {
  *
  * @see {@link BpmAnalyzer} for the analyzer class API
  * @see {@link analyzeFullBuffer} for offline audio file analysis
- * @see {@link RealTimeBpmAnalyzerParameters} for configuration options
+ * @see {@link CreateRealtimeBpmAnalyzerOptions} for configuration options
  * @see {@link BpmCandidates} for the structure of BPM results
  *
  * @group Functions
  */
 export async function createRealtimeBpmAnalyzer(
   audioContext: AudioContext,
-  processorOptions?: RealTimeBpmAnalyzerParameters,
+  processorOptions?: CreateRealtimeBpmAnalyzerOptions,
 ): Promise<BpmAnalyzer> {
+  // processorUrl is a main-thread concern: kept out of the worklet's options, where a URL object
+  // would also fail structured cloning.
+  const {processorUrl, ...analyzerOptions} = processorOptions ?? {};
+  assertProcessorUrl(processorUrl);
   // Validate on the main thread: a throw inside the worklet constructor would not reach the caller.
   // The worklet receives the validated plain object, so structured cloning cannot alter it.
   const options: RealTimeBpmAnalyzerParameters = {
-    ...processorOptions,
-    tempoRange: resolveTempoRange(processorOptions?.tempoRange),
+    ...analyzerOptions,
+    tempoRange: resolveTempoRange(analyzerOptions.tempoRange),
   };
   const processorNode = await setupAudioWorkletNode(
     audioContext,
     realtimeBpmProcessorName,
     options,
+    processorUrl,
   );
   await audioContext.resume();
   return new BpmAnalyzer(processorNode);
@@ -177,25 +194,41 @@ export async function createRealtimeBpmAnalyzer(
 export const createRealTimeBpmProcessor = createRealtimeBpmAnalyzer;
 
 /**
+ * Rejects a processorUrl that addModule would only refuse later with a less useful error.
+ * @param processorUrl Value supplied by the caller
+ */
+function assertProcessorUrl(processorUrl: unknown): asserts processorUrl is string | URL | undefined {
+  if (processorUrl === undefined || processorUrl instanceof URL) {
+    return;
+  }
+
+  if (typeof processorUrl !== 'string' || processorUrl.trim() === '') {
+    throw new TypeError('processorUrl must be a non-empty string or a URL');
+  }
+}
+
+/**
  * Creates AudioWorkletNode for the Processor
  * @param audioContext AudioContext instance
  * @param processorName Name of the audio processor, without the extension
  * @param processorOptions RealTimeBpmAnalyzerParameters
+ * @param processorUrl Where to load the processor from; an inlined blob: URL when omitted
  * @returns Recording node related components for the app.
  */
 async function setupAudioWorkletNode(
   audioContext: AudioContext,
   processorName: string,
   processorOptions?: RealTimeBpmAnalyzerParameters,
+  processorUrl?: string | URL,
 ): Promise<AudioWorkletNode> {
-  const blob = new Blob([realtimeBpmProcessorContent], {
-    type: 'application/javascript',
-  });
-
-  const objectUrl = URL.createObjectURL(blob);
+  // Only a URL created here is ours to revoke; a caller's URL is left untouched.
+  const objectUrl = processorUrl === undefined
+    ? URL.createObjectURL(new Blob([realtimeBpmProcessorContent], {type: 'application/javascript'}))
+    : undefined;
+  const moduleUrl = objectUrl ?? String(processorUrl);
 
   try {
-    await audioContext.audioWorklet.addModule(objectUrl);
+    await audioContext.audioWorklet.addModule(moduleUrl);
 
     return new AudioWorkletNode(audioContext, processorName, {
       processorOptions,
@@ -206,6 +239,8 @@ async function setupAudioWorkletNode(
       {cause: err},
     );
   } finally {
-    URL.revokeObjectURL(objectUrl);
+    if (objectUrl !== undefined) {
+      URL.revokeObjectURL(objectUrl);
+    }
   }
 }

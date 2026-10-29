@@ -181,6 +181,29 @@ export type RealTimeBpmAnalyzerParameters = {
 };
 
 /**
+ * Options accepted by `createRealtimeBpmAnalyzer`: the analyzer parameters plus where to load the worklet from.
+ *
+ * @remarks
+ * By default the processor is loaded from a `blob:` URL built from an inlined copy, so no extra file
+ * has to be served. Pages whose Content Security Policy refuses `blob:` scripts, and Manifest V3
+ * extensions (whose CSP cannot allow `blob:`), set `processorUrl` to a copy of the published
+ * `realtime-bpm-analyzer/processor` file served from their own origin instead.
+ *
+ * @example
+ * ```typescript
+ * // MV3 extension, with dist/realtime-bpm-processor.js copied into the extension build
+ * const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+ *   processorUrl: chrome.runtime.getURL('realtime-bpm-processor.js'),
+ * });
+ * ```
+ * @group Type Aliases
+ */
+export type CreateRealtimeBpmAnalyzerOptions = RealTimeBpmAnalyzerParameters & {
+  /** URL of the processor file handed to `audioWorklet.addModule` (default: an inlined `blob:` URL) */
+  processorUrl?: string | URL;
+};
+
+/**
  * Internal analyzer options with required fields
  * @internal
  */

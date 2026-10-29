@@ -54,6 +54,18 @@ analyzer.on('bpm', (data) => {
 });
 ```
 
+### Strict CSP and browser extensions
+
+The worklet loads from a `blob:` URL by default. Pages whose Content Security Policy blocks `blob:` scripts, and Manifest V3 extensions, serve the published processor file (`realtime-bpm-analyzer/processor`, i.e. `dist/realtime-bpm-processor.js`) from their own origin and pass its URL:
+
+```typescript
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  processorUrl: chrome.runtime.getURL('realtime-bpm-processor.js'), // or '/realtime-bpm-processor.js'
+});
+```
+
+See the [strict CSP guide](https://www.realtime-bpm-analyzer.com/guide/strict-csp) for Vite and extension setups.
+
 ## Documentation
 
 **📖 [Full Documentation](https://www.realtime-bpm-analyzer.com)** - Complete guides, API reference, and tutorials

@@ -31,7 +31,7 @@ defines for that node, then runs the same peak detection and tempo grouping.
 The test suite checks this on every change:
 
 - the filter output matches Chromium's `OfflineAudioContext` render within
-  `1e-6` per sample (measured at most `3e-8`), and its magnitude response matches
+  `1e-5` per sample (measured at most `1.4e-6`), and its magnitude response matches
   `getFrequencyResponse`
 - on the test fixture and on click tracks from 90 to 174 BPM, both functions
   return identical candidates: same tempos, counts and confidences

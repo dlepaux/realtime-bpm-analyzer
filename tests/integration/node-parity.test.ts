@@ -14,8 +14,10 @@ import {bassTestExpected} from '../fixtures/bass-test-expected';
  */
 
 // Largest sample difference allowed between the plain-JS biquad and Web Audio's render.
-// Measured at most 3e-8 in Chromium (float32 output rounding); 30x margin.
-const maxSampleError = 1e-6;
+// Measured at most 3e-8 in Chromium on macOS arm64 and 1.4e-6 on Linux x64 (CI): Chromium's
+// float32 paths differ by platform. 1e-5 keeps a margin over the worst while staying far below
+// anything that moves a peak across a threshold (steps of 0.05).
+const maxSampleError = 1e-5;
 // Largest magnitude-response difference allowed against getFrequencyResponse (float32 API)
 const maxResponseError = 1e-4;
 

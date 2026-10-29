@@ -82,6 +82,17 @@ async function main() {
   await esbuild.build({...nodeConfig, outfile: `${outdir}/node.mjs`, format: 'esm'});
   await esbuild.build({...nodeConfig, outfile: `${outdir}/node.cjs`, format: 'cjs'});
 
+  // The `realtime-bpm-analyzer` bin. The decoders stay external: they are optional
+  // dependencies loaded at run time, and no other entry imports them.
+  await esbuild.build({
+    ...nodeConfig,
+    entryPoints: ['src/cli.ts'],
+    outfile: `${outdir}/cli.mjs`,
+    format: 'esm',
+    external: ['@audio/*'],
+    banner: {js: '#!/usr/bin/env node'},
+  });
+
   console.timeEnd('⚡ Build complete! ⚡');
 }
 

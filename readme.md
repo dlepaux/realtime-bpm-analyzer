@@ -79,6 +79,16 @@ console.log(tempos[0]?.tempo);
 
 See the [Node.js guide](https://www.realtime-bpm-analyzer.com/guide/node).
 
+### Command line
+
+```bash
+npx realtime-bpm-analyzer song.mp3           # 128 BPM (confidence 0.46) and the top candidates
+npx realtime-bpm-analyzer --json ./music     # every audio file of a folder, as JSON
+npx realtime-bpm-analyzer -r --min-bpm 70 --max-bpm 140 ./music
+```
+
+MP3, WAV, FLAC, OGG Vorbis and Opus decode with bundled pure JS/WASM decoders (optional dependencies, so the browser library stays dependency-free). M4A/AAC and other formats go through ffmpeg when it is installed. The exit code is 1 when any file failed. See the [command-line section](https://www.realtime-bpm-analyzer.com/guide/node#command-line) of the Node.js guide.
+
 ## Documentation
 
 **📖 [Full Documentation](https://www.realtime-bpm-analyzer.com)** - Complete guides, API reference, and tutorials

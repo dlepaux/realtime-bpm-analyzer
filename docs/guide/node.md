@@ -49,6 +49,7 @@ reproduce it exactly, or a mono downmix of your own.
 The entry point takes samples, not files, so you choose the decoder. A WAV reader,
 an ffmpeg pipe (`-f f32le -ac 1`) or any package that returns a `Float32Array`
 works. Keep the file's sample rate, or pass the rate you resampled to.
+To analyse files without writing any code, use the [command line](#command-line).
 
 ## Options
 
@@ -79,3 +80,68 @@ a finite number, or an invalid `tempoRange`.
 `applyLowpass(channelData, sampleRate, options?)` is exported too. It returns a
 new `Float32Array` filtered like the browser pipeline, and leaves the input
 untouched.
+
+## Command line
+
+The package ships a `realtime-bpm-analyzer` command that decodes files and
+analyses them with `analyzeChannelData`:
+
+```bash
+npx realtime-bpm-analyzer song.mp3
+```
+
+```text
+song.mp3: 128 BPM (confidence 0.46)
+  candidates: 128 (count 157, confidence 0.46), 171 (count 77, confidence 0.23), ...
+```
+
+Give it several files, or a folder. A folder is read one level deep, or up to 32
+levels with `--recursive`, and only files with an audio extension are picked up.
+Files are analysed one at a time, in a stable order: arguments as given, folder
+contents sorted by path. A file that fails is reported and the batch goes on.
+
+| Option            | Meaning                                                        |
+| ----------------- | -------------------------------------------------------------- |
+| `--json`          | Print one JSON document instead of text                        |
+| `-r, --recursive` | Walk sub-folders                                               |
+| `--min-bpm <bpm>` | Lowest tempo reported (default 90)                             |
+| `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`) |
+| `-h, --help`      | Show the help                                                  |
+| `-v, --version`   | Show the version                                               |
+
+The exit code is `0` when every file was analysed, `1` when at least one failed
+and `2` for a usage error, such as an unknown option or an invalid tempo range.
+
+### JSON output
+
+```json
+{
+  "results": [
+    {
+      "file": "music/song.mp3",
+      "ok": true,
+      "bpm": 128,
+      "confidence": 0.459,
+      "candidates": [{"tempo": 128, "count": 157, "confidence": 0.459}]
+    },
+    {"file": "music/broken.mp3", "ok": false, "error": "No audio samples decoded (mp3)."}
+  ]
+}
+```
+
+`bpm` and `confidence` come from the top candidate and are `null` when no beat
+was found. `candidates` has the shape `analyzeChannelData` returns.
+
+### Formats and decoders
+
+MP3, WAV, FLAC, OGG Vorbis and Opus decode in pure JavaScript and WebAssembly
+with the `@audio/decode-*` packages (MIT), so no system tool is needed. They are
+optional dependencies: the browser bundle and `realtime-bpm-analyzer/node` never
+load them, and `npm install --omit=optional` leaves them out.
+
+M4A/AAC, and any format the bundled decoders do not read, go through
+[ffmpeg](https://ffmpeg.org) when it is on the `PATH`. Set `FFMPEG_PATH` to use
+another binary. ffmpeg also takes over when the decoders were not installed.
+
+Like `analyzeFullBuffer`, the command analyses the first channel, and it decodes
+each file whole, so memory grows with the length of the file.

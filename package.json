@@ -16,6 +16,9 @@
     "postcss": "^8.5.31",
     "markdown-it": "^15.0.3",
     "js-cookie": "^3.0.8",
+    "tsx": {
+      "esbuild": "^0.28.2"
+    },
     "vitepress": {
       "vite": {
         ".": "^6.4.5",
@@ -43,6 +46,9 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
-    "husky": "^9.1.7"
+    "@vitejs/plugin-vue": "^6.0.10",
+    "esbuild": "^0.28.2",
+    "husky": "^9.1.7",
+    "vite": "^8.3.5"
   }
 }

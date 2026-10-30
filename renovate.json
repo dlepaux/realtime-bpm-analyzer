@@ -56,9 +56,9 @@
       "allowedVersions": "<0.26"
     },
     {
-      "description": "Hold @types/node to the Node major CI runs (24.x in .github/workflows/main.yml). Types for a newer major describe APIs the runtime lacks, so code type-checks and then fails at run time. Raise this bound in the same commit that moves CI's node-version.",
+      "description": "Hold @types/node to the Node major CI runs (26.x in .github/workflows/main.yml). Types for a newer major describe APIs the runtime lacks, so code type-checks and then fails at run time. Raise this bound in the same commit that moves CI's node-version.",
       "matchPackageNames": ["@types/node"],
-      "allowedVersions": "<25"
+      "allowedVersions": "<27"
     }
   ]
 }

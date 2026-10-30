@@ -70,6 +70,23 @@ References:
 - G. Percival, G. Tzanetakis, "Streamlined tempo estimation based on autocorrelation and cross-correlation with pulses", IEEE/ACM TASLP 22(12), 2014.
 - F. Gouyon et al., "An experimental comparison of audio tempo induction algorithms", IEEE TASLP 14(5), 2006.
 
+## Results
+
+Tuned on dev, then scored once on held-out. Per-genre tables are in [`results/report.md`](results/report.md). `peaks` is the current default, with its lowpass.
+
+| split, set | Acc1 peaks | Acc1 tempogram | Acc2 peaks | Acc2 tempogram | first correct peaks | first correct tempogram | false-stable peaks | false-stable tempogram | coverage peaks | coverage tempogram |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| dev, all (1354) | 49.6 | 73.1 | 59.0 | 91.2 | 11.2 s | 4.1 s | 45.8 | 19.6 | 79.4 | 70.9 |
+| held-out, all (1344) | 53.9 | 73.4 | 64.4 | 91.8 | 12.2 s | 4.1 s | 46.1 | 18.7 | 78.9 | 68.3 |
+| held-out, GiantSteps | 81.3 | 87.1 | 88.0 | 92.9 | 5.8 s | 4.1 s | 49.1 | 11.5 | 98.8 | 77.3 |
+| held-out, Ballroom | 52.2 | 73.7 | 62.8 | 94.4 | 14.2 s | 5.6 s | 39.9 | 21.0 | 87.2 | 64.2 |
+| held-out, GTZAN | 48.5 | 67.5 | 64.2 | 91.7 | 10.1 s | 4.1 s | 46.8 | 21.6 | 79.2 | 70.0 |
+| held-out, GuitarSet | 21.7 | 63.9 | 25.6 | 85.0 | never | 4.6 s | 45.0 | 22.5 | 25.6 | 55.6 |
+
+The tempogram fires `bpmStable` on about a tenth fewer tracks, and on far fewer times per track (945 events against 7425). That lower coverage is the price of the lower false-stable rate.
+
+CPU, on an M1 Pro in Node with synthetic input (`perf.ts`, 3 input shapes): 3.7 to 4.1 ms per second of audio, 0.37 to 0.41% of a core, against 0.7 ms for peaks on the same input. The longest chunk took 1.9 ms, the first one included, against 2.9 ms for a render quantum. 85% of that is the onset stage. No loop optimisation was warranted.
+
 ## Limits
 
 - Half-time and ⅔ readings remain the main error, and the prior only moves them around: a wider or slower prior wins some sets and loses others on dev.

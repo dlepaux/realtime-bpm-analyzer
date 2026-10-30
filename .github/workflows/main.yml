@@ -66,34 +66,44 @@ jobs:
       - name: Test Node entry
         run: npm run test:node
 
+      # docs/ is a workspace now: the root install and audit above already cover it
       - name: Docs typecheck
-        run: cd docs && npm ci && npm run typecheck
-
-      - name: Audit docs dependencies (fail on high)
-        run: cd docs && npm audit --audit-level=high
+        run: npm run typecheck -w docs
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: dist
           path: |
-            dist/
-            src/generated-processor.ts
+            packages/realtime-bpm-analyzer/dist/
+            packages/realtime-bpm-analyzer/src/generated-processor.ts
           retention-days: 1
 
-  # Release to GitHub and npm
+  # Release to GitHub and npm. release-please keeps one release PR open per package
+  # (version bump + changelog, from the conventional commits under that package's path).
+  # Merging it lands here: release-please tags vX.Y.Z and writes the GitHub release, then
+  # the publish step ships whatever version the library's package.json names that npm
+  # does not have yet. Keying on the registry, not on the action's output, makes a
+  # re-run after a failed publish safe: it publishes the missing version, or nothing.
   release:
     name: Release
     needs: build
-    if: github.event_name != 'pull_request'
+    # workflow_dispatch can target any branch; only main ever releases
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
+      - name: Release PR, tag and GitHub release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -102,18 +112,35 @@ jobs:
           cache: "npm"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Check whether this library version is on npm
+        id: unpublished
+        working-directory: packages/realtime-bpm-analyzer
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "realtime-bpm-analyzer@$version" version >/dev/null 2>&1; then
+            echo "realtime-bpm-analyzer@$version is already on npm: nothing to publish"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "realtime-bpm-analyzer@$version is not on npm yet: publishing"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
 
+      # No npm ci: the build job's artifact is the dist, and prepack is a plain cp
       - name: Download build artifacts
+        if: steps.unpublished.outputs.publish == 'true'
         uses: actions/download-artifact@v8
         with:
           name: dist
+          # upload-artifact strips the paths' common ancestor (the package folder)
+          path: packages/realtime-bpm-analyzer
 
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+      # npm's trusted publisher (OIDC, no token) is bound to this workflow file name:
+      # renaming main.yml means redoing the trusted-publisher setup on npmjs.com.
+      # prepack copies the root readme.md and license.md into the package first.
+      - name: Publish to npm
+        if: steps.unpublished.outputs.publish == 'true'
+        working-directory: packages/realtime-bpm-analyzer
+        run: npm publish --provenance --access public
 
   # Build the docs and all examples on every run, so a dependency PR that breaks them
   # goes red before it merges (#232 merged green, then broke three examples on main:
@@ -135,32 +162,31 @@ jobs:
           node-version: 24.22.0
           cache: npm
 
-      - name: Install root dependencies
+      - name: Install dependencies (root, library, docs and examples workspaces)
         run: npm ci
 
       - name: Download build artifacts
         uses: actions/download-artifact@v8
         with:
           name: dist
-
-      - name: Install docs dependencies
-        run: cd docs && npm ci
+          # upload-artifact strips the paths' common ancestor (the package folder)
+          path: packages/realtime-bpm-analyzer
 
       - name: Docs typecheck
-        run: cd docs && npm run typecheck
+        run: npm run typecheck -w docs
 
       - name: Docs lint
-        run: cd docs && npm run lint
+        run: npm run lint -w docs
 
       - name: Docs tests
-        run: cd docs && npm test
+        run: npm test -w docs
 
       - name: Setup Pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v6
 
       - name: Build documentation
-        run: cd docs && npm run build
+        run: npm run build -w docs
 
       # VitePress hydrates each page from a *.lean.js chunk. A Vite it doesn't support (vite 8, #218)
       # builds green but emits none, and every page then 404s its chunk in the browser.

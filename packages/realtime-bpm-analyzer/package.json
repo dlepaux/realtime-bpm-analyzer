@@ -1,0 +1,106 @@
+{
+  "name": "realtime-bpm-analyzer",
+  "version": "5.4.0",
+  "description": "Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first.",
+  "author": {
+    "name": "David Lepaux",
+    "email": "d.lepaux@gmail.com",
+    "url": "https://david.lepaux.com"
+  },
+  "keywords": [
+    "bpm",
+    "tempo",
+    "beats",
+    "beat-detection",
+    "tempo-detection",
+    "bpm-detection",
+    "analyzer",
+    "audio",
+    "audiobuffer",
+    "audio-analysis",
+    "music-analysis",
+    "web-audio",
+    "web-audio-api",
+    "webaudioapi",
+    "audioworklet",
+    "realtime",
+    "realtime-bpm",
+    "stream",
+    "microphone",
+    "dj",
+    "no-dependency",
+    "typescript"
+  ],
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js"
+    },
+    "./processor": {
+      "types": "./dist/realtime-bpm-processor.d.ts",
+      "default": "./dist/realtime-bpm-processor.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.mjs",
+      "require": "./dist/node.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.mjs",
+    "dist/**/*.cjs",
+    "dist/**/*.d.ts",
+    "readme.md",
+    "license.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "bash bin/build/library.sh",
+    "prepack": "cp ../../readme.md ../../license.md .",
+    "postpack": "rm -f readme.md license.md",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
+    "testing": "web-dev-server",
+    "test": "web-test-runner",
+    "test:watch": "web-test-runner --watch",
+    "test:unit": "web-test-runner --files 'tests/unit/**/*.test.ts'",
+    "test:integration": "web-test-runner --files 'tests/integration/**/*.test.ts'",
+    "test:lib": "web-test-runner --files 'tests/lib/**/*.ts'",
+    "test:node": "node --test 'tests/node/**/*.test.mjs'",
+    "test:coverage": "web-test-runner --coverage"
+  },
+  "homepage": "https://www.realtime-bpm-analyzer.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dlepaux/realtime-bpm-analyzer"
+  },
+  "devDependencies": {
+    "@types/chai": "^5.2.3",
+    "@types/mocha": "^10.0.10",
+    "@web/dev-server": "^1.0.0",
+    "@web/dev-server-esbuild": "^2.0.0",
+    "@web/test-runner": "^1.0.0",
+    "@web/test-runner-puppeteer": "^1.0.1",
+    "chai": "^6.3.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "mocha": "^12.0.3",
+    "music-metadata": "^12.2.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.2"
+  }
+}

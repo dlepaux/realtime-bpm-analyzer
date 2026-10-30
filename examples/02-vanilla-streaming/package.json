@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "realtime-bpm-analyzer": "file:../.."
+    "realtime-bpm-analyzer": "*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

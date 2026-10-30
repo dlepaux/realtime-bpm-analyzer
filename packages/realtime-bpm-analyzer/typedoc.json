@@ -2,7 +2,7 @@
   "$schema": "https://typedoc.org/schema.json",
   "name": "API Reference",
   "entryPoints": ["./src/index.ts"],
-  "out": "./docs/api",
+  "out": "../../docs/api",
   "plugin": ["typedoc-plugin-markdown"],
   "tsconfig": "./tsconfig.docs.json",
   

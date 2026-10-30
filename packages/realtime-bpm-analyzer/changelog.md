@@ -1,4 +1,6 @@
-# [5.4.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.3.0...v5.4.0) (2026-10-29)
+# Changelog
+
+## [5.4.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.3.0...v5.4.0) (2026-10-29)
 
 
 ### Bug Fixes
@@ -10,14 +12,14 @@
 
 * **realtime:** report progress toward the first BPM ([#274](https://github.com/dlepaux/realtime-bpm-analyzer/issues/274)) ([d436284](https://github.com/dlepaux/realtime-bpm-analyzer/commit/d43628414ed44c5b7da4b1e849dfaefc455d3652))
 
-# [5.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.2.0...v5.3.0) (2026-10-29)
+## [5.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.2.0...v5.3.0) (2026-10-29)
 
 
 ### Features
 
 * **node:** add a realtime-bpm-analyzer/node entry point ([#270](https://github.com/dlepaux/realtime-bpm-analyzer/issues/270)) ([52abfe8](https://github.com/dlepaux/realtime-bpm-analyzer/commit/52abfe8af9d1414b78909e7e1552a71dc6e91f0e))
 
-# [5.2.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.1.0...v5.2.0) (2026-10-29)
+## [5.2.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.1.0...v5.2.0) (2026-10-29)
 
 
 ### Bug Fixes
@@ -30,7 +32,7 @@
 * **site:** explain platform links and offer tab audio in the stream input ([#266](https://github.com/dlepaux/realtime-bpm-analyzer/issues/266)) ([5848078](https://github.com/dlepaux/realtime-bpm-analyzer/commit/584807815a864d8f58df64585df6b8819e4d9117))
 * **worklet:** add a processorUrl option to load the processor without blob: ([#268](https://github.com/dlepaux/realtime-bpm-analyzer/issues/268)) ([d626f4a](https://github.com/dlepaux/realtime-bpm-analyzer/commit/d626f4aecc559b39988afd737cae049311664c0f))
 
-# [5.1.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.17...v5.1.0) (2026-10-29)
+## [5.1.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.0.17...v5.1.0) (2026-10-29)
 
 
 ### Features
@@ -168,7 +170,7 @@
 
 * upgrade minor dev dependencies ([f19547b](https://github.com/dlepaux/realtime-bpm-analyzer/commit/f19547b4b559bcc9196a5fcf3f600c78b0a39e0a))
 
-# [5.0.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v4.0.2...v5.0.0) (2025-11-22)
+## [5.0.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v4.0.2...v5.0.0) (2025-11-22)
 
 
 * feat!: replace documentation generation with improvements BREAKING CHANGE: change api with event emitter ([791fb1e](https://github.com/dlepaux/realtime-bpm-analyzer/commit/791fb1ec091cd743093022fd6d97d2334329a5ee))

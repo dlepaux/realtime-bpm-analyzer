@@ -1,101 +1,41 @@
 {
-  "name": "realtime-bpm-analyzer",
-  "version": "5.4.0",
-  "description": "Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first.",
-  "author": {
-    "name": "David Lepaux",
-    "email": "d.lepaux@gmail.com",
-    "url": "https://david.lepaux.com"
-  },
-  "keywords": [
-    "bpm",
-    "tempo",
-    "beats",
-    "beat-detection",
-    "tempo-detection",
-    "bpm-detection",
-    "analyzer",
-    "audio",
-    "audiobuffer",
-    "audio-analysis",
-    "music-analysis",
-    "web-audio",
-    "web-audio-api",
-    "webaudioapi",
-    "audioworklet",
-    "realtime",
-    "realtime-bpm",
-    "stream",
-    "microphone",
-    "dj",
-    "no-dependency",
-    "typescript"
-  ],
+  "name": "realtime-bpm-analyzer-monorepo",
+  "private": true,
+  "description": "Workspace root: the realtime-bpm-analyzer library (packages/), its documentation site (docs/) and examples (examples/). Publishes nothing itself.",
   "license": "Apache-2.0",
-  "main": "dist/index.js",
-  "module": "dist/index.esm.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.esm.js",
-      "require": "./dist/index.js"
-    },
-    "./processor": {
-      "types": "./dist/realtime-bpm-processor.d.ts",
-      "default": "./dist/realtime-bpm-processor.js"
-    },
-    "./node": {
-      "types": "./dist/node.d.ts",
-      "import": "./dist/node.mjs",
-      "require": "./dist/node.cjs"
-    },
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "dist/**/*.js",
-    "dist/**/*.mjs",
-    "dist/**/*.cjs",
-    "dist/**/*.d.ts",
-    "readme.md",
-    "license.md"
-  ],
-  "sideEffects": false,
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
   "workspaces": [
+    "packages/*",
+    "docs",
     "examples/*"
   ],
   "overrides": {
     "serialize-javascript": "^7.1.2",
     "ip-address": "^10.7.4",
     "qs": "^6.16.1",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "postcss": "^8.5.29",
+    "markdown-it": "^15.0.3",
+    "js-cookie": "^3.0.8",
+    "vitepress": {
+      "vite": {
+        ".": "^6.4.4",
+        "esbuild": "^0.25.12"
+      }
+    }
   },
   "scripts": {
-    "build": "bash bin/build/library.sh",
-    "docs:dev": "npm run build && cd docs && npm run dev",
-    "docs:build": "npm run build && cd docs && npm run build",
-    "docs:preview": "cd docs && npm run preview",
-    "examples:install": "npm install --workspaces",
-    "examples:build": "npm run build --workspaces --if-present",
-    "examples:dev": "cd docs && npm run dev:examples",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "prepare": "husky",
-    "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
-    "testing": "web-dev-server",
-    "test": "web-test-runner",
-    "test:watch": "web-test-runner --watch",
-    "test:unit": "web-test-runner --files 'tests/unit/**/*.test.ts'",
-    "test:integration": "web-test-runner --files 'tests/integration/**/*.test.ts'",
-    "test:lib": "web-test-runner --files 'tests/lib/**/*.ts'",
-    "test:node": "node --test 'tests/node/**/*.test.mjs'",
-    "test:coverage": "web-test-runner --coverage"
+    "build": "npm run build -w realtime-bpm-analyzer",
+    "lint": "npm run lint -w realtime-bpm-analyzer",
+    "lint:fix": "npm run lint:fix -w realtime-bpm-analyzer",
+    "test": "npm test -w realtime-bpm-analyzer",
+    "test:node": "npm run test:node -w realtime-bpm-analyzer",
+    "docs:dev": "npm run build && npm run dev -w docs",
+    "docs:build": "npm run build && npm run build -w docs",
+    "docs:preview": "npm run preview -w docs",
+    "examples:build": "npm run build -w examples --if-present",
+    "examples:dev": "npm run dev:examples -w docs",
+    "prepare": "husky"
   },
-  "homepage": "https://www.realtime-bpm-analyzer.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/dlepaux/realtime-bpm-analyzer"
@@ -103,27 +43,6 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
-    "@semantic-release/changelog": "^7.0.0",
-    "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/git": "^11.0.1",
-    "@semantic-release/npm": "^13.2.0",
-    "@semantic-release/release-notes-generator": "^14.1.1",
-    "@types/chai": "^5.2.3",
-    "@types/mocha": "^10.0.10",
-    "@web/dev-server": "^1.0.0",
-    "@web/dev-server-esbuild": "^2.0.0",
-    "@web/test-runner": "^1.0.0",
-    "@web/test-runner-puppeteer": "^1.0.1",
-    "chai": "^6.3.0",
-    "esbuild": "^0.28.2",
-    "eslint": "^10.13.0",
-    "globals": "^17.13.0",
-    "husky": "^9.1.7",
-    "mocha": "^12.0.3",
-    "music-metadata": "^12.2.1",
-    "semantic-release": "^25.0.9",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.71.2"
+    "husky": "^9.1.7"
   }
 }

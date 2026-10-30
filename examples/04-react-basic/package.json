@@ -11,7 +11,7 @@
   "dependencies": {
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "realtime-bpm-analyzer": "file:../.."
+    "realtime-bpm-analyzer": "*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "copy:markdown": "cp ../contributing.md . && cp ../code-of-conduct.md . && cp ../security.md . && cp ../privacy.md .",
-    "docs:generate": "cd .. && typedoc",
+    "docs:generate": "cd ../packages/realtime-bpm-analyzer && typedoc",
     "build:examples": "tsx scripts/build-examples.ts",
     "build:redirects": "tsx scripts/build-redirects.ts",
     "dev:examples": "tsx scripts/dev-examples.ts",
@@ -24,13 +24,7 @@
   },
   "dependencies": {
     "lucide-vue-next": "^1.0.0",
-    "realtime-bpm-analyzer": "file:.."
-  },
-  "overrides": {
-    "vite": "^6.4.4",
-    "postcss": "^8.5.29",
-    "markdown-it": "^15.0.3",
-    "js-cookie": "^3.0.8"
+    "realtime-bpm-analyzer": "*"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

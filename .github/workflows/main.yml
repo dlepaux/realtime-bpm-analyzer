@@ -65,7 +65,8 @@ jobs:
         run: npm test
 
       # The realtime-bpm-analyzer/node entry in plain Node without Web Audio, then the CLI's
-      # built bin against the library built above (the workspace link, not npm's copy)
+      # built bin against the library built above (the workspace link, not npm's copy), then
+      # the MCP server's built bin over stdio against that CLI
       - name: Test Node entry and CLI
         run: npm run test:node
 
@@ -89,10 +90,17 @@ jobs:
           path: packages/cli/dist/
           retention-days: 1
 
+      - name: Upload MCP server build
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-dist
+          path: packages/mcp/dist/
+          retention-days: 1
+
   # Release to GitHub and npm. release-please keeps one release PR open per package
   # (version bump + changelog, from the conventional commits under that package's path).
   # Merging it lands here: release-please tags the release (vX.Y.Z for the library,
-  # cli-vX.Y.Z for the CLI) and writes the GitHub release, then each publish step ships
+  # cli-vX.Y.Z for the CLI, mcp-vX.Y.Z for the MCP server) and writes the GitHub release, then each publish step ships
   # whatever version its package.json names that npm does not have yet. Keying on the registry, not on the action's output, makes a
   # re-run after a failed publish safe: it publishes the missing version, or nothing.
   release:
@@ -198,6 +206,49 @@ jobs:
       - name: Publish the CLI to npm
         if: steps.cli-unpublished.outputs.publish == 'true'
         working-directory: packages/cli
+        run: npm publish --provenance --access public
+
+      # The MCP server: same guard and trusted publisher as the CLI, tags mcp-vX.Y.Z. It runs
+      # after the CLI's publish, since it depends on the CLI's programmatic entry.
+      - name: Check whether this MCP server version is on npm
+        id: mcp-unpublished
+        working-directory: packages/mcp
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if ! out=$(npm view "$name" name 2>&1); then
+            if grep -q E404 <<<"$out"; then
+              echo "::notice::$name is not on npm yet: skipping its publish. The first publish is manual, see contributing.md (Bootstrapping a new package)."
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "$out"
+            echo "::error::npm view $name failed for a reason other than a missing package"
+            exit 1
+          fi
+          # Only a 404 means unpublished: a network error must not start a publish
+          if out=$(npm view "$name@$version" version 2>&1); then
+            echo "$name@$version is already on npm: nothing to publish"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif grep -q E404 <<<"$out"; then
+            echo "$name@$version is not on npm yet: publishing"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$out"
+            echo "::error::npm view $name@$version failed for a reason other than a missing version"
+            exit 1
+          fi
+
+      - name: Download MCP server build
+        if: steps.mcp-unpublished.outputs.publish == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: mcp-dist
+          path: packages/mcp/dist
+
+      - name: Publish the MCP server to npm
+        if: steps.mcp-unpublished.outputs.publish == 'true'
+        working-directory: packages/mcp
         run: npm publish --provenance --access public
 
   # Build the docs and all examples on every run, so a dependency PR that breaks them

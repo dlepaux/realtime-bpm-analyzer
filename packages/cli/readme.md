@@ -48,6 +48,21 @@ no system tool is needed. M4A/AAC and other formats go through
 The JSON output, the decoders and their licences are described in the
 [CLI guide](https://www.realtime-bpm-analyzer.com/guide/cli).
 
+## Programmatic use
+
+The package also exports the function the command runs on each file, for Node.js tools
+that want the same decoding (the [MCP server](https://www.npmjs.com/package/realtime-bpm-analyzer-mcp) uses it):
+
+```js
+import {analyzeFile, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
+
+const result = await analyzeFile('song.mp3', {tempoRange: await resolveTempoRange(70, undefined)});
+// {file, ok: true, bpm, confidence, candidates} or {file, ok: false, error}: it never throws
+```
+
+`resolveTempoRange(min, max)` fills a missing bound with the default and throws on an
+invalid range. `audioExtensions` is the set of extensions folder mode picks up.
+
 ## Licence
 
 Apache-2.0. The FLAC, Vorbis and Opus decoders depend on `codec-parser`

@@ -2,6 +2,8 @@
 
 import {readdir, stat} from 'node:fs/promises';
 import {extname, join} from 'node:path';
+import {audioExtensions} from './api';
+import {errorMessage} from './errors';
 
 export type Target =
   | {readonly kind: 'file'; readonly path: string}
@@ -9,11 +11,6 @@ export type Target =
 
 /** Deepest folder level --recursive descends to, so a pathological tree cannot run away */
 export const maxDepth = 32;
-
-// Folder mode picks files by extension; a file named on the command line is always tried
-const audioExtensions = new Set([
-  '.mp3', '.wav', '.wave', '.flac', '.ogg', '.oga', '.opus', '.m4a', '.aac', '.aif', '.aiff', '.wma',
-]);
 
 /**
  * Expands the command-line paths into the files to analyse, in a stable order: arguments
@@ -80,12 +77,4 @@ async function walk(folder: string, depthLeft: number): Promise<Target[]> {
   }
 
   return found;
-}
-
-/**
- * @param error Anything thrown
- * @returns A one-line message for the report
- */
-export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

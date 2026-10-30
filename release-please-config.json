@@ -29,6 +29,20 @@
           "jsonpath": "$.packages['packages/cli'].version"
         }
       ]
+    },
+    "packages/mcp": {
+      "package-name": "realtime-bpm-analyzer-mcp",
+      "component": "mcp",
+      "include-component-in-tag": true,
+      "changelog-path": "changelog.md",
+      "initial-version": "0.1.0",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "/package-lock.json",
+          "jsonpath": "$.packages['packages/mcp'].version"
+        }
+      ]
     }
   }
 }

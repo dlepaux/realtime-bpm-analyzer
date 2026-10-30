@@ -1,8 +1,9 @@
 /// <reference types="node" />
 
 import {parseArgs} from 'node:util';
-import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import type {TempoRange} from 'realtime-bpm-analyzer/node';
+import {resolveTempoRange} from './api';
+import {errorMessage} from './errors';
 
 export type CliOptions = {
   readonly paths: readonly string[];
@@ -16,10 +17,6 @@ export type ParsedArgs =
   | {readonly kind: 'version'}
   | {readonly kind: 'run'; readonly options: CliOptions}
   | {readonly kind: 'usage-error'; readonly message: string};
-
-// The library's default tempoRange, to fill a missing flag. /node does not export it, so
-// tests/cli.test.mjs pins these values to the library's behaviour.
-const defaultTempoRange: TempoRange = {min: 90, max: 180};
 
 export const usage = `Usage: realtime-bpm-analyzer [options] <file|folder>...
 
@@ -96,21 +93,13 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
  * @returns The range, undefined for the default, or an error message
  */
 async function parseTempoRange(min: string | undefined, max: string | undefined): Promise<TempoRange | undefined | string> {
-  if (min === undefined && max === undefined) {
-    return undefined;
-  }
-
   // Number('') is 0, so an empty value must not slip through as a number
-  const toNumber = (raw: string | undefined, fallback: number) =>
-    raw === undefined ? fallback : (raw.trim() === '' ? Number.NaN : Number(raw));
-  const range = {min: toNumber(min, defaultTempoRange.min), max: toNumber(max, defaultTempoRange.max)};
+  const toNumber = (raw: string | undefined) =>
+    raw === undefined ? undefined : (raw.trim() === '' ? Number.NaN : Number(raw));
 
-  // The library validates tempoRange before it filters anything, so one sample is enough
-  // to get its verdict and its message without copying its rules here
   try {
-    await analyzeChannelData(new Float32Array(1), 44_100, {tempoRange: range});
-    return range;
+    return await resolveTempoRange(toNumber(min), toNumber(max));
   } catch (error: unknown) {
-    return error instanceof Error ? error.message : String(error);
+    return errorMessage(error);
   }
 }

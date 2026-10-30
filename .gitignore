@@ -14,6 +14,7 @@ packages/realtime-bpm-analyzer/src/generated-processor.ts
 packages/realtime-bpm-analyzer/readme.md
 packages/realtime-bpm-analyzer/license.md
 packages/cli/license.md
+packages/mcp/license.md
 
 # VitePress documentation build output
 docs/.vitepress/dist

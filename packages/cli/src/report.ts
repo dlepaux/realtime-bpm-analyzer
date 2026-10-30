@@ -1,26 +1,4 @@
-import type {Tempo} from 'realtime-bpm-analyzer/node';
-
-export type FileResult =
-  | {
-    readonly file: string;
-    readonly ok: true;
-    /** Top candidate's tempo, or null when no beat was found */
-    readonly bpm: number | null;
-    readonly confidence: number | null;
-    readonly candidates: readonly Tempo[];
-  }
-  | {readonly file: string; readonly ok: false; readonly error: string};
-
-/**
- * Builds the result of an analysed file.
- * @param file Path as reported
- * @param candidates Candidates from analyzeChannelData, best first
- * @returns The result
- */
-export function successResult(file: string, candidates: readonly Tempo[]): FileResult {
-  const [top] = candidates;
-  return {file, ok: true, bpm: top?.tempo ?? null, confidence: top?.confidence ?? null, candidates};
-}
+import type {FileResult} from './api';
 
 /**
  * Formats one result for a terminal.

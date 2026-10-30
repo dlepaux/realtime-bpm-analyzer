@@ -16,7 +16,8 @@
     "github-pages/*.ts",
     "types/*.ts",
     "src/*.ts",
-    "processor/*.ts"
+    "processor/*.ts",
+    "benchmark/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

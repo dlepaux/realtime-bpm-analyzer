@@ -192,6 +192,20 @@ export type AnalyzeFullBufferOptions = BiquadFilterOptions & {
 };
 
 /**
+ * Tempo detector of the real-time analyzer.
+ *
+ * - `peaks`, the default: amplitude peaks after a lowpass. Connect it through {@link getBiquadFilter}.
+ * - `tempogram`: spectral flux across several bands, a sliding autocorrelation and a tempo prior.
+ *   Connect the source straight to the analyzer: a lowpass removes the bands it listens to.
+ *   It reads about twice a second, leaves `threshold` at 0, and gives `count` as a salience score
+ *   used for ranking. `bpmStable` means the estimates agreed over time, and `confidence` is the
+ *   normalised autocorrelation at the tempo.
+ *
+ * @group Type Aliases
+ */
+export type Detector = 'peaks' | 'tempogram';
+
+/**
  * Configuration options for the real-time BPM analyzer
  * @group Type Aliases
  */
@@ -204,8 +218,13 @@ export type RealTimeBpmAnalyzerParameters = {
   muteTimeInIndexes?: number;
   /** Enable debug event logging (default: false) */
   debug?: boolean;
-  /** Range every tempo is folded into (default: 90–180 BPM) */
+  /**
+   * Range every tempo is folded into (default: 90–180 BPM).
+   * With the `tempogram` detector, the range searched instead (default: 50–240 BPM).
+   */
   tempoRange?: TempoRange;
+  /** Tempo detector (default: `peaks`) */
+  detector?: Detector;
 };
 
 /**
@@ -241,6 +260,7 @@ export type RealTimeBpmAnalyzerOptions = {
   muteTimeInIndexes: number;
   debug: boolean;
   tempoRange: TempoRange;
+  detector: Detector;
 };
 
 /**

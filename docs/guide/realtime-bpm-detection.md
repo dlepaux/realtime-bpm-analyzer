@@ -261,6 +261,27 @@ in a 70–140 range) jitters across it, and its votes split between 140 and
 70, which lowers its count and confidence. See
 [How It Works](/guide/how-it-works) for the algorithm.
 
+## The tempogram detector
+
+An experimental detector reads the tempo from an onset tempogram rather
+than from peaks in low-passed audio. It weighs tempos with a prior instead
+of folding them, so an 85 BPM track can read as 85, and it only calls a
+tempo stable once the tempo agreed over several seconds and clearly leads
+its rivals. Opt in with the `detector` option, and connect the source
+**directly**: it needs the full band, so skip `getBiquadFilter`.
+
+```typescript
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  detector: 'tempogram',
+});
+
+source.connect(bpmAnalyzer.node);
+```
+
+It covers real-time analysis only: `analyzeFullBuffer` keeps the peaks
+detector. `tempoRange` still limits the tempos searched, but nothing is
+folded into it. The default stays `'peaks'`.
+
 ## The lowpass filter — why it's there
 
 Every example above includes `getBiquadFilter(audioContext)` between the

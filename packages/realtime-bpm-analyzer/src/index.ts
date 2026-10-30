@@ -2,7 +2,7 @@ import {realtimeBpmProcessorName} from './core/consts';
 import realtimeBpmProcessorContent from './generated-processor';
 import {type RealTimeBpmAnalyzerParameters, type CreateRealtimeBpmAnalyzerOptions} from './core/types';
 import {BpmAnalyzer} from './core/bpm-analyzer';
-import {resolveTempoRange} from './core/tempo';
+import {resolveDetector, resolveTempoRange} from './core/tempo';
 
 // Public API surface — explicit named re-exports only.
 // Internal types stay in core/types.ts and are emitted into dist/core/types.d.ts
@@ -24,6 +24,7 @@ export type {
   BpmAnalyzerEventMap,
   RealTimeBpmAnalyzerParameters,
   CreateRealtimeBpmAnalyzerOptions,
+  Detector,
   BiquadFilterOptions,
   TempoRange,
   AnalyzeFullBufferOptions,
@@ -176,7 +177,11 @@ export async function createRealtimeBpmAnalyzer(
   // The worklet receives the validated plain object, so structured cloning cannot alter it.
   const options: RealTimeBpmAnalyzerParameters = {
     ...analyzerOptions,
-    tempoRange: resolveTempoRange(analyzerOptions.tempoRange),
+    // The tempogram searches its own wider range unless the caller set one
+    tempoRange: analyzerOptions.detector === 'tempogram' && analyzerOptions.tempoRange === undefined
+      ? undefined
+      : resolveTempoRange(analyzerOptions.tempoRange),
+    detector: resolveDetector(analyzerOptions.detector),
   };
   const processorNode = await setupAudioWorkletNode(
     audioContext,

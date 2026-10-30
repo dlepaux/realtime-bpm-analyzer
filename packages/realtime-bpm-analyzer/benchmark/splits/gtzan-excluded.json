@@ -1,0 +1,25 @@
+{
+  "reason": "Left out of held-out after tuning and before any look, from audio alone. 19 repeat a dev recording, exact or near-identical by audio envelope, and were not resplit because that would move tuned tracks across. jazz.00054 is not decodable.",
+  "heldout": [
+    "hiphop.00039",
+    "jazz.00037",
+    "jazz.00038",
+    "jazz.00039",
+    "jazz.00040",
+    "jazz.00042",
+    "jazz.00043",
+    "jazz.00044",
+    "jazz.00045",
+    "jazz.00046",
+    "jazz.00054",
+    "metal.00040",
+    "metal.00041",
+    "metal.00042",
+    "metal.00043",
+    "metal.00044",
+    "metal.00045",
+    "pop.00067",
+    "reggae.00003",
+    "reggae.00060"
+  ]
+}

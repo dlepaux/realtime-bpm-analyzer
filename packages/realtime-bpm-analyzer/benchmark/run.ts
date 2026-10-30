@@ -6,7 +6,7 @@
 import {execFileSync} from 'node:child_process';
 import {appendFileSync, existsSync, readFileSync, writeFileSync} from 'node:fs';
 import {cpus} from 'node:os';
-import {join} from 'node:path';
+import {dirname, join} from 'node:path';
 import {parseArgs} from 'node:util';
 import {Worker, isMainThread, parentPort, workerData} from 'node:worker_threads';
 import {applyLowpass} from '../src/core/lowpass';
@@ -71,8 +71,8 @@ function assertArguments(names: string[], sets: string[], out: string | undefine
     throw new Error(`Unknown detector or set: ${unknown.join(', ')}`);
   }
 
-  if (!out) {
-    throw new Error('--out is required');
+  if (!out || !existsSync(dirname(out))) {
+    throw new Error('--out must be a file in an existing directory, relative to benchmark/');
   }
 
   if (limit !== undefined && !(Number(limit) > 0)) {

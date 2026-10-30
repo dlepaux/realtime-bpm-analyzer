@@ -1,6 +1,10 @@
 import {findPeaksAtThreshold} from './peak-detection';
-import {computeBpm, computeProgress, resolveTempoRange} from './tempo';
+import {computeBpm, computeProgress, resolveDetector, resolveTempoRange} from './tempo';
+import {createTempogramDetector} from './tempogram';
+import type {TempogramDetector} from './tempogram';
 import type {
+  BpmProgress,
+  ProcessorOutputEvent,
   RealTimeBpmAnalyzerOptions,
   RealTimeBpmAnalyzerParameters,
   ValidPeaks,
@@ -53,6 +57,7 @@ export class RealTimeBpmAnalyzer {
     muteTimeInIndexes: consts.defaultMuteTimeInIndexes,
     debug: false,
     tempoRange: resolveTempoRange(),
+    detector: 'peaks',
   };
 
   /**
@@ -76,10 +81,20 @@ export class RealTimeBpmAnalyzer {
    * Computed values
    */
   computedStabilizationTimeInSeconds = 0;
+  /**
+   * Created on the first chunk, the first time the sample rate is known
+   */
+  tempogram?: TempogramDetector;
+  /**
+   * The tempogram only limits its search when the caller asked: `options.tempoRange` always holds a range
+   */
+  tempogramRange: RealTimeBpmAnalyzerParameters['tempoRange'];
 
   constructor(options: RealTimeBpmAnalyzerParameters = {}) {
     Object.assign(this.options, options);
     this.options.tempoRange = resolveTempoRange(options.tempoRange);
+    this.options.detector = resolveDetector(options.detector);
+    this.tempogramRange = options.tempoRange;
     this.updateComputedValues();
   }
 
@@ -100,6 +115,7 @@ export class RealTimeBpmAnalyzer {
     this.nextIndexPeaks = initialValue.nextIndexPeaks();
     this.skipIndexes = initialValue.skipIndexes();
     this.effectiveBufferTime = initialValue.effectiveBufferTime();
+    this.tempogram?.reset();
   }
 
   /**
@@ -146,6 +162,40 @@ export class RealTimeBpmAnalyzer {
      */
     this.effectiveBufferTime += bufferSize;
 
+    if (this.options.detector === 'tempogram') {
+      this.readTempogram(audioSampleRate, channelData, postMessage);
+    } else {
+      await this.readPeaks({audioSampleRate, channelData, bufferSize, postMessage});
+    }
+
+    /**
+     * After x time, we reinit the analyzer
+     */
+    if (
+      this.options.continuousAnalysis
+      && this.effectiveBufferTime / audioSampleRate
+        > this.computedStabilizationTimeInSeconds
+    ) {
+      this.reset();
+      postMessage({type: 'analyzerReset'});
+      postMessage({type: 'progress', data: this.currentProgress()});
+    }
+  }
+
+  /**
+   * Run the amplitude-peak detector on one chunk
+   * @param options - RealtimeAnalyzeChunkOptions
+   * @param options.audioSampleRate - Audio sample rate
+   * @param options.channelData - Channel data
+   * @param options.bufferSize - Buffer size
+   * @param options.postMessage - Function to post a message to the processor node
+   */
+  private async readPeaks({
+    audioSampleRate,
+    channelData,
+    bufferSize,
+    postMessage,
+  }: RealtimeAnalyzeChunkOptions): Promise<void> {
     /**
      * Compute the maximum index with all previous chunks
      */
@@ -191,19 +241,53 @@ export class RealTimeBpmAnalyzer {
       postMessage({type: 'bpmStable', data});
       await this.clearValidPeaks(threshold);
     }
+  }
 
-    /**
-     * After x time, we reinit the analyzer
-     */
-    if (
-      this.options.continuousAnalysis
-      && this.effectiveBufferTime / audioSampleRate
-        > this.computedStabilizationTimeInSeconds
-    ) {
-      this.reset();
-      postMessage({type: 'analyzerReset'});
-      postMessage({type: 'progress', data: computeProgress(this.validPeaks)});
+  /**
+   * Run the tempogram detector on one chunk. It reads every `updateSeconds`, not on every chunk,
+   * and has no peak threshold: `threshold` stays 0.
+   * @param audioSampleRate - Audio sample rate
+   * @param channelData - Channel data
+   * @param postMessage - Function to post a message to the processor node
+   */
+  private readTempogram(
+    audioSampleRate: number,
+    channelData: Float32Array,
+    postMessage: (data: ProcessorOutputEvent) => void,
+  ): void {
+    this.tempogram ??= createTempogramDetector({sampleRate: audioSampleRate, tempoRange: this.tempogramRange});
+
+    const reading = this.tempogram.process(channelData);
+
+    postMessage({type: 'progress', data: this.currentProgress()});
+
+    if (reading === null) {
+      return;
     }
+
+    const data: BpmCandidates = {bpm: reading.candidates, threshold: 0};
+
+    postMessage({type: 'bpm', data});
+
+    if (reading.isNewlyStable) {
+      postMessage({type: 'bpmStable', data});
+    }
+  }
+
+  /**
+   * How close the analyzer is to its first reading. The tempogram waits for audio rather than for
+   * peaks, so it reports its share of the warm-up on the same scale.
+   * @returns The progress event's data
+   */
+  private currentProgress(): BpmProgress {
+    if (this.options.detector === 'peaks') {
+      return computeProgress(this.validPeaks);
+    }
+
+    return {
+      peaks: Math.floor((this.tempogram?.progress() ?? 0) * consts.requiredPeaks),
+      requiredPeaks: consts.requiredPeaks,
+    };
   }
 
   /**

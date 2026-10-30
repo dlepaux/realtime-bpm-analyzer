@@ -4,6 +4,7 @@ import type {
   BpmCandidates,
   BpmProgress,
   Interval,
+  Detector,
   Tempo,
   Threshold,
   TempoRange,
@@ -183,6 +184,20 @@ export function resolveTempoRange(tempoRange?: TempoRange): TempoRange {
   }
 
   return {min, max};
+}
+
+/**
+ * Validate a caller-supplied detector, or return the default
+ * @param detector - Detector from the caller's options
+ * @returns A known detector
+ * @throws {RangeError} When the detector is unknown
+ */
+export function resolveDetector(detector?: Detector): Detector {
+  if (detector === undefined || detector === 'peaks' || detector === 'tempogram') {
+    return detector ?? 'peaks';
+  }
+
+  throw new RangeError(`Invalid detector: ${String(detector)}. Use 'peaks' or 'tempogram'.`);
 }
 
 /**

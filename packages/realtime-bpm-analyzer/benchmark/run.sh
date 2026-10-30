@@ -1,7 +1,7 @@
 #!/bin/bash
 # Bundles a benchmark entry with the library's esbuild and runs it in Node: core imports are
 # extensionless, so Node cannot strip and run them directly.
-# Usage: benchmark/run.sh <run|report|make-splits|perf> [args]
+# Usage: benchmark/run.sh <run|report|make-splits|perf|tune> [args]
 set -euo pipefail
 
 cd "$(dirname "$0")"

@@ -30,9 +30,13 @@ Audio lives outside git in `/Volumes/storage/rba-tempo`, with decoded PCM cached
 
 ## Splits
 
-`make-splits.ts` wrote `splits/*.json` with the fixed seed `rba-50-2026-10-30`, and they were committed before any audio was decoded or any result existed. Groups stay on one side: ballroom by album and replica, GTZAN by blocks of 10, GuitarSet by progression, GiantSteps by track.
+`make-splits.ts` wrote `splits/*.json` with the fixed seed `rba-50-2026-10-30`, and they were committed before any result existed. A first version of the shuffle barely reacted to the seed: it was fixed and the commit amended after a dev run on the old split had started decoding, and was killed, with nothing scored or written. That run decoded tracks that are now held-out, audio only.
 
-Tuning uses dev only. `run.ts` is the only route to held-out: it needs a `--reason` and a committed tree, refuses `--tuning`, and appends to [`heldout-log.md`](heldout-log.md) before reading a label. `tune.ts` never loads held-out ids.
+Groups stay on one side: ballroom by album and replica, GTZAN by blocks of 10, GuitarSet by progression at one tempo, GiantSteps by track.
+
+Two contaminations remain, found by the reviewer before the held-out look. GTZAN repeats recordings across blocks (Sturm 2013): the 19 held-out members of cross-split pairs are listed in `splits/gtzan-excluded.json` with the undecodable `jazz.00054` and left out of held-out, which is why it scores 480 of 500. GuitarSet's 3 tempos of a progression can straddle the split, so most of its held-out tracks share chords and players with dev at another tempo. Its held-out numbers are a little kinder than the others.
+
+Tuning uses dev only. `run.ts` is the only route to held-out: it needs a `--reason` and a committed tree, refuses `--tuning`, and appends to [`heldout-log.md`](heldout-log.md) before reading a label. `tune.ts` filters to dev before reading any audio and never scores held-out.
 
 ## Running
 
@@ -71,6 +75,6 @@ References:
 - Half-time and ⅔ readings remain the main error, and the prior only moves them around: a wider or slower prior wins some sets and loses others on dev.
 - Tuned on a mix dominated by these four sets. The prior centre is the knob most exposed to that.
 - The peaks detector is measured wrapped by its lowpass and its existing offline path untouched. `analyzeFullBuffer`, the CLI and the MCP server still use peaks.
-- About 8 s of audio is the shortest route to `bpmStable`, and the first reading comes at 4 s.
+- The first reading comes at 4 s and the earliest `bpmStable` at about 11.5 s: the warm-up, then 8 s of agreeing frames.
 - GiantSteps previews are 2 minutes and GTZAN clips 30 s, so slow settling is not penalised the way a full DJ set would.
 - The worklet reads the left channel only, so a hard-panned track is judged on that channel. This holds for both detectors.

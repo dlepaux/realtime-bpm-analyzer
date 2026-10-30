@@ -8,9 +8,9 @@ const sampleRate = 44_100;
 /**
  * Bright clicks on every beat: a click track for a full-band detector
  */
-function createBrightClicks(bpm: number, seconds: number, gain = 1): Float32Array {
-  const samples = new Float32Array(Math.round(seconds * sampleRate));
-  const period = (60 / bpm) * sampleRate;
+function createBrightClicks(bpm: number, seconds: number, gain = 1, rate = sampleRate): Float32Array {
+  const samples = new Float32Array(Math.round(seconds * rate));
+  const period = (60 / bpm) * rate;
   const noise = createNoise(samples.length, 7);
 
   for (let start = 0; start < samples.length; start += period) {
@@ -106,6 +106,12 @@ describe('tempogram detector', () => {
 
     expect(stableWith(1)).to.equal(true);
     expect(stableWith(1000)).to.equal(false);
+  });
+
+  it('keeps a stable event when a chunk spans two tempogram frames', () => {
+    const readings = feed(createBrightClicks(120, 30, 1, 3000), 3000);
+
+    expect(readings.some(reading => reading.isNewlyStable)).to.equal(true);
   });
 
   it('works at 48 kHz', () => {

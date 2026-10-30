@@ -113,8 +113,8 @@ const guitarsetStyles: Record<string, string> = {
 };
 
 /**
- * GuitarSet, whose tempo is in the file name. Every player plays each progression, so a
- * progression stays on one side.
+ * GuitarSet, whose tempo is in the file name. Every player plays each progression at each of its
+ * tempos, so that piece stays on one side. The same progression at another tempo can straddle.
  */
 function guitarset(): Track[] {
   const base = join(dataRoot, 'guitarset/audio_mono-mic');

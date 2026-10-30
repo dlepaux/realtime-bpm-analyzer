@@ -107,7 +107,7 @@ async function main(): Promise<void> {
     tuning: {type: 'string', default: '{}'},
   }});
   const cache = values.cache!;
-  // Only ever the dev side: the held-out ids are never read into this process
+  // Only ever the dev side: held-out tracks are filtered out here, before any audio or scoring
   const tracks = Object.entries(loaders).flatMap(([set, load]) => {
     const ids = new Set((JSON.parse(readFileSync(join(process.cwd(), 'splits', `${set}.json`), 'utf8')) as {dev: string[]}).dev);
 

@@ -536,7 +536,7 @@ export function createTempogramDetector({
   }
 
   function process(samples: Float32Array): TempogramReading | null {
-    let reading: TempogramReading | null = null;
+    let reading = null as TempogramReading | null;
 
     for (let i = 0; i < samples.length; i += 1) {
       samplesRing[samplesWritten % fftSize] = samples[i];
@@ -545,7 +545,13 @@ export function createTempogramDetector({
 
       if (sinceHop === hop) {
         sinceHop = 0;
-        reading = ingest(computeOnsetStrength()) ?? reading;
+
+        const next = ingest(computeOnsetStrength());
+
+        // Below 8 kHz a chunk can span two frames: the newer reading wins, a "stable" must not be lost
+        if (next) {
+          reading = reading?.isNewlyStable ? {...next, isNewlyStable: true} : next;
+        }
       }
     }
 

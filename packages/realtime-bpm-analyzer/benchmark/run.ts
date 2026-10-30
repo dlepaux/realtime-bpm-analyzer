@@ -4,7 +4,7 @@
 // Held-out access goes through here on purpose: it needs a reason, a committed tree, and writes
 // one line to heldout-log.md before reading a single label.
 import {execFileSync} from 'node:child_process';
-import {appendFileSync, readFileSync, writeFileSync} from 'node:fs';
+import {appendFileSync, existsSync, readFileSync, writeFileSync} from 'node:fs';
 import {cpus} from 'node:os';
 import {join} from 'node:path';
 import {parseArgs} from 'node:util';
@@ -48,12 +48,36 @@ function assertCommittedTree(benchmarkDir: string): string {
   return execFileSync('git', ['rev-parse', 'HEAD'], {cwd: benchmarkDir, encoding: 'utf8'}).trim();
 }
 
+function excludedFromHeldout(benchmarkDir: string, set: string): Set<string> {
+  const path = join(benchmarkDir, 'splits', `${set}-excluded.json`);
+
+  return new Set(existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as {heldout: string[]}).heldout : []);
+}
+
 function selectTracks(benchmarkDir: string, split: Split, sets: string[]): Track[] {
   return sets.flatMap(set => {
     const ids = new Set((JSON.parse(readFileSync(join(benchmarkDir, 'splits', `${set}.json`), 'utf8')) as Record<Split, string[]>)[split]);
+    const excluded = split === 'heldout' ? excludedFromHeldout(benchmarkDir, set) : new Set<string>();
 
-    return loaders[set]().filter(track => ids.has(track.id));
+    return loaders[set]().filter(track => ids.has(track.id) && !excluded.has(track.id));
   });
+}
+
+/** A held-out look is spent once logged, so everything that could abort it is checked first */
+function assertArguments(names: string[], sets: string[], out: string | undefined, limit: string | undefined): void {
+  const unknown = [...names.filter(name => !(name in detectors)), ...sets.filter(set => !(set in loaders))];
+
+  if (unknown.length > 0) {
+    throw new Error(`Unknown detector or set: ${unknown.join(', ')}`);
+  }
+
+  if (!out) {
+    throw new Error('--out is required');
+  }
+
+  if (limit !== undefined && !(Number(limit) > 0)) {
+    throw new Error('--limit must be positive');
+  }
 }
 
 async function runAll(jobs: Job[], onDone: (result: TrackResult, detector: string) => void): Promise<void> {
@@ -104,6 +128,9 @@ async function main(): Promise<void> {
   const benchmarkDir = values.dir!;
   const split = values.split as Split;
   const names = values.detector.split(',');
+  const sets = values.sets.split(',');
+
+  assertArguments(names, sets, values.out, values.limit);
 
   if (split !== 'dev' && split !== 'heldout') {
     throw new Error('--split must be dev or heldout');
@@ -122,11 +149,11 @@ async function main(): Promise<void> {
 
     appendFileSync(
       join(benchmarkDir, 'heldout-log.md'),
-      `| ${new Date().toISOString()} | ${sha.slice(0, 12)} | ${names.join(', ')} | ${values.reason} |\n`,
+      `| ${new Date().toISOString()} | ${sha.slice(0, 12)} | ${names.join(', ')} | ${values.reason} (sets ${sets.join(', ')}, limit ${values.limit ?? 'none'}) |\n`,
     );
   }
 
-  const tracks = selectTracks(benchmarkDir, split, values.sets.split(','));
+  const tracks = selectTracks(benchmarkDir, split, sets);
   const limited = values.limit ? tracks.slice(0, Number(values.limit)) : tracks;
   const tuning = values.tuning ? JSON.parse(values.tuning) as Partial<TempogramTuning> : undefined;
   const jobs = names.flatMap(detector => limited.map(track => ({detector, track, tuning})));
@@ -150,6 +177,11 @@ async function main(): Promise<void> {
 
   writeFileSync(values.out!, `${JSON.stringify({split, sampleRate, results})}\n`);
   console.log(`${jobs.length} runs in ${((Date.now() - start) / 1000).toFixed(0)} s`);
+
+  // Scores are written anyway, a look cannot be repeated, but a shrunk denominator must not pass quietly
+  if (done < jobs.length) {
+    throw new Error(`${jobs.length - done} of ${jobs.length} runs were skipped: declare them with the scores`);
+  }
 }
 
 if (isMainThread) {

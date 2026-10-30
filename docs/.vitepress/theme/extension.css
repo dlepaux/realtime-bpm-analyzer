@@ -291,3 +291,6 @@
   outline: 2px solid var(--vp-c-brand-1);
   outline-offset: 2px;
 }
+
+.vp-doc .ext-goodbye p[role='status']:empty { margin: 0; }
+.vp-doc .ext-goodbye-thanks:focus { outline: none; }

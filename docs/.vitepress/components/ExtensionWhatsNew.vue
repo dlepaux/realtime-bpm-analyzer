@@ -31,7 +31,9 @@ const intro = computed(() => {
       v-if="split.fresh.length === 0"
       class="ext-whats-new-empty"
     >
-      Nothing new since your last version. The notes below are what you already have.
+      {{ split.earlier.length > 0
+        ? 'Nothing new since your last version. The notes below are what you already have.'
+        : 'The notes for this version are not up yet. Check back soon.' }}
     </p>
     <article
       v-for="release in split.fresh"

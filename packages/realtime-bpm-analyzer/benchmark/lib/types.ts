@@ -10,6 +10,10 @@ export type Track = {
   /** Recordings that must stay on the same side of the split: album, recording or progression */
   readonly group: string;
   readonly audioPath: string;
+  /** SPDX id read from the item's source, or `evaluationOnly`. See lib/licences.ts */
+  readonly licence: string;
+  /** A loop shorter than this repeats up to it, in seconds: a player looping it is what a listener hears */
+  readonly loopToSeconds?: number;
 };
 
 export type Split = 'dev' | 'heldout';

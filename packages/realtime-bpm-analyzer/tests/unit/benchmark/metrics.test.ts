@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {isCorrect, isOctaveCorrect, summarize} from '../../../benchmark/lib/metrics';
+import {errorProfile, isCorrect, isOctaveCorrect, summarize} from '../../../benchmark/lib/metrics';
 import type {TrackResult} from '../../../benchmark/lib/types';
 
 function result(overrides: Partial<TrackResult>): TrackResult {
@@ -9,6 +9,14 @@ function result(overrides: Partial<TrackResult>): TrackResult {
 }
 
 describe('benchmark metrics', () => {
+  it('sorts wrong readings by their relation to the truth', () => {
+    const finals = [100, 50, 51, 200, 66, 150, 300, 137, null];
+
+    expect(errorProfile(finals.map(final => result({final})))).to.deep.equal({
+      '1/2': 2, 2: 1, '2/3': 1, '3/2': 1, 3: 1, other: 1, none: 1,
+    });
+  });
+
   it('counts ±4% as correct, inclusive', () => {
     expect(isCorrect(104, 100)).to.equal(true);
     expect(isCorrect(104.1, 100)).to.equal(false);

@@ -13,6 +13,7 @@ import {applyLowpass} from '../src/core/lowpass';
 import {detectTempo} from '../src/core/detect-tempo';
 import {resolveTempoRange} from '../src/core/tempo';
 import {loaders} from './lib/datasets';
+import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate} from './lib/decode';
 import {detectors} from './lib/detectors';
 import {listen} from './lib/stream';
@@ -27,7 +28,7 @@ async function runJob({detector, track, tuning}: Job): Promise<TrackResult> {
   const config = detectors[detector];
   const raw = decode(track);
   const pcm = config.lowpass ? applyLowpass(raw, sampleRate) : raw;
-  const result = await listen(track, pcm, sampleRate, config.options, tuning);
+  const result = await listen(track, pcm, sampleRate, config.options, tuning ?? config.tuning);
 
   if (!config.offline) {
     return result;
@@ -118,7 +119,7 @@ async function main(): Promise<void> {
   const {values} = parseArgs({options: {
     split: {type: 'string'},
     detector: {type: 'string', default: 'peaks'},
-    sets: {type: 'string', default: Object.keys(loaders).join(',')},
+    sets: {type: 'string'},
     out: {type: 'string'},
     reason: {type: 'string'},
     dir: {type: 'string'},
@@ -128,7 +129,8 @@ async function main(): Promise<void> {
   const benchmarkDir = values.dir!;
   const split = values.split as Split;
   const names = values.detector.split(',');
-  const sets = values.sets.split(',');
+  // Dev feeds tuning decisions, so it is the licence-clean sets unless a held-out run says otherwise
+  const sets = (values.sets ?? (split === 'dev' ? [...tuningSets] : Object.keys(loaders)).join(',')).split(',');
 
   assertArguments(names, sets, values.out, values.limit);
 
@@ -154,6 +156,11 @@ async function main(): Promise<void> {
   }
 
   const tracks = selectTracks(benchmarkDir, split, sets);
+
+  if (split === 'dev') {
+    assertTunable(tracks);
+  }
+
   const limited = values.limit ? tracks.slice(0, Number(values.limit)) : tracks;
   const tuning = values.tuning ? JSON.parse(values.tuning) as Partial<TempogramTuning> : undefined;
   const jobs = names.flatMap(detector => limited.map(track => ({detector, track, tuning})));

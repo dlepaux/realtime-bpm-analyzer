@@ -1,4 +1,4 @@
-// Dev-only tuning. Reading the PCM is what makes a dev pass slow, and most knobs sit after the
+// Dev-only tuning, on licence-clean sets only (lib/licences.ts). Reading the PCM is what makes a dev pass slow, and most knobs sit after the
 // onset stage, so this caches onset strength curves (not audio) and replays them.
 //   tune.mjs --cache <dir> --build [--tuning json]    caches the curves of the dev split
 //   tune.mjs --cache <dir> <tuning json>...           replays each tuning, printing its metrics
@@ -12,8 +12,9 @@ import {Worker, isMainThread, parentPort, workerData} from 'node:worker_threads'
 import {createTempogramDetector} from '../src/core/tempogram';
 import type {TempogramTuning} from '../src/core/tempogram';
 import {loaders} from './lib/datasets';
+import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate} from './lib/decode';
-import {isCorrect, summarize} from './lib/metrics';
+import {errorProfile, isCorrect, summarize} from './lib/metrics';
 import type {Track, TrackResult} from './lib/types';
 
 type Job = {track: Track; cache: string; build: boolean; tuning: Partial<TempogramTuning>};
@@ -105,15 +106,17 @@ async function main(): Promise<void> {
     cache: {type: 'string'},
     build: {type: 'boolean', default: false},
     tuning: {type: 'string', default: '{}'},
+    sets: {type: 'string'},
   }});
   const cache = values.cache!;
   // Only ever the dev side: held-out tracks are filtered out here, before any audio or scoring
-  const tracks = Object.entries(loaders).flatMap(([set, load]) => {
+  const tracks = (values.sets?.split(',') ?? [...tuningSets]).flatMap(set => {
     const ids = new Set((JSON.parse(readFileSync(join(process.cwd(), 'splits', `${set}.json`), 'utf8')) as {dev: string[]}).dev);
 
-    return load().filter(track => ids.has(track.id));
+    return loaders[set]().filter(track => ids.has(track.id));
   });
 
+  assertTunable(tracks);
   mkdirSync(cache, {recursive: true});
 
   if (values.build) {
@@ -128,12 +131,12 @@ async function main(): Promise<void> {
       const s = summarize(list);
       const fmt = (value: number | null) => (value === null ? '–' : `${(value * 100).toFixed(1)}`);
 
-      return `A1 ${fmt(s.acc1)} A2 ${fmt(s.acc2)} t1 ${s.medianFirstCorrect?.toFixed(1) ?? '-'} FS ${fmt(s.falseStable)} FFS ${fmt(s.falseFirstStable)} cov ${fmt(s.stableCoverage)} n ${s.stableReadings}`;
+      return `A1 ${fmt(s.acc1)} A2 ${fmt(s.acc2)} t1 ${s.medianFirstCorrect?.toFixed(1) ?? '-'} FS ${fmt(s.falseStable)} FFS ${fmt(s.falseFirstStable)} cov ${fmt(s.stableCoverage)} n ${s.stableReadings} ${JSON.stringify(errorProfile(list))}`;
     };
 
     console.log(`## ${json}\n  all: ${line(results)}`);
 
-    for (const set of Object.keys(loaders)) {
+    for (const set of new Set(tracks.map(track => track.set))) {
       console.log(`  ${set}: ${line(results.filter(r => r.set === set))}`);
     }
   }

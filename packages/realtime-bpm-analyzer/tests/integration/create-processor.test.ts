@@ -52,6 +52,15 @@ describe('createRealtimeBpmAnalyzer', function () {
       expect(processor).to.be.instanceOf(BpmAnalyzer);
     });
 
+    it('gives peaks a lowpass in front of the worklet, and the tempogram nothing', async () => {
+      const peaks = await createRealtimeBpmAnalyzer(audioContext);
+      const tempogram = await createRealtimeBpmAnalyzer(audioContext, {detector: 'tempogram'});
+
+      expect(peaks.input).to.be.instanceOf(BiquadFilterNode);
+      expect((peaks.input as BiquadFilterNode).type).to.equal('lowpass');
+      expect(tempogram.input).to.equal(tempogram.node);
+    });
+
     it('should reject an invalid tempo range on the main thread', async () => {
       let caught: unknown;
       try {

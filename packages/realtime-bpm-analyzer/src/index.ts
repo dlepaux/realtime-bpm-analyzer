@@ -2,6 +2,7 @@ import {realtimeBpmProcessorName} from './core/consts';
 import realtimeBpmProcessorContent from './generated-processor';
 import {type RealTimeBpmAnalyzerParameters, type CreateRealtimeBpmAnalyzerOptions} from './core/types';
 import {BpmAnalyzer} from './core/bpm-analyzer';
+import {getBiquadFilter} from './core/offline-pipeline';
 import {resolveDetector, resolveTempoRange} from './core/tempo';
 
 // Public API surface — explicit named re-exports only.
@@ -47,6 +48,7 @@ export type {
  * The returned `BpmAnalyzer` is an event emitter that wraps an AudioWorkletNode.
  * - Use the analyzer directly for event listening: `analyzer.on('bpm', ...)`
  * - Use `.node` property for Web Audio API connections: `source.connect(analyzer.node)`
+ * - Or connect the source to `.input`, the wiring that suits every detector: `source.connect(analyzer.input)`
  *
  * @example
  * **Basic Usage with Audio Element**
@@ -190,7 +192,17 @@ export async function createRealtimeBpmAnalyzer(
     processorUrl,
   );
   await audioContext.resume();
-  return new BpmAnalyzer(processorNode);
+
+  if (options.detector === 'tempogram') {
+    return new BpmAnalyzer(processorNode);
+  }
+
+  // Idle until a source connects to it, so callers still wiring `.node` pay nothing for it
+  const lowpass = getBiquadFilter(audioContext);
+
+  lowpass.connect(processorNode);
+
+  return new BpmAnalyzer(processorNode, lowpass);
 }
 
 /**

@@ -1,7 +1,8 @@
 import type {Tempo, BiquadFilterOptions, AnalyzeFullBufferOptions} from './types';
 import * as consts from './consts';
-import {resolveTempoRange} from './tempo';
+import {resolveDetector, resolveTempoRange} from './tempo';
 import {detectTempo} from './detect-tempo';
+import {detectTempogram} from './tempogram';
 
 /**
  * Creates a biquad lowpass filter for audio processing.
@@ -96,9 +97,9 @@ export async function getOfflineLowPassSource(
  * have the complete audio data available.
  *
  * @param originalBuffer - The AudioBuffer containing the complete audio to analyze
- * @param options - Optional filter configuration and tempo range
+ * @param options - Optional filter configuration, tempo range and detector
  * @returns A promise that resolves to up to 5 tempo candidates, sorted by `count`
- * @throws {RangeError} When `options.tempoRange` is invalid (see {@link TempoRange})
+ * @throws {RangeError} When `options.tempoRange` or `options.detector` is invalid
  *
  * @example
  * **Analyze an uploaded audio file**
@@ -141,6 +142,12 @@ export async function getOfflineLowPassSource(
  * ```
  *
  * @example
+ * **With the tempogram detector**
+ * ```typescript
+ * const tempos = await analyzeFullBuffer(audioBuffer, {detector: 'tempogram'});
+ * ```
+ *
+ * @example
  * **Analyze from file input**
  * ```typescript
  * const fileInput = document.querySelector('input[type="file"]');
@@ -165,6 +172,7 @@ export async function getOfflineLowPassSource(
  * - Analysis applies a lowpass filter to isolate bass frequencies for better beat detection
  * - BPM values are folded into `tempoRange` (default 90-180) by doubling or halving
  * - `confidence` is the share of interval votes within ±1 BPM of the candidate
+ * - All of this describes the default `peaks` detector. See {@link Detector} for the `tempogram`
  *
  * @see {@link createRealtimeBpmAnalyzer} for real-time streaming audio analysis
  * @see {@link getBiquadFilter} for the lowpass filter used internally
@@ -185,6 +193,10 @@ export async function analyzeFullBuffer(
     throw new Error(
       `Invalid sample rate: ${originalBuffer.sampleRate}. Sample rate must be positive.`,
     );
+  }
+
+  if (resolveDetector(options?.detector) === 'tempogram') {
+    return detectTempogram(originalBuffer.getChannelData(0), originalBuffer.sampleRate, options?.tempoRange);
   }
 
   // Validate before the costly render, so a bad range fails fast

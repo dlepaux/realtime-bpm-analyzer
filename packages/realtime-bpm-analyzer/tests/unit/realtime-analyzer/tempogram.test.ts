@@ -1,6 +1,6 @@
 import {expect} from 'chai';
 import {createClickTrack, createNoise} from '../../fixtures/click-track';
-import {createTempogramDetector} from '../../../src/core/tempogram';
+import {createTempogramDetector, detectTempogram} from '../../../src/core/tempogram';
 import type {TempogramReading} from '../../../src/core/tempogram';
 
 const sampleRate = 44_100;
@@ -201,5 +201,44 @@ describe('tempogram detector', () => {
 
     detector.process(new Float32Array(sampleRate * 2));
     expect(detector.progress()).to.be.closeTo(0.5, 0.01);
+  });
+});
+
+describe('detectTempogram', () => {
+  it('reads a whole recording', () => {
+    const [top] = detectTempogram(createBrightClicks(128, 30), sampleRate);
+
+    expect(top.tempo).to.be.within(127, 129);
+  });
+
+  it('counts every frame the same, so an outro does not decide', () => {
+    const song = createBrightClicks(100, 90);
+    const outro = createBrightClicks(141, 20);
+    const samples = new Float32Array(song.length + outro.length);
+
+    samples.set(song);
+    samples.set(outro, song.length);
+
+    const [top] = detectTempogram(samples, sampleRate);
+
+    expect(top.tempo).to.be.within(99, 101);
+  });
+
+  it('reads a recording shorter than the warm-up', () => {
+    const [top] = detectTempogram(createBrightClicks(120, 3), sampleRate);
+
+    expect(top.tempo).to.be.within(118, 122);
+  });
+
+  it('returns nothing for silence or for too little audio', () => {
+    expect(detectTempogram(new Float32Array(sampleRate * 10), sampleRate)).to.deep.equal([]);
+    expect(detectTempogram(createBrightClicks(120, 1), sampleRate)).to.deep.equal([]);
+  });
+
+  it('searches the given range and refuses an invalid one', () => {
+    const [top] = detectTempogram(createBrightClicks(160, 20), sampleRate, {min: 60, max: 130});
+
+    expect(top.tempo).to.be.within(79, 81);
+    expect(() => detectTempogram(new Float32Array(10), sampleRate, {min: 100, max: 150})).to.throw(RangeError);
   });
 });

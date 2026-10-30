@@ -1,3 +1,4 @@
+import type {TempogramTuning} from '../../src/core/tempogram';
 import type {RealTimeBpmAnalyzerParameters} from '../../src/core/types';
 
 export type DetectorConfig = {
@@ -6,6 +7,8 @@ export type DetectorConfig = {
   readonly lowpass: boolean;
   /** Also run the offline path */
   readonly offline: boolean;
+  /** Tempogram overrides, to keep a past tuning measurable */
+  readonly tuning?: Partial<TempogramTuning>;
 };
 
 export const detectors: Record<string, DetectorConfig> = {

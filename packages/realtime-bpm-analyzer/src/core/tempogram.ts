@@ -1,3 +1,4 @@
+import {resolveTempoRange} from './tempo';
 import type {Tempo, TempoRange} from './types';
 
 /**
@@ -595,4 +596,37 @@ export function createTempogramDetector({
     progress: () => Math.min(1, frames / warmupFrames),
     reset,
   };
+}
+
+/** Shorter audio has no two beats to compare at the slowest tempo searched */
+const shortestRecordingSeconds = 1.5;
+
+/**
+ * Tempo candidates of a whole recording, by the tempogram: every frame counts the same, because a
+ * file has no "now" to follow, and a short file reads as soon as it ends instead of never.
+ * @param channelData PCM samples of one channel, not lowpassed
+ * @param sampleRate Sample rate in Hz
+ * @param tempoRange Tempos searched, when the caller limits them
+ * @returns Up to 5 tempo candidates, best first, empty when no pulse stands out
+ * @throws {RangeError} When `tempoRange` is invalid
+ */
+export function detectTempogram(channelData: Float32Array, sampleRate: number, tempoRange?: TempoRange): Tempo[] {
+  const range = tempoRange === undefined ? undefined : resolveTempoRange(tempoRange);
+  const seconds = channelData.length / sampleRate;
+
+  if (seconds < shortestRecordingSeconds) {
+    return [];
+  }
+
+  const detector = createTempogramDetector({
+    sampleRate,
+    tempoRange: range,
+    tuning: {
+      halfLifeSeconds: Number.POSITIVE_INFINITY,
+      warmupSeconds: Math.min(defaultTempogramTuning.warmupSeconds, seconds),
+    },
+  });
+  const reading = detector.process(channelData);
+
+  return reading === null ? [] : [...reading.candidates];
 }

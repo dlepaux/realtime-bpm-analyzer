@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import {parseArgs} from 'node:util';
-import type {TempoRange} from 'realtime-bpm-analyzer/node';
+import type {Detector, TempoRange} from 'realtime-bpm-analyzer/node';
 import {resolveTempoRange} from './api';
 import {errorMessage} from './errors';
 
@@ -10,6 +10,7 @@ export type CliOptions = {
   readonly json: boolean;
   readonly recursive: boolean;
   readonly tempoRange: TempoRange | undefined;
+  readonly detector: Detector;
 };
 
 export type ParsedArgs =
@@ -26,8 +27,10 @@ and other formats through ffmpeg when it is installed).
 Options:
   --json             Print one JSON document instead of text
   -r, --recursive    Walk sub-folders of a folder (up to 32 levels)
-  --min-bpm <bpm>    Lowest tempo reported (default 90)
-  --max-bpm <bpm>    Highest tempo reported (default 180, at least 2 x min)
+  --min-bpm <bpm>    Lowest tempo reported (default 90, 50 with tempogram)
+  --max-bpm <bpm>    Highest tempo reported (default 180, 240 with tempogram,
+                     at least 2 x min)
+  --detector <name>  peaks (default) or tempogram
   -h, --help         Show this help
   -v, --version      Show the version
 
@@ -53,6 +56,7 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
         recursive: {type: 'boolean', short: 'r', default: false},
         'min-bpm': {type: 'string'},
         'max-bpm': {type: 'string'},
+        detector: {type: 'string', default: 'peaks'},
         help: {type: 'boolean', short: 'h', default: false},
         version: {type: 'boolean', short: 'v', default: false},
       },
@@ -74,14 +78,19 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
     return {kind: 'usage-error', message: 'Missing a file or folder to analyse.'};
   }
 
-  const range = await parseTempoRange(values['min-bpm'], values['max-bpm']);
+  const {detector} = values;
+  if (detector !== 'peaks' && detector !== 'tempogram') {
+    return {kind: 'usage-error', message: `Invalid detector: ${detector}. Use peaks or tempogram.`};
+  }
+
+  const range = await parseTempoRange(values['min-bpm'], values['max-bpm'], detector);
   if (typeof range === 'string') {
     return {kind: 'usage-error', message: range};
   }
 
   return {
     kind: 'run',
-    options: {paths: positionals, json: values.json, recursive: values.recursive, tempoRange: range},
+    options: {paths: positionals, json: values.json, recursive: values.recursive, tempoRange: range, detector},
   };
 }
 
@@ -90,15 +99,16 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
  * and validates it now so a bad range fails before any file is decoded.
  * @param min Raw --min-bpm value
  * @param max Raw --max-bpm value
+ * @param detector Detector the range is for
  * @returns The range, undefined for the default, or an error message
  */
-async function parseTempoRange(min: string | undefined, max: string | undefined): Promise<TempoRange | undefined | string> {
+async function parseTempoRange(min: string | undefined, max: string | undefined, detector: Detector): Promise<TempoRange | undefined | string> {
   // Number('') is 0, so an empty value must not slip through as a number
   const toNumber = (raw: string | undefined) =>
     raw === undefined ? undefined : (raw.trim() === '' ? Number.NaN : Number(raw));
 
   try {
-    return await resolveTempoRange(toNumber(min), toNumber(max));
+    return await resolveTempoRange(toNumber(min), toNumber(max), detector);
   } catch (error: unknown) {
     return errorMessage(error);
   }

@@ -13,6 +13,30 @@ export function isOctaveCorrect(reading: number, truth: number): boolean {
   return acc2Factors.some(factor => isCorrect(reading, truth * factor));
 }
 
+/** Metrical relations a wrong reading is sorted into, slowest first */
+const relations: ReadonlyArray<readonly [string, number]> = [
+  ['1/3', 1 / 3], ['1/2', 1 / 2], ['2/3', 2 / 3], ['3/2', 3 / 2], ['2', 2], ['3', 3],
+];
+
+/**
+ * Sorts the wrong readings by how they relate to the truth, which is what a tuning decision needs
+ * @param results One detector's results
+ * @returns Count per relation, `other` for the rest and `none` for tracks with no reading
+ */
+export function errorProfile(results: readonly TrackResult[]): Record<string, number> {
+  const profile: Record<string, number> = {};
+
+  for (const {final, truth} of results) {
+    if (final === null || !isCorrect(final, truth)) {
+      const relation = final === null ? 'none' : relations.find(([, factor]) => isCorrect(final, truth * factor))?.[0] ?? 'other';
+
+      profile[relation] = (profile[relation] ?? 0) + 1;
+    }
+  }
+
+  return profile;
+}
+
 function share(count: number, total: number): number {
   return total === 0 ? 0 : count / total;
 }

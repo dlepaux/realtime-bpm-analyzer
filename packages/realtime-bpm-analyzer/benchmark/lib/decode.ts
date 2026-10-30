@@ -2,6 +2,7 @@ import {spawnSync} from 'node:child_process';
 import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {dataRoot} from './datasets';
+import {repeatTo} from './stream';
 import type {Track} from './types';
 
 export const sampleRate = 44_100;
@@ -29,6 +30,7 @@ export function decode(track: Track): Float32Array {
   }
 
   const bytes = readFileSync(cachePath);
+  const pcm = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4).slice();
 
-  return new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4).slice();
+  return track.loopToSeconds === undefined ? pcm : repeatTo(pcm, track.loopToSeconds * sampleRate);
 }

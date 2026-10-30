@@ -131,6 +131,15 @@ describe('Node entry parity with Web Audio', () => {
       });
     }
 
+    it('returns the tempogram candidates analyzeFullBuffer returns', async () => {
+      const samples = createClickTrack(128, sampleRate);
+      const options = {detector: 'tempogram'} as const;
+      const browser = await analyzeFullBuffer(audioBufferFrom(samples, sampleRate), options);
+
+      expect(browser.length).to.be.greaterThan(0);
+      expect(await analyzeChannelData(samples, sampleRate, options)).to.deep.equal(browser);
+    });
+
     it('applies the custom filter and tempo range like analyzeFullBuffer', async () => {
       const sampleRate = 44_100;
       const samples = createClickTrack(174, sampleRate);

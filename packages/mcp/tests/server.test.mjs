@@ -70,9 +70,9 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     assert.deepEqual(tools.map(tool => tool.name).sort(), ['analyze_file', 'analyze_folder']);
 
     const byName = Object.fromEntries(tools.map(tool => [tool.name, tool]));
-    assert.deepEqual(Object.keys(byName.analyze_file.inputSchema.properties).sort(), ['max_bpm', 'min_bpm', 'path']);
+    assert.deepEqual(Object.keys(byName.analyze_file.inputSchema.properties).sort(), ['detector', 'max_bpm', 'min_bpm', 'path']);
     assert.deepEqual(byName.analyze_file.inputSchema.required, ['path']);
-    assert.deepEqual(Object.keys(byName.analyze_folder.inputSchema.properties).sort(), ['directory', 'max_bpm', 'min_bpm', 'offset', 'recursive']);
+    assert.deepEqual(Object.keys(byName.analyze_folder.inputSchema.properties).sort(), ['detector', 'directory', 'max_bpm', 'min_bpm', 'offset', 'recursive']);
     assert.deepEqual(byName.analyze_folder.inputSchema.required, ['directory']);
 
     for (const tool of tools) {
@@ -89,6 +89,7 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
   });
 
   for (const [label, args, pattern] of [
+    ['an unknown detector', {path: fixture('click-128.mp3'), detector: 'magic'}, /detector/],
     ['a missing path', {}, /path/],
     ['an unknown argument', {path: 'click-128.mp3', file: 'x'}, /file|unrecognized/i],
     ['a negative tempo', {path: 'click-128.mp3', min_bpm: -5}, /min_bpm/],
@@ -123,6 +124,12 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     } finally {
       await homeClient.close();
     }
+  });
+
+  it('runs the tempogram detector when asked', async () => {
+    const result = await client.callTool({name: 'analyze_file', arguments: {path: fixture('click-128.mp3'), detector: 'tempogram'}});
+
+    near(result.structuredContent.bpm, 128);
   });
 
   it('folds the tempo into min_bpm..max_bpm', async () => {

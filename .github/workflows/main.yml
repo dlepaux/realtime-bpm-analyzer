@@ -53,11 +53,13 @@ jobs:
           node bin/audit-gate.mjs --self-test
           (npm audit --json || true) | node bin/audit-gate.mjs
 
-      - name: Lint
-        run: npm run lint
-
       - name: Build
         run: npm run build
+
+      # After the build: the CLI's type-aware lint reads the library's types from its built
+      # dist/*.d.ts, through the workspace link, the way a published install would
+      - name: Lint
+        run: npm run lint
 
       - name: Test
         run: npm test
@@ -170,12 +172,17 @@ jobs:
             echo "::error::npm view $name failed for a reason other than a missing package"
             exit 1
           fi
-          if npm view "$name@$version" version >/dev/null 2>&1; then
+          # Only a 404 means unpublished: a network error must not start a publish
+          if out=$(npm view "$name@$version" version 2>&1); then
             echo "$name@$version is already on npm: nothing to publish"
             echo "publish=false" >> "$GITHUB_OUTPUT"
-          else
+          elif grep -q E404 <<<"$out"; then
             echo "$name@$version is not on npm yet: publishing"
             echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$out"
+            echo "::error::npm view $name@$version failed for a reason other than a missing version"
+            exit 1
           fi
 
       - name: Download CLI build

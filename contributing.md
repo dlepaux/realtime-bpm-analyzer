@@ -34,6 +34,8 @@ The docs and examples depend on the library as `"realtime-bpm-analyzer": "*"`. n
 
 The CLI is published, so it depends on the library with a real range (`"realtime-bpm-analyzer": "^5.4.0"`). npm links the workspace copy while that copy's version satisfies the range, so the CLI too builds and tests against the library of the same commit. A library major release must raise the CLI's range in the same pull request: otherwise npm installs the published library for the CLI instead of linking the workspace. The CLI keeps its decoders as its own dependencies, so the library keeps zero.
 
+The CLI reads the library's types from its built `dist/`, so run `npm run build` before `npm run lint` or the CLI's tests in a fresh clone.
+
 The root scripts (`npm run build`, `npm test`, `npm run lint`, `npm run docs:dev`) delegate to the workspaces. Run a workspace's own script with `-w`, for example `npm run test:node -w realtime-bpm-analyzer` or `npm run build -w docs`.
 
 The readme, the licence and this file live once, at the root. The library's `prepack` script copies `readme.md` and `license.md` into the package for npm, and `postpack` removes them, so never commit copies inside `packages/`. The CLI has its own `packages/cli/readme.md` and copies only the licence.
@@ -69,7 +71,7 @@ npm's [trusted publishing](https://docs.npmjs.com/trusted-publishers) lets the p
 1. Merge the pull request that adds the package. release-please opens the package's release PR (`0.1.0`); leave it open. Until step 2, the pipeline logs that the package is not on npm yet and skips its publish.
 2. On an up-to-date `main`, with npm 11.5.1 or later and an npm account with two-factor authentication: `npm ci`, `npm run build`, then `npm publish --access public -w realtime-bpm-analyzer-cli`. This publishes `0.0.0`, the version on `main`, without provenance.
 3. On npmjs.com, open the package's settings, and under Trusted Publisher choose GitHub Actions with owner `dlepaux`, repository `realtime-bpm-analyzer` and workflow `main.yml` (the file name only).
-4. Within 2 days, merge the release PR. The pipeline publishes `0.1.0` with provenance, which validates the configuration.
+4. Within 2 days, merge the release PR. The pipeline publishes `0.1.0` with provenance, which validates the configuration. If the window passes (a red `main`, for example), the configuration expires: delete it on npmjs.com, add it again, and merge within the new 2 days.
 5. In the package's settings, under Publishing access, choose "Require two-factor authentication and disallow tokens", as npm recommends once trusted publishing works.
 
 ## Reporting Issues

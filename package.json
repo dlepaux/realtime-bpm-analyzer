@@ -9,7 +9,7 @@
     "examples/*"
   ],
   "overrides": {
-    "serialize-javascript": "^7.1.2",
+    "serialize-javascript": "^7.1.3",
     "ip-address": "^10.7.4",
     "qs": "^6.16.1",
     "esbuild": "^0.28.2",
@@ -18,7 +18,7 @@
     "js-cookie": "^3.0.8",
     "vitepress": {
       "vite": {
-        ".": "^6.4.4",
+        ".": "^6.4.5",
         "esbuild": "^0.25.12"
       }
     }

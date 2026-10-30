@@ -34,6 +34,7 @@ export type BpmAnalyticsEvent =
   | 'bpm_metronome_started'
   | 'bpm_tool_link_clicked'
   | 'github_star_clicked'
+  | 'extension_uninstall_reason'
 
 export function useAnalytics() {
   function track(event: BpmAnalyticsEvent, params: EventParams = {}): void {

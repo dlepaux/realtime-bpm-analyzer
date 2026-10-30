@@ -24,7 +24,10 @@ cookies in your browser and receives:
   and how you arrived on the site;
 - how you use the tools, as anonymous events: the tempo found, the length,
   size and extension of an analysed file (never its name or content), the
-  address of a stream without its query string, and error types.
+  address of a stream without its query string, and error types;
+- the version number in the address of the pages the browser extension opens
+  when you install it, update it or remove it, and, if you remove it and pick a
+  reason from the list on that page, that reason. Nothing you type is sent.
 
 Google Analytics does not store IP addresses. Its event data is kept for at most
 14 months. Google processes it as described in
@@ -53,4 +56,4 @@ linked to your name.
 The site is run by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 20 October 2026._
+_Last updated: 30 October 2026._

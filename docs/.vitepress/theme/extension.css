@@ -1,0 +1,293 @@
+/* The pages the browser extension opens: /extension/welcome, /whats-new, /goodbye.
+   Site tokens everywhere, except the overlay pill, which keeps the extension's own
+   colours (rba-pro extension/src/overlay/view.ts) so it looks like what users get. */
+
+/* ── The overlay pill ─────────────────────────────────────────────────────── */
+
+.ext-pill {
+  --ext-pill-band: #4ade80;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 9px 12px;
+  border-radius: 999px;
+  background: rgb(17 24 39 / 0.92);
+  color: #f9fafb;
+  font: 600 14px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  white-space: nowrap;
+}
+
+.ext-pill[data-stability='settling'] { --ext-pill-band: #fbbf24; }
+
+.ext-pill-stack { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.ext-pill-value { display: inline-grid; font-size: 16px; font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
+.ext-pill-value > * { grid-area: 1 / 1; }
+.ext-pill-unit { margin-left: 4px; color: #d1d5db; font-size: 11px; letter-spacing: 0.06em; }
+
+/* The extension's own caption is a small uppercase label under the tempo. */
+.ext-pill-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #9ca3af;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.ext-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ext-pill-band); }
+.ext-pill-close { display: grid; place-items: center; width: 24px; height: 24px; color: #e5e7eb; font-size: 16px; }
+
+.ext-pill-progress {
+  position: absolute;
+  inset: auto 12px 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgb(255 255 255 / 0.12);
+  overflow: hidden;
+}
+
+.ext-pill-fill { display: block; height: 100%; background: var(--ext-pill-band); }
+
+/* Intro: dots and a filling grey line while it listens, then the tempo locks. */
+.ext-pill-dots { display: inline-flex; justify-content: flex-end; gap: 1px; opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ext-pill.is-intro .ext-pill-num,
+  .ext-pill.is-intro .ext-pill-hint { animation: ext-lock 3.2s step-end both; }
+  .ext-pill.is-intro .ext-pill-dots { animation: ext-listen 3.2s step-end both; }
+  .ext-pill.is-intro .ext-pill-dots span { animation: ext-bounce 1.2s ease-in-out 3 both; }
+  .ext-pill.is-intro .ext-pill-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .ext-pill.is-intro .ext-pill-dots span:nth-child(3) { animation-delay: 0.4s; }
+  .ext-pill.is-intro .ext-pill-fill {
+    transform-origin: left;
+    animation: ext-fill 3.2s cubic-bezier(0.3, 0.6, 0.4, 1) both;
+  }
+}
+
+@keyframes ext-lock { 0% { opacity: 0; } 85% { opacity: 1; } }
+@keyframes ext-listen { 0% { opacity: 1; } 85% { opacity: 0; } }
+@keyframes ext-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-3px); opacity: 1; } }
+@keyframes ext-fill {
+  0% { transform: scaleX(0); background: #9ca3af; }
+  84% { transform: scaleX(1); background: #9ca3af; }
+  85%, 100% { transform: scaleX(1); background: var(--ext-pill-band); }
+}
+
+/* ── Welcome: the stage ───────────────────────────────────────────────────── */
+
+/* A player frame with the pill where the extension puts it in YouTube: top right. */
+.ext-stage {
+  position: relative;
+  margin: 2rem 0 3rem;
+  height: clamp(190px, 38vw, 320px);
+  border-radius: 20px;
+  background:
+    radial-gradient(90% 120% at 15% 110%, color-mix(in srgb, var(--vp-c-brand-1) 45%, transparent), transparent 60%),
+    linear-gradient(160deg, #1f2433, #0f1220);
+  overflow: hidden;
+}
+
+.ext-stage-pill { position: absolute; top: 14px; right: 14px; }
+
+/* The pill is the subject of the page: larger on the stage than in the steps,
+   scaled as a whole so its proportions stay the extension's own. */
+@media (min-width: 640px) {
+  .ext-stage-pill { top: 20px; right: 20px; transform: scale(1.5); transform-origin: top right; }
+}
+
+.ext-stage-wave {
+  position: absolute;
+  inset: auto 6% 22% 6%;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 38%;
+  opacity: 0.5;
+}
+
+.ext-stage-wave span { flex: 1; border-radius: 2px; background: rgb(255 255 255 / 0.55); }
+
+.ext-stage-bar {
+  position: absolute;
+  inset: auto 6% 12% 6%;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #f43f5e 0 38%, rgb(255 255 255 / 0.25) 38%);
+}
+
+/* ── Welcome: the three steps ─────────────────────────────────────────────── */
+
+.vp-doc ol.ext-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1.75rem;
+  margin: 1.5rem 0 2.5rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: ext-step;
+}
+
+.vp-doc .ext-step { margin: 0; counter-increment: ext-step; }
+
+.vp-doc .ext-step h3 { margin: 1rem 0 0.35rem; font-size: 1.05rem; }
+
+/* The order matters, so the step number leads the heading. */
+.vp-doc .ext-step h3::before {
+  content: counter(ext-step);
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.vp-doc .ext-step p { margin: 0; color: var(--vp-c-text-2); font-size: 0.92rem; line-height: 1.6; }
+
+.ext-step-visual {
+  display: grid;
+  place-items: center;
+  height: 112px;
+  padding: 0 1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 16px;
+  background: var(--vp-c-bg-soft);
+}
+
+.ext-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 230px;
+  padding: 6px 8px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 10px;
+  background: var(--vp-c-bg);
+}
+
+.ext-toolbar-address { flex: 1; height: 18px; border-radius: 9px; background: var(--vp-c-bg-soft); }
+
+.ext-toolbar-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--vp-c-text-2);
+}
+
+.ext-toolbar-icon.is-ours { background: var(--vp-c-brand-soft); }
+.ext-toolbar-pin { display: grid; color: var(--vp-c-brand-1); transform: rotate(30deg); }
+
+.ext-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 230px;
+  height: 52px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #1f2433, #0f1220);
+}
+
+.ext-player-play { display: grid; color: #f9fafb; }
+.ext-player-play svg { fill: currentColor; }
+.ext-player-wave { display: flex; flex: 1; align-items: center; gap: 3px; height: 28px; }
+.ext-player-wave span { flex: 1; border-radius: 2px; background: #f43f5e; opacity: 0.85; }
+
+.ext-click { display: flex; align-items: center; gap: 12px; }
+.ext-click-cursor { position: absolute; right: -10px; bottom: -12px; color: var(--vp-c-text-1); }
+
+/* ── Welcome: privacy and Pro ─────────────────────────────────────────────── */
+
+.vp-doc .ext-promise {
+  margin: 1rem 0 2rem;
+  padding: 1.25rem 1.5rem;
+  border-left: 3px solid var(--vp-c-brand-1);
+  border-radius: 0 12px 12px 0;
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc .ext-promise p { margin: 0.4rem 0; }
+.vp-doc .ext-promise p:first-child { color: var(--vp-c-text-1); font-size: 1.15rem; font-weight: 600; }
+
+.vp-doc dl.ext-pro { margin: 1rem 0 2rem; }
+.vp-doc .ext-pro dt { font-weight: 600; color: var(--vp-c-text-1); }
+.vp-doc .ext-pro dd { margin: 0.15rem 0 1rem; color: var(--vp-c-text-2); }
+
+/* ── Welcome: email opt-in ────────────────────────────────────────────────── */
+
+.ext-optin {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 20px;
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc .ext-optin h2 { margin: 0 0 1rem; padding: 0; border: 0; }
+.ext-optin-label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; font-weight: 500; }
+.ext-optin-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.ext-optin-input {
+  flex: 1 1 220px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 999px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc .ext-optin-consent { margin: 0.75rem 0 0; color: var(--vp-c-text-2); font-size: 0.82rem; line-height: 1.55; }
+
+/* ── What's new ───────────────────────────────────────────────────────────── */
+
+.vp-doc .ext-whats-new-intro { color: var(--vp-c-text-2); }
+.vp-doc .ext-release h2 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.6rem; }
+.vp-doc .ext-release h3 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.6rem; }
+
+.ext-release-version {
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.vp-doc .ext-earlier { margin: 2rem 0; }
+.vp-doc .ext-earlier summary { cursor: pointer; color: var(--vp-c-text-2); font-weight: 500; }
+
+/* ── Goodbye ──────────────────────────────────────────────────────────────── */
+
+.ext-goodbye { margin: 1.5rem 0 2.5rem; }
+.vp-doc .ext-goodbye-ask { margin: 0 0 1rem; font-weight: 500; }
+.ext-reasons { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.tt-btn.ext-reason { padding: 0.65rem 1.15rem; font-size: 0.92rem; }
+
+.vp-doc .ext-goodbye-thanks {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-text-1);
+  font-weight: 500;
+}
+
+.ext-goodbye :is(button, a):focus-visible,
+.ext-optin :is(button, input):focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}

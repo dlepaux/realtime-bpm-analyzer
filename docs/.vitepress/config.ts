@@ -191,6 +191,9 @@ export default defineConfig({
   // Sitemap generation
   sitemap: {
     hostname: 'https://www.realtime-bpm-analyzer.com',
+    // The pages the browser extension opens (RBA-38) are for its users only and
+    // carry noindex, so they stay out of the sitemap too.
+    transformItems: (items) => items.filter((item) => !/^\/?extension\//.test(item.url)),
   },
   
   // Ignore dead links for pages we haven't created yet

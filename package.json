@@ -1,7 +1,7 @@
 {
   "name": "realtime-bpm-analyzer-monorepo",
   "private": true,
-  "description": "Workspace root: the realtime-bpm-analyzer library and CLI (packages/), the documentation site (docs/) and examples (examples/). Publishes nothing itself.",
+  "description": "Workspace root: the realtime-bpm-analyzer library, CLI and MCP server (packages/), the documentation site (docs/) and examples (examples/). Publishes nothing itself.",
   "license": "Apache-2.0",
   "workspaces": [
     "packages/*",
@@ -24,11 +24,11 @@
     }
   },
   "scripts": {
-    "build": "npm run build -w realtime-bpm-analyzer && npm run build -w realtime-bpm-analyzer-cli",
-    "lint": "npm run lint -w realtime-bpm-analyzer -w realtime-bpm-analyzer-cli",
-    "lint:fix": "npm run lint:fix -w realtime-bpm-analyzer -w realtime-bpm-analyzer-cli",
+    "build": "npm run build -w realtime-bpm-analyzer && npm run build -w realtime-bpm-analyzer-cli && npm run build -w realtime-bpm-analyzer-mcp",
+    "lint": "npm run lint -w realtime-bpm-analyzer -w realtime-bpm-analyzer-cli -w realtime-bpm-analyzer-mcp",
+    "lint:fix": "npm run lint:fix -w realtime-bpm-analyzer -w realtime-bpm-analyzer-cli -w realtime-bpm-analyzer-mcp",
     "test": "npm test -w realtime-bpm-analyzer",
-    "test:node": "npm run test:node -w realtime-bpm-analyzer && npm test -w realtime-bpm-analyzer-cli",
+    "test:node": "npm run test:node -w realtime-bpm-analyzer && npm test -w realtime-bpm-analyzer-cli && npm test -w realtime-bpm-analyzer-mcp",
     "docs:dev": "npm run build && npm run dev -w docs",
     "docs:build": "npm run build && npm run build -w docs",
     "docs:preview": "npm run preview -w docs",

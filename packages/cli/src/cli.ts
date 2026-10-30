@@ -1,13 +1,13 @@
 /// <reference types="node" />
 
 import {readFileSync} from 'node:fs';
-import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
+import {analyzeFile} from './api';
+import type {FileResult} from './api';
 import {parseCliArgs, usage} from './args';
 import type {CliOptions} from './args';
-import {decodeFile} from './decode';
-import {collectTargets, errorMessage} from './files';
-import type {FileResult} from './report';
-import {formatJson, formatText, successResult} from './report';
+import {errorMessage} from './errors';
+import {collectTargets} from './files';
+import {formatJson, formatText} from './report';
 
 // `npx realtime-bpm-analyzer-cli song.mp3`, the package's bin. A separate package from the
 // library, so the library keeps zero dependencies: the decoders are this package's own.
@@ -26,17 +26,9 @@ async function analyzeAll(options: CliOptions, onResult: (result: FileResult) =>
   const results: FileResult[] = [];
 
   for (const target of await collectTargets(options.paths, options.recursive)) {
-    let result: FileResult;
-    if (target.kind === 'error') {
-      result = {file: target.path, ok: false, error: target.message};
-    } else {
-      try {
-        const {channelData, sampleRate} = await decodeFile(target.path, ffmpegPath);
-        result = successResult(target.path, await analyzeChannelData(channelData, sampleRate, {tempoRange: options.tempoRange}));
-      } catch (error: unknown) {
-        result = {file: target.path, ok: false, error: errorMessage(error)};
-      }
-    }
+    const result: FileResult = target.kind === 'error'
+      ? {file: target.path, ok: false, error: target.message}
+      : await analyzeFile(target.path, {tempoRange: options.tempoRange, ffmpegPath});
 
     results.push(result);
     onResult(result);

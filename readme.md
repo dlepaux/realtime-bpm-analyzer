@@ -90,6 +90,16 @@ npx realtime-bpm-analyzer-cli --json ./music  # every audio file of a folder, as
 
 See the [command-line guide](https://www.realtime-bpm-analyzer.com/guide/cli).
 
+### AI assistants (MCP)
+
+[`realtime-bpm-analyzer-mcp`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/packages/mcp#readme) is a local MCP server, so Claude Desktop, Claude Code or any MCP client can detect the BPM of files on your disk. It runs on your machine over stdio: the audio never leaves it.
+
+```bash
+claude mcp add bpm -- npx -y realtime-bpm-analyzer-mcp   # Claude Code
+```
+
+See the [MCP guide](https://www.realtime-bpm-analyzer.com/guide/mcp) for Claude Desktop and the two tools, `analyze_file` and `analyze_folder`.
+
 ## Documentation
 
 **📖 [Full Documentation](https://www.realtime-bpm-analyzer.com)** - Complete guides, API reference, and tutorials

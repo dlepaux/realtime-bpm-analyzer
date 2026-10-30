@@ -1,0 +1,67 @@
+{
+  "name": "realtime-bpm-analyzer-mcp",
+  "version": "0.0.0",
+  "description": "A local MCP server that gives an assistant (Claude Desktop, Claude Code, any MCP client) the BPM of audio files on your disk. Runs over stdio; the audio never leaves the machine.",
+  "author": {
+    "name": "David Lepaux",
+    "email": "d.lepaux@gmail.com",
+    "url": "https://david.lepaux.com"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "bpm",
+    "tempo",
+    "beat-detection",
+    "bpm-detection",
+    "audio-analysis",
+    "music-analysis",
+    "claude",
+    "dj"
+  ],
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "realtime-bpm-analyzer-mcp": "dist/server.mjs"
+  },
+  "files": [
+    "dist/server.mjs",
+    "readme.md",
+    "license.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --format=esm --packages=external --banner:js='#!/usr/bin/env node' --outfile=dist/server.mjs && tsc --noEmit",
+    "prepack": "cp ../../license.md .",
+    "postpack": "rm -f license.md",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "node --test 'tests/**/*.test.mjs'"
+  },
+  "homepage": "https://www.realtime-bpm-analyzer.com/guide/mcp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dlepaux/realtime-bpm-analyzer",
+    "directory": "packages/mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.4.0",
+    "realtime-bpm-analyzer-cli": "0.x",
+    "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@types/node": "^24.19.2",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.2"
+  }
+}

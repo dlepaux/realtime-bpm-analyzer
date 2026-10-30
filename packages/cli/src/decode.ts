@@ -90,15 +90,16 @@ function sniffAt(bytes: Uint8Array, start: number): BuiltInFormat | 'aac' | unde
  * format, otherwise with ffmpeg.
  * @param path File to decode
  * @param ffmpegPath ffmpeg binary for formats without a bundled decoder
+ * @param signal Kills ffmpeg when aborted
  * @returns Channel 0 samples and their sample rate
  * @throws {Error} When the file cannot be read or decoded
  */
-export async function decodeFile(path: string, ffmpegPath: string): Promise<DecodedAudio> {
+export async function decodeFile(path: string, ffmpegPath: string, signal?: AbortSignal): Promise<DecodedAudio> {
   const bytes = await readFile(path);
   const format = sniffFormat(bytes);
 
   if (format === undefined) {
-    return decodeWithFfmpeg(path, ffmpegPath);
+    return decodeWithFfmpeg(path, ffmpegPath, signal);
   }
 
   const {channelData, sampleRate} = await (await loaders[format]()).default(bytes);
@@ -114,9 +115,10 @@ export async function decodeFile(path: string, ffmpegPath: string): Promise<Deco
  * Pipes channel 0 of the file through ffmpeg as 32-bit float PCM.
  * @param path File to decode
  * @param ffmpegPath ffmpeg binary
+ * @param signal Kills ffmpeg when aborted
  * @returns Channel 0 samples at ffmpegSampleRate
  */
-async function decodeWithFfmpeg(path: string, ffmpegPath: string): Promise<DecodedAudio> {
+async function decodeWithFfmpeg(path: string, ffmpegPath: string, signal?: AbortSignal): Promise<DecodedAudio> {
   const args = [
     '-v', 'error', '-nostdin',
     // `file:` stops ffmpeg from reading a name such as `concat:a|b` or `https://...` as a protocol
@@ -127,7 +129,7 @@ async function decodeWithFfmpeg(path: string, ffmpegPath: string): Promise<Decod
 
   const chunks: Buffer[] = [];
   const errors: Buffer[] = [];
-  const child = spawn(ffmpegPath, args, {stdio: ['ignore', 'pipe', 'pipe']});
+  const child = spawn(ffmpegPath, args, {stdio: ['ignore', 'pipe', 'pipe'], signal});
   child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
   child.stderr.on('data', (chunk: Buffer) => errors.push(chunk));
 

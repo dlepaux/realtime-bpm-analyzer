@@ -1,4 +1,5 @@
 {
   "packages/realtime-bpm-analyzer": "5.4.0",
-  "packages/cli": "0.0.0"
+  "packages/cli": "0.0.0",
+  "packages/mcp": "0.0.0"
 }

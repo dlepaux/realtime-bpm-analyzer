@@ -13,7 +13,7 @@
     "ip-address": "^10.7.4",
     "qs": "^6.16.1",
     "esbuild": "^0.28.2",
-    "postcss": "^8.5.29",
+    "postcss": "^8.5.31",
     "markdown-it": "^15.0.3",
     "js-cookie": "^3.0.8",
     "vitepress": {

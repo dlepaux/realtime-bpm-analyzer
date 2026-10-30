@@ -48,11 +48,13 @@ Then ask, for example: "What's the BPM of ~/Music/set/track.mp3?" or "Sort the t
   `FFMPEG_PATH` in the server's `env` to point at a binary that is not on the `PATH`).
 - Tempos are folded into `min_bpm`..`max_bpm` (default 90 to 180).
 - Paths are absolute, start with `~`, or are relative to the server's working directory.
-- Limits: files over 100 MB are refused. `analyze_folder` analyses 50 files per call and
+- Limits: files over 100 MB are refused (the whole file is decoded in memory, so hours of
+  low-bitrate audio can still need gigabytes). `analyze_folder` analyses 50 files per call and
   returns a `next_offset` for the next 50; a recursive walk goes 16 levels deep and reads at
   most 10,000 folder entries.
 - Only files with an audio extension are read. In a folder, a symbolic link to another
-  folder is not followed, and a link to a file outside the folder is refused.
+  folder is not followed, and a link to a file outside the folder is refused. These checks
+  prevent surprises; they are not a sandbox: the server reads what your account can read.
 
 Documentation: [realtime-bpm-analyzer.com/guide/mcp](https://www.realtime-bpm-analyzer.com/guide/mcp).
 The command-line tool with the same engine is

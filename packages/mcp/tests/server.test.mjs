@@ -19,12 +19,13 @@ const megabyte = 1024 * 1024;
 /**
  * Starts the server as a child process and connects a client to it.
  * @param {string} cwd Working directory of the server, for relative paths
+ * @param {string} [home] Home folder of the server, for ~ paths
  * @returns {Promise<Client>}
  */
-async function connect(cwd) {
+async function connect(cwd, home = process.env.HOME ?? '') {
   const client = new Client({name: 'realtime-bpm-analyzer-mcp-test', version: '0.0.0'});
   // A missing ffmpeg, so M4A fails the same way on every machine
-  const env = {PATH: process.env.PATH ?? '', FFMPEG_PATH: '/nonexistent/ffmpeg'};
+  const env = {PATH: process.env.PATH ?? '', HOME: home, FFMPEG_PATH: '/nonexistent/ffmpeg'};
   await client.connect(new StdioClientTransport({command: process.execPath, args: [server], cwd, env, stderr: 'pipe'}));
   return client;
 }
@@ -111,6 +112,17 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     assert.deepEqual(JSON.parse(text(result)), output);
   });
 
+  it('expands ~ to the home folder', async () => {
+    const homeClient = await connect(scratch, fixtures);
+    try {
+      const result = await homeClient.callTool({name: 'analyze_file', arguments: {path: '~/click-100.flac'}});
+      assert.equal(result.structuredContent.file, fixture('click-100.flac'));
+      near(result.structuredContent.bpm, 100);
+    } finally {
+      await homeClient.close();
+    }
+  });
+
   it('folds the tempo into min_bpm..max_bpm', async () => {
     const result = await client.callTool({name: 'analyze_file', arguments: {path: fixture('click-128.mp3'), min_bpm: 50, max_bpm: 100}});
     near(result.structuredContent.bpm, 64);
@@ -174,8 +186,11 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
       await writeFile(join(folder, 'b-broken.mp3'), 'not audio');
       await writeFile(join(folder, 'notes.txt'), 'not picked: no audio extension');
       await copyFile(fixture('click-100.flac'), join(folder, 'sub', 'c.flac'));
-      // Inside the folder, followed. Outside, refused. A folder link, never followed.
+      // Inside the folder, followed (even with a name starting with ..). Outside, refused.
+      // A folder link, never followed, even when its name looks like audio.
       await symlink(join(folder, 'a.mp3'), join(folder, 'd-inside-link.mp3'));
+      await symlink(join(folder, 'a.mp3'), join(folder, '..dots.mp3'));
+      await symlink(fixtures, join(folder, 'h-folder-link.mp3'));
       await symlink(fixture('click-140.ogg'), join(folder, 'e-outside-link.ogg'));
       await symlink(fixtures, join(folder, 'f-folder-link'));
       const big = await open(join(folder, 'g-big.wav'), 'w');
@@ -187,15 +202,16 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
       const result = await client.callTool({name: 'analyze_folder', arguments: {directory: folder}});
       const {results} = result.structuredContent;
       assert.deepEqual(results.map(entry => [entry.file.slice(folder.length + 1), entry.ok]), [
+        ['..dots.mp3', true],
         ['a.mp3', true],
         ['b-broken.mp3', false],
         ['d-inside-link.mp3', true],
         ['e-outside-link.ogg', false],
         ['g-big.wav', false],
       ]);
-      near(results[0].bpm, 128);
-      assert.match(results[3].error, /outside the folder/);
-      assert.match(results[4].error, /over the 100 MB limit/);
+      near(results[1].bpm, 128);
+      assert.match(results[4].error, /outside the folder/);
+      assert.match(results[5].error, /over the 100 MB limit/);
       for (const entry of results) {
         assert.doesNotMatch(entry.error ?? '', /\n/);
       }
@@ -205,7 +221,7 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
       const result = await client.callTool({name: 'analyze_folder', arguments: {directory: folder, recursive: true}});
       const sub = result.structuredContent.results.find(entry => entry.file === join(folder, 'sub', 'c.flac'));
       near(sub.bpm, 100);
-      assert.equal(result.structuredContent.results.length, 6, 'the folder link is not followed');
+      assert.equal(result.structuredContent.results.length, 7, 'the folder links are not followed');
     });
 
     it('caps a call at 50 files and pages through the rest with offset', async () => {
@@ -237,12 +253,17 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
       assert.equal(structuredContent.total, 1);
     });
 
-    it('refuses a missing folder, a file, and a folder without audio', async () => {
+    it('refuses a missing folder and a file', async () => {
       assert.match(await toolError(client, 'analyze_folder', {directory: join(scratch, 'nope')}), /^No such file or folder/);
       assert.match(await toolError(client, 'analyze_folder', {directory: fixture('click-128.mp3')}), /^Not a folder/);
+    });
+
+    it('answers a folder without audio with no results, not an error', async () => {
       const empty = join(scratch, 'empty');
       await mkdir(join(empty, 'deeper'), {recursive: true});
-      assert.match(await toolError(client, 'analyze_folder', {directory: empty}), /No audio files found.*set recursive/);
+      const result = await client.callTool({name: 'analyze_folder', arguments: {directory: empty}});
+      assert.equal(result.isError, undefined);
+      assert.deepEqual(result.structuredContent, {directory: empty, results: [], total: 0, next_offset: null, scan_truncated: false});
     });
   });
 });

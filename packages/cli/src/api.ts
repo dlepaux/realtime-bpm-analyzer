@@ -28,9 +28,11 @@ export type AnalyzeOptions = {
   readonly tempoRange?: TempoRange;
   /** ffmpeg binary for formats without a bundled decoder (default `ffmpeg` on PATH) */
   readonly ffmpegPath?: string;
+  /** Stops an ffmpeg decode in progress (the bundled decoders run to the end) */
+  readonly signal?: AbortSignal;
 };
 
-/** Extensions folder mode picks; a file named on the command line is always tried */
+/** Extensions of the audio files this package reads by name: the CLI's folder mode picks files by them */
 export const audioExtensions: ReadonlySet<string> = new Set([
   '.mp3', '.wav', '.wave', '.flac', '.ogg', '.oga', '.opus', '.m4a', '.aac', '.aif', '.aiff', '.wma',
 ]);
@@ -54,12 +56,12 @@ function successResult(file: string, candidates: readonly Tempo[]): FileResult {
  * Decodes and analyses one file. Never throws: a file that cannot be read or decoded
  * comes back as `ok: false` with a one-line message, so a batch keeps going.
  * @param path File to analyse, reported as given
- * @param options Tempo range and ffmpeg binary
+ * @param options Tempo range, ffmpeg binary and abort signal
  * @returns The result
  */
 export async function analyzeFile(path: string, options: AnalyzeOptions = {}): Promise<FileResult> {
   try {
-    const {channelData, sampleRate} = await decodeFile(path, options.ffmpegPath ?? 'ffmpeg');
+    const {channelData, sampleRate} = await decodeFile(path, options.ffmpegPath ?? 'ffmpeg', options.signal);
     return successResult(path, await analyzeChannelData(channelData, sampleRate, {tempoRange: options.tempoRange}));
   } catch (error: unknown) {
     return {file: path, ok: false, error: errorMessage(error)};

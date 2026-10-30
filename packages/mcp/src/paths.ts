@@ -1,8 +1,9 @@
 /// <reference types="node" />
 
-import {readdir, realpath, stat} from 'node:fs/promises';
+import type {Dirent} from 'node:fs';
+import {opendir, realpath, stat} from 'node:fs/promises';
 import {homedir} from 'node:os';
-import {extname, isAbsolute, join, relative, resolve} from 'node:path';
+import {extname, isAbsolute, join, relative, resolve, sep} from 'node:path';
 import {audioExtensions} from 'realtime-bpm-analyzer-cli';
 
 // The server reads the user's disk on a model's request, so every path is checked here
@@ -39,7 +40,9 @@ const megabytes = (bytes: number) => `${Math.round(bytes / (1024 * 1024))} MB`;
  * @returns The absolute path, the one results report
  */
 export function absolutePath(raw: string): string {
-  const expanded = raw === '~' ? homedir() : (raw.startsWith('~/') ? join(homedir(), raw.slice(2)) : raw);
+  // `~\` too on Windows, where sep is a backslash
+  const home = raw === '~' || raw.startsWith('~/') || raw.startsWith(`~${sep}`);
+  const expanded = home ? join(homedir(), raw.slice(1)) : raw;
   return resolve(expanded);
 }
 
@@ -144,21 +147,18 @@ export async function listFolder(folder: string, recursive: boolean): Promise<Fo
   let truncated = false;
 
   for (let current = pending.pop(); current !== undefined; current = pending.pop()) {
-    let names;
+    let names: Dirent[];
     try {
-      // Sorted, so which entries a truncated walk reads does not depend on the filesystem
-      names = (await readdir(current.path, {withFileTypes: true})).sort((a, b) => (a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)));
+      names = await readEntries(current.path, limits.maxFolderEntries - entriesRead);
     } catch (error: unknown) {
       found.push({kind: 'error', path: current.path, error: plainError(error, current.path)});
       continue;
     }
 
-    if (entriesRead + names.length > limits.maxFolderEntries) {
-      names = names.slice(0, limits.maxFolderEntries - entriesRead);
-      truncated = true;
-    }
-
     entriesRead += names.length;
+    truncated = entriesRead >= limits.maxFolderEntries;
+    // Sorted, so the order of the files found does not depend on the filesystem
+    names.sort((a, b) => (a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)));
     for (const entry of names) {
       const path = join(current.path, entry.name);
       if (entry.isDirectory()) {
@@ -184,6 +184,26 @@ export async function listFolder(folder: string, recursive: boolean): Promise<Fo
 }
 
 /**
+ * Reads a folder's entries one at a time, so a huge folder costs no more than the budget.
+ * @param folder Folder to read
+ * @param budget Most entries to read
+ * @returns Up to budget entries, in the filesystem's order
+ */
+async function readEntries(folder: string, budget: number): Promise<Dirent[]> {
+  const entries: Dirent[] = [];
+  const handle = await opendir(folder);
+  try {
+    for (let entry = await handle.read(); entry !== null && entries.length < budget; entry = await handle.read()) {
+      entries.push(entry);
+    }
+  } finally {
+    await handle.close();
+  }
+
+  return entries;
+}
+
+/**
  * @param path Audio entry found in the walk
  * @param root Real path of the folder walked
  * @param isLink Whether the entry is a symbolic link
@@ -191,16 +211,16 @@ export async function listFolder(folder: string, recursive: boolean): Promise<Fo
  */
 async function checkFolderFile(path: string, root: string, isLink: boolean): Promise<FolderEntry | undefined> {
   try {
-    if (isLink) {
-      const fromRoot = relative(root, await realpath(path));
-      if (fromRoot === '' || fromRoot.startsWith('..') || isAbsolute(fromRoot)) {
-        return {kind: 'error', path, error: `Skipped: a symbolic link to a file outside the folder: ${path}`};
-      }
-    }
-
     const info = await stat(path);
     if (!info.isFile()) {
       return undefined;
+    }
+
+    if (isLink) {
+      const fromRoot = relative(root, await realpath(path));
+      if (fromRoot === '..' || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
+        return {kind: 'error', path, error: `Skipped: a symbolic link to a file outside the folder: ${path}`};
+      }
     }
 
     const refused = sizeError(info.size, path);

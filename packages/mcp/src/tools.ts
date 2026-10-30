@@ -111,7 +111,8 @@ export function createServer(version: string): McpServer {
       + `Analyses at most ${limits.maxFolderFiles} files per call: when next_offset is not null, call again with offset set to it for the next files. `
       + `With recursive, walks sub-folders up to ${limits.maxDepth} levels deep and reads at most ${limits.maxFolderEntries} folder entries. `
       + 'Symbolic links to folders are not followed, and a link to a file outside the folder is refused. '
-      + `A file that cannot be read or decoded, or is over ${sizeLimit}, is reported with its error and does not stop the others. ${privacy}`,
+      + `A file that cannot be read or decoded, or is over ${sizeLimit}, is reported with its error and does not stop the others. `
+      + `A folder without audio files returns no results, not an error. ${privacy}`,
     inputSchema: z.strictObject({
       directory: path.describe('Path of the folder. Absolute, or starting with ~ for the home folder.'),
       recursive: z.boolean().optional().describe('Also analyse sub-folders (default false)'),
@@ -123,7 +124,11 @@ export function createServer(version: string): McpServer {
       directory: z.string().describe('Absolute path of the folder'),
       results: z.array(z.discriminatedUnion('ok', [
         z.object({...analysis, ok: z.literal(true)}),
-        z.object({file: z.string(), ok: z.literal(false), error: z.string().describe('Why this file was not analysed')}),
+        z.object({
+          file: z.string().describe('Absolute path of the file, or of a sub-folder that could not be read'),
+          ok: z.literal(false),
+          error: z.string().describe('Why it was not analysed'),
+        }),
       ])).describe('One result per file, in path order'),
       total: z.number().describe('Audio files found in the folder, analysed or not by this call'),
       next_offset: z.number().nullable().describe('offset for the next call, or null when this call reached the last file'),
@@ -142,21 +147,23 @@ export function createServer(version: string): McpServer {
       return toolError(folder.error);
     }
 
-    if (folder.entries.length === 0) {
-      return toolError(`No audio files found in ${directory}${recursive ? '' : ' (its sub-folders were not searched: set recursive)'}.`);
-    }
-
-    if (offset >= folder.entries.length) {
+    if (offset > 0 && offset >= folder.entries.length) {
       return toolError(`offset ${offset} is past the last file: the folder has ${folder.entries.length}.`);
     }
 
     const page = folder.entries.slice(offset, offset + limits.maxFolderFiles);
+    const {signal} = ctx.mcpReq;
     const progressToken = ctx.mcpReq._meta?.progressToken;
     const results: FileResult[] = [];
     for (const entry of page) {
+      // The client cancelled: nobody reads the result, so stop decoding
+      if (signal.aborted) {
+        return toolError('Cancelled.');
+      }
+
       results.push(entry.kind === 'error'
         ? {file: entry.path, ok: false, error: entry.error}
-        : clean(await analyzeFile(entry.path, {tempoRange: range, ffmpegPath: ffmpegPath()})));
+        : clean(await analyzeFile(entry.path, {tempoRange: range, ffmpegPath: ffmpegPath(), signal})));
 
       // Long batches outlast a client's default request timeout unless it hears progress
       if (progressToken !== undefined) {

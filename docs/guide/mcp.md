@@ -86,14 +86,20 @@ found. A file that cannot be analysed returns a tool error with a one-line reaso
 ```
 
 Files are analysed one at a time, in path order. A file that fails carries its
-`error`, and the others go on.
+`error`, and the others go on. A folder without audio files returns an empty
+`results`, not an error.
 
 ## Limits and safety
 
-The server reads files on an assistant's request, so it checks every path first:
+The server reads files on an assistant's request, so it checks every path first.
+These checks prevent surprises; they are not a sandbox. `analyze_file` reads any
+audio file your user account can read, as the command-line tool would.
+
 
 - Only files with an audio extension are read, and only regular files.
-- Files over 100 MB are refused: each file is decoded whole in memory.
+- Files over 100 MB are refused: each file is decoded whole in memory. The cap
+  bounds the file, not the decoded audio, so a file holding hours of audio at a
+  low bitrate can still need several gigabytes.
 - `analyze_folder` analyses at most 50 files per call, about 3 seconds each, so a call
   ends before the client gives up. `next_offset` pages through the rest.
 - A recursive walk goes at most 16 levels deep and reads at most 10,000 folder
@@ -102,6 +108,7 @@ The server reads files on an assistant's request, so it checks every path first:
   symbolic link to a file outside the folder is refused, so a walk stays inside the
   folder you named.
 - Errors come back as one plain line, never a stack trace.
+- A cancelled `analyze_folder` call stops before the next file, and stops ffmpeg.
 
 ## Formats
 

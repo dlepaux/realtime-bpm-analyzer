@@ -79,6 +79,17 @@ console.log(tempos[0]?.tempo);
 
 See the [Node.js guide](https://www.realtime-bpm-analyzer.com/guide/node).
 
+### Command line
+
+A separate package, [`realtime-bpm-analyzer-cli`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/packages/cli#readme), detects the BPM of audio files from a terminal, so this library stays dependency-free:
+
+```bash
+npx realtime-bpm-analyzer-cli song.mp3        # 128 BPM (confidence 0.46) and the top candidates
+npx realtime-bpm-analyzer-cli --json ./music  # every audio file of a folder, as JSON
+```
+
+See the [command-line guide](https://www.realtime-bpm-analyzer.com/guide/cli).
+
 ## Documentation
 
 **📖 [Full Documentation](https://www.realtime-bpm-analyzer.com)** - Complete guides, API reference, and tutorials

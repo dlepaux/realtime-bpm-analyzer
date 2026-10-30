@@ -390,6 +390,7 @@ export default defineConfig({
             { text: 'Browser Compatibility', link: '/guide/browser-compatibility' },
             { text: 'Strict CSP and Browser Extensions', link: '/guide/strict-csp' },
             { text: 'BPM Detection in Node.js', link: '/guide/node' },
+            { text: 'BPM Detection from the Command Line', link: '/guide/cli' },
             { text: 'Migration Guide (v4 → v5)', link: '/guide/migration-v5' }
           ]
         }

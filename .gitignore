@@ -13,6 +13,7 @@ packages/realtime-bpm-analyzer/src/generated-processor.ts
 # Copied in from the repo root by the library's prepack script, removed by postpack
 packages/realtime-bpm-analyzer/readme.md
 packages/realtime-bpm-analyzer/license.md
+packages/cli/license.md
 
 # VitePress documentation build output
 docs/.vitepress/dist

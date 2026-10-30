@@ -49,6 +49,7 @@ reproduce it exactly, or a mono downmix of your own.
 The entry point takes samples, not files, so you choose the decoder. A WAV reader,
 an ffmpeg pipe (`-f f32le -ac 1`) or any package that returns a `Float32Array`
 works. Keep the file's sample rate, or pass the rate you resampled to.
+To analyse files without writing any code, use the [command line](./cli).
 
 ## Options
 

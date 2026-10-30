@@ -1,7 +1,7 @@
 import {expect} from 'chai';
 import {createClickTrack, createNoise} from '../../fixtures/click-track';
 import {createTempogramDetector, detectTempogram} from '../../../src/core/tempogram';
-import type {TempogramReading} from '../../../src/core/tempogram';
+import type {TempogramReading, TempogramTuning} from '../../../src/core/tempogram';
 
 const sampleRate = 44_100;
 
@@ -28,8 +28,8 @@ function createBrightClicks(bpm: number, seconds: number, gain = 1, rate = sampl
 /**
  * Feeds audio chunk by chunk, as the analyzer does
  */
-function feed(pcm: Float32Array, rate = sampleRate) {
-  const detector = createTempogramDetector({sampleRate: rate});
+function feed(pcm: Float32Array, rate = sampleRate, tuning?: Partial<TempogramTuning>) {
+  const detector = createTempogramDetector({sampleRate: rate, tuning});
   const readings: Array<TempogramReading & {at: number}> = [];
 
   for (let start = 0; start + 4096 <= pcm.length; start += 4096) {
@@ -139,6 +139,25 @@ describe('tempogram detector', () => {
     const top = feed(pcm).at(-1)!.candidates[0];
 
     expect(Math.abs(top.tempo - 140)).to.be.lessThan(3);
+  });
+
+  it('counts pulses between the beats against a too-slow tempo', () => {
+    const loud = createBrightClicks(60, 24);
+    const soft = createBrightClicks(60, 24, 0.5);
+    const pcm = new Float32Array(loud.length);
+
+    pcm.set(loud);
+
+    for (let i = 0; i + 22_050 < pcm.length; i += 1) {
+      pcm[i + 22_050] += soft[i];
+    }
+
+    const slowPrior = {priorBpm: 60, priorOctaves: 0.8};
+    const plain = feed(pcm, sampleRate, slowPrior).at(-1)!.candidates[0];
+    const penalised = feed(pcm, sampleRate, {...slowPrior, halfBeatPenalty: 1}).at(-1)!.candidates[0];
+
+    expect(Math.abs(plain.tempo - 60)).to.be.lessThan(2);
+    expect(Math.abs(penalised.tempo - 120)).to.be.lessThan(3);
   });
 
   it('calls a steady tempo stable once, and only after the agreement window', () => {

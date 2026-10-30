@@ -12,6 +12,7 @@ import {Worker, isMainThread, parentPort, workerData} from 'node:worker_threads'
 import {applyLowpass} from '../src/core/lowpass';
 import {detectTempo} from '../src/core/detect-tempo';
 import {resolveTempoRange} from '../src/core/tempo';
+import {detectTempogram} from '../src/core/tempogram';
 import {loaders} from './lib/datasets';
 import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate} from './lib/decode';
@@ -34,7 +35,9 @@ async function runJob({detector, track, tuning}: Job): Promise<TrackResult> {
     return result;
   }
 
-  const offline = await detectTempo(pcm, sampleRate, resolveTempoRange()).catch(() => []);
+  const offline = config.options.detector === 'tempogram'
+    ? detectTempogram(pcm, sampleRate)
+    : await detectTempo(pcm, sampleRate, resolveTempoRange()).catch(() => []);
 
   return {...result, offline: offline[0]?.tempo ?? null};
 }

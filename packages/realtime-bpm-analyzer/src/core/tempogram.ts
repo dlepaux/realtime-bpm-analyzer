@@ -32,6 +32,10 @@ export type TempogramTuning = {
   readonly combBeats: number;
   /** Half-life of the tempo accumulator, in seconds: lower follows a tempo change sooner */
   readonly halfLifeSeconds: number;
+  /** How much pulses halfway between a tempo's beats count against it: those beats are too slow */
+  readonly halfBeatPenalty: number;
+  /** The same for pulses a third of the way through its beats */
+  readonly thirdBeatPenalty: number;
   /** Centre of the tempo prior, in BPM */
   readonly priorBpm: number;
   /** Width of the tempo prior, in octaves */
@@ -60,6 +64,8 @@ export const defaultTempogramTuning: TempogramTuning = {
   updateSeconds: 0.5,
   combBeats: 4,
   halfLifeSeconds: 16,
+  halfBeatPenalty: 0,
+  thirdBeatPenalty: 0,
   priorBpm: 136,
   priorOctaves: 0.8,
   stableSeconds: 8,
@@ -370,6 +376,12 @@ export function createTempogramDetector({
     return frames >= warmupFrames && (frames - warmupFrames) % updateFrames === 0 ? tempogramFrame() : null;
   }
 
+  function correlationAt(lag: number): number {
+    const low = Math.floor(lag);
+
+    return autocorrelation[low] + ((lag - low) * (autocorrelation[low + 1] - autocorrelation[low]));
+  }
+
   /** Fills `salience` from the latest window, returns false when nothing pulses in it */
   function computeSalience(): boolean {
     const length = Math.min(frames, windowFrames);
@@ -418,14 +430,15 @@ export function createTempogramDetector({
           break;
         }
 
-        const low = Math.floor(lag);
-        const fraction = lag - low;
-
-        sum += autocorrelation[low] + (fraction * (autocorrelation[low + 1] - autocorrelation[low]));
+        sum += correlationAt(lag);
         weight += 1;
       }
 
-      salience[i] = weight > 0 ? sum / (weight * energy) : 0;
+      const comb = weight > 0 ? sum / (weight * energy) : 0;
+      const beat = lags[i * harmonics];
+      const between = (tuning.halfBeatPenalty * correlationAt(beat / 2)) + (tuning.thirdBeatPenalty * correlationAt(beat / 3));
+
+      salience[i] = comb - ((between > 0 ? between : 0) / energy);
     }
 
     return true;

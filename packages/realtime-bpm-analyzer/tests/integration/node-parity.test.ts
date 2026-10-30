@@ -132,6 +132,7 @@ describe('Node entry parity with Web Audio', () => {
     }
 
     it('returns the tempogram candidates analyzeFullBuffer returns', async () => {
+      const sampleRate = 44_100;
       const samples = createClickTrack(128, sampleRate);
       const options = {detector: 'tempogram'} as const;
       const browser = await analyzeFullBuffer(audioBufferFrom(samples, sampleRate), options);

@@ -47,8 +47,12 @@ const fmaPauseMs = 200;
 const iaSubjects = [
   'drum and bass', 'drum & bass', 'drum n bass', 'dnb', 'jungle', 'breakcore', 'gabber', 'hardcore techno', 'speedcore',
   'happy hardcore', 'hardstyle', 'neurofunk', 'footwork', 'juke', 'dubstep', 'hard trance', 'psytrance', 'trance',
-  'techno', 'breakbeat', 'punk', 'thrash', 'grindcore', 'electronic',
+  'techno', 'breakbeat',
 ];
+// Metadata costs 3.5 s an item here. These hold about 6,600 items and would add more than six hours of
+// holding the one writer lock: rock cannot meet the target, and this tag says nothing about tempo.
+// FMA's rock and electronic stay. The report states the omission, as a count here is not all there is.
+const iaSubjectsLeftOut = ['punk', 'thrash', 'grindcore', 'electronic'];
 
 const sleep = (ms: number) => new Promise(resolve => { setTimeout(resolve, ms); });
 
@@ -222,6 +226,8 @@ async function iaCandidates(root: string): Promise<Parsed[]> {
     found.forEach(identifier => { identifiers.add(identifier); });
     log(`internet archive, ${subject}: ${found.length} permissive items, ${identifiers.size} in all`);
   }
+
+  recordStop(root, `internet archive: subjects left out to save time, more items exist: ${iaSubjectsLeftOut.join(', ')}`);
 
   let refusals = 0;
 

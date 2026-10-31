@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {errorProfile, isCorrect, isOctaveCorrect, summarize} from '../../../benchmark/lib/metrics';
+import {bandCounts, errorProfile, isCorrect, isOctaveCorrect, summarize} from '../../../benchmark/lib/metrics';
 import type {TrackResult} from '../../../benchmark/lib/types';
 
 function result(overrides: Partial<TrackResult>): TrackResult {
@@ -77,5 +77,17 @@ describe('benchmark metrics', () => {
   it('reports offline accuracy only when every track has it', () => {
     expect(summarize([result({})]).offlineAcc1).to.equal(undefined);
     expect(summarize([result({offline: 100}), result({offline: null})]).offlineAcc1).to.equal(0.5);
+  });
+});
+
+describe('bandCounts', () => {
+  it('sorts tracks by labelled tempo, a band holding its low edge and not its high one', () => {
+    const counts = bandCounts([
+      result({truth: 140, final: 140}), result({truth: 164.9, final: 82}), result({truth: 165, final: 165}), result({truth: 290, final: null}),
+    ]);
+
+    expect(counts['140-165']).to.deep.equal({tracks: 2, correct: 1});
+    expect(counts['165+']).to.deep.equal({tracks: 2, correct: 1});
+    expect(counts['120-140']).to.deep.equal({tracks: 0, correct: 0});
   });
 });

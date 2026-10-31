@@ -3,6 +3,7 @@
 //   tune.mjs --cache <dir> --build [--tuning json]    caches the curves of the dev split
 //   tune.mjs --cache <dir> <tuning json>...           replays each tuning, printing its metrics
 //   tune.mjs --cache <dir> --sweep <plan> --out <dir> replays a plan into sweep.jsonl, resuming it
+// A plan names the tempo ranges to search: every tuning is replayed on each of them.
 // Replay timing is within one chunk of the real path. Reported numbers come from run.ts, not this.
 import {appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
@@ -11,16 +12,17 @@ import {parseArgs} from 'node:util';
 import {Worker, isMainThread, parentPort, workerData} from 'node:worker_threads';
 import {createTempogramDetector, defaultTempogramTuning} from '../src/core/tempogram';
 import type {TempogramTuning} from '../src/core/tempogram';
+import type {TempoRange} from '../src/core/types';
 import {loaders} from './lib/datasets';
 import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate, writeAtomic} from './lib/decode';
-import {errorProfile, isCorrect, summarize} from './lib/metrics';
-import {assertReplayable, bestRow, parseRows, scoreOf, stageTunings, tuningKey} from './lib/sweep';
+import {bandCounts, errorProfile, isCorrect, summarize} from './lib/metrics';
+import {assertReplayable, bestRow, guardShortfalls, parseRows, rowKey, scoreOf, stageTunings} from './lib/sweep';
 import type {SetMetrics, SweepRow, SweepStage} from './lib/sweep';
 import {workerCount} from './lib/workers';
 import type {Track, TrackResult} from './lib/types';
 
-type Job = {track: Track; cache: string; build: boolean; tuning: Partial<TempogramTuning>};
+type Job = {track: Track; cache: string; build: boolean; tuning: Partial<TempogramTuning>; tempoRange?: TempoRange};
 
 const framePeriod = 0.01;
 
@@ -38,10 +40,10 @@ function buildCurve(job: Job): void {
   writeAtomic(path, new Uint8Array(curve.buffer));
 }
 
-function replay({track, cache, tuning}: Job): TrackResult {
+function replay({track, cache, tuning, tempoRange}: Job): TrackResult {
   const bytes = readFileSync(join(cache, `${track.set}-${track.id}.f32`));
   const curve = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
-  const detector = createTempogramDetector({sampleRate, tuning});
+  const detector = createTempogramDetector({sampleRate, tempoRange, tuning});
   let final: number | null = null;
   let firstReadingAt: number | null = null;
   let firstCorrectAt: number | null = null;
@@ -110,19 +112,20 @@ function metricsOf(results: readonly TrackResult[]): SetMetrics {
   return {acc1: s.acc1, acc2: s.acc2, falseStable: s.falseStable, coverage: s.stableCoverage};
 }
 
-async function replayRow(stage: string, tuning: SweepRow['tuning'], tracks: Track[], cache: string): Promise<SweepRow> {
-  const results = await pool(tracks.map(track => ({track, cache, build: false, tuning})));
+async function replayRow(stage: string, tuning: SweepRow['tuning'], tempoRange: TempoRange, tracks: Track[], cache: string): Promise<SweepRow> {
+  const results = await pool(tracks.map(track => ({track, cache, build: false, tuning, tempoRange})));
   const sets = Object.fromEntries([...new Set(tracks.map(track => track.set))].map(set => [set, metricsOf(results.filter(r => r.set === set))]));
 
-  return {stage, key: tuningKey(tuning), tuning, sets, score: scoreOf(sets)};
+  return {stage, key: rowKey(tuning, tempoRange), tuning, tempoRange, sets, bands: bandCounts(results), score: scoreOf(sets)};
 }
 
 /** One line per finished tuning, so a kill loses at most the replay it interrupted */
 async function sweep(tracks: Track[], cache: string, planPath: string, out: string): Promise<void> {
-  const {stages} = JSON.parse(readFileSync(planPath, 'utf8')) as {stages: SweepStage[]};
+  const {stages, ranges} = JSON.parse(readFileSync(planPath, 'utf8')) as {stages: SweepStage[]; ranges: TempoRange[]};
   const logPath = join(out, 'sweep.jsonl');
   const text = existsSync(logPath) ? readFileSync(logPath, 'utf8') : '';
   const rows = parseRows(text);
+  const finished = new Set(rows.map(row => row.key));
   let planned = 0;
 
   assertReplayable(stages, Object.keys(defaultTempogramTuning));
@@ -136,21 +139,24 @@ async function sweep(tracks: Track[], cache: string, planPath: string, out: stri
     const earlier = rows.filter(row => stages.findIndex(s => s.name === row.stage) < stages.indexOf(stage));
 
     for (const tuning of stageTunings(stage, earlier)) {
-      planned += 1;
+      for (const range of ranges) {
+        planned += 1;
 
-      if (!rows.some(row => row.key === tuningKey(tuning))) {
-        const row = await replayRow(stage.name, tuning, tracks, cache);
+        if (!finished.has(rowKey(tuning, range))) {
+          const row = await replayRow(stage.name, tuning, range, tracks, cache);
 
-        appendFileSync(logPath, `${JSON.stringify(row)}\n`);
-        rows.push(row);
-        console.log(`${stage.name} ${planned}: score ${row.score.toFixed(1)} ${row.key}`);
+          appendFileSync(logPath, `${JSON.stringify(row)}\n`);
+          rows.push(row);
+          finished.add(row.key);
+          console.log(`${stage.name} ${planned}: score ${row.score.toFixed(1)} ${row.key}`);
+        }
       }
     }
   }
 
   const top = [...rows].sort((a, b) => b.score - a.score).slice(0, 20);
 
-  writeFileSync(join(out, 'sweep-report.json'), `${JSON.stringify({planned, done: rows.length, tracks: tracks.length, best: bestRow(rows), top}, null, 2)}\n`);
+  writeFileSync(join(out, 'sweep-report.json'), `${JSON.stringify({planned, done: rows.length, tracks: tracks.length, best: bestRow(rows), passing: rows.filter(row => guardShortfalls(row.bands).length === 0).length, top}, null, 2)}\n`);
 }
 
 async function main(): Promise<void> {

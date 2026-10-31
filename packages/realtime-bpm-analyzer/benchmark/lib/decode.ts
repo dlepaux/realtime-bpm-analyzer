@@ -3,6 +3,7 @@ import {existsSync, mkdirSync, readFileSync, renameSync, writeFileSync} from 'no
 import {dirname, join} from 'node:path';
 import {threadId} from 'node:worker_threads';
 import {dataRoot} from './datasets';
+import {assertDecoded} from './look';
 import {repeatTo} from './stream';
 import type {Track} from './types';
 
@@ -31,14 +32,11 @@ export function decode(track: Track): Float32Array {
   const cachePath = join(dataRoot, 'pcm', track.set, `${track.id}.f32`);
 
   if (!existsSync(cachePath)) {
-    const {status, stdout} = spawnSync('ffmpeg', [
+    const {status, stdout, stderr} = spawnSync('ffmpeg', [
       '-v', 'error', '-i', track.audioPath, '-af', 'pan=mono|c0=c0', '-ar', String(sampleRate), '-f', 'f32le', 'pipe:1',
     ], {maxBuffer: 2 ** 30});
 
-    if (status !== 0 || stdout.length === 0) {
-      throw new Error(`ffmpeg could not decode ${track.audioPath}`);
-    }
-
+    assertDecoded(track.audioPath, status, stdout.length, stderr.toString());
     mkdirSync(dirname(cachePath), {recursive: true});
     writeAtomic(cachePath, stdout);
   }

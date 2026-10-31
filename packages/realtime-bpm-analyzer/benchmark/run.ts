@@ -18,7 +18,8 @@ import {loaders} from './lib/datasets';
 import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate, writeAtomic} from './lib/decode';
 import {detectors} from './lib/detectors';
-import {lookHeader, progressRows, resumesLook} from './lib/look';
+import {UndecodableTrack, lookHeader, progressRows, refusalOf, resumesLook, skippedTracks} from './lib/look';
+import type {RunFailure} from './lib/look';
 import {listen} from './lib/stream';
 import {workerCount} from './lib/workers';
 import type {TempogramTuning} from '../src/core/tempogram';
@@ -90,7 +91,7 @@ function assertArguments(names: string[], sets: string[], out: string | undefine
   }
 }
 
-async function runAll(jobs: Job[], onDone: (result: TrackResult, detector: string) => void): Promise<void> {
+async function runAll(jobs: Job[], onDone: (result: TrackResult, detector: string) => void, onFailed: (failure: RunFailure) => void): Promise<void> {
   let next = 0;
   const workers = Array.from({length: workerCount()}, async () => new Promise<void>((resolve, reject) => {
     const worker = new Worker(new URL(import.meta.url), {workerData: true});
@@ -108,9 +109,10 @@ async function runAll(jobs: Job[], onDone: (result: TrackResult, detector: strin
       worker.postMessage(current);
     };
 
-    worker.on('message', (result: TrackResult | {failed: string}) => {
+    worker.on('message', (result: TrackResult | {failed: string; undecodable: boolean}) => {
       if ('failed' in result) {
         console.error(`skipped ${current.track.set}/${current.track.id}: ${result.failed}`);
+        onFailed({set: current.track.set, id: current.track.id, reason: result.failed, undecodable: result.undecodable});
       } else {
         onDone(result, current.detector);
       }
@@ -209,6 +211,7 @@ async function main(): Promise<void> {
   }
 
   let done = 0;
+  const failures: RunFailure[] = [];
 
   await runAll(jobs, (result, detector) => {
     results[detector].push(result);
@@ -221,23 +224,28 @@ async function main(): Promise<void> {
     if (done % 200 === 0) {
       console.error(`${done}/${jobs.length} after ${((Date.now() - start) / 1000).toFixed(0)} s`);
     }
+  }, failure => {
+    failures.push(failure);
   });
 
   for (const list of Object.values(results)) {
     list.sort((a, b) => (a.set + a.id < b.set + b.id ? -1 : 1));
   }
 
+  const refusal = refusalOf(failures);
+  const skipped = skippedTracks(failures);
+
   // With progress kept, a shrunk run stays resumable: a final file would read as a finished look
-  if (values.progress && done < jobs.length) {
-    throw new Error(`${jobs.length - done} of ${jobs.length} runs were skipped: restart to retry them, finished ones are in ${values.progress}`);
+  if (values.progress && refusal) {
+    throw new Error(`${refusal}. ${failures.length} of ${jobs.length} runs failed: restart to retry them, finished ones are in ${values.progress}`);
   }
 
-  writeAtomic(values.out!, Buffer.from(`${JSON.stringify({split, sampleRate, results})}\n`));
-  console.log(`${jobs.length} runs in ${((Date.now() - start) / 1000).toFixed(0)} s`);
+  writeAtomic(values.out!, Buffer.from(`${JSON.stringify({split, sampleRate, results, skipped})}\n`));
+  console.log(`${jobs.length} runs in ${((Date.now() - start) / 1000).toFixed(0)} s, ${skipped.length} tracks skipped as undecodable: ${skipped.map(({set, id}) => `${set}/${id}`).join(', ') || 'none'}`);
 
   // Scores are written anyway, a look cannot be repeated, but a shrunk denominator must not pass quietly
-  if (done < jobs.length) {
-    throw new Error(`${jobs.length - done} of ${jobs.length} runs were skipped: declare them with the scores`);
+  if (refusal) {
+    throw new Error(`${refusal}. ${failures.length} of ${jobs.length} runs failed: declare them with the scores`);
   }
 }
 
@@ -253,7 +261,7 @@ if (isMainThread) {
         parentPort!.postMessage(result);
       },
       (error: unknown) => {
-        parentPort!.postMessage({failed: String(error)});
+        parentPort!.postMessage({failed: String(error), undecodable: error instanceof UndecodableTrack});
       },
     );
   });

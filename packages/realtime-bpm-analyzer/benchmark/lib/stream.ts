@@ -43,7 +43,7 @@ export async function streamPcm(
   const analyzer = new RealTimeBpmAnalyzer(options);
 
   if (tuning) {
-    analyzer.tempogram = createTempogramDetector({sampleRate, tuning});
+    analyzer.tempogram = createTempogramDetector({sampleRate, tempoRange: options.tempoRange, tuning});
   }
 
   const aggregate = chunkAggregator();

@@ -1,6 +1,11 @@
 import {expect} from 'chai';
-import {assertReplayable, bestRow, parseRows, scoreNoise, scoreOf, simplestWithinNoise, stageTunings, tuningKey} from '../../../benchmark/lib/sweep';
+import {assertReplayable, bestRow, fastTempoGuard, guardShortfalls, parseRows, pickWithGuard, priorKnobsOnEdge, rowKey, scoreNoise, scoreOf, simplestWithinNoise, stageTunings, tuningKey} from '../../../benchmark/lib/sweep';
 import type {SetMetrics, SweepRow, SweepStage} from '../../../benchmark/lib/sweep';
+import {bandCounts} from '../../../benchmark/lib/metrics';
+import type {BandCount} from '../../../benchmark/lib/metrics';
+import type {TrackResult} from '../../../benchmark/lib/types';
+
+const share = ({correct, tracks}: BandCount) => correct / tracks;
 
 const metrics = (acc1: number, falseStable: number | null, coverage: number): SetMetrics => ({acc1, acc2: acc1, falseStable, coverage});
 
@@ -105,6 +110,71 @@ describe('benchmark sweep', () => {
 
     it('has no choice without rows', () => {
       expect(simplestWithinNoise([], sizes, base)).to.equal(null);
+    });
+  });
+
+  describe('the fast-tempo guard', () => {
+    const sets = {a: metrics(0.8, 0.2, 0.5)};
+    const sizes = {a: 100};
+    const base = {priorBpm: 136};
+    const bands = (slow: number, fast: number) => ({'140-165': {tracks: 170, correct: slow}, '165+': {tracks: 90, correct: fast}});
+    const guarded = (score: number, tuning: SweepRow['tuning'], counts: SweepRow['bands']): SweepRow => ({...row(score, tuning), sets, bands: counts});
+
+    it('holds what peaks reads on dev, in results/rba-51-dev.json', async () => {
+      const response = await fetch(new URL('../../../benchmark/results/rba-51-dev.json', import.meta.url));
+      const {results} = await response.json() as {results: {peaks: TrackResult[]}};
+
+      expect(fastTempoGuard['140-165']).to.equal(share(bandCounts(results.peaks)['140-165']));
+      expect(fastTempoGuard['165+']).to.equal(share(bandCounts(results.peaks)['165+']));
+    });
+
+    it('passes a tie and fails one track under, on each band alone', () => {
+      expect(guardShortfalls(bands(92, 22))).to.deep.equal([]);
+      expect(guardShortfalls(bands(91, 22))).to.deep.equal(['140-165']);
+      expect(guardShortfalls(bands(92, 21))).to.deep.equal(['165+']);
+    });
+
+    it('fails a row with no count: no evidence is no pass', () => {
+      expect(guardShortfalls(undefined)).to.deep.equal(['140-165', '165+']);
+      expect(guardShortfalls({'140-165': {tracks: 0, correct: 0}, '165+': {tracks: 90, correct: 90}})).to.deep.equal(['140-165']);
+    });
+
+    it('never picks a row under the guard, whatever its score', () => {
+      const chosen = pickWithGuard([guarded(90, {priorBpm: 110}, bands(170, 1)), guarded(50, {priorBpm: 130}, bands(100, 30))], sizes, base);
+
+      expect(chosen?.tuning.priorBpm).to.equal(130);
+    });
+
+    it('takes its noise floor from the best row that passes, not the best row', () => {
+      const chosen = pickWithGuard([
+        guarded(90, {priorBpm: 136}, bands(170, 1)),
+        guarded(50, {priorBpm: 136, combBeats: 2}, bands(100, 30)),
+        guarded(49.9, {priorBpm: 130}, bands(100, 30)),
+      ], sizes, base);
+
+      expect(chosen?.score).to.equal(50);
+    });
+
+    it('has no pick when nothing passes, which means no look', () => {
+      expect(pickWithGuard([guarded(90, {}, bands(0, 0))], sizes, base)).to.equal(null);
+    });
+
+    it('builds the next stage on the best row that passes', () => {
+      const stage: SweepStage = {name: 'two', oneAtATime: true, axes: {combBeats: [2]}};
+      const rows = [guarded(90, {priorBpm: 110}, bands(170, 1)), guarded(50, {priorBpm: 130}, bands(100, 30))];
+
+      expect(stageTunings(stage, rows)).to.deep.equal([{priorBpm: 130, combBeats: 2}]);
+    });
+
+    it('names a prior held at the end of its grid, and only then', () => {
+      const stages = [{name: 'ref', axes: {priorBpm: [136], priorOctaves: [0.8]}}, {name: 'grid', axes: {priorBpm: [80, 120, 170], priorOctaves: [0.4, 1, 2.4]}}];
+
+      expect(priorKnobsOnEdge(row(1, {priorBpm: 120, priorOctaves: 1}), stages)).to.deep.equal([]);
+      expect(priorKnobsOnEdge(row(1, {priorBpm: 170, priorOctaves: 0.4}), stages)).to.deep.equal(['priorBpm', 'priorOctaves']);
+    });
+
+    it('keeps a tuning on two ranges as two rows', () => {
+      expect(rowKey({priorBpm: 120}, {min: 50, max: 240})).to.not.equal(rowKey({priorBpm: 120}, {min: 90, max: 180}));
     });
   });
 });

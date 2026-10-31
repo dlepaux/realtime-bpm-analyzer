@@ -37,6 +37,37 @@ export function errorProfile(results: readonly TrackResult[]): Record<string, nu
   return profile;
 }
 
+/**
+ * Bands of labelled tempo. They overlap on purpose: 140-165 and 165+ are what the guard in
+ * lib/sweep.ts reads, the finer ones show where a loss starts.
+ */
+export const tempoBands: ReadonlyArray<{readonly name: string; readonly min: number; readonly max: number}> = [
+  {name: 'under 120', min: 0, max: 120},
+  {name: '120-140', min: 120, max: 140},
+  {name: '140-150', min: 140, max: 150},
+  {name: '150-156', min: 150, max: 156},
+  {name: '156-165', min: 156, max: 165},
+  {name: '140-165', min: 140, max: 165},
+  {name: '165+', min: 165, max: Number.POSITIVE_INFINITY},
+];
+
+export type BandCount = {readonly tracks: number; readonly correct: number};
+
+/**
+ * @param results One detector's results, over any number of sets
+ * @returns Per band, how many tracks it holds and how many of them were read right
+ */
+export function bandCounts(results: readonly TrackResult[]): Record<string, BandCount> {
+  return Object.fromEntries(tempoBands.map(({name, min, max}) => {
+    const inBand = results.filter(({truth}) => truth >= min && truth < max);
+
+    return [name, {
+      tracks: inBand.length,
+      correct: inBand.filter(({final, truth}) => final !== null && isCorrect(final, truth)).length,
+    }];
+  }));
+}
+
 function share(count: number, total: number): number {
   return total === 0 ? 0 : count / total;
 }

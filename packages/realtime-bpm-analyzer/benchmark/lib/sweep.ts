@@ -1,4 +1,6 @@
 import type {TempogramTuning} from '../../src/core/tempogram';
+import type {TempoRange} from '../../src/core/types';
+import type {BandCount} from './metrics';
 
 type Tuning = Partial<Omit<TempogramTuning, 'bands'>>;
 
@@ -18,7 +20,70 @@ export type SweepRow = {
   readonly tuning: Tuning;
   readonly sets: Readonly<Record<string, SetMetrics>>;
   readonly score: number;
+  /** What the replay searched. Absent on RBA-51's first sweep, which ran the default */
+  readonly tempoRange?: TempoRange;
+  /** Tracks and hits per labelled tempo band, pooled over the sets. Absent on the first sweep */
+  readonly bands?: Readonly<Record<string, BandCount>>;
 };
+
+/**
+ * Acc1 no pick may fall below on fast music: peaks, what the extension's users have today, on the
+ * licence-clean dev tracks, real path, from results/rba-51-dev.json (92 of 170 and 22 of 90).
+ * Written before the second sweep ran, because the first pick lost fast music without any rule able
+ * to see it: 165+ fell from 57.6 to 1.5 on the first look, which is where this rule comes from. Its
+ * values are dev only. A point estimate with no allowance for noise, so a tie passes and a pick
+ * cannot buy score with a loss here, however small.
+ */
+export const fastTempoGuard: Readonly<Record<string, number>> = {'140-165': 92 / 170, '165+': 22 / 90};
+
+/**
+ * @param bands Counts per band, absent when a row has none
+ * @returns The guarded bands under their floor. A band with no count fails: no evidence is no pass
+ */
+export function guardShortfalls(bands: SweepRow['bands']): string[] {
+  return Object.entries(fastTempoGuard).filter(([band, floor]) => {
+    const count = bands?.[band];
+
+    return count === undefined || count.tracks === 0 || count.correct / count.tracks < floor;
+  }).map(([band]) => band);
+}
+
+/**
+ * The rule of the second sweep: the noise rule, over the configurations the guard lets through.
+ * A configuration is a tuning and a range, and the range is no knob, so this picks the range too.
+ * @param rows Rows of a sweep
+ * @param sizes Tracks per set
+ * @param base What the sweep started from
+ * @returns The pick, or null when nothing passes the guard: then there is no look
+ */
+export function pickWithGuard(rows: readonly SweepRow[], sizes: Readonly<Record<string, number>>, base: Readonly<Record<string, unknown>>): SweepRow | null {
+  return simplestWithinNoise(rows.filter(row => guardShortfalls(row.bands).length === 0), sizes, base);
+}
+
+/**
+ * @param row A pick
+ * @param stages The plan
+ * @returns The knobs of the prior a pick holds at the end of its grid: the optimum was not bracketed
+ */
+export function priorKnobsOnEdge(row: SweepRow, stages: readonly SweepStage[]): string[] {
+  const knobs = ['priorBpm', 'priorOctaves'] as const;
+  const grid = stages.find(stage => knobs.every(knob => (stage.axes[knob]?.length ?? 0) > 1));
+
+  return knobs.filter(knob => {
+    const values = grid?.axes[knob] ?? [];
+
+    return row.tuning[knob] === Math.min(...values) || row.tuning[knob] === Math.max(...values);
+  });
+}
+
+/**
+ * @param tuning A tuning
+ * @param range What it searches
+ * @returns The id of that row
+ */
+export function rowKey(tuning: Tuning, range: TempoRange): string {
+  return `${range.min}-${range.max}:${tuningKey(tuning)}`;
+}
 
 /** A curve is computed before these, so a replay would ignore them and report an unchanged row */
 const onsetKnobs = new Set(['frameRate', 'bands', 'compression', 'localMeanSeconds']);
@@ -114,10 +179,11 @@ export function simplestWithinNoise(rows: readonly SweepRow[], sizes: Readonly<R
 /**
  * @param stage The stage
  * @param rows Rows of the stages before it
- * @returns The tunings to replay, deterministic given the rows, which is what lets a sweep resume
+ * @returns The tunings to replay on top of the best row the guard lets through, or the best row when
+ * none passes yet. Deterministic given the rows, which is what lets a sweep resume
  */
 export function stageTunings(stage: SweepStage, rows: readonly SweepRow[]): Tuning[] {
-  const base = bestRow(rows)?.tuning ?? {};
+  const base = (bestRow(rows.filter(row => guardShortfalls(row.bands).length === 0)) ?? bestRow(rows))?.tuning ?? {};
   const axes = Object.entries(stage.axes);
 
   if (stage.oneAtATime) {

@@ -6,17 +6,27 @@
 // done on clean data but an evaluation set did not come back whole.
 import {spawn} from 'node:child_process';
 import type {ChildProcess} from 'node:child_process';
-import {existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {parseArgs} from 'node:util';
 import {dataRoot, loaders} from './lib/datasets';
 import {rebuild, stopCommands} from './lib/fetch';
 import type {DataReport} from './lib/fetch';
 import {tuningSets} from './lib/licences';
+import {detectors, pickedConfiguration} from './lib/detectors';
+import {lookRefusal} from './lib/look';
+import type {RunFailure} from './lib/look';
+import {bandCounts} from './lib/metrics';
+import {guardShortfalls} from './lib/sweep';
+import type {TrackResult} from './lib/types';
 
 const benchmarkDir = process.cwd();
 const jobDir = join(dataRoot, '_job');
-const heldoutOut = join(jobDir, 'heldout.json');
+const heldoutLog = join(jobDir, 'heldout-log.md');
+const benchmarkSha = (process.env.RBA_BENCHMARK_SHA || 'local').slice(0, 12);
+// Per commit: a later look must not find the results or the finished file of an earlier one
+const heldoutOut = join(jobDir, `heldout-${benchmarkSha}.json`);
+const heldoutProgress = join(jobDir, `heldout-progress-${benchmarkSha}.jsonl`);
 const incompleteEvaluation = 3;
 
 type Summary = {
@@ -37,6 +47,8 @@ type Summary = {
   /** The real path's scores on dev, for the row beside the look's */
   dev: string | null;
   heldout: string | null;
+  /** Tracks a look scored without, because their file cannot decode. Each one is named here */
+  skipped: readonly RunFailure[];
 };
 
 /** One file per mode: a fetch or a held-out look must not overwrite the sweep's evidence */
@@ -108,6 +120,20 @@ async function devScores(summary: Summary, sets: readonly string[], detector: st
   }
 
   summary.dev = devOut;
+  assertPickHoldsGuard(devOut);
+}
+
+/**
+ * The pick came from a replay, within one chunk of the real path. A guard that only the replay
+ * passes is not passed, and failing here logs no look.
+ */
+function assertPickHoldsGuard(devOut: string): void {
+  const {results} = JSON.parse(readFileSync(devOut, 'utf8')) as {results: Record<string, TrackResult[]>};
+  const shortfalls = guardShortfalls(bandCounts(results[pickedConfiguration!]));
+
+  if (shortfalls.length > 0) {
+    throw new Error(`${pickedConfiguration} is under the fast-tempo guard on dev, real path: ${shortfalls.join(', ')}. No look was taken`);
+  }
 }
 
 async function heldout(summary: Summary, sets: readonly string[], reason: string, detector: string): Promise<void> {
@@ -115,9 +141,10 @@ async function heldout(summary: Summary, sets: readonly string[], reason: string
   save(summary);
   await runEntry('run', [
     '--split', 'heldout', '--detector', detector, '--sets', sets.join(','), '--reason', reason, '--out', heldoutOut,
-    '--progress', join(jobDir, 'heldout-progress.jsonl'), '--heldout-log', join(jobDir, 'heldout-log.md'),
+    '--progress', heldoutProgress, '--heldout-log', heldoutLog,
   ]);
   summary.heldout = heldoutOut;
+  summary.skipped = (JSON.parse(readFileSync(heldoutOut, 'utf8')) as {skipped: RunFailure[]}).skipped;
 }
 
 async function stages(summary: Summary, mode: string, wanted: readonly string[], options: {reason?: string; detector: string}): Promise<void> {
@@ -151,11 +178,22 @@ function parseJobArgs() {
     return parseArgs({allowPositionals: true, options: {
       sets: {type: 'string'},
       reason: {type: 'string'},
-      detector: {type: 'string', default: 'peaks,tempogram-285,tempogram'},
+      detector: {type: 'string', default: Object.keys(detectors).join(',')},
     }});
   } catch {
     return null;
   }
+}
+
+/** @returns Why a look must not start, or null. It holds before anything runs, a dev scoring included */
+function refuseLook(reason: string): string | null {
+  if (pickedConfiguration === null || !Object.hasOwn(detectors, pickedConfiguration)) {
+    return 'No pick is fixed in lib/detectors.ts';
+  }
+
+  const log = existsSync(heldoutLog) ? readFileSync(heldoutLog, 'utf8') : '';
+
+  return lookRefusal(log, existsSync(heldoutProgress) && statSync(heldoutProgress).size > 0, reason);
 }
 
 /**
@@ -194,6 +232,13 @@ async function main(): Promise<number> {
     return closeSpentLook();
   }
 
+  const refusal = mode === 'heldout' ? refuseLook(values.reason!) : null;
+
+  if (refusal) {
+    console.error(refusal);
+    return 2;
+  }
+
   mkdirSync(jobDir, {recursive: true});
 
   const summary: Summary = {
@@ -211,6 +256,7 @@ async function main(): Promise<number> {
     runDir: null,
     dev: null,
     heldout: null,
+    skipped: [],
   };
 
   try {

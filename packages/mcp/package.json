@@ -1,6 +1,6 @@
 {
   "name": "realtime-bpm-analyzer-mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A local MCP server that gives an assistant (Claude Desktop, Claude Code, any MCP client) the BPM of audio files on your disk. Runs over stdio; the audio never leaves the machine.",
   "author": {
     "name": "David Lepaux",

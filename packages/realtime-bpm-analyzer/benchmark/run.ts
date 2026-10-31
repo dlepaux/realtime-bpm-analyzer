@@ -14,7 +14,7 @@ import {applyLowpass} from '../src/core/lowpass';
 import {detectTempo} from '../src/core/detect-tempo';
 import {resolveTempoRange} from '../src/core/tempo';
 import {detectTempogram} from '../src/core/tempogram';
-import {loaders} from './lib/datasets';
+import {loaders, optInLoaders} from './lib/datasets';
 import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate, writeAtomic} from './lib/decode';
 import {detectors} from './lib/detectors';
@@ -70,13 +70,13 @@ function selectTracks(benchmarkDir: string, split: Split, sets: string[]): Track
     const ids = new Set((JSON.parse(readFileSync(join(benchmarkDir, 'splits', `${set}.json`), 'utf8')) as Record<Split, string[]>)[split]);
     const excluded = split === 'heldout' ? excludedFromHeldout(benchmarkDir, set) : new Set<string>();
 
-    return loaders[set]().filter(track => ids.has(track.id) && !excluded.has(track.id));
+    return {...loaders, ...optInLoaders}[set]().filter(track => ids.has(track.id) && !excluded.has(track.id));
   });
 }
 
 /** A held-out look is spent once logged, so everything that could abort it is checked first */
 function assertArguments(names: string[], sets: string[], out: string | undefined, limit: string | undefined): void {
-  const unknown = [...names.filter(name => !(name in detectors)), ...sets.filter(set => !(set in loaders))];
+  const unknown = [...names.filter(name => !(name in detectors)), ...sets.filter(set => !(set in loaders) && !(set in optInLoaders))];
 
   if (unknown.length > 0) {
     throw new Error(`Unknown detector or set: ${unknown.join(', ')}`);

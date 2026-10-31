@@ -151,3 +151,27 @@ CPU, on an M1 Pro in Node with synthetic input (`perf.ts`, 3 input shapes, two r
 - The first reading comes at 4 s and the earliest `bpmStable` at about 11.5 s: the warm-up, then 8 s of agreeing frames.
 - GiantSteps previews are 2 minutes and GTZAN clips 30 s, so slow settling is not penalised the way a full DJ set would.
 - The worklet reads the left channel only, so a hard-panned track is judged on that channel. This holds for both detectors.
+
+## Free data (RBA-59)
+
+`free-data.ts` gets freely licensed music, labels it with independent trackers and says with counts whether it is decent. It runs as `job/free-data.sh` in its own image (`job/data.Dockerfile`, tag `data-sha-<commit>`), writing to `free-data/` under the data root. Audio and labels stay there, and only the split's ids may enter git.
+
+| Stage | What it does | Output |
+| --- | --- | --- |
+| `catalogue` | Reads FMA's own metadata files and the Internet Archive's search and metadata APIs, rejects by named reason, caps 30 tracks per artist | `catalogue/candidates.jsonl`, `catalogue/rejections.json` |
+| `fetch` | FMA members by range request, Internet Archive files one at a time, stopping at five refusals in a row | `audio/`, `fetched.jsonl` |
+| `analyse` | `job/trackers.py`: Beat This!, Essentia, librosa with a flat prior, resumable | `readings.jsonl` |
+| `consolidate` | Tempo consensus, duplicates, split frozen by artist, confirmation list | `manifest.jsonl`, `split-frozen.json`, `split-ids.json`, `confirmation.md` |
+| `samples` | Generated, derived and loop-mix samples, tooling proof only | `not-real-*.jsonl` |
+| `report` | Every count, with the verdict against 200 real tracks per band | `report.json` |
+
+Rules the code holds, and the tests check:
+
+- A licence is an exact CC0, CC BY or CC BY-SA URL from the host. BY-SA is counted apart and never fills the target, as share-alike for weights is RBA-40's open question.
+- A hint never votes, so it can be measured against the label. A label needs two trackers in one octave. No agreement means no label, only a candidate for a person to confirm.
+- The verdict counts real, permissive tracks with no tracker an octave off. Two against one at an octave counts as `contested`, shown apart, because agreement between trackers is not truth, and only `confirmation.md`'s random sample measures how far to trust it.
+- Derived, loop-mix and generated audio is marked, names its sources, comes from the dev side only, never sits in held-out and never counts towards the target. Loops themselves stay on FSLD's own split.
+
+Limits: a recording's identity is its hash, or its artist, title and rough length. The same recording under two spellings of an artist would slip through and could land on both sides of the split, which audio fingerprints would catch. They were left out to keep the image small, and the report's numbers should be read knowing that. Stretching is FFmpeg's `atempo`, which smears transients, so a derived track is no proxy for an attack-sensitive reading.
+
+Free-mixes is opt-in: `run.ts --sets free-mixes` reads it once `split-ids.json` is copied to `splits/free-mixes.json`, and it stays out of `loaders` and `tuningSets`, so nothing tunes on it or looks at it by default.

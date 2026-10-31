@@ -1,0 +1,110 @@
+name: Data Image
+
+# Builds RBA-59's data job (benchmark/job/data.Dockerfile), pushed next to the benchmark's image and
+# tagged data-sha-<commit>. Dispatched on the box by digest, as benchmark/job/readme.md says.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build
+        required: true
+        type: string
+  push:
+    paths:
+      - packages/realtime-bpm-analyzer/benchmark/free-data.ts
+      - packages/realtime-bpm-analyzer/benchmark/free-data/**
+      - packages/realtime-bpm-analyzer/benchmark/job/data.Dockerfile
+      - packages/realtime-bpm-analyzer/benchmark/job/free-data.sh
+      - packages/realtime-bpm-analyzer/benchmark/job/trackers.py
+      - packages/realtime-bpm-analyzer/benchmark/job/requirements-data.txt
+      - .github/workflows/data-image.yml
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/dlepaux/realtime-bpm-analyzer-benchmark
+
+jobs:
+  image:
+    name: Build, check and push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+
+      - name: Name the image after the commit
+        id: name
+        run: echo "tag=$IMAGE:data-sha-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: packages/realtime-bpm-analyzer/benchmark/job/data.Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: ${{ steps.name.outputs.tag }}
+
+      # The Dockerfile's allowlist keeps audio out. This proves it on what would actually ship.
+      - name: Refuse an image holding audio
+        env:
+          TAG: ${{ steps.name.outputs.tag }}
+        run: |
+          found="$(docker run --rm --user root --entrypoint /usr/bin/find "$TAG" / -xdev -type f \
+            \( -iname '*.mp3' -o -iname '*.wav' -o -iname '*.flac' -o -iname '*.aiff' -o -iname '*.f32' \) \
+            -not -path '/proc/*' -not -path '/usr/local/lib/python3.12/site-packages/*')"
+          if [ -n "$found" ]; then
+            echo "$found"
+            exit 1
+          fi
+
+      # A run takes hours on a shared box, so what would break it should break here: every tool the
+      # job calls, then one generated track through the real trackers. Generated audio, no third party's.
+      - name: Check the tools, and label one generated track
+        env:
+          TAG: ${{ steps.name.outputs.tag }}
+        run: |
+          docker run --rm --network none --entrypoint /bin/sh "$TAG" -c '
+            set -e
+            flock --version > /dev/null
+            bzip2 --help 2> /dev/null
+            unzip -v > /dev/null
+            export RBA_TEMPO_ROOT=/tmp/check root=/tmp/check/free-data
+            mkdir -p "$root"
+            node dist/free-data.mjs synth --count 1 --root "$root"
+            path="$(ls "$root"/generated/*.wav)"
+            printf "{\"id\":\"check\",\"path\":\"%s\"}\n" "$path" > "$root/list.jsonl"
+            python3 job/trackers.py --list "$root/list.jsonl" --out "$root/out.jsonl" --workers 1 --checkpoint final0
+            cat "$root/out.jsonl"
+            grep -q "beat-this-final0" "$root/out.jsonl"
+            ! grep -q "\"error\"" "$root/out.jsonl"
+          '
+          code=0
+          docker run --rm --entrypoint /app/benchmark/job/free-data.sh "$TAG" no-such-stage || code=$?
+          test "$code" = 2
+
+      - name: Push
+        env:
+          TAG: ${{ steps.name.outputs.tag }}
+        run: |
+          docker push "$TAG"
+          {
+            echo "Pushed \`$TAG\`"
+            echo
+            echo "Digest: \`$(docker inspect --format '{{index .RepoDigests 0}}' "$TAG")\`"
+          } >> "$GITHUB_STEP_SUMMARY"

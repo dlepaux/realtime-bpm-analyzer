@@ -1,6 +1,7 @@
 // The RBA-51 batch job: see job/readme.md. Bundled by benchmark/run.sh, started by job/entrypoint.sh.
 //   job.mjs [tune]                                the data, then the dev sweep. The default
 //   job.mjs fetch                                 the data only
+//   job.mjs dev --detector a,b                    the data, then a dev scoring through the real path. No look
 //   job.mjs heldout --reason "..." [--detector]   the data, a dev scoring, then a held-out look, logged
 // Every stage is safe to kill and restart. Exit: 0 done, 1 failed, 2 bad arguments, 3 the sweep is
 // done on clean data but an evaluation set did not come back whole.
@@ -109,7 +110,7 @@ async function tune(summary: Summary, sets: readonly string[]): Promise<void> {
  * The sweep is a replay and holds no peaks, so the numbers beside a look come from here. It runs
  * first because a failure here spends no look, and in one job because the volume has one writer.
  */
-async function devScores(summary: Summary, sets: readonly string[], detector: string): Promise<void> {
+async function devScores(summary: Summary, sets: readonly string[], detector: string): Promise<string> {
   const devOut = join(jobDir, `dev-${summary.sha.slice(0, 12)}.json`);
 
   summary.stage = 'dev';
@@ -120,7 +121,8 @@ async function devScores(summary: Summary, sets: readonly string[], detector: st
   }
 
   summary.dev = devOut;
-  assertPickHoldsGuard(devOut);
+
+  return devOut;
 }
 
 /**
@@ -164,8 +166,10 @@ async function stages(summary: Summary, mode: string, wanted: readonly string[],
 
   if (mode === 'tune') {
     await tune(summary, clean);
-  } else if (mode === 'heldout') {
+  } else if (mode === 'dev') {
     await devScores(summary, clean, options.detector);
+  } else if (mode === 'heldout') {
+    assertPickHoldsGuard(await devScores(summary, clean, options.detector));
     await heldout(summary, wanted, options.reason!, options.detector);
   }
 
@@ -220,9 +224,9 @@ async function main(): Promise<number> {
   const mode = args?.positionals[0] ?? 'tune';
   const wanted = args?.values.sets?.split(',') ?? Object.keys(loaders);
 
-  if (!args || !['tune', 'fetch', 'heldout'].includes(mode) || !process.env.RBA_TEMPO_ROOT
+  if (!args || !['tune', 'fetch', 'dev', 'heldout'].includes(mode) || !process.env.RBA_TEMPO_ROOT
     || (mode === 'heldout' && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set))) {
-    console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|heldout --reason <why>] [--sets a,b]');
+    console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|dev|heldout --reason <why>] [--sets a,b]');
     return 2;
   }
 

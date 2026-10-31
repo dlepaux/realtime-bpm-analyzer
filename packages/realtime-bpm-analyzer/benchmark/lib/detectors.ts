@@ -18,6 +18,11 @@ const wideRange = {min: 50, max: 240};
 const tuning285 = {priorBpm: 136, priorOctaves: 0.8, halfBeatPenalty: 0, thirdBeatPenalty: 0};
 // RBA-51's first pick (b1ab9d3): lost fast music on its look, kept as the row to compare against
 const tuningFirst = {priorBpm: 110, priorOctaves: 0.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.2};
+// Three points of one ridge on the second sweep's dev surface, equal within its noise: on 90 to 180 the
+// prior is only a tilt, so its two knobs trade off. Candidates for a ruling, not a pick
+const ridge50 = {priorBpm: 50, priorOctaves: 2.4, halfBeatPenalty: 0, thirdBeatPenalty: 0.3};
+const ridge80 = {priorBpm: 80, priorOctaves: 1.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.3};
+const ridge100 = {priorBpm: 100, priorOctaves: 1.3, halfBeatPenalty: 0, thirdBeatPenalty: 0.2};
 const tempogram = {detector: 'tempogram'} as const;
 
 export const detectors: Record<string, DetectorConfig> = {
@@ -29,6 +34,15 @@ export const detectors: Record<string, DetectorConfig> = {
   'tempogram-285-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: tuning285},
   'tempogram-first': {options: tempogram, lowpass: false, offline: false, tuning: tuningFirst},
   'tempogram-first-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: tuningFirst},
+  'tempogram-ridge-50-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge50},
+  'tempogram-ridge-80-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge80},
+  'tempogram-ridge-100-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge100},
+  'tempogram-ridge-80-90-180-resetting': {
+    options: {...tempogram, tempoRange: extensionRange, continuousAnalysis: true, stabilizationTime: 10_000},
+    lowpass: false,
+    offline: false,
+    tuning: ridge80,
+  },
   // The extension's options as they are today, offscreen/main.ts: its timer resets the analyzer every 10 s
   'tempogram-90-180-resetting': {
     options: {...tempogram, tempoRange: extensionRange, continuousAnalysis: true, stabilizationTime: 10_000},

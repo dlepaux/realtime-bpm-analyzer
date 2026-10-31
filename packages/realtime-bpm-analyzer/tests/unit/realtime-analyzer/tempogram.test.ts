@@ -273,7 +273,8 @@ describe('detectTempogram', () => {
     const [top] = detectTempogram(samples, sampleRate);
 
     expect(top.tempo).to.be.within(99, 101);
-  });
+    // 110 s of audio: over mocha's default on a busy CI runner, as seen on this PR
+  }).timeout(10_000);
 
   it('reads a recording shorter than the warm-up', () => {
     const [top] = detectTempogram(createBrightClicks(120, 3), sampleRate);

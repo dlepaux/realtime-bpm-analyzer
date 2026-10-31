@@ -58,7 +58,7 @@ The peaks baseline is measured as it is wired in every guide, with the 200 Hz lo
 
 - **Onset strength**: log-compressed spectral flux in 5 bands, minus a local mean, half-wave rectified, summed at 100 Hz (Grosche & Müller 2009 for the compression and bands). A short smoothing stands in for the 7 Hz lowpass of Percival & Tzanetakis 2014.
 - **Tempogram**: normalised autocorrelation of the latest 8 s, every 0.5 s, read by a comb over the first 4 beat multiples (a window and hop in the region of Percival & Tzanetakis' 5.9 s and 0.37 s; their stretched-ACF sum is the same idea as the comb), with salience accumulated over a 16 s half-life.
-- **Tempo prior**: log-Gaussian as in Ellis 2007, on 50 to 240 BPM, instead of folding into 90 to 180. Ellis uses 120 BPM and 1.4 octaves. Licence-clean dev chose 110 BPM and 0.7 octaves, both at the low edge of the grid swept, so this is a fit to these sets' tempo mix, not a law. A clean pulse and its half tie at centre × √2, so a clean pulse above about 156 BPM reads at half, and real audio starts losing below that (see Results).
+- **Tempo prior**: log-Gaussian as in Ellis 2007, on 50 to 240 BPM, instead of folding into 90 to 180. Ellis uses 120 BPM and 1.4 octaves. The defaults in this branch, 110 BPM and 0.7 octaves, are the first pick, which the second sweep's guard rejects. Both are at the low edge of the first grid, so this is a fit to these sets' tempo mix, not a law. A clean pulse and its half tie at centre × √2, so a clean pulse above about 156 BPM reads at half, and real audio starts losing below that (see Results).
 - **Beats penalty**: pulses a third of the way through a beat count against that tempo, at 0.2.
 - **Confidence** is the accumulated comb salience, a normalised autocorrelation: how strongly the audio pulses at that tempo.
 - **Stable** requires salience of at least 0.15, 80% of the last 8 s of frames agreeing with the reading on their own within 2%, and a lead of 1.25 over the next candidate. It fires once per tempo.
@@ -73,7 +73,7 @@ References:
 
 ## Choosing the defaults
 
-The principle, that the simplest tuning within noise wins, came from the brief. No rule existed in the repo, so its exact form was written after reading the dev rows and before any look, which held-out cannot have touched but the dev rows could have shaped. The form is `simplestWithinNoise` in [`lib/sweep.ts`](lib/sweep.ts): among rows within one standard error of the best score, the fewest knobs moved from what the sweep started at, then the higher score. A gain inside the noise pays for no knob. `./benchmark/run.sh pick results/rba-51-sweep.jsonl` applies it to the sweep's rows, which are committed. Only the licence-clean dev sets feed it (fsld 791, groove 221, guitarset 180), macro over the sets.
+The principle, that the simplest tuning within noise wins, came from the brief. No rule existed in the repo, so its exact form was written after reading the dev rows and before any look, which held-out cannot have touched but the dev rows could have shaped. The form is `simplestWithinNoise` in [`lib/sweep.ts`](lib/sweep.ts): among rows within one standard error of the best score, the fewest knobs moved from what the sweep started at, then the higher score. A gain inside the noise pays for no knob. The first sweep's rows are committed in `results/rba-51-sweep.jsonl`. Only the licence-clean dev sets feed it (fsld 791, groove 221, guitarset 180), macro over the sets.
 
 The best score is 81.69, one standard error is 1.58, so the floor is 80.11. The pick holds for any floor width from 0.70 to 3.83: below 0.70 it is `windowSeconds` 6, above 3.83 the row without the penalty. The 1.58 is an unpaired estimate although the rows share their tracks, and the review's track bootstrap of the chosen row gave 2.04. So 0.70 ahead is unproven either way, as the sweep has no per-track rows to pair. Numbers below are from the replay, macro over the three sets.
 
@@ -91,6 +91,38 @@ The best score is 81.69, one standard error is 1.58, so the floor is 80.11. The 
 | 110 BPM, 0.7 oct, no penalties | 2 | 77.86 | 74.9 | 85.7 | 10.8 | 15.3 | 71.0 | simplest prior-only row, below the floor |
 
 What the rule cannot settle, on record before any look: 110 BPM and 0.7 octaves are both at the low edge of the grid, so the sweep did not bracket its optimum. 120 BPM is inside the grid and is the published centre, and it scores within the noise of the choice. It was not preferred because the rule counts knobs and its score is lower. Choosing it from per-set rows, by argument, is the forking path the rule exists to prevent, with the limit that the rule itself was written after seeing the rows. `halfBeatPenalty` stays in the code at 0 for now: it lost at every non-zero value, and removing it is a cleanup that should not share a commit with a look.
+
+## The second sweep: no pick, no second look
+
+**The library defaults in `src/` are still the first pick (110 BPM, 0.7 octaves, third 0.2), which fails the fast-tempo guard, and must not ship.** The look budget is untouched: the volume's log has one line for RBA-51.
+
+The guard, written into `lib/sweep.ts` before results, is peaks on clean dev, real path: 140 to 165 BPM at least 92 of 170, 165 and up at least 22 of 90. The rule is `pickWithGuard`, and `pick.ts` refuses a look when the pick holds `priorBpm` or `priorOctaves` at the end of its grid.
+
+Two sweeps on dev, 2118 rows, two ranges, plans `job/sweep-plan-tune-2.json` and `job/sweep-plan.json`:
+
+```sh
+./benchmark/run.sh pick results/rba-51-sweep-2.jsonl,results/rba-51-sweep-3.jsonl job/sweep-plan-tune-2.json,job/sweep-plan.json   # exits 1
+```
+
+963 rows pass the guard (50 to 240: 322, 90 to 180: 641). Best passing score 75.86, noise 1.75, floor 74.11. The rule chose 90 to 180, 80 BPM, 1.7 octaves, third 0.3 at the first sweep's low edge. The grid was extended to 50 BPM, and the rule then chose 50 BPM, 2.4 octaves, third 0.3, on the edge of both axes, so it refuses again. No third extension: on a bounded range the prior is only a tilt, about `(log2(127) - log2(priorBpm)) / priorOctaves²`, 0.235 for 50/2.4 and for 80/1.7, 0.21 for 100/1.3. Those three score 75.45, 75.30 and 75.29 against a noise of 1.75, so the rule follows a flat ridge and no grid can bracket it. Across the ridge the score falls on both sides, and the 90-to-180 pick is bracketed in that sense only. The refusal stands, because changing a rule after it refused, to spend the last look, needs a ruling. At 50 to 240 the rule's pick is interior (130 BPM, 0.85 octaves, third 0.4, score 72.89, 165+ 41 of 90), scoring below every point of the ridge.
+
+Best passing score per prior on 90 to 180, replay. A dot means no row at that prior passes the guard:
+
+| BPM | 0.4 | 0.55 | 0.7 | 0.85 | 1 | 1.3 | 1.7 | 2.4 |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 50 | . | . | . | . | . | 72.3 | 74.6 | 75.4 |
+| 60 | . | . | . | . | . | 73.3 | 74.7 | 74.9 |
+| 70 | . | . | . | . | . | 74.3 | 75.0 | 74.2 |
+| 80 | . | . | . | . | 73.3 | 75.0 | 75.3 | 74.4 |
+| 90 | . | . | . | 73.9 | 74.8 | 75.2 | 74.5 | 74.4 |
+| 100 | . | . | 73.8 | 74.8 | 75.1 | 75.3 | 74.4 | 74.2 |
+| 110 | . | . | 74.9 | 75.0 | 74.9 | 74.4 | 74.2 | 73.0 |
+| 120 | . | 74.6 | 74.3 | 74.6 | 74.4 | 73.6 | 73.4 | 73.0 |
+| 130 | 65.4 | 70.8 | 72.7 | 73.4 | 73.0 | 72.7 | 72.7 | 72.8 |
+
+The fast material is 170 tracks in 68 groups (largest 7.1%, 92 electronic) and 90 tracks in 38 groups (largest 13.3%, 50 electronic), above the threshold written before counting. Those are loops, not full mixes. 36 of the 90 fast tracks are labelled 180 and up and cannot read true in 90 to 180. No further tempo-labelled full-mix electronic data with a clean per-item licence was found.
+
+Real-path dev tables per set and band: [`results/rba-51-retune.md`](results/rba-51-retune.md). Macro Acc1 on 90 to 180: peaks 40.7, #285 68.3, first pick 72.6, the ridge 74.5 to 74.7. 165 and up: peaks 24.4, the ridge 41.1 to 44.4. With the extension's 10 s reset, coverage is 0.0 and Acc1 falls to 68.3.
 
 ## Results
 
@@ -121,7 +153,7 @@ The licence-clean defaults, fixed in `b1ab9d3` before one logged look with image
 
 The look is fresh for fsld, groove and fsld-nc only, with the overlaps listed under Splits. The other four were seen by RBA-50's look, and that look's half-time numbers are what motivated the penalty knobs, so they shaped what the sweep searched, though every value came from dev. The clean macro row averages in second-look GuitarSet. The old row reproduces RBA-50's numbers on those four to the decimal, on data rebuilt from the publishers.
 
-**The look ended incomplete.** Each detector logged `skipped fsld/395035: Error: ffmpeg could not decode /data/rba-tempo/fsld/FSL10K/audio/wav/395035_7473420.aiff.wav`, so 3 of 7524 runs never finished, the job exited 1, a restart with the same command logged the same three lines and exited 1, and no `heldout.json` was written. `run.ts` refuses on purpose to write a score from a shrunk run with progress kept. The table is built outside it, by assembling the same look's progress file with a throwaway script, so this close-out is a decision for the Commander to accept, recorded on the card: 2507 tracks per detector, one fsld track short of its 718. A fix needs a new image, which is a new look, so that was not done. It is now in `splits/fsld-excluded.json`.
+**The look ended incomplete.** Each detector logged `skipped fsld/395035: Error: ffmpeg could not decode /data/rba-tempo/fsld/FSL10K/audio/wav/395035_7473420.aiff.wav`, so 3 of 7524 runs never finished, the job exited 1, a restart with the same command logged the same three lines and exited 1, and no `heldout.json` was written. `run.ts` refuses on purpose to write a score from a shrunk run with progress kept. The table is built outside it, by assembling the same look's progress file with a throwaway script, so this close-out is a decision for the Commander to accept, recorded on the card: 2507 tracks per detector, one fsld track short of its 718. A fix needs a new image, which is a new look, so that was not done. `job.ts` now counts such a track as a skip, up to three, and `splits/fsld-excluded.json` is gone. The file is 92 bytes as published: a valid WAV header with a zero-length `data` chunk.
 
 **Half-time.** The gap between Acc2 and Acc1 narrowed on clean sets, from 19.9 to 12.7 points on dev and from 23.0 to 15.5 on held-out. Over all seven sets it widened, from 18.2 to 21.2: the prior did not remove octave errors, it turned doubles into halves. Doubles fell and halves rose in all seven held-out sets, for example fsld halves 7.0 to 16.0 and doubles 9.9 to 2.9.
 

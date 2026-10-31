@@ -62,7 +62,7 @@
     "directory": "packages/cli"
   },
   "dependencies": {
-    "@audio/decode-flac": "^1.3.5",
+    "@audio/decode-flac": "^2.0.0",
     "@audio/decode-mp3": "^1.3.1",
     "@audio/decode-opus": "^1.3.3",
     "@audio/decode-vorbis": "^1.3.4",

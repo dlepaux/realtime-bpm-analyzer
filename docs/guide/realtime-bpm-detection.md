@@ -267,20 +267,24 @@ An experimental detector reads the tempo from an onset tempogram rather
 than from peaks in low-passed audio. It weighs tempos with a prior instead
 of folding them, so an 85 BPM track can read as 85, and it only calls a
 tempo stable once the tempo agreed over several seconds and clearly leads
-its rivals. Opt in with the `detector` option, and connect the source
-**directly**: it needs the full band, so skip `getBiquadFilter`.
+its rivals. Opt in with the `detector` option, and connect the source to
+`bpmAnalyzer.input`. That node holds what the detector needs in front of
+it, the lowpass for `peaks` and nothing for `tempogram`, so the wiring is
+the same for both. The tempogram needs the full band, so it must not go
+through `getBiquadFilter`.
 
 ```typescript
 const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
   detector: 'tempogram',
 });
 
-source.connect(bpmAnalyzer.node);
+source.connect(bpmAnalyzer.input);
 ```
 
-It covers real-time analysis only: `analyzeFullBuffer` keeps the peaks
-detector. `tempoRange` still limits the tempos searched, but nothing is
-folded into it. The default stays `'peaks'`.
+`analyzeFullBuffer(buffer, {detector: 'tempogram'})`, `analyzeChannelData`
+in Node, the CLI's `--detector tempogram` and the MCP server's `detector`
+argument run it on whole files. `tempoRange` still limits the tempos
+searched, but nothing is folded into it. The default stays `'peaks'`.
 
 ## The lowpass filter — why it's there
 

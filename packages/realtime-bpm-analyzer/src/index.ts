@@ -2,7 +2,9 @@ import {realtimeBpmProcessorName} from './core/consts';
 import realtimeBpmProcessorContent from './generated-processor';
 import {type RealTimeBpmAnalyzerParameters, type CreateRealtimeBpmAnalyzerOptions} from './core/types';
 import {BpmAnalyzer} from './core/bpm-analyzer';
+import {getBiquadFilter} from './core/offline-pipeline';
 import {resolveDetector, resolveTempoRange} from './core/tempo';
+import {tempogramSettings} from './core/tempogram';
 
 // Public API surface — explicit named re-exports only.
 // Internal types stay in core/types.ts and are emitted into dist/core/types.d.ts
@@ -25,6 +27,7 @@ export type {
   RealTimeBpmAnalyzerParameters,
   CreateRealtimeBpmAnalyzerOptions,
   Detector,
+  TempogramMode,
   BiquadFilterOptions,
   TempoRange,
   AnalyzeFullBufferOptions,
@@ -47,6 +50,7 @@ export type {
  * The returned `BpmAnalyzer` is an event emitter that wraps an AudioWorkletNode.
  * - Use the analyzer directly for event listening: `analyzer.on('bpm', ...)`
  * - Use `.node` property for Web Audio API connections: `source.connect(analyzer.node)`
+ * - Or connect the source to `.input`, the wiring that suits every detector: `source.connect(analyzer.input)`
  *
  * @example
  * **Basic Usage with Audio Element**
@@ -173,6 +177,8 @@ export async function createRealtimeBpmAnalyzer(
   // would also fail structured cloning.
   const {processorUrl, ...analyzerOptions} = processorOptions ?? {};
   assertProcessorUrl(processorUrl);
+  // Only to refuse a bad combination here, for the same reason as the comment below
+  tempogramSettings(analyzerOptions);
   // Validate on the main thread: a throw inside the worklet constructor would not reach the caller.
   // The worklet receives the validated plain object, so structured cloning cannot alter it.
   const options: RealTimeBpmAnalyzerParameters = {
@@ -190,7 +196,17 @@ export async function createRealtimeBpmAnalyzer(
     processorUrl,
   );
   await audioContext.resume();
-  return new BpmAnalyzer(processorNode);
+
+  if (options.detector === 'tempogram') {
+    return new BpmAnalyzer(processorNode);
+  }
+
+  // Idle until a source connects to it, so callers still wiring `.node` pay nothing for it
+  const lowpass = getBiquadFilter(audioContext);
+
+  lowpass.connect(processorNode);
+
+  return new BpmAnalyzer(processorNode, lowpass);
 }
 
 /**

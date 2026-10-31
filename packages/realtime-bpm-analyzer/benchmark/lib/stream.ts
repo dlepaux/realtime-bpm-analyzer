@@ -10,6 +10,21 @@ import type {Track, TrackResult} from './types';
 const renderQuantum = 128;
 
 /**
+ * @param pcm One pass of a loop
+ * @param length Samples wanted
+ * @returns Whole passes of the loop, at least `length` samples, so the seam stays where the loop has it
+ */
+export function repeatTo(pcm: Float32Array, length: number): Float32Array {
+  const repeated = new Float32Array(Math.ceil(length / pcm.length) * pcm.length);
+
+  for (let start = 0; start < repeated.length; start += pcm.length) {
+    repeated.set(pcm, start);
+  }
+
+  return repeated;
+}
+
+/**
  * Feeds PCM through the same steps as `RealTimeBpmProcessor.process()`, a render quantum at a
  * time, and records the events in the order a listener would have got them.
  * @param pcm Mono samples as the worklet would receive them
@@ -28,7 +43,7 @@ export async function streamPcm(
   const analyzer = new RealTimeBpmAnalyzer(options);
 
   if (tuning) {
-    analyzer.tempogram = createTempogramDetector({sampleRate, tuning});
+    analyzer.tempogram = createTempogramDetector({sampleRate, tempoRange: options.tempoRange, tuning});
   }
 
   const aggregate = chunkAggregator();
@@ -100,6 +115,7 @@ export async function listen(
     set: track.set,
     id: track.id,
     genre: track.genre,
+    group: track.group,
     truth: track.bpm,
     duration: pcm.length / sampleRate,
     final,

@@ -183,20 +183,26 @@ export type TempoRange = {
 };
 
 /**
- * Options for {@link analyzeFullBuffer}: lowpass filter settings plus the tempo range
+ * Options for {@link analyzeFullBuffer}: lowpass filter settings, the tempo range and the detector
  * @group Type Aliases
  */
 export type AnalyzeFullBufferOptions = BiquadFilterOptions & {
-  /** Range every tempo is folded into (default: 90–180 BPM) */
+  /**
+   * Range every tempo is folded into (default: 90–180 BPM).
+   * With the `tempogram` detector, the range searched instead (default: 50–240 BPM).
+   */
   tempoRange?: TempoRange;
+  /** Tempo detector (default: `peaks`). The `tempogram` uses no lowpass, so it ignores the filter settings. */
+  detector?: Detector;
 };
 
 /**
  * Tempo detector of the real-time analyzer.
  *
- * - `peaks`, the default: amplitude peaks after a lowpass. Connect it through {@link getBiquadFilter}.
+ * - `peaks`, the default: amplitude peaks after a lowpass.
  * - `tempogram`: spectral flux across several bands, a sliding autocorrelation and a tempo prior.
- *   Connect the source straight to the analyzer: a lowpass removes the bands it listens to.
+ *   A lowpass removes the bands it listens to: connect the source to `BpmAnalyzer.input`, which
+ *   suits either detector, and not through {@link getBiquadFilter}.
  *   It reads about twice a second, leaves `threshold` at 0, and gives `count` as a salience score
  *   used for ranking. `bpmStable` means the estimates agreed over time, and `confidence` is the
  *   normalised autocorrelation at the tempo.
@@ -204,6 +210,15 @@ export type AnalyzeFullBufferOptions = BiquadFilterOptions & {
  * @group Type Aliases
  */
 export type Detector = 'peaks' | 'tempogram';
+
+/**
+ * Named settings of the tempogram, opted into with `tempogramMode`. `extension` is the candidate RBA-51
+ * fixed for a browser extension listening to the tab: 90 to 180 BPM, no lowpass, no reset timer. Being a
+ * candidate, it changes no default: without this option the detectors behave as they did.
+ *
+ * @group Type Aliases
+ */
+export type TempogramMode = 'extension';
 
 /**
  * Configuration options for the real-time BPM analyzer
@@ -225,6 +240,11 @@ export type RealTimeBpmAnalyzerParameters = {
   tempoRange?: TempoRange;
   /** Tempo detector (default: `peaks`) */
   detector?: Detector;
+  /**
+   * Named tempogram settings, real-time only. Needs `detector: 'tempogram'`, and refuses a `tempoRange`
+   * of its own and `continuousAnalysis`, whose reset never lets the tempogram reach stable.
+   */
+  tempogramMode?: TempogramMode;
 };
 
 /**

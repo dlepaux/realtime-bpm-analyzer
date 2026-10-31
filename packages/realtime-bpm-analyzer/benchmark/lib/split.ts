@@ -1,5 +1,8 @@
 import type {Split, Track} from './types';
 
+/** Licensed for neither tuning nor anything else here: all of it stays unseen, as a fresh evaluation */
+export const heldoutOnly: ReadonlySet<string> = new Set(['fsld-nc']);
+
 /**
  * Stable 32-bit FNV-1a, so a split depends only on the seed and the ids. Ends with MurmurHash3's
  * finaliser: plain FNV-1a keeps strings that differ in their last characters in nearly the same

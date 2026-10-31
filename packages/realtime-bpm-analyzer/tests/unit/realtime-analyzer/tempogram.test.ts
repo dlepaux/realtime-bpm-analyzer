@@ -1,7 +1,9 @@
 import {expect} from 'chai';
 import {createClickTrack, createNoise} from '../../fixtures/click-track';
-import {createTempogramDetector} from '../../../src/core/tempogram';
-import type {TempogramReading} from '../../../src/core/tempogram';
+import {detectors} from '../../../benchmark/lib/detectors';
+import {parseRows, simplestWithinNoise} from '../../../benchmark/lib/sweep';
+import {createTempogramDetector, defaultTempogramTuning, detectTempogram} from '../../../src/core/tempogram';
+import type {TempogramReading, TempogramTuning} from '../../../src/core/tempogram';
 
 const sampleRate = 44_100;
 
@@ -28,8 +30,8 @@ function createBrightClicks(bpm: number, seconds: number, gain = 1, rate = sampl
 /**
  * Feeds audio chunk by chunk, as the analyzer does
  */
-function feed(pcm: Float32Array, rate = sampleRate) {
-  const detector = createTempogramDetector({sampleRate: rate});
+function feed(pcm: Float32Array, rate = sampleRate, tuning?: Partial<TempogramTuning>) {
+  const detector = createTempogramDetector({sampleRate: rate, tuning});
   const readings: Array<TempogramReading & {at: number}> = [];
 
   for (let start = 0; start + 4096 <= pcm.length; start += 4096) {
@@ -44,7 +46,7 @@ function feed(pcm: Float32Array, rate = sampleRate) {
 }
 
 describe('tempogram detector', () => {
-  for (const bpm of [70, 90, 100, 120, 128, 140, 174]) {
+  for (const bpm of [70, 90, 100, 120, 128, 140, 150]) {
     it(`reads clicks at ${bpm} BPM within 2%`, () => {
       const readings = feed(createBrightClicks(bpm, 20));
       const top = readings.at(-1)!.candidates[0];
@@ -141,6 +143,25 @@ describe('tempogram detector', () => {
     expect(Math.abs(top.tempo - 140)).to.be.lessThan(3);
   });
 
+  it('counts pulses between the beats against a too-slow tempo', () => {
+    const loud = createBrightClicks(60, 24);
+    const soft = createBrightClicks(60, 24, 0.5);
+    const pcm = new Float32Array(loud.length);
+
+    pcm.set(loud);
+
+    for (let i = 0; i + 22_050 < pcm.length; i += 1) {
+      pcm[i + 22_050] += soft[i];
+    }
+
+    const slowPrior = {priorBpm: 60, priorOctaves: 0.8};
+    const plain = feed(pcm, sampleRate, slowPrior).at(-1)!.candidates[0];
+    const penalised = feed(pcm, sampleRate, {...slowPrior, halfBeatPenalty: 1}).at(-1)!.candidates[0];
+
+    expect(Math.abs(plain.tempo - 60)).to.be.lessThan(2);
+    expect(Math.abs(penalised.tempo - 120)).to.be.lessThan(3);
+  });
+
   it('calls a steady tempo stable once, and only after the agreement window', () => {
     const readings = feed(createBrightClicks(120, 30));
     const stable = readings.filter(reading => reading.isNewlyStable);
@@ -201,5 +222,74 @@ describe('tempogram detector', () => {
 
     detector.process(new Float32Array(sampleRate * 2));
     expect(detector.progress()).to.be.closeTo(0.5, 0.01);
+  });
+});
+
+describe('tempogram defaults', () => {
+  it('are what the noise rule picked from sweep rba-51-tune-1, and #285 stays measurable', () => {
+    const {priorBpm, priorOctaves, halfBeatPenalty, thirdBeatPenalty, windowSeconds, stableSalience, stableSeconds, halfLifeSeconds, combBeats, stableAgreement, stableMargin} = defaultTempogramTuning;
+
+    expect({priorBpm, priorOctaves, halfBeatPenalty, thirdBeatPenalty}).to.deep.equal({priorBpm: 110, priorOctaves: 0.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.2});
+    // The knobs whose gain fell inside the noise keep their value
+    expect({windowSeconds, stableSalience, stableSeconds, halfLifeSeconds, combBeats, stableAgreement, stableMargin}).to.deep.equal({windowSeconds: 8, stableSalience: 0.15, stableSeconds: 8, halfLifeSeconds: 16, combBeats: 4, stableAgreement: 0.8, stableMargin: 1.25});
+    expect(detectors['tempogram-285'].tuning).to.deep.equal({priorBpm: 136, priorOctaves: 0.8, halfBeatPenalty: 0, thirdBeatPenalty: 0});
+  });
+
+  // Literals above could drift with the rows: this runs the rule itself on the committed sweep
+  it('come out of the rule when it runs on the committed sweep', async () => {
+    const response = await fetch(new URL('../../../benchmark/results/rba-51-sweep.jsonl', import.meta.url));
+    const rows = parseRows(await response.text());
+    const base = {...defaultTempogramTuning, ...detectors['tempogram-285'].tuning};
+    const chosen = simplestWithinNoise(rows, {fsld: 791, groove: 221, guitarset: 180}, base);
+
+    expect(rows).to.have.length(258);
+    expect({...base, ...chosen!.tuning}).to.deep.equal(defaultTempogramTuning);
+  });
+
+  // The cost of the slower prior, pinned so that moving it is a decision: a clean pulse and its half tie at about 156
+  it('reads a clean pulse below 156 BPM as itself and above it at half', () => {
+    const topOf = (bpm: number) => feed(createBrightClicks(bpm, 30)).at(-1)!.candidates[0].tempo;
+
+    expect(Math.abs(topOf(150) - 150)).to.be.lessThan(3);
+    expect(Math.abs(topOf(174) - 87)).to.be.lessThan(2);
+  });
+});
+
+describe('detectTempogram', () => {
+  it('reads a whole recording', () => {
+    const [top] = detectTempogram(createBrightClicks(128, 30), sampleRate);
+
+    expect(top.tempo).to.be.within(127, 129);
+  });
+
+  it('counts every frame the same, so an outro does not decide', () => {
+    const song = createBrightClicks(100, 90);
+    const outro = createBrightClicks(141, 20);
+    const samples = new Float32Array(song.length + outro.length);
+
+    samples.set(song);
+    samples.set(outro, song.length);
+
+    const [top] = detectTempogram(samples, sampleRate);
+
+    expect(top.tempo).to.be.within(99, 101);
+  });
+
+  it('reads a recording shorter than the warm-up', () => {
+    const [top] = detectTempogram(createBrightClicks(120, 3), sampleRate);
+
+    expect(top.tempo).to.be.within(118, 122);
+  });
+
+  it('returns nothing for silence or for too little audio', () => {
+    expect(detectTempogram(new Float32Array(sampleRate * 10), sampleRate)).to.deep.equal([]);
+    expect(detectTempogram(createBrightClicks(120, 1), sampleRate)).to.deep.equal([]);
+  });
+
+  it('searches the given range and refuses an invalid one', () => {
+    const [top] = detectTempogram(createBrightClicks(160, 20), sampleRate, {min: 60, max: 130});
+
+    expect(top.tempo).to.be.within(79, 81);
+    expect(() => detectTempogram(new Float32Array(10), sampleRate, {min: 100, max: 150})).to.throw(RangeError);
   });
 });

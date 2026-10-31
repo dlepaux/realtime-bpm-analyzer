@@ -5,6 +5,7 @@ import {
   UNINSTALL_REASONS,
   compareVersions,
   isUninstallReason,
+  isUsersOnlyExtensionPage,
   parseVersion,
   readExtensionQuery,
   splitReleases,
@@ -100,4 +101,13 @@ test('uninstall reasons: a fixed list of distinct snake_case values', () => {
   }
   assert.equal(isUninstallReason('free text'), false)
   assert.equal(isUninstallReason(undefined), false)
+})
+
+test('isUsersOnlyExtensionPage: keeps only the privacy policy of extension/ in the sitemap', () => {
+  for (const url of ['extension/welcome', '/extension/whats-new', 'extension/goodbye.html', 'extension/anything-new']) {
+    assert.equal(isUsersOnlyExtensionPage(url), true, url)
+  }
+  for (const url of ['extension/privacy', '/extension/privacy', 'extension/privacy.html', 'website-privacy', 'privacy']) {
+    assert.equal(isUsersOnlyExtensionPage(url), false, url)
+  }
 })

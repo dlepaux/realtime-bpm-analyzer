@@ -5,7 +5,7 @@ import { UNINSTALL_REASONS, readExtensionQuery, type UninstallReason } from '../
 
 const { track } = useAnalytics()
 
-// One click, one event, the enum value only. It goes through the site's analytics
+// One click, one event: the enum value and the extension version. It goes through the site's analytics
 // wrapper like every other event, so the same GTM tags and consent apply.
 const chosen = ref<UninstallReason | null>(null)
 const thanks = ref<HTMLElement | null>(null)

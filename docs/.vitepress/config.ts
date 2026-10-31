@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitepress'
 import { createRequire } from 'module'
+import { isUsersOnlyExtensionPage } from './tools/extension-pages'
 
 const require = createRequire(import.meta.url)
 // The library's version, through its workspace link (packages/realtime-bpm-analyzer)
@@ -193,7 +194,7 @@ export default defineConfig({
     hostname: 'https://www.realtime-bpm-analyzer.com',
     // The pages the browser extension opens (RBA-38) are for its users only and
     // carry noindex, so they stay out of the sitemap too.
-    transformItems: (items) => items.filter((item) => !/^\/?extension\//.test(item.url)),
+    transformItems: (items) => items.filter((item) => !isUsersOnlyExtensionPage(item.url)),
   },
   
   // Ignore dead links for pages we haven't created yet
@@ -359,7 +360,8 @@ export default defineConfig({
           { text: 'Code of Conduct', link: '/code-of-conduct' },
           { text: 'Security', link: '/security' },
           { text: 'Library Privacy', link: '/privacy' },
-          { text: 'Website Privacy', link: '/website-privacy' }
+          { text: 'Website Privacy', link: '/website-privacy' },
+          { text: 'Extension Privacy', link: '/extension/privacy' }
         ]
       }
     ],

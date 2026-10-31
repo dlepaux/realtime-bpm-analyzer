@@ -37,7 +37,7 @@ export type Transform = {
  * pitch shift. It is a phase-vocoder-free overlap method, audible on transients, which the report
  * says, and it needs no extra licence to check.
  * @param transform What to do
- * @param rate Sample rate of the source
+ * @param rate Sample rate to work at, whatever the source's
  * @returns The filter graph
  */
 export function ffmpegFilter(transform: Transform, rate: number): string {
@@ -48,7 +48,9 @@ export function ffmpegFilter(transform: Transform, rate: number): string {
     throw new Error(`stretch ${stretch} is outside what one atempo stage does`);
   }
 
-  const shifted = transform.semitones === 0 ? [] : [`asetrate=${Math.round(rate * pitch)}`, `aresample=${rate}`];
+  // Resampled first: asetrate multiplies the rate it is told about, so a 48 kHz source would come
+  // out about 8% off its label
+  const shifted = transform.semitones === 0 ? [] : [`aresample=${rate}`, `asetrate=${Math.round(rate * pitch)}`, `aresample=${rate}`];
 
   return [...shifted, `atempo=${stretch.toFixed(6)}`].join(',');
 }

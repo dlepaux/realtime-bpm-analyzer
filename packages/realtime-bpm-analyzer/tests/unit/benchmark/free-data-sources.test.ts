@@ -148,6 +148,8 @@ describe('free data: what each host says', () => {
 
   it('parses quotes, commas and newlines inside a CSV field', () => {
     expect(parseCsv('a,"b,""c""\nd",e\r\n1,2,3')).to.deep.equal([['a', 'b,"c"\nd', 'e'], ['1', '2', '3']]);
+    expect(parseCsv('a,\n,b\n')).to.deep.equal([['a', ''], ['', 'b']]);
+    expect(parseCsv('"a"\r\n"b",""')).to.deep.equal([['a'], ['b', '']]);
   });
 
   it('reads the tempo from Echo Nest\'s three-row header, and refuses a changed file', () => {

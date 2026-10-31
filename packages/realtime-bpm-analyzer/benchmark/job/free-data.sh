@@ -9,18 +9,20 @@ root="${RBA_TEMPO_ROOT:-/data/rba-tempo}/free-data"
 stage() { node dist/free-data.mjs "$@" --root "$root"; }
 analyse() {
   stage list
-  # Six: a worker peaks near 1 GB on a two-minute excerpt, and the job's limit is 6 GiB
-  python3 job/trackers.py --list "$root/analysis-list.jsonl" --out "$root/readings.jsonl" --workers "${RBA_JOB_WORKERS:-6}" --checkpoint final0
+  # Four: a worker peaks near 1 GB on a two-minute excerpt with its decodes on top, and the job's
+  # limit is 6 GiB. A kill loses more time than two workers would win.
+  python3 job/trackers.py --list "$root/analysis-list.jsonl" --out "$root/readings.jsonl" --workers "${RBA_JOB_WORKERS:-4}" --checkpoint final0
 }
 samples() {
-  stage synth --count 12
+  stage synth --count 28
   stage derive --count 12
   stage mixes --count 6
 }
 
 case "${1:-}" in
   all)
-    stage synth --count 12
+    # Before the trackers, as the generated tracks are also their calibration
+    stage synth --count 28
     stage catalogue
     stage fetch
     analyse

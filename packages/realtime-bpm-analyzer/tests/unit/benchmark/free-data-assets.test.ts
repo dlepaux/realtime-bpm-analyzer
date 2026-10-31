@@ -136,7 +136,7 @@ describe('free data: made audio', () => {
     it('builds the filter so tempo and pitch come out as asked', () => {
       expect(ffmpegFilter({tempoFactor: 1.1, semitones: 0}, 44_100)).to.equal('atempo=1.100000');
       // Up an octave doubles the speed, so tempo x1 needs atempo 0.5 to undo it
-      expect(ffmpegFilter({tempoFactor: 1, semitones: 12}, 44_100)).to.equal('asetrate=88200,aresample=44100,atempo=0.500000');
+      expect(ffmpegFilter({tempoFactor: 1, semitones: 12}, 44_100)).to.equal('aresample=44100,asetrate=88200,aresample=44100,atempo=0.500000');
       expect(() => ffmpegFilter({tempoFactor: 3, semitones: 0}, 44_100)).to.throw();
     });
 

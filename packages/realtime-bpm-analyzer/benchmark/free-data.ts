@@ -6,7 +6,7 @@
  */
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync} from 'node:fs';
+import {appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, truncateSync, writeFileSync} from 'node:fs';
 import {dirname, extname, join} from 'node:path';
 import {parseArgs} from 'node:util';
 import {crc32} from 'node:zlib';
@@ -17,9 +17,9 @@ import {keyConsensus, normaliseKey, pickForConfirmation, tempoConsensus} from '.
 import {derivedRow, factorsTowards, ffmpegFilter} from './free-data/derive';
 import {mixLicence, planMixes, renderMix} from './free-data/loop-mix';
 import type {Loop, LoopRole} from './free-data/loop-mix';
-import {artistKeyOf, dropDuplicates, freezeByArtist, rowProblems} from './free-data/manifest';
-import type {ManifestRow, TempoVote} from './free-data/manifest';
-import {bandOf, buildReport} from './free-data/report';
+import {artistGroups, artistKeyOf, dropDuplicates, extendFreeze, rowProblems} from './free-data/manifest';
+import type {FrozenSplit, ManifestRow, TempoVote} from './free-data/manifest';
+import {bandOf, buildReport, calibrate} from './free-data/report';
 import {classifyLicence, echonestTempos, narrow, parseCsv, parseFma, parseInternetArchive} from './free-data/sources';
 import type {Candidate, FmaRow, GenreRow, IaItem, Parsed} from './free-data/sources';
 import {defaultStructure, encodeWav, generateTrack, sampleRate, specFromSeed} from './free-data/synth';
@@ -52,10 +52,30 @@ const iaSubjects = [
 
 const sleep = (ms: number) => new Promise(resolve => { setTimeout(resolve, ms); });
 
+/** Lines end with their newline, so anything after the last one is a write a kill cut short */
 function readJsonl<T>(path: string): T[] {
-  return existsSync(path)
-    ? readFileSync(path, 'utf8').split('\n').filter(line => line !== '').map(line => JSON.parse(line) as T)
-    : [];
+  if (!existsSync(path)) {
+    return [];
+  }
+
+  const text = readFileSync(path, 'utf8');
+
+  return text.slice(0, text.lastIndexOf('\n') + 1).split('\n').filter(line => line !== '').map(line => JSON.parse(line) as T);
+}
+
+/** Cuts a line a kill left half written, as the next append would glue onto it */
+function repairTail(path: string): void {
+  if (existsSync(path)) {
+    const bytes = readFileSync(path);
+
+    truncateSync(path, bytes.lastIndexOf(10) + 1);
+  }
+}
+
+/** Why a stage ended before its work did. A short count from a stop must not read as scarcity */
+function recordStop(root: string, stop: string): void {
+  log(stop);
+  appendFileSync(join(root, 'stops.jsonl'), `${JSON.stringify({stop})}\n`);
 }
 
 function writeAtomic(path: string, content: string | Uint8Array): void {
@@ -75,14 +95,34 @@ async function get(url: string, range?: readonly [number, number]): Promise<Resp
   });
 }
 
-async function getBytes(url: string, range?: readonly [number, number]): Promise<Uint8Array> {
+/** Streamed against a limit: a host's stated length is optional, and a job's memory is not */
+async function getBytes(url: string, range?: readonly [number, number], most = mostBytesPerFile * 2): Promise<Uint8Array> {
   const response = await get(url, range);
 
   if (response.status !== (range ? 206 : 200)) {
+    await response.body?.cancel();
     throw new Error(`HTTP ${response.status}`);
   }
 
-  return new Uint8Array(await response.arrayBuffer());
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+
+  if (response.body) {
+    const reader = response.body.getReader();
+
+    for (let part = await reader.read(); !part.done; part = await reader.read()) {
+      size += part.value.length;
+
+      if (size > most) {
+        await reader.cancel();
+        throw new Error('over the size limit');
+      }
+
+      chunks.push(part.value);
+    }
+  }
+
+  return new Uint8Array(Buffer.concat(chunks));
 }
 
 function tally(values: readonly string[]): Record<string, number> {
@@ -134,7 +174,7 @@ async function fmaCandidates(root: string): Promise<Parsed[]> {
   });
 }
 
-async function iaIdentifiers(subject: string): Promise<string[]> {
+async function iaIdentifiers(root: string, subject: string): Promise<string[]> {
   const found: string[] = [];
   let cursor = '';
 
@@ -155,11 +195,13 @@ async function iaIdentifiers(subject: string): Promise<string[]> {
     await sleep(iaPauseMs);
 
     if (!body.cursor) {
-      break;
+      return found;
     }
 
     cursor = body.cursor;
   }
+
+  recordStop(root, `internet archive, ${subject}: stopped at the page limit, more items exist`);
 
   return found;
 }
@@ -167,11 +209,14 @@ async function iaIdentifiers(subject: string): Promise<string[]> {
 /** Each item's metadata is cached, so a resumed catalogue asks the Archive for nothing twice */
 async function iaCandidates(root: string): Promise<Parsed[]> {
   const cache = join(root, 'catalogue/ia-items.jsonl');
+
+  repairTail(cache);
+
   const items = new Map(readJsonl<IaItem>(cache).map(item => [item.metadata.identifier, item]));
   const identifiers = new Set<string>();
 
   for (const subject of iaSubjects) {
-    const found = await iaIdentifiers(subject);
+    const found = await iaIdentifiers(root, subject);
 
     found.forEach(identifier => { identifiers.add(identifier); });
     log(`internet archive, ${subject}: ${found.length} permissive items, ${identifiers.size} in all`);
@@ -210,6 +255,12 @@ async function iaCandidates(root: string): Promise<Parsed[]> {
 }
 
 async function catalogue(root: string): Promise<void> {
+  // Frozen once written: a new item could move the per-artist draw and silently drop analysed tracks
+  if (existsSync(join(root, 'catalogue/candidates.jsonl'))) {
+    log('catalogue: already frozen');
+    return;
+  }
+
   const parsed = [...await fmaCandidates(root), ...await iaCandidates(root)];
   const rejected = parsed.flatMap(result => (result.ok ? [] : [result.reason]));
   const candidates = parsed.flatMap(result => (result.ok ? [result.candidate] : []));
@@ -256,6 +307,7 @@ async function fmaMember(member: ZipMember): Promise<Uint8Array> {
 /** One host's queue, in order. A refusal is counted, and enough of them in a row end the queue */
 async function fetchQueue(
   root: string,
+  disk: {bytes: number},
   queue: readonly Candidate[],
   pauseMs: number,
   read: (candidate: Candidate) => Promise<Uint8Array>,
@@ -263,11 +315,10 @@ async function fetchQueue(
   const out = join(root, 'fetched.jsonl');
   const failures = join(root, 'fetch-failures.jsonl');
   let refusals = 0;
-  let total = readJsonl<Fetched>(out).reduce((sum, row) => sum + row.bytes, 0);
 
   for (const candidate of queue) {
-    if (total > mostBytesInAll) {
-      log('the set reached its disk limit, stopping');
+    if (disk.bytes > mostBytesInAll) {
+      recordStop(root, `${candidate.source}: stopped at the disk limit`);
       return;
     }
 
@@ -279,7 +330,7 @@ async function fetchQueue(
 
       writeAtomic(path, bytes);
       appendFileSync(out, `${JSON.stringify({id: candidate.id, path, sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length} satisfies Fetched)}\n`);
-      total += bytes.length;
+      disk.bytes += bytes.length;
       refusals = 0;
     } catch (error) {
       const reason = String(error);
@@ -288,7 +339,7 @@ async function fetchQueue(
       refusals = /HTTP (403|429|503)/.test(reason) ? refusals + 1 : 0;
 
       if (refusals >= refusalsToStop) {
-        log(`${candidate.source} refused ${refusals} in a row, stopping its queue: ${reason}`);
+        recordStop(root, `${candidate.source}: refused ${refusals} in a row, queue stopped: ${reason}`);
         return;
       }
     }
@@ -298,14 +349,20 @@ async function fetchQueue(
 }
 
 async function fetchAudio(root: string): Promise<void> {
-  const done = new Set(readJsonl<Fetched>(join(root, 'fetched.jsonl')).map(row => row.id));
+  repairTail(join(root, 'fetched.jsonl'));
+  repairTail(join(root, 'fetch-failures.jsonl'));
+
+  const fetched = readJsonl<Fetched>(join(root, 'fetched.jsonl'));
+  const done = new Set(fetched.map(row => row.id));
+  // One limit over both queues, or each would have the whole allowance
+  const disk = {bytes: fetched.reduce((sum, row) => sum + row.bytes, 0)};
   const candidates = readJsonl<Candidate>(join(root, 'catalogue/candidates.jsonl')).filter(row => !done.has(row.id));
   const members = await fmaDirectory(root);
   const of = (source: Candidate['source']) => candidates.filter(row => row.source === source);
 
   log(`fetch: ${candidates.length} to go`);
   await Promise.all([
-    fetchQueue(root, of('fma'), fmaPauseMs, async candidate => {
+    fetchQueue(root, disk, of('fma'), fmaPauseMs, async candidate => {
       const member = 'zipMember' in candidate.audio ? members.get(candidate.audio.zipMember) : undefined;
 
       if (!member) {
@@ -314,26 +371,24 @@ async function fetchAudio(root: string): Promise<void> {
 
       return fmaMember(member);
     }),
-    fetchQueue(root, of('internet-archive'), iaPauseMs, async candidate => {
+    fetchQueue(root, disk, of('internet-archive'), iaPauseMs, async candidate => {
       if (!('url' in candidate.audio)) {
         throw new Error('no url');
       }
 
-      const bytes = await getBytes(candidate.audio.url);
-
-      if (bytes.length > mostBytesPerFile) {
-        throw new Error('over the size limit');
-      }
-
-      return bytes;
+      return getBytes(candidate.audio.url, undefined, mostBytesPerFile);
     }),
   ]);
 }
 
 function listForTrackers(root: string): void {
-  const rows = readJsonl<Fetched>(join(root, 'fetched.jsonl'));
+  // Generated audio goes along as a calibration: its tempo is exact, so it shows how each tracker fares
+  const rows = [
+    ...readJsonl<Fetched>(join(root, 'fetched.jsonl')).map(({id, path}) => ({id, path})),
+    ...readJsonl<ManifestRow>(join(root, 'not-real-generated.jsonl')).map(row => ({id: row.id, path: row.audioPath})),
+  ];
 
-  writeAtomic(join(root, 'analysis-list.jsonl'), rows.map(({id, path}) => JSON.stringify({id, path})).join('\n') + '\n');
+  writeAtomic(join(root, 'analysis-list.jsonl'), rows.map(row => JSON.stringify(row)).join('\n') + '\n');
   log(`list: ${rows.length} tracks`);
 }
 
@@ -345,31 +400,6 @@ type Reading = {
   readonly keyVotes?: readonly string[];
   readonly halvesAgree?: boolean | null;
 };
-
-const frozenSplit = (root: string) => join(root, 'split-frozen.json');
-
-/**
- * Freezes by artist once. A later run adds new artists and never moves one: a split that changed
- * after any number was read would be no split.
- */
-function splitOf(root: string, rows: ReadonlyArray<Pick<ManifestRow, 'id' | 'artistKey' | 'genreFamily'>>): ReadonlyMap<string, Split> {
-  const path = frozenSplit(root);
-  const frozen = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) as {seed: string; artists: Record<string, Split>} : {seed, artists: {}};
-  const fresh = freezeByArtist(rows.filter(row => !(row.artistKey in frozen.artists)), seed);
-  const artists = {...frozen.artists};
-
-  for (const row of rows) {
-    const side = fresh.get(row.id);
-
-    if (side && !(row.artistKey in artists)) {
-      artists[row.artistKey] = side;
-    }
-  }
-
-  writeAtomic(path, JSON.stringify({seed, artists}, null, 1));
-
-  return new Map(rows.map(row => [row.id, artists[row.artistKey]]));
-}
 
 /** Same artist, same title, about the same length: one recording, whichever host or encode it came from */
 function recordingKey(candidate: Candidate, duration: number): string {
@@ -400,14 +430,33 @@ function realRows(root: string): {readonly rows: ManifestRow[]; readonly refused
       return [];
     }
 
-    return [{id: reading.id, candidate, file, reading, votes: reading.votes, duration: reading.duration, contentKeys: [file.sha256, recordingKey(candidate, reading.duration)]}];
+    return [{
+      id: reading.id,
+      candidate,
+      file,
+      reading,
+      votes: reading.votes,
+      duration: reading.duration,
+      artist: candidate.artist,
+      artistKey: candidate.artistKey,
+      genreFamily: candidate.genreFamily,
+      contentKeys: [file.sha256, recordingKey(candidate, reading.duration)],
+    }];
   });
+  const groups = artistGroups(labelled);
   const {kept, dropped} = dropDuplicates(labelled);
+  const freezePath = join(root, 'split-frozen.json');
+  const previous = existsSync(freezePath) ? JSON.parse(readFileSync(freezePath, 'utf8')) as FrozenSplit : {seed, artists: {}};
+  const {frozen, conflicted} = extendFreeze(kept, groups, previous);
 
+  writeAtomic(freezePath, JSON.stringify(frozen, null, 1));
   refused.push(...Array.from({length: dropped.size}, () => 'duplicate recording'));
 
-  const sides = splitOf(root, kept.map(({candidate}) => candidate));
-  const rows = kept.map(({candidate, file, reading, votes, duration}): ManifestRow => {
+  const placed = kept.filter(({artistKey}) => !conflicted.has(groups.get(artistKey) ?? artistKey));
+
+  refused.push(...Array.from({length: kept.length - placed.length}, () => 'artist on both sides of the frozen split'));
+
+  const rows = placed.map(({candidate, file, reading, votes, duration}): ManifestRow => {
     const consensus = tempoConsensus(votes);
 
     return {
@@ -436,9 +485,10 @@ function realRows(root: string): {readonly rows: ManifestRow[]; readonly refused
         keyVotes: reading.keyVotes,
         octaveSplit: consensus.octaveSplit,
         candidateBpm: consensus.candidateBpm,
+        halvesAgree: reading.halvesAgree ?? null,
       },
       sourceItems: [],
-      split: sides.get(candidate.id) ?? 'dev',
+      split: frozen.artists[candidate.artistKey],
       audioPath: file.path,
     };
   });
@@ -451,7 +501,7 @@ function confirmationFile(root: string, rows: readonly ManifestRow[]): void {
     rows.map(row => ({
       id: row.id,
       confidence: row.confidence,
-      octaveSplit: row.labelProvenance.octaveSplit ?? false,
+      octaveSplit: (row.labelProvenance.octaveSplit ?? false) || row.labelProvenance.halvesAgree === false,
       band: bandOf(row.bpm ?? row.labelProvenance.candidateBpm ?? null),
     })),
     seed,
@@ -459,28 +509,28 @@ function confirmationFile(root: string, rows: readonly ManifestRow[]): void {
     150,
   );
   const byId = new Map(rows.map(row => [row.id, row]));
-  const lines = picks.flatMap(({id, why}) => {
+  // Shuffled, with no label, votes, hint or reason in sight: a listener who sees a number hears it.
+  // The key stays in its own file, for whoever compares afterwards.
+  const shuffled = picks.flatMap(({id, why}) => {
     const row = byId.get(id);
 
-    if (!row) {
-      return [];
-    }
-
-    const votes = row.labelProvenance.votes.map(vote => `${vote.method} ${vote.bpm?.toFixed(1) ?? '-'}`).join(', ');
-
-    return [`| ${why} | ${row.id} | ${row.url} | \`${row.audioPath}\` | ${row.sha256.slice(0, 12)} | ${row.bpm ?? 'none'} | ${votes} | ${row.labelProvenance.hintBpm ?? 'none'} |  |`];
-  });
+    return row ? [{why, row}] : [];
+  }).sort((a, b) => fnv1a(`${seed}:listen:${a.row.id}`) - fnv1a(`${seed}:listen:${b.row.id}`));
+  const lines = shuffled.map(({row}) => `| ${row.id} | ${row.url} | \`${row.audioPath}\` | ${row.sha256.slice(0, 12)} |  |`);
   const minutes = Math.ceil(lines.length * 1.5);
 
+  writeAtomic(join(root, 'confirmation-key.jsonl'), shuffled.map(({why, row}) => JSON.stringify({
+    id: row.id, why, label: row.bpm, candidate: row.labelProvenance.candidateBpm, votes: row.labelProvenance.votes, hint: row.labelProvenance.hintBpm,
+  })).join('\n') + '\n');
   writeAtomic(join(root, 'confirmation.md'), [
     '# RBA-59: tracks for a person to confirm',
     '',
     `${lines.length} tracks, about ${minutes} minutes at 1.5 minutes each: tap the beat, write the tempo in the last column.`,
-    'The random rows measure how far tracker agreement can be trusted, whatever it says. The disagreement rows are the fast bands\' open cases.',
+    'The list is blind on purpose: open `confirmation-key.jsonl` only after listening. It says which tracks are the random sample, measuring how far agreement can be trusted, and which are open cases from the fast bands.',
     'Paths are on srv-compute, under the volume mounted at /data/rba-tempo (/srv/data/rba-tempo).',
     '',
-    '| why | id | page | audio | sha256 | tracker label | votes | hint | tempo heard |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| id | page | audio | sha256 | tempo heard |',
+    '| --- | --- | --- | --- | --- |',
     ...lines,
     '',
   ].join('\n'));
@@ -503,6 +553,17 @@ function consolidate(root: string): void {
   }));
   confirmationFile(root, rows);
   log(`consolidate: ${rows.length} real tracks, refused ${JSON.stringify(refused)}`);
+}
+
+/** Every made row passes here, as `rowProblems` is what keeps made audio out of held-out */
+function writeNotReal(root: string, name: string, rows: readonly ManifestRow[]): void {
+  const problems = rows.flatMap(row => rowProblems(row).map(problem => `${row.id}: ${problem}`));
+
+  if (problems.length > 0) {
+    throw new Error(`rows with problems, none written:\n${problems.slice(0, 20).join('\n')}`);
+  }
+
+  writeAtomic(join(root, `not-real-${name}.jsonl`), rows.map(row => `${JSON.stringify(row)}\n`).join(''));
 }
 
 function synthRow(id: string, audioPath: string, pcmLength: number, sha256: string, bpm: number, key: string, genre: string, sections: ManifestRow['sections']): ManifestRow {
@@ -546,7 +607,7 @@ function synth(root: string, count: number): void {
     return synthRow(id, path, track.pcm.length, createHash('sha256').update(wav).digest('hex'), spec.bpm, track.key, spec.style.name, track.sections);
   });
 
-  writeAtomic(join(root, 'not-real-generated.jsonl'), rows.map(row => JSON.stringify(row)).join('\n') + '\n');
+  writeNotReal(root, 'generated', rows);
   log(`synth: ${rows.length} tracks`);
 }
 
@@ -558,7 +619,7 @@ function synth(root: string, count: number): void {
 function derive(root: string, count: number): void {
   const manifest = readJsonl<ManifestRow>(join(root, 'manifest.jsonl'));
   const sources = manifest
-    .filter(row => row.kind === 'real' && row.split === 'dev' && row.confidence === 'trackers-all' && !row.labelProvenance.octaveSplit && row.bpm !== null)
+    .filter(row => row.kind === 'real' && row.split === 'dev' && row.confidence === 'trackers-all' && !row.labelProvenance.octaveSplit && row.labelProvenance.halvesAgree !== false && row.bpm !== null)
     .sort((a, b) => fnv1a(`${seed}:derive:${a.id}`) - fnv1a(`${seed}:derive:${b.id}`));
   const rows: ManifestRow[] = [];
 
@@ -580,7 +641,7 @@ function derive(root: string, count: number): void {
     }
   }
 
-  writeAtomic(join(root, 'not-real-derived.jsonl'), rows.map(row => JSON.stringify(row)).join('\n') + '\n');
+  writeNotReal(root, 'derived', rows);
   log(`derive: ${rows.length} tracks`);
 }
 
@@ -687,7 +748,7 @@ function mixes(root: string, count: number): void {
     }
   }
 
-  writeAtomic(join(root, 'not-real-loop-mixes.jsonl'), rows.map(row => JSON.stringify(row)).join('\n') + '\n');
+  writeNotReal(root, 'loop-mixes', rows);
   log(`mixes: ${rows.length} of ${plans.length} plans, from ${usable.length} usable dev loops: ${JSON.stringify(tally(usable.map(loop => loop.role)))}`);
 }
 
@@ -714,8 +775,15 @@ function report(root: string): void {
     ...readJsonl<ManifestRow>(join(root, 'manifest.jsonl')),
     ...['generated', 'derived', 'loop-mixes'].flatMap(name => readJsonl<ManifestRow>(join(root, `not-real-${name}.jsonl`))),
   ];
+  const readings = new Map(readJsonl<Reading>(join(root, 'readings.jsonl')).map(row => [row.id, row.votes ?? []]));
+  const candidates = readJsonl<Candidate>(join(root, 'catalogue/candidates.jsonl')).length;
+  const fetched = readJsonl<Fetched>(join(root, 'fetched.jsonl')).length;
+  const stops = readJsonl<{stop: string}>(join(root, 'stops.jsonl')).map(row => row.stop);
   const body = {
     ...buildReport(rows),
+    // A stop or a gap means the counts are a floor, not what free data can give
+    progress: {candidates, fetched, read: readings.size, stops, complete: stops.length === 0 && candidates > 0 && fetched >= candidates},
+    calibrationOnGenerated: calibrate(rows.filter(row => row.kind === 'generated'), readings),
     fsldLoops: loopCounts(),
     catalogue: readJsonIfThere(join(root, 'catalogue/rejections.json')),
     refused: readJsonIfThere(join(root, 'refused.json')),

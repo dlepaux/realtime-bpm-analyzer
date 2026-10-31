@@ -82,7 +82,7 @@ jobs:
           docker run --rm --network none --entrypoint /bin/sh "$TAG" -c '
             set -e
             flock --version > /dev/null
-            bzip2 --help 2> /dev/null
+            echo check | bzip2 -c | bzip2 -dc | grep -q check
             unzip -v > /dev/null
             export RBA_TEMPO_ROOT=/tmp/check root=/tmp/check/free-data
             mkdir -p "$root"
@@ -90,9 +90,7 @@ jobs:
             path="$(ls "$root"/generated/*.wav)"
             printf "{\"id\":\"check\",\"path\":\"%s\"}\n" "$path" > "$root/list.jsonl"
             python3 job/trackers.py --list "$root/list.jsonl" --out "$root/out.jsonl" --workers 1 --checkpoint final0
-            cat "$root/out.jsonl"
-            grep -q "beat-this-final0" "$root/out.jsonl"
-            ! grep -q "\"error\"" "$root/out.jsonl"
+            python3 job/check-image.py "$root/out.jsonl" "$root/not-real-generated.jsonl"
           '
           code=0
           docker run --rm --entrypoint /app/benchmark/job/free-data.sh "$TAG" no-such-stage || code=$?

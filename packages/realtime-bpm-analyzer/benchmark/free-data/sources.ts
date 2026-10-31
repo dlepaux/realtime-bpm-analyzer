@@ -309,42 +309,52 @@ export function narrow(
 
 /**
  * A CSV parser, as FMA's fields hold quotes, commas and newlines. Twenty lines do not earn a package.
+ * Fields are slices of the text, as building them a character at a time took 3 GB on raw_tracks.csv.
  * @param text The file
  * @returns Rows of fields
  */
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
-  let field = '';
-  let quoted = false;
+  let at = 0;
 
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
+  while (at < text.length) {
+    let field: string;
 
-    if (quoted) {
-      if (char === '"' && text[i + 1] === '"') {
-        field += '"';
-        i += 1;
-      } else if (char === '"') {
-        quoted = false;
-      } else {
-        field += char;
+    if (text[at] === '"') {
+      let end = text.indexOf('"', at + 1);
+
+      while (end !== -1 && text[end + 1] === '"') {
+        end = text.indexOf('"', end + 2);
       }
-    } else if (char === '"') {
-      quoted = true;
-    } else if (char === ',') {
-      row.push(field);
-      field = '';
-    } else if (char === '\n') {
-      rows.push([...row, field.replace(/\r$/, '')]);
-      row = [];
-      field = '';
+
+      end = end === -1 ? text.length : end;
+      field = text.slice(at + 1, end).replaceAll('""', '"');
+      at = end + 1;
     } else {
-      field += char;
+      const comma = text.indexOf(',', at);
+      const newline = text.indexOf('\n', at);
+      const end = Math.min(comma === -1 ? text.length : comma, newline === -1 ? text.length : newline);
+
+      field = text.slice(at, end);
+      at = end;
     }
+
+    row.push(field.endsWith('\r') && text[at] !== ',' ? field.slice(0, -1) : field);
+
+    if (text[at] === '\r') {
+      at += 1;
+    }
+
+    if (text[at] === '\n' || at >= text.length) {
+      rows.push(row);
+      row = [];
+    }
+
+    at += 1;
   }
 
-  return field === '' && row.length === 0 ? rows : [...rows, [...row, field]];
+  return rows;
 }
 
 /**

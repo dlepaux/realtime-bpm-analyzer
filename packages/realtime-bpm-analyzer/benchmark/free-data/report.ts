@@ -1,6 +1,6 @@
-import {hintVerdict} from './consensus';
+import {hintVerdict, relationOf} from './consensus';
 import type {HintVerdict} from './consensus';
-import type {ManifestRow, TrackKind} from './manifest';
+import type {ManifestRow, TempoVote, TrackKind} from './manifest';
 
 /** The card's bands, and its target: at least this many real tracks per band */
 export const target = 200;
@@ -59,11 +59,17 @@ function tally(values: readonly string[]): Record<string, number> {
 
 export type BandVerdict = {
   readonly met: boolean;
-  /** Real, permissive, labelled, and no tracker dissenting by an octave. Only these meet the target */
+  /**
+   * Real, permissive, electronic, labelled, no tracker dissenting by an octave and one tempo all
+   * through. Only these meet the target: the card wants fast electronic music, and punk at 180 BPM
+   * does not stand in for it.
+   */
   readonly have: number;
+  /** As above, in other genres: real and useful, but counted apart */
+  readonly otherGenres: number;
   readonly short: number;
   readonly artists: number;
-  /** Labelled by two trackers while the third sits an octave away: a person should settle these */
+  /** Labelled, but a tracker sits an octave away or the tempo moves: a person should settle these */
   readonly contested: number;
   /** No label, and the first tracker reads this band: what a person's confirmation could still add */
   readonly awaitingPerson: number;
@@ -91,6 +97,34 @@ export type DataReport = {
   readonly verdict: Record<'140-165' | '165+', BandVerdict>;
 };
 
+export type Calibration = Record<string, {readonly tracks: number; readonly same: number; readonly half: number; readonly double: number; readonly other: number; readonly none: number}>;
+
+/**
+ * How each tracker reads audio whose tempo is exact by construction. Generated audio is easier than
+ * music, so this bounds how far to trust a tracker from above and is no accuracy figure.
+ * @param rows Rows with an exact label
+ * @param readings Tracker readings by id
+ * @returns Relation counts per tracker
+ */
+export function calibrate(
+  rows: readonly ManifestRow[],
+  readings: ReadonlyMap<string, readonly TempoVote[]>,
+): Calibration {
+  const out: Record<string, {tracks: number; same: number; half: number; double: number; other: number; none: number}> = {};
+
+  for (const row of rows) {
+    for (const vote of readings.get(row.id) ?? []) {
+      const counts = out[vote.method] ?? {tracks: 0, same: 0, half: 0, double: 0, other: 0, none: 0};
+
+      counts.tracks += 1;
+      counts[vote.bpm === null || row.bpm === null ? 'none' : relationOf(vote.bpm, row.bpm)] += 1;
+      out[vote.method] = counts;
+    }
+  }
+
+  return out;
+}
+
 function bandsOf(rows: readonly ManifestRow[]): Partial<Record<Band, number>> {
   return tally(rows.map(row => bandOf(row.bpm)));
 }
@@ -110,15 +144,17 @@ export function buildReport(rows: readonly ManifestRow[]): DataReport {
   const verdictOf = (band: '140-165' | '165+') => {
     const permissive = real.filter(row => row.licenceClass === 'permissive');
     const inBand = permissive.filter(row => bandOf(row.bpm) === band);
-    const settled = inBand.filter(row => !row.labelProvenance.octaveSplit);
+    const settledAll = inBand.filter(row => !row.labelProvenance.octaveSplit && row.labelProvenance.halvesAgree !== false);
+    const settled = settledAll.filter(row => row.genreFamily === 'electronic');
     const have = settled.length;
 
     return {
       met: have >= target,
       have,
+      otherGenres: settledAll.length - have,
       short: Math.max(0, target - have),
       artists: new Set(settled.map(row => row.artistKey)).size,
-      contested: inBand.length - have,
+      contested: inBand.length - settledAll.length,
       awaitingPerson: permissive.filter(row => row.bpm === null && bandOf(row.labelProvenance.candidateBpm ?? null) === band).length,
     };
   };

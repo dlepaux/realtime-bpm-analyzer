@@ -13,6 +13,7 @@ Trackers and licences, stated because they matter (plan/rba-data-options.md):
 madmom's models and Essentia's TensorFlow models are non-commercial, so they are left out.
 """
 import argparse
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
 import multiprocessing
 import os
@@ -24,6 +25,8 @@ import numpy as np
 import scipy.stats
 
 SAMPLE_RATE = 22050
+ESSENTIA_RATE = 44100
+TOOL_TIMEOUT_SECONDS = 300
 # Centre of the track: intros and outros are where tempo is least defined, and this bounds the cost
 EXCERPT_SECONDS = 120
 
@@ -49,25 +52,41 @@ def _setup(checkpoint):
 
     torch.set_num_threads(1)
     _beats = Audio2Beats(checkpoint_path=checkpoint, device="cpu", dbn=False)
+    # RhythmExtractor2013 takes 44.1 kHz only, and states no error when fed anything else
     _rhythm = es.RhythmExtractor2013(method="multifeature")
-    _key = es.KeyExtractor(profileType="edma", sampleRate=SAMPLE_RATE)
+    _key = es.KeyExtractor(profileType="edma", sampleRate=ESSENTIA_RATE)
+
+
+class Transient(Exception):
+    """The machine failed, not the file: the track stays unread, for the next run to read."""
+
+
+def _run(command):
+    try:
+        return subprocess.run(command, capture_output=True, check=True, timeout=TOOL_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as error:
+        raise Transient("timed out") from error
+    except subprocess.CalledProcessError as error:
+        # A negative code is a signal, usually the memory limit, and says nothing about the file
+        if error.returncode < 0:
+            raise Transient(f"signal {-error.returncode}") from error
+        raise
 
 
 def _duration(path):
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
-        capture_output=True, text=True, check=True,
-    )
-    return float(out.stdout.strip())
+    out = _run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path])
+    return float(out.stdout.decode().strip())
 
 
-def _decode(path, start, seconds):
-    out = subprocess.run(
-        ["ffmpeg", "-v", "error", "-nostdin", "-ss", str(start), "-t", str(seconds), "-i", path,
-         "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "f32le", "-"],
-        capture_output=True, check=True,
-    )
+def _decode(path, start, seconds, rate):
+    out = _run(["ffmpeg", "-v", "error", "-nostdin", "-ss", str(start), "-t", str(seconds), "-i", path,
+                "-ac", "1", "-ar", str(rate), "-f", "f32le", "-"])
     return np.frombuffer(out.stdout, dtype=np.float32).copy()
+
+
+def _finite(value):
+    """JSON has no NaN, and a reader in another language refuses the whole file over one."""
+    return float(value) if value is not None and np.isfinite(value) else None
 
 
 def _tempo_from_beats(beats):
@@ -77,7 +96,9 @@ def _tempo_from_beats(beats):
         return None
     intervals = np.diff(beats)
     median = np.median(intervals)
-    return float(60.0 / intervals[np.abs(intervals / median - 1) <= 0.1].mean())
+    near = intervals[np.abs(intervals / median - 1) <= 0.1]
+    # An even split of two intervals leaves the median near neither: no steady pulse to read
+    return float(60.0 / near.mean()) if near.size > 0 else None
 
 
 def _half_agreement(beats):
@@ -104,36 +125,61 @@ def _chroma_key(signal):
 
 
 def analyse(job):
-    """One track. An error is a result: the row says why, and the caller rejects the track."""
+    """One track. An error about the file is a result: the row says why, and the caller rejects it."""
     track_id, path = job
     try:
         import librosa
 
         duration = _duration(path)
         start = max(0.0, (duration - EXCERPT_SECONDS) / 2)
-        signal = _decode(path, start, EXCERPT_SECONDS)
+        signal = _decode(path, start, EXCERPT_SECONDS, SAMPLE_RATE)
         if signal.size < SAMPLE_RATE * 10:
             return {"id": track_id, "error": "under 10 s of audio"}
+        full_rate = _decode(path, start, EXCERPT_SECONDS, ESSENTIA_RATE)
 
         beats, _ = _beats(signal, SAMPLE_RATE)
-        essentia_bpm = float(_rhythm(signal)[0])
+        essentia_bpm = float(_rhythm(full_rate)[0])
         librosa_bpm = float(np.atleast_1d(librosa.feature.tempo(y=signal, sr=SAMPLE_RATE, prior=FLAT_PRIOR))[0])
-        key, scale, strength = _key(signal)
+        key, scale, strength = _key(full_rate)
 
         return {
             "id": track_id,
             "duration": duration,
             "votes": [
-                {"method": "beat-this-final0", "bpm": _tempo_from_beats(beats)},
-                {"method": "essentia-rhythm2013", "bpm": essentia_bpm},
-                {"method": "librosa-tempo-flat-prior", "bpm": librosa_bpm},
+                {"method": "beat-this-final0", "bpm": _finite(_tempo_from_beats(beats))},
+                {"method": "essentia-rhythm2013", "bpm": _finite(essentia_bpm)},
+                {"method": "librosa-tempo-flat-prior", "bpm": _finite(librosa_bpm)},
             ],
             "halvesAgree": _half_agreement(beats),
             "keyVotes": [f"{key} {scale}", _chroma_key(signal)],
-            "keyStrength": float(strength),
+            "keyStrength": _finite(strength),
         }
+    except Transient as error:
+        return {"id": track_id, "transient": str(error)}
+    except MemoryError:
+        return {"id": track_id, "transient": "out of memory"}
     except Exception as error:  # A broken file must not stop thousands of others
         return {"id": track_id, "error": f"{type(error).__name__}: {error}"[:300]}
+
+
+def _read_done(path):
+    """Ids already read, after cutting a line a kill left half written: an append would glue onto it."""
+    if not Path(path).exists():
+        return set()
+    with open(path, "rb+") as handle:
+        content = handle.read()
+        handle.truncate(content.rfind(b"\n") + 1)
+    return {json.loads(line)["id"] for line in content[: content.rfind(b"\n") + 1].splitlines() if line.strip()}
+
+
+def _check_setup(context, checkpoint):
+    """A pool gives no clean answer about a worker that cannot start. Loading in a process of its own
+    ends the job at once over a missing checkpoint, and gives that memory back before the workers start."""
+    process = context.Process(target=_setup, args=(checkpoint,))
+    process.start()
+    process.join()
+    if process.exitcode != 0:
+        raise SystemExit(f"trackers would not load, exit {process.exitcode}")
 
 
 def main():
@@ -144,29 +190,34 @@ def main():
     parser.add_argument("--checkpoint", default="final0")
     args = parser.parse_args()
 
-    done = set()
-    if Path(args.out).exists():
-        with open(args.out, encoding="utf8") as handle:
-            done = {json.loads(line)["id"] for line in handle if line.strip()}
-
+    done = _read_done(args.out)
     with open(args.list, encoding="utf8") as handle:
         rows = [json.loads(line) for line in handle if line.strip()]
     jobs = [(row["id"], row["path"]) for row in rows if row["id"] not in done]
     print(f"{len(jobs)} tracks to read, {len(done)} already read", file=sys.stderr, flush=True)
 
-    # A pool respawns a worker whose setup raises, forever, and a hung job raises no alert. Loading
-    # here first makes a missing checkpoint or a broken install end the job at once.
-    _setup(args.checkpoint)
+    context = multiprocessing.get_context("spawn")
+    _check_setup(context, args.checkpoint)
 
-    # Recycled workers: torch and essentia hold on to memory, and the job has a hard limit
-    with multiprocessing.get_context("spawn").Pool(
-        args.workers, initializer=_setup, initargs=(args.checkpoint,), maxtasksperchild=100,
-    ) as pool, open(args.out, "a", encoding="utf8") as out:
-        for count, result in enumerate(pool.imap_unordered(analyse, jobs), start=1):
-            out.write(json.dumps(result) + "\n")
-            out.flush()
+    transient = 0
+    # An executor, not a Pool: a Pool waits forever on a task whose worker was killed, and a hung job
+    # raises no alert. This one raises BrokenProcessPool, which ends the job, and a new run resumes.
+    # Workers are recycled, as torch and essentia hold on to memory and the job has a hard limit.
+    with ProcessPoolExecutor(args.workers, mp_context=context, initializer=_setup,
+                             initargs=(args.checkpoint,), max_tasks_per_child=100) as pool, \
+            open(args.out, "a", encoding="utf8") as out:
+        futures = [pool.submit(analyse, job) for job in jobs]
+        for count, future in enumerate(as_completed(futures), start=1):
+            result = future.result()
+            if "transient" in result:
+                transient += 1
+                print(f"{result['id']}: left for the next run, {result['transient']}", file=sys.stderr, flush=True)
+            else:
+                out.write(json.dumps(result, allow_nan=False) + "\n")
+                out.flush()
             if count % 50 == 0:
                 print(f"{count} of {len(jobs)}", file=sys.stderr, flush=True)
+    print(f"done, {transient} left for the next run", file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":

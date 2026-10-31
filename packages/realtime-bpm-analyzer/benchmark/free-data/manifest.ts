@@ -57,6 +57,8 @@ export type ManifestRow = {
     /** A tracker sits an octave from another: labelled or not, a person should settle it */
     readonly octaveSplit?: boolean;
     readonly candidateBpm?: number | null;
+    /** Beat This!, first half against second. False means a tempo change or a lost tracker */
+    readonly halvesAgree?: boolean | null;
   };
   /** Exact structure, when the audio was built from one */
   readonly sections?: ReadonlyArray<{readonly kind: string; readonly startSeconds: number; readonly endSeconds: number}>;
@@ -139,6 +141,105 @@ export function freezeByArtist(
   }));
 
   return assignSplit(tracks, seed);
+}
+
+type Linkable = {readonly artist: string; readonly artistKey: string; readonly contentKeys: readonly string[]};
+
+/**
+ * Artists who must share a side of the split, which is more than one name. The same audio under two
+ * names is the leak a split by name misses, and so is "A & B" next to "A".
+ * @param rows Every recording, before duplicates go
+ * @returns The group of each artist key
+ */
+export function artistGroups(rows: readonly Linkable[]): ReadonlyMap<string, string> {
+  const parent = new Map<string, string>();
+  const find = (key: string): string => {
+    let root = key;
+
+    while ((parent.get(root) ?? root) !== root) {
+      root = parent.get(root) ?? root;
+    }
+
+    return root;
+  };
+  // The smaller name becomes the root, so a group's name does not depend on the order of the rows
+  const link = (a: string, b: string) => {
+    const [first, second] = [find(a), find(b)].sort();
+
+    parent.set(second, first);
+  };
+
+  rows.forEach(row => { parent.set(row.artistKey, find(row.artistKey)); });
+
+  const ownerOfContent = new Map<string, string>();
+
+  for (const row of rows) {
+    for (const key of row.contentKeys) {
+      const owner = ownerOfContent.get(key);
+
+      if (owner === undefined) {
+        ownerOfContent.set(key, row.artistKey);
+      } else {
+        link(owner, row.artistKey);
+      }
+    }
+
+    for (const part of row.artist.split(/\s*(?:&|,|\+|\/|\band\b|\bvs\.?\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b)\s*/i)) {
+      const key = artistKeyOf(part);
+
+      if (key && parent.has(key)) {
+        link(key, row.artistKey);
+      }
+    }
+  }
+
+  return new Map([...parent.keys()].map(key => [key, find(key)]));
+}
+
+export type FrozenSplit = {
+  readonly seed: string;
+  /** Side of every artist key ever seen: the record that a rerun may add to and never move */
+  readonly artists: Readonly<Record<string, Split>>;
+};
+
+/**
+ * The side of each artist: a group with a side keeps it, a new group is drawn. A group newly linking
+ * artists already on both sides cannot be placed, so its tracks go to no side, and are reported.
+ * @param rows Real tracks
+ * @param groups Result of `artistGroups`
+ * @param frozen What earlier runs froze
+ * @returns The record to keep, and the groups that could not be placed
+ */
+export function extendFreeze(
+  rows: ReadonlyArray<Pick<ManifestRow, 'id' | 'artistKey' | 'genreFamily'>>,
+  groups: ReadonlyMap<string, string>,
+  frozen: FrozenSplit,
+): {readonly frozen: FrozenSplit; readonly conflicted: ReadonlySet<string>} {
+  const groupOf = (key: string) => groups.get(key) ?? key;
+  const sides = new Map<string, Set<Split>>();
+
+  for (const [key, side] of Object.entries(frozen.artists)) {
+    sides.set(groupOf(key), (sides.get(groupOf(key)) ?? new Set<Split>()).add(side));
+  }
+
+  const conflicted = new Set([...sides].filter(([, side]) => side.size > 1).map(([group]) => group));
+  const fresh = freezeByArtist(
+    rows.filter(row => !sides.has(groupOf(row.artistKey))).map(row => ({...row, artistKey: groupOf(row.artistKey)})),
+    frozen.seed,
+  );
+  const artists: Record<string, Split> = {...frozen.artists};
+
+  for (const row of rows) {
+    const group = groupOf(row.artistKey);
+    const known = sides.get(group);
+    const side = known ? [...known][0] : fresh.get(row.id);
+
+    if (side && !(row.artistKey in artists) && !conflicted.has(group)) {
+      artists[row.artistKey] = side;
+    }
+  }
+
+  return {frozen: {seed: frozen.seed, artists}, conflicted};
 }
 
 /**

@@ -61,12 +61,17 @@ export function tempoConsensus(votes: readonly TempoVote[]): TempoConsensus {
     .map(reading => readings.filter(other => relationOf(other, reading) === 'same'))
     .sort((a, b) => b.length - a.length)[0] ?? [];
 
-  if (best.length < 2) {
+  const label = median(best);
+  // Two votes for the lower octave settle nothing. On audio of exactly 178 BPM these trackers read
+  // 178, 89 and 89, so a majority here would put a fast track in the slow band with confidence
+  const lowOctaveWins = readings.some(reading => relationOf(label, reading) === 'half');
+
+  if (best.length < 2 || lowOctaveWins) {
     return {bpm: null, confidence: 'unresolved', octaveSplit, candidateBpm: first !== null && first > 0 ? first : null};
   }
 
   return {
-    bpm: Math.round(median(best) * 100) / 100,
+    bpm: Math.round(label * 100) / 100,
     confidence: best.length === votes.length ? 'trackers-all' : 'trackers-two',
     octaveSplit,
     candidateBpm: null,

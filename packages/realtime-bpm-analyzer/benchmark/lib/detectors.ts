@@ -46,6 +46,8 @@ export const detectors: Record<string, DetectorConfig> = {
     tuning: ridge80,
     candidate: true,
   },
+  // The candidate as a caller gets it: through the option, with no override, so a look scores the shipped path
+  'tempogram-extension': {options: {...tempogram, tempogramMode: 'extension'}, lowpass: false, offline: false},
   // The extension's options as they are today, offscreen/main.ts: its timer resets the analyzer every 10 s
   'tempogram-90-180-resetting': {
     options: {...tempogram, tempoRange: extensionRange, continuousAnalysis: true, stabilizationTime: 10_000},
@@ -55,10 +57,11 @@ export const detectors: Record<string, DetectorConfig> = {
 };
 
 /**
- * The configuration the second sweep picked, which must hold the guard on the real path before any
- * look: see the job's heldout mode. Null until the pick is fixed, and null starts no look.
+ * The configuration fixed for RBA-51's second and last look, by its DECISION of 2026-10-31, which must
+ * hold the guard on the real path before the look: see the job's heldout mode. The amended rule in
+ * lib/sweep.ts gives the same values, and a test holds the three together.
  */
-export const pickedConfiguration: string | null = null;
+export const pickedConfiguration = 'tempogram-extension';
 
-/** What a look scores, and all it may: the references and the pick, no other candidate */
-export const lookDetectors = Object.keys(detectors).filter(name => !detectors[name].candidate || name === pickedConfiguration);
+/** What the look scores, and all it may: the pick, and the two references its DECISION names */
+export const lookDetectors: readonly string[] = ['peaks', 'tempogram-285-90-180', pickedConfiguration];

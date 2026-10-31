@@ -159,6 +159,22 @@ describe('benchmark sweep', () => {
       expect(chosen?.score).to.equal(50);
     });
 
+    it('prefers an interior prior within noise, as amended after two refusals', () => {
+      const edge = guarded(50, {priorBpm: 50, priorOctaves: 2.4}, bands(100, 30));
+      const interior = guarded(49.9, {priorBpm: 80, priorOctaves: 1.7}, bands(100, 30));
+      const far = guarded(10, {priorBpm: 130, priorOctaves: 0.4}, bands(100, 30));
+
+      expect(pickWithGuard([edge, interior, far], sizes, base)).to.equal(interior);
+    });
+
+    it('still chooses an edge when no interior row is within noise, and pick.ts then refuses', () => {
+      const edge = guarded(50, {priorBpm: 50, priorOctaves: 2.4}, bands(100, 30));
+      const interior = guarded(10, {priorBpm: 80, priorOctaves: 1.7}, bands(100, 30));
+      const other = guarded(9, {priorBpm: 130, priorOctaves: 0.4}, bands(100, 30));
+
+      expect(pickWithGuard([edge, interior, other], sizes, base)).to.equal(edge);
+    });
+
     it('has no pick when nothing passes, which means no look', () => {
       expect(pickWithGuard([guarded(90, {}, bands(0, 0))], sizes, base)).to.equal(null);
     });

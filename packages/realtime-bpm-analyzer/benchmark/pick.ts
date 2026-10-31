@@ -1,7 +1,7 @@
-// Applies the second sweep's rule to its rows, see "Choosing the defaults" in benchmark/readme.md.
+// Applies the second sweep's rule, as amended, to its rows: see "The second look" in benchmark/readme.md.
 //   pick.mjs <sweep.jsonl,sweep.jsonl>
-// Exits 1 when nothing passes the guard, or the pick holds the prior at the end of what was measured.
-// That is advice to whoever fixes the pick: what stops a look in code is pickedConfiguration in lib/detectors.ts.
+// Exits 1 when nothing passes the guard, or even the amended rule holds the prior at the end of what was
+// measured. pickedConfiguration in lib/detectors.ts holds the outcome, and a test holds the two together.
 import {readFileSync} from 'node:fs';
 import {defaultTempogramTuning} from '../src/core/tempogram';
 import {detectors} from './lib/detectors';

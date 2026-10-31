@@ -131,7 +131,7 @@ async function devScores(summary: Summary, sets: readonly string[], detector: st
  */
 function assertPickHoldsGuard(devOut: string): void {
   const {results} = JSON.parse(readFileSync(devOut, 'utf8')) as {results: Record<string, TrackResult[]>};
-  const shortfalls = guardShortfalls(bandCounts(results[pickedConfiguration!]));
+  const shortfalls = guardShortfalls(bandCounts(results[pickedConfiguration]));
 
   if (shortfalls.length > 0) {
     throw new Error(`${pickedConfiguration} is under the fast-tempo guard on dev, real path: ${shortfalls.join(', ')}. No look was taken`);

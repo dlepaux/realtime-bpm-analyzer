@@ -1,5 +1,6 @@
 import {expect} from 'chai';
 import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
+import {createTempogramDetector} from '../../../src/core/tempogram';
 import type {ProcessorOutputEvent} from '../../../src/core/types';
 import {createClickTrack} from '../../fixtures/click-track';
 
@@ -21,6 +22,39 @@ async function stream(analyzer: RealTimeBpmAnalyzer, pcm: Float32Array): Promise
 
   return events;
 }
+
+describe('tempogramMode', () => {
+  const extension = {detector: 'tempogram', tempogramMode: 'extension'} as const;
+
+  it('reads as the candidate RBA-51 measured', async () => {
+    const pcm = createClickTrack(128, sampleRate, 20);
+    const measured = new RealTimeBpmAnalyzer({detector: 'tempogram', tempoRange: {min: 90, max: 180}});
+
+    measured.tempogram = createTempogramDetector({sampleRate, tempoRange: {min: 90, max: 180}, tuning: {priorBpm: 80, priorOctaves: 1.7, thirdBeatPenalty: 0.3}});
+
+    expect(await stream(new RealTimeBpmAnalyzer(extension), pcm)).to.deep.equal(await stream(measured, pcm));
+  });
+
+  it('searches 90 to 180 BPM, so a fast pulse cannot read at half', async () => {
+    const events = await stream(new RealTimeBpmAnalyzer(extension), createClickTrack(170, sampleRate, 20));
+    const readings = events.flatMap(event => (event.type === 'bpm' ? [event.data.bpm[0].tempo] : []));
+
+    expect(readings.at(-1)).to.be.within(165, 175);
+  });
+
+  it('accepts its own range, and refuses another, a reset timer, or another detector', () => {
+    expect(() => new RealTimeBpmAnalyzer({...extension, tempoRange: {min: 90, max: 180}})).to.not.throw();
+    expect(() => new RealTimeBpmAnalyzer({...extension, tempoRange: {min: 50, max: 240}})).to.throw(RangeError, 'another range');
+    expect(() => new RealTimeBpmAnalyzer({...extension, continuousAnalysis: true})).to.throw(RangeError, 'continuousAnalysis');
+    expect(() => new RealTimeBpmAnalyzer({tempogramMode: 'extension'})).to.throw(RangeError, 'needs detector');
+    // @ts-expect-error Invalid on purpose
+    expect(() => new RealTimeBpmAnalyzer({detector: 'tempogram', tempogramMode: 'magic'})).to.throw(RangeError, 'Invalid tempogramMode');
+  });
+
+  it('changes nothing for a tempogram that does not ask', () => {
+    expect(new RealTimeBpmAnalyzer({detector: 'tempogram'}).tempogramSettings).to.deep.equal({tempoRange: undefined});
+  });
+});
 
 describe('detector option', () => {
   it('defaults to the peaks detector', () => {

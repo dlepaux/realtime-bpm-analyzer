@@ -25,6 +25,8 @@ export type TrackResult = {
   readonly set: string;
   readonly id: string;
   readonly genre: string;
+  /** The track's group, for error ranges that know such tracks are not independent. Absent before RBA-51's second look */
+  readonly group?: string;
   readonly truth: number;
   readonly duration: number;
   /** Top candidate of the last `bpm` event, null when the detector never gave a reading */

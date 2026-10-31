@@ -212,6 +212,15 @@ export type AnalyzeFullBufferOptions = BiquadFilterOptions & {
 export type Detector = 'peaks' | 'tempogram';
 
 /**
+ * Named settings of the tempogram, opted into with `tempogramMode`. `extension` is the candidate RBA-51
+ * fixed for a browser extension listening to the tab: 90 to 180 BPM, no lowpass, no reset timer. Being a
+ * candidate, it changes no default: without this option the detectors behave as they did.
+ *
+ * @group Type Aliases
+ */
+export type TempogramMode = 'extension';
+
+/**
  * Configuration options for the real-time BPM analyzer
  * @group Type Aliases
  */
@@ -231,6 +240,11 @@ export type RealTimeBpmAnalyzerParameters = {
   tempoRange?: TempoRange;
   /** Tempo detector (default: `peaks`) */
   detector?: Detector;
+  /**
+   * Named tempogram settings, real-time only. Needs `detector: 'tempogram'`, and refuses a `tempoRange`
+   * of its own and `continuousAnalysis`, whose reset never lets the tempogram reach stable.
+   */
+  tempogramMode?: TempogramMode;
 };
 
 /**

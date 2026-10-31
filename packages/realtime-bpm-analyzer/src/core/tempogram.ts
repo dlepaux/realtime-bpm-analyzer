@@ -1,5 +1,5 @@
 import {resolveTempoRange} from './tempo';
-import type {Tempo, TempoRange} from './types';
+import type {RealTimeBpmAnalyzerParameters, Tempo, TempoRange} from './types';
 
 /**
  * Knobs of the tempogram detector. Values are tuned on the benchmark's dev split only, see
@@ -81,6 +81,51 @@ export const defaultTempogramTuning: TempogramTuning = {
   stableMargin: 1.25,
   readingSalience: 0.02,
 };
+
+/**
+ * RBA-51's candidate for the extension, fixed by its DECISION of 2026-10-31 before its second look. Here
+ * and not in `defaultTempogramTuning` on purpose: a narrow range is what makes this prior safe, because
+ * it is only a tilt once the half of a fast tempo is out of reach. On 50 to 240 BPM these values would
+ * be another detector, and nothing has measured them there.
+ */
+export const extensionTempogramMode = {
+  tempoRange: {min: 90, max: 180},
+  tuning: {priorBpm: 80, priorOctaves: 1.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.3},
+} as const;
+
+/**
+ * @param options The analyzer's options
+ * @returns What the tempogram is built with
+ * @throws {RangeError} When a named mode is unknown, or the options contradict it. Measured settings
+ * include the range and the absence of a reset, so a caller changing either is not running them
+ */
+export function tempogramSettings(options: RealTimeBpmAnalyzerParameters): {tempoRange?: TempoRange; tuning?: Partial<TempogramTuning>} {
+  const {tempogramMode, detector, tempoRange, continuousAnalysis} = options;
+
+  if (tempogramMode === undefined) {
+    return {tempoRange};
+  }
+
+  if (tempogramMode !== 'extension') {
+    throw new RangeError(`Invalid tempogramMode: ${String(tempogramMode)}. Use 'extension'.`);
+  }
+
+  const {min, max} = extensionTempogramMode.tempoRange;
+
+  if (detector !== 'tempogram') {
+    throw new RangeError('tempogramMode needs detector: \'tempogram\'.');
+  }
+
+  if (tempoRange !== undefined && (tempoRange.min !== min || tempoRange.max !== max)) {
+    throw new RangeError(`tempogramMode 'extension' searches ${min} to ${max} BPM, and tempoRange asks for another range.`);
+  }
+
+  if (continuousAnalysis) {
+    throw new RangeError('tempogramMode \'extension\' was measured without continuousAnalysis, whose reset never lets the tempogram reach stable.');
+  }
+
+  return extensionTempogramMode;
+}
 
 /** Bounds of the grid when the caller sets no range: the tempos of the evaluated sets, with margin */
 export const defaultTempogramRange: TempoRange = {min: 50, max: 240};

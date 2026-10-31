@@ -4,6 +4,7 @@ import {type RealTimeBpmAnalyzerParameters, type CreateRealtimeBpmAnalyzerOption
 import {BpmAnalyzer} from './core/bpm-analyzer';
 import {getBiquadFilter} from './core/offline-pipeline';
 import {resolveDetector, resolveTempoRange} from './core/tempo';
+import {tempogramSettings} from './core/tempogram';
 
 // Public API surface — explicit named re-exports only.
 // Internal types stay in core/types.ts and are emitted into dist/core/types.d.ts
@@ -26,6 +27,7 @@ export type {
   RealTimeBpmAnalyzerParameters,
   CreateRealtimeBpmAnalyzerOptions,
   Detector,
+  TempogramMode,
   BiquadFilterOptions,
   TempoRange,
   AnalyzeFullBufferOptions,
@@ -175,6 +177,8 @@ export async function createRealtimeBpmAnalyzer(
   // would also fail structured cloning.
   const {processorUrl, ...analyzerOptions} = processorOptions ?? {};
   assertProcessorUrl(processorUrl);
+  // Only to refuse a bad combination here, for the same reason as the comment below
+  tempogramSettings(analyzerOptions);
   // Validate on the main thread: a throw inside the worklet constructor would not reach the caller.
   // The worklet receives the validated plain object, so structured cloning cannot alter it.
   const options: RealTimeBpmAnalyzerParameters = {

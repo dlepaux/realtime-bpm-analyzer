@@ -54,20 +54,30 @@ export function guardShortfalls(bands: SweepRow['bands']): string[] {
 /**
  * The rule of the second sweep: the noise rule, over the configurations the guard lets through.
  * A configuration is a tuning and a range, and the range is no knob, so this picks the range too.
+ *
+ * Amended by RBA-51's DECISION of 2026-10-31, after this rule had refused twice, before the look: among
+ * the rows within noise, one holding the prior inside what was measured comes first. As first written
+ * it chose the end of a flat ridge and refused on being at an end, at 80/1.7 and again at 50/2.4 once the
+ * grid reached it, and those two read 1 of 1192 dev tracks differently. An amendment made to spend a look
+ * is a fork in the path, which the look's reason has to declare, and the sensitivity stays on record: counting
+ * knobs from the first pick instead of #285, the rule gives 110/0.7, third 0.4.
  * @param rows Rows of a sweep
  * @param sizes Tracks per set
  * @param base What the sweep started from
  * @returns The pick, or null when nothing passes the guard: then there is no look
  */
 export function pickWithGuard(rows: readonly SweepRow[], sizes: Readonly<Record<string, number>>, base: Readonly<Record<string, unknown>>): SweepRow | null {
-  return simplestWithinNoise(rows.filter(row => guardShortfalls(row.bands).length === 0), sizes, base);
+  const close = withinNoise(rows.filter(row => guardShortfalls(row.bands).length === 0), sizes);
+  const interior = close.filter(row => priorKnobsOnEdge(row, rows).length === 0);
+
+  return simplest(interior.length > 0 ? interior : close, base);
 }
 
 /**
  * @param row A pick
  * @param rows The rows measured, not a plan: a plan can claim a grid that never ran
  * @returns The knobs of the prior a pick holds at the end of what was measured: the optimum was not
- * bracketed. A knob no row varies counts as on its edge
+ * bracketed. A knob no row varies counts as on its edge, and so does one the pick does not set
  */
 export function priorKnobsOnEdge(row: SweepRow, rows: readonly SweepRow[]): string[] {
   const knobs = ['priorBpm', 'priorOctaves'] as const;
@@ -75,7 +85,7 @@ export function priorKnobsOnEdge(row: SweepRow, rows: readonly SweepRow[]): stri
   return knobs.filter(knob => {
     const values = rows.flatMap(({tuning}) => tuning[knob] ?? []);
 
-    return values.length === 0 || row.tuning[knob] === Math.min(...values) || row.tuning[knob] === Math.max(...values);
+    return values.length === 0 || row.tuning[knob] === undefined || row.tuning[knob] === Math.min(...values) || row.tuning[knob] === Math.max(...values);
   });
 }
 
@@ -163,20 +173,23 @@ export function scoreNoise(row: SweepRow, sizes: Readonly<Record<string, number>
  * @returns The chosen row, or null without rows
  */
 export function simplestWithinNoise(rows: readonly SweepRow[], sizes: Readonly<Record<string, number>>, base: Readonly<Record<string, unknown>>): SweepRow | null {
+  return simplest(withinNoise(rows, sizes), base);
+}
+
+function withinNoise(rows: readonly SweepRow[], sizes: Readonly<Record<string, number>>): SweepRow[] {
   const best = bestRow(rows);
 
-  if (best === null) {
-    return null;
-  }
+  return best === null ? [] : rows.filter(row => row.score >= best.score - scoreNoise(best, sizes));
+}
 
+function simplest(rows: readonly SweepRow[], base: Readonly<Record<string, unknown>>): SweepRow | null {
   const moved = (row: SweepRow) => Object.entries(row.tuning).filter(([knob, value]) => value !== base[knob]).length;
-  const floor = best.score - scoreNoise(best, sizes);
 
-  return rows.filter(row => row.score >= floor).reduce((chosen, row) => {
-    const difference = moved(row) - moved(chosen);
+  return rows.reduce<SweepRow | null>((chosen, row) => {
+    const difference = chosen === null ? -1 : moved(row) - moved(chosen);
 
-    return difference < 0 || (difference === 0 && row.score > chosen.score) ? row : chosen;
-  });
+    return difference < 0 || (difference === 0 && row.score > chosen!.score) ? row : chosen;
+  }, null);
 }
 
 /**

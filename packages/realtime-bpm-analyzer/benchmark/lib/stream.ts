@@ -115,6 +115,7 @@ export async function listen(
     set: track.set,
     id: track.id,
     genre: track.genre,
+    group: track.group,
     truth: track.bpm,
     duration: pcm.length / sampleRate,
     final,

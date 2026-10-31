@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.5.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.4.0...v5.5.0) (2026-10-31)
+
+
+### Features
+
+* **realtime:** opt-in tempogram detector and streaming tempo benchmark ([#285](https://github.com/dlepaux/realtime-bpm-analyzer/issues/285)) ([dfa68fc](https://github.com/dlepaux/realtime-bpm-analyzer/commit/dfa68fcb26c3097a097db00a52d01ae29aead6c5))
+
 ## [5.4.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.3.0...v5.4.0) (2026-10-29)
 
 

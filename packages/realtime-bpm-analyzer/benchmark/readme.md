@@ -2,7 +2,7 @@
 
 Measures what a user gets from the real-time analyzer: decoded audio goes through the real streaming path (128-sample render quanta, the 4096-sample aggregator, `RealTimeBpmAnalyzer.analyzeChunk`, left channel, as the worklet does), and every event is timed in audio seconds. Results for both detectors are in [`results/`](results), per track.
 
-Evaluation only: nothing here trains anything, and no audio or label file is committed, only track ids and numeric results.
+Evaluation only: nothing here trains anything, and no audio or label file is committed, only track ids, their groups and numeric results.
 
 ## Metrics
 
@@ -94,16 +94,16 @@ What the rule cannot settle, on record before any look: 110 BPM and 0.7 octaves 
 
 ## The second sweep: no pick, no second look
 
-**The library defaults in `src/` are still the first pick (110 BPM, 0.7 octaves, third 0.2), which fails the fast-tempo guard, and must not ship.** The first look is spent and the second is unused: the volume's log holds one RBA-51 line.
+**The library defaults in `src/` are still the first pick (110 BPM, 0.7 octaves, third 0.2), which fails the fast-tempo guard, and must not ship.** This section is the state before the amendment: see [The second look](#the-second-look) for what followed.
 
-The guard, written into `lib/sweep.ts` before results, is peaks on clean dev, real path: 140 to 165 BPM at least 92 of 170, 165 and up at least 22 of 90. Its floors are dev only. The rule is `pickWithGuard`. `pick.ts` exits 1 when the pick holds `priorBpm` or `priorOctaves` at the end of what was measured. What stops a look in code is `pickedConfiguration`, still null.
+The guard, written into `lib/sweep.ts` before results, is peaks on clean dev, real path: 140 to 165 BPM at least 92 of 170, 165 and up at least 22 of 90. Its floors are dev only. The rule is `pickWithGuard`. `pick.ts` exits 1 when the pick holds `priorBpm` or `priorOctaves` at the end of what was measured. As first written, that was its last word, and `pickedConfiguration` was null.
 
 **What the first look shaped, declared:** the rule itself, its two bands, the band edges at 150 and 156, and the choice to evaluate the 90 to 180 range all come from the first look's findings, by way of the brief and my reading of them. No tuned value or floor does. The sets the first look called fresh are not fresh any more.
 
 Two sweeps on dev, 2118 rows, two ranges, plans `job/sweep-plan-tune-2.json` and `job/sweep-plan.json`:
 
 ```sh
-./benchmark/run.sh pick results/rba-51-sweep-2.jsonl,results/rba-51-sweep-3.jsonl   # exits 1
+./benchmark/run.sh pick results/rba-51-sweep-2.jsonl,results/rba-51-sweep-3.jsonl   # exited 1 before the amendment, 0 now
 ```
 
 963 rows pass the guard (50 to 240: 322, 90 to 180: 641). Best passing score 75.86, noise 1.75 (unpaired), floor 74.11. The rule first chose 90 to 180, 80 BPM, 1.7 octaves, third 0.3, at the first sweep's low edge. The grid was extended to 50 BPM, and the rule then chose 50 BPM, 2.4 octaves, third 0.3, on the end of both axes, so it refuses again.
@@ -131,6 +131,27 @@ Best passing score of the grid rows per prior on 90 to 180, replay, without the 
 The fast material is 170 tracks in 68 groups (largest 7.1%, 92 electronic) and 90 tracks in 38 groups (largest 13.3%, 50 electronic), above the threshold posted on the RBA-51 card before counting. Those are loops, not full mixes. 36 of the 90 fast tracks are labelled 180 and up and cannot read true in 90 to 180. No further tempo-labelled full-mix electronic data with a clean per-item licence was found.
 
 Real-path dev tables per set and band: [`results/rba-51-retune.md`](results/rba-51-retune.md). Macro Acc1 on 90 to 180: peaks 40.7, #285 68.3, first pick 72.6, the ridge 74.5 to 74.7. 165 and up: peaks 24.4, the ridge 41.1 to 44.4. With the extension's 10 s reset, coverage is 0.0 and Acc1 falls to 68.3.
+
+## The second look
+
+**What this branch ships.** The library's default detector is peaks, unchanged. `detector: 'tempogram'` alone still reads with the first pick (110 BPM, 0.7 octaves, third 0.2), which must not ship. The candidate is opt-in: `{detector: 'tempogram', tempogramMode: 'extension'}`, 90 to 180 BPM, 80 BPM, 1.7 octaves, third 0.3, no biquad, no reset timer (`extensionTempogramMode` in `src/core/tempogram.ts`). The defaults need not hold it: the detector takes a tuning when it is built, and the option passes this one through the same path a caller uses. A mode, not new defaults, also because these values are only a tilt on a range that excludes a fast tempo's half: nothing measured them on 50 to 240. The mode refuses another `tempoRange` and `continuousAnalysis`. It covers the real-time path only, as `analyzeFullBuffer`, the CLI and the MCP server take no mode.
+
+**The amendment.** RBA-51's DECISION of 2026-10-31 amended `pickWithGuard` after it had refused twice: among rows within noise, one holding the prior inside what was measured comes first. On the committed rows that gives this candidate, exit 0 from `pick`, and a test holds them together. This is a fork in the path, and the look's reason declares it. Counting knobs from the first pick instead of #285, the rule gives 110/0.7, third 0.4. So the look is a gate, not the final word, and not for advertising.
+
+**The pass bar**, in [`lib/pass-bar.ts`](lib/pass-bar.ts) and committed before the look. `./benchmark/run.sh verdict <heldout.json>` applies it and prints a yes or no, exit 0 or 1, and exit 2 on a file it cannot judge. At 90 to 180, on the real path, against peaks:
+
+1. Clean macro Acc1 and Acc2 above peaks by more than the noise: the range of the difference is wholly above zero.
+2. Acc1 and Acc2 on 140 to 165 and on 165 to 180, each over all sets pooled and over clean sets pooled, not below peaks beyond noise: the range of the difference reaches zero or above.
+3. GiantSteps Acc1, by the same test.
+4. False-stable not above peaks, on clean macro and on all sets pooled. The DECISION grants this one no noise, so the point estimate decides.
+
+Any failure keeps the extension on peaks. A pass still leaves David's MP3 test and a real-browser run. These readings are mine where the DECISION is silent, fixed here before the numbers:
+
+- **The noise** is a 95% percentile range from a paired bootstrap, 4000 draws, fixed seed, resampling whole groups within each set. The groups are the split's, except that fsld and fsld-nc resample together as they share uploaders. Groove's are drummer and session, so a drummer across sessions still counts as independent.
+- **Tracks labelled outside 90 to 180** are counted apart: out of bar 2's bands, in their own rows, gating nothing. Bars 1, 3 and 4 read the whole set as the DECISION states them, with the out-of-range rows beside them.
+- **#285 against the candidate on 140 to 165** is reported and gates nothing. Beyond noise, it goes to David: only his ruling can use #285.
+
+The references are measured as they have been: peaks with its lowpass, folding into its default 90 to 180, without the extension's reset timer. Peaks with that timer has never been measured, so the comparison is with peaks in that shape.
 
 ## Results
 

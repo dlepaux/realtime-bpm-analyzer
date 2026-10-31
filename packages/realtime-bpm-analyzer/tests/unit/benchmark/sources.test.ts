@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {compareSplit, isComplete, pinOf, sources, wholeSets} from '../../../benchmark/lib/sources';
+import {compareSplit, exitStatus, isComplete, isUnpacked, pinOf, sources, wholeSets} from '../../../benchmark/lib/sources';
 import type {Split, Track} from '../../../benchmark/lib/types';
 
 const track = (id: string): Track => ({set: 's', id, genre: 'g', bpm: 120, group: id, audioPath: id, licence: 'CC0-1.0'});
@@ -67,6 +67,20 @@ describe('benchmark sources', () => {
 
   it('pins each source distinctly, so a changed pin is noticed', () => {
     expect(new Set(sources.map(source => pinOf(source))).size).to.equal(sources.length);
+  });
+
+  it('pins downloaded files to the label commit that lists their hashes', () => {
+    const labels = sources.find(source => source.name === 'giantsteps-labels')!;
+    const audio = sources.find(source => source.name === 'giantsteps-audio')!;
+
+    expect(pinOf(audio)).to.include(pinOf(labels));
+  });
+
+  it('never takes an unpack killed by a signal for unzip\'s tolerated warning', () => {
+    expect(isUnpacked('a.zip', exitStatus(1))).to.equal(true);
+    expect(isUnpacked('a.zip', exitStatus(null))).to.equal(false);
+    expect(isUnpacked('a.tar.gz', exitStatus(1))).to.equal(false);
+    expect(isUnpacked('a.tar.gz', exitStatus(0))).to.equal(true);
   });
 
   it('has a source for every set', () => {

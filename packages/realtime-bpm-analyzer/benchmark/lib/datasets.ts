@@ -164,10 +164,13 @@ function loopAnnotations(base: string): Map<string, LoopAnnotation[]> {
   const byLoop = new Map<string, LoopAnnotation[]>();
   const root = join(base, 'annotations');
 
-  for (const annotator of readdirSync(root, {withFileTypes: true}).filter(entry => entry.isDirectory())) {
-    for (const name of readdirSync(join(root, annotator.name)).filter(file => file.endsWith('.json'))) {
+  // Sorted: the first annotator gives the label and the genre, and directory order differs per filesystem
+  const annotators = readdirSync(root, {withFileTypes: true}).filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
+
+  for (const annotator of annotators) {
+    for (const name of readdirSync(join(root, annotator)).filter(file => file.endsWith('.json'))) {
       const id = name.replace('sound-', '').replace('.json', '');
-      const annotation = JSON.parse(readFileSync(join(root, annotator.name, name), 'utf8')) as LoopAnnotation;
+      const annotation = JSON.parse(readFileSync(join(root, annotator, name), 'utf8')) as LoopAnnotation;
 
       byLoop.set(id, [...(byLoop.get(id) ?? []), annotation]);
     }

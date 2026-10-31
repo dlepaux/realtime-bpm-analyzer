@@ -1,11 +1,12 @@
 import {spawn} from 'node:child_process';
+import type {ChildProcess} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {loaders} from './datasets';
 import {assignSplit, heldoutOnly} from './split';
-import {compareSplit, pinOf, sources, wholeSets} from './sources';
+import {compareSplit, exitStatus, isUnpacked, pinOf, sources, wholeSets} from './sources';
 import type {Hash, SetReport, Source, SplitFile} from './sources';
 
 const maxAttempts = 5;
@@ -25,17 +26,32 @@ function log(message: string): void {
   console.log(`${new Date().toISOString()} ${message}`);
 }
 
+const running = new Set<ChildProcess>();
+
+/**
+ * Passes a signal on to the downloads and unpacks under way: outside a container they would outlive
+ * this process and write alongside the restart.
+ * @param signal The signal
+ */
+export function stopCommands(signal: NodeJS.Signals): void {
+  for (const child of running) {
+    child.kill(signal);
+  }
+}
+
 async function command(name: string, args: readonly string[]): Promise<{code: number; stdout: string}> {
   return new Promise((resolve, reject) => {
     const child = spawn(name, args, {stdio: ['ignore', 'pipe', 'inherit']});
     let stdout = '';
 
+    running.add(child);
     child.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString();
     });
     child.on('error', reject);
     child.on('close', code => {
-      resolve({code: code ?? 1, stdout});
+      running.delete(child);
+      resolve({code: exitStatus(code), stdout});
     });
   });
 }
@@ -97,8 +113,7 @@ async function unpack(archive: string, into: string, only: readonly string[] = [
     ? await command('unzip', ['-q', '-o', archive, ...only, '-d', into])
     : await command('tar', ['-xzf', archive, '-C', into]);
 
-  // unzip's 1 is a warning with every file written
-  if (code > (archive.endsWith('.zip') ? 1 : 0)) {
+  if (!isUnpacked(archive, code)) {
     throw new Error(`Could not unpack ${archive}: exit ${code}`);
   }
 }
@@ -146,15 +161,23 @@ async function fetchFiles(baseUrl: string, md5Dir: string, into: string): Promis
 
 /**
  * Brings one source onto the disk. The marker is written last, after the checks, and holds the pin, so a kill
- * at any point redoes that step: `unzip -o` and `tar` overwrite what a partial run wrote.
+ * at any point redoes that step: `unzip -o` and `tar` overwrite what a partial run wrote. A changed
+ * pin also drops the decoded audio of its sets, and an archive is named by its hash, so neither an
+ * old decode nor an old archive passes for the new source.
  */
 async function ensureSource(source: Source, root: string): Promise<void> {
   const marker = join(root, '_job/state', `${source.name}.ok`);
   const into = join(root, source.into);
 
-  if (existsSync(marker) && readFileSync(marker, 'utf8') === pinOf(source)) {
-    log(`${source.name}: already here`);
-    return;
+  if (existsSync(marker)) {
+    if (readFileSync(marker, 'utf8') === pinOf(source)) {
+      log(`${source.name}: already here`);
+      return;
+    }
+
+    for (const set of source.sets) {
+      rmSync(join(root, 'pcm', set), {recursive: true, force: true});
+    }
   }
 
   log(`${source.name}: fetching`);
@@ -164,7 +187,7 @@ async function ensureSource(source: Source, root: string): Promise<void> {
   } else if (source.kind === 'files') {
     await fetchFiles(source.baseUrl, join(root, source.md5Dir), into);
   } else {
-    const archive = join(root, '_job/download', `${source.name}${source.url.includes('.zip') ? '.zip' : '.tar.gz'}`);
+    const archive = join(root, '_job/download', `${source.name}-${source.hash.value}${source.url.includes('.zip') ? '.zip' : '.tar.gz'}`);
 
     if (!existsSync(archive)) {
       await fetchVerified(source.url, archive, source.hash);

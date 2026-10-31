@@ -18,6 +18,7 @@ import {loaders} from './lib/datasets';
 import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate, writeAtomic} from './lib/decode';
 import {detectors} from './lib/detectors';
+import {lookHeader, progressRows, resumesLook} from './lib/look';
 import {listen} from './lib/stream';
 import {workerCount} from './lib/workers';
 import type {TempogramTuning} from '../src/core/tempogram';
@@ -125,35 +126,23 @@ async function runAll(jobs: Job[], onDone: (result: TrackResult, detector: strin
 
 type Progress = {readonly detector: string; readonly result: TrackResult};
 
-function readProgress(path: string | undefined): Progress[] {
-  if (!path || !existsSync(path)) {
-    return [];
-  }
-
-  // A kill can tear the last line: that run is simply done again
-  return readFileSync(path, 'utf8').split('\n').flatMap(line => {
-    try {
-      return line === '' ? [] : [JSON.parse(line) as Progress];
-    } catch {
-      return [];
-    }
-  });
+function readProgress(path: string | undefined): string {
+  return path && existsSync(path) ? readFileSync(path, 'utf8') : '';
 }
 
 /**
- * Logs a look once. With a progress file, a look whose line is already there is that look resuming,
- * and progress under any other line belongs to a different look: other code, sets, detectors or
- * reason. Mixing the two would score unlogged, so that stops here.
+ * Logs a look, unless its own progress file says this is that look resuming. The log line comes
+ * first: a kill between the two logs the look twice, which overstates, and never scores unlogged.
  */
 function logLook(logPath: string, look: string, progress: string | undefined): void {
-  const isLogged = progress !== undefined && existsSync(logPath) && readFileSync(logPath, 'utf8').includes(` ${look}`);
-
-  if (!isLogged && readProgress(progress).length > 0) {
-    throw new Error(`${progress} holds results of another look than: ${look}`);
+  if (resumesLook(readProgress(progress), look)) {
+    return;
   }
 
-  if (!isLogged) {
-    appendFileSync(logPath, `| ${new Date().toISOString()} ${look}\n`);
+  appendFileSync(logPath, `| ${new Date().toISOString()} ${look}\n`);
+
+  if (progress) {
+    writeAtomic(progress, Buffer.from(lookHeader(look)));
   }
 }
 
@@ -208,7 +197,7 @@ async function main(): Promise<void> {
 
   const limited = values.limit ? tracks.slice(0, Number(values.limit)) : tracks;
   const tuning = values.tuning ? JSON.parse(values.tuning) as Partial<TempogramTuning> : undefined;
-  const kept = readProgress(values.progress);
+  const kept = progressRows<Progress>(readProgress(values.progress));
   const isKept = new Set(kept.map(({detector, result}) => `${detector}/${result.set}/${result.id}`));
   const jobs = names.flatMap(detector => limited.map(track => ({detector, track, tuning})))
     .filter(({detector, track}) => !isKept.has(`${detector}/${track.set}/${track.id}`));

@@ -7,11 +7,12 @@ export type Source = {readonly name: string; readonly sets: readonly string[]; r
   | {readonly kind: 'archive'; readonly url: string; readonly hash: Hash; readonly only?: readonly string[]}
   // Git checks every object against the commit id, unlike a GitHub tarball whose bytes can change
   | {readonly kind: 'git'; readonly url: string; readonly commit: string}
-  // One md5 file per audio file, published by the set itself
-  | {readonly kind: 'files'; readonly baseUrl: string; readonly md5Dir: string}
+  // One md5 file per audio file, published by the set itself in the label repo at that commit
+  | {readonly kind: 'files'; readonly baseUrl: string; readonly md5Dir: string; readonly md5Commit: string}
 );
 
 const giantstepsLabels = '_ann/giantsteps-tempo-dataset-master';
+const giantstepsCommit = 'd51ab2422e76abacfaa86616a57054bc222ec9fd';
 
 /**
  * Everything the job downloads, in order: labels first, since the GiantSteps audio list is in its
@@ -26,7 +27,7 @@ export const sources: readonly Source[] = [
     into: giantstepsLabels,
     kind: 'git',
     url: 'https://github.com/GiantSteps/giantsteps-tempo-dataset.git',
-    commit: 'd51ab2422e76abacfaa86616a57054bc222ec9fd',
+    commit: giantstepsCommit,
   },
   {
     name: 'giantsteps-audio',
@@ -35,6 +36,7 @@ export const sources: readonly Source[] = [
     kind: 'files',
     baseUrl: 'https://www.cp.jku.at/datasets/giantsteps/backup/',
     md5Dir: `${giantstepsLabels}/md5`,
+    md5Commit: giantstepsCommit,
   },
   {
     name: 'gtzan-labels',
@@ -184,7 +186,27 @@ export function pinOf(source: Source): string {
     }
 
     case 'files': {
-      return source.baseUrl;
+      return `${source.baseUrl} ${source.md5Commit}`;
     }
   }
+}
+
+/** Above any tool's own status: killed is never one of unzip's tolerated warnings */
+const killedBySignal = 128;
+
+/**
+ * @param code A child's exit code, null when a signal killed it
+ * @returns Its status, never one a tool could mean as a success
+ */
+export function exitStatus(code: number | null): number {
+  return code ?? killedBySignal;
+}
+
+/**
+ * @param archive The archive's path
+ * @param status Status of the tool that unpacked it
+ * @returns Whether every file was written: unzip's 1 is a warning with every file written
+ */
+export function isUnpacked(archive: string, status: number): boolean {
+  return status <= (archive.endsWith('.zip') ? 1 : 0);
 }

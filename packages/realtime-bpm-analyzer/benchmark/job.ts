@@ -10,7 +10,7 @@ import {existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileS
 import {join} from 'node:path';
 import {parseArgs} from 'node:util';
 import {dataRoot, loaders} from './lib/datasets';
-import {rebuild} from './lib/fetch';
+import {rebuild, stopCommands} from './lib/fetch';
 import type {DataReport} from './lib/fetch';
 import {tuningSets} from './lib/licences';
 
@@ -125,23 +125,53 @@ async function stages(summary: Summary, mode: string, wanted: readonly string[],
   summary.status = data.incomplete.length > 0 ? 'incomplete' : 'ok';
 }
 
-async function main(): Promise<number> {
-  const {values, positionals} = parseArgs({allowPositionals: true, options: {
-    sets: {type: 'string'},
-    reason: {type: 'string'},
-    detector: {type: 'string', default: 'peaks,tempogram-285,tempogram'},
-  }});
-  const mode = positionals[0] ?? 'tune';
+/** @returns The arguments, or null when they do not parse */
+function parseJobArgs() {
+  try {
+    return parseArgs({allowPositionals: true, options: {
+      sets: {type: 'string'},
+      reason: {type: 'string'},
+      detector: {type: 'string', default: 'peaks,tempogram-285,tempogram'},
+    }});
+  } catch {
+    return null;
+  }
+}
 
-  if (!['tune', 'fetch', 'heldout'].includes(mode) || !process.env.RBA_TEMPO_ROOT || (mode === 'heldout' && !values.reason)) {
+/**
+ * Scoring a finished look again would be a new look: that takes deleting its file by hand. A kill
+ * can land after the file and before the summary, and then this restart only closes the summary.
+ */
+function closeSpentLook(): number {
+  const path = join(jobDir, 'summary-heldout.json');
+  const summary = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) as Summary : null;
+
+  if (summary?.status !== 'running') {
+    console.error(`${heldoutOut} exists: that look is spent`);
+    return 2;
+  }
+
+  save({...summary, status: 'ok', heldout: heldoutOut, finishedAt: new Date().toISOString()});
+  console.log(`status ok, the look had finished, summary in ${path}`);
+
+  return 0;
+}
+
+async function main(): Promise<number> {
+  const args = parseJobArgs();
+  const mode = args?.positionals[0] ?? 'tune';
+  const wanted = args?.values.sets?.split(',') ?? Object.keys(loaders);
+
+  if (!args || !['tune', 'fetch', 'heldout'].includes(mode) || !process.env.RBA_TEMPO_ROOT
+    || (mode === 'heldout' && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set))) {
     console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|heldout --reason <why>] [--sets a,b]');
     return 2;
   }
 
-  // Scoring a finished look again would be a new look: that takes deleting this file by hand
+  const {values} = args;
+
   if (mode === 'heldout' && existsSync(heldoutOut)) {
-    console.error(`${heldoutOut} exists: that look is spent`);
-    return 2;
+    return closeSpentLook();
   }
 
   mkdirSync(jobDir, {recursive: true});
@@ -163,7 +193,7 @@ async function main(): Promise<number> {
   };
 
   try {
-    await stages(summary, mode, values.sets?.split(',') ?? Object.keys(loaders), {reason: values.reason, detector: values.detector});
+    await stages(summary, mode, wanted, {reason: values.reason, detector: values.detector});
   } catch (error) {
     summary.status = 'failed';
     summary.error = String(error);
@@ -176,11 +206,12 @@ async function main(): Promise<number> {
   return {ok: 0, incomplete: incompleteEvaluation, failed: 1, running: 1}[summary.status];
 }
 
-// As PID 1, node would ignore these without a handler. The child goes first: outside a container
-// it would outlive this process and write alongside the restart
+// As PID 1, node would ignore these without a handler. The children go first: outside a container
+// they would outlive this process and write alongside the restart
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(signal, () => {
     child?.kill(signal);
+    stopCommands(signal);
     process.exit(143);
   });
 }

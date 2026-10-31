@@ -1,0 +1,125 @@
+{
+  "mode": "heldout",
+  "sha": "9a9ebbb890a23cfdd6573c95c0d3a5649843f448",
+  "scope": "all",
+  "startedAt": "2026-10-31T21:33:44.931Z",
+  "finishedAt": "2026-10-31T21:38:46.700Z",
+  "stage": "heldout",
+  "status": "ok",
+  "error": null,
+  "data": {
+    "sources": {
+      "giantsteps-labels": {
+        "status": "ok"
+      },
+      "giantsteps-audio": {
+        "status": "ok"
+      },
+      "gtzan-labels": {
+        "status": "ok"
+      },
+      "gtzan-audio": {
+        "status": "ok"
+      },
+      "ballroom-audio": {
+        "status": "ok"
+      },
+      "ballroom-labels": {
+        "status": "ok"
+      },
+      "guitarset-audio": {
+        "status": "ok"
+      },
+      "fsld-annotations": {
+        "status": "ok"
+      },
+      "fsld-audio": {
+        "status": "ok"
+      },
+      "groove-audio": {
+        "status": "ok"
+      }
+    },
+    "sets": {
+      "giantsteps": {
+        "dev": 335,
+        "heldout": 326,
+        "found": 661,
+        "missing": [],
+        "unexpected": [],
+        "differs": []
+      },
+      "ballroom": {
+        "dev": 340,
+        "heldout": 358,
+        "found": 698,
+        "missing": [],
+        "unexpected": [],
+        "differs": []
+      },
+      "gtzan": {
+        "dev": 499,
+        "heldout": 500,
+        "found": 999,
+        "missing": [],
+        "unexpected": [],
+        "differs": []
+      },
+      "guitarset": {
+        "dev": 180,
+        "heldout": 180,
+        "found": 360,
+        "missing": [],
+        "unexpected": [],
+        "differs": []
+      },
+      "fsld": {
+        "dev": 791,
+        "heldout": 718,
+        "found": 1509,
+        "missing": [],
+        "unexpected": [],
+        "differs": []
+      },
+      "fsld-nc": {
+        "dev": 0,
+        "heldout": 319,
+        "found": 319,
+        "missing": [],
+        "unexpected": [],
+        "differs": []
+      },
+      "groove": {
+        "dev": 221,
+        "heldout": 127,
+        "found": 348,
+        "missing": [],
+        "unexpected": [],
+        "differs": []
+      }
+    },
+    "complete": [
+      "giantsteps",
+      "ballroom",
+      "gtzan",
+      "guitarset",
+      "fsld",
+      "fsld-nc",
+      "groove"
+    ],
+    "incomplete": []
+  },
+  "curves": null,
+  "sweep": null,
+  "runDir": null,
+  "dev": "/data/rba-tempo/_job/dev-9a9ebbb890a2.json",
+  "heldout": "/data/rba-tempo/_job/heldout-9a9ebbb890a2.json",
+  "skipped": [
+    {
+      "set": "fsld",
+      "id": "395035",
+      "reason": "Error: ffmpeg could not decode /data/rba-tempo/fsld/FSL10K/audio/wav/395035_7473420.aiff.wav: exit 0, 0 bytes",
+      "undecodable": true
+    }
+  ]
+}

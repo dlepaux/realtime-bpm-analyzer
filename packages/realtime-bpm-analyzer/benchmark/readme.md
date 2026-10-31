@@ -156,6 +156,8 @@ Any failure keeps the extension on peaks. A pass still leaves David's MP3 test a
 
 The references are measured as they have been: peaks with its lowpass, folding into its default 90 to 180, without the extension's reset timer. Peaks with that timer has never been measured, so the comparison is with peaks in that shape.
 
+**The look, taken 2026-10-31 at 9a9ebbb: the bar reads yes, 13 of 13**, in [`results/rba-51-look-2-verdict.md`](results/rba-51-look-2-verdict.md). Clean macro Acc1 74.0 against peaks' 38.4, Acc2 90.1 against 46.6. It passes where the band is small only because not-below is weak there: clean 165 to 180, 48 tracks, Acc1 50.0 against 56.3, difference -6.3 [-19.5, +4.1]. #285 beats the candidate on 140 to 165 beyond noise, +3.3 [+1.5, +5.4] pooled and +4.4 [+1.5, +7.7] clean, which goes to David. A pass leaves the extension on peaks until David's MP3 test and a real-browser run.
+
 ## Results
 
 The licence-clean defaults, fixed in `b1ab9d3` before one logged look with image `sha256:140ca595…`. **Old** is #285's tuning, kept as the `tempogram-285` detector. Peaks has its lowpass. Licence: **clean** sets could tune, **evaluation-only** sets never did. Per-genre tables are in [`results/rba-51-report.md`](results/rba-51-report.md). The RBA-50 numbers on the old mixed tuning are in [`results/report.md`](results/report.md).

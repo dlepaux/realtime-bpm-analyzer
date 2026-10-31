@@ -22,8 +22,9 @@ import { EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config'
 
 # Sorry to see you go
 
-The extension is removed. If you have a second, tell us why: it is anonymous,
-just the reason you pick.
+The extension is removed. If you have a second, tell us why. Picking a reason
+sends it to Google Analytics along with the extension's version number, as part
+of your visit to this site. [Extension privacy](/extension/privacy) has the details.
 
 <ExtensionGoodbye />
 

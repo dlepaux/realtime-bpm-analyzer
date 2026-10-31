@@ -46,14 +46,14 @@ Your audio never leaves your device.
 
 The extension listens to the tab you choose, only after you click, and works out
 the tempo on your computer. It sends nothing anywhere: no analytics, no install
-ID, not a single network request. It keeps nothing but the id of the tab it is
-listening to, and forgets that when the browser closes.
+ID, not a single network request. It keeps nothing but whether it is listening
+and the id of the tab it is listening to, and the browser clears that when it closes.
 
 </div>
 
 This page is part of the website, which counts visits with Google Analytics, like
 the rest of realtime-bpm-analyzer.com. The only thing the extension told it is its
-version number, in the address. [Website privacy](/website-privacy) has the details.
+version number, in the address. [Extension privacy](/extension/privacy) has the details.
 
 ## Coming in Pro
 

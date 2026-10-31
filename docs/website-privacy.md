@@ -6,7 +6,8 @@ description: What realtime-bpm-analyzer.com measures, with which tools, and what
 # Website Privacy
 
 This page covers the website **realtime-bpm-analyzer.com**. The open-source
-library that runs the analysis has its own page: [Library Privacy](/privacy).
+library that runs the analysis has its own page: [Library Privacy](/privacy), and
+so does the browser extension: [Extension Privacy](/extension/privacy).
 
 ## Your audio never leaves your device
 
@@ -25,9 +26,10 @@ cookies in your browser and receives:
 - how you use the tools, as anonymous events: the tempo found, the length,
   size and extension of an analysed file (never its name or content), the
   address of a stream without its query string, and error types;
-- the version number in the address of the pages the browser extension opens
-  when you install it, update it or remove it, and, if you remove it and pick a
-  reason from the list on that page, that reason. Nothing you type is sent.
+- the version numbers in the address of the pages the browser extension opens:
+  its version when you install it or remove it, its new and previous versions
+  when it updates. If you remove it and pick a reason from the list on that page,
+  that reason and the version. Nothing you type is sent.
 
 Google Analytics does not store IP addresses. Its event data is kept for at most
 14 months. Google processes it as described in
@@ -56,4 +58,4 @@ linked to your name.
 The site is run by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 30 October 2026._
+_Last updated: 31 October 2026._

@@ -46,7 +46,7 @@ no system tool is needed. M4A/AAC and other formats go through
 [ffmpeg](https://ffmpeg.org) when it is on the `PATH` (or set `FFMPEG_PATH`).
 
 Audio that decodes to more than 2048 MB in its first channel (202 minutes at 44.1 kHz) is
-refused, not truncated, which holds peak memory to about 4.2 GB.
+refused, not truncated. A file that fits peaks at about 4.2 GB of memory.
 
 The JSON output, the decoders and their licences are described in the
 [CLI guide](https://www.realtime-bpm-analyzer.com/guide/cli).

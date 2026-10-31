@@ -8,6 +8,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {analyzeFile, decodedLimit, defaultMaxDecodedBytes} from 'realtime-bpm-analyzer-cli';
+// Built for these tests and not published: the sample counts are not part of the public API
+import {decodeFile} from '../dist/decode.mjs';
 
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 const tooLong = /^Too long to analyze: the limit is \d+ MB of decoded audio \(\d+ minutes at 44\.1 kHz\)/;
@@ -76,12 +78,50 @@ function withInfoFrames(mp3, frames) {
 }
 
 /**
- * @returns {Buffer} One silent mono MPEG 2 Layer III frame at 8 kbps and 22.05 kHz, 26 bytes long
+ * @param {Buffer} ogg An Ogg file
+ * @param {bigint} offset Added to every page's granule position, as in a stream joined partway
+ * @returns {Buffer} The file, the same length of audio
  */
-function silentMp3Frame() {
-  const frame = Buffer.alloc(26);
-  frame.set([0xFF, 0xF3, 0x10, 0xC4]);
-  return frame;
+function withGranuleOffset(ogg, offset) {
+  const patched = Buffer.from(ogg);
+  for (let page = patched.indexOf('OggS'); page >= 0; page = patched.indexOf('OggS', page + 4)) {
+    const granule = patched.readBigUInt64LE(page + 6);
+    if (granule > 0n && granule < 2n ** 53n) {
+      patched.writeBigUInt64LE(granule + offset, page + 6);
+    }
+  }
+
+  return patched;
+}
+
+/**
+ * @param {Buffer} flac A FLAC file
+ * @returns {number} Where its first frame starts
+ */
+function flacFramesStart(flac) {
+  let position = 4;
+  for (;;) {
+    const last = (flac[position] & 0x80) !== 0;
+    position += 4 + flac.readUIntBE(position + 1, 3);
+    if (last) {
+      return position;
+    }
+  }
+}
+
+/**
+ * @param {number} bits Bits per sample
+ * @param {number} channels Channels
+ * @returns {Buffer} A one-second WAV of integer PCM with a tone in it, odd sizes welcome
+ */
+function intWav(bits, channels) {
+  const bytes = bits / 8;
+  const header = wavHeader(44_100 * bytes * channels);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(44_100 * bytes * channels, 28);
+  header.writeUInt16LE(bytes * channels, 32);
+  header.writeUInt16LE(bits, 34);
+  return Buffer.concat([header, Buffer.alloc(44_100 * bytes * channels, 1)]);
 }
 
 describe('decoded size limit', () => {
@@ -124,18 +164,6 @@ describe('decoded size limit', () => {
   });
 
   describe('before decoding, from what the file declares', () => {
-    const hours = hoursOfAudio => hoursOfAudio * 3600;
-
-    it('refuses a 10 hour constant bitrate MP3 of 36 MB, the case that outran the file size cap', async () => {
-      const frames = Math.ceil(hours(10) * 22_050 / 576);
-      const path = await write('long.mp3', Buffer.concat(Array.from({length: 4096}, silentMp3Frame)));
-      // The rest of the file stays a hole on disk: only its size and first frame count
-      const handle = await open(path, 'r+');
-      await handle.truncate(frames * 26);
-      await handle.close();
-      await assertRefusedFromHeader(path);
-    });
-
     it('refuses a long MP3 by its Xing or Info frame count', async () => {
       const mp3 = await readFile(fixture('click-128.mp3'));
       await assertRefusedFromHeader(await write('info.mp3', withInfoFrames(mp3, 2_000_000)));
@@ -203,6 +231,106 @@ describe('decoded size limit', () => {
         assert.ok(result.bpm !== null, name);
       }
     });
+  });
+
+  describe('files that fit are not refused', () => {
+    it('reads an interrupted encode, whose Info tag counts 0 frames', async () => {
+      const mp3 = await readFile(fixture('click-128.mp3'));
+      const result = await analyzeFile(await write('zero-frames.mp3', withInfoFrames(mp3, 0)));
+      assert.equal(result.ok, true, result.error);
+    });
+
+    for (const name of ['click-140.ogg', 'click-140.opus']) {
+      it(`reads ${name} with a last granule of 0`, async () => {
+        const result = await analyzeFile(await write(`zero-${name}`, withLastGranule(await readFile(fixture(name)), 0n)));
+        assert.equal(result.ok, true, result.error);
+      });
+
+      it(`reads ${name} as a stream joined partway, whose granules start high`, async () => {
+        const result = await analyzeFile(await write(`joined-${name}`, withGranuleOffset(await readFile(fixture(name)), 2n ** 33n)));
+        assert.equal(result.ok, true, result.error);
+      });
+    }
+
+    it('does not take a large MP3 for a long one from the bitrate of its first frame', async () => {
+      // One 8 kbps frame, then a hole: at that rate 36 MB would be 10 hours
+      const path = join(root, 'low-first-frame.mp3');
+      const handle = await open(path, 'w');
+      await handle.write(Buffer.from([0xFF, 0xF3, 0x10, 0xC4]), 0, 4, 0);
+      await handle.truncate(36 * 1024 * 1024);
+      await handle.close();
+      const result = await analyzeFile(path);
+      assert.doesNotMatch(result.ok ? '' : result.error, tooLong);
+    });
+
+    it('decodes every sample of a long FLAC, whichever step its frame headers fall on', async () => {
+      // The fixture's frames repeated for ten minutes, so many frame headers meet a step boundary
+      const flac = await readFile(fixture('click-100.flac'));
+      const start = flacFramesStart(flac);
+      const long = Buffer.concat([flac.subarray(0, start), ...Array.from({length: 30}, () => flac.subarray(start))]);
+      const {default: decode} = await import('@audio/decode-flac');
+      const expected = (await decode(long)).channelData[0].length;
+      const {channelData} = await decodeFile(await write('repeated.flac', withFlacSamples(long, 0)), {ffmpegPath: 'ffmpeg', maxDecodedBytes: 1024 ** 3});
+      assert.equal(channelData.length, expected);
+    });
+
+    it('skips a large block of cover art in a FLAC, and tags in a WAV', async () => {
+      // 48 MB of blocks, past maxBytesWithoutAudio were it fed to the decoder
+      const flac = await readFile(fixture('click-100.flac'));
+      const streamInfoWasLast = (flac[4] & 0x80) !== 0;
+      const art = last => {
+        const block = Buffer.alloc(4 + (16 * 1024 * 1024) - 1);
+        block.writeUIntBE(block.length - 4, 1, 3);
+        block[0] = 6 | (last ? 0x80 : 0);
+        return block;
+      };
+
+      const tagged = Buffer.concat([flac.subarray(0, 42), art(false), art(false), art(streamInfoWasLast), flac.subarray(42)]);
+      tagged[4] &= 0x7F;
+      const started = performance.now();
+      const result = await analyzeFile(await write('art.flac', tagged));
+      assert.equal(result.ok, true, result.error);
+      assert.ok(performance.now() - started < headerRefusalMs, 'fed the cover art to the decoder');
+
+      const wav = intWav(16, 1);
+      const list = Buffer.alloc(8 + (40 * 1024 * 1024));
+      list.write('LIST', 0, 'latin1');
+      list.writeUInt32LE(list.length - 8, 4);
+      const listed = Buffer.concat([wav.subarray(0, 36), list, wav.subarray(36)]);
+      const samples = await decodeFile(await write('list.wav', listed), {ffmpegPath: 'ffmpeg', maxDecodedBytes: 1024 ** 3});
+      assert.equal(samples.channelData.length, 44_100);
+    });
+
+    it('reads 32-bit integer WAV, which needs its samples aligned', async () => {
+      const {channelData} = await decodeFile(await write('int32.wav', intWav(32, 1)), {ffmpegPath: 'ffmpeg', maxDecodedBytes: 1024 ** 3});
+      assert.equal(channelData.length, 44_100);
+    });
+  });
+
+  it('refuses a WAV with more channels than a decode can afford', async () => {
+    const wav = intWav(16, 1);
+    wav.writeUInt16LE(65_535, 22);
+    wav.writeUInt16LE(1, 32);
+    const result = await analyzeFile(await write('channels.wav', wav));
+    assert.equal(result.ok, false);
+    assert.match(result.error, /declares 65535 channels/);
+  });
+
+  it('gives up on an Ogg stream that never produces audio', async () => {
+    // The fixture's first two pages, then pages whose single packet never ends
+    const opus = await readFile(fixture('click-140.opus'));
+    const second = opus.indexOf('OggS', 4);
+    const third = opus.indexOf('OggS', second + 4);
+    const page = Buffer.alloc(27 + 255 + (255 * 255));
+    page.write('OggS', 0, 'latin1');
+    page[5] = 1;
+    page.writeBigInt64LE(-1n, 6);
+    page[26] = 255;
+    page.fill(255, 27, 27 + 255);
+    const pages = Array.from({length: 520}, () => page);
+    const result = await analyzeFile(await write('endless.opus', Buffer.concat([opus.subarray(0, third), ...pages])));
+    assert.equal(result.ok, false);
+    assert.match(result.error, /^No audio found in 32 MB/);
   });
 
   it('refuses a WAV with no audio chunk instead of buffering the file', async () => {

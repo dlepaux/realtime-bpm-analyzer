@@ -2,9 +2,20 @@
 
 import type {FileHandle} from 'node:fs/promises';
 
-// What a file's own headers say about its length, read before anything is decoded, so a file
-// over the limit is refused in milliseconds. Headers are untrusted: a lie here only skips this
-// early refusal, because decodeFile counts the real samples as they come out.
+// What a file's own headers say, read before anything is decoded: its length, so a file over the
+// limit is refused in milliseconds, and where its audio starts, so a decoder never has to buffer
+// cover art or other metadata. Headers are untrusted. One that understates or omits the length
+// only skips the early refusal, because decodeFile also counts the samples that come out. One
+// that overstates it refuses the file, which is why the guesses stay out: no length from a
+// bitrate, since the first frame of a variable bitrate MP3 says nothing about the others.
+
+export type AudioLayout = {
+  /** Samples per channel the headers declare, undefined when they do not say */
+  readonly samples: number | undefined;
+  /** Headers the decoder needs, fed before the file's bytes from `from` on */
+  readonly prefix: Uint8Array;
+  readonly from: number;
+};
 
 /** One read, shorter than `length` at the end of the file */
 export async function readAt(handle: FileHandle, position: number, length: number): Promise<Buffer> {
@@ -16,125 +27,195 @@ export async function readAt(handle: FileHandle, position: number, length: numbe
 const headBytes = 64;
 // An Ogg page is at most 65 307 bytes, so the last one starts within this distance of the end
 const oggTailBytes = 65_536;
-// Files carry a handful of RIFF chunks; the bound only stops a crafted walk
-const maxRiffChunks = 1024;
+const oggPageHeaderBytes = 27 + 255;
+// Real files have a handful of chunks or blocks and a few hundred header pages (cover art);
+// these only stop a crafted walk
+const maxWalkSteps = 1024;
+const maxFmtBytes = 65_536;
+// A decoder allocates every channel of every step, and the limit only counts the first
+const maxWavChannels = 64;
+const noPrefix = new Uint8Array(0);
 
 /**
  * @param handle Open WAV file
+ * @param start Where the RIFF header starts
  * @param size File size
- * @returns Samples per channel, 0 when no audio chunk follows a format chunk
+ * @returns The layout. Samples are 0 when no audio chunk follows a format chunk: the decoder
+ * would buffer the whole file, waiting for one.
+ * @throws {Error} When the format chunk declares more channels than a decode can afford
  */
-async function wavSamples(handle: FileHandle, size: number): Promise<number> {
-  let position = 12;
-  let blockBytes = 0;
-  for (let chunk = 0; chunk < maxRiffChunks && position + 8 <= size; chunk += 1) {
+async function wavLayout(handle: FileHandle, start: number, size: number): Promise<AudioLayout> {
+  let position = start + 12;
+  let fmt: Buffer | undefined;
+  for (let step = 0; step < maxWalkSteps && position + 8 <= size; step += 1) {
      
-    const header = await readAt(handle, position, 8 + 14);
+    const header = await readAt(handle, position, 8);
     const type = header.toString('latin1', 0, 4);
     const chunkBytes = header.readUInt32LE(4);
     if (type === 'data') {
+      if (fmt === undefined) {
+        break;
+      }
+
+      const from = position + 8;
       // 0 and 0xFFFFFFFF are the placeholders of a recorder that never came back to fill them in
       const placeholder = chunkBytes === 0 || chunkBytes === 0xFF_FF_FF_FF;
-      const audioBytes = Math.min(placeholder ? Infinity : chunkBytes, size - position - 8);
-      return blockBytes === 0 ? 0 : Math.floor(audioBytes / blockBytes);
+      const audioBytes = Math.min(placeholder ? Infinity : chunkBytes, size - from);
+      const blockBytes = fmt.readUInt16LE(8 + 12);
+      const samples = blockBytes === 0 ? 0 : Math.floor(audioBytes / blockBytes);
+       
+      const riff = await readAt(handle, start, 12);
+      return {samples, prefix: Buffer.concat([riff, fmt, header]), from};
     }
 
-    if (type === 'fmt ' && header.length >= 22) {
-      blockBytes = header.readUInt16LE(8 + 12);
+    if (type === 'fmt ' && chunkBytes >= 16 && chunkBytes <= maxFmtBytes) {
+       
+      fmt = await readAt(handle, position, 8 + chunkBytes);
+      const channels = fmt.readUInt16LE(8 + 2);
+      if (channels > maxWavChannels) {
+        throw new Error(`This WAV declares ${channels} channels, over the limit of ${maxWavChannels}.`);
+      }
     }
 
     // RIFF chunks are padded to an even size
     position += 8 + chunkBytes + (chunkBytes % 2);
   }
 
-  return 0;
+  return {samples: 0, prefix: noPrefix, from: start};
 }
 
 /**
- * @param head Bytes from the fLaC marker on
- * @returns The STREAMINFO sample count, undefined when the encoder left it unknown (0)
+ * @param handle Open FLAC file
+ * @param start Where the fLaC marker starts
+ * @param size File size
+ * @returns The layout: STREAMINFO alone, then the frames
  */
-function flacSamples(head: Buffer): number | undefined {
+async function flacLayout(handle: FileHandle, start: number, size: number): Promise<AudioLayout> {
   // 'fLaC', the block header, then 10 bytes of sizes and 8 packing rate, channels, depth and
   // the 36-bit total: its top 4 bits are the low nibble of byte 21
-  if (head.length < 26) {
-    return undefined;
+  const head = await readAt(handle, start, 42);
+  if (head.length < 42) {
+    return {samples: undefined, prefix: noPrefix, from: start};
   }
 
   const total = ((head[21] & 0x0F) * 2 ** 32) + head.readUInt32BE(22);
-  return total === 0 ? undefined : total;
+  const samples = total === 0 ? undefined : total;
+
+  let position = start + 4;
+  for (let step = 0; step < maxWalkSteps && position + 4 <= size; step += 1) {
+     
+    const block = await readAt(handle, position, 4);
+    position += 4 + block.readUIntBE(1, 3);
+    if ((block[0] & 0x80) !== 0) {
+      const prefix = Buffer.from(head);
+      // STREAMINFO becomes the last metadata block
+      prefix[4] |= 0x80;
+      return {samples, prefix, from: position};
+    }
+  }
+
+  return {samples, prefix: noPrefix, from: start};
+}
+
+/**
+ * @param head Bytes from an Ogg page on
+ * @returns The page's granule position, undefined when it is not a page or no packet ends in it
+ * (granule -1, a huge unsigned number here)
+ */
+function oggGranule(head: Buffer): number | undefined {
+  // Byte 4 is the format version, always 0: it tells most false 'OggS' in audio from a page
+  if (head.length < 14 || head.toString('latin1', 0, 4) !== 'OggS' || head[4] !== 0) {
+    return undefined;
+  }
+
+  const granule = head.readBigUInt64LE(6);
+  return granule < 2n ** 53n ? Number(granule) : undefined;
 }
 
 /**
  * @param handle Open Ogg file
+ * @param start Where the first page starts
  * @param size File size
- * @returns The last page's granule position, which counts samples per channel at the decoder's rate
+ * @returns The first non-zero granule position, undefined when the walk finds none: a stream
+ * joined partway starts counting at any value, so only the distance from it means anything
  */
-async function oggSamples(handle: FileHandle, size: number): Promise<number | undefined> {
-  const tail = await readAt(handle, Math.max(0, size - oggTailBytes), oggTailBytes);
-  let page = tail.lastIndexOf('OggS');
-  while (page >= 0) {
-    // Byte 4 is the format version, always 0: it tells most false 'OggS' in audio from a page.
-    // A page where no packet ends has granule -1, read here as a huge unsigned number.
-    if (page + 14 <= tail.length && tail[page + 4] === 0) {
-      const granule = tail.readBigUInt64LE(page + 6);
-      if (granule < 2n ** 53n) {
-        return Number(granule);
-      }
+async function oggFirstGranule(handle: FileHandle, start: number, size: number): Promise<number | undefined> {
+  let position = start;
+  for (let step = 0; step < maxWalkSteps && position < size; step += 1) {
+     
+    const head = await readAt(handle, position, oggPageHeaderBytes);
+    const granule = oggGranule(head);
+    if (head.length < 27 || head.toString('latin1', 0, 4) !== 'OggS') {
+      return undefined;
     }
 
-    page = tail.lastIndexOf('OggS', page - 1);
+    if (granule !== undefined && granule > 0) {
+      return granule;
+    }
+
+    const segments = head[26];
+    let body = 0;
+    for (let i = 0; i < segments; i += 1) {
+      body += head[27 + i] ?? 0;
+    }
+
+    position += 27 + segments + body;
   }
 
   return undefined;
 }
 
-const mp3Bitrates: Record<string, readonly number[] | undefined> = {
-  v1l1: [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448],
-  v1l2: [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384],
-  v1l3: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
-  v2l1: [0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256],
-  v2l23: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160],
-};
-const mp3SampleRates = [44_100, 48_000, 32_000];
+/**
+ * @param handle Open Ogg file
+ * @param start Where the first page starts
+ * @param size File size
+ * @returns Samples per channel at the decoder's rate between the first audio page and the last
+ * page, a shade under the real count, or undefined when they do not say
+ */
+async function oggSamples(handle: FileHandle, start: number, size: number): Promise<number | undefined> {
+  const tail = await readAt(handle, Math.max(start, size - oggTailBytes), oggTailBytes);
+  let page = tail.lastIndexOf('OggS');
+  let last: number | undefined;
+  for (let step = 0; step < maxWalkSteps && page >= 0 && last === undefined; step += 1) {
+    last = oggGranule(tail.subarray(page, page + 14));
+    page = page === 0 ? -1 : tail.lastIndexOf('OggS', page - 1);
+  }
+
+  const first = await oggFirstGranule(handle, start, size);
+  return last === undefined || first === undefined ? undefined : Math.max(0, last - first);
+}
 
 /**
  * @param head Bytes from the first MPEG audio frame on
- * @param audioBytes Bytes from that frame to the end of the file
- * @returns Samples per channel from the Xing or VBRI frame count, else from the first frame's
- * bitrate. A variable bitrate file with neither tag gets a guess, which is all this needs to be.
+ * @returns Samples per channel from the Xing or VBRI frame count. An encoder that was
+ * interrupted leaves a count of 0, and that file still decodes, so 0 says nothing.
  */
-function mp3Samples(head: Buffer, audioBytes: number): number | undefined {
+function mp3Samples(head: Buffer): number | undefined {
   if (head.length < headBytes || head[0] !== 0xFF || (head[1] & 0xE0) !== 0xE0) {
     return undefined;
   }
 
   const version = (head[1] >> 3) & 0b11; // 3 is MPEG 1, 2 is MPEG 2, 0 is MPEG 2.5
   const layer = 4 - ((head[1] >> 1) & 0b11);
-  const baseRate = mp3SampleRates[(head[2] >> 2) & 0b11];
-  const mpeg1 = version === 3;
-  const table = mpeg1 ? `v1l${layer}` : (layer === 1 ? 'v2l1' : 'v2l23');
-  const kilobits = mp3Bitrates[table]?.[head[2] >> 4];
-  if (version === 1 || layer === 4 || baseRate === undefined || !kilobits) {
+  if (version === 1 || layer === 4) {
     return undefined;
   }
 
-  const sampleRate = baseRate / (mpeg1 ? 1 : (version === 2 ? 2 : 4));
+  const mpeg1 = version === 3;
   const frameSamples = layer === 1 ? 384 : (layer === 3 && !mpeg1 ? 576 : 1152);
 
   // The Xing tag sits after the side information, whose size depends on version and channels
   const mono = (head[3] >> 6) === 0b11;
   const xing = 4 + (mpeg1 ? (mono ? 17 : 32) : (mono ? 9 : 17));
   const marker = head.toString('latin1', xing, xing + 4);
+  let frames = 0;
   if ((marker === 'Xing' || marker === 'Info') && (head[xing + 7] & 1) === 1) {
-    return head.readUInt32BE(xing + 8) * frameSamples;
+    frames = head.readUInt32BE(xing + 8);
+  } else if (head.toString('latin1', 36, 40) === 'VBRI') {
+    frames = head.readUInt32BE(36 + 14);
   }
 
-  if (head.toString('latin1', 36, 40) === 'VBRI') {
-    return head.readUInt32BE(36 + 14) * frameSamples;
-  }
-
-  return Math.round(audioBytes * 8 / (kilobits * 1000) * sampleRate);
+  return frames === 0 ? undefined : frames * frameSamples;
 }
 
 /**
@@ -142,30 +223,30 @@ function mp3Samples(head: Buffer, audioBytes: number): number | undefined {
  * @param format Format sniffed from its first bytes
  * @param start Where the format's bytes start, past any ID3 tag
  * @param size File size
- * @returns The samples per channel its headers declare, undefined when they do not say.
- * 0 means a WAV without audio: its decoder would buffer the whole file, waiting for a header.
+ * @returns What its headers declare
+ * @throws {Error} When they declare something no decode can afford
  */
-export async function declaredSamples(
+export async function readLayout(
   handle: FileHandle,
   format: 'mp3' | 'wav' | 'flac' | 'vorbis' | 'opus',
   start: number,
   size: number,
-): Promise<number | undefined> {
+): Promise<AudioLayout> {
   switch (format) {
     case 'wav': {
-      return wavSamples(handle, size);
+      return wavLayout(handle, start, size);
     }
 
     case 'flac': {
-      return flacSamples(await readAt(handle, start, headBytes));
+      return flacLayout(handle, start, size);
     }
 
     case 'mp3': {
-      return mp3Samples(await readAt(handle, start, headBytes), size - start);
+      return {samples: mp3Samples(await readAt(handle, start, headBytes)), prefix: noPrefix, from: start};
     }
 
     default: {
-      return oggSamples(handle, size);
+      return {samples: await oggSamples(handle, start, size), prefix: noPrefix, from: start};
     }
   }
 }

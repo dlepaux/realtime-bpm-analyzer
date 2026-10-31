@@ -48,7 +48,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=esm --packages=external --banner:js='#!/usr/bin/env node' --outfile=dist/cli.mjs && esbuild src/api.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/api.mjs && tsc --noEmit && tsc -p tsconfig.api.json",
+    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=esm --packages=external --banner:js='#!/usr/bin/env node' --outfile=dist/cli.mjs && esbuild src/api.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/api.mjs && esbuild src/decode.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/decode.mjs && tsc --noEmit && tsc -p tsconfig.api.json",
     "prepack": "cp ../../license.md .",
     "postpack": "rm -f license.md",
     "lint": "eslint .",

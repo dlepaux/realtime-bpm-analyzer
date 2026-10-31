@@ -4,7 +4,8 @@ import {spawn} from 'node:child_process';
 import {open} from 'node:fs/promises';
 import type {FileHandle} from 'node:fs/promises';
 import {resolve} from 'node:path';
-import {declaredSamples, readAt} from './declared-length';
+import {readAt, readLayout} from './declared-length';
+import type {AudioLayout} from './declared-length';
 
 export type DecodedAudio = {
   /** Channel 0, the channel analyzeFullBuffer analyses in the browser */
@@ -55,6 +56,10 @@ const inputChunkBytes = 4096;
 
 // Longest ID3 look-ahead needed to tell the format
 const sniffBytes = 64;
+
+// Input a decoder may swallow with nothing to show for it. Ogg and FLAC parsers buffer it and
+// copy that buffer at every step, so without this a tiny-audio file costs minutes and gigabytes.
+const maxBytesWithoutAudio = 32 * 1024 * 1024;
 
 const bytesPerSample = Float32Array.BYTES_PER_ELEMENT;
 const sinkStepBytes = 16 * 1024 * 1024;
@@ -173,7 +178,7 @@ async function sniffFile(handle: FileHandle): Promise<{format: BuiltInFormat | u
  * Decodes an audio file to channel 0 PCM: with a bundled decoder when one handles the format,
  * otherwise with ffmpeg. The size of the PCM is bounded before decoding, from what the file
  * declares, and during it, from what actually comes out, because a file can lie or say nothing.
- * The file itself is streamed, and channels past the first are dropped as they are decoded.
+ * The audio is read in small steps, and channels past the first are dropped as they are decoded.
  * @param path File to decode
  * @param options ffmpeg binary, limit and abort signal
  * @returns Channel 0 samples and their sample rate
@@ -188,19 +193,37 @@ export async function decodeFile(path: string, options: DecodeOptions): Promise<
     }
 
     const {size} = await handle.stat();
-    const declared = await declaredSamples(handle, format, start, size);
-    if (declared !== undefined && declared * bytesPerSample > options.maxDecodedBytes) {
+    const layout = await readLayout(handle, format, start, size);
+    if (layout.samples !== undefined && layout.samples * bytesPerSample > options.maxDecodedBytes) {
       throw tooLong(options.maxDecodedBytes);
     }
 
-    if (declared === 0) {
+    if (layout.samples === 0 && format === 'wav') {
       throw new Error(`No audio samples decoded (${format}).`);
     }
 
-    return await decodeBundled(handle, format, options);
+    return await decodeBundled(handle, format, layout, options);
   } finally {
     await handle.close();
   }
+}
+
+/**
+ * Where a FLAC input step may end. The FLAC decoder loses a frame for good when a frame's header
+ * spans two steps, without an error (seen on @audio/decode-flac 1.3.5), so a step stops short of
+ * any frame sync near its end. Frame headers are at most 16 bytes; 32 leaves a margin.
+ * @param step A full input step
+ * @returns The length to feed, the rest being read again at the head of the next step
+ */
+function flacStepEnd(step: Uint8Array): number {
+  for (let i = step.length - 32; i < step.length; i += 1) {
+    const next = step[i + 1];
+    if (step[i] === 0xFF && (next === undefined || next === 0xF8 || next === 0xF9)) {
+      return i;
+    }
+  }
+
+  return step.length;
 }
 
 /**
@@ -208,17 +231,20 @@ export async function decodeFile(path: string, options: DecodeOptions): Promise<
  * to hold: nothing but channel 0 of the steps so far stays in memory.
  * @param handle Open file
  * @param format Decoder to use
+ * @param layout Where the audio is
  * @param options Limit and abort signal
  * @returns Channel 0 samples and their sample rate
  */
-async function decodeBundled(handle: FileHandle, format: BuiltInFormat, options: DecodeOptions): Promise<DecodedAudio> {
+async function decodeBundled(handle: FileHandle, format: BuiltInFormat, layout: AudioLayout, options: DecodeOptions): Promise<DecodedAudio> {
   const {maxDecodedBytes, signal} = options;
   const sink = createSink(maxDecodedBytes);
   const decoder = await (await loaders[format]()).decoder();
   let sampleRate = 0;
+  let bytesWithoutAudio = 0;
   const take = ({channelData: [first], sampleRate: rate}: DecodedChannels) => {
     if (first !== undefined && first.length > 0) {
       sampleRate ||= rate;
+      bytesWithoutAudio = 0;
       if (!sink.push(first)) {
         throw tooLong(maxDecodedBytes);
       }
@@ -226,12 +252,28 @@ async function decodeBundled(handle: FileHandle, format: BuiltInFormat, options:
   };
 
   try {
-    // Fresh buffers, not one reused: the Ogg and FLAC parsers keep references to their input
-    const stream = handle.createReadStream({start: 0, highWaterMark: inputChunkBytes, autoClose: false});
-    for await (const chunk of stream) {
-      // Checked here, not given to the stream, which raises an aborted signal as an uncaught error
+    if (layout.prefix.length > 0) {
+      take(decoder.decode(layout.prefix));
+    }
+
+    let position = layout.from;
+    for (;;) {
+       
+      const chunk = await readAt(handle, position, inputChunkBytes);
+      if (chunk.length === 0) {
+        break;
+      }
+
       signal?.throwIfAborted();
-      take(decoder.decode(chunk as Buffer));
+      // A fresh buffer each step, as the Ogg and FLAC parsers keep references to their input.
+      // A plain Uint8Array, as the WAV decoder's alignment copy only copies through one.
+      const end = format === 'flac' && chunk.length === inputChunkBytes ? flacStepEnd(chunk) : chunk.length;
+      position += end;
+      bytesWithoutAudio += end;
+      take(decoder.decode(new Uint8Array(chunk.buffer, chunk.byteOffset, end)));
+      if (bytesWithoutAudio > maxBytesWithoutAudio) {
+        throw new Error(`No audio found in ${maxBytesWithoutAudio / (1024 * 1024)} MB of this file.`);
+      }
     }
 
     if (decoder.flush !== undefined) {

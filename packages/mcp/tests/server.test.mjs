@@ -3,7 +3,7 @@
 // at the repo root first: it builds the library, the CLI this package imports, then this.
 import {describe, it, before, after} from 'node:test';
 import assert from 'node:assert/strict';
-import {copyFile, mkdir, mkdtemp, open, rm, symlink, writeFile} from 'node:fs/promises';
+import {copyFile, mkdir, mkdtemp, open, readFile, rm, symlink, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -149,11 +149,11 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
 
   it('refuses a long low-bitrate file under the size limit with a plain message', async () => {
     const long = join(scratch, 'long.mp3');
-    // 10 h of 8 kbps MPEG 2 audio in 36 MB. Sparse: only the first frame and the size are read.
-    const handle = await open(long, 'w');
-    await handle.write(Buffer.from([0xFF, 0xF3, 0x10, 0xC4]), 0, 4, 0);
-    await handle.truncate(36 * megabyte);
-    await handle.close();
+    // 2 million frames declared by the Info tag of a file of a few KB. It sits in the fixture's
+    // first frame: past the 44-byte ID3 tag, 13 bytes in, with the frame count 8 bytes further.
+    const mp3 = await readFile(fixture('click-128.mp3'));
+    mp3.writeUInt32BE(2_000_000, 44 + 13 + 8);
+    await writeFile(long, mp3);
     assert.match(await toolError(client, 'analyze_file', {path: long}), /^Could not analyse .*long\.mp3: Too long to analyze: the limit is 2048 MB/);
   });
 

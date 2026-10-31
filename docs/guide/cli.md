@@ -79,13 +79,16 @@ so memory grows with the length of the audio.
 
 A file whose first channel decodes to more than 2048 MB is refused with an error, and
 a batch moves on to the next file. At 32 bits per sample that is 202 minutes at
-44.1 kHz, or 186 minutes at 48 kHz. The file is refused, not truncated, because a tempo
+44.1 kHz, or 186 minutes at 48 kHz in the bundled decoders (ffmpeg always delivers
+44.1 kHz). The file is refused, not truncated, because a tempo
 from part of a file would differ from the browser's `analyzeFullBuffer` without saying so.
 
 The limit is on decoded audio, not file size, because compression hides length: 24 hours
 of silent FLAC fits in 2.3 MB. The headers are checked first, so an honest file is refused
 in milliseconds. The samples are then counted as they are decoded, so a file with false
-or missing headers is stopped too. ffmpeg is killed the same way.
+or missing headers is stopped too. ffmpeg is killed the same way. A file also fails
+if a bundled decoder gets 32 MB of it without producing any audio, and a WAV fails
+if it declares more than 64 channels.
 
 Peak memory measured on macOS arm64 with Node 24:
 

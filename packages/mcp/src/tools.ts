@@ -86,7 +86,7 @@ export function createServer(version: string): McpServer {
     }),
     outputSchema: z.object(analysis),
     annotations: {readOnlyHint: true, idempotentHint: true, openWorldHint: false},
-  }, async ({path: raw, min_bpm: min, max_bpm: max}) => {
+  }, async ({path: raw, min_bpm: min, max_bpm: max}, ctx) => {
     const range = await tempoRange(min, max);
     if (range !== undefined && 'error' in range) {
       return toolError(range.error);
@@ -97,7 +97,7 @@ export function createServer(version: string): McpServer {
       return toolError(checked.error);
     }
 
-    const result = await analyzeFile(checked.path, {tempoRange: range, ffmpegPath: ffmpegPath()});
+    const result = await analyzeFile(checked.path, {tempoRange: range, ffmpegPath: ffmpegPath(), signal: ctx.mcpReq.signal});
     if (!result.ok) {
       return toolError(`Could not analyse ${result.file}: ${firstLine(result.error)}`);
     }

@@ -9,9 +9,15 @@ entrypoint dev --detector a,b                         # the data, then those det
 entrypoint heldout --reason "why" [--detector a,b]   # the data, a dev scoring, then a logged held-out look
 ```
 
-`--sets a,b` narrows any of them, for a test. A `tune` that narrow says so in `scope`, and proves less. Curves and rows live in `_job/tune-<commit>-<scope>/`, so a test or a new image never mixes with an earlier run. `RBA_JOB_WORKERS` sets the worker count, and a job should set it: a container sees the host's cores, not its own limit. Run one at a time on a volume: two jobs fight over the same part files.
+`--sets a,b` narrows any of them but a look, for a test. A `tune` that narrow says so in `scope`, and proves less. Curves and rows live in `_job/tune-<commit>-<scope>/`, so a test or a new image never mixes with an earlier run. `RBA_JOB_WORKERS` sets the worker count, and a job should set it: a container sees the host's cores, not its own limit. Run one at a time on a volume: two jobs fight over the same part files.
 
 Nothing runs held-out unless asked. A look scores only `lookDetectors` in `../lib/detectors.ts`. Before a look the same detectors are scored on dev through the real path, into `_job/dev-<commit>.json`: the sweep is a replay and holds no peaks. A failure there spends no look. It needs `--reason`, writes its line to `_job/heldout-log.md` before scoring anything, and refuses to start when `_job/heldout-<commit>.json` exists, unless a kill landed just after that file, when the restart only closes the summary and exits 0. That line belongs in [`../heldout-log.md`](../heldout-log.md): copy it there, since the image cannot commit. The data check before it parses held-out labels to count ids, and prints no tempo, because a look must not be spent on a broken set.
+
+A look scores all of `lookDetectors` on all sets: anything narrower is refused before the log line, as it could get no verdict. The reason of RBA-51's second and last look, which `lookRefusal` checks for its declarations:
+
+```text
+Second look, prompted by the first: the first look (b1ab9d3) lost fast music, and this one is taken because of that, so it is not clean. Rule amended after two refusals: it now prefers an interior prior within noise, per the DECISION of 2026-10-31 on RBA-51. Sets already seen: all seven by the first look, and giantsteps, ballroom, gtzan, guitarset by RBA-50 as well. The fast-tempo guard, its bands and the evaluation of 90 to 180 originate in the findings of the first look, and no tuned value or floor does. Candidate tempogram-extension, references peaks and tempogram-285-90-180, at 90 to 180.
+```
 
 ## Exit codes and evidence
 

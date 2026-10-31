@@ -128,7 +128,7 @@ Best passing score of the grid rows per prior on 90 to 180, replay, without the 
 | 120 | . | 74.6 | 74.3 | 74.6 | 74.4 | 73.6 | 73.4 | 73.0 |
 | 130 | 65.4 | 70.8 | 72.7 | 73.4 | 73.0 | 72.7 | 72.7 | 72.8 |
 
-The fast material is 170 tracks in 68 groups (largest 7.1%, 92 electronic) and 90 tracks in 38 groups (largest 13.3%, 50 electronic), above the threshold posted on the RBA-51 card before counting. Those are loops, not full mixes. 36 of the 90 fast tracks are labelled 180 and up and cannot read true in 90 to 180. No further tempo-labelled full-mix electronic data with a clean per-item licence was found.
+The fast material is 170 tracks in 68 groups (largest 7.1%, 92 electronic) and 90 tracks in 38 groups (largest 13.3%, 50 electronic), above the threshold posted on the RBA-51 card before counting. Those are loops, not full mixes. 36 of the 90 fast tracks are labelled 180 and up: the 30 above 180 are outside 90 to 180, though the tolerance lets a few read true, and the 6 at exactly 180 are inside it. No further tempo-labelled full-mix electronic data with a clean per-item licence was found.
 
 Real-path dev tables per set and band: [`results/rba-51-retune.md`](results/rba-51-retune.md). Macro Acc1 on 90 to 180: peaks 40.7, #285 68.3, first pick 72.6, the ridge 74.5 to 74.7. 165 and up: peaks 24.4, the ridge 41.1 to 44.4. With the extension's 10 s reset, coverage is 0.0 and Acc1 falls to 68.3.
 
@@ -136,7 +136,7 @@ Real-path dev tables per set and band: [`results/rba-51-retune.md`](results/rba-
 
 **What this branch ships.** The library's default detector is peaks, unchanged. `detector: 'tempogram'` alone still reads with the first pick (110 BPM, 0.7 octaves, third 0.2), which must not ship. The candidate is opt-in: `{detector: 'tempogram', tempogramMode: 'extension'}`, 90 to 180 BPM, 80 BPM, 1.7 octaves, third 0.3, no biquad, no reset timer (`extensionTempogramMode` in `src/core/tempogram.ts`). The defaults need not hold it: the detector takes a tuning when it is built, and the option passes this one through the same path a caller uses. A mode, not new defaults, also because these values are only a tilt on a range that excludes a fast tempo's half: nothing measured them on 50 to 240. The mode refuses another `tempoRange` and `continuousAnalysis`. It covers the real-time path only, as `analyzeFullBuffer`, the CLI and the MCP server take no mode.
 
-**The amendment.** RBA-51's DECISION of 2026-10-31 amended `pickWithGuard` after it had refused twice: among rows within noise, one holding the prior inside what was measured comes first. On the committed rows that gives this candidate, exit 0 from `pick`, and a test holds them together. This is a fork in the path, and the look's reason declares it. Counting knobs from the first pick instead of #285, the rule gives 110/0.7, third 0.4. So the look is a gate, not the final word, and not for advertising.
+**The amendment.** RBA-51's DECISION of 2026-10-31 amended `pickWithGuard` after it had refused twice: among rows within noise, one holding the prior inside what was measured comes first, and a row not setting a prior knob counts as on the edge. On the committed rows that gives this candidate, exit 0 from `pick`, and a test holds them together. This is a fork in the path, and the look's reason declares it. Counting knobs from the first pick instead of #285, the rule gives 110/0.7, third 0.4. So the look is a gate, not the final word, and not for advertising.
 
 **The pass bar**, in [`lib/pass-bar.ts`](lib/pass-bar.ts) and committed before the look. `./benchmark/run.sh verdict <heldout.json>` applies it and prints a yes or no, exit 0 or 1, and exit 2 on a file it cannot judge. At 90 to 180, on the real path, against peaks:
 
@@ -148,6 +148,9 @@ Real-path dev tables per set and band: [`results/rba-51-retune.md`](results/rba-
 Any failure keeps the extension on peaks. A pass still leaves David's MP3 test and a real-browser run. These readings are mine where the DECISION is silent, fixed here before the numbers:
 
 - **The noise** is a 95% percentile range from a paired bootstrap, 4000 draws, fixed seed, resampling whole groups within each set. The groups are the split's, except that fsld and fsld-nc resample together as they share uploaders. Groove's are drummer and session, so a drummer across sessions still counts as independent.
+- **The width.** 95% is wider than the one standard error `lib/sweep.ts` calls noise, so it is stricter on bar 1 and kinder on bars 2 and 3. "Error ranges" points to 95%, and that decides. `verdict` prints the same tests at one standard error beside it, deciding nothing, so a verdict that turns on the width shows it. A small band is easier to pass: not-below weakens as its range widens.
+- **Groups.** GiantSteps' groups are one track each and Ballroom's `Media-*` tracks each their own, so bar 3's range is track-level. There is no better group for them in the data.
+- **Bar 4 has no coverage floor**, as the DECISION sets none: coverage is printed beside it. It counts every stable reading, and fails if peaks is silent in a whole set, which would otherwise read as all false and flatter the candidate.
 - **Tracks labelled outside 90 to 180** are counted apart: out of bar 2's bands, in their own rows, gating nothing. Bars 1, 3 and 4 read the whole set as the DECISION states them, with the out-of-range rows beside them.
 - **#285 against the candidate on 140 to 165** is reported and gates nothing. Beyond noise, it goes to David: only his ruling can use #285.
 

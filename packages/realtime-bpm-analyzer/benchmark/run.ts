@@ -20,7 +20,7 @@ import {loaders} from './lib/datasets';
 import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate, writeAtomic} from './lib/decode';
 import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
-import {UndecodableTrack, lookDetectorRefusal, lookHeader, lookRefusal, progressRows, refusalOf, resumesLook, skippedTracks} from './lib/look';
+import {UndecodableTrack, lookDetectorRefusal, lookHeader, lookRefusal, lookScopeRefusal, progressRows, refusalOf, resumesLook, skippedTracks} from './lib/look';
 import type {RunFailure} from './lib/look';
 import {listen} from './lib/stream';
 import {workerCount} from './lib/workers';
@@ -138,9 +138,10 @@ function readProgress(path: string | undefined): string {
  * Logs a look, unless its own progress file says this is that look resuming. The log line comes
  * first: a kill between the two spends the look unread, which costs a look and never scores unlogged.
  */
-function logLook(logPath: string, look: string, reason: string, names: readonly string[], progress: string | undefined): void {
+function logLook(logPath: string, look: string, reason: string, names: readonly string[], sets: readonly string[], progress: string | undefined): void {
   const isResuming = resumesLook(readProgress(progress), look);
   const refusal = lookDetectorRefusal(pickedConfiguration, names, lookDetectors)
+    ?? lookScopeRefusal(names, sets, lookDetectors, Object.keys(loaders))
     ?? lookRefusal(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '', isResuming, reason);
 
   if (refusal) {
@@ -187,6 +188,10 @@ async function main(): Promise<void> {
       throw new Error('Tuning is for dev: held-out scores the committed defaults');
     }
 
+    if (values.limit) {
+      throw new Error('A look covers its sets whole: --limit is for dev');
+    }
+
     if (!values.reason) {
       throw new Error('A held-out run needs --reason');
     }
@@ -198,6 +203,7 @@ async function main(): Promise<void> {
       `| ${sha.slice(0, 12)} | ${names.join(', ')} | ${values.reason} (sets ${sets.join(', ')}, limit ${values.limit ?? 'none'}) |`,
       values.reason,
       names,
+      sets,
       values.progress,
     );
   }

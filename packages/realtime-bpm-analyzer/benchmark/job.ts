@@ -15,7 +15,7 @@ import {rebuild, stopCommands} from './lib/fetch';
 import type {DataReport} from './lib/fetch';
 import {tuningSets} from './lib/licences';
 import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
-import {lookDetectorRefusal, lookRefusal} from './lib/look';
+import {lookDetectorRefusal, lookRefusal, lookScopeRefusal} from './lib/look';
 import type {RunFailure} from './lib/look';
 import {bandCounts} from './lib/metrics';
 import {guardShortfalls} from './lib/sweep';
@@ -133,6 +133,11 @@ function assertPickHoldsGuard(devOut: string): void {
   const {results} = JSON.parse(readFileSync(devOut, 'utf8')) as {results: Record<string, TrackResult[]>};
   const shortfalls = guardShortfalls(bandCounts(results[pickedConfiguration]));
 
+  // The verdict resamples groups, so this is the free proof that a result carries one
+  if (Object.values(results).flat().some(({group}) => group === undefined)) {
+    throw new Error('A dev result has no group, and the look\'s would not either. No look was taken');
+  }
+
   if (shortfalls.length > 0) {
     throw new Error(`${pickedConfiguration} is under the fast-tempo guard on dev, real path: ${shortfalls.join(', ')}. No look was taken`);
   }
@@ -190,8 +195,8 @@ function parseJobArgs() {
 }
 
 /** @returns Why a look must not start, or null. It holds before anything runs, a dev scoring included */
-function refuseLook(reason: string, names: readonly string[]): string | null {
-  const refusal = lookDetectorRefusal(pickedConfiguration, names, lookDetectors);
+function refuseLook(reason: string, names: readonly string[], sets: readonly string[]): string | null {
+  const refusal = lookDetectorRefusal(pickedConfiguration, names, lookDetectors) ?? lookScopeRefusal(names, sets, lookDetectors, Object.keys(loaders));
 
   if (refusal) {
     return refusal;
@@ -239,7 +244,7 @@ async function main(): Promise<number> {
   }
 
   const detector = values.detector ?? (mode === 'heldout' ? lookDetectors : Object.keys(detectors)).join(',');
-  const refusal = mode === 'heldout' ? refuseLook(values.reason!, detector.split(',')) : null;
+  const refusal = mode === 'heldout' ? refuseLook(values.reason!, detector.split(','), wanted) : null;
 
   if (refusal) {
     console.error(refusal);

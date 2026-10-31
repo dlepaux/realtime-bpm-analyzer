@@ -130,8 +130,24 @@ export function lookRefusal(log: string, isResuming: boolean, reason: string): s
     return `${logged} looks are logged on this volume, the limit is ${looksAllowed}`;
   }
 
-  // A look taken because of an earlier one is not clean, and its log line has to say so
-  return logged > 0 && !/^second look\b.*prompted by the first/i.test(reason) ? 'A look after the first must open its reason with "Second look" and say it was prompted by the first' : null;
+  // A look taken because of an earlier one is not clean, and its log line has to say so, as it does the amended rule
+  return logged > 0 && !(/^second look\b.*prompted by the first/i.test(reason) && /\bamended\b/i.test(reason))
+    ? 'A look after the first must open its reason with "Second look", say it was prompted by the first, and declare the rule amended'
+    : null;
+}
+
+/**
+ * A verdict needs the whole look, so a narrowed one would spend the last look on nothing.
+ * @param names The detectors asked for
+ * @param sets The sets asked for
+ * @param wantedNames What a look must score
+ * @param wantedSets What a look must cover
+ * @returns Why this is not a whole look, or null when it is
+ */
+export function lookScopeRefusal(names: readonly string[], sets: readonly string[], wantedNames: readonly string[], wantedSets: readonly string[]): string | null {
+  const isSame = (a: readonly string[], b: readonly string[]) => [...a].sort().join() === [...b].sort().join();
+
+  return isSame(names, wantedNames) && isSame(sets, wantedSets) ? null : `A look scores ${wantedNames.join(', ')} on ${wantedSets.join(', ')}, and no less`;
 }
 
 /**

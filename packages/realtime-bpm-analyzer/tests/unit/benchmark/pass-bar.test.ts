@@ -72,6 +72,21 @@ describe('the pass bar of RBA-51', () => {
     expect(passBar(silent).filter(({bar, isMet}) => bar === 4 && !isMet)).to.have.length(2);
   });
 
+  it('fails bar 4 when peaks never fires in a set, instead of reading it as all false', () => {
+    const silentPeaks = results(() => true, everyOther);
+
+    silentPeaks[reference] = silentPeaks[reference].map(result => (result.set === 'groove' ? {...result, stable: []} : result));
+
+    expect(passBar(silentPeaks).filter(({bar, isMet}) => bar === 4 && !isMet)).to.have.length(2);
+  });
+
+  it('shows at one standard error what the width of the noise decided, without deciding on it', () => {
+    const [first] = passBar(results(() => true, everyOther));
+
+    expect(first.difference!.narrowLow).to.be.greaterThan(first.difference!.low);
+    expect(first.difference!.narrowHigh).to.be.lessThan(first.difference!.high);
+  });
+
   it('keeps tracks labelled outside 90 to 180 out of the gated bands', () => {
     const inBand = (truth: number) => gatedBands.some(({tracks}) => tracks({truth} as TrackResult));
 
@@ -134,6 +149,18 @@ describe('the pass bar of RBA-51', () => {
 
     it('refuses a look that scored anything else', () => {
       expect(lookFaults({results: {...results(everyOther, everyOther), other: []}, skipped: []}, expected).join()).to.include('extra: other');
+    });
+
+    it('refuses a look that lost its groups, holds a track twice, disagrees on a label, or skipped too many', () => {
+      const file = results(everyOther, everyOther);
+      const twice = {...file, [reference]: [file[reference][1], ...file[reference].slice(1)]};
+      const relabelled = {...file, [reference]: [{...file[reference][0], truth: 1}, ...file[reference].slice(1)]};
+      const noGroup = {...file, [reference]: file[reference].map(({group: _, ...rest}) => rest)};
+
+      expect(lookFaults({results: twice, skipped: []}, expected).join()).to.include('twice');
+      expect(lookFaults({results: relabelled, skipped: []}, expected).join()).to.include('disagrees');
+      expect(lookFaults({results: noGroup, skipped: []}, expected).join()).to.include('without a group');
+      expect(lookFaults({results: file, skipped: Array.from({length: 4}, () => ({set: 'other'}))}, expected).join()).to.include('over the limit');
     });
 
     it('expects the frozen held-out sizes', () => {

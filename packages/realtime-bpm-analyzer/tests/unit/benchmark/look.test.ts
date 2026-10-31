@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {UndecodableTrack, assertDecoded, lookHeader, lookDetectorRefusal, lookRefusal, progressRows, refusalOf, resumesLook, skippedTracks, undecodableLimit} from '../../../benchmark/lib/look';
+import {UndecodableTrack, assertDecoded, lookHeader, lookDetectorRefusal, lookRefusal, lookScopeRefusal, progressRows, refusalOf, resumesLook, skippedTracks, undecodableLimit} from '../../../benchmark/lib/look';
 import type {RunFailure} from '../../../benchmark/lib/look';
 
 const row = (id: string) => `\n${JSON.stringify({detector: 'peaks', result: {id}})}\n`;
@@ -91,7 +91,8 @@ describe('benchmark held-out looks', () => {
 
     it('refuses a look after the first unless it declares itself a second look', () => {
       expect(lookRefusal(line, false, 'final score')).to.contain('Second look');
-      expect(lookRefusal(line, false, 'Second look, prompted by the first')).to.equal(null);
+      expect(lookRefusal(line, false, 'Second look, prompted by the first, rule amended')).to.equal(null);
+      expect(lookRefusal(line, false, 'Second look, prompted by the first')).to.contain('amended');
       expect(lookRefusal(line, false, 'not a second look, prompted by the first')).to.contain('Second look');
       expect(lookRefusal(line, false, 'Second look')).to.contain('prompted');
     });
@@ -104,6 +105,13 @@ describe('benchmark held-out looks', () => {
       expect(lookDetectorRefusal(null, ['peaks'], ['peaks'])).to.contain('No pick');
       expect(lookDetectorRefusal('a', ['a', 'b'], ['a', 'peaks'])).to.contain('b');
       expect(lookDetectorRefusal('a', ['a', 'peaks'], ['a', 'peaks'])).to.equal(null);
+    });
+
+    it('refuses a narrowed look, which could get no verdict', () => {
+      expect(lookScopeRefusal(['a', 'b'], ['x', 'y'], ['b', 'a'], ['y', 'x'])).to.equal(null);
+      expect(lookScopeRefusal(['a'], ['x', 'y'], ['a', 'b'], ['x', 'y'])).to.contain('no less');
+      expect(lookScopeRefusal(['a', 'b'], ['x'], ['a', 'b'], ['x', 'y'])).to.contain('no less');
+      expect(lookScopeRefusal(['a', 'a'], ['x', 'y'], ['a', 'b'], ['x', 'y'])).to.contain('no less');
     });
 
     it('lets the second look resume after a kill, which spends nothing', () => {

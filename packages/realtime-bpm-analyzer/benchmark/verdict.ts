@@ -14,6 +14,12 @@ const signed = (value: number) => `${value >= 0 ? '+' : ''}${points(value)}`;
 const ranged = (interval: Interval | null) => (interval === null ? '–' : `${points(interval.value)} [${points(interval.low)}, ${points(interval.high)}]`);
 const rangedDifference = (interval: Interval | null) => (interval === null ? '–' : `${signed(interval.value)} [${signed(interval.low)}, ${signed(interval.high)}]`);
 
+// Whatever stops the judging is no verdict, and exit 1 would read as a no
+process.on('uncaughtException', error => {
+  console.error('Not judged:', error);
+  process.exit(2);
+});
+
 const file = JSON.parse(readFileSync(process.argv[2], 'utf8')) as LookFile;
 const {results, skipped} = file;
 const faults = lookFaults(file, heldoutTracks);
@@ -51,10 +57,10 @@ for (const [metric, title] of [['acc1', 'Acc1'], ['acc2', 'Acc2'], ['falseStable
 
 const conditions = passBar(results);
 
-console.log('**The pass bar**, candidate less peaks, points [95% range]\n\n| bar | condition | difference | rule | met |\n|---|---|---:|---|---|');
+console.log('**The pass bar**, candidate less peaks, points [95% range]. The last column applies the same test at one standard error, and decides nothing\n\n| bar | condition | difference | rule | met | at one SE |\n|---|---|---:|---|---|---|');
 
-for (const {bar, what, difference, rule, isMet} of conditions) {
-  console.log(`| ${bar} | ${what} | ${rangedDifference(difference)} | ${rule} | ${isMet ? 'yes' : '**no**'} |`);
+for (const {bar, what, difference, rule, isMet, isMetAtOneSe} of conditions) {
+  console.log(`| ${bar} | ${what} | ${rangedDifference(difference)} | ${rule} | ${isMet ? 'yes' : '**no**'} | ${isMetAtOneSe ? 'yes' : 'no'} |`);
 }
 
 console.log('\n**#285 less the candidate on 140-165**, points [95% range]\n\n| | difference | #285 beats it beyond noise |\n|---|---:|---|');
@@ -65,5 +71,5 @@ for (const {what, difference, beatsBeyondNoise} of against285(results)) {
 
 const isPassed = conditions.every(({isMet}) => isMet);
 
-console.log(`\n**Does the extension leave peaks? ${isPassed ? 'YES' : 'NO'}**, ${conditions.filter(({isMet}) => isMet).length} of ${conditions.length} conditions met.`);
+console.log(`\n**Does the extension leave peaks? ${isPassed ? 'YES' : 'NO'}**, ${conditions.filter(({isMet}) => isMet).length} of ${conditions.length} conditions met. At one standard error, which decides nothing, it would read ${conditions.every(({isMetAtOneSe}) => isMetAtOneSe) ? 'yes' : 'no'}.`);
 process.exitCode = isPassed ? 0 : 1;

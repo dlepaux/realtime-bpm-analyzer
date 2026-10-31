@@ -1,4 +1,5 @@
 import {tuningSets} from './licences';
+import {undecodableLimit} from './look';
 import {isCorrect, isOctaveCorrect} from './metrics';
 import {fnv1a} from './split';
 import type {TrackResult} from './types';
@@ -26,7 +27,15 @@ const rangeMin = 90;
 const rangeMax = 180;
 
 export type Metric = 'acc1' | 'acc2' | 'falseStable' | 'coverage';
-export type Interval = {readonly value: number; readonly low: number; readonly high: number};
+export type Interval = {
+  readonly value: number;
+  /** The 95% range, which decides */
+  readonly low: number;
+  readonly high: number;
+  /** The range of one standard error, the width lib/sweep.ts calls noise: printed beside the verdict, deciding nothing */
+  readonly narrowLow: number;
+  readonly narrowHigh: number;
+};
 export type TrackFilter = (result: TrackResult) => boolean;
 
 /** Which tracks a row reads. Macro averages the sets' shares, pooled counts tracks */
@@ -54,7 +63,7 @@ function shareOf(metric: Metric, numerator: number, denominator: number): number
   return metric === 'falseStable' ? 1 : 0;
 }
 
-/** Labelled tempo the range cannot read true: the DECISION counts these apart */
+/** Labelled outside the range, though a tempo just past its end can read true within the tolerance: the DECISION counts these apart */
 export const outOfRange: TrackFilter = ({truth}) => truth < rangeMin || truth > rangeMax;
 
 const inBand = (min: number, max: number): TrackFilter => ({truth}) => truth >= min && truth < max;
@@ -210,7 +219,9 @@ function bootstrap(clusters: readonly Cluster[], read: (tally: Float64Array) => 
 
   draws.sort();
 
-  return {value: read(total), low: draws[Math.floor(replicates * 0.025)], high: draws[Math.ceil(replicates * 0.975) - 1]};
+  const at = (share: number) => draws[Math.min(replicates - 1, Math.floor(replicates * share))];
+
+  return {value: read(total), low: at(0.025), high: at(0.975), narrowLow: at(0.16), narrowHigh: at(0.84)};
 }
 
 /**
@@ -241,7 +252,15 @@ export type Condition = {
   readonly difference: Interval | null;
   readonly rule: string;
   readonly isMet: boolean;
+  /** The same test at one standard error. It decides nothing, and shows whether the width of the noise did */
+  readonly isMetAtOneSe: boolean;
 };
+
+const notBelow = (difference: Interval | null) => ({
+  rule: 'not below peaks beyond noise',
+  isMet: difference !== null && difference.high >= 0,
+  isMetAtOneSe: difference !== null && difference.narrowHigh >= 0,
+});
 
 const clean: Scope = {name: 'clean, macro', sets: tuningSets, macro: true};
 const pooled: Scope = {name: 'all sets, pooled'};
@@ -255,7 +274,7 @@ function fastBands(results: Readonly<Record<string, readonly TrackResult[]>>): C
   return gatedBands.flatMap(({name, tracks}) => (['acc1', 'acc2'] as const).flatMap(metric => [pooled, cleanPooled].map(scope => {
     const difference = measure(results, [candidate, reference], metric, {...scope, name: `${name}, ${scope.name}`, tracks});
 
-    return {bar: 2 as const, what: `${metric}, ${name}, ${scope.name}`, difference, rule: 'not below peaks beyond noise', isMet: difference !== null && difference.high >= 0};
+    return {bar: 2 as const, what: `${metric}, ${name}, ${scope.name}`, difference, ...notBelow(difference)};
   })));
 }
 
@@ -267,22 +286,26 @@ export function passBar(results: Readonly<Record<string, readonly TrackResult[]>
   const above = (metric: Metric): Condition => {
     const difference = measure(results, [candidate, reference], metric, clean);
 
-    return {bar: 1, what: `${metric}, clean, macro`, difference, rule: 'above peaks by more than the noise', isMet: difference !== null && difference.low > 0};
+    return {bar: 1, what: `${metric}, clean, macro`, difference, rule: 'above peaks by more than the noise', isMet: difference !== null && difference.low > 0, isMetAtOneSe: difference !== null && difference.narrowLow > 0};
   };
   const giantSteps = measure(results, [candidate, reference], 'acc1', {name: 'giantsteps', sets: new Set(['giantsteps'])});
   // Bar 4 grants no noise, unlike the others, so the point estimate decides. Its scope is not stated:
-  // both of the bar's whole-run readings must hold, the bands being reported beside it
+  // both of the bar's whole-run readings must hold, the bands being reported beside it. A set where
+  // peaks never fires reads as all false, which would flatter the candidate, so that fails too
   const falseStable = [clean, pooled].map((scope): Condition => {
     const difference = measure(results, [candidate, reference], 'falseStable', scope);
+    const ofReference = results[reference].filter(({set}) => scope.sets?.has(set) ?? true);
+    const isReferenceSilent = [...new Set(ofReference.map(({set}) => set))].some(name => ofReference.every(({set, stable}) => set !== name || stable.length === 0));
+    const isMet = difference !== null && difference.value <= 0 && !isReferenceSilent;
 
-    return {bar: 4, what: `falseStable, ${scope.name}`, difference, rule: 'not above peaks, point estimate', isMet: difference !== null && difference.value <= 0};
+    return {bar: 4, what: `falseStable, ${scope.name}`, difference, rule: 'not above peaks, point estimate', isMet, isMetAtOneSe: isMet};
   });
 
   return [
     above('acc1'),
     above('acc2'),
     ...fastBands(results),
-    {bar: 3, what: 'acc1, giantsteps', difference: giantSteps, rule: 'not below peaks beyond noise', isMet: giantSteps !== null && giantSteps.high >= 0},
+    {bar: 3, what: 'acc1, giantsteps', difference: giantSteps, ...notBelow(giantSteps)},
     ...falseStable,
   ];
 }
@@ -324,10 +347,23 @@ export function lookFaults(
     return [`The look scores ${names.join(', ')}. Absent: ${absent.join(', ') || 'none'}, extra: ${extra.join(', ') || 'none'}`];
   }
 
-  return names.flatMap(name => Object.entries(expected).flatMap(([set, tracks]) => {
+  const counts = names.flatMap(name => Object.entries(expected).flatMap(([set, tracks]) => {
     const found = results[name].filter(result => result.set === set).length;
     const lost = skipped.filter(result => result.set === set).length;
 
     return found + lost === tracks ? [] : [`${name} on ${set}: ${found} tracks and ${lost} skipped, for ${tracks}`];
   }));
+  const labelOf = new Map(results[candidate].map(({set, id, truth}) => [`${set}/${id}`, truth]));
+  const rows = names.flatMap(name => {
+    const keys = results[name].map(({set, id}) => `${set}/${id}`);
+    const faults = [
+      new Set(keys).size === keys.length ? [] : [`${name} holds a track twice`],
+      results[name].some(({group}) => group === undefined) ? [`${name} has tracks without a group`] : [],
+      results[name].some(({set, id, truth}) => labelOf.get(`${set}/${id}`) !== truth) ? [`${name} disagrees with ${candidate} on a label or a track`] : [],
+    ];
+
+    return faults.flat();
+  });
+
+  return [...counts, ...rows, ...(skipped.length > undecodableLimit ? [`${skipped.length} tracks skipped, over the limit of ${undecodableLimit}`] : [])];
 }

@@ -97,9 +97,12 @@ audio file your user account can read, as the command-line tool would.
 
 
 - Only files with an audio extension are read, and only regular files.
-- Files over 100 MB are refused: each file is decoded whole in memory. The cap
-  bounds the file, not the decoded audio, so a file holding hours of audio at a
-  low bitrate can still need several gigabytes.
+- Files over 100 MB are refused.
+- Audio that decodes to more than 2048 MB is refused, whatever the size of the file:
+  that is the first channel at 32 bits per sample, so 202 minutes at 44.1 kHz or 186
+  minutes at 48 kHz. Low-bitrate audio reaches it long before 100 MB. The check runs on
+  the file's headers first and on the decoded samples after, so a file cannot lie
+  its way past it. See [the CLI guide](/guide/cli) for the memory this means.
 - `analyze_folder` analyses at most 50 files per call, about 3 seconds each, so a call
   ends before the client gives up. `next_offset` pages through the rest.
 - A recursive walk goes at most 16 levels deep and reads at most 10,000 folder

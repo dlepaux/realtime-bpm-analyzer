@@ -10,7 +10,7 @@ import {audioExtensions} from 'realtime-bpm-analyzer-cli';
 // before a decoder sees it, and every walk is bounded. Nothing is written, nothing is sent.
 
 export const limits = {
-  /** Largest file analysed: decoding holds the whole file plus its PCM in memory */
+  /** Largest file analysed, which bounds the time of a call. analyzeFile bounds the memory. */
   maxFileBytes: 100 * 1024 * 1024,
   /** Most files one analyze_folder call analyses (about 3 s each), so a call ends within a client's patience */
   maxFolderFiles: 50,

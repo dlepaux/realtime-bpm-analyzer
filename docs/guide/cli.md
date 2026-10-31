@@ -72,5 +72,30 @@ M4A/AAC, and any format the bundled decoders do not read, go through
 another binary. No permissively licensed JavaScript AAC decoder exists, hence
 ffmpeg. The format is read from the file's first bytes, not its extension.
 
-Like `analyzeFullBuffer`, the command analyses the first channel, and it decodes
-each file whole, so memory grows with the length of the file.
+Like `analyzeFullBuffer`, the command analyses the first channel of the whole file,
+so memory grows with the length of the audio.
+
+### Length limit
+
+A file whose first channel decodes to more than 2048 MB is refused with an error, and
+a batch moves on to the next file. At 32 bits per sample that is 202 minutes at
+44.1 kHz, or 186 minutes at 48 kHz. The file is refused, not truncated, because a tempo
+from part of a file would differ from the browser's `analyzeFullBuffer` without saying so.
+
+The limit is on decoded audio, not file size, because compression hides length: 24 hours
+of silent FLAC fits in 2.3 MB. The headers are checked first, so an honest file is refused
+in milliseconds. The samples are then counted as they are decoded, so a file with false
+or missing headers is stopped too. ffmpeg is killed the same way.
+
+Peak memory measured on macOS arm64 with Node 24:
+
+| File | Outcome | Peak memory |
+| --- | --- | --- |
+| Opus, 3 h 6 min at 48 kHz (just under the limit) | Analysed | 4.2 GB |
+| AAC through ffmpeg, 3 h at 44.1 kHz | Analysed | 3.6 GB |
+| Opus, 4 h, refused from its headers | Refused | 14 MB |
+| AAC through ffmpeg, 4 h, refused while decoding | Refused | 2.0 GB |
+| 24 h silent FLAC with no length in its header, refused while decoding | Refused | 2.6 GB |
+
+The peak is about twice the decoded size because analysis filters a copy of the samples.
+Programs using `analyzeFile` can change the limit with its `maxDecodedBytes` option.

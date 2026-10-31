@@ -2,7 +2,7 @@
 
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import type {Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
-import {decodeFile} from './decode';
+import {decodeFile, describeDecodedLimit} from './decode';
 import {errorMessage} from './errors';
 
 // The package's programmatic entry (`import {analyzeFile} from 'realtime-bpm-analyzer-cli'`),
@@ -28,9 +28,20 @@ export type AnalyzeOptions = {
   readonly tempoRange?: TempoRange;
   /** ffmpeg binary for formats without a bundled decoder (default `ffmpeg` on PATH) */
   readonly ffmpegPath?: string;
-  /** Stops an ffmpeg decode in progress (the bundled decoders run to the end) */
+  /** Stops a decode in progress */
   readonly signal?: AbortSignal;
+  /** Refuse a file whose first channel decodes to more than this (default defaultMaxDecodedBytes) */
+  readonly maxDecodedBytes?: number;
 };
+
+/**
+ * Decoded size refused by default. A 100 MB MP3 at 128 kbps fits, and
+ * the process peaks at about 2.1 times this much memory: analysis filters a copy of the samples.
+ */
+export const defaultMaxDecodedBytes = 2 * 1024 * 1024 * 1024;
+
+/** The default limit in the plain words of the refusal, for documentation and tool descriptions */
+export const decodedLimit: string = describeDecodedLimit(defaultMaxDecodedBytes);
 
 /** Extensions of the audio files this package reads by name: the CLI's folder mode picks files by them */
 export const audioExtensions: ReadonlySet<string> = new Set([
@@ -56,12 +67,16 @@ function successResult(file: string, candidates: readonly Tempo[]): FileResult {
  * Decodes and analyses one file. Never throws: a file that cannot be read or decoded
  * comes back as `ok: false` with a one-line message, so a batch keeps going.
  * @param path File to analyse, reported as given
- * @param options Tempo range, ffmpeg binary and abort signal
+ * @param options Tempo range, ffmpeg binary, abort signal and decoded size limit
  * @returns The result
  */
 export async function analyzeFile(path: string, options: AnalyzeOptions = {}): Promise<FileResult> {
   try {
-    const {channelData, sampleRate} = await decodeFile(path, options.ffmpegPath ?? 'ffmpeg', options.signal);
+    const {channelData, sampleRate} = await decodeFile(path, {
+      ffmpegPath: options.ffmpegPath ?? 'ffmpeg',
+      maxDecodedBytes: options.maxDecodedBytes ?? defaultMaxDecodedBytes,
+      signal: options.signal,
+    });
     return successResult(path, await analyzeChannelData(channelData, sampleRate, {tempoRange: options.tempoRange}));
   } catch (error: unknown) {
     return {file: path, ok: false, error: errorMessage(error)};

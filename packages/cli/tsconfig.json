@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "preserve",
     "moduleResolution": "bundler",
-    "lib": ["es2023"],
+    "lib": ["es2024"],
     "types": ["node"],
     "strict": true,
     "noEmit": true,

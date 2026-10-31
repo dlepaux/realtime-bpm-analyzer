@@ -2,7 +2,7 @@
 
 import {McpServer} from '@modelcontextprotocol/server';
 import type {CallToolResult} from '@modelcontextprotocol/server';
-import {analyzeFile, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
+import {analyzeFile, decodedLimit, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
 import type {FileResult, TempoRange} from 'realtime-bpm-analyzer-cli';
 import * as z from 'zod/v4';
 import {absolutePath, checkFile, firstLine, limits, listFolder} from './paths';
@@ -79,7 +79,7 @@ export function createServer(version: string): McpServer {
   server.registerTool('analyze_file', {
     title: 'Analyse the BPM of an audio file',
     description: `Detects the tempo (BPM) of one audio file on this computer. Reads ${formats}. `
-      + `Returns the best tempo, its confidence and the ranked candidates. Files over ${sizeLimit} are refused. ${privacy}`,
+      + `Returns the best tempo, its confidence and the ranked candidates. Files over ${sizeLimit} or ${decodedLimit} are refused. ${privacy}`,
     inputSchema: z.strictObject({
       path: path.describe('Path of the audio file. Absolute, or starting with ~ for the home folder.'),
       ...tempoArguments,
@@ -111,7 +111,7 @@ export function createServer(version: string): McpServer {
       + `Analyses at most ${limits.maxFolderFiles} files per call: when next_offset is not null, call again with offset set to it for the next files. `
       + `With recursive, walks sub-folders up to ${limits.maxDepth} levels deep and reads at most ${limits.maxFolderEntries} folder entries. `
       + 'Symbolic links to folders are not followed, and a link to a file outside the folder is refused. '
-      + `A file that cannot be read or decoded, or is over ${sizeLimit}, is reported with its error and does not stop the others. `
+      + `A file that cannot be read or decoded, or is over ${sizeLimit} or ${decodedLimit}, is reported with its error and does not stop the others. `
       + `A folder without audio files returns no results, not an error. ${privacy}`,
     inputSchema: z.strictObject({
       directory: path.describe('Path of the folder. Absolute, or starting with ~ for the home folder.'),

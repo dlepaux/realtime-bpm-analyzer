@@ -84,6 +84,8 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     }
 
     assert.match(byName.analyze_folder.description, /at most 50 files/);
+    assert.match(byName.analyze_file.description, /2048 MB of decoded audio \(202 minutes at 44\.1 kHz\)/);
+    assert.match(byName.analyze_folder.description, /2048 MB of decoded audio \(202 minutes at 44\.1 kHz\)/);
   });
 
   for (const [label, args, pattern] of [
@@ -143,6 +145,16 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     await handle.truncate((100 * megabyte) + 1);
     await handle.close();
     assert.match(await toolError(client, 'analyze_file', {path: big}), /over the 100 MB limit/);
+  });
+
+  it('refuses a long low-bitrate file under the size limit with a plain message', async () => {
+    const long = join(scratch, 'long.mp3');
+    // 10 h of 8 kbps MPEG 2 audio in 36 MB. Sparse: only the first frame and the size are read.
+    const handle = await open(long, 'w');
+    await handle.write(Buffer.from([0xFF, 0xF3, 0x10, 0xC4]), 0, 4, 0);
+    await handle.truncate(36 * megabyte);
+    await handle.close();
+    assert.match(await toolError(client, 'analyze_file', {path: long}), /^Could not analyse .*long\.mp3: Too long to analyze: the limit is 2048 MB/);
   });
 
   it('reports a file that does not decode as a plain tool error', async () => {

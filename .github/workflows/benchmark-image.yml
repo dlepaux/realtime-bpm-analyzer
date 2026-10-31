@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
@@ -64,7 +64,7 @@ jobs:
         env:
           TAG: ${{ steps.name.outputs.tag }}
         run: |
-          found="$(docker run --rm --entrypoint /usr/bin/find "$TAG" / -xdev -type f \
+          found="$(docker run --rm --user root --entrypoint /usr/bin/find "$TAG" / -xdev -type f \
             \( -iname '*.mp3' -o -iname '*.wav' -o -iname '*.flac' -o -iname '*.aiff' -o -iname '*.f32' \) -not -path '/proc/*')"
           if [ -n "$found" ]; then
             echo "$found"

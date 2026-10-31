@@ -1,6 +1,6 @@
 # Held-out looks
 
-`run.ts` appends a line here before it reads a held-out label. A look that does not end up in this table did not happen. Results of a look are not used to change the detector. The first run below finished but failed writing its output, so no score from it exists. The second is the one reported. The third, RBA-51's, ran in the batch job and stopped on one undecodable track: its finished runs are the ones reported, see the Results of `readme.md`.
+`run.ts` appends a line here before it reads a held-out label. A look that does not end up in this table did not happen. Results of a look are not used to change the detector's values, though RBA-50's look did motivate the penalty knobs that RBA-51 then tuned on dev. The first run below finished but failed writing its output, so no score from it exists. The second is the one reported. The third, RBA-51's, ran in the batch job and stopped on one undecodable track: its finished runs are the ones reported, see the Results of `readme.md`.
 
 | date | sha | detectors | reason |
 |---|---|---|---|

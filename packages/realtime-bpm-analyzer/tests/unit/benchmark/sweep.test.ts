@@ -95,8 +95,8 @@ describe('benchmark sweep', () => {
     it('breaks a tie in knobs by score, and refuses a simpler row outside the noise', () => {
       const noise = scoreNoise(scored(0, {}), sizes);
       const chosen = simplestWithinNoise([
-        scored(50, {priorBpm: 110, combBeats: 2}),
         scored(49.9, {priorBpm: 120, combBeats: 2}),
+        scored(50, {priorBpm: 110, combBeats: 2}),
         scored(50 - noise - 0.01, {}),
       ], sizes, base);
 

@@ -1,6 +1,7 @@
 import {expect} from 'chai';
 import {createClickTrack, createNoise} from '../../fixtures/click-track';
 import {detectors} from '../../../benchmark/lib/detectors';
+import {parseRows, simplestWithinNoise} from '../../../benchmark/lib/sweep';
 import {createTempogramDetector, defaultTempogramTuning, detectTempogram} from '../../../src/core/tempogram';
 import type {TempogramReading, TempogramTuning} from '../../../src/core/tempogram';
 
@@ -226,12 +227,23 @@ describe('tempogram detector', () => {
 
 describe('tempogram defaults', () => {
   it('are what the noise rule picked from sweep rba-51-tune-1, and #285 stays measurable', () => {
-    const {priorBpm, priorOctaves, halfBeatPenalty, thirdBeatPenalty, windowSeconds, stableSalience, stableSeconds, halfLifeSeconds} = defaultTempogramTuning;
+    const {priorBpm, priorOctaves, halfBeatPenalty, thirdBeatPenalty, windowSeconds, stableSalience, stableSeconds, halfLifeSeconds, combBeats, stableAgreement, stableMargin} = defaultTempogramTuning;
 
     expect({priorBpm, priorOctaves, halfBeatPenalty, thirdBeatPenalty}).to.deep.equal({priorBpm: 110, priorOctaves: 0.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.2});
     // The knobs whose gain fell inside the noise keep their value
-    expect({windowSeconds, stableSalience, stableSeconds, halfLifeSeconds}).to.deep.equal({windowSeconds: 8, stableSalience: 0.15, stableSeconds: 8, halfLifeSeconds: 16});
+    expect({windowSeconds, stableSalience, stableSeconds, halfLifeSeconds, combBeats, stableAgreement, stableMargin}).to.deep.equal({windowSeconds: 8, stableSalience: 0.15, stableSeconds: 8, halfLifeSeconds: 16, combBeats: 4, stableAgreement: 0.8, stableMargin: 1.25});
     expect(detectors['tempogram-285'].tuning).to.deep.equal({priorBpm: 136, priorOctaves: 0.8, halfBeatPenalty: 0, thirdBeatPenalty: 0});
+  });
+
+  // Literals above could drift with the rows: this runs the rule itself on the committed sweep
+  it('come out of the rule when it runs on the committed sweep', async () => {
+    const response = await fetch(new URL('../../../benchmark/results/rba-51-sweep.jsonl', import.meta.url));
+    const rows = parseRows(await response.text());
+    const base = {...defaultTempogramTuning, ...detectors['tempogram-285'].tuning};
+    const chosen = simplestWithinNoise(rows, {fsld: 791, groove: 221, guitarset: 180}, base);
+
+    expect(rows).to.have.length(258);
+    expect({...base, ...chosen!.tuning}).to.deep.equal(defaultTempogramTuning);
   });
 
   // The cost of the slower prior, pinned so that moving it is a decision: a clean pulse and its half tie at about 156

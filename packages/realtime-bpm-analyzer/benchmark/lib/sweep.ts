@@ -67,8 +67,9 @@ export function bestRow(rows: readonly SweepRow[]): SweepRow | null {
 }
 
 /**
- * Sampling noise of a score, in its own points: binomial per metric, assumed independent. A stable
- * reading's share is over at least one reading per covered track, so its term errs on the high side.
+ * Sampling noise of a score, in its own points: binomial per metric, assumed independent. An
+ * estimate, unpaired although rows share their tracks: RBA-51's review bootstrapped its chosen row at
+ * 2.04 where this says 1.58, so its pick is recorded with the range of widths it holds for.
  * @param row A row
  * @param sizes Tracks per set
  * @returns One standard error of the row's score
@@ -85,7 +86,7 @@ export function scoreNoise(row: SweepRow, sizes: Readonly<Record<string, number>
 }
 
 /**
- * The repo's noise rule, the one-standard-error rule: a gain inside the noise pays for no knob.
+ * The noise rule, the one-standard-error rule: a gain inside the noise pays for no knob.
  * Among rows within one standard error of the best, the fewest knobs moved from `base`, then the
  * higher score.
  * @param rows Rows of a sweep

@@ -30,11 +30,11 @@ Audio lives outside git in `RBA_TEMPO_ROOT`, with decoded PCM cached under `pcm/
 
 ## Splits
 
-`make-splits.ts` wrote `splits/*.json` with the fixed seed `rba-50-2026-10-30`, and they were committed before any result existed. A first version of the shuffle barely reacted to the seed: it was fixed and the commit amended after a dev run on the old split had started decoding, and was killed, with nothing scored or written. That run decoded tracks that are now held-out, audio only.
+`make-splits.ts` wrote `splits/*.json` with a fixed seed, `rba-50-2026-10-30` for the first four sets and `rba-51-2026-10-30` for fsld, groove and fsld-nc, and they were committed before any result existed. A first version of the shuffle barely reacted to the seed: it was fixed and the commit amended after a dev run on the old split had started decoding, and was killed, with nothing scored or written. That run decoded tracks that are now held-out, audio only.
 
-Groups stay on one side: ballroom by album and replica, GTZAN by blocks of 10, GuitarSet by progression at one tempo, GiantSteps by track.
+Groups stay on one side: ballroom by album and replica, GTZAN by blocks of 10, GuitarSet by progression at one tempo, GiantSteps by track, FSLD by uploader, Groove by drummer and session.
 
-Two contaminations remain, found by the reviewer before the held-out look. GTZAN repeats recordings across blocks (Sturm 2013): the 19 held-out members of cross-split pairs are listed in `splits/gtzan-excluded.json` with the undecodable `jazz.00054` and left out of held-out, which is why it scores 480 of 500. GuitarSet's 3 tempos of a progression can straddle the split, so most of its held-out tracks share chords and players with dev at another tempo. Its held-out numbers are a little kinder than the others.
+Four contaminations remain. The first two were found by the reviewer before RBA-50's look. GTZAN repeats recordings across blocks (Sturm 2013): the 19 held-out members of cross-split pairs are listed in `splits/gtzan-excluded.json` with the undecodable `jazz.00054` and left out of held-out, which is why it scores 480 of 500. GuitarSet's 3 tempos of a progression can straddle the split, so most of its held-out tracks share chords and players with dev at another tempo. Its held-out numbers are a little kinder than the others. The other two were found reviewing RBA-51's look. Groove is grouped by drummer and session, not by drummer alone, so 110 of its 127 held-out tracks share a drummer with dev. A licence decides between fsld and fsld-nc, and uploaders are kept apart per set, so 19 of the 319 fsld-nc tracks come from uploaders on fsld's dev side, as read from the file names.
 
 Tuning uses dev only. `run.ts` is the only route to held-out: it needs a `--reason` and a committed tree, refuses `--tuning`, and appends to [`heldout-log.md`](heldout-log.md) before reading a label. `tune.ts` filters to dev before reading any audio and never scores held-out.
 
@@ -58,7 +58,7 @@ The peaks baseline is measured as it is wired in every guide, with the 200 Hz lo
 
 - **Onset strength**: log-compressed spectral flux in 5 bands, minus a local mean, half-wave rectified, summed at 100 Hz (Grosche & Müller 2009 for the compression and bands). A short smoothing stands in for the 7 Hz lowpass of Percival & Tzanetakis 2014.
 - **Tempogram**: normalised autocorrelation of the latest 8 s, every 0.5 s, read by a comb over the first 4 beat multiples (a window and hop in the region of Percival & Tzanetakis' 5.9 s and 0.37 s; their stretched-ACF sum is the same idea as the comb), with salience accumulated over a 16 s half-life.
-- **Tempo prior**: log-Gaussian as in Ellis 2007, on 50 to 240 BPM, instead of folding into 90 to 180. Ellis uses 120 BPM and 1.4 octaves. Licence-clean dev chose 110 BPM and 0.7 octaves, both at the low edge of the grid swept, so this is a fit to these sets' tempo mix, not a law. A clean pulse and its half tie at centre × √2, so a pulse above about 156 BPM reads at half.
+- **Tempo prior**: log-Gaussian as in Ellis 2007, on 50 to 240 BPM, instead of folding into 90 to 180. Ellis uses 120 BPM and 1.4 octaves. Licence-clean dev chose 110 BPM and 0.7 octaves, both at the low edge of the grid swept, so this is a fit to these sets' tempo mix, not a law. A clean pulse and its half tie at centre × √2, so a clean pulse above about 156 BPM reads at half, and real audio starts losing below that (see Results).
 - **Beats penalty**: pulses a third of the way through a beat count against that tempo, at 0.2.
 - **Confidence** is the accumulated comb salience, a normalised autocorrelation: how strongly the audio pulses at that tempo.
 - **Stable** requires salience of at least 0.15, 80% of the last 8 s of frames agreeing with the reading on their own within 2%, and a lead of 1.25 over the next candidate. It fires once per tempo.
@@ -73,9 +73,9 @@ References:
 
 ## Choosing the defaults
 
-The rule is `simplestWithinNoise` in [`lib/sweep.ts`](lib/sweep.ts): among rows within one standard error of the best score, the fewest knobs moved from what the sweep started at, then the higher score. A gain inside the noise pays for no knob. `./benchmark/run.sh pick results/rba-51-sweep.jsonl` applies it to the sweep's rows, which are committed. Only the licence-clean dev sets feed it (fsld 791, groove 221, guitarset 180), macro over the sets.
+The principle, that the simplest tuning within noise wins, came from the brief. No rule existed in the repo, so its exact form was written after reading the dev rows and before any look, which held-out cannot have touched but the dev rows could have shaped. The form is `simplestWithinNoise` in [`lib/sweep.ts`](lib/sweep.ts): among rows within one standard error of the best score, the fewest knobs moved from what the sweep started at, then the higher score. A gain inside the noise pays for no knob. `./benchmark/run.sh pick results/rba-51-sweep.jsonl` applies it to the sweep's rows, which are committed. Only the licence-clean dev sets feed it (fsld 791, groove 221, guitarset 180), macro over the sets.
 
-The best score is 81.69, one standard error is 1.58, so the floor is 80.11. Numbers below are from the replay, macro over the three sets.
+The best score is 81.69, one standard error is 1.58, so the floor is 80.11. The pick holds for any floor width from 0.70 to 3.83: below 0.70 it is `windowSeconds` 6, above 3.83 the row without the penalty. The 1.58 is an unpaired estimate although the rows share their tracks, and the review's track bootstrap of the chosen row gave 2.04. So 0.70 ahead is unproven either way, as the sweep has no per-track rows to pair. Numbers below are from the replay, macro over the three sets.
 
 | tuning | knobs moved | score | Acc1 | Acc2 | gap | false-stable | coverage | verdict |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
@@ -84,13 +84,13 @@ The best score is 81.69, one standard error is 1.58, so the floor is 80.11. Numb
 | the same, `windowSeconds` 6 | 4 | 81.69 | 78.1 | 91.4 | 13.3 | 15.6 | 75.7 | top score, 0.70 ahead: inside the noise, one more knob |
 | the same, `stableSalience` 0.1 | 4 | 81.31 | 78.0 | 90.7 | 12.7 | 17.4 | 79.8 | inside the noise, one more knob |
 | the same, `stableSeconds` 10 | 4 | 81.29 | 78.0 | 90.7 | 12.7 | 16.1 | 75.4 | inside the noise, one more knob |
-| the same, `halfLifeSeconds` 24 | 4 | 81.28 | 78.3 | 91.2 | 12.9 | 16.6 | 75.5 | inside the noise, one more knob |
+| the same, `halfLifeSeconds` 24 | 4 | 81.28 | 78.3 | 91.2 | 13.0 | 16.6 | 75.5 | inside the noise, one more knob |
 | 110 BPM, 0.7 oct, third 0.3 | 3 | 80.80 | 77.7 | 90.8 | 13.1 | 17.3 | 78.4 | as simple, lower score, and at the grid's edge |
 | 120 BPM, 0.7 oct, third 0.3 | 3 | 80.16 | 77.2 | 89.9 | 12.7 | 17.7 | 78.6 | as simple, lower score. The serious alternative: see below |
 | 110 BPM, 0.7 oct, third 0.1 | 3 | 80.14 | 77.3 | 89.1 | 11.8 | 16.6 | 74.4 | as simple, lower score |
 | 110 BPM, 0.7 oct, no penalties | 2 | 77.86 | 74.9 | 85.7 | 10.8 | 15.3 | 71.0 | simplest prior-only row, below the floor |
 
-What the rule cannot settle, on record before any look: 110 BPM and 0.7 octaves are both at the low edge of the grid, so the sweep did not bracket its optimum. 120 BPM is inside the grid and is the published centre, and it scores within the noise of the choice. It was not preferred because the rule was fixed first and counts knobs. Choosing it from per-set rows, by argument, would be the forking path the rule exists to prevent. `halfBeatPenalty` stays in the code at 0 for now: it lost at every non-zero value, and removing it is a cleanup that should not share a commit with a look.
+What the rule cannot settle, on record before any look: 110 BPM and 0.7 octaves are both at the low edge of the grid, so the sweep did not bracket its optimum. 120 BPM is inside the grid and is the published centre, and it scores within the noise of the choice. It was not preferred because the rule counts knobs and its score is lower. Choosing it from per-set rows, by argument, is the forking path the rule exists to prevent, with the limit that the rule itself was written after seeing the rows. `halfBeatPenalty` stays in the code at 0 for now: it lost at every non-zero value, and removing it is a cleanup that should not share a commit with a look.
 
 ## Results
 
@@ -119,22 +119,33 @@ The licence-clean defaults, fixed in `b1ab9d3` before one logged look with image
 | **clean, macro** | clean | 1024 | 38.4 | 63.4 | 74.8 | 46.6 | 86.4 | 90.3 | 40.8 | 26.2 | 17.7 | 53.7 | 65.7 | 73.3 |
 | all, pooled | mixed | 2507 | 55.4 | 70.1 | 70.5 | 66.0 | 88.3 | 91.7 | 42.8 | 20.5 | 23.5 | 76.3 | 66.6 | 75.3 |
 
-The look is fresh for fsld, groove and fsld-nc, and the second one for the other four. The old row reproduces RBA-50's numbers on those four to the decimal, on data rebuilt from the publishers.
+The look is fresh for fsld, groove and fsld-nc only, with the overlaps listed under Splits. The other four were seen by RBA-50's look, and that look's half-time numbers are what motivated the penalty knobs, so they shaped what the sweep searched, though every value came from dev. The clean macro row averages in second-look GuitarSet. The old row reproduces RBA-50's numbers on those four to the decimal, on data rebuilt from the publishers.
 
-**The look ended incomplete.** `fsld/395035` cannot be decoded in the image, so 3 of 7524 runs never finished, the job exited 1, a restart with the same command failed on the same file, and no `heldout.json` was written. The table comes from the same look's progress file, 2507 tracks per detector, one fsld track short of its 718. A fix needs a new image, which is a new look, so that was not done. It is now in `splits/fsld-excluded.json`.
+**The look ended incomplete.** Each detector logged `skipped fsld/395035: Error: ffmpeg could not decode /data/rba-tempo/fsld/FSL10K/audio/wav/395035_7473420.aiff.wav`, so 3 of 7524 runs never finished, the job exited 1, a restart with the same command logged the same three lines and exited 1, and no `heldout.json` was written. `run.ts` refuses on purpose to write a score from a shrunk run with progress kept. The table is built outside it, by assembling the same look's progress file with a throwaway script, so this close-out is a decision for the Commander to accept, recorded on the card: 2507 tracks per detector, one fsld track short of its 718. A fix needs a new image, which is a new look, so that was not done. It is now in `splits/fsld-excluded.json`.
 
 **Half-time.** The gap between Acc2 and Acc1 narrowed on clean sets, from 19.9 to 12.7 points on dev and from 23.0 to 15.5 on held-out. Over all seven sets it widened, from 18.2 to 21.2: the prior did not remove octave errors, it turned doubles into halves. Doubles fell and halves rose in all seven held-out sets, for example fsld halves 7.0 to 16.0 and doubles 9.9 to 2.9.
 
-**The cost is in fast music.** Tracks labelled above 156 BPM lost almost all their Acc1: GiantSteps 90.1 to 0.0 (81 tracks), ballroom 55.6 to 2.0 (99), GTZAN 64.8 to 11.3 (71), and on clean sets fsld 37.7 to 1.3 (77). GiantSteps went from 87.1 to 65.0 overall, below peaks' 81.3, with half-time readings up from 0.9 to 29.1 of its tracks.
+**The cost is in fast music, and starts below the tie.** Acc1 by labelled tempo, all seven held-out sets pooled:
 
-**False-stable.** On clean sets it fell with coverage rising: 24.6 to 16.8 on dev, 26.2 to 17.7 on held-out, with coverage 65.7 to 73.3. Over all seven sets it rose from 20.5 to 23.5, because a confident half-time reading counts as false: GiantSteps 11.5 to 37.3, ballroom 21.0 to 29.7. GuitarSet also went the wrong way on held-out, 22.5 to 25.7, against 24.2 to 11.7 on dev, and its Acc1 gain shrank from 15.0 points on dev to 2.2.
+| labelled BPM | tracks | old | new |
+|---|---:|---:|---:|
+| under 120 | 1038 | 54.1 | 82.4 |
+| 120 to 140 | 850 | 89.5 | 87.4 |
+| 140 to 150 | 186 | 84.4 | 67.2 |
+| 150 to 156 | 50 | 92.0 | 60.0 |
+| 156 to 165 | 39 | 82.1 | 20.5 |
+| 165 and up | 344 | 57.6 | 1.5 |
+
+Tracks labelled above 156 BPM lost almost all their Acc1: GiantSteps 90.1 to 0.0 (81 tracks), ballroom 55.6 to 2.0 (99), GTZAN 64.8 to 11.3 (71), and on clean sets fsld 37.7 to 1.3 (77). GiantSteps went from 87.1 to 65.0 overall, below peaks' 81.3, with half-time readings up from 0.9 to 29.1 of its tracks.
+
+**False-stable.** Averaged over clean sets it fell with coverage rising: 24.6 to 16.8 on dev, 26.2 to 17.7 on held-out, with coverage 65.7 to 73.3. Over all seven sets it rose from 20.5 to 23.5, because a confident half-time reading counts as false: GiantSteps 11.5 to 37.3, ballroom 21.0 to 29.7, fsld-nc 17.8 to 19.3. Fsld, the largest clean set, also rose on dev, 17.1 to 19.5, while falling on held-out, 22.3 to 18.7. GuitarSet went the wrong way on held-out, 22.5 to 25.7, against 24.2 to 11.7 on dev, and its Acc1 gain shrank from 15.0 points on dev to 2.2.
 
 CPU, on an M1 Pro in Node with synthetic input (`perf.ts`, 3 input shapes, two runs on a busy machine): 3.7 to 5.3 ms per second of audio, up to 0.53% of a core, against 0.7 ms for peaks. Two runs saw one chunk over the 2.9 ms of a render quantum, 14.2 ms on noise and 9.7 ms on clicks, each on a different shape and not repeated in the other run, so this is scheduling noise until shown otherwise. Not compared on an idle machine.
 
 ## Limits
 
 - Half-time readings are now the main error, and the prior only moves octave errors around: a slower prior traded doubles for halves.
-- A pulse above about 156 BPM reads at half: clicks at 174 BPM read 87, where the #285 prior read 174. The dev sets have few such tracks (7 to 10%), so the macro score barely felt it. A narrower `tempoRange` that excludes the half stops it, unmeasured on real audio. A test pins the behaviour.
+- A clean pulse above about 156 BPM reads at half: clicks at 174 BPM read 87, where the #285 prior read 174. On dev those tracks cost 3.83 points of macro Acc1, more than twice the rule's noise of 1.58, and the score still took the trade because slower tracks gained more. A narrower `tempoRange` that excludes the half stops it, unmeasured on real audio. A test pins the behaviour.
 - Tuned on loops, drums and solo guitar, with no full vocal mixes among the clean sets. The prior centre is the knob most exposed to that, and it sits on the edge of the grid swept.
 - The peaks detector is measured wrapped by its lowpass. `analyzeFullBuffer`, the CLI and the MCP server take the tempogram as an option, and peaks stays the default everywhere. Offline numbers are in the report, and the sweep did not tune for them.
 - The first reading comes at 4 s and the earliest `bpmStable` at about 11.5 s: the warm-up, then 8 s of agreeing frames.

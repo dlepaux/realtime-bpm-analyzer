@@ -1,11 +1,11 @@
 ---
 title: Extension Privacy
-description: What the Realtime BPM Analyzer browser extension does with your tab audio, what it sends and what the pages it opens measure. Your audio never leaves your device.
+description: What the Live BPM Detector browser extension does with your tab audio, what it sends and what the pages it opens measure. Your audio never leaves your device.
 ---
 
 # Browser extension privacy
 
-This page covers the **Realtime BPM Analyzer** browser extension. The website has its own page:
+This page covers the **Live BPM Detector** browser extension. The website has its own page:
 [Website Privacy](/website-privacy).
 
 ## Your audio never leaves your device
@@ -14,9 +14,9 @@ When you click the extension's button on a tab, it listens to that tab's audio a
 on your computer. The audio is not recorded, stored or sent anywhere. Nobody, including us, can hear it
 or receive it.
 
-Listening starts only when you click. It continues on that tab, even if the tab goes to another page or
-site, until you click again, close the overlay or close the tab. Clicking the button on a different tab
-moves listening to that tab.
+Listening starts only when you click. It continues on that tab as you move around the same site, until
+you click again, close the overlay or close the tab. If the tab goes to another site, listening stops
+once that page has loaded. Clicking the button on a different tab moves listening to that tab.
 
 ## What the extension handles
 

@@ -1,18 +1,26 @@
 ## The second sweep: no pick, no second look
 
-**The library defaults in `src/` are still the first pick (110 BPM, 0.7 octaves, third 0.2), which fails the fast-tempo guard, and must not ship.** The look budget is untouched: the volume's log has one line for RBA-51.
+**The library defaults in `src/` are still the first pick (110 BPM, 0.7 octaves, third 0.2), which fails the fast-tempo guard, and must not ship.** The first look is spent and the second is unused: the volume's log holds one RBA-51 line.
 
-The guard, written into `lib/sweep.ts` before results, is peaks on clean dev, real path: 140 to 165 BPM at least 92 of 170, 165 and up at least 22 of 90. The rule is `pickWithGuard`, and `pick.ts` refuses a look when the pick holds `priorBpm` or `priorOctaves` at the end of its grid.
+The guard, written into `lib/sweep.ts` before results, is peaks on clean dev, real path: 140 to 165 BPM at least 92 of 170, 165 and up at least 22 of 90. Its floors are dev only. The rule is `pickWithGuard`. `pick.ts` exits 1 when the pick holds `priorBpm` or `priorOctaves` at the end of what was measured. What stops a look in code is `pickedConfiguration`, still null.
+
+**What the first look shaped, declared:** the rule itself, its two bands, the band edges at 150 and 156, and the choice to evaluate the 90 to 180 range all come from the first look's findings, by way of the brief and my reading of them. No tuned value or floor does. Neither fresh set is fresh any more.
 
 Two sweeps on dev, 2118 rows, two ranges, plans `job/sweep-plan-tune-2.json` and `job/sweep-plan.json`:
 
 ```sh
-./benchmark/run.sh pick results/rba-51-sweep-2.jsonl,results/rba-51-sweep-3.jsonl job/sweep-plan-tune-2.json,job/sweep-plan.json   # exits 1
+./benchmark/run.sh pick results/rba-51-sweep-2.jsonl,results/rba-51-sweep-3.jsonl   # exits 1
 ```
 
-963 rows pass the guard (50 to 240: 322, 90 to 180: 641). Best passing score 75.86, noise 1.75, floor 74.11. The rule chose 90 to 180, 80 BPM, 1.7 octaves, third 0.3 at the first sweep's low edge. The grid was extended to 50 BPM, and the rule then chose 50 BPM, 2.4 octaves, third 0.3, on the edge of both axes, so it refuses again. No third extension: on a bounded range the prior is only a tilt, about `(log2(127) - log2(priorBpm)) / priorOctaves²`, 0.235 for 50/2.4 and for 80/1.7, 0.21 for 100/1.3. Those three score 75.45, 75.30 and 75.29 against a noise of 1.75, so the rule follows a flat ridge and no grid can bracket it. Across the ridge the score falls on both sides, and the 90-to-180 pick is bracketed in that sense only. The refusal stands, because changing a rule after it refused, to spend the last look, needs a ruling. At 50 to 240 the rule's pick is interior (130 BPM, 0.85 octaves, third 0.4, score 72.89, 165+ 41 of 90), scoring below every point of the ridge.
+963 rows pass the guard (50 to 240: 322, 90 to 180: 641). Best passing score 75.86, noise 1.75 (unpaired), floor 74.11. The rule first chose 90 to 180, 80 BPM, 1.7 octaves, third 0.3, at the first sweep's low edge. The grid was extended to 50 BPM, and the rule then chose 50 BPM, 2.4 octaves, third 0.3, on the end of both axes, so it refuses again.
 
-Best passing score per prior on 90 to 180, replay. A dot means no row at that prior passes the guard:
+**Why no third extension.** On a bounded range the prior acts, to first order, as a tilt, about `(log2(127) - log2(priorBpm)) / priorOctaves²`: 0.235 for 50/2.4 and 80/1.7. Those two read 1 of 1192 tracks differently on the real path, and their 0.15 points come from that track and a shift in coverage. A nearby row, 100/1.3 with third 0.2, is a neighbour rather than the same reading: 75.29, 23 tracks different, coverage on 165+ 70.0 against 84.4. The approximation fails at narrow widths. Octaves above 2.4 were not swept, so another grid could land inside by chance, and bracketing would then mean nothing. Across the ridge the score falls on both sides. The refusal stands anyway, because changing a rule after it refused, in order to spend the last look, needs a ruling.
+
+**The refusal depends on a base chosen before results.** Knobs moved are counted from #285's values. Counted from the first pick, which is the library default this sweep's baseline row ran, the same rule chooses 110 BPM, 0.7 octaves, third 0.4: score 74.88, one knob moved, interior prior, 165+ 34 of 90 on replay, no real-path row. I did not change the base after the refusal, and that reading is on record for the ruling.
+
+At 50 to 240 the rule's pick has an interior prior (130 BPM, 0.85 octaves) with third 0.4 at the end of its axis, score 72.89, 165+ 41 of 90, replay only, and scores below the ridge.
+
+Best passing score of the grid rows per prior on 90 to 180, replay, without the single-knob stage (its best is 75.86, at 80/1.7 with `stableSalience` 0.1). A dot means no row at that prior passes the guard. 140 to 170 BPM stay between 33 and 73 and are left out:
 
 | BPM | 0.4 | 0.55 | 0.7 | 0.85 | 1 | 1.3 | 1.7 | 2.4 |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -26,9 +34,9 @@ Best passing score per prior on 90 to 180, replay. A dot means no row at that pr
 | 120 | . | 74.6 | 74.3 | 74.6 | 74.4 | 73.6 | 73.4 | 73.0 |
 | 130 | 65.4 | 70.8 | 72.7 | 73.4 | 73.0 | 72.7 | 72.7 | 72.8 |
 
-The fast material is 170 tracks in 68 groups (largest 7.1%, 92 electronic) and 90 tracks in 38 groups (largest 13.3%, 50 electronic), above the threshold written before counting. Those are loops, not full mixes. 36 of the 90 fast tracks are labelled 180 and up and cannot read true in 90 to 180. No further tempo-labelled full-mix electronic data with a clean per-item licence was found.
+The fast material is 170 tracks in 68 groups (largest 7.1%, 92 electronic) and 90 tracks in 38 groups (largest 13.3%, 50 electronic), above the threshold posted on the RBA-51 card before counting. Those are loops, not full mixes. 36 of the 90 fast tracks are labelled 180 and up and cannot read true in 90 to 180. No further tempo-labelled full-mix electronic data with a clean per-item licence was found.
 
-Real path on dev, image `sha256:9b45b33b…`, run `rba-51-dev-ridge`, `results/rba-51-dev-ridge.json`, 90 to 180 for every tempogram. Peaks has its lowpass and folds into 90 to 180. These sets chose these values, so this is not an estimate of unseen music. `ridge-80-reset` has the extension's `continuousAnalysis: true` and `stabilizationTime: 10_000`: **its coverage is 0.0, no track ever gets a stable reading**, and its Acc1 falls 6.2 points.
+Real path on dev, image `sha256:9b45b33b…`, run `rba-51-dev-ridge`, `results/rba-51-dev-ridge.json`, 90 to 180 for every tempogram. Peaks has its lowpass and folds into 90 to 180. These sets chose these values, so this is not an estimate of unseen music. `ridge-80-reset` has the extension's `continuousAnalysis: true` and `stabilizationTime: 10_000`: **its coverage is 0.0, no track ever gets a stable reading**, and its Acc1 falls 6.2 points. Its false-stable of 100.0 is the convention for a configuration with no stable reading, not a measurement.
 
 
 **Acc1**

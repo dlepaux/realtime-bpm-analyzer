@@ -14,8 +14,8 @@ import {dataRoot, loaders} from './lib/datasets';
 import {rebuild, stopCommands} from './lib/fetch';
 import type {DataReport} from './lib/fetch';
 import {tuningSets} from './lib/licences';
-import {detectors, pickedConfiguration} from './lib/detectors';
-import {lookRefusal} from './lib/look';
+import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
+import {lookDetectorRefusal, lookRefusal} from './lib/look';
 import type {RunFailure} from './lib/look';
 import {bandCounts} from './lib/metrics';
 import {guardShortfalls} from './lib/sweep';
@@ -143,7 +143,7 @@ async function heldout(summary: Summary, sets: readonly string[], reason: string
   save(summary);
   await runEntry('run', [
     '--split', 'heldout', '--detector', detector, '--sets', sets.join(','), '--reason', reason, '--out', heldoutOut,
-    '--progress', heldoutProgress, '--heldout-log', heldoutLog,
+    '--progress', heldoutProgress,
   ]);
   summary.heldout = heldoutOut;
   summary.skipped = (JSON.parse(readFileSync(heldoutOut, 'utf8')) as {skipped: RunFailure[]}).skipped;
@@ -182,7 +182,7 @@ function parseJobArgs() {
     return parseArgs({allowPositionals: true, options: {
       sets: {type: 'string'},
       reason: {type: 'string'},
-      detector: {type: 'string', default: Object.keys(detectors).join(',')},
+      detector: {type: 'string'},
     }});
   } catch {
     return null;
@@ -190,9 +190,11 @@ function parseJobArgs() {
 }
 
 /** @returns Why a look must not start, or null. It holds before anything runs, a dev scoring included */
-function refuseLook(reason: string): string | null {
-  if (pickedConfiguration === null || !Object.hasOwn(detectors, pickedConfiguration)) {
-    return 'No pick is fixed in lib/detectors.ts';
+function refuseLook(reason: string, names: readonly string[]): string | null {
+  const refusal = lookDetectorRefusal(pickedConfiguration, names, lookDetectors);
+
+  if (refusal) {
+    return refusal;
   }
 
   const log = existsSync(heldoutLog) ? readFileSync(heldoutLog, 'utf8') : '';
@@ -236,7 +238,8 @@ async function main(): Promise<number> {
     return closeSpentLook();
   }
 
-  const refusal = mode === 'heldout' ? refuseLook(values.reason!) : null;
+  const detector = values.detector ?? (mode === 'heldout' ? lookDetectors : Object.keys(detectors)).join(',');
+  const refusal = mode === 'heldout' ? refuseLook(values.reason!, detector.split(',')) : null;
 
   if (refusal) {
     console.error(refusal);
@@ -264,7 +267,7 @@ async function main(): Promise<number> {
   };
 
   try {
-    await stages(summary, mode, wanted, {reason: values.reason, detector: values.detector});
+    await stages(summary, mode, wanted, {reason: values.reason, detector});
   } catch (error) {
     summary.status = 'failed';
     summary.error = String(error);

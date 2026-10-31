@@ -30,21 +30,24 @@ export type SweepRow = {
  * Acc1 no pick may fall below on fast music: peaks, what the extension's users have today, on the
  * licence-clean dev tracks, real path, from results/rba-51-dev.json (92 of 170 and 22 of 90).
  * Written before the second sweep ran, because the first pick lost fast music without any rule able
- * to see it: 165+ fell from 57.6 to 1.5 on the first look, which is where this rule comes from. Its
- * values are dev only. A point estimate with no allowance for noise, so a tie passes and a pick
+ * to see it: 165+ fell from 57.6 to 1.5 on the first look, which is where this rule and the brief's
+ * two bands come from. Its floors are dev only. A point estimate with no allowance for noise, so a tie passes and a pick
  * cannot buy score with a loss here, however small.
  */
 export const fastTempoGuard: Readonly<Record<string, number>> = {'140-165': 92 / 170, '165+': 22 / 90};
 
+/** The tracks those floors were read on. A narrowed run can clear a floor on a kinder mix, so it fails */
+const fastTempoTracks: Readonly<Record<string, number>> = {'140-165': 170, '165+': 90};
+
 /**
  * @param bands Counts per band, absent when a row has none
- * @returns The guarded bands under their floor. A band with no count fails: no evidence is no pass
+ * @returns The guarded bands under their floor. A band not on the guard's tracks fails: no evidence is no pass
  */
 export function guardShortfalls(bands: SweepRow['bands']): string[] {
   return Object.entries(fastTempoGuard).filter(([band, floor]) => {
     const count = bands?.[band];
 
-    return count === undefined || count.tracks === 0 || count.correct / count.tracks < floor;
+    return count === undefined || count.tracks !== fastTempoTracks[band] || count.correct / count.tracks < floor;
   }).map(([band]) => band);
 }
 
@@ -62,17 +65,17 @@ export function pickWithGuard(rows: readonly SweepRow[], sizes: Readonly<Record<
 
 /**
  * @param row A pick
- * @param stages Every plan the rows came from: a grid can be extended by a later run
- * @returns The knobs of the prior a pick holds at the end of its grid: the optimum was not bracketed
+ * @param rows The rows measured, not a plan: a plan can claim a grid that never ran
+ * @returns The knobs of the prior a pick holds at the end of what was measured: the optimum was not
+ * bracketed. A knob no row varies counts as on its edge
  */
-export function priorKnobsOnEdge(row: SweepRow, stages: readonly SweepStage[]): string[] {
+export function priorKnobsOnEdge(row: SweepRow, rows: readonly SweepRow[]): string[] {
   const knobs = ['priorBpm', 'priorOctaves'] as const;
 
   return knobs.filter(knob => {
-    // A single value is a reference row, not a grid
-    const values = stages.flatMap(stage => ((stage.axes[knob]?.length ?? 0) > 1 ? stage.axes[knob] : []));
+    const values = rows.flatMap(({tuning}) => tuning[knob] ?? []);
 
-    return row.tuning[knob] === Math.min(...values) || row.tuning[knob] === Math.max(...values);
+    return values.length === 0 || row.tuning[knob] === Math.min(...values) || row.tuning[knob] === Math.max(...values);
   });
 }
 

@@ -1,15 +1,16 @@
 // Applies the second sweep's rule to its rows, see "Choosing the defaults" in benchmark/readme.md.
-//   pick.mjs <sweep.jsonl,sweep.jsonl> <plan.json,plan.json>
-// Exits 1 when nothing passes the guard, or the pick holds the prior at the end of its grid: no look.
+//   pick.mjs <sweep.jsonl,sweep.jsonl>
+// Exits 1 when nothing passes the guard, or the pick holds the prior at the end of what was measured.
+// That is advice to whoever fixes the pick: what stops a look in code is pickedConfiguration in lib/detectors.ts.
 import {readFileSync} from 'node:fs';
 import {defaultTempogramTuning} from '../src/core/tempogram';
 import {detectors} from './lib/detectors';
 import {bestRow, guardShortfalls, parseRows, pickWithGuard, priorKnobsOnEdge, scoreNoise} from './lib/sweep';
-import type {SweepRow, SweepStage} from './lib/sweep';
+import type {SweepRow} from './lib/sweep';
 
 const sizes = {fsld: 791, groove: 221, guitarset: 180};
 const rows = process.argv[2].split(',').flatMap(path => parseRows(readFileSync(path, 'utf8')));
-const stages = process.argv[3].split(',').flatMap(path => (JSON.parse(readFileSync(path, 'utf8')) as {stages: SweepStage[]}).stages);
+// Knobs moved count from #285, the last tuning before these sweeps. Declared with the report: from the first pick, the rule chooses otherwise
 const base = {...defaultTempogramTuning, ...detectors['tempogram-285'].tuning};
 const passing = rows.filter(row => guardShortfalls(row.bands).length === 0);
 const best = bestRow(passing);
@@ -19,7 +20,7 @@ const ofRange = (range: string) => rows.filter(row => rangeOf(row) === range);
 const brief = (row: SweepRow | null) => row && {
   range: rangeOf(row), tuning: row.tuning, score: row.score, bands: row.bands, shortfalls: guardShortfalls(row.bands), sets: row.sets,
 };
-const edge = chosen ? priorKnobsOnEdge(chosen, stages) : [];
+const edge = chosen ? priorKnobsOnEdge(chosen, rows) : [];
 
 console.log(JSON.stringify({
   rows: rows.length,

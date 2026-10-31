@@ -2,9 +2,11 @@
 //   run.mjs --split dev --detector peaks --out results/peaks-dev.json
 //   run.mjs --split heldout --detector peaks,tempogram --reason "..." --out ...
 // --progress keeps each finished result, so a killed held-out look continues instead of being spent
-// twice. --heldout-log moves the log out of a tree that is read-only, as in the job's image.
-// Held-out access goes through here on purpose: it needs a reason, a committed tree, and writes
-// one line to heldout-log.md before reading a single label.
+// twice. Held-out access goes through here on purpose: it needs a fixed pick, a reason, a committed
+// tree and room in the budget, and writes one line to the log before reading a single label. The
+// log is not an argument, since a caller could then point it anywhere: it sits on the data volume
+// when there is one, as the image's tree is read-only. The guard on dev is the job's, which holds the
+// dev scoring, and a new volume starts a new count: both limits of running this by hand.
 import {execFileSync} from 'node:child_process';
 import {appendFileSync, existsSync, readFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
@@ -17,8 +19,8 @@ import {detectTempogram} from '../src/core/tempogram';
 import {loaders} from './lib/datasets';
 import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate, writeAtomic} from './lib/decode';
-import {detectors} from './lib/detectors';
-import {UndecodableTrack, lookHeader, progressRows, refusalOf, resumesLook, skippedTracks} from './lib/look';
+import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
+import {UndecodableTrack, lookDetectorRefusal, lookHeader, lookRefusal, progressRows, refusalOf, resumesLook, skippedTracks} from './lib/look';
 import type {RunFailure} from './lib/look';
 import {listen} from './lib/stream';
 import {workerCount} from './lib/workers';
@@ -134,10 +136,18 @@ function readProgress(path: string | undefined): string {
 
 /**
  * Logs a look, unless its own progress file says this is that look resuming. The log line comes
- * first: a kill between the two logs the look twice, which overstates, and never scores unlogged.
+ * first: a kill between the two spends the look unread, which costs a look and never scores unlogged.
  */
-function logLook(logPath: string, look: string, progress: string | undefined): void {
-  if (resumesLook(readProgress(progress), look)) {
+function logLook(logPath: string, look: string, reason: string, names: readonly string[], progress: string | undefined): void {
+  const isResuming = resumesLook(readProgress(progress), look);
+  const refusal = lookDetectorRefusal(pickedConfiguration, names, lookDetectors)
+    ?? lookRefusal(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '', isResuming, reason);
+
+  if (refusal) {
+    throw new Error(refusal);
+  }
+
+  if (isResuming) {
     return;
   }
 
@@ -159,7 +169,6 @@ async function main(): Promise<void> {
     limit: {type: 'string'},
     tuning: {type: 'string'},
     progress: {type: 'string'},
-    'heldout-log': {type: 'string'},
   }});
   const benchmarkDir = values.dir!;
   const split = values.split as Split;
@@ -185,8 +194,10 @@ async function main(): Promise<void> {
     const sha = assertCommittedTree(benchmarkDir);
 
     logLook(
-      values['heldout-log'] ?? join(benchmarkDir, 'heldout-log.md'),
+      process.env.RBA_TEMPO_ROOT ? join(process.env.RBA_TEMPO_ROOT, '_job', 'heldout-log.md') : join(benchmarkDir, 'heldout-log.md'),
       `| ${sha.slice(0, 12)} | ${names.join(', ')} | ${values.reason} (sets ${sets.join(', ')}, limit ${values.limit ?? 'none'}) |`,
+      values.reason,
+      names,
       values.progress,
     );
   }

@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {UndecodableTrack, assertDecoded, lookHeader, lookRefusal, progressRows, refusalOf, resumesLook, skippedTracks, undecodableLimit} from '../../../benchmark/lib/look';
+import {UndecodableTrack, assertDecoded, lookHeader, lookDetectorRefusal, lookRefusal, progressRows, refusalOf, resumesLook, skippedTracks, undecodableLimit} from '../../../benchmark/lib/look';
 import type {RunFailure} from '../../../benchmark/lib/look';
 
 const row = (id: string) => `\n${JSON.stringify({detector: 'peaks', result: {id}})}\n`;
@@ -36,6 +36,10 @@ describe('benchmark held-out looks', () => {
     });
 
     it('calls a failing ffmpeg undecodable and keeps what it said', () => {
+      expect(() => {
+        assertDecoded('a.wav', null, 0, '');
+      }).to.throw().and.not.be.instanceOf(UndecodableTrack);
+
       expect(() => {
         assertDecoded('a.wav', 1, 0, 'Invalid data\n');
       }).to.throw(UndecodableTrack, 'Invalid data');
@@ -88,10 +92,18 @@ describe('benchmark held-out looks', () => {
     it('refuses a look after the first unless it declares itself a second look', () => {
       expect(lookRefusal(line, false, 'final score')).to.contain('second look');
       expect(lookRefusal(line, false, 'Second look, prompted by the first')).to.equal(null);
+      expect(lookRefusal(line, false, 'not a second look, prompted by the first')).to.contain('Second look');
+      expect(lookRefusal(line, false, 'Second look')).to.contain('prompted');
     });
 
     it('refuses a third look, whatever its reason and whatever commit asks', () => {
-      expect(lookRefusal(line + line, false, 'second look again')).to.contain('limit');
+      expect(lookRefusal(line + line, false, 'Second look, prompted by the first')).to.contain('limit');
+    });
+
+    it('refuses a look with no pick, or at a candidate beside the pick', () => {
+      expect(lookDetectorRefusal(null, ['peaks'], ['peaks'])).to.contain('No pick');
+      expect(lookDetectorRefusal('a', ['a', 'b'], ['a', 'peaks'])).to.contain('b');
+      expect(lookDetectorRefusal('a', ['a', 'peaks'], ['a', 'peaks'])).to.equal(null);
     });
 
     it('lets the second look resume after a kill, which spends nothing', () => {

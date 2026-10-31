@@ -139,6 +139,10 @@ describe('benchmark sweep', () => {
       expect(guardShortfalls({'140-165': {tracks: 0, correct: 0}, '165+': {tracks: 90, correct: 90}})).to.deep.equal(['140-165']);
     });
 
+    it('fails a narrowed run, which can clear a floor on a kinder mix', () => {
+      expect(guardShortfalls({'140-165': {tracks: 24, correct: 20}, '165+': {tracks: 90, correct: 90}})).to.deep.equal(['140-165']);
+    });
+
     it('never picks a row under the guard, whatever its score', () => {
       const chosen = pickWithGuard([guarded(90, {priorBpm: 110}, bands(170, 1)), guarded(50, {priorBpm: 130}, bands(100, 30))], sizes, base);
 
@@ -166,18 +170,15 @@ describe('benchmark sweep', () => {
       expect(stageTunings(stage, rows)).to.deep.equal([{priorBpm: 130, combBeats: 2}]);
     });
 
-    it('names a prior held at the end of its grid, and only then', () => {
-      const stages = [{name: 'ref', axes: {priorBpm: [136], priorOctaves: [0.8]}}, {name: 'grid', axes: {priorBpm: [80, 120, 170], priorOctaves: [0.4, 1, 2.4]}}];
+    it('reads the edge from the rows measured, not from a plan', () => {
+      const rows = [row(1, {priorBpm: 50, priorOctaves: 0.4}), row(1, {priorBpm: 80, priorOctaves: 1}), row(1, {priorBpm: 170, priorOctaves: 2.4})];
 
-      expect(priorKnobsOnEdge(row(1, {priorBpm: 120, priorOctaves: 1}), stages)).to.deep.equal([]);
-      expect(priorKnobsOnEdge(row(1, {priorBpm: 170, priorOctaves: 0.4}), stages)).to.deep.equal(['priorBpm', 'priorOctaves']);
+      expect(priorKnobsOnEdge(rows[1], rows)).to.deep.equal([]);
+      expect(priorKnobsOnEdge(rows[0], rows)).to.deep.equal(['priorBpm', 'priorOctaves']);
     });
 
-    it('reads the edge across plans, so a later run can bracket an earlier pick', () => {
-      const stages = [{name: 'grid', axes: {priorBpm: [80, 170], priorOctaves: [0.4, 2.4]}}, {name: 'below', axes: {priorBpm: [50, 70], priorOctaves: [0.4, 2.4]}}];
-
-      expect(priorKnobsOnEdge(row(1, {priorBpm: 80, priorOctaves: 1}), stages)).to.deep.equal([]);
-      expect(priorKnobsOnEdge(row(1, {priorBpm: 50, priorOctaves: 1}), stages)).to.deep.equal(['priorBpm']);
+    it('calls a knob no row varies an edge, so a sweep without the prior clears nothing', () => {
+      expect(priorKnobsOnEdge(row(1, {}), [row(1, {})])).to.deep.equal(['priorBpm', 'priorOctaves']);
     });
 
     it('keeps a tuning on two ranges as two rows', () => {

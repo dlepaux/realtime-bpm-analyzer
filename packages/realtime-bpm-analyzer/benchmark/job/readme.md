@@ -38,7 +38,7 @@ A kill at any moment loses little, and restarting the same command is the only r
 - A source's marker in `_job/state` holds its pin and is written after it is unpacked, so a killed unpack runs again, and so does a source whose pin changed, which also drops its sets' decoded PCM.
 - Decoded PCM and curves are renamed into place, so a short file never looks finished.
 - `sweep.jsonl` gains a line per tuning, and a finished tuning is never replayed.
-- A held-out look keeps each result in `_job/heldout-progress-<commit>.jsonl`, whose first line names the look, and is logged once however often it restarts. A restart with another commit, reason, set or detector is another look, and is refused. A kill between the log line and that first line logs the look twice, which overstates and never hides one.
+- A held-out look keeps each result in `_job/heldout-progress-<commit>.jsonl`, whose first line names the look, and is logged once however often it restarts. A restart with another commit, reason, set or detector is another look, and is refused. A kill between the log line and that first line spends the look unread: a restart is refused at the cap, which costs a look and never hides one.
 
 ## Building
 

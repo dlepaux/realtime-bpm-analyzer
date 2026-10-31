@@ -64,6 +64,11 @@ export class UndecodableTrack extends Error {}
  * @throws {UndecodableTrack} Saying why. A file with a valid header and no samples can exit 0
  */
 export function assertDecoded(path: string, status: number | null, samples: number, stderr: string): void {
+  // A kill says nothing about the file, and a skip it earned would differ per detector
+  if (status === null) {
+    throw new Error(`ffmpeg was killed on ${path}`);
+  }
+
   if (status !== 0 || samples === 0) {
     throw new UndecodableTrack(`ffmpeg could not decode ${path}: exit ${status}, ${samples} bytes${stderr ? `, ${stderr.trim().slice(0, 200)}` : ''}`);
   }
@@ -126,5 +131,21 @@ export function lookRefusal(log: string, isResuming: boolean, reason: string): s
   }
 
   // A look taken because of an earlier one is not clean, and its log line has to say so
-  return logged > 0 && !/second look/i.test(reason) ? 'A look after the first must declare itself a second look in its reason' : null;
+  return logged > 0 && !/^second look\b.*prompted by the first/i.test(reason) ? 'A look after the first must open its reason with "Second look" and say it was prompted by the first' : null;
+}
+
+/**
+ * @param pick The configuration fixed in code, null before there is one
+ * @param names The detectors asked for
+ * @param allowed What a look may score: a candidate seen beside the pick could replace it afterwards
+ * @returns Why these detectors must not be looked at, or null when they may
+ */
+export function lookDetectorRefusal(pick: string | null, names: readonly string[], allowed: readonly string[]): string | null {
+  if (pick === null) {
+    return 'No pick is fixed in lib/detectors.ts';
+  }
+
+  const refused = names.filter(name => !allowed.includes(name));
+
+  return refused.length > 0 ? `Not for a look: ${refused.join(', ')}` : null;
 }

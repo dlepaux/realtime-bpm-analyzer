@@ -9,6 +9,8 @@ export type DetectorConfig = {
   readonly offline: boolean;
   /** Tempogram overrides, to keep a past tuning measurable */
   readonly tuning?: Partial<TempogramTuning>;
+  /** For dev only, unless it is the pick */
+  readonly candidate?: true;
 };
 
 /** The extension's TEMPO_RANGE, rba-pro/extension/src/lib/reading.ts. Also what peaks folds into by default */
@@ -34,14 +36,15 @@ export const detectors: Record<string, DetectorConfig> = {
   'tempogram-285-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: tuning285},
   'tempogram-first': {options: tempogram, lowpass: false, offline: false, tuning: tuningFirst},
   'tempogram-first-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: tuningFirst},
-  'tempogram-ridge-50-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge50},
-  'tempogram-ridge-80-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge80},
-  'tempogram-ridge-100-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge100},
+  'tempogram-ridge-50-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge50, candidate: true},
+  'tempogram-ridge-80-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge80, candidate: true},
+  'tempogram-ridge-100-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge100, candidate: true},
   'tempogram-ridge-80-90-180-resetting': {
     options: {...tempogram, tempoRange: extensionRange, continuousAnalysis: true, stabilizationTime: 10_000},
     lowpass: false,
     offline: false,
     tuning: ridge80,
+    candidate: true,
   },
   // The extension's options as they are today, offscreen/main.ts: its timer resets the analyzer every 10 s
   'tempogram-90-180-resetting': {
@@ -56,3 +59,6 @@ export const detectors: Record<string, DetectorConfig> = {
  * look: see the job's heldout mode. Null until the pick is fixed, and null starts no look.
  */
 export const pickedConfiguration: string | null = null;
+
+/** What a look scores, and all it may: the references and the pick, no other candidate */
+export const lookDetectors = Object.keys(detectors).filter(name => !detectors[name].candidate || name === pickedConfiguration);

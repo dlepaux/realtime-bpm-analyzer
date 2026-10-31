@@ -67,6 +67,50 @@ export function bestRow(rows: readonly SweepRow[]): SweepRow | null {
 }
 
 /**
+ * Sampling noise of a score, in its own points: binomial per metric, assumed independent. A stable
+ * reading's share is over at least one reading per covered track, so its term errs on the high side.
+ * @param row A row
+ * @param sizes Tracks per set
+ * @returns One standard error of the row's score
+ */
+export function scoreNoise(row: SweepRow, sizes: Readonly<Record<string, number>>): number {
+  const share = (p: number, n: number) => (n > 0 ? (p * (1 - p)) / n : 0);
+  const entries = Object.entries(row.sets);
+  const variance = entries.reduce((sum, [set, {acc1, falseStable, coverage}]) => sum
+    + (100 ** 2 * share(acc1, sizes[set]))
+    + (50 ** 2 * share(falseStable ?? 1, sizes[set] * coverage))
+    + (15 ** 2 * share(coverage, sizes[set])), 0);
+
+  return Math.sqrt(variance) / entries.length;
+}
+
+/**
+ * The repo's noise rule, the one-standard-error rule: a gain inside the noise pays for no knob.
+ * Among rows within one standard error of the best, the fewest knobs moved from `base`, then the
+ * higher score.
+ * @param rows Rows of a sweep
+ * @param sizes Tracks per set
+ * @param base What the sweep started from, every knob a row can name
+ * @returns The chosen row, or null without rows
+ */
+export function simplestWithinNoise(rows: readonly SweepRow[], sizes: Readonly<Record<string, number>>, base: Readonly<Record<string, unknown>>): SweepRow | null {
+  const best = bestRow(rows);
+
+  if (best === null) {
+    return null;
+  }
+
+  const moved = (row: SweepRow) => Object.entries(row.tuning).filter(([knob, value]) => value !== base[knob]).length;
+  const floor = best.score - scoreNoise(best, sizes);
+
+  return rows.filter(row => row.score >= floor).reduce((chosen, row) => {
+    const difference = moved(row) - moved(chosen);
+
+    return difference < 0 || (difference === 0 && row.score > chosen.score) ? row : chosen;
+  });
+}
+
+/**
  * @param stage The stage
  * @param rows Rows of the stages before it
  * @returns The tunings to replay, deterministic given the rows, which is what lets a sweep resume

@@ -26,7 +26,7 @@ False-stable alone rewards never firing, so read it with coverage. Acc1 is score
 | GTZAN | 999 | Marchand et al. tempo annotations | None, and no copyright clearance for the audio. | From the Hugging Face marsyas/gtzan mirror, the UVic host timed out. Sturm 2013 documents its faults. `reggae.00086` has no label, hence 999 of 1000. Drop this set if the licence risk matters: per-set numbers stand without it. |
 | GuitarSet | 360 | tempo in the file name, from the recording click | CC BY 4.0 (Zenodo 3371780; mirdata says MIT, the Zenodo record wins). | Solo guitar, the hard case for a pulse detector. |
 
-Audio lives outside git in `RBA_TEMPO_ROOT`, with decoded PCM cached under `pcm/`. [`job/`](job/readme.md) rebuilds it from the public sources, hash-checked, and tunes in one container. BRID and the Groove dataset were considered, not used.
+Audio lives outside git in `RBA_TEMPO_ROOT`, with decoded PCM cached under `pcm/`. [`job/`](job/readme.md) rebuilds it from the public sources, hash-checked, and tunes in one container. BRID was considered, not used.
 
 ## Splits
 
@@ -58,7 +58,8 @@ The peaks baseline is measured as it is wired in every guide, with the 200 Hz lo
 
 - **Onset strength**: log-compressed spectral flux in 5 bands, minus a local mean, half-wave rectified, summed at 100 Hz (Grosche & Müller 2009 for the compression and bands). A short smoothing stands in for the 7 Hz lowpass of Percival & Tzanetakis 2014.
 - **Tempogram**: normalised autocorrelation of the latest 8 s, every 0.5 s, read by a comb over the first 4 beat multiples (a window and hop in the region of Percival & Tzanetakis' 5.9 s and 0.37 s; their stretched-ACF sum is the same idea as the comb), with salience accumulated over a 16 s half-life.
-- **Tempo prior**: log-Gaussian as in Ellis 2007, on 50 to 240 BPM, instead of folding into 90 to 180. Ellis uses 120 BPM and 1.4 octaves. Dev chose 136 BPM and 0.8 octaves, narrower and faster, so this is a fit to these sets' tempo mix, electronic music included, not a law.
+- **Tempo prior**: log-Gaussian as in Ellis 2007, on 50 to 240 BPM, instead of folding into 90 to 180. Ellis uses 120 BPM and 1.4 octaves. Licence-clean dev chose 110 BPM and 0.7 octaves, both at the low edge of the grid swept, so this is a fit to these sets' tempo mix, not a law. A clean pulse and its half tie at centre × √2, so a pulse above about 156 BPM reads at half.
+- **Beats penalty**: pulses a third of the way through a beat count against that tempo, at 0.2.
 - **Confidence** is the accumulated comb salience, a normalised autocorrelation: how strongly the audio pulses at that tempo.
 - **Stable** requires salience of at least 0.15, 80% of the last 8 s of frames agreeing with the reading on their own within 2%, and a lead of 1.25 over the next candidate. It fires once per tempo.
 
@@ -69,6 +70,27 @@ References:
 - P. Grosche, M. Müller, "Extracting predominant local pulse information from music recordings", IEEE TASLP 19(6), 2011 (read, not used: no PLP here).
 - G. Percival, G. Tzanetakis, "Streamlined tempo estimation based on autocorrelation and cross-correlation with pulses", IEEE/ACM TASLP 22(12), 2014.
 - F. Gouyon et al., "An experimental comparison of audio tempo induction algorithms", IEEE TASLP 14(5), 2006.
+
+## Choosing the defaults
+
+The rule is `simplestWithinNoise` in [`lib/sweep.ts`](lib/sweep.ts): among rows within one standard error of the best score, the fewest knobs moved from what the sweep started at, then the higher score. A gain inside the noise pays for no knob. `./benchmark/run.sh pick results/rba-51-sweep.jsonl` applies it to the sweep's rows, which are committed. Only the licence-clean dev sets feed it (fsld 791, groove 221, guitarset 180), macro over the sets.
+
+The best score is 81.69, one standard error is 1.58, so the floor is 80.11. Numbers below are from the replay, macro over the three sets.
+
+| tuning | knobs moved | score | Acc1 | Acc2 | gap | false-stable | coverage | verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| #285: 136 BPM, 0.8 oct, no penalties | 0 | 64.13 | 65.9 | 85.8 | 19.9 | 24.6 | 69.9 | where it started, far below the floor |
+| **110 BPM, 0.7 oct, third 0.2** | 3 | 80.99 | 78.0 | 90.7 | 12.7 | 16.9 | 76.0 | **chosen** |
+| the same, `windowSeconds` 6 | 4 | 81.69 | 78.1 | 91.4 | 13.3 | 15.6 | 75.7 | top score, 0.70 ahead: inside the noise, one more knob |
+| the same, `stableSalience` 0.1 | 4 | 81.31 | 78.0 | 90.7 | 12.7 | 17.4 | 79.8 | inside the noise, one more knob |
+| the same, `stableSeconds` 10 | 4 | 81.29 | 78.0 | 90.7 | 12.7 | 16.1 | 75.4 | inside the noise, one more knob |
+| the same, `halfLifeSeconds` 24 | 4 | 81.28 | 78.3 | 91.2 | 12.9 | 16.6 | 75.5 | inside the noise, one more knob |
+| 110 BPM, 0.7 oct, third 0.3 | 3 | 80.80 | 77.7 | 90.8 | 13.1 | 17.3 | 78.4 | as simple, lower score, and at the grid's edge |
+| 120 BPM, 0.7 oct, third 0.3 | 3 | 80.16 | 77.2 | 89.9 | 12.7 | 17.7 | 78.6 | as simple, lower score. The serious alternative: see below |
+| 110 BPM, 0.7 oct, third 0.1 | 3 | 80.14 | 77.3 | 89.1 | 11.8 | 16.6 | 74.4 | as simple, lower score |
+| 110 BPM, 0.7 oct, no penalties | 2 | 77.86 | 74.9 | 85.7 | 10.8 | 15.3 | 71.0 | simplest prior-only row, below the floor |
+
+What the rule cannot settle, on record before any look: 110 BPM and 0.7 octaves are both at the low edge of the grid, so the sweep did not bracket its optimum. 120 BPM is inside the grid and is the published centre, and it scores within the noise of the choice. It was not preferred because the rule was fixed first and counts knobs. Choosing it from per-set rows, by argument, would be the forking path the rule exists to prevent. `halfBeatPenalty` stays in the code at 0 for now: it lost at every non-zero value, and removing it is a cleanup that should not share a commit with a look.
 
 ## Results
 
@@ -90,6 +112,7 @@ CPU, on an M1 Pro in Node with synthetic input (`perf.ts`, 3 input shapes): 3.7 
 ## Limits
 
 - Half-time and ⅔ readings remain the main error, and the prior only moves them around: a wider or slower prior wins some sets and loses others on dev.
+- A pulse above about 156 BPM reads at half: clicks at 174 BPM read 87, where the #285 prior read 174. The sweep's rows hold no per-tempo split, so its macro score does not show this cost by itself. Drum and bass and fast ballroom are the tempos exposed, and a test pins the behaviour.
 - Tuned on a mix dominated by these four sets. The prior centre is the knob most exposed to that.
 - The peaks detector is measured wrapped by its lowpass and its existing offline path untouched. `analyzeFullBuffer`, the CLI and the MCP server still use peaks.
 - The first reading comes at 4 s and the earliest `bpmStable` at about 11.5 s: the warm-up, then 8 s of agreeing frames.

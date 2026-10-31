@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {assertReplayable, bestRow, parseRows, scoreOf, stageTunings, tuningKey} from '../../../benchmark/lib/sweep';
+import {assertReplayable, bestRow, parseRows, scoreNoise, scoreOf, simplestWithinNoise, stageTunings, tuningKey} from '../../../benchmark/lib/sweep';
 import type {SetMetrics, SweepRow, SweepStage} from '../../../benchmark/lib/sweep';
 
 const metrics = (acc1: number, falseStable: number | null, coverage: number): SetMetrics => ({acc1, acc2: acc1, falseStable, coverage});
@@ -64,5 +64,47 @@ describe('benchmark sweep', () => {
     expect(() => {
       assertReplayable([{name: 'x', axes: {priorBmp: [120]}}], ['priorBpm']);
     }).to.throw('priorBmp');
+  });
+
+  describe('the noise rule', () => {
+    const sizes = {a: 100, b: 400};
+    const sets = {a: metrics(0.8, 0.2, 0.5), b: metrics(0.6, 0.4, 1)};
+    const scored = (score: number, tuning: SweepRow['tuning']): SweepRow => ({...row(score, tuning), sets});
+    const base = {priorBpm: 136, combBeats: 4, stableMargin: 1.25};
+
+    it('adds each metric\'s binomial variance, in score points, over the sets', () => {
+      const variance = (1e4 * 0.16 / 100) + (2500 * 0.16 / 50) + (225 * 0.25 / 100) + (1e4 * 0.24 / 400) + (2500 * 0.24 / 400);
+
+      expect(scoreNoise(scored(0, {}), sizes)).to.be.closeTo(Math.sqrt(variance) / 2, 1e-9);
+    });
+
+    it('does not divide by zero for a set that never fired', () => {
+      expect(scoreNoise({...row(0, {}), sets: {a: metrics(0.5, null, 0)}}, {a: 100})).to.equal(5);
+    });
+
+    it('takes fewer knobs moved over a higher score inside the noise, and ignores a value left at its base', () => {
+      const chosen = simplestWithinNoise([
+        scored(50, {priorBpm: 110, combBeats: 2}),
+        scored(49.9, {priorBpm: 110, combBeats: 4}),
+        scored(49.5, {priorBpm: 120}),
+      ], sizes, base);
+
+      expect(chosen?.key).to.equal(tuningKey({priorBpm: 110, combBeats: 4}));
+    });
+
+    it('breaks a tie in knobs by score, and refuses a simpler row outside the noise', () => {
+      const noise = scoreNoise(scored(0, {}), sizes);
+      const chosen = simplestWithinNoise([
+        scored(50, {priorBpm: 110, combBeats: 2}),
+        scored(49.9, {priorBpm: 120, combBeats: 2}),
+        scored(50 - noise - 0.01, {}),
+      ], sizes, base);
+
+      expect(chosen?.score).to.equal(50);
+    });
+
+    it('has no choice without rows', () => {
+      expect(simplestWithinNoise([], sizes, base)).to.equal(null);
+    });
   });
 });

@@ -32,11 +32,17 @@ export type TempogramTuning = {
   readonly combBeats: number;
   /** Half-life of the tempo accumulator, in seconds: lower follows a tempo change sooner */
   readonly halfLifeSeconds: number;
-  /** How much pulses halfway between a tempo's beats count against it: those beats are too slow */
+  /**
+   * How much pulses halfway between a tempo's beats count against it: those beats are too slow.
+   * Off: at 0.25 the best dev score fell from 81.0 to 72.8, and further from there.
+   */
   readonly halfBeatPenalty: number;
-  /** The same for pulses a third of the way through its beats */
+  /** The same for pulses a third of the way through its beats. From 0 to 0.2, dev Acc2 rose 5 points */
   readonly thirdBeatPenalty: number;
-  /** Centre of the tempo prior, in BPM */
+  /**
+   * Centre of the tempo prior, in BPM. A clean pulse T and its half T/2 tie at T/√2 = this, so with
+   * 110 a pulse above about 156 BPM reads at half: what the dev mix favours, not a law of music.
+   */
   readonly priorBpm: number;
   /** Width of the tempo prior, in octaves */
   readonly priorOctaves: number;
@@ -65,9 +71,9 @@ export const defaultTempogramTuning: TempogramTuning = {
   combBeats: 4,
   halfLifeSeconds: 16,
   halfBeatPenalty: 0,
-  thirdBeatPenalty: 0,
-  priorBpm: 136,
-  priorOctaves: 0.8,
+  thirdBeatPenalty: 0.2,
+  priorBpm: 110,
+  priorOctaves: 0.7,
   stableSeconds: 8,
   stableAgreement: 0.8,
   stableTolerance: 0.02,

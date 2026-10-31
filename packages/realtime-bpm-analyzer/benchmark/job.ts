@@ -1,7 +1,7 @@
 // The RBA-51 batch job: see job/readme.md. Bundled by benchmark/run.sh, started by job/entrypoint.sh.
 //   job.mjs [tune]                                the data, then the dev sweep. The default
 //   job.mjs fetch                                 the data only
-//   job.mjs heldout --reason "..." [--detector]   the data, then a held-out look, logged
+//   job.mjs heldout --reason "..." [--detector]   the data, a dev scoring, then a held-out look, logged
 // Every stage is safe to kill and restart. Exit: 0 done, 1 failed, 2 bad arguments, 3 the sweep is
 // done on clean data but an evaluation set did not come back whole.
 import {spawn} from 'node:child_process';
@@ -34,6 +34,8 @@ type Summary = {
   sweep: unknown;
   /** Where the curves and the sweep's rows are */
   runDir: string | null;
+  /** The real path's scores on dev, for the row beside the look's */
+  dev: string | null;
   heldout: string | null;
 };
 
@@ -91,6 +93,23 @@ async function tune(summary: Summary, sets: readonly string[]): Promise<void> {
   summary.runDir = runDir;
 }
 
+/**
+ * The sweep is a replay and holds no peaks, so the numbers beside a look come from here. It runs
+ * first because a failure here spends no look, and in one job because the volume has one writer.
+ */
+async function devScores(summary: Summary, sets: readonly string[], detector: string): Promise<void> {
+  const devOut = join(jobDir, `dev-${summary.sha.slice(0, 12)}.json`);
+
+  summary.stage = 'dev';
+  save(summary);
+
+  if (!existsSync(devOut)) {
+    await runEntry('run', ['--split', 'dev', '--detector', detector, '--sets', sets.join(','), '--out', devOut, '--progress', `${devOut}.progress`]);
+  }
+
+  summary.dev = devOut;
+}
+
 async function heldout(summary: Summary, sets: readonly string[], reason: string, detector: string): Promise<void> {
   summary.stage = 'heldout';
   save(summary);
@@ -119,6 +138,7 @@ async function stages(summary: Summary, mode: string, wanted: readonly string[],
   if (mode === 'tune') {
     await tune(summary, clean);
   } else if (mode === 'heldout') {
+    await devScores(summary, clean, options.detector);
     await heldout(summary, wanted, options.reason!, options.detector);
   }
 
@@ -189,6 +209,7 @@ async function main(): Promise<number> {
     curves: null,
     sweep: null,
     runDir: null,
+    dev: null,
     heldout: null,
   };
 

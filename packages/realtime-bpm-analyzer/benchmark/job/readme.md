@@ -5,12 +5,12 @@ The tempogram tuning of RBA-51 as one container: rebuild the sets from their pub
 ```sh
 entrypoint [tune]                               # the data, then the dev sweep. The default
 entrypoint fetch                                # the data only
-entrypoint heldout --reason "why" [--detector a,b]   # the data, then a logged held-out look
+entrypoint heldout --reason "why" [--detector a,b]   # the data, a dev scoring, then a logged held-out look
 ```
 
 `--sets a,b` narrows any of them, for a test. A `tune` that narrow says so in `scope`, and proves less. Curves and rows live in `_job/tune-<commit>-<scope>/`, so a test or a new image never mixes with an earlier run. `RBA_JOB_WORKERS` sets the worker count, and a job should set it: a container sees the host's cores, not its own limit. Run one at a time on a volume: two jobs fight over the same part files.
 
-Nothing runs held-out unless asked. It needs `--reason`, writes its line to `_job/heldout-log.md` before scoring anything, and refuses to start when `_job/heldout.json` exists, unless a kill landed just after that file, when the restart only closes the summary and exits 0. That line belongs in [`../heldout-log.md`](../heldout-log.md): copy it there, since the image cannot commit. The data check before it parses held-out labels to count ids, and prints no tempo, because a look must not be spent on a broken set.
+Nothing runs held-out unless asked. Before a look the same detectors are scored on dev through the real path, into `_job/dev-<commit>.json`: the sweep is a replay and holds no peaks. A failure there spends no look. It needs `--reason`, writes its line to `_job/heldout-log.md` before scoring anything, and refuses to start when `_job/heldout.json` exists, unless a kill landed just after that file, when the restart only closes the summary and exits 0. That line belongs in [`../heldout-log.md`](../heldout-log.md): copy it there, since the image cannot commit. The data check before it parses held-out labels to count ids, and prints no tempo, because a look must not be spent on a broken set.
 
 ## Exit codes and evidence
 

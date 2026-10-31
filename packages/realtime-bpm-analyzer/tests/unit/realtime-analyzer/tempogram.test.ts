@@ -1,6 +1,7 @@
 import {expect} from 'chai';
 import {createClickTrack, createNoise} from '../../fixtures/click-track';
-import {createTempogramDetector, detectTempogram} from '../../../src/core/tempogram';
+import {detectors} from '../../../benchmark/lib/detectors';
+import {createTempogramDetector, defaultTempogramTuning, detectTempogram} from '../../../src/core/tempogram';
 import type {TempogramReading, TempogramTuning} from '../../../src/core/tempogram';
 
 const sampleRate = 44_100;
@@ -44,7 +45,7 @@ function feed(pcm: Float32Array, rate = sampleRate, tuning?: Partial<TempogramTu
 }
 
 describe('tempogram detector', () => {
-  for (const bpm of [70, 90, 100, 120, 128, 140, 174]) {
+  for (const bpm of [70, 90, 100, 120, 128, 140, 150]) {
     it(`reads clicks at ${bpm} BPM within 2%`, () => {
       const readings = feed(createBrightClicks(bpm, 20));
       const top = readings.at(-1)!.candidates[0];
@@ -220,6 +221,25 @@ describe('tempogram detector', () => {
 
     detector.process(new Float32Array(sampleRate * 2));
     expect(detector.progress()).to.be.closeTo(0.5, 0.01);
+  });
+});
+
+describe('tempogram defaults', () => {
+  it('are what the noise rule picked from sweep rba-51-tune-1, and #285 stays measurable', () => {
+    const {priorBpm, priorOctaves, halfBeatPenalty, thirdBeatPenalty, windowSeconds, stableSalience, stableSeconds, halfLifeSeconds} = defaultTempogramTuning;
+
+    expect({priorBpm, priorOctaves, halfBeatPenalty, thirdBeatPenalty}).to.deep.equal({priorBpm: 110, priorOctaves: 0.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.2});
+    // The knobs whose gain fell inside the noise keep their value
+    expect({windowSeconds, stableSalience, stableSeconds, halfLifeSeconds}).to.deep.equal({windowSeconds: 8, stableSalience: 0.15, stableSeconds: 8, halfLifeSeconds: 16});
+    expect(detectors['tempogram-285'].tuning).to.deep.equal({priorBpm: 136, priorOctaves: 0.8, halfBeatPenalty: 0, thirdBeatPenalty: 0});
+  });
+
+  // The cost of the slower prior, pinned so that moving it is a decision: a clean pulse and its half tie at about 156
+  it('reads a clean pulse below 156 BPM as itself and above it at half', () => {
+    const topOf = (bpm: number) => feed(createBrightClicks(bpm, 30)).at(-1)!.candidates[0].tempo;
+
+    expect(Math.abs(topOf(150) - 150)).to.be.lessThan(3);
+    expect(Math.abs(topOf(174) - 87)).to.be.lessThan(2);
   });
 });
 

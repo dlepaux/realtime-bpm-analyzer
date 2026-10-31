@@ -98,7 +98,7 @@ What the rule cannot settle, on record before any look: 110 BPM and 0.7 octaves 
 
 The guard, written into `lib/sweep.ts` before results, is peaks on clean dev, real path: 140 to 165 BPM at least 92 of 170, 165 and up at least 22 of 90. Its floors are dev only. The rule is `pickWithGuard`. `pick.ts` exits 1 when the pick holds `priorBpm` or `priorOctaves` at the end of what was measured. What stops a look in code is `pickedConfiguration`, still null.
 
-**What the first look shaped, declared:** the rule itself, its two bands, the band edges at 150 and 156, and the choice to evaluate the 90 to 180 range all come from the first look's findings, by way of the brief and my reading of them. No tuned value or floor does. Neither fresh set is fresh any more.
+**What the first look shaped, declared:** the rule itself, its two bands, the band edges at 150 and 156, and the choice to evaluate the 90 to 180 range all come from the first look's findings, by way of the brief and my reading of them. No tuned value or floor does. The sets the first look called fresh are not fresh any more.
 
 Two sweeps on dev, 2118 rows, two ranges, plans `job/sweep-plan-tune-2.json` and `job/sweep-plan.json`:
 

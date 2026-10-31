@@ -90,7 +90,7 @@ describe('benchmark held-out looks', () => {
     });
 
     it('refuses a look after the first unless it declares itself a second look', () => {
-      expect(lookRefusal(line, false, 'final score')).to.contain('second look');
+      expect(lookRefusal(line, false, 'final score')).to.contain('Second look');
       expect(lookRefusal(line, false, 'Second look, prompted by the first')).to.equal(null);
       expect(lookRefusal(line, false, 'not a second look, prompted by the first')).to.contain('Second look');
       expect(lookRefusal(line, false, 'Second look')).to.contain('prompted');

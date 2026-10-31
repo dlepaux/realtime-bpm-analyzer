@@ -173,6 +173,13 @@ describe('benchmark sweep', () => {
       expect(priorKnobsOnEdge(row(1, {priorBpm: 170, priorOctaves: 0.4}), stages)).to.deep.equal(['priorBpm', 'priorOctaves']);
     });
 
+    it('reads the edge across plans, so a later run can bracket an earlier pick', () => {
+      const stages = [{name: 'grid', axes: {priorBpm: [80, 170], priorOctaves: [0.4, 2.4]}}, {name: 'below', axes: {priorBpm: [50, 70], priorOctaves: [0.4, 2.4]}}];
+
+      expect(priorKnobsOnEdge(row(1, {priorBpm: 80, priorOctaves: 1}), stages)).to.deep.equal([]);
+      expect(priorKnobsOnEdge(row(1, {priorBpm: 50, priorOctaves: 1}), stages)).to.deep.equal(['priorBpm']);
+    });
+
     it('keeps a tuning on two ranges as two rows', () => {
       expect(rowKey({priorBpm: 120}, {min: 50, max: 240})).to.not.equal(rowKey({priorBpm: 120}, {min: 90, max: 180}));
     });

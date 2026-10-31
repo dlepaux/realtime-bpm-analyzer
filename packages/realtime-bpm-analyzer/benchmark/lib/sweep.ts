@@ -62,15 +62,15 @@ export function pickWithGuard(rows: readonly SweepRow[], sizes: Readonly<Record<
 
 /**
  * @param row A pick
- * @param stages The plan
+ * @param stages Every plan the rows came from: a grid can be extended by a later run
  * @returns The knobs of the prior a pick holds at the end of its grid: the optimum was not bracketed
  */
 export function priorKnobsOnEdge(row: SweepRow, stages: readonly SweepStage[]): string[] {
   const knobs = ['priorBpm', 'priorOctaves'] as const;
-  const grid = stages.find(stage => knobs.every(knob => (stage.axes[knob]?.length ?? 0) > 1));
 
   return knobs.filter(knob => {
-    const values = grid?.axes[knob] ?? [];
+    // A single value is a reference row, not a grid
+    const values = stages.flatMap(stage => ((stage.axes[knob]?.length ?? 0) > 1 ? stage.axes[knob] : []));
 
     return row.tuning[knob] === Math.min(...values) || row.tuning[knob] === Math.max(...values);
   });

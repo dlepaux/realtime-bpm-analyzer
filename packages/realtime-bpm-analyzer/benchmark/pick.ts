@@ -1,5 +1,5 @@
 // Applies the second sweep's rule to its rows, see "Choosing the defaults" in benchmark/readme.md.
-//   pick.mjs <sweep.jsonl> <plan.json>
+//   pick.mjs <sweep.jsonl,sweep.jsonl> <plan.json,plan.json>
 // Exits 1 when nothing passes the guard, or the pick holds the prior at the end of its grid: no look.
 import {readFileSync} from 'node:fs';
 import {defaultTempogramTuning} from '../src/core/tempogram';
@@ -8,8 +8,8 @@ import {bestRow, guardShortfalls, parseRows, pickWithGuard, priorKnobsOnEdge, sc
 import type {SweepRow, SweepStage} from './lib/sweep';
 
 const sizes = {fsld: 791, groove: 221, guitarset: 180};
-const rows = parseRows(readFileSync(process.argv[2], 'utf8'));
-const {stages} = JSON.parse(readFileSync(process.argv[3], 'utf8')) as {stages: SweepStage[]};
+const rows = process.argv[2].split(',').flatMap(path => parseRows(readFileSync(path, 'utf8')));
+const stages = process.argv[3].split(',').flatMap(path => (JSON.parse(readFileSync(path, 'utf8')) as {stages: SweepStage[]}).stages);
 const base = {...defaultTempogramTuning, ...detectors['tempogram-285'].tuning};
 const passing = rows.filter(row => guardShortfalls(row.bands).length === 0);
 const best = bestRow(passing);

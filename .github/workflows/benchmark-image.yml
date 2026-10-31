@@ -1,0 +1,92 @@
+name: Benchmark Image
+
+# Builds the tempo benchmark's batch job (packages/realtime-bpm-analyzer/benchmark/job) and pushes
+# it to GHCR, tagged by commit. Dispatch it with any git ref. A push that changes the benchmark
+# builds too, which is how a branch tests its Dockerfile before this file's dispatch reaches it.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build
+        required: true
+        type: string
+  push:
+    paths:
+      - packages/realtime-bpm-analyzer/benchmark/**
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/dlepaux/realtime-bpm-analyzer-benchmark
+
+jobs:
+  image:
+    name: Build, check and push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+
+      - name: Name the image after the commit
+        id: name
+        run: |
+          sha="$(git rev-parse HEAD)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "tag=$IMAGE:sha-$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: packages/realtime-bpm-analyzer/benchmark/job/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: ${{ steps.name.outputs.tag }}
+          build-args: RBA_BENCHMARK_SHA=${{ steps.name.outputs.sha }}
+
+      # The Dockerfile's allowlist keeps audio out. This proves it on what would actually ship.
+      - name: Refuse an image holding audio
+        env:
+          TAG: ${{ steps.name.outputs.tag }}
+        run: |
+          found="$(docker run --rm --entrypoint /usr/bin/find "$TAG" / -xdev -type f \
+            \( -iname '*.mp3' -o -iname '*.wav' -o -iname '*.flac' -o -iname '*.aiff' -o -iname '*.f32' \) -not -path '/proc/*')"
+          if [ -n "$found" ]; then
+            echo "$found"
+            exit 1
+          fi
+
+      - name: Check the tools and the entrypoint
+        env:
+          TAG: ${{ steps.name.outputs.tag }}
+        run: |
+          docker run --rm --entrypoint /bin/sh "$TAG" -c 'ffmpeg -version && curl --version && git --version && unzip -v' > /dev/null
+          code=0
+          docker run --rm "$TAG" no-such-mode || code=$?
+          test "$code" = 2
+
+      - name: Push
+        env:
+          TAG: ${{ steps.name.outputs.tag }}
+        run: |
+          docker push "$TAG"
+          {
+            echo "Pushed \`$TAG\`"
+            echo
+            echo "Digest: \`$(docker inspect --format '{{index .RepoDigests 0}}' "$TAG")\`"
+          } >> "$GITHUB_STEP_SUMMARY"

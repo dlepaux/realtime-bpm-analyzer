@@ -1,6 +1,7 @@
 import {existsSync, readdirSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {evaluationOnly} from './licences';
+import type {ManifestRow} from '../free-data/manifest';
 import type {Track} from './types';
 
 /**
@@ -153,6 +154,9 @@ const loopSeconds = 30;
 type FreesoundMetadata = Record<string, {username: string; license: string}>;
 
 type LoopAnnotation = {
+  instrumentation?: Readonly<Record<'percussion' | 'bass' | 'chords' | 'melody' | 'fx' | 'vocal', boolean>>;
+  key?: string;
+  mode?: string;
   discard: boolean;
   defined_tempo: boolean;
   well_cut: boolean;
@@ -160,7 +164,7 @@ type LoopAnnotation = {
   genres: string[];
 };
 
-function loopAnnotations(base: string): Map<string, LoopAnnotation[]> {
+export function loopAnnotations(base: string): Map<string, LoopAnnotation[]> {
   const byLoop = new Map<string, LoopAnnotation[]>();
   const root = join(base, 'annotations');
 
@@ -255,6 +259,25 @@ function groove(): Track[] {
 
 const fsld = (): Track[] => freesoundLoops().filter(track => track.set === 'fsld');
 const fsldNc = (): Track[] => freesoundLoops().filter(track => track.set === 'fsld-nc');
+
+/**
+ * RBA-59's free data, as trackers and hosts labelled it: real tracks only, and no unresolved one.
+ * Left out of `loaders` on purpose, whose every set a job needs a pin for and a default held-out run
+ * reads: these labels are candidates until a person has checked a sample. Ask for it by name.
+ */
+function freeMixes(): Track[] {
+  const path = join(dataRoot, 'free-data/manifest.jsonl');
+
+  return readFileSync(path, 'utf8').split('\n').filter(line => line !== '').flatMap(line => {
+    const row = JSON.parse(line) as ManifestRow;
+
+    return row.kind === 'real' && row.bpm !== null
+      ? [{set: 'free-mixes', id: row.id, genre: row.genreFamily, bpm: row.bpm, group: row.artistKey, audioPath: row.audioPath, licence: row.licence}]
+      : [];
+  });
+}
+
+export const optInLoaders: Record<string, () => Track[]> = {'free-mixes': freeMixes};
 
 export const loaders: Record<string, () => Track[]> = {
   giantsteps, ballroom, gtzan, guitarset, fsld, 'fsld-nc': fsldNc, groove,

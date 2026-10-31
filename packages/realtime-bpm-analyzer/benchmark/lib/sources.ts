@@ -155,3 +155,36 @@ export function compareSplit(
 export function isComplete(report: SetReport): boolean {
   return report.missing.length === 0 && report.differs.length === 0;
 }
+
+/**
+ * Presence is not enough: an unpack that died on a full disk leaves every name in place, some short.
+ * @param sets Sets wanted
+ * @param reports The comparison of each
+ * @param failed Names of the sources that failed
+ * @returns The sets whose ids all came back and whose every source passed its pin
+ */
+export function wholeSets(sets: readonly string[], reports: Readonly<Record<string, SetReport>>, failed: readonly string[]): string[] {
+  const broken = new Set(sources.filter(source => failed.includes(source.name)).flatMap(source => source.sets));
+
+  return sets.filter(set => isComplete(reports[set]) && !broken.has(set));
+}
+
+/**
+ * @param source A source
+ * @returns What pins it, stored in its marker: a changed pin must fetch again, not pass as "already here"
+ */
+export function pinOf(source: Source): string {
+  switch (source.kind) {
+    case 'archive': {
+      return `${source.hash.value} ${(source.only ?? []).join(' ')}`.trim();
+    }
+
+    case 'git': {
+      return source.commit;
+    }
+
+    case 'files': {
+      return source.baseUrl;
+    }
+  }
+}

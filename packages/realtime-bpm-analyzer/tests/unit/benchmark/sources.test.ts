@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {compareSplit, isComplete, sources} from '../../../benchmark/lib/sources';
+import {compareSplit, isComplete, pinOf, sources, wholeSets} from '../../../benchmark/lib/sources';
 import type {Split, Track} from '../../../benchmark/lib/types';
 
 const track = (id: string): Track => ({set: 's', id, genre: 'g', bpm: 120, group: id, audioPath: id, licence: 'CC0-1.0'});
@@ -55,6 +55,18 @@ describe('benchmark sources', () => {
     const report = compareSplit(frozen, [track('a'), track('b'), track('c')], null, () => true);
 
     expect(report.differs).to.deep.equal([]);
+  });
+
+  it('does not call a set whole when one of its sources failed, even with every id present', () => {
+    const report = compareSplit(frozen, [track('a'), track('b'), track('c')], dealt, () => true);
+    const reports = {ballroom: report, gtzan: report};
+
+    expect(wholeSets(['ballroom', 'gtzan'], reports, ['gtzan-audio'])).to.deep.equal(['ballroom']);
+    expect(wholeSets(['ballroom', 'gtzan'], reports, [])).to.deep.equal(['ballroom', 'gtzan']);
+  });
+
+  it('pins each source distinctly, so a changed pin is noticed', () => {
+    expect(new Set(sources.map(source => pinOf(source))).size).to.equal(sources.length);
   });
 
   it('has a source for every set', () => {

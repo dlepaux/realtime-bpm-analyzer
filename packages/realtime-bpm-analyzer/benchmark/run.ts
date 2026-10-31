@@ -6,7 +6,7 @@
 // Held-out access goes through here on purpose: it needs a reason, a committed tree, and writes
 // one line to heldout-log.md before reading a single label.
 import {execFileSync} from 'node:child_process';
-import {appendFileSync, existsSync, readFileSync, writeFileSync} from 'node:fs';
+import {appendFileSync, existsSync, readFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {parseArgs} from 'node:util';
 import {Worker, isMainThread, parentPort, workerData} from 'node:worker_threads';
@@ -16,7 +16,7 @@ import {resolveTempoRange} from '../src/core/tempo';
 import {detectTempogram} from '../src/core/tempogram';
 import {loaders} from './lib/datasets';
 import {assertTunable, tuningSets} from './lib/licences';
-import {decode, sampleRate} from './lib/decode';
+import {decode, sampleRate, writeAtomic} from './lib/decode';
 import {detectors} from './lib/detectors';
 import {listen} from './lib/stream';
 import {workerCount} from './lib/workers';
@@ -140,6 +140,23 @@ function readProgress(path: string | undefined): Progress[] {
   });
 }
 
+/**
+ * Logs a look once. With a progress file, a look whose line is already there is that look resuming,
+ * and progress under any other line belongs to a different look: other code, sets, detectors or
+ * reason. Mixing the two would score unlogged, so that stops here.
+ */
+function logLook(logPath: string, look: string, progress: string | undefined): void {
+  const isLogged = progress !== undefined && existsSync(logPath) && readFileSync(logPath, 'utf8').includes(` ${look}`);
+
+  if (!isLogged && readProgress(progress).length > 0) {
+    throw new Error(`${progress} holds results of another look than: ${look}`);
+  }
+
+  if (!isLogged) {
+    appendFileSync(logPath, `| ${new Date().toISOString()} ${look}\n`);
+  }
+}
+
 async function main(): Promise<void> {
   const {values} = parseArgs({options: {
     split: {type: 'string'},
@@ -176,13 +193,11 @@ async function main(): Promise<void> {
 
     const sha = assertCommittedTree(benchmarkDir);
 
-    // A look resumed from its progress file is the look already logged
-    if (!values.progress || !existsSync(values.progress)) {
-      appendFileSync(
-        values['heldout-log'] ?? join(benchmarkDir, 'heldout-log.md'),
-        `| ${new Date().toISOString()} | ${sha.slice(0, 12)} | ${names.join(', ')} | ${values.reason} (sets ${sets.join(', ')}, limit ${values.limit ?? 'none'}) |\n`,
-      );
-    }
+    logLook(
+      values['heldout-log'] ?? join(benchmarkDir, 'heldout-log.md'),
+      `| ${sha.slice(0, 12)} | ${names.join(', ')} | ${values.reason} (sets ${sets.join(', ')}, limit ${values.limit ?? 'none'}) |`,
+      values.progress,
+    );
   }
 
   const tracks = selectTracks(benchmarkDir, split, sets);
@@ -206,11 +221,6 @@ async function main(): Promise<void> {
 
   let done = 0;
 
-  // The file exists from here on, even with no result yet: it says this look was logged
-  if (values.progress) {
-    appendFileSync(values.progress, '');
-  }
-
   await runAll(jobs, (result, detector) => {
     results[detector].push(result);
     done += 1;
@@ -228,7 +238,12 @@ async function main(): Promise<void> {
     list.sort((a, b) => (a.set + a.id < b.set + b.id ? -1 : 1));
   }
 
-  writeFileSync(values.out!, `${JSON.stringify({split, sampleRate, results})}\n`);
+  // With progress kept, a shrunk run stays resumable: a final file would read as a finished look
+  if (values.progress && done < jobs.length) {
+    throw new Error(`${jobs.length - done} of ${jobs.length} runs were skipped: restart to retry them, finished ones are in ${values.progress}`);
+  }
+
+  writeAtomic(values.out!, Buffer.from(`${JSON.stringify({split, sampleRate, results})}\n`));
   console.log(`${jobs.length} runs in ${((Date.now() - start) / 1000).toFixed(0)} s`);
 
   // Scores are written anyway, a look cannot be repeated, but a shrunk denominator must not pass quietly

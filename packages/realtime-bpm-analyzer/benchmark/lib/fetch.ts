@@ -5,7 +5,7 @@ import {dirname, join} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {loaders} from './datasets';
 import {assignSplit, heldoutOnly} from './split';
-import {compareSplit, isComplete, sources} from './sources';
+import {compareSplit, pinOf, sources, wholeSets} from './sources';
 import type {Hash, SetReport, Source, SplitFile} from './sources';
 
 const maxAttempts = 5;
@@ -145,14 +145,14 @@ async function fetchFiles(baseUrl: string, md5Dir: string, into: string): Promis
 }
 
 /**
- * Brings one source onto the disk. The marker is written last and only after the checks, so a kill
+ * Brings one source onto the disk. The marker is written last, after the checks, and holds the pin, so a kill
  * at any point redoes that step: `unzip -o` and `tar` overwrite what a partial run wrote.
  */
 async function ensureSource(source: Source, root: string): Promise<void> {
   const marker = join(root, '_job/state', `${source.name}.ok`);
   const into = join(root, source.into);
 
-  if (existsSync(marker)) {
+  if (existsSync(marker) && readFileSync(marker, 'utf8') === pinOf(source)) {
     log(`${source.name}: already here`);
     return;
   }
@@ -174,7 +174,7 @@ async function ensureSource(source: Source, root: string): Promise<void> {
     rmSync(archive);
   }
 
-  writeFileSync(marker, `${new Date().toISOString()}\n`);
+  writeFileSync(marker, pinOf(source));
   log(`${source.name}: done`);
 }
 
@@ -221,11 +221,12 @@ export async function rebuild(root: string, benchmarkDir: string, sets: readonly
   }
 
   const reports = Object.fromEntries(sets.map(set => [set, reportSet(set, benchmarkDir)]));
+  const whole = wholeSets(sets, reports, results.filter(([, result]) => result.status === 'failed').map(([name]) => name));
 
   return {
     sources: Object.fromEntries(results),
     sets: reports,
-    complete: sets.filter(set => isComplete(reports[set])),
-    incomplete: sets.filter(set => !isComplete(reports[set])),
+    complete: whole,
+    incomplete: sets.filter(set => !whole.includes(set)),
   };
 }

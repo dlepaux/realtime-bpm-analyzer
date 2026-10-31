@@ -5,6 +5,7 @@
 // Every stage is safe to kill and restart. Exit: 0 done, 1 failed, 2 bad arguments, 3 the sweep is
 // done on clean data but an evaluation set did not come back whole.
 import {spawn} from 'node:child_process';
+import type {ChildProcess} from 'node:child_process';
 import {existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {parseArgs} from 'node:util';
@@ -15,7 +16,6 @@ import {tuningSets} from './lib/licences';
 
 const benchmarkDir = process.cwd();
 const jobDir = join(dataRoot, '_job');
-const curves = join(jobDir, 'curves');
 const heldoutOut = join(jobDir, 'heldout.json');
 const incompleteEvaluation = 3;
 
@@ -32,6 +32,8 @@ type Summary = {
   data: DataReport | null;
   curves: {built: number; expected: number} | null;
   sweep: unknown;
+  /** Where the curves and the sweep's rows are */
+  runDir: string | null;
   heldout: string | null;
 };
 
@@ -45,9 +47,11 @@ function save(summary: Summary): void {
   renameSync(`${pathOf(summary)}.tmp`, pathOf(summary));
 }
 
+let child: ChildProcess | null = null;
+
 async function runEntry(entry: string, args: readonly string[]): Promise<void> {
   const code = await new Promise<number>((resolve, reject) => {
-    spawn('./run.sh', [entry, ...args], {stdio: 'inherit'})
+    child = spawn('./run.sh', [entry, ...args], {stdio: 'inherit'})
       .on('error', reject)
       .on('close', status => {
         resolve(status ?? 1);
@@ -63,7 +67,11 @@ async function tune(summary: Summary, sets: readonly string[]): Promise<void> {
   const data = summary.data!;
   const expected = sets.reduce((sum, set) => sum + data.sets[set].dev, 0);
   const setArgs = ['--sets', sets.join(',')];
+  // A row or curve only counts for the code and the sets that made it, so each pair resumes alone
+  const runDir = join(jobDir, `tune-${summary.sha.slice(0, 12)}-${summary.scope.replaceAll(',', '+')}`);
+  const curves = join(runDir, 'curves');
 
+  mkdirSync(runDir, {recursive: true});
   summary.stage = 'curves';
   save(summary);
   await runEntry('tune', ['--cache', curves, '--build', ...setArgs]);
@@ -78,8 +86,9 @@ async function tune(summary: Summary, sets: readonly string[]): Promise<void> {
 
   summary.stage = 'sweep';
   save(summary);
-  await runEntry('tune', ['--cache', curves, '--sweep', 'job/sweep-plan.json', '--out', jobDir, ...setArgs]);
-  summary.sweep = JSON.parse(readFileSync(join(jobDir, 'sweep-report.json'), 'utf8'));
+  await runEntry('tune', ['--cache', curves, '--sweep', 'job/sweep-plan.json', '--out', runDir, ...setArgs]);
+  summary.sweep = JSON.parse(readFileSync(join(runDir, 'sweep-report.json'), 'utf8'));
+  summary.runDir = runDir;
 }
 
 async function heldout(summary: Summary, sets: readonly string[], reason: string, detector: string): Promise<void> {
@@ -149,6 +158,7 @@ async function main(): Promise<number> {
     data: null,
     curves: null,
     sweep: null,
+    runDir: null,
     heldout: null,
   };
 
@@ -166,10 +176,14 @@ async function main(): Promise<number> {
   return {ok: 0, incomplete: incompleteEvaluation, failed: 1, running: 1}[summary.status];
 }
 
-// As PID 1, node would ignore a SIGTERM without this, and the scheduler would wait to kill it
-process.on('SIGTERM', () => {
-  process.exit(143);
-});
+// As PID 1, node would ignore these without a handler. The child goes first: outside a container
+// it would outlive this process and write alongside the restart
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    child?.kill(signal);
+    process.exit(143);
+  });
+}
 
 main().then(
   code => {

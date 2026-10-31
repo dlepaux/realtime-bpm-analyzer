@@ -94,27 +94,49 @@ What the rule cannot settle, on record before any look: 110 BPM and 0.7 octaves 
 
 ## Results
 
-Tuned on dev, then scored once on held-out. Per-genre tables are in [`results/report.md`](results/report.md). `peaks` is the current default, with its lowpass.
+The licence-clean defaults, fixed in `b1ab9d3` before one logged look with image `sha256:140ca595…`. **Old** is #285's tuning, kept as the `tempogram-285` detector. Peaks has its lowpass. Licence: **clean** sets could tune, **evaluation-only** sets never did. Per-genre tables are in [`results/rba-51-report.md`](results/rba-51-report.md). The RBA-50 numbers on the old mixed tuning are in [`results/report.md`](results/report.md).
 
-| split, set | Acc1 peaks | Acc1 tempogram | Acc2 peaks | Acc2 tempogram | first correct peaks | first correct tempogram | false-stable peaks | false-stable tempogram | coverage peaks | coverage tempogram |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| dev, all (1354) | 49.6 | 73.1 | 59.0 | 91.2 | 11.2 s | 4.1 s | 45.8 | 19.6 | 79.4 | 70.9 |
-| held-out, all (1344) | 53.9 | 73.4 | 64.4 | 91.8 | 12.2 s | 4.1 s | 46.1 | 18.7 | 78.9 | 68.3 |
-| held-out, GiantSteps | 81.3 | 87.1 | 88.0 | 92.9 | 5.8 s | 4.1 s | 49.1 | 11.5 | 98.8 | 77.3 |
-| held-out, Ballroom | 52.2 | 73.7 | 62.8 | 94.4 | 14.2 s | 5.6 s | 39.9 | 21.0 | 87.2 | 64.2 |
-| held-out, GTZAN | 48.5 | 67.5 | 64.2 | 91.7 | 10.1 s | 4.1 s | 46.8 | 21.6 | 79.2 | 70.0 |
-| held-out, GuitarSet | 21.7 | 63.9 | 25.6 | 85.0 | never | 4.6 s | 45.0 | 22.5 | 25.6 | 55.6 |
+### Dev (real path, licence-clean sets only: `run.ts` refuses the others on dev)
 
-The tempogram fires `bpmStable` on about a tenth fewer tracks, and on far fewer times per track (945 events against 7425). That lower coverage is the price of the lower false-stable rate.
+| set | licence | tracks | Acc1 peaks | Acc1 old | Acc1 new | Acc2 peaks | Acc2 old | Acc2 new | false-stable peaks | old | new | coverage peaks | old | new |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| fsld | clean | 791 | 54.7 | 70.0 | 71.4 | 63.8 | 82.4 | 87.4 | 37.9 | 17.1 | 19.5 | 72.7 | 59.9 | 69.5 |
+| groove | clean | 221 | 52.9 | 61.1 | 81.0 | 67.0 | 87.8 | 95.9 | 38.5 | 32.4 | 19.3 | 68.8 | 81.4 | 92.8 |
+| guitarset | clean | 180 | 14.4 | 66.7 | 81.7 | 16.7 | 87.2 | 88.9 | 59.0 | 24.2 | 11.7 | 26.1 | 68.3 | 65.6 |
+| **clean, macro** | clean | 1192 | 40.7 | 65.9 | 78.0 | 49.2 | 85.8 | 90.7 | 45.1 | 24.6 | 16.8 | 55.9 | 69.9 | 75.9 |
 
-CPU, on an M1 Pro in Node with synthetic input (`perf.ts`, 3 input shapes): 3.7 to 4.1 ms per second of audio, 0.37 to 0.41% of a core, against 0.7 ms for peaks on the same input. The longest chunk took 1.9 ms, the first one included, against 2.9 ms for a render quantum. 85% of that is the onset stage. No loop optimisation was warranted.
+### Held-out (the one look)
+
+| set | licence | tracks | Acc1 peaks | Acc1 old | Acc1 new | Acc2 peaks | Acc2 old | Acc2 new | false-stable peaks | old | new | coverage peaks | old | new |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| fsld | clean | 717 | 57.2 | 65.8 | 70.0 | 68.5 | 82.8 | 89.0 | 37.1 | 22.3 | 18.7 | 74.1 | 64.4 | 68.6 |
+| groove | clean | 127 | 36.2 | 60.6 | 88.2 | 45.7 | 91.3 | 96.9 | 40.1 | 33.6 | 8.7 | 61.4 | 77.2 | 89.8 |
+| guitarset | clean | 180 | 21.7 | 63.9 | 66.1 | 25.6 | 85.0 | 85.0 | 45.0 | 22.5 | 25.7 | 25.6 | 55.6 | 61.7 |
+| fsld-nc | evaluation-only | 319 | 65.2 | 69.6 | 75.5 | 75.2 | 84.3 | 92.5 | 32.9 | 17.8 | 19.3 | 76.5 | 59.9 | 71.5 |
+| giantsteps | evaluation-only | 326 | 81.3 | 87.1 | 65.0 | 88.0 | 92.9 | 94.8 | 49.1 | 11.5 | 37.3 | 98.8 | 77.3 | 78.8 |
+| ballroom | evaluation-only | 358 | 52.2 | 73.7 | 67.3 | 62.8 | 94.4 | 95.3 | 39.9 | 21.0 | 29.7 | 87.2 | 64.2 | 86.3 |
+| gtzan | evaluation-only | 480 | 48.5 | 67.5 | 71.0 | 64.2 | 91.7 | 91.5 | 46.8 | 21.6 | 20.7 | 79.2 | 70.0 | 78.3 |
+| **clean, macro** | clean | 1024 | 38.4 | 63.4 | 74.8 | 46.6 | 86.4 | 90.3 | 40.8 | 26.2 | 17.7 | 53.7 | 65.7 | 73.3 |
+| all, pooled | mixed | 2507 | 55.4 | 70.1 | 70.5 | 66.0 | 88.3 | 91.7 | 42.8 | 20.5 | 23.5 | 76.3 | 66.6 | 75.3 |
+
+The look is fresh for fsld, groove and fsld-nc, and the second one for the other four. The old row reproduces RBA-50's numbers on those four to the decimal, on data rebuilt from the publishers.
+
+**The look ended incomplete.** `fsld/395035` cannot be decoded in the image, so 3 of 7524 runs never finished, the job exited 1, a restart with the same command failed on the same file, and no `heldout.json` was written. The table comes from the same look's progress file, 2507 tracks per detector, one fsld track short of its 718. A fix needs a new image, which is a new look, so that was not done. It is now in `splits/fsld-excluded.json`.
+
+**Half-time.** The gap between Acc2 and Acc1 narrowed on clean sets, from 19.9 to 12.7 points on dev and from 23.0 to 15.5 on held-out. Over all seven sets it widened, from 18.2 to 21.2: the prior did not remove octave errors, it turned doubles into halves. Doubles fell and halves rose in all seven held-out sets, for example fsld halves 7.0 to 16.0 and doubles 9.9 to 2.9.
+
+**The cost is in fast music.** Tracks labelled above 156 BPM lost almost all their Acc1: GiantSteps 90.1 to 0.0 (81 tracks), ballroom 55.6 to 2.0 (99), GTZAN 64.8 to 11.3 (71), and on clean sets fsld 37.7 to 1.3 (77). GiantSteps went from 87.1 to 65.0 overall, below peaks' 81.3, with half-time readings up from 0.9 to 29.1 of its tracks.
+
+**False-stable.** On clean sets it fell with coverage rising: 24.6 to 16.8 on dev, 26.2 to 17.7 on held-out, with coverage 65.7 to 73.3. Over all seven sets it rose from 20.5 to 23.5, because a confident half-time reading counts as false: GiantSteps 11.5 to 37.3, ballroom 21.0 to 29.7. GuitarSet also went the wrong way on held-out, 22.5 to 25.7, against 24.2 to 11.7 on dev, and its Acc1 gain shrank from 15.0 points on dev to 2.2.
+
+CPU, on an M1 Pro in Node with synthetic input (`perf.ts`, 3 input shapes, two runs on a busy machine): 3.7 to 5.3 ms per second of audio, up to 0.53% of a core, against 0.7 ms for peaks. Two runs saw one chunk over the 2.9 ms of a render quantum, 14.2 ms on noise and 9.7 ms on clicks, each on a different shape and not repeated in the other run, so this is scheduling noise until shown otherwise. Not compared on an idle machine.
 
 ## Limits
 
-- Half-time and ⅔ readings remain the main error, and the prior only moves them around: a wider or slower prior wins some sets and loses others on dev.
-- A pulse above about 156 BPM reads at half: clicks at 174 BPM read 87, where the #285 prior read 174. The sweep's rows hold no per-tempo split, so its macro score does not show this cost by itself. Drum and bass and fast ballroom are the tempos exposed, and a test pins the behaviour.
-- Tuned on a mix dominated by these four sets. The prior centre is the knob most exposed to that.
-- The peaks detector is measured wrapped by its lowpass and its existing offline path untouched. `analyzeFullBuffer`, the CLI and the MCP server still use peaks.
+- Half-time readings are now the main error, and the prior only moves octave errors around: a slower prior traded doubles for halves.
+- A pulse above about 156 BPM reads at half: clicks at 174 BPM read 87, where the #285 prior read 174. The dev sets have few such tracks (7 to 10%), so the macro score barely felt it. A narrower `tempoRange` that excludes the half stops it, unmeasured on real audio. A test pins the behaviour.
+- Tuned on loops, drums and solo guitar, with no full vocal mixes among the clean sets. The prior centre is the knob most exposed to that, and it sits on the edge of the grid swept.
+- The peaks detector is measured wrapped by its lowpass. `analyzeFullBuffer`, the CLI and the MCP server take the tempogram as an option, and peaks stays the default everywhere. Offline numbers are in the report, and the sweep did not tune for them.
 - The first reading comes at 4 s and the earliest `bpmStable` at about 11.5 s: the warm-up, then 8 s of agreeing frames.
 - GiantSteps previews are 2 minutes and GTZAN clips 30 s, so slow settling is not penalised the way a full DJ set would.
 - The worklet reads the left channel only, so a hard-panned track is judged on that channel. This holds for both detectors.

@@ -24,7 +24,7 @@ import ExtensionPill from './ExtensionPill.vue'
       </div>
       <h3>Pin the button</h3>
       <p>
-        Open the puzzle-piece menu in the toolbar and pin <strong>Realtime BPM Analyzer</strong>,
+        Open the puzzle-piece menu in the toolbar and pin <strong>Live BPM Detector</strong>,
         so its button stays one click away.
       </p>
     </li>

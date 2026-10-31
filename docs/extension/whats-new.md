@@ -1,6 +1,6 @@
 ---
-title: What's new in the BPM extension
-description: What changed in the Realtime BPM Analyzer browser extension since your last version.
+title: What's new in Live BPM Detector
+description: What changed in the Live BPM Detector browser extension since your last version.
 aside: false
 outline: false
 sidebar: false
@@ -21,7 +21,7 @@ import ExtensionWhatsNew from '../.vitepress/components/ExtensionWhatsNew.vue'
 
 # What's new
 
-The extension just updated. Here is what changed.
+Live BPM Detector just updated. Here is what changed.
 
 <ExtensionWhatsNew />
 

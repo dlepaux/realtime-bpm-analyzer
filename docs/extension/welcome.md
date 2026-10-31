@@ -1,5 +1,5 @@
 ---
-title: Welcome to the BPM extension
+title: Welcome to Live BPM Detector
 description: How to see the live BPM of any tab in three steps, and what the extension does with your audio. Nothing leaves your device.
 aside: false
 outline: false
@@ -23,7 +23,7 @@ import ExtensionOptIn from '../.vitepress/components/ExtensionOptIn.vue'
 
 # You're set. Now play some music.
 
-Realtime BPM Analyzer puts the tempo of whatever is playing right on the player,
+Live BPM Detector puts the tempo of whatever is playing right on the player,
 live, as the track goes.
 
 <div class="ext-stage">

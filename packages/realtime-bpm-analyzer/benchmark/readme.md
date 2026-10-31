@@ -26,7 +26,7 @@ False-stable alone rewards never firing, so read it with coverage. Acc1 is score
 | GTZAN | 999 | Marchand et al. tempo annotations | None, and no copyright clearance for the audio. | From the Hugging Face marsyas/gtzan mirror, the UVic host timed out. Sturm 2013 documents its faults. `reggae.00086` has no label, hence 999 of 1000. Drop this set if the licence risk matters: per-set numbers stand without it. |
 | GuitarSet | 360 | tempo in the file name, from the recording click | CC BY 4.0 (Zenodo 3371780; mirdata says MIT, the Zenodo record wins). | Solo guitar, the hard case for a pulse detector. |
 
-Audio lives outside git in `/Volumes/storage/rba-tempo`, with decoded PCM cached under `pcm/`. BRID and the Groove dataset were considered, not used.
+Audio lives outside git in `RBA_TEMPO_ROOT`, with decoded PCM cached under `pcm/`. [`job/`](job/readme.md) rebuilds it from the public sources, hash-checked, and tunes in one container. BRID and the Groove dataset were considered, not used.
 
 ## Splits
 

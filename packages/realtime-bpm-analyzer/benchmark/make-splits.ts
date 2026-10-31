@@ -4,12 +4,10 @@
 import {existsSync, mkdirSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {loaders} from './lib/datasets';
-import {assignSplit} from './lib/split';
+import {assignSplit, heldoutOnly} from './lib/split';
 
 const seed = 'rba-51-2026-10-30';
 const out = process.argv[2];
-/** Licensed for neither tuning nor anything else here: all of it stays unseen, as a fresh evaluation */
-const heldoutOnly = new Set(['fsld-nc']);
 
 mkdirSync(out, {recursive: true});
 

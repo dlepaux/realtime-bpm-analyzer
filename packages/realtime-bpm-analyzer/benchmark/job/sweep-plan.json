@@ -1,0 +1,27 @@
+{
+  "stages": [
+    {"name": "baseline", "axes": {}},
+    {
+      "name": "prior-and-penalties",
+      "axes": {
+        "priorBpm": [110, 120, 130, 140],
+        "priorOctaves": [0.7, 0.9, 1.1],
+        "halfBeatPenalty": [0, 0.25, 0.5, 0.75, 1],
+        "thirdBeatPenalty": [0, 0.1, 0.2, 0.3]
+      }
+    },
+    {
+      "name": "other-knobs",
+      "oneAtATime": true,
+      "axes": {
+        "combBeats": [2, 3, 6],
+        "halfLifeSeconds": [8, 12, 24],
+        "windowSeconds": [6, 10],
+        "stableSeconds": [6, 10],
+        "stableAgreement": [0.7, 0.9],
+        "stableSalience": [0.1, 0.2, 0.25],
+        "stableMargin": [1.1, 1.5]
+      }
+    }
+  ]
+}

@@ -1,11 +1,12 @@
 // Benchmark CLI, see benchmark/readme.md. Bundled by benchmark/run.sh.
 //   run.mjs --split dev --detector peaks --out results/peaks-dev.json
 //   run.mjs --split heldout --detector peaks,tempogram --reason "..." --out ...
+// --progress keeps each finished result, so a killed held-out look continues instead of being spent
+// twice. --heldout-log moves the log out of a tree that is read-only, as in the job's image.
 // Held-out access goes through here on purpose: it needs a reason, a committed tree, and writes
 // one line to heldout-log.md before reading a single label.
 import {execFileSync} from 'node:child_process';
 import {appendFileSync, existsSync, readFileSync, writeFileSync} from 'node:fs';
-import {cpus} from 'node:os';
 import {dirname, join} from 'node:path';
 import {parseArgs} from 'node:util';
 import {Worker, isMainThread, parentPort, workerData} from 'node:worker_threads';
@@ -18,12 +19,11 @@ import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate} from './lib/decode';
 import {detectors} from './lib/detectors';
 import {listen} from './lib/stream';
+import {workerCount} from './lib/workers';
 import type {TempogramTuning} from '../src/core/tempogram';
 import type {Split, Track, TrackResult} from './lib/types';
 
 type Job = {readonly detector: string; readonly track: Track; readonly tuning?: Partial<TempogramTuning>};
-
-const workerCount = Math.max(1, cpus().length - 2);
 
 async function runJob({detector, track, tuning}: Job): Promise<TrackResult> {
   const config = detectors[detector];
@@ -43,6 +43,11 @@ async function runJob({detector, track, tuning}: Job): Promise<TrackResult> {
 }
 
 function assertCommittedTree(benchmarkDir: string): string {
+  // An image is its commit, and has no tree to ask
+  if (process.env.RBA_BENCHMARK_SHA) {
+    return process.env.RBA_BENCHMARK_SHA;
+  }
+
   const dirty = execFileSync('git', ['status', '--porcelain', '--', '..'], {cwd: benchmarkDir, encoding: 'utf8'}).trim();
 
   if (dirty) {
@@ -86,7 +91,7 @@ function assertArguments(names: string[], sets: string[], out: string | undefine
 
 async function runAll(jobs: Job[], onDone: (result: TrackResult, detector: string) => void): Promise<void> {
   let next = 0;
-  const workers = Array.from({length: workerCount}, async () => new Promise<void>((resolve, reject) => {
+  const workers = Array.from({length: workerCount()}, async () => new Promise<void>((resolve, reject) => {
     const worker = new Worker(new URL(import.meta.url), {workerData: true});
     let current: Job;
     const feed = () => {
@@ -118,6 +123,23 @@ async function runAll(jobs: Job[], onDone: (result: TrackResult, detector: strin
   await Promise.all(workers);
 }
 
+type Progress = {readonly detector: string; readonly result: TrackResult};
+
+function readProgress(path: string | undefined): Progress[] {
+  if (!path || !existsSync(path)) {
+    return [];
+  }
+
+  // A kill can tear the last line: that run is simply done again
+  return readFileSync(path, 'utf8').split('\n').flatMap(line => {
+    try {
+      return line === '' ? [] : [JSON.parse(line) as Progress];
+    } catch {
+      return [];
+    }
+  });
+}
+
 async function main(): Promise<void> {
   const {values} = parseArgs({options: {
     split: {type: 'string'},
@@ -128,6 +150,8 @@ async function main(): Promise<void> {
     dir: {type: 'string'},
     limit: {type: 'string'},
     tuning: {type: 'string'},
+    progress: {type: 'string'},
+    'heldout-log': {type: 'string'},
   }});
   const benchmarkDir = values.dir!;
   const split = values.split as Split;
@@ -152,10 +176,13 @@ async function main(): Promise<void> {
 
     const sha = assertCommittedTree(benchmarkDir);
 
-    appendFileSync(
-      join(benchmarkDir, 'heldout-log.md'),
-      `| ${new Date().toISOString()} | ${sha.slice(0, 12)} | ${names.join(', ')} | ${values.reason} (sets ${sets.join(', ')}, limit ${values.limit ?? 'none'}) |\n`,
-    );
+    // A look resumed from its progress file is the look already logged
+    if (!values.progress || !existsSync(values.progress)) {
+      appendFileSync(
+        values['heldout-log'] ?? join(benchmarkDir, 'heldout-log.md'),
+        `| ${new Date().toISOString()} | ${sha.slice(0, 12)} | ${names.join(', ')} | ${values.reason} (sets ${sets.join(', ')}, limit ${values.limit ?? 'none'}) |\n`,
+      );
+    }
   }
 
   const tracks = selectTracks(benchmarkDir, split, sets);
@@ -166,15 +193,31 @@ async function main(): Promise<void> {
 
   const limited = values.limit ? tracks.slice(0, Number(values.limit)) : tracks;
   const tuning = values.tuning ? JSON.parse(values.tuning) as Partial<TempogramTuning> : undefined;
-  const jobs = names.flatMap(detector => limited.map(track => ({detector, track, tuning})));
+  const kept = readProgress(values.progress);
+  const isKept = new Set(kept.map(({detector, result}) => `${detector}/${result.set}/${result.id}`));
+  const jobs = names.flatMap(detector => limited.map(track => ({detector, track, tuning})))
+    .filter(({detector, track}) => !isKept.has(`${detector}/${track.set}/${track.id}`));
   const results: Record<string, TrackResult[]> = Object.fromEntries(names.map(name => [name, []]));
   const start = Date.now();
 
+  for (const {detector, result} of kept) {
+    results[detector].push(result);
+  }
+
   let done = 0;
+
+  // The file exists from here on, even with no result yet: it says this look was logged
+  if (values.progress) {
+    appendFileSync(values.progress, '');
+  }
 
   await runAll(jobs, (result, detector) => {
     results[detector].push(result);
     done += 1;
+
+    if (values.progress) {
+      appendFileSync(values.progress, `\n${JSON.stringify({detector, result})}\n`);
+    }
 
     if (done % 200 === 0) {
       console.error(`${done}/${jobs.length} after ${((Date.now() - start) / 1000).toFixed(0)} s`);

@@ -142,7 +142,8 @@ async function fmaCandidates(root: string): Promise<Parsed[]> {
   mkdirSync(dir, {recursive: true});
 
   if (!existsSync(zip)) {
-    writeAtomic(zip, await getBytes(fmaMetadata));
+    // Its own limit, above the 358 MB published: this file is pinned by hash just below
+    writeAtomic(zip, await getBytes(fmaMetadata, undefined, 400 * 1024 * 1024));
   }
 
   const sha1 = createHash('sha1').update(readFileSync(zip)).digest('hex');

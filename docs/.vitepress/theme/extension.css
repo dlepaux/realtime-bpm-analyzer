@@ -494,39 +494,66 @@
 
 /* ── Home: the section under the hero ─────────────────────────────────────── */
 
-.ext-band { margin-bottom: 48px; padding: 56px 24px; background: var(--vp-c-bg-soft); }
+/* The home page's first screen once the extension is on: two doors, chosen by where the
+   visitor's music already is (Hick's Law: a choice they can answer without learning
+   anything). Scoped to .ext-home, so the live page keeps its hero until the switch is set. */
+.ext-doors { display: grid; gap: 40px; width: 100%; text-align: left; }
+.ext-door { min-width: 0; }
 
-.ext-band-inner {
-  display: grid;
-  gap: 32px;
-  align-items: center;
-  max-width: 1152px;
-  margin: 0 auto;
-}
-
-.ext-band-copy > * { min-width: 0; }
-.ext-band-name { display: flex; align-items: center; gap: 10px; margin: 0 0 0.5rem; color: var(--vp-c-brand-1); font-weight: 600; }
-
-.ext-band h2 {
-  margin: 0 0 0.75rem;
+.ext-door h2 {
+  margin: 0 0 0.9rem;
+  border: 0;
+  padding: 0;
   color: var(--vp-c-text-1);
-  font-size: clamp(1.625rem, 1.3rem + 1.2vw, 2.25rem);
+  font-size: 1.25rem;
   font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
-.ext-band p:not(.ext-band-name) { margin: 0 0 0.9rem; max-width: 36rem; color: var(--vp-c-text-2); line-height: 1.6; }
-.ext-band .ext-band-which { font-size: 0.925rem; }
-.ext-band .ext-cta { margin-top: 0.4rem; }
+.ext-door-line { margin: -0.5rem 0 0.9rem; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.5; }
+.ext-door .ext-cta { margin-block: 0 1rem; }
+.ext-door-tools { margin: 0.9rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; line-height: 1.6; }
+.ext-door-tools a { color: var(--vp-c-brand-1); font-weight: 500; }
+.ext-door-tools a:hover { text-decoration: underline; }
 
-@media (min-width: 640px) { .ext-band { padding: 72px 48px; } }
+/* The tool's card sets its own width; in a door it takes the door's. */
+.ext-door .bpm-hero-tool { width: 100%; max-width: none; margin: 0; }
+
+.ext-home .VPHero .image-container { width: 100%; height: auto; max-width: none; transform: none; }
+.ext-home .VPHero .image { width: 100%; margin: 0; }
 
 @media (min-width: 960px) {
-  .ext-band { padding: 72px 64px; }
-  .ext-band-inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; }
+  .ext-home .VPHero.VPHomeHero { padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 28px); padding-bottom: 32px; }
+  .ext-home .VPHero .container { flex-direction: column; max-width: 1152px; text-align: left; }
+  .ext-home .VPHero.has-image .main {
+    order: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 40px;
+    align-items: end;
+    width: 100%;
+    max-width: none;
+  }
+  .ext-home .VPHero.has-image .main .heading { grid-column: 1 / -1; display: block; }
+  .ext-home .VPHero.has-image .main .name { display: block; font-size: 1rem; line-height: 1.5; letter-spacing: 0; }
+  .ext-home .VPHero.has-image .main .text { max-width: none; font-size: 3rem; line-height: 1.15; letter-spacing: -0.02em; }
+  .ext-home .VPHero.has-image .main .tagline { max-width: 46rem; margin: 0; padding-top: 10px; font-size: 1.0625rem; line-height: 1.5; }
+  .ext-home .VPHero.has-image .main .actions { margin: 0; padding-top: 0; justify-content: flex-end; }
+  .ext-home .VPHero .image { order: 2; margin-top: 28px; }
+  .ext-doors { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: start; }
+  /* On a short laptop screen the button stays in the fold. */
+  .ext-door .ext-stage-figure { max-width: calc(46svh * 1.57); }
 }
+
+/* The doors read from the left, so the phone's headline does too. */
+@media (max-width: 959px) {
+  .ext-home .bpm-mobile-hero-head { text-align: left; }
+  .ext-home .bpm-mobile-hero-name { font-size: 1rem; line-height: 1.5; letter-spacing: 0; }
+  .ext-home .bpm-mobile-hero-text { font-size: 2rem; line-height: 1.15; }
+  .ext-home .VPHero .main { margin-top: 32px; }
+}
+
 
 /* ── The extension's own page (/extension/) ───────────────────────────────── */
 
@@ -561,7 +588,8 @@
 .vp-doc.ext-landing h3 { margin: 0 0 0.4rem; font-size: 1.125rem; font-weight: 600; line-height: 1.3; }
 .vp-doc .ext-intro { margin: -0.75rem 0 1rem; color: var(--vp-c-text-2); font-size: 1.0625rem; }
 
-/* The phone reads name, headline, demo, lede, action, in source order. */
+/* The phone reads name, headline, demo, action, lede, in source order: a phone can't install
+   it, and that fact must not fall below the fold. */
 .vp-doc .ext-hero {
   display: grid;
   gap: 16px;
@@ -591,9 +619,76 @@
   text-wrap: balance;
 }
 
-.ext-hero-stage { margin: 0; min-width: 0; width: min(100%, calc(62svh * 1.6)); justify-self: center; }
+.ext-hero-stage { min-width: 0; width: min(100%, calc(62svh * 1.6)); justify-self: center; }
 
-.vp-doc .ext-hero-stage figcaption { margin-top: 0.5rem; color: var(--vp-c-text-2); font-size: 0.8125rem; line-height: 1.45; }
+.ext-stage-figure { margin: 0; min-width: 0; }
+.ext-stage-figure figcaption,
+.vp-doc .ext-stage-figure figcaption { margin-top: 0.5rem; color: var(--vp-c-text-2); font-size: 0.8125rem; line-height: 1.45; }
+
+/* The reel: one real session, with a camera move added in CSS. It is laid out at its
+   zoomed size and scaled down to the page view, so the browser rasterises it for the end
+   of the zoom, where sharpness is what's being judged. Without motion it rests on the
+   stable frame; the moving layers aren't even displayed, so they aren't fetched. */
+.ext-reel-stage {
+  position: relative;
+  aspect-ratio: var(--ext-reel-ratio);
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px var(--vp-c-divider),
+    0 16px 36px -22px color-mix(in srgb, var(--vp-c-brand-1) 55%, transparent);
+}
+.dark .ext-reel-stage { background: #0f0f0f; }
+
+.ext-reel-camera { position: absolute; inset: 0; transform-origin: 100% 0; }
+.ext-reel-camera[data-look='dark'],
+.dark .ext-reel-camera[data-look='light'] { display: none; }
+.dark .ext-reel-camera[data-look='dark'] { display: block; }
+
+.ext-reel-wide,
+.ext-reel-crop { position: absolute; top: 0; right: 0; display: block; max-width: none; height: auto; }
+.ext-reel-wide { display: none; width: calc(var(--ext-reel-zoom) * 100%); }
+.ext-reel-crop { width: 100%; }
+.ext-reel-crop:not([data-step='stable']) { display: none; }
+
+.ext-reel-caption { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0 1rem; }
+.ext-reel-caption > span { flex: 1 1 16rem; }
+.ext-reel-pause { display: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ext-reel-wide { display: block; }
+  .ext-reel-crop:not([data-step='stable']) { display: block; }
+  .ext-reel-pause {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-top: -0.6rem;
+    color: var(--vp-c-brand-1);
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .ext-reel-camera { animation: ext-reel-move 12s linear infinite, ext-reel-reset 12s linear infinite; }
+  .ext-reel-crop { animation: 12s linear infinite both; }
+  .ext-reel-crop[data-step='listening'] { animation-name: ext-reel-listening; }
+  .ext-reel-crop[data-step='settling'] { animation-name: ext-reel-settling; }
+  .ext-reel-crop[data-step='stable'] { animation-name: ext-reel-stable; }
+  .ext-reel.is-paused .ext-reel-camera,
+  .ext-reel.is-paused .ext-reel-crop { animation-play-state: paused; }
+}
+
+/* 12 s: the page, the zoom, the three states, then a fade back to the page. */
+@keyframes ext-reel-move {
+  0%, 9% { transform: scale(calc(1 / var(--ext-reel-zoom))); animation-timing-function: cubic-bezier(0.65, 0, 0.25, 1); }
+  28%, 96% { transform: scale(1); animation-timing-function: step-end; }
+  97%, 100% { transform: scale(calc(1 / var(--ext-reel-zoom))); }
+}
+@keyframes ext-reel-reset { 0%, 92% { opacity: 1; } 96%, 97% { opacity: 0; } 100% { opacity: 1; } }
+/* The crop is the same frame as the page under it, so it can arrive during the move. */
+@keyframes ext-reel-listening { 0%, 13% { opacity: 0; } 22%, 96% { opacity: 1; } 97%, 100% { opacity: 0; } }
+@keyframes ext-reel-settling { 0%, 44% { opacity: 0; } 47%, 96% { opacity: 1; } 97%, 100% { opacity: 0; } }
+@keyframes ext-reel-stable { 0%, 62% { opacity: 0; } 65%, 96% { opacity: 1; } 97%, 100% { opacity: 0; } }
 
 .vp-doc .ext-lede { margin: 0; max-width: 36rem; color: var(--vp-c-text-1); font-size: 1.0625rem; line-height: 1.55; }
 .vp-doc .ext-support { margin: 0; max-width: 36rem; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.55; }
@@ -601,7 +696,8 @@
 
 @media (min-width: 960px) {
   .vp-doc .ext-hero {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    max-width: 1320px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 760px);
     grid-template-rows: auto auto auto 1fr;
     column-gap: 56px;
     row-gap: 18px;
@@ -609,10 +705,10 @@
   }
 
   .ext-hero-stage { grid-column: 2; grid-row: 1 / span 4; width: 100%; }
-  .vp-doc .ext-hero h1,
-  .vp-doc .ext-lede,
-  .vp-doc .ext-support,
-  .ext-hero-action { grid-column: 1; }
+  .vp-doc .ext-hero h1 { grid-column: 1; grid-row: 1; }
+  .vp-doc .ext-lede { grid-column: 1; grid-row: 2; }
+  .vp-doc .ext-support { grid-column: 1; grid-row: 3; }
+  .ext-hero-action { grid-column: 1; grid-row: 4; }
   .vp-doc .ext-lede { font-size: 1.125rem; }
 }
 
@@ -634,21 +730,8 @@
 
 .vp-doc .ext-small { margin: 1.5rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; }
 
-/* width and height are set on each image, so its box is reserved before it loads. */
-.vp-doc .ext-shot {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 12px;
-}
-
-.ext-moment { display: grid; gap: 1.25rem; align-items: center; padding-block: 1.75rem; }
+.ext-moments { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 2rem 3rem; margin-top: 2rem; }
 .vp-doc .ext-moment p { margin: 0; color: var(--vp-c-text-2); line-height: 1.6; }
-
-@media (min-width: 768px) {
-  .ext-moment { grid-template-columns: minmax(0, 1fr) minmax(0, 487px); gap: 3rem; }
-}
 
 /* The steps are a real sequence, so they keep their numbers. */
 .vp-doc ol.ext-howto {
@@ -695,7 +778,6 @@
 .vp-doc .ext-limits > div { display: grid; gap: 0.35rem; padding-block: 1.1rem; border-top: 1px solid var(--vp-c-divider); }
 .vp-doc .ext-limits dt { font-weight: 600; color: var(--vp-c-text-1); }
 .vp-doc .ext-limits dd { margin: 0; color: var(--vp-c-text-2); line-height: 1.6; }
-.vp-doc .ext-limit-shot { max-width: 320px; margin-top: 0.9rem; }
 
 @media (min-width: 768px) {
   .vp-doc .ext-limits > div { grid-template-columns: 14rem minmax(0, 1fr); gap: 1.5rem; }

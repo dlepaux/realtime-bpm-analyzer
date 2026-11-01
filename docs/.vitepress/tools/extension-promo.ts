@@ -63,25 +63,17 @@ export function extensionNavItems(storeUrl: string | null) {
   return [{ text: 'Chrome Extension', link: EXTENSION_PAGE, activeMatch: '^/extension/$' }]
 }
 
-/**
- * The home hero's action. It goes to the page rather than the store, because the page
- * explains Chrome's install prompt before anyone meets it. The home page's section is
- * ExtensionHomeBand.vue.
- */
-export function extensionHeroActions(storeUrl: string | null) {
-  if (storeUrl === null) return []
-  return [{ theme: 'brand', text: 'Live BPM Detector for Chrome', link: EXTENSION_PAGE }]
-}
-
-export const EXTENSION_HERO_TAGLINE = 'Free, private BPM detection, right in your browser. Also a Chrome extension for the music in your tabs, and a zero-dependency TypeScript library for developers.'
+export const EXTENSION_HERO_TAGLINE = 'Free, private BPM detection, right in your browser, and a Chrome extension for the music in your tabs.'
 
 /**
- * The home hero as the switch leaves it. The page's meta description stays out of this:
+ * The home hero as the switch leaves it. The action to the extension's page is in its
+ * door, ExtensionHomeBand.vue, which goes to the page because the page explains Chrome's
+ * install prompt before anyone meets it. The page's meta description stays out of this:
  * RBA-11 holds the home page's title and description until its readbacks.
  */
-export function extensionHomeHero<Hero extends { tagline: string; actions: object[] }>(hero: Hero, storeUrl: string | null): Hero {
+export function extensionHomeHero<Hero extends { tagline: string }>(hero: Hero, storeUrl: string | null): Hero {
   if (storeUrl === null) return hero
-  return { ...hero, tagline: EXTENSION_HERO_TAGLINE, actions: [...extensionHeroActions(storeUrl), ...hero.actions] }
+  return { ...hero, tagline: EXTENSION_HERO_TAGLINE }
 }
 
 // A phone can't install it, so a phone's action is getting the page to a computer. No

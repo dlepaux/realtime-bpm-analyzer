@@ -2,6 +2,8 @@
 // pure checks over the build's files. verify-extension-switch.ts runs them on real
 // builds in CI; extension-switch.test.ts proves they catch what they claim to catch.
 
+import { REEL_DIR } from '../.vitepress/tools/extension-reel.ts'
+
 export type BuiltSite = {
   /** Every file, relative to the build's root, with forward slashes. */
   readonly paths: readonly string[]
@@ -20,8 +22,9 @@ const PAGE_LINK = 'href="/extension/"'
 const INSTALL_BUTTON = /<a\b[^>]*\bext-install-btn\b[^>]*>/g
 const STORE_LINK = /href="([^"]*chromewebstore[^"]*)"/g
 const EMPTY_LINK = /<a\b[^>]*\bhref="(?:|null|undefined)"/
-const SCREENSHOT = /\/(?:player|play-bar|playback-rate|no-audio)(?:-\d+)?\.[^/]*\.webp$/
-const MAX_IMAGE_BYTES = 40_000
+const REEL_FILES = `${REEL_DIR}/`
+const REEL_IMAGE = /<img\b[^>]*\bext-reel-(?:wide|crop)\b[^>]*>/g
+const MAX_REEL_BYTES = 250_000
 const SHARE_IMAGE = 'live-bpm-detector-share.png'
 const MAX_SHARE_IMAGE_BYTES = 300_000
 const HERO_ACTION = 'Live BPM Detector for Chrome'
@@ -42,11 +45,11 @@ function checkOff(site: BuiltSite): string[] {
   expectAbsent(site.paths.includes(PAGE), `${PAGE} was built, so the page is reachable`)
   expectAbsent(site.read('hashmap.json').includes('extension_index'), 'the page is in the hash map')
   expectAbsent(site.read('sitemap.xml').includes(`${SITE}/extension/</loc>`), 'the page is in the sitemap')
-  expectAbsent(site.paths.some((path) => SCREENSHOT.test(`/${path}`)), 'the page\'s screenshots were published')
+  expectAbsent(site.paths.some((path) => path.startsWith(REEL_FILES)), 'the demo\'s frames were published')
   expectAbsent(site.read('extension/goodbye.html').includes('Reinstall the extension'), 'goodbye offers a reinstall')
   expectAbsent(site.paths.includes(SHARE_IMAGE), 'the share image was published')
   expectAbsent(site.read('llms.txt').includes('Live BPM Detector'), 'llms.txt names the extension')
-  expectAbsent(site.read('index.html').includes(HERO_ACTION), 'the home hero has the extension\'s action')
+  expectAbsent(site.read('index.html').includes(HERO_ACTION), 'the home page has the extension\'s action')
   expectAbsent(site.read('index.html').includes(HOME_SECTION), 'the home page has the extension\'s section')
   expectAbsent(site.read('index.html').includes(HOME_TAGLINE), 'the home tagline names the extension')
   for (const path of site.paths.filter((p) => p.includes('@localSearchIndex'))) {
@@ -61,6 +64,7 @@ function checkOff(site: BuiltSite): string[] {
     INSTALL_BUTTON.lastIndex = 0
     expectAbsent(html.includes('"name":"Live BPM Detector"'), `${path} carries the extension's structured data`)
     expectAbsent(html.includes(SHARE_IMAGE), `${path} points at the extension's share image`)
+    expectAbsent(html.includes(`/${REEL_FILES}`), `${path} points at the demo's frames`)
   }
   for (const path of PROMO_PAGES) {
     expectAbsent(site.read(path).includes('Live BPM Detector'), `${path} promotes the extension`)
@@ -88,25 +92,27 @@ function installProblems(site: BuiltSite, storeUrl: string): string[] {
   return problems
 }
 
+// The first screen and the home door show the product: the reel, or until its frames
+// exist the illustration, which is drawn and has no file.
 function imageProblems(site: BuiltSite): string[] {
   const problems: string[] = []
-  const screenshots = [...site.read(PAGE).matchAll(/<img\b[^>]*\bext-shot\b[^>]*>/g)].map(([tag]) => tag)
-  if (screenshots.length === 0) problems.push(`on: ${PAGE} has no screenshots`)
-  for (const tag of screenshots) {
-    const label = tag.replace(/data:[^"]*/, 'data:...')
-    // Sized, so the image's box is held before it loads, and described.
-    for (const attribute of [/\bwidth="\d+"/, /\bheight="\d+"/, /\balt="[^"]+"/]) {
-      if (!attribute.test(tag)) problems.push(`on: an image fails ${attribute}: ${label}`)
-    }
-    // Vite inlines the smallest images, which then have no file of their own to be missing.
-    const inlined = /\bsrc="(data:image\/[^"]+)"/.exec(tag)?.[1]
-    const src = /\bsrc="\/([^"]+)"/.exec(tag)?.[1]
-    if (inlined !== undefined) {
-      if (inlined.length > MAX_IMAGE_BYTES) problems.push(`on: an inlined image is over ${MAX_IMAGE_BYTES} bytes: ${label}`)
-    } else if (src === undefined || !site.paths.includes(src)) {
-      problems.push(`on: an image has no file: ${label}`)
-    } else if (site.size(src) > MAX_IMAGE_BYTES) {
-      problems.push(`on: ${src} is over ${MAX_IMAGE_BYTES} bytes`)
+  for (const path of [PAGE, 'index.html']) {
+    if (!/\bext-(?:reel|demo)\b/.test(site.read(path))) problems.push(`on: ${path} does not show the product`)
+    problems.push(...reelImageProblems(site, path))
+  }
+  return problems
+}
+
+// Sized before they load, small, and only ever from files the build published.
+function reelImageProblems(site: BuiltSite, path: string): string[] {
+  const problems: string[] = []
+  for (const [tag] of site.read(path).matchAll(REEL_IMAGE)) {
+    if (!/\bwidth="\d+"/.test(tag) || !/\bheight="\d+"/.test(tag)) problems.push(`on: ${path} has an unsized demo frame: ${tag}`)
+    const files = [...tag.matchAll(new RegExp(`/(${REEL_FILES}[^" ,]+)`, 'g'))].map((match) => match[1] ?? '')
+    if (files.length === 0) problems.push(`on: ${path} has a demo frame from elsewhere: ${tag}`)
+    for (const file of files) {
+      if (!site.paths.includes(file)) problems.push(`on: ${path} has a demo frame with no file: ${file}`)
+      else if (site.size(file) > MAX_REEL_BYTES) problems.push(`on: ${file} is over ${MAX_REEL_BYTES} bytes`)
     }
   }
   return problems
@@ -148,7 +154,7 @@ function shareProblems(site: BuiltSite): string[] {
 function placementProblems(site: BuiltSite): string[] {
   const problems: string[] = []
   const home = site.read('index.html')
-  if (!home.includes(HERO_ACTION)) problems.push('on: the home hero has no action for the extension')
+  if (!home.includes(HERO_ACTION)) problems.push('on: the home page has no action for the extension')
   if (!home.includes(HOME_SECTION)) problems.push('on: the home page has no section for the extension')
   if (!home.includes(HOME_TAGLINE)) problems.push('on: the home tagline does not name the extension')
   if (!home.includes('Developer Docs')) problems.push('on: the home page lost its Developer Docs action')

@@ -9,7 +9,6 @@ import {
   EXTENSION_SHARE_IMAGE,
   excludedSources,
   extensionCovers,
-  extensionHeroActions,
   extensionHomeHero,
   llmsWithExtension,
   sharePageLink,
@@ -70,7 +69,6 @@ test('the committed value is off or a real listing', () => {
 test('switch off: nothing to render, and the page is left out of the build', () => {
   assert.deepEqual(installTargets(null), [])
   assert.deepEqual(extensionNavItems(null), [])
-  assert.deepEqual(extensionHeroActions(null), [])
   assert.deepEqual(excludedSources(null), ['extension/index.md'])
 })
 
@@ -80,7 +78,6 @@ test('switch on: every install link is the listing, and the page is built', () =
   for (const target of targets) assert.equal(target.href, LISTING)
   assert.deepEqual(excludedSources(LISTING), [])
   assert.deepEqual(extensionNavItems(LISTING).map((item) => item.link), ['/extension/'])
-  assert.deepEqual(extensionHeroActions(LISTING).map((item) => item.link), ['/extension/'])
 })
 
 test('structured data: names the listing and says it is free, with no rating or review', () => {
@@ -157,6 +154,8 @@ test('the promotion outside the page makes the same claims only', () => {
     band: copy('../.vitepress/components/ExtensionHomeBand.vue'),
     install: copy('../.vitepress/components/ExtensionInstall.vue'),
     demo: copy('../.vitepress/components/ExtensionDemo.vue'),
+    reel: copy('../.vitepress/components/ExtensionReel.vue'),
+    stage: copy('../.vitepress/components/ExtensionStage.vue'),
     tap: lines('../tap-tempo.md'),
     metronome: lines('../metronome.md'),
     tagline: EXTENSION_HERO_TAGLINE,
@@ -169,14 +168,13 @@ test('the promotion outside the page makes the same claims only', () => {
   }
 })
 
-test('extensionHomeHero: off leaves the hero as written, on adds the action first', () => {
+test('extensionHomeHero: off leaves the hero as written, on changes only the tagline', () => {
   const hero = { tagline: 'As written', actions: [{ text: 'Developer Docs' }] }
   assert.equal(extensionHomeHero(hero, null), hero)
   const on = extensionHomeHero(hero, LISTING)
-  assert.equal(on.actions.length, 2)
-  assert.deepEqual(on.actions[1], hero.actions[0])
+  assert.deepEqual(on.actions, hero.actions)
   assert.equal(on.tagline, EXTENSION_HERO_TAGLINE)
-  assert.equal(hero.actions.length, 1, 'the source hero is not mutated')
+  assert.equal(hero.tagline, 'As written', 'the source hero is not mutated')
 })
 
 test('llmsWithExtension: the real file gains the extension ahead of the library', () => {

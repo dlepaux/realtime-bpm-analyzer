@@ -12,7 +12,6 @@ const SITE_URL = 'https://www.realtime-bpm-analyzer.com'
 const OG_IMAGE = `<meta property="og:image" content="${SITE_URL}/live-bpm-detector-share.png">`
 const LLMS_LINE = `- [Live BPM Detector](${SITE_URL}/extension/): the extension\n## Library`
 const LOC = '<loc>https://www.realtime-bpm-analyzer.com/extension/</loc>'
-const IMG = '<img class="ext-shot" src="/assets/player-1280.abc.webp" width="1280" height="800" alt="A picture">'
 const BUTTON = `<a class="tt-btn ext-install-btn tt-btn-primary" href="${STORE}">Add to Chrome</a>`
 
 function site(files: Record<string, string>): BuiltSite {
@@ -34,10 +33,9 @@ const ON: Record<string, string> = {
   'sitemap.xml': LOC,
   'llms.txt': LLMS_LINE,
   'live-bpm-detector-share.png': 'x',
-  'extension/index.html': `<title>Live BPM Detector</title><meta property="og:title" content="Live BPM Detector: x"><link rel="canonical" href="https://www.realtime-bpm-analyzer.com/extension/">${OG_IMAGE}"@type":"SoftwareApplication","installUrl":"${STORE}","price":"0" <h1>Live BPM Detector</h1> ${BUTTON} ${IMG}`,
+  'extension/index.html': `<title>Live BPM Detector</title><meta property="og:title" content="Live BPM Detector: x"><link rel="canonical" href="https://www.realtime-bpm-analyzer.com/extension/">${OG_IMAGE}"@type":"SoftwareApplication","installUrl":"${STORE}","price":"0" <h1>Live BPM Detector</h1> ${BUTTON} <div class="ext-demo"></div>`,
   'extension/goodbye.html': `<a href="${STORE}">Reinstall the extension</a>`,
-  'assets/player-1280.abc.webp': 'x',
-  'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome ext-band Chrome extension for the music in your tabs`,
+  'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome ext-band ext-demo Chrome extension for the music in your tabs`,
   'tap-tempo.html': `${NAV_ON} Live BPM Detector</a>`,
   'metronome.html': `${NAV_ON} Live BPM Detector</a>`,
   'bpm-to-ms.html': NAV_ON,
@@ -54,7 +52,8 @@ test('switchProblems off: anything that shows the extension fails', () => {
     { 'extension/index.html': 'page' },
     { 'hashmap.json': '{"extension_index.md":"x"}' },
     { 'sitemap.xml': LOC },
-    { 'assets/player-640.abc.webp': 'x' },
+    { 'extension-demo/dark-stable-1520.webp': 'x' },
+    { 'metronome.html': `${NAV} <img src="/extension-demo/dark-stable-1520.webp">` },
     { 'extension/goodbye.html': 'Reinstall the extension' },
     { '@localSearchIndexroot.js': '"extension/#how-it-works"' },
     { 'guide/getting-started.html': 'href="/extension/"' },
@@ -83,15 +82,13 @@ test('switchProblems on: a dead or wrong install link fails', () => {
   assert.notDeepEqual(switchProblems(site({ ...ON, 'extension/index.html': 'no button' }), STORE), [])
 })
 
-test('switchProblems on: the page must be built, indexable, and sized', () => {
+test('switchProblems on: the page must be built and indexable', () => {
   const { 'extension/index.html': page = '', ...withoutPage } = ON
   assert.notDeepEqual(switchProblems(site(withoutPage), STORE), [])
   const variants = [
     page.replace('<title>Live BPM Detector</title>', ''),
     `${page} noindex`,
     page.replace('"@type":"SoftwareApplication",', ''),
-    page.replace('width="1280" ', ''),
-    page.replace('player-1280.abc', 'missing'),
     page.replace('"price":"0"', ''),
     page.replace('<h1>Live BPM Detector</h1>', ''),
     `${page} "aggregateRating"`,
@@ -102,24 +99,27 @@ test('switchProblems on: the page must be built, indexable, and sized', () => {
   for (const variant of variants) {
     assert.notDeepEqual(switchProblems(site({ ...ON, 'extension/index.html': variant }), STORE), [], variant)
   }
-  assert.notDeepEqual(switchProblems(site({ ...ON, 'assets/player-1280.abc.webp': 'x'.repeat(40_001) }), STORE), [])
 })
 
-test('switchProblems on: only the page\'s screenshots are held to the image rules', () => {
+test('switchProblems on: the first screens must show the product', () => {
   const page = ON['extension/index.html'] ?? ''
-  const logo = '<img class="VPImage logo" src="/logo.svg" alt>'
-  assert.deepEqual(switchProblems(site({ ...ON, 'extension/index.html': `${logo}${page}` }), STORE), [])
-  assert.notDeepEqual(switchProblems(site({ ...ON, 'extension/index.html': page.replace(IMG, '') }), STORE), [])
+  const home = ON['index.html'] ?? ''
+  assert.notDeepEqual(switchProblems(site({ ...ON, 'extension/index.html': page.replace('ext-demo', '') }), STORE), [])
+  assert.notDeepEqual(switchProblems(site({ ...ON, 'index.html': home.replace('ext-demo', '') }), STORE), [])
 })
 
-test('switchProblems on: an image Vite inlined needs no file, but stays small and sized', () => {
+test('switchProblems on: the demo\'s frames are published, sized and small', () => {
   const page = ON['extension/index.html'] ?? ''
-  const inlined = (data: string, size = 'width="487" height="203" ') =>
-    `<img class="ext-shot" src="data:image/webp;base64,${data}" ${size}alt="A picture">`
-  const withImage = (img: string) => site({ ...ON, 'extension/index.html': `${page}${img}` })
-  assert.deepEqual(switchProblems(withImage(inlined('AAAA')), STORE), [])
-  assert.notDeepEqual(switchProblems(withImage(inlined('A'.repeat(40_001))), STORE), [])
-  assert.notDeepEqual(switchProblems(withImage(inlined('AAAA', '')), STORE), [])
+  const frame = (attributes = 'width="960" height="610" ') =>
+    `<img class="ext-reel-crop" src="/extension-demo/a-800.webp" srcset="/extension-demo/a-800.webp 800w, /extension-demo/a-1520.webp 1520w" ${attributes}alt="">`
+  const published = { 'extension-demo/a-800.webp': 'x', 'extension-demo/a-1520.webp': 'x' }
+  const build = (files: Record<string, string>, img: string) =>
+    site({ ...ON, ...files, 'extension/index.html': `${page} class="ext-reel" ${img}` })
+  assert.deepEqual(switchProblems(build(published, frame()), STORE), [])
+  assert.notDeepEqual(switchProblems(build(published, frame('')), STORE), [], 'unsized')
+  assert.notDeepEqual(switchProblems(build({ 'extension-demo/a-800.webp': 'x' }, frame()), STORE), [], 'a srcset file is missing')
+  assert.notDeepEqual(switchProblems(build({ ...published, 'extension-demo/a-1520.webp': 'x'.repeat(250_001) }, frame()), STORE), [], 'too heavy')
+  assert.notDeepEqual(switchProblems(build(published, '<img class="ext-reel-wide" src="/other.webp" width="1" height="1">'), STORE), [], 'from elsewhere')
 })
 
 test('the committed value is never the check\'s fixture', () => {

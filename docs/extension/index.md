@@ -21,7 +21,7 @@ faq:
 ---
 
 <script setup>
-import ExtensionDemo from '../.vitepress/components/ExtensionDemo.vue'
+import ExtensionStage from '../.vitepress/components/ExtensionStage.vue'
 import ExtensionInstall from '../.vitepress/components/ExtensionInstall.vue'
 import ToolFaq from '../.vitepress/components/ToolFaq.vue'
 </script>
@@ -33,15 +33,12 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
     <span class="ext-name"><img src="/logo.svg" alt="" width="28" height="28"> Live BPM Detector</span>
     <span class="ext-headline">Playing on YouTube or SoundCloud? See the BPM right on the page.</span>
   </h1>
-  <figure class="ext-hero-stage">
-    <ExtensionDemo live />
-    <figcaption>Illustration: a made-up page, enlarged and sped up. A real tempo takes a few seconds to appear and longer to settle.</figcaption>
-  </figure>
-  <p class="ext-lede">Live BPM Detector is a free Chrome extension that shows the live tempo of the music playing in the current tab. Click its button and the number appears on the page.</p>
-  <p class="ext-support">It also works on YouTube Music, Twitch, Bandcamp and Mixcloud. Your audio never leaves your device.</p>
+  <div class="ext-hero-stage"><ExtensionStage live /></div>
   <div class="ext-hero-action">
     <ExtensionInstall prompt-link />
   </div>
+  <p class="ext-lede">Live BPM Detector is a free Chrome extension that shows the live tempo of the music playing in the current tab. Click its button and the number appears on the page.</p>
+  <p class="ext-support">It also works on YouTube Music, Twitch, Bandcamp and Mixcloud. Your audio never leaves your device.</p>
 </section>
 
 <section class="ext-sec">
@@ -51,12 +48,13 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
 
 <p class="ext-intro">For DJs, producers, musicians and anyone who wants the tempo of what's playing.</p>
 
+<div class="ext-moments">
+
 <div class="ext-moment">
   <div>
     <h3>Digging for tracks</h3>
     <p>You're going through SoundCloud or Bandcamp, looking for something at your tempo. The number usually sits in the play bar and restarts when the page shows a new track. Play a track again in the same session and its tempo comes straight back. Skip very quickly and the restart can lag behind.</p>
   </div>
-  <img class="ext-shot" src="../.vitepress/assets/extension/play-bar.webp" width="487" height="203" loading="lazy" decoding="async" alt="The overlay in the play bar at the bottom of a music page, showing 120 BPM, marked stable." />
 </div>
 
 <div class="ext-moment">
@@ -64,7 +62,6 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
     <h3>Learning a song from YouTube</h3>
     <p>Get the tempo before you set your metronome. Speed the video to x1.25 and you see the tempo you hear, with the track's original tempo beside it.</p>
   </div>
-  <img class="ext-shot" src="../.vitepress/assets/extension/playback-rate.webp" width="487" height="203" loading="lazy" decoding="async" alt="A floating overlay on an audio page, showing 150 BPM, marked stable, with the note x1.25 and 120 original." />
 </div>
 
 <div class="ext-moment">
@@ -72,10 +69,9 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
     <h3>Checking a track</h3>
     <p>Listen to a reference or your own upload and see how fast it reads. A small hint tells a settled tempo from one still being worked out. It's a quick check, so trust your ears too.</p>
   </div>
-  <img class="ext-shot" src="../.vitepress/assets/extension/player-1280.webp" srcset="../.vitepress/assets/extension/player-640.webp 640w, ../.vitepress/assets/extension/player-1280.webp 1280w" sizes="(min-width: 768px) 487px, calc(100vw - 48px)" width="1280" height="800" loading="lazy" decoding="async" alt="A video player with the extension's overlay in its top right corner, showing 120 BPM, marked stable." />
 </div>
 
-<p class="ext-small">These pictures show the real overlay on made-up pages, with example readings. The first two are cropped to the overlay.</p>
+</div>
 
 </div>
 </section>
@@ -158,7 +154,6 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
     <dt>Protected audio</dt>
     <dd>
       Some sites protect their audio. Before it has a tempo, if no sound reaches it, the overlay says "no audio". Once it has one, that number stays on screen through a pause or silence, and a stable one stays marked stable.
-      <img class="ext-shot ext-limit-shot" src="../.vitepress/assets/extension/no-audio.webp" width="487" height="203" loading="lazy" decoding="async" alt="A floating overlay showing a dash instead of a tempo, with the label no audio." />
     </dd>
   </div>
 </dl>

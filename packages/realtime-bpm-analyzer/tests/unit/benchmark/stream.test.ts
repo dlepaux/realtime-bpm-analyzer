@@ -27,7 +27,7 @@ describe('streamPcm', () => {
     return pcm;
   }
 
-  async function lastTempo(tempoRange: {min: number; max: number} | undefined): Promise<number> {
+  async function lastTempo(tempoRange: {min: number; max: number}): Promise<number> {
     let last = 0;
 
     await streamPcm(clicks(60, 20), sampleRate, {detector: 'tempogram', tempoRange}, event => {
@@ -39,10 +39,10 @@ describe('streamPcm', () => {
     return last;
   }
 
-  // The sweep and the look measure the extension's range through this path: a tuned run that fell back
-  // to the wide range would report numbers for a configuration nobody asked for
+  // The sweep and the look measure a range through this path: a tuned run that fell back to the default
+  // range would report numbers for a configuration nobody asked for
   it('searches the range in the options when a tuning is given too', async () => {
     expect(await lastTempo({min: 90, max: 180})).to.be.within(90, 180);
-    expect(await lastTempo(undefined)).to.be.below(90);
+    expect(await lastTempo({min: 50, max: 240})).to.be.below(90);
   });
 });

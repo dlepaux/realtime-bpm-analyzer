@@ -13,5 +13,9 @@
 
 - [Getting started](https://www.realtime-bpm-analyzer.com/guide/getting-started): install `realtime-bpm-analyzer` from npm; zero dependencies, AudioWorklet-based
 - [How it works](https://www.realtime-bpm-analyzer.com/guide/how-it-works): peak detection, threshold scan and interval grouping
+- [Node.js](https://www.realtime-bpm-analyzer.com/guide/node): BPM detection outside the browser
+- [Command line](https://www.realtime-bpm-analyzer.com/guide/cli): BPM detection from a terminal
+- [MCP server](https://www.realtime-bpm-analyzer.com/guide/mcp): BPM detection for AI assistants
+- [Strict CSP and browser extensions](https://www.realtime-bpm-analyzer.com/guide/strict-csp): loading the worklet from a URL
 - [API reference](https://www.realtime-bpm-analyzer.com/api/)
 - [Source code](https://github.com/dlepaux/realtime-bpm-analyzer): Apache-2.0

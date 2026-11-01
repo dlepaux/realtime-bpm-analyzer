@@ -88,9 +88,9 @@ devices.
 
 ### How accurate is the BPM detection?
 
-For most modern music with a steady beat, detection is accurate within **1–2 BPM**.
-Ambient, rubato, or beatless tracks are harder and may not produce a confident
-result. The analyzer always returns the top candidates so you can compare.
+It works best on music with a steady beat. Ambient, rubato or beatless tracks are
+harder and may not produce a confident result. A very fast or very slow track can
+read at half or double its tempo, so check the number against what you hear.
 
 ### Can I use this as a library in my own app?
 

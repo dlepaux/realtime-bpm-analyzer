@@ -74,17 +74,34 @@ test('structured data: names the listing, with no price or rating', () => {
   assert.ok(!('offers' in schema) && !('aggregateRating' in schema))
 })
 
-test('page: the privacy text is the policy\'s own words, none of them dropped', () => {
+// The page carries only this much of the policy, so musicians reach the install button,
+// and links to the rest. Headings are written at the policy's level.
+const KEPT_FROM_POLICY = [
+  '## Your audio never leaves your device',
+  'When you click the extension\'s button on a tab, it listens to that tab\'s audio and works out the tempo on your computer. The audio is not recorded, stored or sent anywhere. Nobody, including us, can hear it or receive it.',
+  '## What the extension sends',
+  'The extension makes no network request of its own, contains no analytics and has no account, install id or advertising. We don\'t sell or share your audio or tab information: it never reaches us.',
+  '## The website pages it opens',
+  'The pages are part of the website, which uses Google Analytics as described in Website Privacy, so a visit to one of them is measured like any other visit.',
+]
+const POLICY_LINK = 'Read the full extension privacy policy.'
+
+test('page: every kept privacy sentence is word for word in the policy', () => {
+  const policy = plainText(policySource)
+  for (const kept of KEPT_FROM_POLICY) assert.ok(policy.includes(kept), `not in the policy: ${kept}`)
+})
+
+test('page: the privacy section is exactly the kept sentences and the link to the policy', () => {
   const start = page.indexOf('## Your audio never leaves your device')
   const end = page.indexOf('## Questions')
   assert.ok(start > 0 && end > start)
   const section = page.slice(start, end)
-  const from = policySource.indexOf('## Your audio never leaves your device')
-  const to = policySource.indexOf('## Chrome Web Store Limited Use')
-  assert.ok(from > 0 && to > from)
-  const blocks = policySource.slice(from, to).split(/\n\n|\n(?=- )/).map((block) => plainText(block.replace(/^(?:#+|-) /, '')).trim())
-  assert.ok(blocks.length >= 9)
-  for (const block of blocks) assert.ok(section.includes(block), `missing from the page: ${block}`)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/#+ /g, '## ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  assert.equal(section, [...KEPT_FROM_POLICY, POLICY_LINK].join(' '))
+  assert.ok(pageSource.includes('[extension privacy policy](/extension/privacy)'), 'the link to the full policy is gone')
 })
 
 test('page: states the listing\'s limits', () => {

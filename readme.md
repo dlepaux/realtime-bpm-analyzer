@@ -146,6 +146,10 @@ The website that presents them, realtime-bpm-analyzer.com, is a separate thing. 
 
 See [privacy.md](privacy.md) and [security.md](security.md) for details.
 
+## For Musicians
+
+[Live BPM Detector](https://www.realtime-bpm-analyzer.com/extension/) is a Chrome extension that shows the live tempo of the music playing in the current tab. Your audio never leaves your device.
+
 ## Contributing
 
 Contributions are welcome! See [contributing.md](contributing.md) for guidelines.

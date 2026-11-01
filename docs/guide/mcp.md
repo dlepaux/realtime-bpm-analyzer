@@ -12,7 +12,9 @@ analysis as the [command-line tool](./cli).
 
 The server runs on your machine and talks to the assistant's app over stdio. It makes
 no network calls and sends no telemetry, so the audio never leaves your computer. The
-assistant only sees the results: paths, tempos and confidences.
+assistant only sees the results: paths, tempos and confidences. Its app handles those
+like any other tool result, so they can reach its AI provider. `npx` itself contacts npm
+to fetch the package.
 
 ## Install
 

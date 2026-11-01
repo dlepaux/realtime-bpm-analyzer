@@ -4,7 +4,7 @@ A minimal example demonstrating how to analyze BPM from audio files using offlin
 
 ## Features
 
-- File upload interface
+- File picker interface
 - Offline BPM analysis with `analyzeFullBuffer`
 - Clean, modern UI
 - No audio playback required

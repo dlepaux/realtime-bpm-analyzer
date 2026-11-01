@@ -16,6 +16,7 @@ import {
   type BpmCandidates,
 } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
+import { fileExtensionParam } from '../tools/analytics-params'
 import {
   PLATFORM_LABELS,
   STATIONS,
@@ -186,7 +187,7 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
   fileDuration.value = null
   fileElapsedMs.value = null
 
-  const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+  const extension = fileExtensionParam(file.name)
   track('bpm_file_selected', {
     input_method: inputMethod,
     size_kb: Math.round(file.size / 1024),

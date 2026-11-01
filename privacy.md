@@ -2,7 +2,11 @@
 
 ## Overview
 
-This page covers the `realtime-bpm-analyzer` library itself. It is designed with privacy as a core principle. All audio processing happens entirely in your browser using the Web Audio API.
+This page covers the `realtime-bpm-analyzer` library itself. It is designed with privacy as a core principle. All audio processing happens on your device: in your browser with the Web Audio API, or in your own Node.js process with the `realtime-bpm-analyzer/node` entry.
+
+The CLI and the MCP server are built on the library and keep the same promise: they run on your computer, make no network call of their own and send no telemetry.
+
+Everything on this page is about that code, not about the website that presents it. The website, realtime-bpm-analyzer.com, measures its own pages with Google Analytics, as [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy) describes.
 
 ## Data Processing
 
@@ -126,7 +130,7 @@ As a developer using this library, you are responsible for:
 You can verify our privacy claims by:
 
 - Reviewing the source code
-- Checking network activity (no requests are made)
+- Checking network activity in your own app: the library makes no request of its own. A stream you ask it to analyse is fetched by your browser. On realtime-bpm-analyzer.com you will also see Google Analytics requests, which come from the website, not from the library
 - Inspecting browser memory (no persistent storage)
 - Using browser developer tools to monitor behavior
 
@@ -139,4 +143,4 @@ If you have privacy concerns or questions:
 
 ---
 
-**Last updated:** November 2025
+**Last updated:** November 2026

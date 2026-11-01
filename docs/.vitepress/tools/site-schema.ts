@@ -75,11 +75,11 @@ export const HOME_FAQ = [
   },
   {
     q: 'How does it work?',
-    a: 'The analyzer uses the Web Audio API to decode audio directly in your browser, applies a low-pass filter to isolate the low-frequency transients that usually carry the beat, and counts the intervals between detected peaks. The most frequent interval gives the BPM. Everything happens on your device.',
+    a: 'The analyzer uses the Web Audio API to decode audio directly in your browser, applies a low-pass filter to isolate the low-frequency transients that usually carry the beat, and counts the intervals between detected peaks. The most frequent interval gives the BPM. The analysis happens on your device.',
   },
   {
     q: 'Is my audio sent to a server?',
-    a: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends nothing anywhere. Your audio never leaves your device.',
+    a: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends nothing anywhere. Your audio never leaves your device. The website does measure its own pages with Google Analytics, but never your audio or your file names.',
   },
   {
     q: 'Which audio formats are supported?',

@@ -28,7 +28,7 @@
 - **Real-time analysis** - Analyze audio/video as it plays
 - **Multiple sources** - Works with files, streams, microphone, or any audio/video node
 - **Typed events** - Full TypeScript support with autocomplete
-- **Client-side only** - 100% privacy-focused, no data collection
+- **Runs locally** - The library analyses audio on the device, makes no network call of its own and collects nothing
 - **Supports MP3, FLAC, WAV** formats
 
 ## Installation
@@ -114,7 +114,7 @@ See the [MCP guide](https://www.realtime-bpm-analyzer.com/guide/mcp) for Claude 
 
 - **Audio Players** - Display BPM while playing tracks
 - **Live Streams** - Continuous BPM detection from radio/streaming
-- **File Analysis** - Offline BPM detection from uploaded files
+- **File Analysis** - Whole-file BPM detection from local files
 - **Microphone Input** - Real-time analysis from live audio
 - **DJ Applications** - Beat matching and tempo detection
 
@@ -135,10 +135,14 @@ npm run dev --workspace=examples/01-vanilla-basic
 
 ## Privacy & Security
 
-- **100% client-side** processing
-- **No data collection** or transmission
-- **No audio recording** - real-time analysis only
+These points cover the library, the CLI and the MCP server:
+
+- **Local processing** - audio is analysed on the device and never leaves it
+- **No data collection** or transmission - no network call of their own, no telemetry
+- **No audio recording** - audio is analysed, not kept
 - **Open source** - fully auditable code
+
+The website that presents them, realtime-bpm-analyzer.com, is a separate thing. Its tools analyse your audio in your browser, and the website measures its own pages with Google Analytics, as [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy) describes.
 
 See [privacy.md](privacy.md) and [security.md](security.md) for details.
 

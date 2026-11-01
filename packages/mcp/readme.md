@@ -6,7 +6,9 @@ disk, with the [realtime-bpm-analyzer](https://www.npmjs.com/package/realtime-bp
 engine.
 
 **Privacy:** the server runs on your computer and talks to the client over stdio. It
-makes no network calls and sends no telemetry: your audio never leaves the machine.
+makes no network calls and sends no telemetry: your audio never leaves the machine. The
+client gets the results (paths, tempos, confidences) and handles them like any other tool
+result, so they can reach its AI provider. `npx` itself contacts npm to fetch the package.
 
 ## Install
 

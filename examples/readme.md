@@ -8,7 +8,7 @@ The examples are organized by framework and use case:
 
 ### Vanilla JavaScript Examples
 
-- **[01-vanilla-basic](./01-vanilla-basic/)** - Basic offline BPM analysis from uploaded audio files
+- **[01-vanilla-basic](./01-vanilla-basic/)** - Basic offline BPM analysis from local audio files
 - **[02-vanilla-streaming](./02-vanilla-streaming/)** - Real-time analysis from streaming audio URLs
 - **[03-vanilla-microphone](./03-vanilla-microphone/)** - Real-time analysis from microphone input
 
@@ -36,7 +36,7 @@ The examples are organized by framework and use case:
 - Fast offline analysis
 - No playback needed
 - Returns array of BPM candidates
-- Best for file uploads
+- Best for local files
 
 ### 2. Streaming Audio (`createRealtimeBpmAnalyzer` + MediaElementSource)
 

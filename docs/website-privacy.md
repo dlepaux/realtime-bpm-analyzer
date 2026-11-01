@@ -13,19 +13,23 @@ so does the browser extension: [Extension Privacy](/extension/privacy).
 
 Files you choose, microphone input and stream audio are analysed in your
 browser by the library. The website never receives your audio, your files or
-their names.
+their names. That is about your audio only: the pages themselves are measured, as
+the next section describes.
 
 ## What the website measures
 
-The website uses **Google Analytics 4**, loaded through **Google Tag Manager**,
-to understand how the tools are used and what to improve. Google Analytics sets
+The website uses **Google Analytics 4**, loaded through **Google Tag Manager** on
+every page, to understand how the tools are used and what to improve. Google Analytics sets
 cookies in your browser and receives:
 
 - the pages you visit, your approximate location, your device and browser type,
   and how you arrived on the site;
-- how you use the tools, as anonymous events: the tempo found, the length,
-  size and extension of an analysed file (never its name or content), the
-  address of a stream without its query string, and error types;
+- how you use the tools, as events tied to the random ID in the Google Analytics
+  cookie, not to your name: the tempo found, the length, size and extension of an
+  analysed file (never its name or content), whether a stream is one of the listed
+  stations or your own, with its scheme and format (never its address), the name
+  of the platform when you paste a link such as a YouTube one (never the link),
+  and error types;
 - the version numbers in the address of the pages the browser extension opens:
   its version when you install it or remove it, its new and previous versions
   when it updates. If you remove it and pick a reason from the list on that page,
@@ -58,4 +62,4 @@ linked to your name.
 The site is run by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 31 October 2026._
+_Last updated: 1 November 2026._

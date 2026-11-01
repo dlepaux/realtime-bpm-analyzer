@@ -9,6 +9,9 @@ description: Detect the BPM of MP3, WAV, FLAC, OGG and Opus files from a termina
 analyses them with [`analyzeChannelData`](./node), the library's Node.js entry point.
 It is separate so the library itself keeps zero dependencies.
 
+The tool runs on your computer. It makes no network calls and sends no telemetry, so
+the audio never leaves your computer. `npx` itself contacts npm to fetch the package.
+
 ```bash
 npx realtime-bpm-analyzer-cli song.mp3
 ```

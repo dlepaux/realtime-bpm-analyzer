@@ -79,6 +79,16 @@ For each package, `<package>` being its name:
 4. Within 2 days, merge the release PR. The pipeline publishes `0.1.0` with provenance, which validates the configuration. If the window passes (a red `main`, for example), the configuration expires: delete it on npmjs.com, add it again, and merge within the new 2 days. Merge the CLI's release PR before the MCP server's, so `npx -y realtime-bpm-analyzer-mcp` never resolves a CLI without its programmatic entry.
 5. In the package's settings, under Publishing access, choose "Require two-factor authentication and disallow tokens", as npm recommends once trusted publishing works.
 
+## Privacy Wording
+
+Anything written about privacy names one of three subjects, and never blurs them:
+
+- **The tool** (the library, the CLI, the MCP server and the browser tools' audio analysis): it collects nothing and makes no network call of its own. Audio never leaves the device.
+- **The extension:** audio never leaves the device, and today it sends nothing of its own. The pages it opens are part of the website. Say what its [policy](https://www.realtime-bpm-analyzer.com/extension/privacy) says, and no more.
+- **The website** (realtime-bpm-analyzer.com): it measures its own pages with Google Analytics through Google Tag Manager, as [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy) describes. It is never "no tracking", "no analytics", "offline" or "collects nothing".
+
+A website page can truthfully say the audio stays in the browser while the page itself is measured, so say which of the two a sentence is about. "Offline" in the guides means analysis of a whole buffer (`OfflineAudioContext`), not a claim about the network. `docs/scripts/privacy-wording.test.ts` catches the common wrong claims about the website.
+
 ## Reporting Issues
 
 Before submitting an issue, search [existing issues](https://github.com/dlepaux/realtime-bpm-analyzer/issues) to avoid duplicates.

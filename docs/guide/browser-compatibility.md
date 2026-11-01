@@ -92,7 +92,7 @@ if (isSupported()) {
 3. **File Size Limits**
    - iOS Safari has memory limits for audio decoding
    - Large files (>50MB) may fail
-   - Recommend limiting file uploads to <30MB
+   - Recommend limiting file size to <30MB
 
 4. **Stream Support**
    - Works well with streaming audio
@@ -249,7 +249,7 @@ The library works, but test your implementation in private mode.
 ✅ **Fully Compatible**
 
 The library works great in PWAs:
-- Offline analysis (service workers)
+- Analysis with no connection, once your service worker has cached your app (the library makes no network call of its own)
 - Background processing
 - Install prompts supported
 

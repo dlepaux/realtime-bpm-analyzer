@@ -257,8 +257,8 @@ The algorithm works best with:
 
 ### Tempo Changes
 
-- **Fixed tempo**: Excellent accuracy
-- **Slight variations**: Handles well (±5% tolerance)
+- **Fixed tempo**: Where it works best
+- **Slight variations**: Votes spread across neighbouring tempos, so the result can be less clear
 - **Major changes**: May report multiple candidates or incorrect BPM
 
 ### Audio Quality

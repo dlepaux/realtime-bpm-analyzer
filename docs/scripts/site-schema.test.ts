@@ -2,7 +2,7 @@
 // page's FAQ may say.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { HOME_FAQ, SCHEMA_WEB_APPLICATION, isNoindexPage, siteGraph } from '../.vitepress/tools/site-schema.ts'
 
 const types = (path: string) => siteGraph(path).map((node) => (node as { '@type': string })['@type'])
@@ -51,4 +51,14 @@ test('isNoindexPage: only the docs readme leaves the sitemap', () => {
   assert.ok(isNoindexPage('readme'))
   assert.ok(isNoindexPage('/readme.html'))
   for (const url of ['', 'guide/readme-tips', 'tap-tempo', 'extension/privacy']) assert.ok(!isNoindexPage(url), url)
+})
+
+test('no unmeasured tolerance or accuracy praise in the guides', () => {
+  // "within ±1 BPM" defines the confidence field, so it stays. A percentage tolerance
+  // or a grade of the accuracy would be a claim, and nothing has measured one.
+  const claim = /±\s*\d+\s*%|excellent accuracy/i
+  const dir = new URL('../guide/', import.meta.url)
+  const guides = readdirSync(dir).filter((name) => name.endsWith('.md'))
+  assert.ok(guides.length > 5, 'the guides moved')
+  for (const name of guides) assert.ok(!claim.test(readFileSync(new URL(name, dir), 'utf8')), name)
 })

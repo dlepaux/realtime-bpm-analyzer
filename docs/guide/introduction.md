@@ -24,7 +24,7 @@ Uses an advanced algorithm based on:
 ### 🎬 Multiple Input Sources
 Works with various audio sources:
 - HTML `<audio>` and `<video>` elements
-- File uploads (MP3, FLAC, WAV)
+- Local files (MP3, FLAC, WAV)
 - Microphone/getUserMedia streams
 - Network audio streams
 - Any source compatible with Web Audio API

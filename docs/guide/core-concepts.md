@@ -43,7 +43,7 @@ Analyze complete audio files without real-time constraints:
 
 - Processes entire buffer at once
 - Fastest results
-- Best for: File uploads, music libraries, batch processing
+- Best for: Local files, music libraries, batch processing
 
 ```typescript
 import { analyzeFullBuffer } from 'realtime-bpm-analyzer';

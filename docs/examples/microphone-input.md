@@ -70,7 +70,7 @@ This approach is ideal for:
 - ✅ Low latency detection (< 100ms typical)
 - ✅ Continuous BPM updates
 - ✅ Works with any audio source (music, instruments, etc.)
-- ✅ No recording or storage (privacy-friendly)
+- ✅ No recording or storage
 - ✅ Event-based API for stable BPM detection
 
 ## Privacy & Security
@@ -78,8 +78,10 @@ This approach is ideal for:
 The microphone analysis:
 - **Does not record** audio - only processes it in real-time
 - **Does not store** any audio data
-- **Runs entirely in the browser** - no data sent to servers
+- **Runs entirely in the browser** - no audio sent to servers
 - Requires explicit user permission via browser prompt
+
+That covers the analysis. The page around this demo is part of the website, which measures its own pages as [Website Privacy](/website-privacy) describes.
 
 ## Next Steps
 

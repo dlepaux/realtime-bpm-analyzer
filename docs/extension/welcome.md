@@ -1,6 +1,6 @@
 ---
 title: Welcome to Live BPM Detector
-description: How to see the live BPM of any tab in three steps, and what the extension does with your audio. Nothing leaves your device.
+description: How to see the live BPM of any tab in three steps, and what the extension does with your audio. Your audio never leaves your device.
 aside: false
 outline: false
 sidebar: false

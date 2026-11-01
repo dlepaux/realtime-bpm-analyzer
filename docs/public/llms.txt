@@ -1,6 +1,6 @@
 # Realtime BPM Analyzer
 
-> Free browser tools for tempo (BPM) work, plus the open-source TypeScript library that powers them. Audio is analysed locally in the browser.
+> Free browser tools for tempo (BPM) work, plus the open-source TypeScript library that powers them. Audio is analysed locally in the browser. The website itself measures its pages with Google Analytics.
 
 ## Tools
 
@@ -8,6 +8,12 @@
 - [Tap Tempo](https://www.realtime-bpm-analyzer.com/tap-tempo): measures a tempo from taps (least-squares fit over the last 16 taps)
 - [BPM to ms Calculator](https://www.realtime-bpm-analyzer.com/bpm-to-ms): note lengths in ms and Hz, straight, dotted and triplet; quarter note ms = 60000 / BPM
 - [Online Metronome](https://www.realtime-bpm-analyzer.com/metronome): 20-300 BPM, 1-12 beats per bar, subdivisions, tap to set
+
+## Privacy
+
+- [Library Privacy](https://www.realtime-bpm-analyzer.com/privacy): the library, CLI and MCP server collect nothing and make no network call of their own
+- [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy): realtime-bpm-analyzer.com measures its own pages with Google Analytics through Google Tag Manager, while audio stays in the browser
+- [Extension Privacy](https://www.realtime-bpm-analyzer.com/extension/privacy): audio never leaves the device, the extension sends nothing of its own today, and the pages it opens are part of the website
 
 ## Library
 

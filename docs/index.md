@@ -6,7 +6,7 @@ description: Find the BPM of any song free in your browser — drop a file, use 
 hero:
   name: "Realtime BPM Analyzer"
   text: "Find the BPM of Any Song"
-  tagline: Free, private BPM detection — right in your browser. Also a zero-dependency TypeScript library for developers.
+  tagline: Free BPM detection right in your browser, and your audio stays on your device. Also a zero-dependency TypeScript library for developers.
   image:
     src: /logo.svg
     alt: Realtime BPM Analyzer
@@ -66,13 +66,14 @@ is analysed right in your browser. **Your audio never leaves your device**, and 
 The analyzer uses the **Web Audio API** to decode audio directly in your browser,
 applies a low-pass filter to isolate the low-frequency transients that usually
 carry the beat, and counts the intervals between detected peaks. The most frequent
-interval gives the BPM. Everything happens on your device.
+interval gives the BPM. The analysis happens on your device.
 
 ### Is my audio sent to a server?
 
 **No.** Files you drop, microphone input and stream audio are all analysed in
 your browser by the open-source library, which sends nothing anywhere. Your audio
-never leaves your device.
+never leaves your device. The website does measure its own pages with Google Analytics,
+but never your audio or your file names. [Website Privacy](/website-privacy) has the details.
 
 ### Which audio formats are supported?
 
@@ -103,7 +104,7 @@ See the **developer docs** below.
 a standalone library. **Zero runtime dependencies.** Full TypeScript types.
 Works with vanilla JS, React, Vue, or any modern framework.
 
-- **Real time or offline.** Follow a playing track, a microphone or a stream
+- **Real time or whole file.** Follow a playing track, a microphone or a stream
   as it plays, or analyse a whole file at once.
 - **Peak and interval analysis.** Low-pass filtered peaks, grouped by the
   intervals between them, give the tempo candidates.

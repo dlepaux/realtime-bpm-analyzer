@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
 import { createRequire } from 'module'
 import { isUsersOnlyExtensionPage } from './tools/extension-pages'
+import { isNoindexPage, SCHEMA_WEB_APPLICATION, siteGraph, toolFaqPage } from './tools/site-schema'
 import { STORE_URL } from './tools/extension-live'
 import { excludedSources, extensionHomeFeatures, extensionNavItems, extensionPageSchema } from './tools/extension-promo'
 
@@ -50,131 +51,7 @@ const COPYRIGHT_YEARS = COPYRIGHT_END_YEAR > COPYRIGHT_START_YEAR
   ? `${COPYRIGHT_START_YEAR}–${COPYRIGHT_END_YEAR}`
   : `${COPYRIGHT_START_YEAR}`
 
-// ── Schema.org structured data ─────────────────────────────────────────────
-// Three schemas, scoped to where they're factually accurate:
-//
-//   - SoftwareSourceCode: describes the open-source library. Accurate on every
-//     page (the lib is what the whole site is about), so it ships globally
-//     via transformPageData.
-//   - WebApplication:     describes the free online BPM tool. Only accurate
-//     on the home page (that's where the tool actually lives). Home-only;
-//     the other tool pages build their own from frontmatter (see
-//     transformPageData).
-//   - FAQPage:            the 7 Q&A pairs in the home page's FAQ section.
-//     Home-only — emitting it on /api/* or /guide/* would be technically
-//     invalid (Google Rich Results) and could suppress eligibility.
-//
-// `sameAs` links resolve the project's identity across platforms — GitHub,
-// npm, LinkedIn — so AI engines and search crawlers treat them as one
-// entity rather than three independent strings.
-const SCHEMA_SOFTWARE_SOURCE_CODE = {
-  '@type': 'SoftwareSourceCode',
-  name: 'Realtime BPM Analyzer',
-  description: 'Zero-dependency TypeScript library for detecting beats-per-minute (BPM) of audio or video sources in real time in the browser.',
-  url: 'https://www.realtime-bpm-analyzer.com',
-  codeRepository: 'https://github.com/dlepaux/realtime-bpm-analyzer',
-  sameAs: [
-    'https://www.npmjs.com/package/realtime-bpm-analyzer',
-  ],
-  programmingLanguage: ['TypeScript', 'JavaScript'],
-  runtimePlatform: 'Browser',
-  license: 'https://spdx.org/licenses/Apache-2.0',
-  author: {
-    '@type': 'Person',
-    name: 'David Lepaux',
-    url: 'https://david.lepaux.com',
-    sameAs: [
-      'https://github.com/dlepaux',
-      'https://www.npmjs.com/~dlepaux',
-      'https://www.linkedin.com/in/david-lepaux',
-    ],
-  },
-}
-
-const SCHEMA_WEB_APPLICATION = {
-  '@type': 'WebApplication',
-  name: 'Realtime BPM Analyzer',
-  description: 'Free online BPM analyzer — find the tempo of any song directly in your browser from a file, your microphone, or a live radio stream. Your audio never leaves your device, and no account is needed.',
-  url: 'https://www.realtime-bpm-analyzer.com',
-  applicationCategory: 'MultimediaApplication',
-  operatingSystem: 'Web Browser',
-  browserRequirements: 'Requires Web Audio API support (any modern browser).',
-  inLanguage: 'en',
-  isAccessibleForFree: true,
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'USD',
-  },
-  featureList: [
-    'Analyze audio files (MP3, WAV, FLAC, M4A, OGG)',
-    'Detect BPM from microphone input',
-    'Detect BPM from a live radio stream',
-    'Audio processed locally in the browser — never uploaded',
-  ],
-}
-
-const SCHEMA_FAQ_PAGE = {
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'What is BPM?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'BPM stands for beats per minute — the tempo of a piece of music. It is the count of the underlying beats in one minute. A typical house track runs at 120–130 BPM, drum and bass at 160–180, ambient and downtempo below 100.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'How does the BPM analyzer work?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'The analyzer uses the Web Audio API to decode audio directly in your browser, applies a low-pass filter to isolate the low-frequency transients that usually carry the beat, and counts the intervals between detected peaks. The most frequent interval gives the BPM.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Is my audio sent to a server?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends nothing anywhere. Your audio never leaves your device.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Which audio formats are supported?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'MP3, WAV, FLAC, M4A and OGG, and in general any audio your browser can play, including the sound of a video file. Microphone input and live streams have no format constraint.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Does it work on mobile?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes. The tool works on modern mobile browsers (iOS Safari and Android Chrome). Choosing a file, microphone permission and stream playback all work on touch devices.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'How accurate is the BPM detection?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'For most modern music with a steady beat, detection is accurate within 1–2 BPM. Ambient, rubato, or beatless tracks are harder and may not produce a confident result. The analyzer always returns the top candidates so you can compare.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Can I use this as a library in my own app?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes. Install realtime-bpm-analyzer from npm. It is zero-dependency, written in TypeScript, and works with vanilla JS, React, Vue, or any modern framework. See the developer docs for integration examples.',
-      },
-    },
-  ],
-}
+const SHARE_IMAGE_ALT = 'The Realtime BPM Analyzer logo and name'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -196,8 +73,9 @@ export default defineConfig({
     hostname: 'https://www.realtime-bpm-analyzer.com',
     // The pages the browser extension opens (RBA-38) are for its users only and
     // carry noindex, so they stay out of the sitemap too. The /extension/ page itself
-    // goes in once it is built (see srcExclude).
-    transformItems: (items) => items.filter((item) => !isUsersOnlyExtensionPage(item.url)),
+    // goes in once it is built (see srcExclude). A sitemap lists what should appear in
+    // results, so a noindex page has no place in it.
+    transformItems: (items) => items.filter((item) => !isUsersOnlyExtensionPage(item.url) && !isNoindexPage(item.url)),
   },
   
   // The /extension/ page exists only once the extension has a store listing (RBA-58).
@@ -255,15 +133,10 @@ export default defineConfig({
       : DEFAULT_OG_TITLE
     const ogDesc = pageDesc ?? DEFAULT_DESCRIPTION
 
-    // Schema.org @graph — SoftwareSourceCode everywhere (the lib is the
-    // subject of every page); add WebApplication + FAQPage on the home
-    // page only (those describe the consumer tool and its FAQ, which both
-    // live on /). Single <script> tag per page — Google reads @graph
-    // members independently.
+    // Schema.org @graph, one <script> tag per page: see tools/site-schema.ts for what
+    // goes where. Google reads @graph members independently.
     const isHome = pageData.relativePath === 'index.md'
-    const graph: object[] = isHome
-      ? [SCHEMA_SOFTWARE_SOURCE_CODE, SCHEMA_WEB_APPLICATION, SCHEMA_FAQ_PAGE]
-      : [SCHEMA_SOFTWARE_SOURCE_CODE]
+    const graph: object[] = siteGraph(pageData.relativePath)
 
     // Tool pages (tap tempo, BPM to ms, metronome) describe themselves in
     // frontmatter: `tool:` becomes their WebApplication and `faq:` their
@@ -280,16 +153,7 @@ export default defineConfig({
         featureList: tool.featureList,
       })
     }
-    if (faq?.length) {
-      graph.push({
-        '@type': 'FAQPage',
-        mainEntity: faq.map(({ q, a }) => ({
-          '@type': 'Question',
-          name: q,
-          acceptedAnswer: { '@type': 'Answer', text: a },
-        })),
-      })
-    }
+    if (faq?.length) graph.push(toolFaqPage(faq))
 
     if (STORE_URL && pageData.relativePath === 'extension/index.md') {
       graph.push(extensionPageSchema(STORE_URL, canonical, ogDesc))
@@ -328,7 +192,7 @@ export default defineConfig({
     ['script', {}, `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_CONTAINER_ID}');`],
     ['meta', { name: 'theme-color', content: '#646cff' }],
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:locale', content: 'en' }],
+    ['meta', { property: 'og:locale', content: 'en_US' }],
     ['meta', { property: 'og:site_name', content: 'Realtime BPM Analyzer' }],
     // og:url, og:title, og:description, twitter:title, twitter:description
     // are injected per-page via transformPageData so each URL is
@@ -336,19 +200,17 @@ export default defineConfig({
     ['meta', { property: 'og:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
     ['meta', { property: 'og:image:width', content: '1280' }],
     ['meta', { property: 'og:image:height', content: '640' }],
+    ['meta', { property: 'og:image:alt', content: SHARE_IMAGE_ALT }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
+    ['meta', { name: 'twitter:image:alt', content: SHARE_IMAGE_ALT }],
     ['link', { rel: 'icon', type: 'image/png', href: '/favicon/favicon-96x96.png', sizes: '96x96' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon/favicon.svg' }],
     ['link', { rel: 'shortcut icon', href: '/favicon/favicon.ico' }],
     ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/favicon/apple-touch-icon.png' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: 'Realtime BPM Analyzer' }],
     ['link', { rel: 'manifest', href: '/favicon/site.webmanifest'}],
-    // Structured data is injected per-page from transformPageData. The
-    // global library schema (SoftwareSourceCode) ships on every page, while
-    // FAQPage and WebApplication are home-only — see SCHEMA_* constants
-    // above. Keeping the schema out of this global array is what lets the
-    // home-only schemas stay home-only.
+    // Structured data is injected per-page from transformPageData: see tools/site-schema.ts.
   ],
 
 

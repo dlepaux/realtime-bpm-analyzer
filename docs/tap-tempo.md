@@ -14,7 +14,7 @@ faq:
   - q: How do I find the BPM of a song by tapping?
     a: Play the song and tap the pad, or press Space, on every beat. After four taps the BPM settles; keep tapping for eight to sixteen beats for a precise reading. The steadiness score tells you how even your taps are.
   - q: How accurate is tap tempo?
-    a: It is as accurate as your timing. With sixteen steady taps the estimate is usually within 1 BPM, because the tool fits a line through every tap instead of trusting the last interval, so one early or late tap barely moves the result.
+    a: It is as accurate as your timing. The tool fits a line through every tap instead of trusting the last interval, so with sixteen steady taps one early or late tap barely moves the result.
   - q: Why does my BPM come out half or double?
     a: You tapped every other beat, or every off-beat as well. Both are valid readings of the same tempo. Most dance music sits between 90 and 180 BPM, so halve or double into that range if the number looks off.
   - q: How do I start over?

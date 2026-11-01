@@ -27,8 +27,8 @@ rba -r --min-bpm 70 --max-bpm 140 ./music
 | ----------------- | -------------------------------------------------------------- |
 | `--json`          | Print one JSON document instead of text                        |
 | `-r, --recursive` | Walk sub-folders (up to 32 levels)                             |
-| `--min-bpm <bpm>` | Lowest tempo reported (default 90, 50 with `tempogram`)        |
-| `--max-bpm <bpm>` | Highest tempo reported (default 180, 240 with `tempogram`, at least 2 × `--min-bpm`) |
+| `--min-bpm <bpm>` | Lowest tempo reported (default 90)                             |
+| `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`) |
 | `--detector <name>` | `peaks` (default) or `tempogram`                             |
 | `-h, --help`      | Show the help                                                  |
 | `-v, --version`   | Show the version                                               |

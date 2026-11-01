@@ -4,7 +4,7 @@ import {type RealTimeBpmAnalyzerParameters, type CreateRealtimeBpmAnalyzerOption
 import {BpmAnalyzer} from './core/bpm-analyzer';
 import {getBiquadFilter} from './core/offline-pipeline';
 import {resolveDetector, resolveTempoRange} from './core/tempo';
-import {tempogramSettings} from './core/tempogram';
+import {assertTempogramMode} from './core/tempogram';
 
 // Public API surface — explicit named re-exports only.
 // Internal types stay in core/types.ts and are emitted into dist/core/types.d.ts
@@ -177,16 +177,13 @@ export async function createRealtimeBpmAnalyzer(
   // would also fail structured cloning.
   const {processorUrl, ...analyzerOptions} = processorOptions ?? {};
   assertProcessorUrl(processorUrl);
-  // Only to refuse a bad combination here, for the same reason as the comment below
-  tempogramSettings(analyzerOptions);
+  // A refusal here reaches the caller, for the same reason as the comment below
+  assertTempogramMode(analyzerOptions);
   // Validate on the main thread: a throw inside the worklet constructor would not reach the caller.
   // The worklet receives the validated plain object, so structured cloning cannot alter it.
   const options: RealTimeBpmAnalyzerParameters = {
     ...analyzerOptions,
-    // The tempogram searches its own wider range unless the caller set one
-    tempoRange: analyzerOptions.detector === 'tempogram' && analyzerOptions.tempoRange === undefined
-      ? undefined
-      : resolveTempoRange(analyzerOptions.tempoRange),
+    tempoRange: resolveTempoRange(analyzerOptions.tempoRange),
     detector: resolveDetector(analyzerOptions.detector),
   };
   const processorNode = await setupAudioWorkletNode(

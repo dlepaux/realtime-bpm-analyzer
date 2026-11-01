@@ -2,8 +2,9 @@ import {expect} from 'chai';
 import {createClickTrack, createNoise} from '../../fixtures/click-track';
 import {detectors} from '../../../benchmark/lib/detectors';
 import {parseRows, simplestWithinNoise} from '../../../benchmark/lib/sweep';
-import {createTempogramDetector, defaultTempogramTuning, detectTempogram} from '../../../src/core/tempogram';
+import {createTempogramDetector, defaultTempogramRange, defaultTempogramTuning, detectTempogram} from '../../../src/core/tempogram';
 import type {TempogramReading, TempogramTuning} from '../../../src/core/tempogram';
+import type {TempoRange} from '../../../src/core/types';
 
 const sampleRate = 44_100;
 
@@ -30,8 +31,8 @@ function createBrightClicks(bpm: number, seconds: number, gain = 1, rate = sampl
 /**
  * Feeds audio chunk by chunk, as the analyzer does
  */
-function feed(pcm: Float32Array, rate = sampleRate, tuning?: Partial<TempogramTuning>) {
-  const detector = createTempogramDetector({sampleRate: rate, tuning});
+function feed(pcm: Float32Array, rate = sampleRate, tuning?: Partial<TempogramTuning>, tempoRange?: TempoRange) {
+  const detector = createTempogramDetector({sampleRate: rate, tuning, tempoRange});
   const readings: Array<TempogramReading & {at: number}> = [];
 
   for (let start = 0; start + 4096 <= pcm.length; start += 4096) {
@@ -46,7 +47,7 @@ function feed(pcm: Float32Array, rate = sampleRate, tuning?: Partial<TempogramTu
 }
 
 describe('tempogram detector', () => {
-  for (const bpm of [70, 90, 100, 120, 128, 140, 150]) {
+  for (const bpm of [91, 100, 120, 128, 140, 150, 170]) {
     it(`reads clicks at ${bpm} BPM within 2%`, () => {
       const readings = feed(createBrightClicks(bpm, 20));
       const top = readings.at(-1)!.candidates[0];
@@ -154,9 +155,10 @@ describe('tempogram detector', () => {
       pcm[i + 22_050] += soft[i];
     }
 
-    const slowPrior = {priorBpm: 60, priorOctaves: 0.8};
-    const plain = feed(pcm, sampleRate, slowPrior).at(-1)!.candidates[0];
-    const penalised = feed(pcm, sampleRate, {...slowPrior, halfBeatPenalty: 1}).at(-1)!.candidates[0];
+    const slowPrior = {priorBpm: 60, priorOctaves: 0.8, thirdBeatPenalty: 0};
+    const wide = {min: 50, max: 240};
+    const plain = feed(pcm, sampleRate, slowPrior, wide).at(-1)!.candidates[0];
+    const penalised = feed(pcm, sampleRate, {...slowPrior, halfBeatPenalty: 1}, wide).at(-1)!.candidates[0];
 
     expect(Math.abs(plain.tempo - 60)).to.be.lessThan(2);
     expect(Math.abs(penalised.tempo - 120)).to.be.lessThan(3);
@@ -226,32 +228,35 @@ describe('tempogram detector', () => {
 });
 
 describe('tempogram defaults', () => {
-  it('are what the noise rule picked from sweep rba-51-tune-1, and #285 stays measurable', () => {
+  it('are the locked settings, and #285 stays measurable', () => {
     const {priorBpm, priorOctaves, halfBeatPenalty, thirdBeatPenalty, windowSeconds, stableSalience, stableSeconds, halfLifeSeconds, combBeats, stableAgreement, stableMargin} = defaultTempogramTuning;
 
-    expect({priorBpm, priorOctaves, halfBeatPenalty, thirdBeatPenalty}).to.deep.equal({priorBpm: 110, priorOctaves: 0.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.2});
+    expect({priorBpm, priorOctaves, halfBeatPenalty, thirdBeatPenalty}).to.deep.equal({priorBpm: 80, priorOctaves: 1.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.3});
     // The knobs whose gain fell inside the noise keep their value
     expect({windowSeconds, stableSalience, stableSeconds, halfLifeSeconds, combBeats, stableAgreement, stableMargin}).to.deep.equal({windowSeconds: 8, stableSalience: 0.15, stableSeconds: 8, halfLifeSeconds: 16, combBeats: 4, stableAgreement: 0.8, stableMargin: 1.25});
     expect(detectors['tempogram-285'].tuning).to.deep.equal({priorBpm: 136, priorOctaves: 0.8, halfBeatPenalty: 0, thirdBeatPenalty: 0});
   });
 
-  // Literals above could drift with the rows: this runs the rule itself on the committed sweep
-  it('come out of the rule when it runs on the committed sweep', async () => {
+  // History, kept because the first sweep's rule is what the benchmark's readme describes
+  it('leave the first pick where the rule found it on the committed sweep, measurable and no longer shipped', async () => {
     const response = await fetch(new URL('../../../benchmark/results/rba-51-sweep.jsonl', import.meta.url));
     const rows = parseRows(await response.text());
     const base = {...defaultTempogramTuning, ...detectors['tempogram-285'].tuning};
     const chosen = simplestWithinNoise(rows, {fsld: 791, groove: 221, guitarset: 180}, base);
 
     expect(rows).to.have.length(258);
-    expect({...base, ...chosen!.tuning}).to.deep.equal(defaultTempogramTuning);
+    expect(chosen!.tuning).to.deep.include(detectors['tempogram-first'].tuning);
+    expect(defaultTempogramTuning).to.not.include(detectors['tempogram-first'].tuning);
   });
 
-  // The cost of the slower prior, pinned so that moving it is a decision: a clean pulse and its half tie at about 156
-  it('reads a clean pulse below 156 BPM as itself and above it at half', () => {
+  // What the docs promise, pinned so that moving it is a decision. The first pick read 174 at 87 on its 50 to 240
+  it('search 90 to 180 BPM, so a fast pulse reads as itself, over 180 at half and under 90 at double', () => {
     const topOf = (bpm: number) => feed(createBrightClicks(bpm, 30)).at(-1)!.candidates[0].tempo;
 
-    expect(Math.abs(topOf(150) - 150)).to.be.lessThan(3);
-    expect(Math.abs(topOf(174) - 87)).to.be.lessThan(2);
+    expect(defaultTempogramRange).to.deep.equal({min: 90, max: 180});
+    expect(Math.abs(topOf(174) - 174)).to.be.lessThan(3);
+    expect(Math.abs(topOf(200) - 100)).to.be.lessThan(3);
+    expect(Math.abs(topOf(70) - 140)).to.be.lessThan(3);
   });
 });
 

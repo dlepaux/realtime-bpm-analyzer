@@ -106,15 +106,14 @@ describe('realtime-bpm-analyzer CLI', () => {
     }
   });
 
-  it('runs the detector named by --detector, with its own default range', async () => {
+  it('runs the detector named by --detector, on the same default range as peaks', async () => {
     const {results: [peaks]} = await runJson([fixture('click-140.ogg')]);
     const {results: [tempogram]} = await runJson(['--detector', 'tempogram', fixture('click-140.ogg')]);
 
     assert.ok(Math.abs(tempogram.bpm - 140) <= 2, `got ${tempogram.bpm}`);
     assert.notDeepEqual(tempogram.candidates, peaks.candidates);
-    // The tempogram's range is 50..240: a lone --min-bpm is measured against 240, not 180
-    assert.equal((await run(['--detector', 'tempogram', '--min-bpm', '100', bassTest])).code, 0);
-    assert.match((await run(['--detector', 'tempogram', '--min-bpm', '121', bassTest])).stderr, /max \(240\) must be at least twice min \(121\)/);
+    // A lone --min-bpm is measured against 180: the first pick's 240 would let this through
+    assert.match((await run(['--detector', 'tempogram', '--min-bpm', '91', bassTest])).stderr, /max \(180\) must be at least twice min \(91\)/);
   });
 
   it('refuses an unknown detector', async () => {

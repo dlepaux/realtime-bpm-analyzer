@@ -73,6 +73,10 @@ describe('realtime-bpm-analyzer/node', () => {
 
     assert.ok(Math.abs(top.tempo - 128) <= 1, `got ${top.tempo}`);
     await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {detector: 'magic'}), RangeError);
+    // What is published: the first pick, on 50 to 240, read this at half
+    const [fast] = await analyzeChannelData(createClickTrack(174), 44_100, {detector: 'tempogram'});
+
+    assert.ok(Math.abs(fast.tempo - 174) <= 3, `got ${fast.tempo}`);
   });
 
   it('finds the tempo analyzeFullBuffer finds for the bass-test fixture', async () => {

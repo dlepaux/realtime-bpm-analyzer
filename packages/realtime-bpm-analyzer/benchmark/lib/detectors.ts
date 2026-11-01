@@ -18,7 +18,8 @@ const extensionRange = {min: 90, max: 180};
 const wideRange = {min: 50, max: 240};
 // What #285 shipped, fitted on sets that are now evaluation-only: kept as the row to compare against
 const tuning285 = {priorBpm: 136, priorOctaves: 0.8, halfBeatPenalty: 0, thirdBeatPenalty: 0};
-// RBA-51's first pick (b1ab9d3): lost fast music on its look, kept as the row to compare against
+// RBA-51's first pick (b1ab9d3): lost fast music on its look, kept as the row to compare against.
+// Only here: since the second look the library holds the locked values and nothing else
 const tuningFirst = {priorBpm: 110, priorOctaves: 0.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.2};
 // Three points of one ridge on the second sweep's dev surface, equal within its noise: on 90 to 180 the
 // prior is only a tilt, so its two knobs trade off. Candidates for a ruling, not a pick
@@ -27,14 +28,17 @@ const ridge80 = {priorBpm: 80, priorOctaves: 1.7, halfBeatPenalty: 0, thirdBeatP
 const ridge100 = {priorBpm: 100, priorOctaves: 1.3, halfBeatPenalty: 0, thirdBeatPenalty: 0.2};
 const tempogram = {detector: 'tempogram'} as const;
 
+// Rows with no `tuning` read what the library holds now. In result files from before 2026-11-01, `tempogram`,
+// `tempogram-90-180` and `tempogram-90-180-resetting` are the first pick, `tempogram` on 50 to 240.
+// Rows with a past tuning state the range they were measured on, as the library's default moved to 90 to 180.
 export const detectors: Record<string, DetectorConfig> = {
   peaks: {options: {}, lowpass: true, offline: true},
   'peaks-50-240': {options: {tempoRange: wideRange}, lowpass: true, offline: false},
   tempogram: {options: tempogram, lowpass: false, offline: true},
   'tempogram-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false},
-  'tempogram-285': {options: tempogram, lowpass: false, offline: false, tuning: tuning285},
+  'tempogram-285': {options: {...tempogram, tempoRange: wideRange}, lowpass: false, offline: false, tuning: tuning285},
   'tempogram-285-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: tuning285},
-  'tempogram-first': {options: tempogram, lowpass: false, offline: false, tuning: tuningFirst},
+  'tempogram-first': {options: {...tempogram, tempoRange: wideRange}, lowpass: false, offline: false, tuning: tuningFirst},
   'tempogram-first-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: tuningFirst},
   'tempogram-ridge-50-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge50, candidate: true},
   'tempogram-ridge-80-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge80, candidate: true},

@@ -27,9 +27,8 @@ and other formats through ffmpeg when it is installed).
 Options:
   --json             Print one JSON document instead of text
   -r, --recursive    Walk sub-folders of a folder (up to 32 levels)
-  --min-bpm <bpm>    Lowest tempo reported (default 90, 50 with tempogram)
-  --max-bpm <bpm>    Highest tempo reported (default 180, 240 with tempogram,
-                     at least 2 x min)
+  --min-bpm <bpm>    Lowest tempo reported (default 90)
+  --max-bpm <bpm>    Highest tempo reported (default 180, at least 2 x min)
   --detector <name>  peaks (default) or tempogram
   -h, --help         Show this help
   -v, --version      Show the version
@@ -83,7 +82,7 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
     return {kind: 'usage-error', message: `Invalid detector: ${detector}. Use peaks or tempogram.`};
   }
 
-  const range = await parseTempoRange(values['min-bpm'], values['max-bpm'], detector);
+  const range = await parseTempoRange(values['min-bpm'], values['max-bpm']);
   if (typeof range === 'string') {
     return {kind: 'usage-error', message: range};
   }
@@ -99,16 +98,15 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
  * and validates it now so a bad range fails before any file is decoded.
  * @param min Raw --min-bpm value
  * @param max Raw --max-bpm value
- * @param detector Detector the range is for
  * @returns The range, undefined for the default, or an error message
  */
-async function parseTempoRange(min: string | undefined, max: string | undefined, detector: Detector): Promise<TempoRange | undefined | string> {
+async function parseTempoRange(min: string | undefined, max: string | undefined): Promise<TempoRange | undefined | string> {
   // Number('') is 0, so an empty value must not slip through as a number
   const toNumber = (raw: string | undefined) =>
     raw === undefined ? undefined : (raw.trim() === '' ? Number.NaN : Number(raw));
 
   try {
-    return await resolveTempoRange(toNumber(min), toNumber(max), detector);
+    return await resolveTempoRange(toNumber(min), toNumber(max));
   } catch (error: unknown) {
     return errorMessage(error);
   }

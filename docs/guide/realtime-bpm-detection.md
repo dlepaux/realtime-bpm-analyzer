@@ -265,9 +265,8 @@ in a 70–140 range) jitters across it, and its votes split between 140 and
 
 An experimental detector reads the tempo from an onset tempogram rather
 than from peaks in low-passed audio. It weighs tempos with a prior instead
-of folding them, so an 85 BPM track can read as 85, and it only calls a
-tempo stable once the tempo agreed over several seconds and clearly leads
-its rivals. Opt in with the `detector` option, and connect the source to
+of folding them, and it only calls a tempo stable once the tempo agreed over
+several seconds and clearly leads its rivals. Opt in with the `detector` option, and connect the source to
 `bpmAnalyzer.input`. That node holds what the detector needs in front of
 it, the lowpass for `peaks` and nothing for `tempogram`, so the wiring is
 the same for both. The tempogram needs the full band, so it must not go
@@ -283,8 +282,30 @@ source.connect(bpmAnalyzer.input);
 
 `analyzeFullBuffer(buffer, {detector: 'tempogram'})`, `analyzeChannelData`
 in Node, the CLI's `--detector tempogram` and the MCP server's `detector`
-argument run it on whole files. `tempoRange` still limits the tempos
-searched, but nothing is folded into it. The default stays `'peaks'`.
+argument run it on whole files. The default stays `'peaks'`.
+
+It searches 90 to 180 BPM, and a tempo outside that reads at the octave
+inside: a 200 BPM track reads 100, a 70 BPM track reads 140. `tempoRange`
+changes what is searched, but nothing is folded into it, and only 90 to 180
+was measured: a wider range lets fast music read at half. `continuousAnalysis`
+works with it too, but its reset keeps the tempogram from ever reaching stable.
+
+### `tempogramMode: 'extension'`
+
+For a browser extension or any other page listening to a tab, which wants
+to be sure it runs the settings that were measured. It reads exactly as
+`detector: 'tempogram'` does, and refuses what would leave those settings: a
+`tempoRange` other than 90 to 180, and `continuousAnalysis`. So over 180 BPM
+still reads half. It applies to real-time analysis only.
+
+```typescript
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  detector: 'tempogram',
+  tempogramMode: 'extension',
+});
+
+source.connect(bpmAnalyzer.input);
+```
 
 ## The lowpass filter — why it's there
 

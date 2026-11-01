@@ -50,12 +50,9 @@ export const audioExtensions: ReadonlySet<string> = new Set([
   '.mp3', '.wav', '.wave', '.flac', '.ogg', '.oga', '.opus', '.m4a', '.aac', '.aif', '.aiff', '.wma',
 ]);
 
-// The library's default tempoRange per detector, to fill a missing bound. /node does not export
-// them, so tests/cli.test.mjs pins these values to the library's behaviour.
-const defaultTempoRanges: Record<Detector, TempoRange> = {
-  peaks: {min: 90, max: 180},
-  tempogram: {min: 50, max: 240},
-};
+// The library's default tempoRange, the same for both detectors, to fill a missing bound. /node does
+// not export it, so tests/cli.test.mjs pins these values to the library's behaviour.
+const defaultTempoRange: TempoRange = {min: 90, max: 180};
 
 /**
  * Builds the result of an analysed file.
@@ -93,20 +90,15 @@ export async function analyzeFile(path: string, options: AnalyzeOptions = {}): P
  * and validates it up front so a bad range fails before any file is decoded.
  * @param min Lowest tempo, or undefined for the default
  * @param max Highest tempo, or undefined for the default
- * @param detector Detector the range is for, whose default fills a missing bound
  * @returns The range, or undefined when both bounds are omitted (the library default)
  * @throws {Error} The library's message when the range is invalid
  */
-export async function resolveTempoRange(
-  min: number | undefined,
-  max: number | undefined,
-  detector: Detector = 'peaks',
-): Promise<TempoRange | undefined> {
+export async function resolveTempoRange(min: number | undefined, max: number | undefined): Promise<TempoRange | undefined> {
   if (min === undefined && max === undefined) {
     return undefined;
   }
 
-  const range = {min: min ?? defaultTempoRanges[detector].min, max: max ?? defaultTempoRanges[detector].max};
+  const range = {min: min ?? defaultTempoRange.min, max: max ?? defaultTempoRange.max};
   // The library validates tempoRange before it filters anything, so one sample is enough
   // to get its verdict and its message without copying its rules here
   await analyzeChannelData(new Float32Array(1), 44_100, {tempoRange: range});

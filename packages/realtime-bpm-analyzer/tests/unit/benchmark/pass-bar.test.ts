@@ -2,7 +2,8 @@ import {expect} from 'chai';
 import {against285, candidate, gatedBands, heldoutTracks, lookFaults, measure, outOfRange, passBar, reference, reference285} from '../../../benchmark/lib/pass-bar';
 import {detectors, lookDetectors, pickedConfiguration} from '../../../benchmark/lib/detectors';
 import {parseRows, pickWithGuard} from '../../../benchmark/lib/sweep';
-import {defaultTempogramTuning, extensionTempogramMode} from '../../../src/core/tempogram';
+import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
+import {defaultTempogramRange, defaultTempogramTuning} from '../../../src/core/tempogram';
 import type {TrackResult} from '../../../benchmark/lib/types';
 
 type Track = {set: string; id: string; group: string; truth: number};
@@ -187,8 +188,8 @@ describe('what the second look fixes', () => {
   it('holds what the dev tables measured as ridge-80', () => {
     const ridge = detectors['tempogram-ridge-80-90-180'];
 
-    expect(extensionTempogramMode.tuning).to.deep.equal(ridge.tuning);
-    expect(extensionTempogramMode.tempoRange).to.deep.equal(ridge.options.tempoRange);
+    expect(defaultTempogramTuning).to.include(ridge.tuning);
+    expect(defaultTempogramRange).to.deep.equal(ridge.options.tempoRange);
   });
 
   // The DECISION fixed these values and amended the rule: this runs the amended rule on the committed rows
@@ -199,14 +200,15 @@ describe('what the second look fixes', () => {
     const chosen = pickWithGuard(rows, {fsld: 791, groove: 221, guitarset: 180}, base);
 
     expect(rows).to.have.length(2118);
-    expect(chosen?.tuning).to.deep.equal(extensionTempogramMode.tuning);
-    expect(chosen?.tempoRange).to.deep.equal(extensionTempogramMode.tempoRange);
+    expect(defaultTempogramTuning).to.include(chosen?.tuning);
+    expect(chosen?.tempoRange).to.deep.equal(defaultTempogramRange);
   });
 
-  it('leaves the library defaults alone: peaks by default, and the tempogram\'s first pick', () => {
+  it('leaves peaks the default detector, and the first pick only as a row to compare against', () => {
+    expect(new RealTimeBpmAnalyzer().options.detector).to.equal('peaks');
     expect(detectors.peaks.options).to.deep.equal({});
-    expect(defaultTempogramTuning.priorBpm).to.equal(110);
-    expect(defaultTempogramTuning.priorOctaves).to.equal(0.7);
-    expect(defaultTempogramTuning.thirdBeatPenalty).to.equal(0.2);
+    expect(detectors['tempogram-first'].tuning).to.include({priorBpm: 110, priorOctaves: 0.7, thirdBeatPenalty: 0.2});
+    expect(detectors['tempogram-first'].options.tempoRange).to.deep.equal({min: 50, max: 240});
+    expect(detectors['tempogram-285'].options.tempoRange).to.deep.equal({min: 50, max: 240});
   });
 });

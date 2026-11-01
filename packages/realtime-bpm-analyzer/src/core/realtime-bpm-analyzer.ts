@@ -1,6 +1,6 @@
 import {findPeaksAtThreshold} from './peak-detection';
 import {computeBpm, computeProgress, resolveDetector, resolveTempoRange} from './tempo';
-import {createTempogramDetector, tempogramSettings} from './tempogram';
+import {assertTempogramMode, createTempogramDetector} from './tempogram';
 import type {TempogramDetector} from './tempogram';
 import type {
   BpmProgress,
@@ -85,17 +85,11 @@ export class RealTimeBpmAnalyzer {
    * Created on the first chunk, the first time the sample rate is known
    */
   tempogram?: TempogramDetector;
-  /**
-   * What the tempogram is built with. It only limits its search when the caller or a named mode asked:
-   * `options.tempoRange` always holds a range
-   */
-  tempogramSettings: ReturnType<typeof tempogramSettings>;
-
   constructor(options: RealTimeBpmAnalyzerParameters = {}) {
     Object.assign(this.options, options);
     this.options.tempoRange = resolveTempoRange(options.tempoRange);
     this.options.detector = resolveDetector(options.detector);
-    this.tempogramSettings = tempogramSettings(options);
+    assertTempogramMode(options);
     this.updateComputedValues();
   }
 
@@ -256,7 +250,7 @@ export class RealTimeBpmAnalyzer {
     channelData: Float32Array,
     postMessage: (data: ProcessorOutputEvent) => void,
   ): void {
-    this.tempogram ??= createTempogramDetector({sampleRate: audioSampleRate, ...this.tempogramSettings});
+    this.tempogram ??= createTempogramDetector({sampleRate: audioSampleRate, tempoRange: this.options.tempoRange});
 
     const reading = this.tempogram.process(channelData);
 

@@ -2,6 +2,7 @@ import {expect} from 'chai';
 import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
 import {createTempogramDetector} from '../../../src/core/tempogram';
 import type {ProcessorOutputEvent} from '../../../src/core/types';
+import {analyzeChannelData} from '../../../src/node';
 import {createClickTrack} from '../../fixtures/click-track';
 
 const sampleRate = 44_100;
@@ -23,17 +24,61 @@ async function stream(analyzer: RealTimeBpmAnalyzer, pcm: Float32Array): Promise
   return events;
 }
 
+// Literals on purpose: what the DECISION locked, not what the source holds today
+const lockedRange = {min: 90, max: 180};
+const lockedTuning = {priorBpm: 80, priorOctaves: 1.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.3};
+
+function measuredAnalyzer(): RealTimeBpmAnalyzer {
+  const analyzer = new RealTimeBpmAnalyzer({detector: 'tempogram', tempoRange: lockedRange});
+
+  analyzer.tempogram = createTempogramDetector({sampleRate, tempoRange: lockedRange, tuning: lockedTuning});
+
+  return analyzer;
+}
+
+describe('one tempogram behaviour', () => {
+  for (const [name, options] of [
+    ['bare', {detector: 'tempogram'}],
+    ['named mode', {detector: 'tempogram', tempogramMode: 'extension'}],
+  ] as const) {
+    it(`reads the locked settings, as the ${name} option`, async () => {
+      const pcm = createClickTrack(128, sampleRate, 20);
+
+      expect(await stream(new RealTimeBpmAnalyzer(options), pcm)).to.deep.equal(await stream(measuredAnalyzer(), pcm));
+    });
+  }
+
+  it('reads a whole file with the locked settings, for analyzeChannelData and all that calls it', async () => {
+    const seconds = 20;
+    const pcm = createClickTrack(128, sampleRate, seconds);
+    const measured = createTempogramDetector({
+      sampleRate,
+      tempoRange: lockedRange,
+      tuning: {...lockedTuning, halfLifeSeconds: Number.POSITIVE_INFINITY},
+    }).process(pcm);
+
+    expect(await analyzeChannelData(pcm, sampleRate, {detector: 'tempogram'})).to.deep.equal(measured?.candidates);
+  });
+
+  it('reads fast music as itself on both paths, where the first pick read it at half', async () => {
+    const pcm = createClickTrack(174, sampleRate, 30);
+    const events = await stream(new RealTimeBpmAnalyzer({detector: 'tempogram'}), pcm);
+    const readings = events.flatMap(event => (event.type === 'bpm' ? [event.data.bpm[0].tempo] : []));
+    const [whole] = await analyzeChannelData(pcm, sampleRate, {detector: 'tempogram'});
+
+    expect(readings.at(-1)).to.be.within(170, 178);
+    expect(whole.tempo).to.be.within(170, 178);
+  });
+
+  it('still lets a caller set the range searched', async () => {
+    const candidates = await analyzeChannelData(createClickTrack(128, sampleRate, 20), sampleRate, {detector: 'tempogram', tempoRange: {min: 50, max: 100}});
+
+    expect(candidates.every(({tempo}) => tempo >= 50 && tempo <= 100)).to.equal(true);
+  });
+});
+
 describe('tempogramMode', () => {
   const extension = {detector: 'tempogram', tempogramMode: 'extension'} as const;
-
-  it('reads as the candidate RBA-51 measured', async () => {
-    const pcm = createClickTrack(128, sampleRate, 20);
-    const measured = new RealTimeBpmAnalyzer({detector: 'tempogram', tempoRange: {min: 90, max: 180}});
-
-    measured.tempogram = createTempogramDetector({sampleRate, tempoRange: {min: 90, max: 180}, tuning: {priorBpm: 80, priorOctaves: 1.7, thirdBeatPenalty: 0.3}});
-
-    expect(await stream(new RealTimeBpmAnalyzer(extension), pcm)).to.deep.equal(await stream(measured, pcm));
-  });
 
   it('searches 90 to 180 BPM, so a fast pulse cannot read at half', async () => {
     const events = await stream(new RealTimeBpmAnalyzer(extension), createClickTrack(170, sampleRate, 20));
@@ -49,10 +94,6 @@ describe('tempogramMode', () => {
     expect(() => new RealTimeBpmAnalyzer({tempogramMode: 'extension'})).to.throw(RangeError, 'needs detector');
     // @ts-expect-error Invalid on purpose
     expect(() => new RealTimeBpmAnalyzer({detector: 'tempogram', tempogramMode: 'magic'})).to.throw(RangeError, 'Invalid tempogramMode');
-  });
-
-  it('changes nothing for a tempogram that does not ask', () => {
-    expect(new RealTimeBpmAnalyzer({detector: 'tempogram'}).tempogramSettings).to.deep.equal({tempoRange: undefined});
   });
 });
 

@@ -46,7 +46,7 @@ Then ask, for example: "What's the BPM of ~/Music/set/track.mp3?" or "Sort the t
 - Formats: MP3, WAV, FLAC, OGG Vorbis and Opus decode in pure JavaScript/WebAssembly.
   M4A/AAC, AIFF and WMA go through [ffmpeg](https://ffmpeg.org) when it is installed (set
   `FFMPEG_PATH` in the server's `env` to point at a binary that is not on the `PATH`).
-- Tempos are folded into `min_bpm`..`max_bpm` (default 90 to 180). With `detector: "tempogram"` that range is searched instead (default 50 to 240).
+- Tempos are folded into `min_bpm`..`max_bpm` (default 90 to 180). With `detector: "tempogram"` that range is searched instead, and a tempo outside it reads at the octave inside: over 180 reads half.
 - Paths are absolute, start with `~`, or are relative to the server's working directory.
 - Limits: files over 100 MB are refused, and so is audio that decodes to more than 2048 MB in
   its first channel: 202 minutes at 44.1 kHz, however small the file (a file that fits peaks at about

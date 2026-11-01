@@ -37,11 +37,11 @@ export type TempogramTuning = {
    * Off: at 0.25 the best dev score fell from 81.0 to 72.8, and further from there.
    */
   readonly halfBeatPenalty: number;
-  /** The same for pulses a third of the way through its beats. From 0 to 0.2, dev Acc2 rose 5 points */
+  /** The same for pulses a third of the way through its beats */
   readonly thirdBeatPenalty: number;
   /**
-   * Centre of the tempo prior, in BPM. A clean pulse T and its half T/2 tie at T/√2 = this, so with
-   * 110 a pulse above about 156 BPM reads at half: what the dev mix favours, not a law of music.
+   * Centre of the tempo prior, in BPM. A clean pulse T and its half T/2 tie at T/√2 = this, so on a
+   * range that holds both, a pulse above that tie reads at half: why the range is part of the settings.
    */
   readonly priorBpm: number;
   /** Width of the tempo prior, in octaves */
@@ -60,6 +60,11 @@ export type TempogramTuning = {
   readonly readingSalience: number;
 };
 
+/**
+ * The settings RBA-51 locked on 2026-10-31 and checked once on held-out data, the only ones a caller can
+ * get: no public option sets a knob. The prior, its width and the third-beat penalty were fixed by that
+ * DECISION, so changing them needs a new ruling, and a new measure on data that has not been seen.
+ */
 export const defaultTempogramTuning: TempogramTuning = {
   frameRate: 100,
   bands: [30, 200, 500, 1500, 4000, 10_000],
@@ -71,9 +76,9 @@ export const defaultTempogramTuning: TempogramTuning = {
   combBeats: 4,
   halfLifeSeconds: 16,
   halfBeatPenalty: 0,
-  thirdBeatPenalty: 0.2,
-  priorBpm: 110,
-  priorOctaves: 0.7,
+  thirdBeatPenalty: 0.3,
+  priorBpm: 80,
+  priorOctaves: 1.7,
   stableSeconds: 8,
   stableAgreement: 0.8,
   stableTolerance: 0.02,
@@ -83,34 +88,28 @@ export const defaultTempogramTuning: TempogramTuning = {
 };
 
 /**
- * RBA-51's candidate for the extension, fixed by its DECISION of 2026-10-31 before its second look. Here
- * and not in `defaultTempogramTuning` on purpose: a narrow range is what makes this prior safe, because
- * it is only a tilt once the half of a fast tempo is out of reach. On 50 to 240 BPM these values would
- * be another detector, and nothing has measured them there.
+ * What the tuning above was measured on. The range is part of the settings: this prior is only a tilt once
+ * the half of a fast tempo is out of reach, so a wider range is another detector, which nothing measured.
+ * A tempo outside it reads at the octave inside: 200 BPM reads 100, 70 reads 140.
  */
-export const extensionTempogramMode = {
-  tempoRange: {min: 90, max: 180},
-  tuning: {priorBpm: 80, priorOctaves: 1.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.3},
-} as const;
+export const defaultTempogramRange: TempoRange = {min: 90, max: 180};
 
 /**
+ * Refuses a named mode whose guarantee the other options would break. The mode changes no setting, it only
+ * holds the caller to the settings that were measured, which include the range and the absence of a reset.
  * @param options The analyzer's options
- * @returns What the tempogram is built with
- * @throws {RangeError} When a named mode is unknown, or the options contradict it. Measured settings
- * include the range and the absence of a reset, so a caller changing either is not running them
+ * @throws {RangeError} When the mode is unknown, or the options contradict it
  */
-export function tempogramSettings(options: RealTimeBpmAnalyzerParameters): {tempoRange?: TempoRange; tuning?: Partial<TempogramTuning>} {
-  const {tempogramMode, detector, tempoRange, continuousAnalysis} = options;
-
+export function assertTempogramMode({tempogramMode, detector, tempoRange, continuousAnalysis}: RealTimeBpmAnalyzerParameters): void {
   if (tempogramMode === undefined) {
-    return {tempoRange};
+    return;
   }
 
   if (tempogramMode !== 'extension') {
     throw new RangeError(`Invalid tempogramMode: ${String(tempogramMode)}. Use 'extension'.`);
   }
 
-  const {min, max} = extensionTempogramMode.tempoRange;
+  const {min, max} = defaultTempogramRange;
 
   if (detector !== 'tempogram') {
     throw new RangeError('tempogramMode needs detector: \'tempogram\'.');
@@ -123,12 +122,7 @@ export function tempogramSettings(options: RealTimeBpmAnalyzerParameters): {temp
   if (continuousAnalysis) {
     throw new RangeError('tempogramMode \'extension\' was measured without continuousAnalysis, whose reset never lets the tempogram reach stable.');
   }
-
-  return extensionTempogramMode;
 }
-
-/** Bounds of the grid when the caller sets no range: the tempos of the evaluated sets, with margin */
-export const defaultTempogramRange: TempoRange = {min: 50, max: 240};
 
 /** Tempo grid resolution: tempo ratio between neighbours, finer than the ±4% that counts as correct */
 const gridRatio = 1.01;
@@ -670,12 +664,12 @@ const shortestRecordingSeconds = 1.5;
  * file has no "now" to follow, and a short file reads as soon as it ends instead of never.
  * @param channelData PCM samples of one channel, not lowpassed
  * @param sampleRate Sample rate in Hz
- * @param tempoRange Tempos searched, when the caller limits them
+ * @param tempoRange Tempos searched (default: 90 to 180 BPM)
  * @returns Up to 5 tempo candidates, best first, empty when no pulse stands out
  * @throws {RangeError} When `tempoRange` is invalid
  */
 export function detectTempogram(channelData: Float32Array, sampleRate: number, tempoRange?: TempoRange): Tempo[] {
-  const range = tempoRange === undefined ? undefined : resolveTempoRange(tempoRange);
+  const range = resolveTempoRange(tempoRange);
   const seconds = channelData.length / sampleRate;
 
   if (seconds < shortestRecordingSeconds) {

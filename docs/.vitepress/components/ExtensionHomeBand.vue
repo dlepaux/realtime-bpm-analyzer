@@ -18,7 +18,7 @@ import { EXTENSION_PAGE } from '../tools/extension-promo'
             alt=""
             width="24"
             height="24"
-          >
+          />
           Live BPM Detector
         </p>
         <h2>See the tempo of what's playing in a tab</h2>

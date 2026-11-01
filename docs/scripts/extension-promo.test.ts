@@ -150,8 +150,8 @@ test('page: makes no claim the evidence does not carry', () => {
 
 test('the promotion outside the page makes the same claims only', () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
-  // Copy only: a component's script holds comments, and its template holds code in bindings.
-  const copy = (path: string) => read(path).replace(/<script[\s\S]*?<\/script>/, '').replace(/:style="[^"]*"/g, '')
+  // Copy only: the template, because the script holds comments, without its style bindings.
+  const copy = (path: string) => read(path).slice(read(path).indexOf('<template>')).replace(/:style="[^"]*"/g, '')
   const lines = (path: string) => read(path).split('\n').filter((line) => line.includes('ExtensionMention lead')).join(' ')
   const surfaces = {
     band: copy('../.vitepress/components/ExtensionHomeBand.vue'),

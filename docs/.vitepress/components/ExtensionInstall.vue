@@ -13,7 +13,7 @@ import { SEND_LINK_MAILTO, sharePageLink } from '../tools/extension-promo'
 withDefaults(defineProps<{ promptLink?: boolean }>(), { promptLink: false })
 
 function sendLink(event: MouseEvent) {
-  const share = typeof navigator.share === 'function' ? (data: ShareData) => navigator.share(data) : undefined
+  const share = typeof navigator.share === 'function' ? navigator.share.bind(navigator) : undefined
   if (sharePageLink(share, () => { window.location.href = SEND_LINK_MAILTO })) event.preventDefault()
 }
 </script>

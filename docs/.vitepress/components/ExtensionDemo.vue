@@ -30,7 +30,7 @@ const BARS = [30, 52, 40, 68, 46, 82, 58, 36, 72, 50, 90, 44, 64, 34, 78, 54, 42
           alt=""
           width="18"
           height="18"
-        >
+        />
         <span class="ext-demo-badge">120</span>
       </span>
     </div>
@@ -43,9 +43,9 @@ const BARS = [30, 52, 40, 68, 46, 82, 58, 36, 72, 50, 90, 44, 64, 34, 78, 54, 42
           v-for="(height, index) in BARS"
           :key="index"
           :style="{ height: `${height}%` }"
-        />
+        ></span>
       </div>
-      <div class="ext-demo-scrub" />
+      <div class="ext-demo-scrub"></div>
       <div class="ext-demo-pills">
         <ExtensionPill stability="listening" />
         <ExtensionPill

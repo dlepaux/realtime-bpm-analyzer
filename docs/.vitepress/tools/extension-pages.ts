@@ -90,12 +90,12 @@ export function splitReleases(
 // ── Sitemap ─────────────────────────────────────────────────────────────────
 
 /**
- * True for a sitemap URL under extension/ other than the privacy policy. The policy
- * is the one public page there: the Chrome Web Store listing and search both need
- * to reach it. A new page under extension/ stays out of the sitemap by default.
+ * True for a sitemap URL under extension/ other than the two public pages there: the
+ * privacy policy, which the Chrome Web Store listing and search both need to reach, and
+ * the extension's own page. A new page under extension/ stays out by default.
  */
 export function isUsersOnlyExtensionPage(url: string): boolean {
-  return /^\/?extension\/(?!privacy(\.html)?$)/.test(url)
+  return /^\/?extension\/(?!(privacy(\.html)?|(index\.html)?)$)/.test(url)
 }
 
 // ── Goodbye ─────────────────────────────────────────────────────────────────

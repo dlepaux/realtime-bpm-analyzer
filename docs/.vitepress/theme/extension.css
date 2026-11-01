@@ -1,6 +1,7 @@
-/* The pages the browser extension opens: /extension/welcome, /whats-new, /goodbye.
-   Site tokens everywhere, except the overlay pill, which keeps the extension's own
-   colours (rba-pro extension/src/overlay/view.ts) so it looks like what users get. */
+/* The extension's own page, its home section, and the pages it opens: /extension/welcome,
+   /whats-new, /goodbye. Site tokens, except the overlay pill, which keeps the extension's
+   own colours (rba-pro extension/src/overlay/view.ts), and the demo and privacy band, dark
+   in both themes so they read as the product and as their own moment. */
 
 /* ── The overlay pill ─────────────────────────────────────────────────────── */
 
@@ -493,7 +494,7 @@
 
 /* ── Home: the section under the hero ─────────────────────────────────────── */
 
-.ext-band { padding: 56px 24px; background: var(--vp-c-bg-soft); }
+.ext-band { margin-bottom: 48px; padding: 56px 24px; background: var(--vp-c-bg-soft); }
 
 .ext-band-inner {
   display: grid;
@@ -560,7 +561,7 @@
 .vp-doc.ext-landing h3 { margin: 0 0 0.4rem; font-size: 1.125rem; font-weight: 600; line-height: 1.3; }
 .vp-doc .ext-intro { margin: -0.75rem 0 1rem; color: var(--vp-c-text-2); font-size: 1.0625rem; }
 
-/* Grid areas let the phone read name, headline, demo, lede, action, in source order. */
+/* The phone reads name, headline, demo, lede, action, in source order. */
 .vp-doc .ext-hero {
   display: grid;
   gap: 16px;
@@ -731,3 +732,16 @@
 
 /* A jump to the install-prompt answer shouldn't land under the sticky nav. */
 #chrome-prompt { scroll-margin-top: calc(var(--vp-nav-height) + 16px); }
+
+/* The extra nav item leaves too little room between 960 and 1120 px, and the site's name
+   is what would be cut. The search collapses to its icon instead. Only with the item:
+   the switch off leaves the nav as it was. */
+@media (min-width: 960px) and (max-width: 1119px) {
+  .VPNav:has(.VPNavBarMenu a[href='/extension/']) .VPNavBarSearch .DocSearch-Button-Placeholder,
+  .VPNav:has(.VPNavBarMenu a[href='/extension/']) .VPNavBarSearch .DocSearch-Button-Keys { display: none; }
+}
+
+@media (min-width: 960px) and (max-width: 999px) {
+  .VPNav:has(.VPNavBarMenu a[href='/extension/']) .VPNavBarMenu .VPNavBarMenuLink,
+  .VPNav:has(.VPNavBarMenu a[href='/extension/']) .VPNavBarMenu .VPFlyout .button { padding-inline: 7px; }
+}

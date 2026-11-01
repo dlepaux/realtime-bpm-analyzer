@@ -73,10 +73,36 @@ export function extensionHeroActions(storeUrl: string | null) {
   return [{ theme: 'brand', text: 'Live BPM Detector for Chrome', link: EXTENSION_PAGE }]
 }
 
+export const EXTENSION_HERO_TAGLINE = 'Free, private BPM detection, right in your browser. Also a Chrome extension for the music in your tabs, and a zero-dependency TypeScript library for developers.'
+
+/**
+ * The home hero as the switch leaves it. The page's meta description stays out of this:
+ * RBA-11 holds the home page's title and description until its readbacks.
+ */
+export function extensionHomeHero<Hero extends { tagline: string; actions: object[] }>(hero: Hero, storeUrl: string | null): Hero {
+  if (storeUrl === null) return hero
+  return { ...hero, tagline: EXTENSION_HERO_TAGLINE, actions: [...extensionHeroActions(storeUrl), ...hero.actions] }
+}
+
 // A phone can't install it, so a phone's action is getting the page to a computer. No
 // form and no parameter on the link: it is the same address anyone can copy.
 export const SEND_LINK_URL = 'https://www.realtime-bpm-analyzer.com/extension/'
 export const SEND_LINK_MAILTO = `mailto:?subject=${encodeURIComponent('Live BPM Detector')}&body=${encodeURIComponent(SEND_LINK_URL)}`
+
+/**
+ * Sends the page through the device's share sheet. Returns false when there is none, so
+ * the link's own mailto runs. Closing the sheet is a choice, not a failure.
+ */
+export function sharePageLink(
+  share: ((data: { title: string; url: string }) => Promise<void>) | undefined,
+  openMail: () => void,
+): boolean {
+  if (share === undefined) return false
+  share({ title: 'Live BPM Detector', url: SEND_LINK_URL }).catch((error: { name?: string }) => {
+    if (error.name !== 'AbortError') openMail()
+  })
+  return true
+}
 
 // The linked platforms where the store listing says it works. The analyzer also
 // recognises Spotify, Apple Music and Deezer links, which the extension doesn't promise.
@@ -95,8 +121,22 @@ export const EXTENSION_SHARE_IMAGE = {
   alt: 'Live BPM Detector, a free Chrome extension: the overlay showing an example reading of 120 BPM, marked stable.',
 } as const
 
-/** llms.txt's line for the extension, added at build time because the file is static. */
+/** llms.txt's line for the extension. */
 export const EXTENSION_LLMS_LINE = `- [Live BPM Detector](${SEND_LINK_URL}): free Chrome extension that shows the live BPM of the music playing in the current tab, on the page, with the audio analysed on the device`
+
+/**
+ * llms.txt with the extension in it, in its summary and ahead of the library, since
+ * readers weight the top. Done at build time because the file is static. Throws if the
+ * file's shape moved, so the line can't quietly go missing.
+ */
+export function llmsWithExtension(llms: string): string {
+  const summary = 'tempo (BPM) work, plus the'
+  const library = '## Library'
+  if (!llms.includes(summary) || !llms.includes(library)) throw new Error('llms.txt changed shape: update llmsWithExtension')
+  return llms
+    .replace(summary, 'tempo (BPM) work, a Chrome extension that shows the tempo of the music in a tab, plus the')
+    .replace(library, `## Browser extension\n\n${EXTENSION_LLMS_LINE}\n\n${library}`)
+}
 
 /**
  * Schema.org for the page. The Offer says what the store says: free. No rating or

@@ -1,12 +1,12 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig, type HeadConfig } from 'vitepress'
 import { createRequire } from 'module'
-import { appendFileSync, copyFileSync } from 'node:fs'
+import { copyFileSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isUsersOnlyExtensionPage } from './tools/extension-pages'
 import { isNoindexPage, SCHEMA_WEB_APPLICATION, siteGraph, toolFaqPage } from './tools/site-schema'
 import { STORE_URL } from './tools/extension-live'
-import { EXTENSION_LLMS_LINE, EXTENSION_SHARE_IMAGE, excludedSources, extensionHeroActions, extensionNavItems, extensionPageSchema } from './tools/extension-promo'
+import { EXTENSION_SHARE_IMAGE, excludedSources, extensionHomeHero, extensionNavItems, extensionPageSchema, llmsWithExtension } from './tools/extension-promo'
 
 const require = createRequire(import.meta.url)
 // The library's version, through its workspace link (packages/realtime-bpm-analyzer)
@@ -55,7 +55,8 @@ const COPYRIGHT_YEARS = COPYRIGHT_END_YEAR > COPYRIGHT_START_YEAR
   : `${COPYRIGHT_START_YEAR}`
 
 const SITE_URL = 'https://www.realtime-bpm-analyzer.com'
-const SITE_SHARE_IMAGE = {
+type ShareImage = { readonly file: string; readonly width: number; readonly height: number; readonly alt: string }
+const SITE_SHARE_IMAGE: ShareImage = {
   file: 'realtime-bpm-analyzer-share.png',
   width: 1280,
   height: 640,
@@ -63,6 +64,25 @@ const SITE_SHARE_IMAGE = {
 }
 
 // https://vitepress.dev/reference/site-config
+/** What a page tells link previews and crawlers about itself. */
+function shareHead(url: string, title: string, description: string, image: ShareImage): HeadConfig[] {
+  const imageUrl = `${SITE_URL}/${image.file}`
+  return [
+    ['link', { rel: 'canonical', href: url }],
+    ['meta', { property: 'og:url', content: url }],
+    ['meta', { property: 'og:title', content: title }],
+    ['meta', { property: 'og:description', content: description }],
+    ['meta', { name: 'twitter:title', content: title }],
+    ['meta', { name: 'twitter:description', content: description }],
+    ['meta', { property: 'og:image', content: imageUrl }],
+    ['meta', { property: 'og:image:width', content: String(image.width) }],
+    ['meta', { property: 'og:image:height', content: String(image.height) }],
+    ['meta', { property: 'og:image:alt', content: image.alt }],
+    ['meta', { name: 'twitter:image', content: imageUrl }],
+    ['meta', { name: 'twitter:image:alt', content: image.alt }],
+  ]
+}
+
 export default defineConfig({
   title: "Realtime BPM Analyzer",
   titleTemplate: ":title | Realtime BPM Analyzer",
@@ -117,7 +137,8 @@ export default defineConfig({
     if (!STORE_URL) return
     const assets = fileURLToPath(new URL('./assets/extension/', import.meta.url))
     copyFileSync(join(assets, EXTENSION_SHARE_IMAGE.file), join(outDir, EXTENSION_SHARE_IMAGE.file))
-    appendFileSync(join(outDir, 'llms.txt'), `\n## Browser extension\n\n${EXTENSION_LLMS_LINE}\n`)
+    const llms = join(outDir, 'llms.txt')
+    writeFileSync(llms, llmsWithExtension(readFileSync(llms, 'utf8')))
   },
 
   // Per-page canonical + og:url + per-page og/twitter title/description.
@@ -179,10 +200,7 @@ export default defineConfig({
     if (STORE_URL && pageData.relativePath === 'extension/index.md') {
       graph.push(extensionPageSchema(STORE_URL, canonical, ogDesc))
     }
-    if (isHome) {
-      const hero = pageData.frontmatter.hero as { actions: object[] }
-      pageData.frontmatter.hero = { ...hero, actions: [...extensionHeroActions(STORE_URL), ...hero.actions] }
-    }
+    if (isHome) pageData.frontmatter.hero = extensionHomeHero(pageData.frontmatter.hero, STORE_URL)
 
     // Emitted per page, not from `head:` below: crawlers use the first occurrence, so a
     // global tag would pin every page to the site's image.
@@ -192,18 +210,7 @@ export default defineConfig({
 
     pageData.frontmatter.head ??= []
     pageData.frontmatter.head.push(
-      ['link', { rel: 'canonical', href: canonical }],
-      ['meta', { property: 'og:url', content: canonical }],
-      ['meta', { property: 'og:title', content: ogTitle }],
-      ['meta', { property: 'og:description', content: ogDesc }],
-      ['meta', { name: 'twitter:title', content: ogTitle }],
-      ['meta', { name: 'twitter:description', content: ogDesc }],
-      ['meta', { property: 'og:image', content: `${SITE_URL}/${shareImage.file}` }],
-      ['meta', { property: 'og:image:width', content: String(shareImage.width) }],
-      ['meta', { property: 'og:image:height', content: String(shareImage.height) }],
-      ['meta', { property: 'og:image:alt', content: shareImage.alt }],
-      ['meta', { name: 'twitter:image', content: `${SITE_URL}/${shareImage.file}` }],
-      ['meta', { name: 'twitter:image:alt', content: shareImage.alt }],
+      ...shareHead(canonical, ogTitle, ogDesc, shareImage),
       ['script', { type: 'application/ld+json' }, JSON.stringify({
         '@context': 'https://schema.org',
         '@graph': graph,

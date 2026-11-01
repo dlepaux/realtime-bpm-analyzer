@@ -31,14 +31,14 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
 <section class="ext-hero">
   <h1>
     <span class="ext-name"><img src="/logo.svg" alt="" width="28" height="28"> Live BPM Detector</span>
-    <span class="ext-headline">Playing on YouTube or SoundCloud? See the BPM right on the player.</span>
+    <span class="ext-headline">Playing on YouTube or SoundCloud? See the BPM right on the page.</span>
   </h1>
   <figure class="ext-hero-stage">
     <ExtensionDemo live />
     <figcaption>Illustration: a made-up page, enlarged and sped up. A real tempo takes a few seconds to appear and longer to settle.</figcaption>
   </figure>
   <p class="ext-lede">Live BPM Detector is a free Chrome extension that shows the live tempo of the music playing in the current tab. Click its button and the number appears on the page.</p>
-  <p class="ext-support">It also places itself on YouTube Music, Twitch, Bandcamp and Mixcloud. Your audio never leaves your device.</p>
+  <p class="ext-support">It also works on YouTube Music, Twitch, Bandcamp and Mixcloud. Your audio never leaves your device.</p>
   <div class="ext-hero-action">
     <ExtensionInstall prompt-link />
   </div>
@@ -54,7 +54,7 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
 <div class="ext-moment">
   <div>
     <h3>Digging for tracks</h3>
-    <p>You're going through SoundCloud or Bandcamp, looking for something at your tempo. The number sits in the play bar and restarts when the page shows a new track. Play a track again in the same session and its tempo comes straight back. Skip very quickly and the restart can lag behind.</p>
+    <p>You're going through SoundCloud or Bandcamp, looking for something at your tempo. The number usually sits in the play bar and restarts when the page shows a new track. Play a track again in the same session and its tempo comes straight back. Skip very quickly and the restart can lag behind.</p>
   </div>
   <img class="ext-shot" src="../.vitepress/assets/extension/play-bar.webp" width="487" height="203" loading="lazy" decoding="async" alt="The overlay in the play bar at the bottom of a music page, showing 120 BPM, marked stable." />
 </div>

@@ -4,9 +4,15 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config.ts'
 import {
+  EXTENSION_HERO_TAGLINE,
+  EXTENSION_LLMS_LINE,
+  EXTENSION_SHARE_IMAGE,
   excludedSources,
   extensionCovers,
   extensionHeroActions,
+  extensionHomeHero,
+  llmsWithExtension,
+  sharePageLink,
   extensionNavItems,
   extensionPageSchema,
   installTargets,
@@ -22,6 +28,14 @@ function plainText(markdown: string): string {
     .replace(/\*\*/g, '')
     .replace(/\s+/g, ' ')
 }
+
+const BANNED_CLAIMS = [
+  /accura/i, /benchmark/i, /\d\s*%/, /\bbest\b/i, /\bfastest\b/i, /\bperfect/i, /\bguarantee/i,
+  /coming soon/i, /\bsoon\b/i, /\bPro\b/, /pric(e|ing)/i, /\bforever\b/i, /\bpaid\b/i, /aggregateRating/, /testimonial/i, /\d\S*\s+installs\b/i, /\busers\b/i,
+  /GroovePeek/, /BPM Finder/, /BPM Counter/, /Spotify/, /Deezer/, /Vimeo/, /Firefox/, /\bEdge\b/, /Safari/,
+  /collects no data/i,
+  /—/, /–/,
+]
 
 const pageSource = readFileSync(new URL('../extension/index.md', import.meta.url), 'utf8')
 const page = plainText(pageSource)
@@ -131,13 +145,57 @@ test('page: names exactly the sites the player matrix and the listing prove', ()
 })
 
 test('page: makes no claim the evidence does not carry', () => {
-  for (const banned of [
-    /accura/i, /benchmark/i, /\d\s*%/, /\bbest\b/i, /\bfastest\b/i, /\bperfect/i, /\bguarantee/i,
-    /coming soon/i, /\bsoon\b/i, /\bPro\b/, /pric(e|ing)/i, /\bforever\b/i, /\bpaid\b/i, /\$/, /aggregateRating/, /testimonial/i, /\binstalls\b/i, /\busers\b/i,
-    /GroovePeek/, /BPM Finder/, /BPM Counter/, /Spotify/, /Deezer/, /Vimeo/, /Firefox/, /\bEdge\b/, /Safari/,
-    /collects no data/i,
-    /—/, /–/,
-  ]) {
-    assert.ok(!banned.test(page), `the page matches ${banned}`)
+  for (const banned of [...BANNED_CLAIMS, /\$/]) assert.ok(!banned.test(page), `the page matches ${banned}`)
+})
+
+test('the promotion outside the page makes the same claims only', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  // Copy only: a component's script holds comments, and its template holds code in bindings.
+  const copy = (path: string) => read(path).replace(/<script[\s\S]*?<\/script>/, '').replace(/:style="[^"]*"/g, '')
+  const lines = (path: string) => read(path).split('\n').filter((line) => line.includes('ExtensionMention lead')).join(' ')
+  const surfaces = {
+    band: copy('../.vitepress/components/ExtensionHomeBand.vue'),
+    install: copy('../.vitepress/components/ExtensionInstall.vue'),
+    demo: copy('../.vitepress/components/ExtensionDemo.vue'),
+    tap: lines('../tap-tempo.md'),
+    metronome: lines('../metronome.md'),
+    tagline: EXTENSION_HERO_TAGLINE,
+    llms: EXTENSION_LLMS_LINE,
+    shareAlt: EXTENSION_SHARE_IMAGE.alt,
   }
+  assert.ok(surfaces.tap.includes('Chrome tab') && surfaces.metronome.includes('Chrome tab'), 'the mentions moved')
+  for (const [name, text] of Object.entries(surfaces)) {
+    for (const banned of BANNED_CLAIMS) assert.ok(!banned.test(text), `${name} matches ${banned}`)
+  }
+})
+
+test('extensionHomeHero: off leaves the hero as written, on adds the action first', () => {
+  const hero = { tagline: 'As written', actions: [{ text: 'Developer Docs' }] }
+  assert.equal(extensionHomeHero(hero, null), hero)
+  const on = extensionHomeHero(hero, LISTING)
+  assert.equal(on.actions.length, 2)
+  assert.deepEqual(on.actions[1], hero.actions[0])
+  assert.equal(on.tagline, EXTENSION_HERO_TAGLINE)
+  assert.equal(hero.actions.length, 1, 'the source hero is not mutated')
+})
+
+test('llmsWithExtension: the real file gains the extension ahead of the library', () => {
+  const llms = readFileSync(new URL('../public/llms.txt', import.meta.url), 'utf8')
+  const result = llmsWithExtension(llms)
+  assert.ok(result.indexOf(EXTENSION_LLMS_LINE) < result.indexOf('## Library'))
+  assert.ok(result.split('\n')[2].includes('Chrome extension'), 'the summary names it')
+  assert.throws(() => llmsWithExtension('# moved'))
+})
+
+test('sharePageLink: falls back to the link, ignores a closed sheet, mails on a failure', async () => {
+  let mailed = 0
+  const mail = () => { mailed += 1 }
+  assert.equal(sharePageLink(undefined, mail), false)
+  assert.equal(sharePageLink(() => Promise.resolve(), mail), true)
+  assert.equal(sharePageLink(() => Promise.reject(Object.assign(new Error('x'), { name: 'AbortError' })), mail), true)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(mailed, 0)
+  sharePageLink(() => Promise.reject(new Error('blocked')), mail)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(mailed, 1)
 })

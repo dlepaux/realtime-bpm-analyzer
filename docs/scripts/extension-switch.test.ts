@@ -10,7 +10,7 @@ const NAV = 'href="/guide/getting-started" href="/api/"'
 const NAV_ON = `href="/extension/" ${NAV}`
 const SITE_URL = 'https://www.realtime-bpm-analyzer.com'
 const OG_IMAGE = `<meta property="og:image" content="${SITE_URL}/live-bpm-detector-share.png">`
-const LLMS_LINE = `- [Live BPM Detector](${SITE_URL}/extension/): the extension`
+const LLMS_LINE = `- [Live BPM Detector](${SITE_URL}/extension/): the extension\n## Library`
 const LOC = '<loc>https://www.realtime-bpm-analyzer.com/extension/</loc>'
 const IMG = '<img class="ext-shot" src="/assets/player-1280.abc.webp" width="1280" height="800" alt="A picture">'
 const BUTTON = `<a class="tt-btn ext-install-btn tt-btn-primary" href="${STORE}">Add to Chrome</a>`
@@ -34,10 +34,10 @@ const ON: Record<string, string> = {
   'sitemap.xml': LOC,
   'llms.txt': LLMS_LINE,
   'live-bpm-detector-share.png': 'x',
-  'extension/index.html': `<title>Live BPM Detector</title><link rel="canonical" href="https://www.realtime-bpm-analyzer.com/extension/">${OG_IMAGE}"@type":"SoftwareApplication","installUrl":"${STORE}","price":"0" <h1>Live BPM Detector</h1> ${BUTTON} ${IMG}`,
+  'extension/index.html': `<title>Live BPM Detector</title><meta property="og:title" content="Live BPM Detector: x"><link rel="canonical" href="https://www.realtime-bpm-analyzer.com/extension/">${OG_IMAGE}"@type":"SoftwareApplication","installUrl":"${STORE}","price":"0" <h1>Live BPM Detector</h1> ${BUTTON} ${IMG}`,
   'extension/goodbye.html': `<a href="${STORE}">Reinstall the extension</a>`,
   'assets/player-1280.abc.webp': 'x',
-  'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome ext-band`,
+  'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome ext-band Chrome extension for the music in your tabs`,
   'tap-tempo.html': `${NAV_ON} Live BPM Detector</a>`,
   'metronome.html': `${NAV_ON} Live BPM Detector</a>`,
   'bpm-to-ms.html': NAV_ON,
@@ -62,6 +62,7 @@ test('switchProblems off: anything that shows the extension fails', () => {
     { 'metronome.html': `<a class="ext-install-btn" href="">Add to Chrome</a>` },
     { 'index.html': 'Live BPM Detector' },
     { 'index.html': `${NAV} Developer Docs ext-band` },
+    { 'index.html': `${NAV} Chrome extension for the music in your tabs` },
     { 'llms.txt': LLMS_LINE },
     { 'live-bpm-detector-share.png': 'x' },
     { 'tap-tempo.html': `${NAV} "name":"Live BPM Detector"` },
@@ -95,6 +96,7 @@ test('switchProblems on: the page must be built, indexable, and sized', () => {
     page.replace('<h1>Live BPM Detector</h1>', ''),
     `${page} "aggregateRating"`,
     page.replace(OG_IMAGE, ''),
+    page.replace('content="Live BPM Detector: x"', 'content="Live BPM Detector: x | Realtime BPM Analyzer"'),
     `${page}<meta property="og:image" content="x">`,
   ]
   for (const variant of variants) {
@@ -129,9 +131,11 @@ test('switchProblems on: the promo stays where it belongs', () => {
     { 'sitemap.xml': '' },
     { 'sitemap.xml': `${LOC} extension/welcome` },
     { 'llms.txt': '' },
+    { 'llms.txt': `## Library ${LLMS_LINE}` },
     { 'live-bpm-detector-share.png': 'x'.repeat(300_001) },
     { 'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome` },
     { 'index.html': `${NAV_ON} Developer Docs ext-band` },
+    { 'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome ext-band` },
     { 'index.html': `${NAV_ON} Live BPM Detector for Chrome ext-band` },
     { 'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome ext-band ${OG_IMAGE}` },
     { 'bpm-to-ms.html': `${NAV} href="/extension/"` },

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { INSTALL_TARGETS } from '../tools/extension-live'
-import { SEND_LINK_MAILTO, SEND_LINK_URL } from '../tools/extension-promo'
+import { SEND_LINK_MAILTO, sharePageLink } from '../tools/extension-promo'
 
 // The install action. Renders from the list of available stores, so it can't show a
 // button without a listing behind it. The first browser is the primary action; any
@@ -13,12 +13,8 @@ import { SEND_LINK_MAILTO, SEND_LINK_URL } from '../tools/extension-promo'
 withDefaults(defineProps<{ promptLink?: boolean }>(), { promptLink: false })
 
 function sendLink(event: MouseEvent) {
-  if (typeof navigator.share !== 'function') return
-  event.preventDefault()
-  navigator.share({ title: 'Live BPM Detector', url: SEND_LINK_URL }).catch((error: DOMException) => {
-    // Closing the share sheet is a choice, not a failure.
-    if (error.name !== 'AbortError') window.location.href = SEND_LINK_MAILTO
-  })
+  const share = typeof navigator.share === 'function' ? (data: ShareData) => navigator.share(data) : undefined
+  if (sharePageLink(share, () => { window.location.href = SEND_LINK_MAILTO })) event.preventDefault()
 }
 </script>
 

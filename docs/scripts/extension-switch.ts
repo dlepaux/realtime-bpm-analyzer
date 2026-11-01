@@ -26,6 +26,7 @@ const SHARE_IMAGE = 'live-bpm-detector-share.png'
 const MAX_SHARE_IMAGE_BYTES = 300_000
 const HERO_ACTION = 'Live BPM Detector for Chrome'
 const HOME_SECTION = 'ext-band'
+const HOME_TAGLINE = 'Chrome extension for the music in your tabs'
 const BANNED_MARKUP = /aggregateRating|ratingValue|reviewCount|"review"/
 
 // Where a musician lands, and where the promo must not reach: a developer's page and
@@ -47,6 +48,7 @@ function checkOff(site: BuiltSite): string[] {
   expectAbsent(site.read('llms.txt').includes('Live BPM Detector'), 'llms.txt names the extension')
   expectAbsent(site.read('index.html').includes(HERO_ACTION), 'the home hero has the extension\'s action')
   expectAbsent(site.read('index.html').includes(HOME_SECTION), 'the home page has the extension\'s section')
+  expectAbsent(site.read('index.html').includes(HOME_TAGLINE), 'the home tagline names the extension')
   for (const path of site.paths.filter((p) => p.includes('@localSearchIndex'))) {
     expectAbsent(site.read(path).includes('extension/#'), `the page is in the search index (${path})`)
   }
@@ -125,7 +127,10 @@ function seoProblems(site: BuiltSite, storeUrl: string): string[] {
   const sitemap = site.read('sitemap.xml')
   if (!sitemap.includes(`${SITE}/extension/</loc>`)) problems.push('on: the page is not in the sitemap')
   if (sitemap.includes('extension/welcome')) problems.push('on: a users-only page is in the sitemap')
-  if (!site.read('llms.txt').includes(`[Live BPM Detector](${SITE}/extension/)`)) problems.push('on: llms.txt has no line for the extension')
+  const llms = site.read('llms.txt')
+  const llmsLine = llms.indexOf(`[Live BPM Detector](${SITE}/extension/)`)
+  if (llmsLine === -1 || llmsLine > llms.indexOf('## Library')) problems.push('on: llms.txt must list the extension ahead of the library')
+  if (!/<meta property="og:title" content="[^"]*Live BPM Detector[^"|]*"/.test(page)) problems.push('on: the page\'s og:title is wrong or has the site suffix')
   return problems
 }
 
@@ -145,6 +150,7 @@ function placementProblems(site: BuiltSite): string[] {
   const home = site.read('index.html')
   if (!home.includes(HERO_ACTION)) problems.push('on: the home hero has no action for the extension')
   if (!home.includes(HOME_SECTION)) problems.push('on: the home page has no section for the extension')
+  if (!home.includes(HOME_TAGLINE)) problems.push('on: the home tagline does not name the extension')
   if (!home.includes('Developer Docs')) problems.push('on: the home page lost its Developer Docs action')
   // Read off a page with no other link to it, so this is the nav's order.
   const nav = site.read('bpm-to-ms.html')

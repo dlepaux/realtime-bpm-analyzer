@@ -996,7 +996,7 @@ function formatDuration(seconds: number): string {
                 Skip the sharing next time. <a
                   class="bpm-text-btn"
                   :href="EXTENSION_PAGE"
-                >Live BPM Detector</a> for Chrome shows the tempo on the player.
+                >Live BPM Detector</a> for Chrome shows the tempo on the page.
               </div>
             </template>
             <template v-else>

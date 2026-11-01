@@ -24,7 +24,7 @@ function plainText(markdown: string): string {
 
 const pageSource = readFileSync(new URL('../extension/index.md', import.meta.url), 'utf8')
 const page = plainText(pageSource)
-const policy = plainText(readFileSync(new URL('../extension/privacy.md', import.meta.url), 'utf8'))
+const policySource = readFileSync(new URL('../extension/privacy.md', import.meta.url), 'utf8')
 
 test('resolveStoreUrl: null stays off, a listing passes, without its query', () => {
   assert.equal(resolveStoreUrl(null), null)
@@ -74,26 +74,17 @@ test('structured data: names the listing, with no price or rating', () => {
   assert.ok(!('offers' in schema) && !('aggregateRating' in schema))
 })
 
-test('page: the privacy text is the policy\'s own words', () => {
+test('page: the privacy text is the policy\'s own words, none of them dropped', () => {
   const start = page.indexOf('## Your audio never leaves your device')
   const end = page.indexOf('## Questions')
   assert.ok(start > 0 && end > start)
   const section = page.slice(start, end)
-  for (const sentence of [
-    'When you click the extension\'s button on a tab, it listens to that tab\'s audio and works out the tempo on your computer.',
-    'The audio is not recorded, stored or sent anywhere.',
-    'Nobody, including us, can hear it or receive it.',
-    'The extension makes no network request of its own, contains no analytics and has no account, install id or advertising.',
-    'The audio of the tab you chose, analysed on your device, only to show its tempo.',
-    'The page\'s hostname, its media player and what it says is playing, read on your device to place the overlay, show the playback speed and notice when the track changes.',
-    'None of this is stored or sent.',
-    'The only thing the extension passes to these pages is its version number, and the previous version after an update, in the address.',
-    'The pages are part of the website, which uses Google Analytics as described in Website Privacy, so a visit to one of them is measured like any other visit.',
-  ]) {
-    assert.ok(section.includes(sentence), `missing from the page: ${sentence}`)
-    assert.ok(policy.includes(sentence), `missing from the policy: ${sentence}`)
-  }
-  assert.ok(policy.includes('## Your audio never leaves your device'))
+  const from = policySource.indexOf('## Your audio never leaves your device')
+  const to = policySource.indexOf('## Chrome Web Store Limited Use')
+  assert.ok(from > 0 && to > from)
+  const blocks = policySource.slice(from, to).split(/\n\n|\n(?=- )/).map((block) => plainText(block.replace(/^(?:#+|-) /, '')).trim())
+  assert.ok(blocks.length >= 9)
+  for (const block of blocks) assert.ok(section.includes(block), `missing from the page: ${block}`)
 })
 
 test('page: states the listing\'s limits', () => {

@@ -10,12 +10,11 @@ import { dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config.ts'
 import { resolveStoreUrl } from '../.vitepress/tools/extension-promo.ts'
-import { switchProblems, type BuiltSite } from './extension-switch.ts'
+import { FIXTURE_STORE_URL, switchProblems, type BuiltSite } from './extension-switch.ts'
 
 const DOCS = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CONFIG = join(DOCS, '.vitepress/tools/extension-config.ts')
 const VALUE_LINE = /^export const EXTENSION_STORE_URL: string \| null = .*$/m
-const FIXTURE = `https://chromewebstore.google.com/detail/live-bpm-detector/${'a'.repeat(32)}`
 
 function builtSite(root: string): BuiltSite {
   const paths = readdirSync(root, { recursive: true, encoding: 'utf8' })
@@ -50,7 +49,7 @@ function buildWithValue(value: string | null, outDir: string): void {
 }
 
 const committed = resolveStoreUrl(EXTENSION_STORE_URL)
-const other = committed === null ? FIXTURE : null
+const other = committed === null ? FIXTURE_STORE_URL : null
 const outDir = mkdtempSync(join(tmpdir(), 'rba-extension-switch-'))
 let passed = check(join(DOCS, '.vitepress/dist'), committed)
 try {

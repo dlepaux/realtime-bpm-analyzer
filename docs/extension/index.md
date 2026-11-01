@@ -1,12 +1,13 @@
 ---
 layout: page
 title: "Live BPM Detector: See the BPM of YouTube and SoundCloud Live"
+titleTemplate: false
 description: A Chrome extension that shows the live BPM of the music playing in your tab, on YouTube, SoundCloud, Bandcamp and more. Your audio never leaves your device.
 faq:
   - q: How do I see the BPM of a YouTube video?
-    a: Play the video in Chrome and click the Live BPM Detector button in the toolbar. The BPM appears on the player and updates live.
+    a: Play the video in Chrome and click the Live BPM Detector button in the toolbar. The BPM usually appears on the player and updates live.
   - q: How do I see the BPM of a SoundCloud track?
-    a: Play the track in Chrome and click the Live BPM Detector button in the toolbar. The BPM appears in the play bar and updates live.
+    a: Play the track in Chrome and click the Live BPM Detector button in the toolbar. The BPM usually appears in the play bar and updates live.
   - q: Does it work on a phone?
     a: No. It is a Chrome extension, and those install on a computer. On a phone, the BPM Analyzer on this site's home page can listen through your microphone.
 ---
@@ -66,7 +67,7 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
       decoding="async"
       alt="The overlay in the play bar at the bottom of a music page, showing 120 BPM, marked stable."
     />
-    <figcaption>On music sites it sits in the play bar.</figcaption>
+    <figcaption>On SoundCloud, Bandcamp and Mixcloud it usually sits in the play bar.</figcaption>
   </figure>
   <figure>
     <img
@@ -136,16 +137,23 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
 
 When you click the extension's button on a tab, it listens to that tab's audio and works out the tempo on your computer. The audio is not recorded, stored or sent anywhere. Nobody, including us, can hear it or receive it.
 
-The extension makes no network request of its own, contains no analytics and has no account, install id or advertising.
+Listening starts only when you click. It continues on that tab as you move around the same site, until you click again, close the overlay or close the tab. If the tab goes to another site, listening stops once that page has loaded. Clicking the button on a different tab moves listening to that tab.
 
 </div>
 
-What the extension handles:
+### What the extension handles
 
-- The audio of the tab you chose, analysed on your device, only to show its tempo.
-- The page's hostname, its media player and what it says is playing, read on your device to place the overlay, show the playback speed and notice when the track changes. None of this is stored or sent.
+- **The audio of the tab you chose**, analysed on your device, only to show its tempo.
+- **The capture state and the id of that tab**, kept in the browser's session storage so the extension can keep track of the capture. The id is removed when listening stops, and the browser clears the rest when it closes.
+- **The page's hostname, its media player and what it says is playing**, read on your device to place the overlay, show the playback speed and notice when the track changes. What it says is playing means the site's own id for the video, the title, artist and album the page gives the browser's media controls, and the address of the audio it plays. These stay in the page: only hashes of them reach the rest of the extension, held in memory until listening stops. None of this is stored or sent.
 
-The extension opens a page of realtime-bpm-analyzer.com when you install it and after a feature update, and sets one for your browser to open when you remove it. The only thing the extension passes to these pages is its version number, and the previous version after an update, in the address. The pages are part of the website, which uses Google Analytics as described in [Website Privacy](/website-privacy), so a visit to one of them is measured like any other visit.
+### What the extension sends
+
+The extension makes no network request of its own, contains no analytics and has no account, install id or advertising. We don't sell or share your audio or tab information: it never reaches us.
+
+### The website pages it opens
+
+The extension opens a page of realtime-bpm-analyzer.com when you install it and after a feature update, and sets one for your browser to open when you remove it. These tabs open without a click. The only thing the extension passes to these pages is its version number, and the previous version after an update, in the address. The pages are part of the website, which uses Google Analytics as described in [Website Privacy](/website-privacy), so a visit to one of them is measured like any other visit. The goodbye page offers an optional one-click reason for leaving, which the website records with Google Analytics, along with the version.
 
 Read the full [extension privacy policy](/extension/privacy).
 

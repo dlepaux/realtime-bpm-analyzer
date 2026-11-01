@@ -2,13 +2,14 @@
 // can't fail proves nothing. Real builds in both states run in CI (verify-extension-switch.ts).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { switchProblems, type BuiltSite } from './extension-switch.ts'
+import { EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config.ts'
+import { FIXTURE_STORE_URL, switchProblems, type BuiltSite } from './extension-switch.ts'
 
 const STORE = `https://chromewebstore.google.com/detail/live-bpm-detector/${'a'.repeat(32)}`
 const NAV = 'href="/guide/getting-started" href="/api/"'
 const NAV_ON = `${NAV} href="/extension/"`
 const LOC = '<loc>https://www.realtime-bpm-analyzer.com/extension/</loc>'
-const IMG = '<img src="/assets/player-1280.abc.webp" width="1280" height="800" alt="A picture">'
+const IMG = '<img class="ext-shot" src="/assets/player-1280.abc.webp" width="1280" height="800" alt="A picture">'
 const BUTTON = `<a class="tt-btn ext-install-btn tt-btn-primary" href="${STORE}">Add to Chrome</a>`
 
 function site(files: Record<string, string>): BuiltSite {
@@ -84,6 +85,27 @@ test('switchProblems on: the page must be built, indexable, and sized', () => {
     assert.notDeepEqual(switchProblems(site({ ...ON, 'extension/index.html': variant }), STORE), [], variant)
   }
   assert.notDeepEqual(switchProblems(site({ ...ON, 'assets/player-1280.abc.webp': 'x'.repeat(40_001) }), STORE), [])
+})
+
+test('switchProblems on: only the page\'s screenshots are held to the image rules', () => {
+  const page = ON['extension/index.html'] ?? ''
+  const logo = '<img class="VPImage logo" src="/logo.svg" alt>'
+  assert.deepEqual(switchProblems(site({ ...ON, 'extension/index.html': `${logo}${page}` }), STORE), [])
+  assert.notDeepEqual(switchProblems(site({ ...ON, 'extension/index.html': page.replace(IMG, '') }), STORE), [])
+})
+
+test('switchProblems on: an image Vite inlined needs no file, but stays small and sized', () => {
+  const page = ON['extension/index.html'] ?? ''
+  const inlined = (data: string, size = 'width="487" height="203" ') =>
+    `<img class="ext-shot" src="data:image/webp;base64,${data}" ${size}alt="A picture">`
+  const withImage = (img: string) => site({ ...ON, 'extension/index.html': `${page}${img}` })
+  assert.deepEqual(switchProblems(withImage(inlined('AAAA')), STORE), [])
+  assert.notDeepEqual(switchProblems(withImage(inlined('A'.repeat(40_001))), STORE), [])
+  assert.notDeepEqual(switchProblems(withImage(inlined('AAAA', '')), STORE), [])
+})
+
+test('the committed value is never the check\'s fixture', () => {
+  assert.notEqual(EXTENSION_STORE_URL, FIXTURE_STORE_URL)
 })
 
 test('switchProblems on: the promo stays where it belongs', () => {

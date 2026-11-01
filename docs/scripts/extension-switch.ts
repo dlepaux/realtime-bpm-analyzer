@@ -9,6 +9,11 @@ export type BuiltSite = {
   readonly size: (path: string) => number
 }
 
+// The address the check builds with: listing-shaped, with no listing behind it. An
+// interrupted run could leave it in extension-config.ts, where the resolver would accept
+// it, so extension-switch.test.ts fails if it is ever the committed value.
+export const FIXTURE_STORE_URL = `https://chromewebstore.google.com/detail/live-bpm-detector/${'a'.repeat(32)}`
+
 const SITE = 'https://www.realtime-bpm-analyzer.com'
 const PAGE = 'extension/index.html'
 const PAGE_LINK = 'href="/extension/"'
@@ -72,14 +77,24 @@ function installProblems(site: BuiltSite, storeUrl: string): string[] {
 
 function imageProblems(site: BuiltSite): string[] {
   const problems: string[] = []
-  for (const [tag] of site.read(PAGE).matchAll(/<img\b[^>]*>/g)) {
+  const screenshots = [...site.read(PAGE).matchAll(/<img\b[^>]*\bext-shot\b[^>]*>/g)].map(([tag]) => tag)
+  if (screenshots.length === 0) problems.push(`on: ${PAGE} has no screenshots`)
+  for (const tag of screenshots) {
+    const label = tag.replace(/data:[^"]*/, 'data:...')
     // Sized, so the image's box is held before it loads, and described.
     for (const attribute of [/\bwidth="\d+"/, /\bheight="\d+"/, /\balt="[^"]+"/]) {
-      if (!attribute.test(tag)) problems.push(`on: an image fails ${attribute}: ${tag}`)
+      if (!attribute.test(tag)) problems.push(`on: an image fails ${attribute}: ${label}`)
     }
+    // Vite inlines the smallest images, which then have no file of their own to be missing.
+    const inlined = /\bsrc="(data:image\/[^"]+)"/.exec(tag)?.[1]
     const src = /\bsrc="\/([^"]+)"/.exec(tag)?.[1]
-    if (src === undefined || !site.paths.includes(src)) problems.push(`on: an image has no file: ${tag}`)
-    else if (site.size(src) > MAX_IMAGE_BYTES) problems.push(`on: ${src} is over ${MAX_IMAGE_BYTES} bytes`)
+    if (inlined !== undefined) {
+      if (inlined.length > MAX_IMAGE_BYTES) problems.push(`on: an inlined image is over ${MAX_IMAGE_BYTES} bytes: ${label}`)
+    } else if (src === undefined || !site.paths.includes(src)) {
+      problems.push(`on: an image has no file: ${label}`)
+    } else if (site.size(src) > MAX_IMAGE_BYTES) {
+      problems.push(`on: ${src} is over ${MAX_IMAGE_BYTES} bytes`)
+    }
   }
   return problems
 }

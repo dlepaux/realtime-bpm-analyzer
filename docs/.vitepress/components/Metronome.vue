@@ -150,6 +150,8 @@ function stop() {
   angle.value = 0
   void wakeLock?.release().catch(() => undefined)
   wakeLock = null
+  // A running context holds the output device with nothing playing. start() resumes it (RBA-93).
+  void ctx?.suspend().catch(() => undefined)
 }
 
 function toggle() {

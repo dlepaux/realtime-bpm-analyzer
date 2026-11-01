@@ -45,28 +45,17 @@ live, as the track goes.
 Your audio never leaves your device.
 
 The extension listens to the tab you choose, only after you click, and works out
-the tempo on your computer. It sends nothing anywhere: no analytics, no install
-ID, not a single network request. It keeps nothing but whether it is listening
-and the id of the tab it is listening to, and the browser clears that when it closes.
+the tempo on your computer. To notice a new track it reads what the page says is
+playing, also on your computer. It sends nothing anywhere: no analytics, no install
+ID, not a single network request. It stores only whether it is listening and the id
+of the tab it is listening to, plus, in memory until listening stops, what it needs
+to recognise a track. All of that goes when listening stops or the browser closes.
 
 </div>
 
 This page is part of the website, which counts visits with Google Analytics, like
 the rest of realtime-bpm-analyzer.com. The only thing the extension told it is its
 version number, in the address. [Extension privacy](/extension/privacy) has the details.
-
-## Coming in Pro
-
-The live BPM stays free. Pro is for DJs and producers who prepare whole crates:
-
-<dl class="ext-pro">
-  <dt>Musical key</dt>
-  <dd>The key of the track, next to its tempo.</dd>
-  <dt>Harmonic mixing</dt>
-  <dd>Which tracks mix cleanly into the one playing, by key and tempo.</dd>
-  <dt>Batch tagging</dt>
-  <dd>Analyse a folder of tracks and write BPM and key into their tags at once.</dd>
-</dl>
 
 <ExtensionOptIn />
 

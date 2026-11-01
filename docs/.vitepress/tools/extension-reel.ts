@@ -16,7 +16,10 @@ export const REEL_MAX_DISPLAY_WIDTH = 760
  */
 export const REEL_ZOOM = 2
 
-/** What the frames were captured at: the page's CSS size and Chromium's device scale factor. */
+/**
+ * What the demo shows of a capture: the page's CSS size and Chromium's device scale factor.
+ * Captures are taller, at 960 x 660, to fit the window; the processing script keeps the top.
+ */
 export const REEL_PAGE = { width: 960, height: 610, deviceScale: 5 } as const
 
 /** The widths the processing script writes, largest first. */
@@ -87,14 +90,21 @@ export function reelArithmetic(
   }
 }
 
-/** Why a capture can't be shown, or an empty list. The site's build refuses a bad one. */
+// The caption says CC BY, so this accepts only that. A CC0 video would change both.
+const CC_BY = /^Creative Commons Attribution( license|$)/
+
+/** Why a capture can't be shown, or an empty list. `npm test` refuses a bad one. */
 export function reelProblems(capture: ReelCapture): string[] {
   const problems: string[] = []
   const numbers = reelArithmetic()
   if (numbers.sourcePixelsPerDevicePixel < 1) problems.push('the source is upscaled at the end of the zoom')
   if (numbers.filePixelsPerDevicePixel < 1) problems.push('the served file is upscaled at the end of the zoom')
   if (!/^https:\/\/www\.youtube\.com\/watch\?v=/.test(capture.video.url)) problems.push('the video is not a youtube.com watch page')
-  if (!/^Creative Commons Attribution( license|$)|^CC0\b/.test(capture.video.licence)) problems.push(`the licence "${capture.video.licence}" is not CC BY or CC0`)
+  if (!CC_BY.test(capture.video.licence)) problems.push(`the licence "${capture.video.licence}" is not CC BY`)
+  // The stage's label names one number, and both themes must show it.
+  if (capture.frames.light.at(-1)?.bpm !== capture.bpm || capture.frames.dark.at(-1)?.bpm !== capture.bpm) {
+    problems.push(`the themes' last frames don't both show ${capture.bpm}`)
+  }
   for (const theme of ['light', 'dark'] as const) {
     const frames = capture.frames[theme]
     const steps = frames.map((frame) => frame.step)
@@ -109,6 +119,9 @@ export function reelProblems(capture: ReelCapture): string[] {
 
 /** A session as e2e/demo-capture.mjs in rba-pro records it. */
 export type ReelSession = {
+  readonly id?: string
+  readonly viewport?: { readonly width: number; readonly height: number }
+  readonly scale?: number
   readonly outcome?: string
   readonly licence?: string | null
   readonly frames: readonly {
@@ -117,7 +130,21 @@ export type ReelSession = {
     readonly before: { readonly bpm: string; readonly stability: string }
     readonly after?: { readonly bpm: string; readonly stability: string }
     readonly reading?: { readonly bpm: number | null } | null
+    /** The video when the frame was taken: `t` is its position, in seconds. */
+    readonly player?: { readonly t?: number; readonly paused?: boolean; readonly ad?: boolean }
   }[]
+}
+
+/** Why a session can't stand behind the caption and the arithmetic, or an empty list. */
+export function reelSessionProblems(session: ReelSession, videoId: string): string[] {
+  const problems: string[] = []
+  if (session.id !== videoId) problems.push(`the session is of "${session.id}", not ${videoId}`)
+  if (!CC_BY.test(session.licence ?? '')) problems.push(`the session's licence "${session.licence}" is not CC BY`)
+  const { viewport, scale } = session
+  if (viewport?.width !== REEL_PAGE.width || (viewport?.height ?? 0) < REEL_PAGE.height || scale !== REEL_PAGE.deviceScale) {
+    problems.push(`the session was not captured at ${REEL_PAGE.width} wide, ${REEL_PAGE.height} or taller, at ${REEL_PAGE.deviceScale}x`)
+  }
+  return problems
 }
 
 type SessionFrame = ReelSession['frames'][number]
@@ -125,6 +152,15 @@ type SessionFrame = ReelSession['frames'][number]
 // The frame shows what the overlay said only if it said the same before and after the
 // shot, and a number only if the extension's own last reading agrees with it. Stand-in
 // frames from the capture's proof mode carry no reading, so they can't pass.
+// The overlay keeps its last tempo through a stall, an error or an ad, so the number alone
+// doesn't say the music was still playing: the video has to have moved on since the frame
+// before. This is what keeps out the frames after YouTube stops an automated player.
+function playerHolds(frame: SessionFrame, previous: SessionFrame | undefined): boolean {
+  const { player } = frame
+  if (player?.t === undefined || player.paused !== false || player.ad !== false) return false
+  return previous?.player?.t === undefined || player.t > previous.player.t
+}
+
 function frameHolds(frame: SessionFrame, step: ReelStep): boolean {
   const { before, after, reading } = frame
   if (!after || before.stability !== step || after.stability !== step || before.bpm !== after.bpm) return false
@@ -137,13 +173,18 @@ function frameHolds(frame: SessionFrame, step: ReelStep): boolean {
 export function pickReelFrames(session: ReelSession): { readonly frame: ReelFrame; readonly file: string }[] | null {
   const picks: { frame: ReelFrame; file: string }[] = []
   for (const step of REEL_STEPS) {
-    const held = session.frames.filter((frame) => frameHolds(frame, step))
+    const held = session.frames.filter((frame, index) => frameHolds(frame, step) && playerHolds(frame, session.frames[index - 1]))
     // The last stable frame, because the reading has had longest to settle by then.
     const pick = step === 'stable' ? held.at(-1) : held[0]
     if (pick?.atMs === undefined) return null
     picks.push({ file: pick.name, frame: { step, bpm: pick.before.bpm, atMs: pick.atMs } })
   }
   return picks
+}
+
+/** Whether a name is one `reelFile` can produce: all the dev server will read from disk. */
+export function isReelFile(name: string): boolean {
+  return /^(light|dark)-(wide|listening|settling|stable)-\d+\.webp$/.test(name)
 }
 
 /** The file name of a frame's picture. */

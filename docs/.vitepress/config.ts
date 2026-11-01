@@ -1,12 +1,12 @@
 import { defineConfig, type HeadConfig } from 'vitepress'
 import { createRequire } from 'module'
 import { copyFileSync, cpSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isUsersOnlyExtensionPage } from './tools/extension-pages'
 import { isNoindexPage, SCHEMA_WEB_APPLICATION, siteGraph, toolFaqPage } from './tools/site-schema'
 import { STORE_URL } from './tools/extension-live'
-import { REEL_DIR } from './tools/extension-reel'
+import { REEL_DIR, isReelFile } from './tools/extension-reel'
 import { REEL_CAPTURE } from './tools/extension-reel-capture'
 import { EXTENSION_SHARE_IMAGE, excludedSources, extensionHomeHero, extensionNavItems, extensionPageSchema, llmsWithExtension } from './tools/extension-promo'
 
@@ -129,7 +129,9 @@ export default defineConfig({
         name: 'extension-reel-frames',
         configureServer(server) {
           server.middlewares.use(`/${REEL_DIR}/`, (req, res, next) => {
-            const file = fileURLToPath(new URL(`./assets/extension/demo/${basename(req.url ?? '')}`, import.meta.url))
+            const name = (req.url ?? '').split('?')[0]?.slice(1) ?? ''
+            if (!isReelFile(name)) return next()
+            const file = fileURLToPath(new URL(`./assets/extension/demo/${name}`, import.meta.url))
             if (!existsSync(file)) return next()
             res.setHeader('Content-Type', 'image/webp')
             res.end(readFileSync(file))

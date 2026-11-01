@@ -63,7 +63,7 @@ export function extensionNavItems(storeUrl: string | null) {
   return [{ text: 'Chrome Extension', link: EXTENSION_PAGE, activeMatch: '^/extension/$' }]
 }
 
-export const EXTENSION_HERO_TAGLINE = 'Free, private BPM detection, right in your browser, and a Chrome extension for the music in your tabs.'
+export const EXTENSION_HERO_TAGLINE = 'Free BPM detection in your browser, and your audio stays on your device. Also a Chrome extension for the music in your tabs.'
 
 /**
  * The home hero as the switch leaves it. The action to the extension's page is in its

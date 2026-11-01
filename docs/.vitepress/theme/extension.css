@@ -488,10 +488,6 @@
   outline-offset: 2px;
 }
 
-/* The home hero's button exists only while the switch is on: nothing else in the hero is brand. */
-.VPHero .VPButton.brand { border-color: var(--ext-cta); background-color: var(--ext-cta); color: #fff; }
-.VPHero .VPButton.brand:hover { border-color: var(--ext-cta-hover); background-color: var(--ext-cta-hover); color: #fff; }
-
 /* ── Home: the section under the hero ─────────────────────────────────────── */
 
 /* The home page's first screen once the extension is on: two doors, chosen by where the
@@ -518,7 +514,7 @@
 .ext-door-tools a:hover { text-decoration: underline; }
 
 /* The tool's card sets its own width; in a door it takes the door's. */
-.ext-door .bpm-hero-tool { width: 100%; max-width: none; margin: 0; }
+.ext-doors .ext-door .bpm-hero-tool { width: 100%; max-width: none; margin: 0; }
 
 .ext-home .VPHero .image-container { width: 100%; height: auto; max-width: none; transform: none; }
 .ext-home .VPHero .image { width: 100%; margin: 0; }
@@ -526,7 +522,7 @@
 @media (min-width: 960px) {
   .ext-home .VPHero.VPHomeHero { padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 28px); padding-bottom: 32px; }
   .ext-home .VPHero .container { flex-direction: column; max-width: 1152px; text-align: left; }
-  .ext-home .VPHero.has-image .main {
+  .ext-home .VPHero.VPHomeHero.has-image .main {
     order: 1;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -535,11 +531,11 @@
     width: 100%;
     max-width: none;
   }
-  .ext-home .VPHero.has-image .main .heading { grid-column: 1 / -1; display: block; }
-  .ext-home .VPHero.has-image .main .name { display: block; font-size: 1rem; line-height: 1.5; letter-spacing: 0; }
-  .ext-home .VPHero.has-image .main .text { max-width: none; font-size: 3rem; line-height: 1.15; letter-spacing: -0.02em; }
-  .ext-home .VPHero.has-image .main .tagline { max-width: 46rem; margin: 0; padding-top: 10px; font-size: 1.0625rem; line-height: 1.5; }
-  .ext-home .VPHero.has-image .main .actions { margin: 0; padding-top: 0; justify-content: flex-end; }
+  .ext-home .VPHero.VPHomeHero.has-image .main .heading { grid-column: 1 / -1; display: block; }
+  .ext-home .VPHero.VPHomeHero.has-image .main .name { display: block; font-size: 1rem; line-height: 1.5; letter-spacing: 0; }
+  .ext-home .VPHero.VPHomeHero.has-image .main .text { max-width: none; font-size: 3rem; line-height: 1.15; letter-spacing: -0.02em; }
+  .ext-home .VPHero.VPHomeHero.has-image .main .tagline { max-width: 46rem; margin: 0; padding-top: 10px; font-size: 1.0625rem; line-height: 1.5; }
+  .ext-home .VPHero.VPHomeHero.has-image .main .actions { margin: 0; padding-top: 0; justify-content: flex-end; }
   .ext-home .VPHero .image { order: 2; margin-top: 28px; }
   .ext-doors { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: start; }
   /* On a short laptop screen the button stays in the fold. */
@@ -631,6 +627,8 @@
    stable frame; the moving layers aren't even displayed, so they aren't fetched. */
 .ext-reel-stage {
   position: relative;
+  /* The limit on pixels is worked out at this width: see REEL_MAX_DISPLAY_WIDTH. */
+  max-width: 760px;
   aspect-ratio: var(--ext-reel-ratio);
   overflow: hidden;
   border-radius: 14px;
@@ -654,6 +652,8 @@
 
 .ext-reel-caption { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0 1rem; }
 .ext-reel-caption > span { flex: 1 1 16rem; }
+/* The home page isn't inside .vp-doc, and the credit has to read as a link on both pages. */
+.ext-reel-caption a { color: var(--vp-c-brand-1); text-decoration: underline; }
 .ext-reel-pause { display: none; }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -697,7 +697,7 @@
 @media (min-width: 960px) {
   .vp-doc .ext-hero {
     max-width: 1320px;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 760px);
+    grid-template-columns: minmax(22rem, 1fr) minmax(0, 760px);
     grid-template-rows: auto auto auto 1fr;
     column-gap: 56px;
     row-gap: 18px;

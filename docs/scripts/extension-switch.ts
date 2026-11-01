@@ -24,6 +24,9 @@ const STORE_LINK = /href="([^"]*chromewebstore[^"]*)"/g
 const EMPTY_LINK = /<a\b[^>]*\bhref="(?:|null|undefined)"/
 const REEL_FILES = `${REEL_DIR}/`
 const REEL_IMAGE = /<img\b[^>]*\bext-reel-(?:wide|crop)\b[^>]*>/g
+// A frame by its name, wherever a bundler might put it, with or without a hash.
+const REEL_FRAME_PATH = /(?:^|\/)(?:light|dark)-(?:wide|listening|settling|stable)-\d+[.-]/
+const HOME_LAYOUT = /\bext-home\b/
 const MAX_REEL_BYTES = 250_000
 const SHARE_IMAGE = 'live-bpm-detector-share.png'
 const MAX_SHARE_IMAGE_BYTES = 300_000
@@ -45,7 +48,8 @@ function checkOff(site: BuiltSite): string[] {
   expectAbsent(site.paths.includes(PAGE), `${PAGE} was built, so the page is reachable`)
   expectAbsent(site.read('hashmap.json').includes('extension_index'), 'the page is in the hash map')
   expectAbsent(site.read('sitemap.xml').includes(`${SITE}/extension/</loc>`), 'the page is in the sitemap')
-  expectAbsent(site.paths.some((path) => path.startsWith(REEL_FILES)), 'the demo\'s frames were published')
+  expectAbsent(site.paths.some((path) => path.startsWith(REEL_FILES) || REEL_FRAME_PATH.test(path)), 'the demo\'s frames were published')
+  expectAbsent(HOME_LAYOUT.test(site.read('index.html')), 'the home page has the extension\'s layout')
   expectAbsent(site.read('extension/goodbye.html').includes('Reinstall the extension'), 'goodbye offers a reinstall')
   expectAbsent(site.paths.includes(SHARE_IMAGE), 'the share image was published')
   expectAbsent(site.read('llms.txt').includes('Live BPM Detector'), 'llms.txt names the extension')
@@ -106,12 +110,21 @@ function imageProblems(site: BuiltSite): string[] {
 // Sized before they load, small, and only ever from files the build published.
 function reelImageProblems(site: BuiltSite, path: string): string[] {
   const problems: string[] = []
-  for (const [tag] of site.read(path).matchAll(REEL_IMAGE)) {
+  const html = site.read(path)
+  const images = [...html.matchAll(REEL_IMAGE)]
+  if (/\bext-reel\b/.test(html) && images.length === 0) problems.push(`on: ${path} shows the demo with no frames`)
+  if (/\bext-reel\b/.test(html) && !/\bext-reel-stage\b[^>]*\baria-label="[^"]+"/.test(html)) problems.push(`on: ${path} shows the demo with no label`)
+  for (const [tag] of images) {
     if (!/\bwidth="\d+"/.test(tag) || !/\bheight="\d+"/.test(tag)) problems.push(`on: ${path} has an unsized demo frame: ${tag}`)
-    const files = [...tag.matchAll(new RegExp(`/(${REEL_FILES}[^" ,]+)`, 'g'))].map((match) => match[1] ?? '')
-    if (files.length === 0) problems.push(`on: ${path} has a demo frame from elsewhere: ${tag}`)
-    for (const file of files) {
-      if (!site.paths.includes(file)) problems.push(`on: ${path} has a demo frame with no file: ${file}`)
+    const urls = [
+      ...[...tag.matchAll(/\bsrc="([^"]*)"/g)].map((match) => match[1] ?? ''),
+      ...[...tag.matchAll(/\bsrcset="([^"]*)"/g)].flatMap((match) => (match[1] ?? '').split(',').map((entry) => entry.trim().split(' ')[0] ?? '')),
+    ]
+    if (urls.length === 0) problems.push(`on: ${path} has a demo frame with no source: ${tag}`)
+    for (const url of urls) {
+      const file = url.slice(1)
+      if (!url.startsWith(`/${REEL_FILES}`)) problems.push(`on: ${path} has a demo frame from elsewhere: ${url}`)
+      else if (!site.paths.includes(file)) problems.push(`on: ${path} has a demo frame with no file: ${file}`)
       else if (site.size(file) > MAX_REEL_BYTES) problems.push(`on: ${file} is over ${MAX_REEL_BYTES} bytes`)
     }
   }
@@ -157,6 +170,7 @@ function placementProblems(site: BuiltSite): string[] {
   if (!home.includes(HERO_ACTION)) problems.push('on: the home page has no action for the extension')
   if (!home.includes(HOME_SECTION)) problems.push('on: the home page has no section for the extension')
   if (!home.includes(HOME_TAGLINE)) problems.push('on: the home tagline does not name the extension')
+  if (!HOME_LAYOUT.test(home)) problems.push('on: the home page does not have the extension\'s layout')
   if (!home.includes('Developer Docs')) problems.push('on: the home page lost its Developer Docs action')
   // Read off a page with no other link to it, so this is the nav's order.
   const nav = site.read('bpm-to-ms.html')

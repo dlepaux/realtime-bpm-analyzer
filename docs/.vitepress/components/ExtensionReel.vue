@@ -21,7 +21,7 @@ import {
 const props = defineProps<{ capture: ReelCapture }>()
 
 const THEMES: readonly ReelTheme[] = ['light', 'dark']
-const SIZES = `(min-width: 960px) ${REEL_MAX_DISPLAY_WIDTH}px, 100vw`
+const SIZES = `(min-width: ${REEL_MAX_DISPLAY_WIDTH}px) ${REEL_MAX_DISPLAY_WIDTH}px, 100vw`
 const paused = ref(false)
 const STAGE_VARS = {
   '--ext-reel-zoom': REEL_ZOOM,
@@ -57,13 +57,13 @@ const label = computed(() =>
       >
         <img
           class="ext-reel-wide"
+          loading="lazy"
           :src="src(theme, 'wide', REEL_WIDE_WIDTHS)"
           :srcset="srcset(theme, 'wide', REEL_WIDE_WIDTHS)"
           :sizes="SIZES"
           :width="REEL_PAGE.width"
           :height="REEL_PAGE.height"
           alt=""
-          loading="lazy"
           decoding="async"
         />
         <img
@@ -71,13 +71,13 @@ const label = computed(() =>
           :key="step"
           class="ext-reel-crop"
           :data-step="step"
+          loading="lazy"
           :src="src(theme, step, REEL_CROP_WIDTHS)"
           :srcset="srcset(theme, step, REEL_CROP_WIDTHS)"
           :sizes="SIZES"
           :width="REEL_PAGE.width"
           :height="REEL_PAGE.height"
           alt=""
-          loading="lazy"
           decoding="async"
         />
       </div>

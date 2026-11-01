@@ -636,6 +636,9 @@ function derive(root: string, count: number): void {
     .filter(row => row.kind === 'real' && row.split === 'dev' && row.confidence === 'trackers-all' && !row.labelProvenance.octaveSplit && row.labelProvenance.halvesAgree !== false && row.bpm !== null)
     .sort((a, b) => fnv1a(`${seed}:derive:${a.id}`) - fnv1a(`${seed}:derive:${b.id}`));
   const rows: ManifestRow[] = [];
+  const failures: string[] = [];
+
+  mkdirSync(join(root, 'derived'), {recursive: true});
 
   for (const source of sources) {
     const [tempoFactor] = factorsTowards(source.bpm ?? 0, [150, 172]);
@@ -651,12 +654,14 @@ function derive(root: string, count: number): void {
           durationSeconds: source.durationSeconds / tempoFactor,
           audioPath: path,
         }));
+      } else {
+        failures.push(`${source.id}: ${String(made.stderr).slice(0, 200)}`);
       }
     }
   }
 
   writeNotReal(root, 'derived', rows);
-  log(`derive: ${rows.length} tracks`);
+  log(`derive: ${rows.length} tracks, ${failures.length} failed${failures.length > 0 ? `, first: ${failures[0]}` : ''}`);
 }
 
 /** The loops FSLD's own split and licence filter allow, with the role and key their annotators gave */

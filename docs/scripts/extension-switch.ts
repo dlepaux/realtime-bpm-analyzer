@@ -22,6 +22,11 @@ const STORE_LINK = /href="([^"]*chromewebstore[^"]*)"/g
 const EMPTY_LINK = /<a\b[^>]*\bhref="(?:|null|undefined)"/
 const SCREENSHOT = /\/(?:player|play-bar|playback-rate|no-audio)(?:-\d+)?\.[^/]*\.webp$/
 const MAX_IMAGE_BYTES = 40_000
+const SHARE_IMAGE = 'live-bpm-detector-share.png'
+const MAX_SHARE_IMAGE_BYTES = 300_000
+const HERO_ACTION = 'Live BPM Detector for Chrome'
+const HOME_SECTION = 'ext-band'
+const BANNED_MARKUP = /aggregateRating|ratingValue|reviewCount|"review"/
 
 // Where a musician lands, and where the promo must not reach: a developer's page and
 // the tool whose user already has the tempo.
@@ -38,6 +43,10 @@ function checkOff(site: BuiltSite): string[] {
   expectAbsent(site.read('sitemap.xml').includes(`${SITE}/extension/</loc>`), 'the page is in the sitemap')
   expectAbsent(site.paths.some((path) => SCREENSHOT.test(`/${path}`)), 'the page\'s screenshots were published')
   expectAbsent(site.read('extension/goodbye.html').includes('Reinstall the extension'), 'goodbye offers a reinstall')
+  expectAbsent(site.paths.includes(SHARE_IMAGE), 'the share image was published')
+  expectAbsent(site.read('llms.txt').includes('Live BPM Detector'), 'llms.txt names the extension')
+  expectAbsent(site.read('index.html').includes(HERO_ACTION), 'the home hero has the extension\'s action')
+  expectAbsent(site.read('index.html').includes(HOME_SECTION), 'the home page has the extension\'s section')
   for (const path of site.paths.filter((p) => p.includes('@localSearchIndex'))) {
     expectAbsent(site.read(path).includes('extension/#'), `the page is in the search index (${path})`)
   }
@@ -48,6 +57,8 @@ function checkOff(site: BuiltSite): string[] {
     STORE_LINK.lastIndex = 0
     expectAbsent(INSTALL_BUTTON.test(html), `${path} renders an install button`)
     INSTALL_BUTTON.lastIndex = 0
+    expectAbsent(html.includes('"name":"Live BPM Detector"'), `${path} carries the extension's structured data`)
+    expectAbsent(html.includes(SHARE_IMAGE), `${path} points at the extension's share image`)
   }
   for (const path of PROMO_PAGES) {
     expectAbsent(site.read(path).includes('Live BPM Detector'), `${path} promotes the extension`)
@@ -108,22 +119,40 @@ function seoProblems(site: BuiltSite, storeUrl: string): string[] {
   if (!page.includes('"@type":"SoftwareApplication"') || !page.includes(`"installUrl":"${storeUrl}"`)) {
     problems.push('on: no SoftwareApplication structured data with the listing')
   }
+  if (!page.includes('"price":"0"')) problems.push('on: the structured data does not say it is free')
+  if (BANNED_MARKUP.test(page)) problems.push('on: the structured data carries a rating or review')
+  if (!/<h1\b[\s\S]*Live BPM Detector[\s\S]*<\/h1>/.test(page)) problems.push('on: the h1 does not name the extension')
   const sitemap = site.read('sitemap.xml')
   if (!sitemap.includes(`${SITE}/extension/</loc>`)) problems.push('on: the page is not in the sitemap')
   if (sitemap.includes('extension/welcome')) problems.push('on: a users-only page is in the sitemap')
+  if (!site.read('llms.txt').includes(`[Live BPM Detector](${SITE}/extension/)`)) problems.push('on: llms.txt has no line for the extension')
+  return problems
+}
+
+function shareProblems(site: BuiltSite): string[] {
+  const problems: string[] = []
+  const ownImage = `<meta property="og:image" content="${SITE}/${SHARE_IMAGE}"`
+  if (!site.paths.includes(SHARE_IMAGE)) problems.push(`on: ${SHARE_IMAGE} was not published`)
+  else if (site.size(SHARE_IMAGE) > MAX_SHARE_IMAGE_BYTES) problems.push(`on: ${SHARE_IMAGE} is over ${MAX_SHARE_IMAGE_BYTES} bytes`)
+  if (!site.read(PAGE).includes(ownImage)) problems.push('on: the page does not share its own image')
+  if (site.read(PAGE).split('property="og:image"').length !== 2) problems.push('on: the page has more than one og:image')
+  if (site.read('index.html').includes(ownImage)) problems.push('on: the home page shares the extension\'s image')
   return problems
 }
 
 function placementProblems(site: BuiltSite): string[] {
   const problems: string[] = []
   const home = site.read('index.html')
-  if (!home.includes('See the extension')) problems.push('on: the home page has no card')
+  if (!home.includes(HERO_ACTION)) problems.push('on: the home hero has no action for the extension')
+  if (!home.includes(HOME_SECTION)) problems.push('on: the home page has no section for the extension')
   if (!home.includes('Developer Docs')) problems.push('on: the home page lost its Developer Docs action')
-  const guide = home.indexOf('href="/guide/getting-started"')
-  const api = home.indexOf('href="/api/"')
-  const extension = home.indexOf(PAGE_LINK)
-  if (guide === -1 || api === -1 || extension < api || extension < guide) {
-    problems.push('on: the library\'s nav items must come before the extension\'s')
+  // Read off a page with no other link to it, so this is the nav's order.
+  const nav = site.read('bpm-to-ms.html')
+  const extension = nav.indexOf(PAGE_LINK)
+  const guide = nav.indexOf('href="/guide/getting-started"')
+  const api = nav.indexOf('href="/api/"')
+  if (extension === -1 || guide === -1 || api === -1 || extension > guide) {
+    problems.push('on: the extension\'s nav item must come before the library\'s, which must stay')
   }
   for (const path of PROMO_PAGES) {
     if (!site.read(path).includes(PAGE_LINK)) problems.push(`on: ${path} has no link to the page`)
@@ -146,6 +175,7 @@ export function switchProblems(site: BuiltSite, storeUrl: string | null): string
     ...installProblems(site, storeUrl),
     ...imageProblems(site),
     ...seoProblems(site, storeUrl),
+    ...shareProblems(site),
     ...placementProblems(site),
   ]
 }

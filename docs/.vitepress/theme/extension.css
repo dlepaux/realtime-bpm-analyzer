@@ -295,42 +295,343 @@
 .vp-doc .ext-goodbye p[role='status']:empty { margin: 0; }
 .vp-doc .ext-goodbye-thanks:focus { outline: none; }
 
-/* ── The extension's own page (/extension/) ───────────────────────────────── */
+/* ── The demo: a made-up tab with the real overlay's anatomy ───────────────── */
 
-/* Written for people who want the tempo, not the library: the real overlay first, one
-   action, then what they'd ask next. Wider than a doc page so the pictures can be read. */
-.ext-landing {
-  max-width: 1104px;
-  margin: 0 auto;
-  padding: 48px 24px 72px;
+:root {
+  /* White on the theme's brand button is 4.48:1 in light and 4.15:1 on dark hover; these
+     clear AA. Only the promotion uses them. */
+  --ext-cta: #3a5ccc;
+  --ext-cta-hover: var(--vp-c-brand-1);
+  --ext-ink: #0f1220;
+  --ext-ink-2: #1f2433;
 }
 
-.vp-doc .ext-hero {
+.dark {
+  --ext-cta: #3e63dd;
+  --ext-cta-hover: #3a5ccc;
+}
+
+/* The ratio holds the box before anything paints, and only opacity and transform
+   animate inside it, so the demo can't shift the page. */
+.ext-demo {
+  --ext-demo-scale: 1.2;
+  position: relative;
   display: grid;
-  gap: 2rem;
-  align-items: center;
-  margin-bottom: 3rem;
+  grid-template-rows: auto 1fr auto;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 16px;
+  background: var(--ext-ink);
+  color: #f9fafb;
+  overflow: hidden;
+  contain: layout paint;
 }
+
+.dark .ext-demo { box-shadow: 0 0 0 1px #2e2e32; }
+
+.ext-demo-bar { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--ext-ink-2); }
+
+.ext-demo-address {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--ext-ink);
+  color: #d1d5db;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ext-demo-button { position: relative; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; }
+.ext-demo-button img { display: block; }
+
+.ext-demo-badge {
+  position: absolute;
+  right: -7px;
+  bottom: -3px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: #1f2937;
+  color: #f9fafb;
+  font: 600 9px/12px system-ui, sans-serif;
+}
+
+.ext-demo-video {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(60% 75% at 30% 30%, #ff7a59 0, transparent 100%),
+    radial-gradient(55% 70% at 75% 70%, #646cff 0, transparent 100%),
+    #2a2740;
+}
+
+.ext-demo-wave {
+  position: absolute;
+  inset: auto 5% 16% 5%;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 30%;
+  opacity: 0.55;
+  transform-origin: bottom;
+}
+
+.ext-demo-wave span { flex: 1; border-radius: 2px; background: #fff; }
+
+.ext-demo-scrub {
+  position: absolute;
+  inset: auto 5% 8% 5%;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #f9fafb 0 38%, rgb(255 255 255 / 0.28) 38%);
+}
+
+/* All three states share a cell, each at its real size, anchored where the overlay sits. */
+.ext-demo-pills {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  justify-items: end;
+  align-items: start;
+  transform: scale(var(--ext-demo-scale));
+  transform-origin: top right;
+}
+
+.ext-demo-pills > * { grid-area: 1 / 1; }
+.ext-demo-meta { padding: 10px 14px 12px; line-height: 1.35; }
+.ext-demo-title { font-size: 14px; font-weight: 600; }
+.ext-demo-sub { color: #9ca3af; font-size: 12px; }
+
+/* In the real overlay the line follows confidence, not stability, and it is high nearly
+   always, so settling keeps a full green line. While listening the line is grey. */
+.ext-demo .ext-pill-fill { background: #4ade80; }
+.ext-demo .ext-pill[data-stability='listening'] .ext-pill-fill { background: #9ca3af; }
+.ext-demo .ext-pill-dots { opacity: 1; }
+
+/* The rest state is the base, so reduced motion and print need no rule of their own. */
+.ext-demo .ext-pill[data-stability='listening'],
+.ext-demo .ext-pill[data-stability='settling'] { opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ext-demo.is-live .ext-pill[data-stability='listening'] { animation: ext-demo-listen 5s step-end both; }
+  .ext-demo.is-live .ext-pill[data-stability='settling'] { animation: ext-demo-settle 5s step-end both; }
+  .ext-demo.is-live .ext-pill[data-stability='stable'] { animation: ext-demo-stable 5s step-end both; }
+  .ext-demo.is-live .ext-pill[data-stability='listening'] .ext-pill-fill { transform-origin: left; animation: ext-demo-fill 5s linear both; }
+  .ext-demo.is-live .ext-pill-dots span { animation: ext-bounce 1.2s ease-in-out 2 both; }
+  .ext-demo.is-live .ext-pill-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .ext-demo.is-live .ext-pill-dots span:nth-child(3) { animation-delay: 0.4s; }
+  .ext-demo.is-live .ext-demo-badge { animation: ext-demo-badge 5s step-end both; }
+  .ext-demo.is-live .ext-demo-button { animation: ext-demo-click 5s ease-out both; }
+  /* Ten beats at 120 BPM: the story's 5 s, and the bars agree with the number. */
+  .ext-demo.is-live .ext-demo-wave { animation: ext-demo-beat 0.5s ease-out 10; }
+}
+
+@keyframes ext-demo-listen { 0% { opacity: 0; } 10% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes ext-demo-settle { 0% { opacity: 0; } 50% { opacity: 1; } 80%, 100% { opacity: 0; } }
+@keyframes ext-demo-stable { 0% { opacity: 0; } 80%, 100% { opacity: 1; } }
+@keyframes ext-demo-badge { 0% { opacity: 0; } 50%, 100% { opacity: 1; } }
+@keyframes ext-demo-fill { 0%, 10% { transform: scaleX(0); } 50%, 100% { transform: scaleX(1); } }
+@keyframes ext-demo-click { 0% { box-shadow: 0 0 0 0 rgb(168 177 255 / 0.9); } 9%, 100% { box-shadow: 0 0 0 9px rgb(168 177 255 / 0); } }
+@keyframes ext-demo-beat { 0% { transform: scaleY(1); } 35%, 100% { transform: scaleY(0.8); } }
 
 @media (min-width: 960px) {
-  .vp-doc .ext-hero { grid-template-columns: 1fr 1.25fr; gap: 3.5rem; }
+  .ext-hero-stage .ext-demo { --ext-demo-scale: 1.75; }
+  .ext-hero-stage .ext-demo-pills { top: 16px; right: 16px; }
 }
 
-.vp-doc .ext-hero h1 {
-  margin: 0;
-  font-size: clamp(2rem, 1.4rem + 2.6vw, 3rem);
+@media (max-width: 479px) {
+  .ext-demo { --ext-demo-scale: 1; }
+  .ext-demo-title { display: none; }
+  .ext-demo-meta { padding: 6px 12px 8px; }
+}
+
+/* ── The filled action ────────────────────────────────────────────────────── */
+
+.ext-cta,
+.vp-doc a.ext-install-btn.tt-btn-primary,
+.vp-doc a.ext-send-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0.65rem 1.75rem;
+  border-color: var(--ext-cta);
+  border-radius: 999px;
+  background: var(--ext-cta);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ext-cta:hover,
+.vp-doc a.ext-install-btn.tt-btn-primary:hover,
+.vp-doc a.ext-send-btn:hover {
+  border-color: var(--ext-cta-hover);
+  background: var(--ext-cta-hover);
+  color: #fff;
+}
+
+.dark .ext-cta:hover,
+.dark .vp-doc a.ext-install-btn.tt-btn-primary:hover,
+.dark .vp-doc a.ext-send-btn:hover { color: #fff; }
+
+.ext-cta:focus-visible,
+.vp-doc a.ext-install-btn:focus-visible,
+.vp-doc a.ext-send-btn:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+/* The home hero's button exists only while the switch is on: nothing else in the hero is brand. */
+.VPHero .VPButton.brand { border-color: var(--ext-cta); background-color: var(--ext-cta); color: #fff; }
+.VPHero .VPButton.brand:hover { border-color: var(--ext-cta-hover); background-color: var(--ext-cta-hover); color: #fff; }
+
+/* ── Home: the section under the hero ─────────────────────────────────────── */
+
+.ext-band { padding: 56px 24px; background: var(--vp-c-bg-soft); }
+
+.ext-band-inner {
+  display: grid;
+  gap: 32px;
+  align-items: center;
+  max-width: 1152px;
+  margin: 0 auto;
+}
+
+.ext-band-copy > * { min-width: 0; }
+.ext-band-name { display: flex; align-items: center; gap: 10px; margin: 0 0 0.5rem; color: var(--vp-c-brand-1); font-weight: 600; }
+
+.ext-band h2 {
+  margin: 0 0 0.75rem;
+  color: var(--vp-c-text-1);
+  font-size: clamp(1.625rem, 1.3rem + 1.2vw, 2.25rem);
   font-weight: 700;
-  line-height: 1.12;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.ext-band p:not(.ext-band-name) { margin: 0 0 0.9rem; max-width: 36rem; color: var(--vp-c-text-2); line-height: 1.6; }
+.ext-band .ext-band-which { font-size: 0.925rem; }
+.ext-band .ext-cta { margin-top: 0.4rem; }
+
+@media (min-width: 640px) { .ext-band { padding: 72px 48px; } }
+
+@media (min-width: 960px) {
+  .ext-band { padding: 72px 64px; }
+  .ext-band-inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; }
+}
+
+/* ── The extension's own page (/extension/) ───────────────────────────────── */
+
+/* Written for people who want the tempo, not the library: the product working first, one
+   action, then what they'd ask next. Sections fill the width so two can carry a
+   background, without 100vw, which overflows next to a scrollbar. */
+.ext-landing { overflow-wrap: break-word; }
+
+.ext-wrap,
+.vp-doc .ext-hero {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding-inline: 24px;
+}
+
+.ext-narrow { max-width: 768px; }
+.ext-sec { padding-block: clamp(56px, 8vw, 96px); }
+.ext-sec-tight { padding-top: 0; }
+.ext-soft { background: var(--vp-c-bg-soft); }
+
+/* The doc theme's hairline above each h2 is what makes a page read as documentation. */
+.vp-doc.ext-landing h2 {
+  margin: 0 0 1.5rem;
+  padding: 0;
+  border: 0;
+  font-size: clamp(1.625rem, 1.3rem + 1.2vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1.15;
   letter-spacing: -0.02em;
 }
 
-.vp-doc .ext-lede {
-  margin: 1rem 0 1.5rem;
-  max-width: 34rem;
-  color: var(--vp-c-text-2);
-  font-size: 1.125rem;
-  line-height: 1.6;
+.vp-doc.ext-landing h3 { margin: 0 0 0.4rem; font-size: 1.125rem; font-weight: 600; line-height: 1.3; }
+.vp-doc .ext-intro { margin: -0.75rem 0 1rem; color: var(--vp-c-text-2); font-size: 1.0625rem; }
+
+/* Grid areas let the phone read name, headline, demo, lede, action, in source order. */
+.vp-doc .ext-hero {
+  display: grid;
+  gap: 16px;
+  padding-block: 24px 56px;
+  grid-template-columns: minmax(0, 1fr);
 }
+
+.vp-doc .ext-hero h1 { margin: 0; letter-spacing: -0.02em; }
+
+.ext-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.6rem;
+  color: var(--vp-c-brand-1);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.ext-headline {
+  display: block;
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.ext-hero-stage { margin: 0; min-width: 0; width: min(100%, calc(62svh * 1.6)); justify-self: center; }
+
+.vp-doc .ext-hero-stage figcaption { margin-top: 0.5rem; color: var(--vp-c-text-2); font-size: 0.8125rem; line-height: 1.45; }
+
+.vp-doc .ext-lede { margin: 0; max-width: 36rem; color: var(--vp-c-text-1); font-size: 1.0625rem; line-height: 1.55; }
+.vp-doc .ext-support { margin: 0; max-width: 36rem; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.55; }
+.ext-hero-action { margin-top: 0.5rem; }
+
+@media (min-width: 960px) {
+  .vp-doc .ext-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: 56px;
+    row-gap: 18px;
+    padding-block: 64px 88px;
+  }
+
+  .ext-hero-stage { grid-column: 2; grid-row: 1 / span 4; width: 100%; }
+  .vp-doc .ext-hero h1,
+  .vp-doc .ext-lede,
+  .vp-doc .ext-support,
+  .ext-hero-action { grid-column: 1; }
+  .vp-doc .ext-lede { font-size: 1.125rem; }
+}
+
+/* A store's action or the way to get it to a computer, picked on the pointer. */
+.ext-install-touch { display: none; }
+
+@media (hover: none) and (pointer: coarse) {
+  .ext-install-pointer { display: none; }
+  .ext-install-touch { display: block; }
+}
+
+.ext-install-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+.vp-doc .ext-install-note { margin: 0.6rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; }
+.vp-doc .ext-install-note-first { margin: 0 0 0.6rem; }
+
+.vp-doc .ext-install-links { display: flex; flex-direction: column; align-items: flex-start; margin-top: 0.4rem; }
+.vp-doc .ext-install-links a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 500; }
+
+.vp-doc .ext-small { margin: 1.5rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; }
 
 /* width and height are set on each image, so its box is reserved before it loads. */
 .vp-doc .ext-shot {
@@ -341,40 +642,17 @@
   border-radius: 12px;
 }
 
-.ext-install-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.ext-moment { display: grid; gap: 1.25rem; align-items: center; padding-block: 1.75rem; }
+.vp-doc .ext-moment p { margin: 0; color: var(--vp-c-text-2); line-height: 1.6; }
 
-/* Large enough to hit on a touchscreen, even though the install itself needs a computer. */
-.vp-doc a.ext-install-btn {
-  min-height: 48px;
-  padding: 0.65rem 1.75rem;
-  font-size: 1rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.vp-doc a.ext-install-btn.tt-btn-primary,
-.vp-doc a.ext-install-btn.tt-btn-primary:hover { color: var(--vp-button-brand-text); }
-
-.vp-doc a.ext-install-btn:focus-visible {
-  outline: 2px solid var(--vp-c-brand-1);
-  outline-offset: 2px;
-}
-
-.vp-doc .ext-install-note {
-  margin: 0.6rem 0 0;
-  color: var(--vp-c-text-2);
-  font-size: 0.875rem;
-}
-
-.vp-doc .ext-small {
-  color: var(--vp-c-text-2);
-  font-size: 0.875rem;
+@media (min-width: 768px) {
+  .ext-moment { grid-template-columns: minmax(0, 1fr) minmax(0, 487px); gap: 3rem; }
 }
 
 /* The steps are a real sequence, so they keep their numbers. */
 .vp-doc ol.ext-howto {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: 1.75rem;
   margin: 1.5rem 0 0;
   padding: 0;
@@ -383,7 +661,6 @@
 }
 
 .vp-doc .ext-howto li { margin: 0; counter-increment: ext-howto; }
-.vp-doc .ext-howto h3 { margin: 0 0 0.35rem; font-size: 1.05rem; }
 
 .vp-doc .ext-howto h3::before {
   content: counter(ext-howto);
@@ -401,42 +678,56 @@
 
 .vp-doc .ext-howto p { margin: 0; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.6; }
 
-.ext-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1.5rem;
-}
-
-.ext-gallery figure { margin: 0; }
-
-.vp-doc .ext-gallery figcaption {
-  margin-top: 0.6rem;
-  color: var(--vp-c-text-2);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
 .ext-sites {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 1.5rem;
   margin-top: 1.5rem;
 }
 
-.vp-doc .ext-sites h3 { margin: 0 0 0.35rem; font-size: 1rem; }
 .vp-doc .ext-sites ul { margin: 0; padding: 0; list-style: none; }
-.vp-doc .ext-sites li { margin: 0.15rem 0; }
-.vp-doc .ext-sites p { margin: 0; }
+.vp-doc .ext-sites li { margin: 0.15rem 0; font-size: 1.125rem; }
+.vp-doc .ext-sites p { margin: 0; font-size: 1.125rem; }
 
-.vp-doc .ext-closing {
-  margin-top: 3.5rem;
-  padding-top: 2.5rem;
-  border-top: 1px solid var(--vp-c-divider);
+/* Open, never collapsed: the limits stay on the page. */
+.vp-doc .ext-limits { margin: 0; }
+.vp-doc .ext-limits > div { display: grid; gap: 0.35rem; padding-block: 1.1rem; border-top: 1px solid var(--vp-c-divider); }
+.vp-doc .ext-limits dt { font-weight: 600; color: var(--vp-c-text-1); }
+.vp-doc .ext-limits dd { margin: 0; color: var(--vp-c-text-2); line-height: 1.6; }
+.vp-doc .ext-limit-shot { max-width: 320px; margin-top: 0.9rem; }
+
+@media (min-width: 768px) {
+  .vp-doc .ext-limits > div { grid-template-columns: 14rem minmax(0, 1fr); gap: 1.5rem; }
 }
 
-.vp-doc .ext-closing h2 { margin: 0 0 1.25rem; padding: 0; border: 0; }
+/* The page's second peak, dark in both themes, so the promise reads as its own moment. */
+.ext-ink { background: var(--ext-ink); color: #d1d5db; }
+.dark .ext-ink { box-shadow: 0 -1px 0 #2e2e32, 0 1px 0 #2e2e32; }
 
-@media (max-width: 639px) {
-  .ext-landing { padding-top: 24px; }
+.vp-doc.ext-landing .ext-ink h2 {
+  max-width: 20ch;
+  color: #f9fafb;
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+  line-height: 1.1;
 }
+
+.vp-doc.ext-landing .ext-ink h3 { color: #f9fafb; font-size: 1rem; }
+.vp-doc .ext-ink p { color: #d1d5db; }
+.vp-doc .ext-ink a { color: #a8b1ff; }
+.vp-doc .ext-ink .ext-promise { margin: 0 0 2rem; padding: 0; border: 0; border-radius: 0; background: none; }
+.vp-doc .ext-ink .ext-promise p { margin: 0; max-width: 44rem; color: #f9fafb; font-size: clamp(1.0625rem, 1rem + 0.5vw, 1.3rem); font-weight: 500; line-height: 1.5; }
+
+.ext-ink-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 1.5rem 3rem;
+}
+
+.vp-doc .ext-ink-details p { margin: 0; font-size: 0.95rem; line-height: 1.6; }
+
+.vp-doc .ext-closing { padding-top: 0; }
+.vp-doc.ext-landing .ext-closing h2 { margin-bottom: 1.25rem; }
+.vp-doc .ext-library { margin-top: 2rem; }
+
+/* A jump to the install-prompt answer shouldn't land under the sticky nav. */
+#chrome-prompt { scroll-margin-top: calc(var(--vp-nav-height) + 16px); }

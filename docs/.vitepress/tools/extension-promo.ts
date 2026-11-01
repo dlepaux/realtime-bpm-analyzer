@@ -1,7 +1,7 @@
 // What the site promotes once the extension has a store listing (RBA-58). Every piece
 // is derived from the store URL, null until the listing exists, so one value turns the
-// whole promotion on: the /extension/ page, its nav link, the home card and the links
-// from the tools. Pure and import-free so `npm test` runs it with node --test.
+// whole promotion on: the /extension/ page, its nav link, the home page's hero action
+// and section, and the links from the tools. Pure and import-free so `npm test` runs it with node --test.
 
 export const EXTENSION_PAGE = '/extension/'
 
@@ -48,7 +48,7 @@ export function installTargets(storeUrl: string | null): readonly InstallTarget[
     browser: 'Chrome',
     label: 'Add to Chrome',
     href: storeUrl,
-    requirement: 'For Chrome 150 or later, on a computer.',
+    requirement: 'Free. For Chrome 150 or later, on a computer.',
   }]
 }
 
@@ -57,30 +57,53 @@ export function excludedSources(storeUrl: string | null): string[] {
   return storeUrl === null ? [EXTENSION_PAGE_SOURCE] : []
 }
 
-/** The main navigation's link. It goes after the library's items, whose order it leaves alone. */
+/** The main navigation's link. It goes right after Free Tools, ahead of the library's items. */
 export function extensionNavItems(storeUrl: string | null) {
   if (storeUrl === null) return []
-  return [{ text: 'Extension', link: EXTENSION_PAGE, activeMatch: '^/extension/$' }]
-}
-
-// lucide's audio-lines, at the size and stroke of the home page's other cards.
-const FEATURE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/></svg>'
-
-/** The home page's card, in the same row as the free tools. */
-export function extensionHomeFeatures(storeUrl: string | null) {
-  if (storeUrl === null) return []
-  return [{
-    icon: FEATURE_ICON,
-    title: 'Live BPM Detector',
-    details: 'A Chrome extension that shows the tempo of what is playing in a tab, right on the player.',
-    link: EXTENSION_PAGE,
-    linkText: 'See the extension',
-  }]
+  return [{ text: 'Chrome Extension', link: EXTENSION_PAGE, activeMatch: '^/extension/$' }]
 }
 
 /**
- * Schema.org for the page. No `offers` and no rating: the page makes no pricing
- * promise, and there are no store ratings to report yet.
+ * The home hero's action. It goes to the page rather than the store, because the page
+ * explains Chrome's install prompt before anyone meets it. The home page's section is
+ * ExtensionHomeBand.vue.
+ */
+export function extensionHeroActions(storeUrl: string | null) {
+  if (storeUrl === null) return []
+  return [{ theme: 'brand', text: 'Live BPM Detector for Chrome', link: EXTENSION_PAGE }]
+}
+
+// A phone can't install it, so a phone's action is getting the page to a computer. No
+// form and no parameter on the link: it is the same address anyone can copy.
+export const SEND_LINK_URL = 'https://www.realtime-bpm-analyzer.com/extension/'
+export const SEND_LINK_MAILTO = `mailto:?subject=${encodeURIComponent('Live BPM Detector')}&body=${encodeURIComponent(SEND_LINK_URL)}`
+
+// The linked platforms where the store listing says it works. The analyzer also
+// recognises Spotify, Apple Music and Deezer links, which the extension doesn't promise.
+const COVERED_PLATFORMS: readonly string[] = ['youtube', 'soundcloud', 'bandcamp']
+
+/** Whether the analyzer may suggest the extension for a link to this platform. */
+export function extensionCovers(platform: string | null): boolean {
+  return platform !== null && COVERED_PLATFORMS.includes(platform)
+}
+
+/** The page's share image. buildEnd publishes it only while the switch is on. */
+export const EXTENSION_SHARE_IMAGE = {
+  file: 'live-bpm-detector-share.png',
+  width: 1200,
+  height: 630,
+  alt: 'Live BPM Detector, a free Chrome extension: the overlay showing an example reading of 120 BPM, marked stable.',
+} as const
+
+/** llms.txt's line for the extension, added at build time because the file is static. */
+export const EXTENSION_LLMS_LINE = `- [Live BPM Detector](${SEND_LINK_URL}): free Chrome extension that shows the live BPM of the music playing in the current tab, on the page, with the audio analysed on the device`
+
+/**
+ * Schema.org for the page. The Offer says what the store says: free. No rating or
+ * review, because there are none to report. Google's software-app rich result requires
+ * one, so this earns no rich result and its test may warn: that is accepted, it stays
+ * true. `softwareRequirements` because schema.org defines `browserRequirements` only on
+ * WebApplication.
  */
 export function extensionPageSchema(storeUrl: string, canonical: string, description: string) {
   return {
@@ -90,9 +113,11 @@ export function extensionPageSchema(storeUrl: string, canonical: string, descrip
     url: canonical,
     applicationCategory: 'MultimediaApplication',
     operatingSystem: 'Chrome',
-    browserRequirements: 'Requires Chrome 150 or later.',
+    softwareRequirements: 'Chrome 150 or later, on a computer',
     installUrl: storeUrl,
     inLanguage: 'en',
+    isAccessibleForFree: true,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     featureList: [
       'Shows the live BPM of the music playing in the current tab',
       'Audio is analysed on your device and never leaves it',

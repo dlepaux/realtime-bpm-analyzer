@@ -2,6 +2,8 @@
 import DefaultTheme from 'vitepress/theme'
 import { useData } from 'vitepress'
 import BpmHeroTool from '../components/BpmHeroTool.vue'
+import ExtensionHomeBand from '../components/ExtensionHomeBand.vue'
+import { INSTALL_TARGETS } from '../tools/extension-live'
 
 const { Layout } = DefaultTheme
 const { frontmatter } = useData()
@@ -32,6 +34,9 @@ const { frontmatter } = useData()
         </div>
       </div>
       <BpmHeroTool />
+    </template>
+    <template #home-hero-after>
+      <ExtensionHomeBand v-if="INSTALL_TARGETS.length" />
     </template>
   </Layout>
 </template>

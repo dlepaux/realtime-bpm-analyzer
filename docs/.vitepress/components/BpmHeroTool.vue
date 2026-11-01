@@ -34,7 +34,7 @@ import {
 import GithubStarSupport from './GithubStarSupport.vue'
 import ResultToolLinks from './ResultToolLinks.vue'
 import { STORE_URL } from '../tools/extension-live'
-import { EXTENSION_PAGE } from '../tools/extension-promo'
+import { EXTENSION_PAGE, extensionCovers } from '../tools/extension-promo'
 
 type Mode = 'file' | 'mic' | 'stream'
 type Status = 'idle' | 'analysing' | 'result' | 'error'
@@ -990,13 +990,13 @@ function formatDuration(seconds: number): string {
               <!-- Only here, where tab audio works: the extension needs a desktop
                    browser, and this is the moment its job is exactly what's wanted. -->
               <div
-                v-if="STORE_URL"
+                v-if="STORE_URL && extensionCovers(linkPlatform)"
                 class="bpm-stream-hint"
               >
-                Do this often? <a
+                Skip the sharing next time. <a
                   class="bpm-text-btn"
                   :href="EXTENSION_PAGE"
-                >Live BPM Detector</a> shows the tempo on the player, with no sharing.
+                >Live BPM Detector</a> for Chrome shows the tempo on the player.
               </div>
             </template>
             <template v-else>

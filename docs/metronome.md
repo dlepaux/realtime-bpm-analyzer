@@ -51,7 +51,7 @@ Need the tempo of a recording? [Tap it](/tap-tempo), or detect it
 automatically with the [BPM Analyzer](/). Setting up a delay to match? Use the
 [BPM to ms calculator](/bpm-to-ms).
 
-<ExtensionMention />
+<ExtensionMention lead="Learning a song in a Chrome tab?" tail="shows its tempo, so you can set the click to match." />
 
 ## Frequently asked questions
 

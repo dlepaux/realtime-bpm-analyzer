@@ -1,9 +1,12 @@
 import { defineConfig } from 'vitepress'
 import { createRequire } from 'module'
+import { appendFileSync, copyFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { isUsersOnlyExtensionPage } from './tools/extension-pages'
 import { isNoindexPage, SCHEMA_WEB_APPLICATION, siteGraph, toolFaqPage } from './tools/site-schema'
 import { STORE_URL } from './tools/extension-live'
-import { excludedSources, extensionHomeFeatures, extensionNavItems, extensionPageSchema } from './tools/extension-promo'
+import { EXTENSION_LLMS_LINE, EXTENSION_SHARE_IMAGE, excludedSources, extensionHeroActions, extensionNavItems, extensionPageSchema } from './tools/extension-promo'
 
 const require = createRequire(import.meta.url)
 // The library's version, through its workspace link (packages/realtime-bpm-analyzer)
@@ -51,7 +54,13 @@ const COPYRIGHT_YEARS = COPYRIGHT_END_YEAR > COPYRIGHT_START_YEAR
   ? `${COPYRIGHT_START_YEAR}–${COPYRIGHT_END_YEAR}`
   : `${COPYRIGHT_START_YEAR}`
 
-const SHARE_IMAGE_ALT = 'The Realtime BPM Analyzer logo and name'
+const SITE_URL = 'https://www.realtime-bpm-analyzer.com'
+const SITE_SHARE_IMAGE = {
+  file: 'realtime-bpm-analyzer-share.png',
+  width: 1280,
+  height: 640,
+  alt: 'The Realtime BPM Analyzer logo and name',
+}
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -102,6 +111,15 @@ export default defineConfig({
     )
   },
 
+  // What goes live with the extension but can't be a page: public/ would publish the
+  // image while the switch is off, and llms.txt is a static file.
+  buildEnd({ outDir }) {
+    if (!STORE_URL) return
+    const assets = fileURLToPath(new URL('./assets/extension/', import.meta.url))
+    copyFileSync(join(assets, EXTENSION_SHARE_IMAGE.file), join(outDir, EXTENSION_SHARE_IMAGE.file))
+    appendFileSync(join(outDir, 'llms.txt'), `\n## Browser extension\n\n${EXTENSION_LLMS_LINE}\n`)
+  },
+
   // Per-page canonical + og:url + per-page og/twitter title/description.
   //
   // Canonical: GitHub Pages serves the same file at both `/foo.html` and
@@ -128,7 +146,10 @@ export default defineConfig({
     const pageTitle = pageData.frontmatter.title as string | undefined
     const pageDesc = pageData.frontmatter.description as string | undefined
 
-    const ogTitle = pageTitle
+    // A page that opts out of the title template has already written its full title.
+    const ogTitle = pageTitle && pageData.frontmatter.titleTemplate === false
+      ? pageTitle
+      : pageTitle
       ? `${pageTitle} | ${SITE_NAME}`
       : DEFAULT_OG_TITLE
     const ogDesc = pageDesc ?? DEFAULT_DESCRIPTION
@@ -159,11 +180,15 @@ export default defineConfig({
       graph.push(extensionPageSchema(STORE_URL, canonical, ogDesc))
     }
     if (isHome) {
-      pageData.frontmatter.features = [
-        ...(pageData.frontmatter.features as object[]),
-        ...extensionHomeFeatures(STORE_URL),
-      ]
+      const hero = pageData.frontmatter.hero as { actions: object[] }
+      pageData.frontmatter.hero = { ...hero, actions: [...extensionHeroActions(STORE_URL), ...hero.actions] }
     }
+
+    // Emitted per page, not from `head:` below: crawlers use the first occurrence, so a
+    // global tag would pin every page to the site's image.
+    const shareImage = STORE_URL && pageData.relativePath === 'extension/index.md'
+      ? EXTENSION_SHARE_IMAGE
+      : SITE_SHARE_IMAGE
 
     pageData.frontmatter.head ??= []
     pageData.frontmatter.head.push(
@@ -173,6 +198,12 @@ export default defineConfig({
       ['meta', { property: 'og:description', content: ogDesc }],
       ['meta', { name: 'twitter:title', content: ogTitle }],
       ['meta', { name: 'twitter:description', content: ogDesc }],
+      ['meta', { property: 'og:image', content: `${SITE_URL}/${shareImage.file}` }],
+      ['meta', { property: 'og:image:width', content: String(shareImage.width) }],
+      ['meta', { property: 'og:image:height', content: String(shareImage.height) }],
+      ['meta', { property: 'og:image:alt', content: shareImage.alt }],
+      ['meta', { name: 'twitter:image', content: `${SITE_URL}/${shareImage.file}` }],
+      ['meta', { name: 'twitter:image:alt', content: shareImage.alt }],
       ['script', { type: 'application/ld+json' }, JSON.stringify({
         '@context': 'https://schema.org',
         '@graph': graph,
@@ -194,16 +225,10 @@ export default defineConfig({
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:locale', content: 'en_US' }],
     ['meta', { property: 'og:site_name', content: 'Realtime BPM Analyzer' }],
-    // og:url, og:title, og:description, twitter:title, twitter:description
-    // are injected per-page via transformPageData so each URL is
+    // og:url, og:title, og:description, og:image, twitter:title,
+    // twitter:description and twitter:image are injected per-page via transformPageData so each URL is
     // self-canonical and each page surfaces its own meta.
-    ['meta', { property: 'og:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
-    ['meta', { property: 'og:image:width', content: '1280' }],
-    ['meta', { property: 'og:image:height', content: '640' }],
-    ['meta', { property: 'og:image:alt', content: SHARE_IMAGE_ALT }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-    ['meta', { name: 'twitter:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
-    ['meta', { name: 'twitter:image:alt', content: SHARE_IMAGE_ALT }],
     ['link', { rel: 'icon', type: 'image/png', href: '/favicon/favicon-96x96.png', sizes: '96x96' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon/favicon.svg' }],
     ['link', { rel: 'shortcut icon', href: '/favicon/favicon.ico' }],
@@ -228,10 +253,10 @@ export default defineConfig({
           { text: 'Metronome', link: '/metronome' },
         ],
       },
+      ...extensionNavItems(STORE_URL),
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Examples', link: '/examples/basic-usage' },
       { text: 'API Reference', link: '/api/' },
-      ...extensionNavItems(STORE_URL),
       { 
         text: `v${pkg.version}`,
         items: [

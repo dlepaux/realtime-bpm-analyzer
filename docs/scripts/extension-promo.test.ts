@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs'
 import { EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config.ts'
 import {
   excludedSources,
-  extensionHomeFeatures,
+  extensionCovers,
+  extensionHeroActions,
   extensionNavItems,
   extensionPageSchema,
   installTargets,
@@ -55,7 +56,7 @@ test('the committed value is off or a real listing', () => {
 test('switch off: nothing to render, and the page is left out of the build', () => {
   assert.deepEqual(installTargets(null), [])
   assert.deepEqual(extensionNavItems(null), [])
-  assert.deepEqual(extensionHomeFeatures(null), [])
+  assert.deepEqual(extensionHeroActions(null), [])
   assert.deepEqual(excludedSources(null), ['extension/index.md'])
 })
 
@@ -65,13 +66,19 @@ test('switch on: every install link is the listing, and the page is built', () =
   for (const target of targets) assert.equal(target.href, LISTING)
   assert.deepEqual(excludedSources(LISTING), [])
   assert.deepEqual(extensionNavItems(LISTING).map((item) => item.link), ['/extension/'])
-  assert.deepEqual(extensionHomeFeatures(LISTING).map((item) => item.link), ['/extension/'])
+  assert.deepEqual(extensionHeroActions(LISTING).map((item) => item.link), ['/extension/'])
 })
 
-test('structured data: names the listing, with no price or rating', () => {
+test('structured data: names the listing and says it is free, with no rating or review', () => {
   const schema = extensionPageSchema(LISTING, 'https://x/extension/', 'Description')
   assert.equal(schema.installUrl, LISTING)
-  assert.ok(!('offers' in schema) && !('aggregateRating' in schema))
+  assert.equal(schema.offers.price, '0')
+  for (const key of ['aggregateRating', 'review', 'browserRequirements']) assert.ok(!(key in schema), key)
+})
+
+test('the analyzer only suggests the extension for links to sites the listing names', () => {
+  for (const platform of ['youtube', 'soundcloud', 'bandcamp']) assert.ok(extensionCovers(platform), platform)
+  for (const platform of ['spotify', 'apple_music', 'deezer', null]) assert.ok(!extensionCovers(platform), String(platform))
 })
 
 // The page carries only this much of the policy, so musicians reach the install button,
@@ -126,7 +133,7 @@ test('page: names exactly the sites the player matrix and the listing prove', ()
 test('page: makes no claim the evidence does not carry', () => {
   for (const banned of [
     /accura/i, /benchmark/i, /\d\s*%/, /\bbest\b/i, /\bfastest\b/i, /\bperfect/i, /\bguarantee/i,
-    /coming soon/i, /\bsoon\b/i, /\bPro\b/, /pric(e|ing)/i, /\bfree\b/i, /\bpaid\b/i, /\$/,
+    /coming soon/i, /\bsoon\b/i, /\bPro\b/, /pric(e|ing)/i, /\bforever\b/i, /\bpaid\b/i, /\$/, /aggregateRating/, /testimonial/i, /\binstalls\b/i, /\busers\b/i,
     /GroovePeek/, /BPM Finder/, /BPM Counter/, /Spotify/, /Deezer/, /Vimeo/, /Firefox/, /\bEdge\b/, /Safari/,
     /collects no data/i,
     /—/, /–/,

@@ -1,0 +1,32 @@
+{
+  "ranges": [{"min": 50, "max": 240}, {"min": 90, "max": 180}],
+  "stages": [
+    {"name": "baseline", "axes": {}},
+    {
+      "name": "reference-285",
+      "axes": {"priorBpm": [136], "priorOctaves": [0.8], "halfBeatPenalty": [0], "thirdBeatPenalty": [0]}
+    },
+    {
+      "name": "prior-and-penalties",
+      "axes": {
+        "priorBpm": [80, 90, 100, 110, 120, 130, 140, 150, 160, 170],
+        "priorOctaves": [0.4, 0.55, 0.7, 0.85, 1, 1.3, 1.7, 2.4],
+        "halfBeatPenalty": [0, 0.25],
+        "thirdBeatPenalty": [0, 0.1, 0.2, 0.3, 0.4]
+      }
+    },
+    {
+      "name": "other-knobs",
+      "oneAtATime": true,
+      "axes": {
+        "combBeats": [2, 3, 6],
+        "halfLifeSeconds": [8, 12, 24],
+        "windowSeconds": [6, 10],
+        "stableSeconds": [6, 10],
+        "stableAgreement": [0.7, 0.9],
+        "stableSalience": [0.1, 0.2, 0.25],
+        "stableMargin": [1.1, 1.5]
+      }
+    }
+  ]
+}

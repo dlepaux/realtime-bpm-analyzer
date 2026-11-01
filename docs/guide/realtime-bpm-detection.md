@@ -265,22 +265,63 @@ in a 70–140 range) jitters across it, and its votes split between 140 and
 
 An experimental detector reads the tempo from an onset tempogram rather
 than from peaks in low-passed audio. It weighs tempos with a prior instead
-of folding them, so an 85 BPM track can read as 85, and it only calls a
-tempo stable once the tempo agreed over several seconds and clearly leads
-its rivals. Opt in with the `detector` option, and connect the source
-**directly**: it needs the full band, so skip `getBiquadFilter`.
+of folding them, and it only calls a tempo stable once the tempo agreed over
+several seconds and clearly leads its rivals. Opt in with the `detector` option, and connect the source to
+`bpmAnalyzer.input`. That node holds what the detector needs in front of
+it, the lowpass for `peaks` and nothing for `tempogram`, so the wiring is
+the same for both. The tempogram needs the full band, so it must not go
+through `getBiquadFilter`.
 
 ```typescript
 const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
   detector: 'tempogram',
 });
 
-source.connect(bpmAnalyzer.node);
+source.connect(bpmAnalyzer.input);
 ```
 
-It covers real-time analysis only: `analyzeFullBuffer` keeps the peaks
-detector. `tempoRange` still limits the tempos searched, but nothing is
-folded into it. The default stays `'peaks'`.
+`analyzeFullBuffer(buffer, {detector: 'tempogram'})`, `analyzeChannelData`
+in Node, the CLI's `--detector tempogram` and the MCP server's `detector`
+argument run it on whole files. The default stays `'peaks'`.
+
+It searches 90 to 180 BPM, and a tempo outside that reads at the octave
+inside: over about 179 BPM reads half, so a 200 BPM track reads 100, and a
+70 BPM track reads 140.
+
+`tempoRange` changes what is searched, but nothing is folded into it. A tempo
+from about twice `min` up can read at half or a quarter, whatever `max` is, so
+a lower `min` halves more music and a higher `max` does not reach faster
+music. On a range wider than one octave, which of those tempos halve varies
+from one to the next. On clean click tracks:
+
+| `tempoRange` | Reads as itself | Reads at half |
+| --- | --- | --- |
+| 60 to 180 | 116, 140 | 120 as 60, 160 as 80 |
+| 70 to 140 | 130 | 140 as 70 |
+| 90 to 240 | 170 | 180 as 90 |
+
+These settings were measured on real-time analysis at 90 to 180 only, and
+whole files run the same settings without having been scored at them.
+`continuousAnalysis` works
+with it too, but a short `stabilizationTime` resets it before it can reach
+stable: at 10 seconds it never does.
+
+### `tempogramMode: 'extension'`
+
+For a browser extension or any other page listening to a tab, which wants
+to be sure it runs the settings that were measured. It reads exactly as
+`detector: 'tempogram'` does, and refuses what would leave those settings: a
+`tempoRange` other than 90 to 180, and `continuousAnalysis`. So over 180 BPM
+still reads half. It applies to real-time analysis only.
+
+```typescript
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  detector: 'tempogram',
+  tempogramMode: 'extension',
+});
+
+source.connect(bpmAnalyzer.input);
+```
 
 ## The lowpass filter — why it's there
 

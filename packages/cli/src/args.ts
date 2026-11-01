@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import {parseArgs} from 'node:util';
-import type {TempoRange} from 'realtime-bpm-analyzer/node';
+import type {Detector, TempoRange} from 'realtime-bpm-analyzer/node';
 import {resolveTempoRange} from './api';
 import {errorMessage} from './errors';
 
@@ -10,6 +10,7 @@ export type CliOptions = {
   readonly json: boolean;
   readonly recursive: boolean;
   readonly tempoRange: TempoRange | undefined;
+  readonly detector: Detector;
 };
 
 export type ParsedArgs =
@@ -28,6 +29,9 @@ Options:
   -r, --recursive    Walk sub-folders of a folder (up to 32 levels)
   --min-bpm <bpm>    Lowest tempo reported (default 90)
   --max-bpm <bpm>    Highest tempo reported (default 180, at least 2 x min)
+  --detector <name>  peaks (default) or tempogram, which searches the range
+                     instead of folding into it: from about 2 x min a tempo
+                     can read half, as over about 179 does by default
   -h, --help         Show this help
   -v, --version      Show the version
 
@@ -53,6 +57,7 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
         recursive: {type: 'boolean', short: 'r', default: false},
         'min-bpm': {type: 'string'},
         'max-bpm': {type: 'string'},
+        detector: {type: 'string', default: 'peaks'},
         help: {type: 'boolean', short: 'h', default: false},
         version: {type: 'boolean', short: 'v', default: false},
       },
@@ -74,6 +79,11 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
     return {kind: 'usage-error', message: 'Missing a file or folder to analyse.'};
   }
 
+  const {detector} = values;
+  if (detector !== 'peaks' && detector !== 'tempogram') {
+    return {kind: 'usage-error', message: `Invalid detector: ${detector}. Use peaks or tempogram.`};
+  }
+
   const range = await parseTempoRange(values['min-bpm'], values['max-bpm']);
   if (typeof range === 'string') {
     return {kind: 'usage-error', message: range};
@@ -81,7 +91,7 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
 
   return {
     kind: 'run',
-    options: {paths: positionals, json: values.json, recursive: values.recursive, tempoRange: range},
+    options: {paths: positionals, json: values.json, recursive: values.recursive, tempoRange: range, detector},
   };
 }
 

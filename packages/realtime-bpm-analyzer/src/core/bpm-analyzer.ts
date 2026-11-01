@@ -96,12 +96,30 @@ export class BpmAnalyzer extends EventTarget {
   readonly node: AudioWorkletNode;
 
   /**
+   * Where to connect the audio source: `source.connect(analyzer.input)`
+   * @remarks
+   * Holds what the detector needs in front of it, the lowpass for `peaks` and nothing for
+   * `tempogram`, so changing detector never changes the graph. Built on first use: a caller wiring `.node`
+   * keeps the graph 5.4 gave it, with no idle node feeding the worklet.
+   */
+  get input(): AudioNode {
+    this.inputNode ??= this.createInput();
+
+    return this.inputNode;
+  }
+
+  private inputNode?: AudioNode;
+  private readonly createInput: () => AudioNode;
+
+  /**
    * Creates a new BpmAnalyzer instance
    * @param workletNode - The AudioWorkletNode to wrap
+   * @param createInput - Builds the node sources connect to, when it is not the worklet itself
    */
-  constructor(workletNode: AudioWorkletNode) {
+  constructor(workletNode: AudioWorkletNode, createInput: () => AudioNode = () => workletNode) {
     super();
     this.node = workletNode;
+    this.createInput = createInput;
     this.setupMessageHandler();
   }
 

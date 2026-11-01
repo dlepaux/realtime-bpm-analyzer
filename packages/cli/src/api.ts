@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
-import type {Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
+import type {Detector, Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
 import {decodeFile, describeDecodedLimit} from './decode';
 import {errorMessage} from './errors';
 
@@ -10,7 +10,7 @@ import {errorMessage} from './errors';
 // and analysis path. Its declarations are emitted from this file alone and must stay free
 // of relative imports in type positions: only the library's types may appear in signatures.
 
-export type {Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
+export type {Detector, Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
 
 export type FileResult =
   | {
@@ -24,8 +24,10 @@ export type FileResult =
   | {readonly file: string; readonly ok: false; readonly error: string};
 
 export type AnalyzeOptions = {
-  /** Tempo range to fold candidates into; the library's default (90 to 180) when omitted */
+  /** Tempo range to fold candidates into, or to search with the tempogram; the library's default when omitted */
   readonly tempoRange?: TempoRange;
+  /** Tempo detector; the library's default (`peaks`) when omitted */
+  readonly detector?: Detector;
   /** ffmpeg binary for formats without a bundled decoder (default `ffmpeg` on PATH) */
   readonly ffmpegPath?: string;
   /** Stops a decode in progress */
@@ -48,8 +50,8 @@ export const audioExtensions: ReadonlySet<string> = new Set([
   '.mp3', '.wav', '.wave', '.flac', '.ogg', '.oga', '.opus', '.m4a', '.aac', '.aif', '.aiff', '.wma',
 ]);
 
-// The library's default tempoRange, to fill a missing bound. /node does not export it, so
-// tests/cli.test.mjs pins these values to the library's behaviour.
+// The library's default tempoRange, the same for both detectors, to fill a missing bound. /node does
+// not export it, so tests/cli.test.mjs pins these values to the library's behaviour.
 const defaultTempoRange: TempoRange = {min: 90, max: 180};
 
 /**
@@ -67,7 +69,7 @@ function successResult(file: string, candidates: readonly Tempo[]): FileResult {
  * Decodes and analyses one file. Never throws: a file that cannot be read or decoded
  * comes back as `ok: false` with a one-line message, so a batch keeps going.
  * @param path File to analyse, reported as given
- * @param options Tempo range, ffmpeg binary, abort signal and decoded size limit
+ * @param options Tempo range, detector, ffmpeg binary, abort signal and decoded size limit
  * @returns The result
  */
 export async function analyzeFile(path: string, options: AnalyzeOptions = {}): Promise<FileResult> {
@@ -77,7 +79,7 @@ export async function analyzeFile(path: string, options: AnalyzeOptions = {}): P
       maxDecodedBytes: options.maxDecodedBytes ?? defaultMaxDecodedBytes,
       signal: options.signal,
     });
-    return successResult(path, await analyzeChannelData(channelData, sampleRate, {tempoRange: options.tempoRange}));
+    return successResult(path, await analyzeChannelData(channelData, sampleRate, {tempoRange: options.tempoRange, detector: options.detector}));
   } catch (error: unknown) {
     return {file: path, ok: false, error: errorMessage(error)};
   }

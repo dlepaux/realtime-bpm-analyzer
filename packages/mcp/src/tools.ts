@@ -13,17 +13,19 @@ import {absolutePath, checkFile, firstLine, limits, listFolder} from './paths';
 
 const tempoArguments = {
   min_bpm: z.number().positive().max(1000).optional()
-    .describe('Lowest tempo to report, in BPM (default 90). Tempos are folded by octaves into min_bpm..max_bpm.'),
+    .describe('Lowest tempo to report, in BPM (default 90). The peaks detector folds tempos by octaves into min_bpm..max_bpm, the tempogram searches that range.'),
   max_bpm: z.number().positive().max(2000).optional()
     .describe('Highest tempo to report, in BPM (default 180). Must be at least twice min_bpm.'),
+  detector: z.enum(['peaks', 'tempogram']).optional()
+    .describe('Tempo detector (default peaks). The tempogram searches min_bpm..max_bpm instead of folding into it, so from about twice min_bpm a tempo can read half, as over about 179 BPM does by default.'),
 };
 
 const path = z.string().min(1).max(4096);
 
 const candidate = z.object({
   tempo: z.number().describe('Tempo in BPM'),
-  count: z.number().describe('Peak intervals that voted for this tempo; candidates are ranked by it'),
-  confidence: z.number().describe('Share of all votes that agree with this tempo, from 0 to 1'),
+  count: z.number().describe('Ranking score: peak intervals that voted for this tempo, or the tempogram\'s salience score'),
+  confidence: z.number().describe('From 0 to 1: the share of all votes that agree with this tempo, or how strongly the audio pulses at it with the tempogram'),
 });
 
 const analysis = {
@@ -86,7 +88,7 @@ export function createServer(version: string): McpServer {
     }),
     outputSchema: z.object(analysis),
     annotations: {readOnlyHint: true, idempotentHint: true, openWorldHint: false},
-  }, async ({path: raw, min_bpm: min, max_bpm: max}, ctx) => {
+  }, async ({path: raw, min_bpm: min, max_bpm: max, detector}, ctx) => {
     const range = await tempoRange(min, max);
     if (range !== undefined && 'error' in range) {
       return toolError(range.error);
@@ -97,7 +99,7 @@ export function createServer(version: string): McpServer {
       return toolError(checked.error);
     }
 
-    const result = await analyzeFile(checked.path, {tempoRange: range, ffmpegPath: ffmpegPath(), signal: ctx.mcpReq.signal});
+    const result = await analyzeFile(checked.path, {tempoRange: range, detector, ffmpegPath: ffmpegPath(), signal: ctx.mcpReq.signal});
     if (!result.ok) {
       return toolError(`Could not analyse ${result.file}: ${firstLine(result.error)}`);
     }
@@ -135,7 +137,7 @@ export function createServer(version: string): McpServer {
       scan_truncated: z.boolean().describe(`Whether the walk stopped after ${limits.maxFolderEntries} folder entries, so total leaves files out`),
     }),
     annotations: {readOnlyHint: true, idempotentHint: true, openWorldHint: false},
-  }, async ({directory: raw, recursive = false, offset = 0, min_bpm: min, max_bpm: max}, ctx) => {
+  }, async ({directory: raw, recursive = false, offset = 0, min_bpm: min, max_bpm: max, detector}, ctx) => {
     const range = await tempoRange(min, max);
     if (range !== undefined && 'error' in range) {
       return toolError(range.error);
@@ -163,7 +165,7 @@ export function createServer(version: string): McpServer {
 
       results.push(entry.kind === 'error'
         ? {file: entry.path, ok: false, error: entry.error}
-        : clean(await analyzeFile(entry.path, {tempoRange: range, ffmpegPath: ffmpegPath(), signal})));
+        : clean(await analyzeFile(entry.path, {tempoRange: range, detector, ffmpegPath: ffmpegPath(), signal})));
 
       // Long batches outlast a client's default request timeout unless it hears progress
       if (progressToken !== undefined) {

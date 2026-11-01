@@ -1,4 +1,5 @@
-import type {Tempo, TempoRange} from './types';
+import {resolveTempoRange} from './tempo';
+import type {RealTimeBpmAnalyzerParameters, Tempo, TempoRange} from './types';
 
 /**
  * Knobs of the tempogram detector. Values are tuned on the benchmark's dev split only, see
@@ -31,7 +32,17 @@ export type TempogramTuning = {
   readonly combBeats: number;
   /** Half-life of the tempo accumulator, in seconds: lower follows a tempo change sooner */
   readonly halfLifeSeconds: number;
-  /** Centre of the tempo prior, in BPM */
+  /**
+   * How much pulses halfway between a tempo's beats count against it: those beats are too slow.
+   * Off: on dev, any weight worth having cost more than it gained.
+   */
+  readonly halfBeatPenalty: number;
+  /** The same for pulses a third of the way through its beats */
+  readonly thirdBeatPenalty: number;
+  /**
+   * Centre of the tempo prior, in BPM. A clean pulse T and its half T/2 tie at T/√2 = this, so on a
+   * range that holds both, a pulse above that tie can read at half: why the range is part of the settings.
+   */
   readonly priorBpm: number;
   /** Width of the tempo prior, in octaves */
   readonly priorOctaves: number;
@@ -49,6 +60,11 @@ export type TempogramTuning = {
   readonly readingSalience: number;
 };
 
+/**
+ * The settings RBA-51 locked on 2026-10-31 and checked once on held-out data, the only ones a caller can
+ * get: no public option sets a knob. The prior, its width and the third-beat penalty were fixed by that
+ * DECISION, so changing them needs a new ruling, and a new measure on data that has not been seen.
+ */
 export const defaultTempogramTuning: TempogramTuning = {
   frameRate: 100,
   bands: [30, 200, 500, 1500, 4000, 10_000],
@@ -59,8 +75,10 @@ export const defaultTempogramTuning: TempogramTuning = {
   updateSeconds: 0.5,
   combBeats: 4,
   halfLifeSeconds: 16,
-  priorBpm: 136,
-  priorOctaves: 0.8,
+  halfBeatPenalty: 0,
+  thirdBeatPenalty: 0.3,
+  priorBpm: 80,
+  priorOctaves: 1.7,
   stableSeconds: 8,
   stableAgreement: 0.8,
   stableTolerance: 0.02,
@@ -69,8 +87,43 @@ export const defaultTempogramTuning: TempogramTuning = {
   readingSalience: 0.02,
 };
 
-/** Bounds of the grid when the caller sets no range: the tempos of the evaluated sets, with margin */
-export const defaultTempogramRange: TempoRange = {min: 50, max: 240};
+/**
+ * What the tuning above was measured on. The range is part of the settings: this prior is only a tilt once
+ * the half of a fast tempo is out of reach, so a wider range is another detector, which nothing measured.
+ * A tempo outside it reads at the octave inside: 200 BPM reads 100, 70 reads 140. The grid stops just
+ * under the top of the range, so 179 and 180 already read half.
+ */
+export const defaultTempogramRange: TempoRange = {min: 90, max: 180};
+
+/**
+ * Refuses a named mode whose guarantee the other options would break. The mode changes no setting, it only
+ * holds the caller to the settings that were measured, which include the range and the absence of a reset.
+ * @param options The analyzer's options
+ * @throws {RangeError} When the mode is unknown, or the options contradict it
+ */
+export function assertTempogramMode({tempogramMode, detector, tempoRange, continuousAnalysis}: RealTimeBpmAnalyzerParameters): void {
+  if (tempogramMode === undefined) {
+    return;
+  }
+
+  if (tempogramMode !== 'extension') {
+    throw new RangeError(`Invalid tempogramMode: ${String(tempogramMode)}. Use 'extension'.`);
+  }
+
+  const {min, max} = defaultTempogramRange;
+
+  if (detector !== 'tempogram') {
+    throw new RangeError('tempogramMode needs detector: \'tempogram\'.');
+  }
+
+  if (tempoRange !== undefined && (tempoRange.min !== min || tempoRange.max !== max)) {
+    throw new RangeError(`tempogramMode 'extension' searches ${min} to ${max} BPM, and tempoRange asks for another range.`);
+  }
+
+  if (continuousAnalysis) {
+    throw new RangeError('tempogramMode \'extension\' was measured without continuousAnalysis, whose reset can keep the tempogram from ever reaching stable.');
+  }
+}
 
 /** Tempo grid resolution: tempo ratio between neighbours, finer than the ±4% that counts as correct */
 const gridRatio = 1.01;
@@ -98,6 +151,8 @@ export type TempogramReading = {
 };
 
 export type TempogramDetector = {
+  /** Candidates from everything heard so far, whatever the latest frame held */
+  candidates: () => Tempo[];
   /** Consumes samples, synchronously, returning a reading when a tempogram frame completes */
   process: (samples: Float32Array) => TempogramReading | null;
   /** Consumes one onset strength frame: `process` without the onset stage, for tuning replays */
@@ -369,6 +424,12 @@ export function createTempogramDetector({
     return frames >= warmupFrames && (frames - warmupFrames) % updateFrames === 0 ? tempogramFrame() : null;
   }
 
+  function correlationAt(lag: number): number {
+    const low = Math.floor(lag);
+
+    return autocorrelation[low] + ((lag - low) * (autocorrelation[low + 1] - autocorrelation[low]));
+  }
+
   /** Fills `salience` from the latest window, returns false when nothing pulses in it */
   function computeSalience(): boolean {
     const length = Math.min(frames, windowFrames);
@@ -417,14 +478,15 @@ export function createTempogramDetector({
           break;
         }
 
-        const low = Math.floor(lag);
-        const fraction = lag - low;
-
-        sum += autocorrelation[low] + (fraction * (autocorrelation[low + 1] - autocorrelation[low]));
+        sum += correlationAt(lag);
         weight += 1;
       }
 
-      salience[i] = weight > 0 ? sum / (weight * energy) : 0;
+      const comb = weight > 0 ? sum / (weight * energy) : 0;
+      const beat = lags[i * harmonics];
+      const between = (tuning.halfBeatPenalty * correlationAt(beat / 2)) + (tuning.thirdBeatPenalty * correlationAt(beat / 3));
+
+      salience[i] = comb - ((between > 0 ? between : 0) / energy);
     }
 
     return true;
@@ -589,10 +651,54 @@ export function createTempogramDetector({
   }
 
   return {
+    candidates: collectCandidates,
     process,
     ingest,
     onsetCurve,
     progress: () => Math.min(1, frames / warmupFrames),
     reset,
   };
+}
+
+/** Shorter audio has no two beats to compare at the slowest tempo searched */
+const shortestRecordingSeconds = 1.5;
+
+/**
+ * Tempo candidates of a whole recording, by the tempogram: every frame counts the same, because a
+ * file has no "now" to follow, and a short file reads as soon as it ends instead of never.
+ * @param channelData PCM samples of one channel, not lowpassed
+ * @param sampleRate Sample rate in Hz
+ * @param tempoRange Tempos searched (default: 90 to 180 BPM)
+ * @returns Up to 5 tempo candidates, best first, empty when no pulse stands out
+ * @throws {RangeError} When `tempoRange` or the sample rate is invalid
+ */
+export function detectTempogram(channelData: Float32Array, sampleRate: number, tempoRange?: TempoRange): Tempo[] {
+  const range = resolveTempoRange(tempoRange);
+  const {frameRate, warmupSeconds} = defaultTempogramTuning;
+
+  // Under the frame rate a hop rounds to no samples. A string is refused too, as the lowpass refuses it
+  if (!Number.isFinite(sampleRate) || sampleRate < frameRate) {
+    throw new RangeError(`Invalid sample rate: ${sampleRate}. The tempogram needs at least ${frameRate} Hz.`);
+  }
+
+  const seconds = channelData.length / sampleRate;
+
+  if (seconds < shortestRecordingSeconds) {
+    return [];
+  }
+
+  const detector = createTempogramDetector({
+    sampleRate,
+    tempoRange: range,
+    tuning: {
+      halfLifeSeconds: Number.POSITIVE_INFINITY,
+      // A frame short of the end: rounding must not ask for more frames than the file holds
+      warmupSeconds: Math.min(warmupSeconds, seconds - (1 / frameRate)),
+    },
+  });
+
+  detector.process(channelData);
+
+  // Not the last reading: a silent ending leaves that one empty, and says nothing of the music before it
+  return detector.candidates();
 }

@@ -1,7 +1,8 @@
 import type {Tempo, AnalyzeFullBufferOptions} from './core/types';
-import {resolveTempoRange} from './core/tempo';
+import {resolveDetector, resolveTempoRange} from './core/tempo';
 import {applyLowpass} from './core/lowpass';
 import {detectTempo} from './core/detect-tempo';
+import {detectTempogram} from './core/tempogram';
 
 // Entry point for runtimes without Web Audio (Node, Bun, Deno), published as
 // `realtime-bpm-analyzer/node`. It imports nothing that touches Web Audio or the DOM:
@@ -15,6 +16,7 @@ export type {
   TempoRange,
   BiquadFilterOptions,
   AnalyzeFullBufferOptions,
+  Detector,
 } from './core/types';
 
 /**
@@ -27,10 +29,10 @@ export type {
  *
  * @param channelData - Decoded PCM samples of one channel, in [-1, 1]
  * @param sampleRate - Sample rate of `channelData` in Hz
- * @param options - Optional filter configuration and tempo range, as for `analyzeFullBuffer`
+ * @param options - Optional filter configuration, tempo range and detector, as for `analyzeFullBuffer`
  * @returns A promise that resolves to up to 5 tempo candidates, sorted by `count`
  * @throws {Error} When `channelData` is empty or not a Float32Array
- * @throws {RangeError} When the sample rate, filter options or `options.tempoRange` are invalid
+ * @throws {RangeError} When the sample rate, filter options, `options.tempoRange` or `options.detector` are invalid
  *
  * @example
  * ```typescript
@@ -50,6 +52,10 @@ export async function analyzeChannelData(
 ): Promise<Tempo[]> {
   if (!(channelData instanceof Float32Array) || channelData.length === 0) {
     throw new Error('Invalid channel data: expected a non-empty Float32Array.');
+  }
+
+  if (resolveDetector(options?.detector) === 'tempogram') {
+    return detectTempogram(channelData, sampleRate, options?.tempoRange);
   }
 
   // Validate before filtering, so a bad range fails fast on long files

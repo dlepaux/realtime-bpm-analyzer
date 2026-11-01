@@ -106,6 +106,23 @@ describe('realtime-bpm-analyzer CLI', () => {
     }
   });
 
+  it('runs the detector named by --detector, on the same default range as peaks', async () => {
+    const {results: [peaks]} = await runJson([fixture('click-140.ogg')]);
+    const {results: [tempogram]} = await runJson(['--detector', 'tempogram', fixture('click-140.ogg')]);
+
+    assert.ok(Math.abs(tempogram.bpm - 140) <= 2, `got ${tempogram.bpm}`);
+    assert.notDeepEqual(tempogram.candidates, peaks.candidates);
+    // A lone --min-bpm is measured against 180: the first pick's 240 would let this through
+    assert.match((await run(['--detector', 'tempogram', '--min-bpm', '91', bassTest])).stderr, /max \(180\) must be at least twice min \(91\)/);
+  });
+
+  it('refuses an unknown detector', async () => {
+    const {code, stderr} = await run(['--detector', 'magic', bassTest]);
+
+    assert.equal(code, 2);
+    assert.match(stderr, /Invalid detector: magic/);
+  });
+
   it('prints the BPM, confidence and candidates as text by default', async () => {
     const {code, stdout} = await run([clickMp3]);
     assert.equal(code, 0);

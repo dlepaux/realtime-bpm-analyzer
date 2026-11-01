@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.5.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.4.0...v5.5.0) (2026-11-01)
+
+
+### Features
+
+* **cli:** add --detector peaks or tempogram ([8dab6e1](https://github.com/dlepaux/realtime-bpm-analyzer/commit/8dab6e129db685cc4c94368831385533a0b0862f))
+* **mcp:** add the detector argument ([8dab6e1](https://github.com/dlepaux/realtime-bpm-analyzer/commit/8dab6e129db685cc4c94368831385533a0b0862f))
+* **realtime:** add BpmAnalyzer.input, the node to connect a source to with either detector ([8dab6e1](https://github.com/dlepaux/realtime-bpm-analyzer/commit/8dab6e129db685cc4c94368831385533a0b0862f))
+* **realtime:** add tempogramMode 'extension', which refuses any option that would leave those settings, for a browser extension listening to a tab ([8dab6e1](https://github.com/dlepaux/realtime-bpm-analyzer/commit/8dab6e129db685cc4c94368831385533a0b0862f))
+* **realtime:** add the opt-in tempogram detector's locked settings, searching 90 to 180 BPM on real-time audio and whole files, where a tempo over 180 reads half ([8dab6e1](https://github.com/dlepaux/realtime-bpm-analyzer/commit/8dab6e129db685cc4c94368831385533a0b0862f))
+* **realtime:** opt-in tempogram detector and streaming tempo benchmark ([#285](https://github.com/dlepaux/realtime-bpm-analyzer/issues/285)) ([dfa68fc](https://github.com/dlepaux/realtime-bpm-analyzer/commit/dfa68fcb26c3097a097db00a52d01ae29aead6c5))
+
 ## [5.4.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.3.0...v5.4.0) (2026-10-29)
 
 

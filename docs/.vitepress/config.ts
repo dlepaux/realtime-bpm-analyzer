@@ -1,13 +1,11 @@
 import { defineConfig, type HeadConfig } from 'vitepress'
 import { createRequire } from 'module'
-import { copyFileSync, cpSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isUsersOnlyExtensionPage } from './tools/extension-pages'
 import { isNoindexPage, SCHEMA_WEB_APPLICATION, siteGraph, toolFaqPage } from './tools/site-schema'
 import { STORE_URL } from './tools/extension-live'
-import { REEL_DIR, isReelFile } from './tools/extension-reel'
-import { REEL_CAPTURE } from './tools/extension-reel-capture'
 import { EXTENSION_SHARE_IMAGE, excludedSources, extensionHomeHero, extensionNavItems, extensionPageSchema, llmsWithExtension } from './tools/extension-promo'
 
 const require = createRequire(import.meta.url)
@@ -123,22 +121,6 @@ export default defineConfig({
     define: {
       __GITHUB_STAR_COUNT__: JSON.stringify(GITHUB_STAR_COUNT),
     },
-    plugins: [
-      {
-        // buildEnd publishes the demo's frames; this is the same for the dev server.
-        name: 'extension-reel-frames',
-        configureServer(server) {
-          server.middlewares.use(`/${REEL_DIR}/`, (req, res, next) => {
-            const name = (req.url ?? '').split('?')[0]?.slice(1) ?? ''
-            if (!isReelFile(name)) return next()
-            const file = fileURLToPath(new URL(`./assets/extension/demo/${name}`, import.meta.url))
-            if (!existsSync(file)) return next()
-            res.setHeader('Content-Type', 'image/webp')
-            res.end(readFileSync(file))
-          })
-        },
-      },
-    ],
   },
 
   // Inject the GTM noscript fallback right after <body>
@@ -155,8 +137,6 @@ export default defineConfig({
     if (!STORE_URL) return
     const assets = fileURLToPath(new URL('./assets/extension/', import.meta.url))
     copyFileSync(join(assets, EXTENSION_SHARE_IMAGE.file), join(outDir, EXTENSION_SHARE_IMAGE.file))
-    // Copied rather than kept in public/, which would publish them with the switch off.
-    if (REEL_CAPTURE) cpSync(join(assets, 'demo'), join(outDir, REEL_DIR), { recursive: true })
     const llms = join(outDir, 'llms.txt')
     writeFileSync(llms, llmsWithExtension(readFileSync(llms, 'utf8')))
   },

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAnalytics } from '../composables/useAnalytics'
 import { STORE_URL } from '../tools/extension-live'
 import { EXTENSION_PAGE } from '../tools/extension-promo'
 
@@ -7,10 +8,15 @@ import { EXTENSION_PAGE } from '../tools/extension-promo'
 // links to the page rather than the store: someone reading a tool's page hasn't heard
 // of the extension yet.
 defineProps<{ lead: string; tail: string }>()
+
+const { track } = useAnalytics()
 </script>
 
 <template>
   <p v-if="STORE_URL">
-    {{ lead }} <a :href="EXTENSION_PAGE">Live BPM Detector</a> {{ tail }}
+    {{ lead }} <a
+      :href="EXTENSION_PAGE"
+      @click="track('extension_link_clicked', { placement: 'tool_page', target: 'page' })"
+    >Live BPM Detector</a> {{ tail }}
   </p>
 </template>

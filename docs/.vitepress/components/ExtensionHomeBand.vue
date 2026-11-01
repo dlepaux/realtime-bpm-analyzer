@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import ExtensionStage from './ExtensionStage.vue'
+import { useAnalytics } from '../composables/useAnalytics'
+import ExtensionScenes from './ExtensionScenes.vue'
 import { EXTENSION_PAGE } from '../tools/extension-promo'
 
 // The home page's door to the extension, beside the analyzer's. Its button goes to the
 // page, which explains Chrome's install prompt before anyone meets it. It moves beside the
-// analyzer because David asked for the product shown working on the first screen; the reel
+// analyzer because David asked for the product shown working on the first screen; the demo
 // has its own pause button.
+const { track } = useAnalytics()
 </script>
 
 <template>
@@ -18,7 +20,8 @@ import { EXTENSION_PAGE } from '../tools/extension-promo'
     <a
       class="ext-cta"
       :href="EXTENSION_PAGE"
+      @click="track('extension_link_clicked', { placement: 'home_door', target: 'page' })"
     >Live BPM Detector for Chrome</a>
-    <ExtensionStage />
+    <ExtensionScenes />
   </section>
 </template>

@@ -34,6 +34,7 @@ import {
 } from '../tools/stream-input'
 import GithubStarSupport from './GithubStarSupport.vue'
 import ResultToolLinks from './ResultToolLinks.vue'
+import ExtensionResultPrompt from './ExtensionResultPrompt.vue'
 import { STORE_URL } from '../tools/extension-live'
 import { EXTENSION_PAGE, extensionCovers } from '../tools/extension-promo'
 
@@ -900,6 +901,7 @@ function formatDuration(seconds: number): string {
               :bpm="micStableBpm"
               source="mic"
             />
+            <ExtensionResultPrompt source="mic" />
             <div class="bpm-result-actions">
               <button
                 type="button"
@@ -995,6 +997,7 @@ function formatDuration(seconds: number): string {
                 Skip the sharing next time. <a
                   class="bpm-text-btn"
                   :href="EXTENSION_PAGE"
+                  @click="track('extension_link_clicked', { placement: 'stream_hint', target: 'page' })"
                 >Live BPM Detector</a> for Chrome shows the tempo on the page.
               </div>
             </template>
@@ -1112,6 +1115,10 @@ function formatDuration(seconds: number): string {
             <ResultToolLinks
               v-if="streamStableBpm !== null"
               :bpm="streamStableBpm"
+              source="stream"
+            />
+            <ExtensionResultPrompt
+              v-if="streamStableBpm !== null"
               source="stream"
             />
           </div>

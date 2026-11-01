@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAnalytics } from '../composables/useAnalytics'
 import { INSTALL_TARGETS } from '../tools/extension-live'
 import { SEND_LINK_MAILTO, sharePageLink } from '../tools/extension-promo'
 
@@ -11,6 +12,9 @@ import { SEND_LINK_MAILTO, sharePageLink } from '../tools/extension-promo'
 // desktop window can install, and nothing changes after hydration. The store link stays
 // there too, because a touchscreen Chromebook counts as a touch device and can install.
 withDefaults(defineProps<{ promptLink?: boolean }>(), { promptLink: false })
+
+const { track } = useAnalytics()
+const trackStoreClick = () => track('extension_link_clicked', { placement: 'extension_page', target: 'store' })
 
 function sendLink(event: MouseEvent) {
   const share = typeof navigator.share === 'function' ? navigator.share.bind(navigator) : undefined
@@ -31,6 +35,7 @@ function sendLink(event: MouseEvent) {
           class="tt-btn ext-install-btn"
           :class="{ 'tt-btn-primary': index === 0 }"
           :href="target.href"
+          @click="trackStoreClick"
         >{{ target.label }}</a>
       </div>
       <p
@@ -62,6 +67,7 @@ function sendLink(event: MouseEvent) {
           v-for="target in INSTALL_TARGETS"
           :key="target.browser"
           :href="target.href"
+          @click="trackStoreClick"
         >See it on the {{ target.browser }} Web Store</a>
       </div>
     </div>

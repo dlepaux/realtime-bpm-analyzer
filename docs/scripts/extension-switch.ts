@@ -2,7 +2,7 @@
 // pure checks over the build's files. verify-extension-switch.ts runs them on real
 // builds in CI; extension-switch.test.ts proves they catch what they claim to catch.
 
-import { REEL_DIR } from '../.vitepress/tools/extension-reel.ts'
+import { storeLink } from '../.vitepress/tools/extension-promo.ts'
 
 export type BuiltSite = {
   /** Every file, relative to the build's root, with forward slashes. */
@@ -22,12 +22,9 @@ const PAGE_LINK = 'href="/extension/"'
 const INSTALL_BUTTON = /<a\b[^>]*\bext-install-btn\b[^>]*>/g
 const STORE_LINK = /href="([^"]*chromewebstore[^"]*)"/g
 const EMPTY_LINK = /<a\b[^>]*\bhref="(?:|null|undefined)"/
-const REEL_FILES = `${REEL_DIR}/`
-const REEL_IMAGE = /<img\b[^>]*\bext-reel-(?:wide|crop)\b[^>]*>/g
-// A frame by its name, wherever a bundler might put it, with or without a hash.
-const REEL_FRAME_PATH = /(?:^|\/)(?:light|dark)-(?:wide|listening|settling|stable)-\d+[.-]/
+const SCENES_DEMO = /\bext-scenes\b/
+const SCENES_LABEL = /\bext-scenes-canvas\b[^>]*\baria-label="[^"]+"|\baria-label="[^"]+"[^>]*\bext-scenes-canvas\b/
 const HOME_LAYOUT = /\bext-home\b/
-const MAX_REEL_BYTES = 250_000
 const SHARE_IMAGE = 'live-bpm-detector-share.png'
 const MAX_SHARE_IMAGE_BYTES = 300_000
 const HERO_ACTION = 'Live BPM Detector for Chrome'
@@ -48,7 +45,6 @@ function checkOff(site: BuiltSite): string[] {
   expectAbsent(site.paths.includes(PAGE), `${PAGE} was built, so the page is reachable`)
   expectAbsent(site.read('hashmap.json').includes('extension_index'), 'the page is in the hash map')
   expectAbsent(site.read('sitemap.xml').includes(`${SITE}/extension/</loc>`), 'the page is in the sitemap')
-  expectAbsent(site.paths.some((path) => path.startsWith(REEL_FILES) || REEL_FRAME_PATH.test(path)), 'the demo\'s frames were published')
   expectAbsent(HOME_LAYOUT.test(site.read('index.html')), 'the home page has the extension\'s layout')
   expectAbsent(site.read('extension/goodbye.html').includes('Reinstall the extension'), 'goodbye offers a reinstall')
   expectAbsent(site.paths.includes(SHARE_IMAGE), 'the share image was published')
@@ -68,7 +64,7 @@ function checkOff(site: BuiltSite): string[] {
     INSTALL_BUTTON.lastIndex = 0
     expectAbsent(html.includes('"name":"Live BPM Detector"'), `${path} carries the extension's structured data`)
     expectAbsent(html.includes(SHARE_IMAGE), `${path} points at the extension's share image`)
-    expectAbsent(html.includes(`/${REEL_FILES}`), `${path} points at the demo's frames`)
+    expectAbsent(SCENES_DEMO.test(html), `${path} shows the demo`)
   }
   for (const path of PROMO_PAGES) {
     expectAbsent(site.read(path).includes('Live BPM Detector'), `${path} promotes the extension`)
@@ -76,57 +72,45 @@ function checkOff(site: BuiltSite): string[] {
   return problems
 }
 
+/** The listing, plain or with exactly the label `storeLink` adds. Nothing else may point at the store. */
+function isListingLink(rawHref: string, storeUrl: string): boolean {
+  const href = rawHref.replaceAll('&amp;', '&')
+  const sample = 'goodbye'
+  const labelled = storeLink(storeUrl, sample).slice(0, -sample.length)
+  return href === storeUrl || (href.startsWith(labelled) && /^[a-z_]+$/.test(href.slice(labelled.length)))
+}
+
 function installProblems(site: BuiltSite, storeUrl: string): string[] {
   const problems: string[] = []
   for (const path of site.paths.filter((p) => p.endsWith('.html'))) {
     const html = site.read(path)
-    for (const [, href] of html.matchAll(STORE_LINK)) {
-      if (href !== storeUrl) problems.push(`on: ${path} links to ${href}, not the listing`)
+    for (const [, href = ''] of html.matchAll(STORE_LINK)) {
+      if (!isListingLink(href, storeUrl)) problems.push(`on: ${path} links to ${href}, not the listing`)
     }
     for (const [tag] of html.matchAll(INSTALL_BUTTON)) {
-      if (!tag.includes(`href="${storeUrl}"`)) problems.push(`on: ${path} has a dead install button: ${tag}`)
+      const href = /\bhref="([^"]*)"/.exec(tag)?.[1] ?? ''
+      if (!href.startsWith(storeUrl) || !isListingLink(href, storeUrl)) problems.push(`on: ${path} has a dead install button: ${tag}`)
     }
   }
   const page = site.read(PAGE)
   if ([...page.matchAll(INSTALL_BUTTON)].length === 0) problems.push(`on: ${PAGE} has no install button`)
   if (EMPTY_LINK.test(page)) problems.push(`on: ${PAGE} has an empty link`)
-  if (!site.read('extension/goodbye.html').includes(`<a href="${storeUrl}">Reinstall the extension`)) {
+  if (![...site.read('extension/goodbye.html').matchAll(/<a href="([^"]*)">Reinstall the extension/g)].some(([, href = '']) => href.startsWith(storeUrl) && isListingLink(href, storeUrl))) {
     problems.push('on: goodbye has no reinstall link to the listing')
   }
   return problems
 }
 
-// The first screen and the home door show the product: the reel, or until its frames
-// exist the illustration, which is drawn and has no file.
-function imageProblems(site: BuiltSite): string[] {
+// The first screen and the home door show the product, drawn, so it has no files to go missing.
+// What must hold is that it is labelled for anyone who can't see it, and carries no picture of its
+// own that a phone would download.
+function demoProblems(site: BuiltSite): string[] {
   const problems: string[] = []
   for (const path of [PAGE, 'index.html']) {
-    if (!/\bext-(?:reel|demo)\b/.test(site.read(path))) problems.push(`on: ${path} does not show the product`)
-    problems.push(...reelImageProblems(site, path))
-  }
-  return problems
-}
-
-// Sized before they load, small, and only ever from files the build published.
-function reelImageProblems(site: BuiltSite, path: string): string[] {
-  const problems: string[] = []
-  const html = site.read(path)
-  const images = [...html.matchAll(REEL_IMAGE)]
-  if (/\bext-reel\b/.test(html) && images.length === 0) problems.push(`on: ${path} shows the demo with no frames`)
-  if (/\bext-reel\b/.test(html) && !/\bext-reel-stage\b[^>]*\baria-label="[^"]+"/.test(html)) problems.push(`on: ${path} shows the demo with no label`)
-  for (const [tag] of images) {
-    if (!/\bwidth="\d+"/.test(tag) || !/\bheight="\d+"/.test(tag)) problems.push(`on: ${path} has an unsized demo frame: ${tag}`)
-    const urls = [
-      ...[...tag.matchAll(/\bsrc="([^"]*)"/g)].map((match) => match[1] ?? ''),
-      ...[...tag.matchAll(/\bsrcset="([^"]*)"/g)].flatMap((match) => (match[1] ?? '').split(',').map((entry) => entry.trim().split(' ')[0] ?? '')),
-    ]
-    if (urls.length === 0) problems.push(`on: ${path} has a demo frame with no source: ${tag}`)
-    for (const url of urls) {
-      const file = url.slice(1)
-      if (!url.startsWith(`/${REEL_FILES}`)) problems.push(`on: ${path} has a demo frame from elsewhere: ${url}`)
-      else if (!site.paths.includes(file)) problems.push(`on: ${path} has a demo frame with no file: ${file}`)
-      else if (site.size(file) > MAX_REEL_BYTES) problems.push(`on: ${file} is over ${MAX_REEL_BYTES} bytes`)
-    }
+    const html = site.read(path)
+    if (!SCENES_DEMO.test(html)) problems.push(`on: ${path} does not show the product`)
+    else if (!SCENES_LABEL.test(html)) problems.push(`on: ${path} shows the demo with no label`)
+    if (/\bext-scenes\b[\s\S]*<(?:video|audio)\b/.test(html)) problems.push(`on: ${path} has a video or audio element in the demo`)
   }
   return problems
 }
@@ -199,7 +183,7 @@ export function switchProblems(site: BuiltSite, storeUrl: string | null): string
   if (!site.paths.includes(PAGE)) return [`on: ${PAGE} was not built`]
   return [
     ...installProblems(site, storeUrl),
-    ...imageProblems(site),
+    ...demoProblems(site),
     ...seoProblems(site, storeUrl),
     ...shareProblems(site),
     ...placementProblems(site),

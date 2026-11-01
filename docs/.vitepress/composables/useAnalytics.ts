@@ -35,6 +35,8 @@ export type BpmAnalyticsEvent =
   | 'bpm_tool_link_clicked'
   | 'github_star_clicked'
   | 'extension_uninstall_reason'
+  | 'extension_link_clicked'
+  | 'extension_demo_control'
 
 export function useAnalytics() {
   function track(event: BpmAnalyticsEvent, params: EventParams = {}): void {

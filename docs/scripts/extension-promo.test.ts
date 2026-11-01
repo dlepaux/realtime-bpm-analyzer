@@ -15,6 +15,7 @@ import {
   extensionNavItems,
   extensionPageSchema,
   installTargets,
+  storeLink,
   resolveStoreUrl,
 } from '../.vitepress/tools/extension-promo.ts'
 
@@ -75,7 +76,7 @@ test('switch off: nothing to render, and the page is left out of the build', () 
 test('switch on: every install link is the listing, and the page is built', () => {
   const targets = installTargets(LISTING)
   assert.ok(targets.length > 0)
-  for (const target of targets) assert.equal(target.href, LISTING)
+  for (const target of targets) assert.equal(target.href, storeLink(LISTING, 'extension_page'))
   assert.deepEqual(excludedSources(LISTING), [])
   assert.deepEqual(extensionNavItems(LISTING).map((item) => item.link), ['/extension/'])
 })
@@ -153,9 +154,10 @@ test('the promotion outside the page makes the same claims only', () => {
   const surfaces = {
     band: copy('../.vitepress/components/ExtensionHomeBand.vue'),
     install: copy('../.vitepress/components/ExtensionInstall.vue'),
-    demo: copy('../.vitepress/components/ExtensionDemo.vue'),
-    reel: copy('../.vitepress/components/ExtensionReel.vue'),
-    stage: copy('../.vitepress/components/ExtensionStage.vue'),
+    scenes: copy('../.vitepress/components/ExtensionScenes.vue'),
+    scenesRest: copy('../.vitepress/components/ExtensionScenesRest.vue'),
+    overlay: copy('../.vitepress/components/ExtensionSceneOverlay.vue'),
+    resultPrompt: copy('../.vitepress/components/ExtensionResultPrompt.vue'),
     tap: lines('../tap-tempo.md'),
     metronome: lines('../metronome.md'),
     tagline: EXTENSION_HERO_TAGLINE,
@@ -166,6 +168,17 @@ test('the promotion outside the page makes the same claims only', () => {
   for (const [name, text] of Object.entries(surfaces)) {
     for (const banned of BANNED_CLAIMS) assert.ok(!banned.test(text), `${name} matches ${banned}`)
   }
+})
+
+test('storeLink: labels the place on the site and nothing about the visitor', () => {
+  const url = new URL(storeLink(LISTING, 'goodbye'))
+  assert.equal(`${url.origin}${url.pathname}`, LISTING)
+  assert.deepEqual(Object.fromEntries(url.searchParams), {
+    utm_source: 'realtime-bpm-analyzer',
+    utm_medium: 'website',
+    utm_campaign: 'live-bpm-detector',
+    utm_content: 'goodbye',
+  })
 })
 
 test('extensionHomeHero: off leaves the hero as written, on changes only the tagline', () => {

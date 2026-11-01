@@ -16,8 +16,8 @@ const STORE_LISTING = /^https:\/\/chromewebstore\.google\.com\/detail\/(?:[^/?#]
 /**
  * The URL install links use, or null while the switch is off. Anything else that isn't
  * a listing throws, so a placeholder fails the build instead of shipping a dead button.
- * The query is dropped: the dashboard's address can carry `hl` and `authuser`, and the
- * site adds no tracking parameters to a link.
+ * The query is dropped: the dashboard's address can carry `hl` and `authuser`. Links that
+ * people click get their label from `storeLink`.
  */
 export function resolveStoreUrl(raw: string | null): string | null {
   if (raw === null) return null
@@ -26,6 +26,33 @@ export function resolveStoreUrl(raw: string | null): string | null {
   }
   const { origin, pathname } = new URL(raw)
   return `${origin}${pathname.replace(/\/$/, '')}`
+}
+
+/** Where on the site a link to the extension sits. Sent with clicks and on store links. */
+export type ExtensionPlacement =
+  | 'home_door'
+  | 'extension_page'
+  | 'goodbye'
+  | 'stream_hint'
+  | 'result_mic'
+  | 'result_stream'
+  | 'tool_page'
+
+/**
+ * A store link for one place on the site, so the store's own acquisition report can say which
+ * link brought an install (RBA-58). Doors that lead to /extension/ carry nothing through it, so that
+ * report sees the page, and the site's own click events tell the doors apart. The label names the
+ * site and the place, never the visitor.
+ * The structured data keeps the plain address: it is what the listing is, not a click.
+ */
+export function storeLink(storeUrl: string, placement: ExtensionPlacement): string {
+  const label = new URLSearchParams({
+    utm_source: 'realtime-bpm-analyzer',
+    utm_medium: 'website',
+    utm_campaign: 'live-bpm-detector',
+    utm_content: placement,
+  })
+  return `${storeUrl}?${label.toString()}`
 }
 
 export type InstallTarget = {
@@ -47,7 +74,7 @@ export function installTargets(storeUrl: string | null): readonly InstallTarget[
   return [{
     browser: 'Chrome',
     label: 'Add to Chrome',
-    href: storeUrl,
+    href: storeLink(storeUrl, 'extension_page'),
     requirement: 'Free. For Chrome 150 or later, on a computer.',
   }]
 }

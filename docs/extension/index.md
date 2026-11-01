@@ -21,7 +21,7 @@ faq:
 ---
 
 <script setup>
-import ExtensionStage from '../.vitepress/components/ExtensionStage.vue'
+import ExtensionScenes from '../.vitepress/components/ExtensionScenes.vue'
 import ExtensionInstall from '../.vitepress/components/ExtensionInstall.vue'
 import ToolFaq from '../.vitepress/components/ToolFaq.vue'
 </script>
@@ -33,7 +33,7 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
     <span class="ext-name"><img src="/logo.svg" alt="" width="28" height="28"> Live BPM Detector</span>
     <span class="ext-headline">Playing on YouTube or SoundCloud? See the BPM right on the page.</span>
   </h1>
-  <div class="ext-hero-stage"><ExtensionStage live /></div>
+  <div class="ext-hero-stage"><ExtensionScenes /></div>
   <div class="ext-hero-action">
     <ExtensionInstall prompt-link />
   </div>

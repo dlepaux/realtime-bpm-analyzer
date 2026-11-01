@@ -3,6 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config.ts'
+import { storeLink } from '../.vitepress/tools/extension-promo.ts'
 import { FIXTURE_STORE_URL, switchProblems, type BuiltSite } from './extension-switch.ts'
 
 const STORE = `https://chromewebstore.google.com/detail/live-bpm-detector/${'a'.repeat(32)}`
@@ -33,9 +34,9 @@ const ON: Record<string, string> = {
   'sitemap.xml': LOC,
   'llms.txt': LLMS_LINE,
   'live-bpm-detector-share.png': 'x',
-  'extension/index.html': `<title>Live BPM Detector</title><meta property="og:title" content="Live BPM Detector: x"><link rel="canonical" href="https://www.realtime-bpm-analyzer.com/extension/">${OG_IMAGE}"@type":"SoftwareApplication","installUrl":"${STORE}","price":"0" <h1>Live BPM Detector</h1> ${BUTTON} <div class="ext-demo"></div>`,
+  'extension/index.html': `<title>Live BPM Detector</title><meta property="og:title" content="Live BPM Detector: x"><link rel="canonical" href="https://www.realtime-bpm-analyzer.com/extension/">${OG_IMAGE}"@type":"SoftwareApplication","installUrl":"${STORE}","price":"0" <h1>Live BPM Detector</h1> ${BUTTON} <div class="ext-scenes-canvas ext-scenes" aria-label="A page"></div>`,
   'extension/goodbye.html': `<a href="${STORE}">Reinstall the extension</a>`,
-  'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome ext-home ext-band ext-demo Chrome extension for the music in your tabs`,
+  'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome ext-home ext-band <div class="ext-scenes ext-scenes-canvas" aria-label="A page"></div> Chrome extension for the music in your tabs`,
   'tap-tempo.html': `${NAV_ON} Live BPM Detector</a>`,
   'metronome.html': `${NAV_ON} Live BPM Detector</a>`,
   'bpm-to-ms.html': NAV_ON,
@@ -52,10 +53,8 @@ test('switchProblems off: anything that shows the extension fails', () => {
     { 'extension/index.html': 'page' },
     { 'hashmap.json': '{"extension_index.md":"x"}' },
     { 'sitemap.xml': LOC },
-    { 'extension-demo/dark-stable-1520.webp': 'x' },
-    { 'assets/dark-stable-1520.AbCd1234.webp': 'x' },
     { 'index.html': `${NAV} Developer Docs ext-home` },
-    { 'metronome.html': `${NAV} <img src="/extension-demo/dark-stable-1520.webp">` },
+    { 'metronome.html': `${NAV} <div class="ext-scenes"></div>` },
     { 'extension/goodbye.html': 'Reinstall the extension' },
     { '@localSearchIndexroot.js': '"extension/#how-it-works"' },
     { 'guide/getting-started.html': 'href="/extension/"' },
@@ -106,28 +105,27 @@ test('switchProblems on: the page must be built and indexable', () => {
 test('switchProblems on: the first screens must show the product', () => {
   const page = ON['extension/index.html'] ?? ''
   const home = ON['index.html'] ?? ''
-  assert.notDeepEqual(switchProblems(site({ ...ON, 'extension/index.html': page.replace('ext-demo', '') }), STORE), [])
-  assert.notDeepEqual(switchProblems(site({ ...ON, 'index.html': home.replace('ext-demo', '') }), STORE), [])
+  assert.notDeepEqual(switchProblems(site({ ...ON, 'extension/index.html': page.replaceAll('ext-scenes', '') }), STORE), [])
+  assert.notDeepEqual(switchProblems(site({ ...ON, 'index.html': home.replaceAll('ext-scenes', '') }), STORE), [])
 })
 
-test('switchProblems on: the demo\'s frames are published, sized and small', () => {
+test('switchProblems on: the demo is labelled and carries no media', () => {
   const page = ON['extension/index.html'] ?? ''
-  const frame = (attributes = 'width="960" height="610" ') =>
-    `<img class="ext-reel-crop" src="/extension-demo/a-800.webp" srcset="/extension-demo/a-800.webp 800w, /extension-demo/a-1520.webp 1520w" ${attributes}alt="">`
-  const published = { 'extension-demo/a-800.webp': 'x', 'extension-demo/a-1520.webp': 'x' }
-  const build = (files: Record<string, string>, img: string) =>
-    site({ ...ON, ...files, 'extension/index.html': `${page} class="ext-reel" <div class="ext-reel-stage" role="img" aria-label="A page">${img}` })
-  assert.deepEqual(switchProblems(build(published, frame()), STORE), [])
-  assert.notDeepEqual(switchProblems(build(published, frame('')), STORE), [], 'unsized')
-  assert.notDeepEqual(switchProblems(build({ 'extension-demo/a-800.webp': 'x' }, frame()), STORE), [], 'a srcset file is missing')
-  assert.notDeepEqual(switchProblems(build({ ...published, 'extension-demo/a-1520.webp': 'x'.repeat(250_001) }, frame()), STORE), [], 'too heavy')
-  assert.notDeepEqual(switchProblems(build(published, '<img class="ext-reel-wide" src="/other.webp" width="1" height="1">'), STORE), [], 'from elsewhere')
-  assert.notDeepEqual(switchProblems(build(published, frame().replace('src="/extension-demo/a-800.webp"', 'src="/other.webp"')), STORE), [], 'src from elsewhere, srcset fine')
-  assert.notDeepEqual(switchProblems(build(published, ''), STORE), [], 'no frames')
-  const unlabelled = site({ ...ON, ...published, 'extension/index.html': `${page} class="ext-reel" <div class="ext-reel-stage">${frame()}` })
-  assert.notDeepEqual(switchProblems(unlabelled, STORE), [], 'no label')
   const home = ON['index.html'] ?? ''
+  const build = (html: string) => site({ ...ON, 'extension/index.html': html })
+  assert.notDeepEqual(switchProblems(build(page.replace(' aria-label="A page"', '')), STORE), [], 'no label')
+  assert.notDeepEqual(switchProblems(build(`${page}<video src="a.mp4"></video>`), STORE), [], 'a video')
   assert.notDeepEqual(switchProblems(site({ ...ON, 'index.html': home.replace('ext-home ', '') }), STORE), [], 'no home layout')
+})
+
+test('switchProblems on: store links may carry the site\'s label, and nothing else', () => {
+  const tagged = storeLink(STORE, 'goodbye').replaceAll('&', '&amp;')
+  const reinstall = (href: string) => ({ 'extension/goodbye.html': `<a href="${href}">Reinstall the extension</a>` })
+  assert.deepEqual(switchProblems(site({ ...ON, ...reinstall(tagged) }), STORE), [])
+  assert.notDeepEqual(switchProblems(site({ ...ON, ...reinstall(`${STORE}?utm_source=somebody-else`) }), STORE), [])
+  assert.notDeepEqual(switchProblems(site({ ...ON, ...reinstall(`${STORE}x?utm_source=realtime-bpm-analyzer`) }), STORE), [])
+  assert.notDeepEqual(switchProblems(site({ ...ON, ...reinstall(`${tagged}&amp;authuser=1`) }), STORE), [])
+  assert.notDeepEqual(switchProblems(site({ ...ON, ...reinstall(`${STORE}#x`) }), STORE), [])
 })
 
 test('the committed value is never the check\'s fixture', () => {

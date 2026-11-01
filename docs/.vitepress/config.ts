@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitepress'
 import { createRequire } from 'module'
 import { isUsersOnlyExtensionPage } from './tools/extension-pages'
+import { STORE_URL } from './tools/extension-live'
+import { excludedSources, extensionHomeFeatures, extensionNavItems, extensionPageSchema } from './tools/extension-promo'
 
 const require = createRequire(import.meta.url)
 // The library's version, through its workspace link (packages/realtime-bpm-analyzer)
@@ -193,10 +195,15 @@ export default defineConfig({
   sitemap: {
     hostname: 'https://www.realtime-bpm-analyzer.com',
     // The pages the browser extension opens (RBA-38) are for its users only and
-    // carry noindex, so they stay out of the sitemap too.
+    // carry noindex, so they stay out of the sitemap too. The /extension/ page itself
+    // goes in once it is built (see srcExclude).
     transformItems: (items) => items.filter((item) => !isUsersOnlyExtensionPage(item.url)),
   },
   
+  // The /extension/ page exists only once the extension has a store listing (RBA-58).
+  // Left out of the build, it has no route, no sitemap entry and no search entry.
+  srcExclude: excludedSources(STORE_URL),
+
   // Ignore dead links for pages we haven't created yet
   ignoreDeadLinks: [],
 
@@ -284,6 +291,16 @@ export default defineConfig({
       })
     }
 
+    if (STORE_URL && pageData.relativePath === 'extension/index.md') {
+      graph.push(extensionPageSchema(STORE_URL, canonical, ogDesc))
+    }
+    if (isHome) {
+      pageData.frontmatter.features = [
+        ...(pageData.frontmatter.features as object[]),
+        ...extensionHomeFeatures(STORE_URL),
+      ]
+    }
+
     pageData.frontmatter.head ??= []
     pageData.frontmatter.head.push(
       ['link', { rel: 'canonical', href: canonical }],
@@ -352,6 +369,7 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Examples', link: '/examples/basic-usage' },
       { text: 'API Reference', link: '/api/' },
+      ...extensionNavItems(STORE_URL),
       { 
         text: `v${pkg.version}`,
         items: [

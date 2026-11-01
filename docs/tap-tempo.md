@@ -26,6 +26,7 @@ faq:
 <script setup>
 import TapTempo from './.vitepress/components/TapTempo.vue'
 import ToolFaq from './.vitepress/components/ToolFaq.vue'
+import ExtensionMention from './.vitepress/components/ExtensionMention.vue'
 </script>
 
 # Tap Tempo
@@ -50,6 +51,8 @@ is rock steady.
 
 Prefer not to tap? The [BPM Analyzer](/) finds the tempo automatically from a
 file, your microphone or a radio stream.
+
+<ExtensionMention />
 
 ## Frequently asked questions
 

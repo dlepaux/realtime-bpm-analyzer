@@ -307,6 +307,12 @@ jobs:
           echo "lean chunks: $lean, pages: $pages"
           test "$pages" -gt 0 && test "$lean" -ge "$pages"
 
+      # Checks this build against the committed EXTENSION_STORE_URL, then builds the site
+      # in the other state and checks that too (RBA-58). Before and after the switch is
+      # flipped, both states stay proven. The pages artifact below is this first build.
+      - name: Check the extension switch in both states
+        run: npm run verify:extension-switch -w docs
+
       - name: Upload pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5

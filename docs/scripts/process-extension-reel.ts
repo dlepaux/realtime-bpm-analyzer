@@ -8,12 +8,13 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  REEL_CAPTURE_HEIGHT,
   REEL_CROP_WIDTHS,
   REEL_PAGE,
   REEL_WIDE_WIDTHS,
-  REEL_ZOOM,
   pickReelFrames,
   reelArithmetic,
+  reelCrop,
   reelFile,
   reelProblems,
   reelSessionProblems,
@@ -24,11 +25,11 @@ import {
 
 // The video David's shot list names. Each session must be of it, and its licence is read
 // back from the session, as the watch page gave it during the capture.
-const VIDEO_ID = 'zsifk9ucltQ'
+const VIDEO_ID = 'XHE-lwJZbEU'
 const VIDEO = {
   url: `https://www.youtube.com/watch?v=${VIDEO_ID}`,
-  title: '80s Party',
-  channel: 'Aries Beats',
+  title: 'Elektron Digitakt Minijam - 2020-07-01',
+  channel: 'Oscillator Sink',
 } as const
 
 const ROOT = new URL('../.vitepress/', import.meta.url).pathname
@@ -54,12 +55,13 @@ type Plan = {
 
 const PAGE_WIDTH = REEL_PAGE.width * REEL_PAGE.deviceScale
 const PAGE_HEIGHT = REEL_PAGE.height * REEL_PAGE.deviceScale
+const CAPTURE_HEIGHT = REEL_CAPTURE_HEIGHT * REEL_PAGE.deviceScale
 
 // The arithmetic only reads constants, so the real files have to match them.
 function pixelProblem(source: string): string | null {
   const size = execFileSync('magick', ['identify', '-format', '%w %h', source], { encoding: 'utf8' })
   const [width = 0, height = 0] = size.trim().split(' ').map(Number)
-  return width === PAGE_WIDTH && height >= PAGE_HEIGHT ? null : `${source} is ${width}x${height}, not ${PAGE_WIDTH} wide and ${PAGE_HEIGHT} or taller`
+  return width === PAGE_WIDTH && height >= CAPTURE_HEIGHT ? null : `${source} is ${width}x${height}, not ${PAGE_WIDTH} wide and ${CAPTURE_HEIGHT} or taller`
 }
 
 function planSession(dir: string, theme: ReelTheme): Plan {
@@ -75,11 +77,11 @@ function planSession(dir: string, theme: ReelTheme): Plan {
 }
 
 function encodeSession({ dir, theme, picks }: Plan): void {
-  const cropWidth = Math.round(PAGE_WIDTH / REEL_ZOOM)
-  const cropHeight = Math.round(PAGE_HEIGHT / REEL_ZOOM)
   const page = `${PAGE_WIDTH}x${PAGE_HEIGHT}+0+0`
-  // The same view the camera lands on: the page's top right corner.
-  const crop = `${cropWidth}x${cropHeight}+${PAGE_WIDTH - cropWidth}+0`
+  // The same view the camera lands on: the player's top right corner.
+  const { x, y, width, height } = reelCrop()
+  const scale = REEL_PAGE.deviceScale
+  const crop = `${Math.round(width * scale)}x${Math.round(height * scale)}+${Math.round(x * scale)}+${Math.round(y * scale)}`
   picks.forEach(({ frame, file }) => {
     const source = join(dir, file)
     for (const w of REEL_CROP_WIDTHS) encode(source, crop, w, join(OUT, reelFile(theme, frame.step, w)))

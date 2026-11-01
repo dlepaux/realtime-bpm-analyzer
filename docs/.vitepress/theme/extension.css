@@ -639,14 +639,14 @@
 }
 .dark .ext-reel-stage { background: #0f0f0f; }
 
-.ext-reel-camera { position: absolute; inset: 0; transform-origin: 100% 0; }
+.ext-reel-camera { position: absolute; inset: 0; transform-origin: 100% var(--ext-reel-origin-y); }
 .ext-reel-camera[data-look='dark'],
 .dark .ext-reel-camera[data-look='light'] { display: none; }
 .dark .ext-reel-camera[data-look='dark'] { display: block; }
 
 .ext-reel-wide,
 .ext-reel-crop { position: absolute; top: 0; right: 0; display: block; max-width: none; height: auto; }
-.ext-reel-wide { display: none; width: calc(var(--ext-reel-zoom) * 100%); }
+.ext-reel-wide { display: none; top: var(--ext-reel-wide-top); width: calc(var(--ext-reel-zoom) * 100%); }
 .ext-reel-crop { width: 100%; }
 .ext-reel-crop:not([data-step='stable']) { display: none; }
 

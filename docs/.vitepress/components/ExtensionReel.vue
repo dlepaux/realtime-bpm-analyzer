@@ -7,7 +7,7 @@ import {
   REEL_PAGE,
   REEL_STEPS,
   REEL_WIDE_WIDTHS,
-  REEL_ZOOM,
+  reelCameraStyle,
   reelFile,
   type ReelCapture,
   type ReelStep,
@@ -23,10 +23,7 @@ const props = defineProps<{ capture: ReelCapture }>()
 const THEMES: readonly ReelTheme[] = ['light', 'dark']
 const SIZES = `(min-width: ${REEL_MAX_DISPLAY_WIDTH}px) ${REEL_MAX_DISPLAY_WIDTH}px, 100vw`
 const paused = ref(false)
-const STAGE_VARS = {
-  '--ext-reel-zoom': REEL_ZOOM,
-  '--ext-reel-ratio': `${REEL_PAGE.width} / ${REEL_PAGE.height}`,
-}
+const STAGE_VARS = reelCameraStyle()
 
 type Widths = readonly [number, number]
 const srcset = (theme: ReelTheme, layer: 'wide' | ReelStep, widths: Widths) =>
@@ -35,7 +32,7 @@ const src = (theme: ReelTheme, layer: 'wide' | ReelStep, widths: Widths) =>
   `/${REEL_DIR}/${reelFile(theme, layer, widths[1])}`
 
 const label = computed(() =>
-  `A YouTube watch page playing a synthwave production video. The view moves in on the top right of the player, where the extension's display listens, settles, then shows ${props.capture.bpm} BPM, stable.`)
+  `A YouTube watch page playing a video of a drum machine with its step keys lit. The view moves in on the top right of the player, where the extension's display listens, settles, then shows ${props.capture.bpm} BPM, stable.`)
 </script>
 
 <template>

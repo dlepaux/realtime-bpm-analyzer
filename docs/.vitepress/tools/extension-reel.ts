@@ -10,17 +10,59 @@ export const REEL_DIR = 'extension-demo'
 export const REEL_MAX_DISPLAY_WIDTH = 760
 
 /**
- * How far the camera moves in, towards the page's top right corner: the overlay sits at the
- * player's top right, and YouTube's masthead stays in view above it, which is what says
- * this is a page the visitor already knows. Past about 2 the video behind it turns mushy.
+ * How far the camera moves in. This has to hold two limits at once: no screenshot pixel and no
+ * video pixel covers more than one device pixel (`reelArithmetic`). The chosen video tops out
+ * at 1080p, which allows 1.26: the screenshot alone would allow 3.16. A 4K video would allow
+ * 2.53, but the 4K candidates all had a logo sitting right under the overlay.
  */
-export const REEL_ZOOM = 2
+export const REEL_ZOOM = 1.26
 
 /**
  * What the demo shows of a capture: the page's CSS size and Chromium's device scale factor.
- * Captures are taller, at 960 x 660, to fit the window; the processing script keeps the top.
+ * It shows the masthead and the whole player, and stops before the channel's avatar.
  */
 export const REEL_PAGE = { width: 960, height: 610, deviceScale: 5 } as const
+
+/**
+ * The window a capture needs. YouTube caps the player's height at the window's height minus
+ * 169 px, so anything shorter than this letterboxes a 16:9 video inside a wider player, and
+ * the overlay hangs off the picture into the black bar. Measured at 960 x 710.
+ */
+export const REEL_CAPTURE_HEIGHT = 710
+
+/** Where YouTube puts the player and the overlay at that size, in the page's CSS pixels. */
+export const REEL_PLAYER = { top: 56, height: 540 } as const
+export const REEL_OVERLAY = { x: 836, y: 68, width: 112, height: 38 } as const
+
+/** The video's own pixels across, at the quality the shot list asks for: 1080p. */
+export const REEL_VIDEO_WIDTH = 1920
+export const REEL_VIDEO_HEIGHT = 1080
+
+export type ReelCrop = { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
+
+/**
+ * Where the zoom ends, in the page's CSS pixels: the player's top right corner, so the end
+ * frame is the video and the overlay, with no masthead, search or "Sign in". The start of the
+ * zoom is what shows it's a real YouTube page.
+ */
+export function reelCrop(zoom: number = REEL_ZOOM): ReelCrop {
+  const width = REEL_PAGE.width / zoom
+  return { x: REEL_PAGE.width - width, y: REEL_PLAYER.top, width, height: REEL_PAGE.height / zoom }
+}
+
+/**
+ * The CSS for that move. The camera layer is the end crop at scale 1; these put the whole page
+ * under it and pick the one point that stays still, so the page fills the stage at scale 1 / zoom.
+ */
+export function reelCameraStyle(zoom: number = REEL_ZOOM): Record<string, string | number> {
+  const top = reelCrop(zoom).y / REEL_PAGE.height
+  return {
+    '--ext-reel-zoom': zoom,
+    '--ext-reel-ratio': `${REEL_PAGE.width} / ${REEL_PAGE.height}`,
+    '--ext-reel-origin-y': `${(100 * top) / (1 - 1 / zoom)}%`,
+    '--ext-reel-wide-top': `${-100 * top * zoom}%`,
+  }
+}
 
 /** The widths the processing script writes, largest first. */
 export const REEL_WIDE_WIDTHS = [1520, 800] as const
@@ -62,12 +104,16 @@ export type ReelArithmetic = {
   readonly sourcePixelsPerDevicePixel: number
   readonly filePixelsPerDevicePixel: number
   readonly largestAllowedZoom: number
+  /** How many device pixels one of the video's own pixels covers at the zoom's end. */
+  readonly devicePixelsPerVideoPixel: number
+  readonly largestZoomForVideo: number
 }
 
 /**
  * The numbers the limit depends on. At the zoom's end the crop fills the stage, so its
  * pixels are spread over the stage's device pixels. Both ratios must be at least 1: the
- * captured source, and the file actually served.
+ * captured source, and the file actually served. The video inside the capture has its own
+ * pixels, and YouTube's scaling of them counts too: that ratio must be at most 1.
  */
 export function reelArithmetic(
   page: { readonly width: number; readonly deviceScale: number } = REEL_PAGE,
@@ -75,10 +121,13 @@ export function reelArithmetic(
   displayWidth: number = REEL_MAX_DISPLAY_WIDTH,
   cropFileWidth: number = REEL_CROP_WIDTHS[0],
   screenScale = 2,
+  videoWidth: number = REEL_VIDEO_WIDTH,
 ): ReelArithmetic {
   const sourceWidth = page.width * page.deviceScale
   const cropSourceWidth = sourceWidth / zoom
   const devicePixelsAcross = displayWidth * screenScale
+  // The player spans the page's width at the capture's size, so the video does too.
+  const devicePixelsPerVideoPixel = (devicePixelsAcross * zoom) / videoWidth
   return {
     sourceWidth,
     cropSourceWidth,
@@ -87,6 +136,8 @@ export function reelArithmetic(
     sourcePixelsPerDevicePixel: cropSourceWidth / devicePixelsAcross,
     filePixelsPerDevicePixel: cropFileWidth / devicePixelsAcross,
     largestAllowedZoom: sourceWidth / devicePixelsAcross,
+    devicePixelsPerVideoPixel,
+    largestZoomForVideo: videoWidth / devicePixelsAcross,
   }
 }
 
@@ -99,6 +150,7 @@ export function reelProblems(capture: ReelCapture): string[] {
   const numbers = reelArithmetic()
   if (numbers.sourcePixelsPerDevicePixel < 1) problems.push('the source is upscaled at the end of the zoom')
   if (numbers.filePixelsPerDevicePixel < 1) problems.push('the served file is upscaled at the end of the zoom')
+  if (numbers.devicePixelsPerVideoPixel > 1) problems.push('the video is upscaled at the end of the zoom')
   if (!/^https:\/\/www\.youtube\.com\/watch\?v=/.test(capture.video.url)) problems.push('the video is not a youtube.com watch page')
   if (!CC_BY.test(capture.video.licence)) problems.push(`the licence "${capture.video.licence}" is not CC BY`)
   // The stage's label names one number, and both themes must show it.
@@ -131,7 +183,7 @@ export type ReelSession = {
     readonly after?: { readonly bpm: string; readonly stability: string }
     readonly reading?: { readonly bpm: number | null } | null
     /** The video when the frame was taken: `t` is its position, in seconds. */
-    readonly player?: { readonly t?: number; readonly paused?: boolean; readonly ad?: boolean }
+    readonly player?: { readonly t?: number; readonly paused?: boolean; readonly ad?: boolean; readonly h?: number }
   }[]
 }
 
@@ -141,8 +193,8 @@ export function reelSessionProblems(session: ReelSession, videoId: string): stri
   if (session.id !== videoId) problems.push(`the session is of "${session.id}", not ${videoId}`)
   if (!CC_BY.test(session.licence ?? '')) problems.push(`the session's licence "${session.licence}" is not CC BY`)
   const { viewport, scale } = session
-  if (viewport?.width !== REEL_PAGE.width || (viewport?.height ?? 0) < REEL_PAGE.height || scale !== REEL_PAGE.deviceScale) {
-    problems.push(`the session was not captured at ${REEL_PAGE.width} wide, ${REEL_PAGE.height} or taller, at ${REEL_PAGE.deviceScale}x`)
+  if (viewport?.width !== REEL_PAGE.width || (viewport?.height ?? 0) < REEL_CAPTURE_HEIGHT || scale !== REEL_PAGE.deviceScale) {
+    problems.push(`the session was not captured at ${REEL_PAGE.width} wide, ${REEL_CAPTURE_HEIGHT} or taller, at ${REEL_PAGE.deviceScale}x`)
   }
   return problems
 }
@@ -154,10 +206,12 @@ type SessionFrame = ReelSession['frames'][number]
 // frames from the capture's proof mode carry no reading, so they can't pass.
 // The overlay keeps its last tempo through a stall, an error or an ad, so the number alone
 // doesn't say the music was still playing: the video has to have moved on since the frame
-// before. This is what keeps out the frames after YouTube stops an automated player.
+// before. This is what keeps out the frames after YouTube stops an automated player. A lower
+// quality would break the limit on video pixels, and the player starts low and steps up.
 function playerHolds(frame: SessionFrame, previous: SessionFrame | undefined): boolean {
   const { player } = frame
   if (player?.t === undefined || player.paused !== false || player.ad !== false) return false
+  if ((player.h ?? 0) < REEL_VIDEO_HEIGHT) return false
   return previous?.player?.t === undefined || player.t > previous.player.t
 }
 

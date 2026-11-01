@@ -712,10 +712,10 @@
   .vp-doc .ext-lede { font-size: 1.125rem; }
 }
 
-/* The narrow text column of a landscape tablet: at full size the headline alone pushes the
-   install action off the first screen. */
-@media (min-width: 960px) and (max-width: 1199px) {
-  .vp-doc .ext-hero h1 { font-size: 2.5rem; }
+/* The text column is narrow up to about here (tablets, small laptops): at full size the
+   headline alone pushes the install action off the first screen. */
+@media (min-width: 960px) and (max-width: 1339px) {
+  .ext-headline { font-size: 2.125rem; line-height: 1.15; }
 }
 
 /* A store's action or the way to get it to a computer, picked on the pointer. */

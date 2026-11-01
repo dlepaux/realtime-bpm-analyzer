@@ -1,6 +1,7 @@
-/* The pages the browser extension opens: /extension/welcome, /whats-new, /goodbye.
-   Site tokens everywhere, except the overlay pill, which keeps the extension's own
-   colours (rba-pro extension/src/overlay/view.ts) so it looks like what users get. */
+/* The extension's own page, its home section, and the pages it opens: /extension/welcome,
+   /whats-new, /goodbye. Site tokens, except the overlay pill, which keeps the extension's
+   own colours (rba-pro extension/src/overlay/view.ts), and the demo and privacy band, dark
+   in both themes so they read as the product and as their own moment. */
 
 /* ── The overlay pill ─────────────────────────────────────────────────────── */
 
@@ -295,86 +296,245 @@
 .vp-doc .ext-goodbye p[role='status']:empty { margin: 0; }
 .vp-doc .ext-goodbye-thanks:focus { outline: none; }
 
-/* ── The extension's own page (/extension/) ───────────────────────────────── */
+/* ── The promotion's colours ──────────────────────────────────────────────── */
 
-/* Written for people who want the tempo, not the library: the real overlay first, one
-   action, then what they'd ask next. Wider than a doc page so the pictures can be read. */
-.ext-landing {
-  max-width: 1104px;
-  margin: 0 auto;
-  padding: 48px 24px 72px;
+:root {
+  /* White on the theme's brand button is 4.48:1 in light and 4.15:1 on dark hover; these
+     clear AA. Only the promotion uses them. */
+  --ext-cta: #3a5ccc;
+  --ext-cta-hover: var(--vp-c-brand-1);
+  --ext-ink: #0f1220;
 }
 
-.vp-doc .ext-hero {
-  display: grid;
-  gap: 2rem;
+.dark {
+  --ext-cta: #3e63dd;
+  --ext-cta-hover: #3a5ccc;
+}
+
+/* ── The filled action ────────────────────────────────────────────────────── */
+
+.ext-cta,
+.vp-doc a.ext-install-btn.tt-btn-primary,
+.vp-doc a.ext-send-btn {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 3rem;
-}
-
-@media (min-width: 960px) {
-  .vp-doc .ext-hero { grid-template-columns: 1fr 1.25fr; gap: 3.5rem; }
-}
-
-.vp-doc .ext-hero h1 {
-  margin: 0;
-  font-size: clamp(2rem, 1.4rem + 2.6vw, 3rem);
-  font-weight: 700;
-  line-height: 1.12;
-  letter-spacing: -0.02em;
-}
-
-.vp-doc .ext-lede {
-  margin: 1rem 0 1.5rem;
-  max-width: 34rem;
-  color: var(--vp-c-text-2);
-  font-size: 1.125rem;
-  line-height: 1.6;
-}
-
-/* width and height are set on each image, so its box is reserved before it loads. */
-.vp-doc .ext-shot {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 12px;
-}
-
-.ext-install-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-
-/* Large enough to hit on a touchscreen, even though the install itself needs a computer. */
-.vp-doc a.ext-install-btn {
+  justify-content: center;
   min-height: 48px;
   padding: 0.65rem 1.75rem;
+  border-color: var(--ext-cta);
+  border-radius: 999px;
+  background: var(--ext-cta);
+  color: #fff;
   font-size: 1rem;
   font-weight: 600;
   text-decoration: none;
 }
 
-.vp-doc a.ext-install-btn.tt-btn-primary,
-.vp-doc a.ext-install-btn.tt-btn-primary:hover { color: var(--vp-button-brand-text); }
+.ext-cta:hover,
+.vp-doc a.ext-install-btn.tt-btn-primary:hover,
+.vp-doc a.ext-send-btn:hover {
+  border-color: var(--ext-cta-hover);
+  background: var(--ext-cta-hover);
+  color: #fff;
+}
 
-.vp-doc a.ext-install-btn:focus-visible {
+.dark .ext-cta:hover,
+.dark .vp-doc a.ext-install-btn.tt-btn-primary:hover,
+.dark .vp-doc a.ext-send-btn:hover { color: #fff; }
+
+.ext-cta:focus-visible,
+.vp-doc a.ext-install-btn:focus-visible,
+.vp-doc a.ext-send-btn:focus-visible {
   outline: 2px solid var(--vp-c-brand-1);
   outline-offset: 2px;
 }
 
-.vp-doc .ext-install-note {
-  margin: 0.6rem 0 0;
-  color: var(--vp-c-text-2);
-  font-size: 0.875rem;
+/* ── Home: the section under the hero ─────────────────────────────────────── */
+
+/* The home page's first screen once the extension is on: two doors, chosen by where the
+   visitor's music already is (Hick's Law: a choice they can answer without learning
+   anything). Scoped to .ext-home, so the live page keeps its hero until the switch is set. */
+.ext-doors { display: grid; gap: 40px; width: 100%; text-align: left; }
+.ext-door { min-width: 0; }
+
+.ext-door h2 {
+  margin: 0 0 0.9rem;
+  border: 0;
+  padding: 0;
+  color: var(--vp-c-text-1);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
-.vp-doc .ext-small {
-  color: var(--vp-c-text-2);
-  font-size: 0.875rem;
+.ext-door-line { margin: -0.5rem 0 0.9rem; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.5; }
+.ext-door .ext-cta { margin-block: 0 1rem; }
+.ext-door-tools { margin: 0.9rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; line-height: 1.6; }
+.ext-door-tools a { color: var(--vp-c-brand-1); font-weight: 500; }
+.ext-door-tools a:hover { text-decoration: underline; }
+
+/* The tool's card sets its own width; in a door it takes the door's. */
+.ext-doors .ext-door .bpm-hero-tool { width: 100%; max-width: none; margin: 0; }
+
+.ext-home .VPHero .image-container { width: 100%; height: auto; max-width: none; transform: none; }
+.ext-home .VPHero .image { width: 100%; margin: 0; }
+
+@media (min-width: 960px) {
+  .ext-home .VPHero.VPHomeHero { padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 28px); padding-bottom: 32px; }
+  .ext-home .VPHero .container { flex-direction: column; max-width: 1152px; text-align: left; }
+  .ext-home .VPHero.VPHomeHero.has-image .main {
+    order: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 40px;
+    align-items: end;
+    width: 100%;
+    max-width: none;
+  }
+  .ext-home .VPHero.VPHomeHero.has-image .main .heading { grid-column: 1 / -1; display: block; }
+  .ext-home .VPHero.VPHomeHero.has-image .main .name { display: block; font-size: 1rem; line-height: 1.5; letter-spacing: 0; }
+  .ext-home .VPHero.VPHomeHero.has-image .main .text { max-width: none; font-size: 3rem; line-height: 1.15; letter-spacing: -0.02em; }
+  .ext-home .VPHero.VPHomeHero.has-image .main .tagline { max-width: 46rem; margin: 0; padding-top: 10px; font-size: 1.0625rem; line-height: 1.5; }
+  .ext-home .VPHero.VPHomeHero.has-image .main .actions { margin: 0; padding-top: 0; justify-content: flex-end; }
+  .ext-home .VPHero .image { order: 2; margin-top: 28px; }
+  .ext-doors { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: start; }
+  /* On a short laptop screen the button stays in the fold. */
+  .ext-door .ext-stage-figure { max-width: calc(46svh * 1.516); }
 }
+
+/* The doors read from the left, so the phone's headline does too. */
+@media (max-width: 959px) {
+  .ext-home .bpm-mobile-hero-head { text-align: left; }
+  .ext-home .bpm-mobile-hero-name { font-size: 1rem; line-height: 1.5; letter-spacing: 0; }
+  .ext-home .bpm-mobile-hero-text { font-size: 2rem; line-height: 1.15; }
+  .ext-home .VPHero .main { margin-top: 32px; }
+}
+
+
+/* ── The extension's own page (/extension/) ───────────────────────────────── */
+
+/* Written for people who want the tempo, not the library: the product working first, one
+   action, then what they'd ask next. Sections fill the width so two can carry a
+   background, without 100vw, which overflows next to a scrollbar. */
+.ext-landing { overflow-wrap: break-word; }
+
+.ext-wrap,
+.vp-doc .ext-hero {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding-inline: 24px;
+}
+
+.ext-narrow { max-width: 768px; }
+.ext-sec { padding-block: clamp(56px, 8vw, 96px); }
+.ext-sec-tight { padding-top: 0; }
+.ext-soft { background: var(--vp-c-bg-soft); }
+
+/* The doc theme's hairline above each h2 is what makes a page read as documentation. */
+.vp-doc.ext-landing h2 {
+  margin: 0 0 1.5rem;
+  padding: 0;
+  border: 0;
+  font-size: clamp(1.625rem, 1.3rem + 1.2vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.vp-doc.ext-landing h3 { margin: 0 0 0.4rem; font-size: 1.125rem; font-weight: 600; line-height: 1.3; }
+.vp-doc .ext-intro { margin: -0.75rem 0 1rem; color: var(--vp-c-text-2); font-size: 1.0625rem; }
+
+/* The phone reads name, headline, demo, action, lede, in source order: a phone can't install
+   it, and that fact must not fall below the fold. */
+.vp-doc .ext-hero {
+  display: grid;
+  gap: 16px;
+  padding-block: 24px 56px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.vp-doc .ext-hero h1 { margin: 0; letter-spacing: -0.02em; }
+
+.ext-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.6rem;
+  color: var(--vp-c-brand-1);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.ext-headline {
+  display: block;
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.ext-hero-stage { min-width: 0; width: min(100%, calc(62svh * 1.6)); justify-self: center; }
+
+.ext-stage-figure { margin: 0; min-width: 0; }
+.ext-stage-figure figcaption,
+.vp-doc .ext-stage-figure figcaption { margin-top: 0.5rem; color: var(--vp-c-text-2); font-size: 0.8125rem; line-height: 1.45; }
+
+.vp-doc .ext-lede { margin: 0; max-width: 36rem; color: var(--vp-c-text-1); font-size: 1.0625rem; line-height: 1.55; }
+.vp-doc .ext-support { margin: 0; max-width: 36rem; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.55; }
+.ext-hero-action { margin-top: 0.5rem; }
+
+@media (min-width: 960px) {
+  .vp-doc .ext-hero {
+    max-width: 1320px;
+    grid-template-columns: minmax(22rem, 1fr) minmax(0, 760px);
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: 56px;
+    row-gap: 18px;
+    padding-block: 64px 88px;
+  }
+
+  .ext-hero-stage { grid-column: 2; grid-row: 1 / span 4; width: 100%; }
+  .vp-doc .ext-hero h1 { grid-column: 1; grid-row: 1; }
+  .vp-doc .ext-lede { grid-column: 1; grid-row: 2; }
+  .vp-doc .ext-support { grid-column: 1; grid-row: 3; }
+  .ext-hero-action { grid-column: 1; grid-row: 4; }
+  .vp-doc .ext-lede { font-size: 1.125rem; }
+}
+
+/* The text column is narrow up to about here (tablets, small laptops): at full size the
+   headline alone pushes the install action off the first screen. */
+@media (min-width: 960px) and (max-width: 1339px) {
+  .ext-headline { font-size: 2.125rem; line-height: 1.15; }
+}
+
+/* A store's action or the way to get it to a computer, picked on the pointer. */
+.ext-install-touch { display: none; }
+
+@media (hover: none) and (pointer: coarse) {
+  .ext-install-pointer { display: none; }
+  .ext-install-touch { display: block; }
+}
+
+.ext-install-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+.vp-doc .ext-install-note { margin: 0.6rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; }
+.vp-doc .ext-install-note-first { margin: 0 0 0.6rem; }
+
+.vp-doc .ext-install-links { display: flex; flex-direction: column; align-items: flex-start; margin-top: 0.4rem; }
+.vp-doc .ext-install-links a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 500; }
+
+.vp-doc .ext-small { margin: 1.5rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; }
+
+.ext-moments { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 2rem 3rem; margin-top: 2rem; }
+.vp-doc .ext-moment p { margin: 0; color: var(--vp-c-text-2); line-height: 1.6; }
 
 /* The steps are a real sequence, so they keep their numbers. */
 .vp-doc ol.ext-howto {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: 1.75rem;
   margin: 1.5rem 0 0;
   padding: 0;
@@ -383,7 +543,6 @@
 }
 
 .vp-doc .ext-howto li { margin: 0; counter-increment: ext-howto; }
-.vp-doc .ext-howto h3 { margin: 0 0 0.35rem; font-size: 1.05rem; }
 
 .vp-doc .ext-howto h3::before {
   content: counter(ext-howto);
@@ -401,42 +560,73 @@
 
 .vp-doc .ext-howto p { margin: 0; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.6; }
 
-.ext-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1.5rem;
-}
-
-.ext-gallery figure { margin: 0; }
-
-.vp-doc .ext-gallery figcaption {
-  margin-top: 0.6rem;
-  color: var(--vp-c-text-2);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
 .ext-sites {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 1.5rem;
   margin-top: 1.5rem;
 }
 
-.vp-doc .ext-sites h3 { margin: 0 0 0.35rem; font-size: 1rem; }
 .vp-doc .ext-sites ul { margin: 0; padding: 0; list-style: none; }
-.vp-doc .ext-sites li { margin: 0.15rem 0; }
-.vp-doc .ext-sites p { margin: 0; }
+.vp-doc .ext-sites li { margin: 0.15rem 0; font-size: 1.125rem; }
+.vp-doc .ext-sites p { margin: 0; font-size: 1.125rem; }
 
-.vp-doc .ext-closing {
-  margin-top: 3.5rem;
-  padding-top: 2.5rem;
-  border-top: 1px solid var(--vp-c-divider);
+/* Open, never collapsed: the limits stay on the page. */
+.vp-doc .ext-limits { margin: 0; }
+.vp-doc .ext-limits > div { display: grid; gap: 0.35rem; padding-block: 1.1rem; border-top: 1px solid var(--vp-c-divider); }
+.vp-doc .ext-limits dt { font-weight: 600; color: var(--vp-c-text-1); }
+.vp-doc .ext-limits dd { margin: 0; color: var(--vp-c-text-2); line-height: 1.6; }
+
+@media (min-width: 768px) {
+  .vp-doc .ext-limits > div { grid-template-columns: 14rem minmax(0, 1fr); gap: 1.5rem; }
 }
 
-.vp-doc .ext-closing h2 { margin: 0 0 1.25rem; padding: 0; border: 0; }
+/* The page's second peak, dark in both themes, so the promise reads as its own moment. */
+.ext-ink { background: var(--ext-ink); color: #d1d5db; }
+.dark .ext-ink { box-shadow: 0 -1px 0 #2e2e32, 0 1px 0 #2e2e32; }
 
-@media (max-width: 639px) {
-  .ext-landing { padding-top: 24px; }
+.vp-doc.ext-landing .ext-ink h2 {
+  max-width: 20ch;
+  color: #f9fafb;
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+  line-height: 1.1;
 }
+
+.vp-doc.ext-landing .ext-ink h3 { color: #f9fafb; font-size: 1rem; }
+.vp-doc .ext-ink p { color: #d1d5db; }
+.vp-doc .ext-ink a { color: #a8b1ff; }
+.vp-doc .ext-ink .ext-promise { margin: 0 0 2rem; padding: 0; border: 0; border-radius: 0; background: none; }
+.vp-doc .ext-ink .ext-promise p { margin: 0; max-width: 44rem; color: #f9fafb; font-size: clamp(1.0625rem, 1rem + 0.5vw, 1.3rem); font-weight: 500; line-height: 1.5; }
+
+.ext-ink-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 1.5rem 3rem;
+}
+
+.vp-doc .ext-ink-details p { margin: 0; font-size: 0.95rem; line-height: 1.6; }
+
+.vp-doc .ext-closing { padding-top: 0; }
+.vp-doc.ext-landing .ext-closing h2 { margin-bottom: 1.25rem; }
+.vp-doc .ext-library { margin-top: 2rem; }
+
+/* A jump to the install-prompt answer shouldn't land under the sticky nav. */
+#chrome-prompt { scroll-margin-top: calc(var(--vp-nav-height) + 16px); }
+
+/* The extra nav item leaves too little room between 960 and 1120 px, and the site's name
+   is what would be cut. The search collapses to its icon instead. Only with the item:
+   the switch off leaves the nav as it was. */
+@media (min-width: 960px) and (max-width: 1119px) {
+  .VPNav:has(.VPNavBarMenu a[href='/extension/']) .VPNavBarSearch .DocSearch-Button-Placeholder,
+  .VPNav:has(.VPNavBarMenu a[href='/extension/']) .VPNavBarSearch .DocSearch-Button-Keys { display: none; }
+}
+
+@media (min-width: 960px) and (max-width: 999px) {
+  .VPNav:has(.VPNavBarMenu a[href='/extension/']) .VPNavBarMenu .VPNavBarMenuLink,
+  .VPNav:has(.VPNavBarMenu a[href='/extension/']) .VPNavBarMenu .VPFlyout .button { padding-inline: 7px; }
+}
+
+/* After a result, on a computer only: it can't be installed from a touch device. */
+.ext-result-prompt { display: none; margin: 14px 0 0; font-size: 13px; color: var(--vp-c-text-2); }
+.ext-result-prompt a { color: var(--vp-c-brand-1); text-decoration: underline; }
+@media (pointer: fine) { .ext-result-prompt { display: block; } }

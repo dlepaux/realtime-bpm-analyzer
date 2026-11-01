@@ -52,7 +52,7 @@ is rock steady.
 Prefer not to tap? The [BPM Analyzer](/) finds the tempo automatically from a
 file, your microphone or a radio stream.
 
-<ExtensionMention />
+<ExtensionMention lead="Music playing in a Chrome tab?" tail="shows its tempo right on the page, with no tapping." />
 
 ## Frequently asked questions
 

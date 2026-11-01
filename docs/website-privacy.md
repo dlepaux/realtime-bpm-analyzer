@@ -33,7 +33,13 @@ cookies in your browser and receives:
 - the version numbers in the address of the pages the browser extension opens:
   its version when you install it or remove it, its new and previous versions
   when it updates. If you remove it and pick a reason from the list on that page,
-  that reason and the version. Nothing you type is sent.
+  that reason and the version. Nothing you type is sent;
+- on the pages that promote the browser extension: which link to it you clicked
+  and where it sits on the site, and whether you paused or replayed its demo.
+
+Links to the extension's Chrome Web Store listing carry a label naming this site
+and the place on it the link was, so the store can report which link brought an
+install. The label holds nothing about you.
 
 Google Analytics does not store IP addresses. Its event data is kept for at most
 14 months. Google processes it as described in

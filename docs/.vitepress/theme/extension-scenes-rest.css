@@ -1,0 +1,179 @@
+/* The demo's later pages: only a computer that plays it loads these (extension-scenes-styles.ts).
+   Each has its own look; its picture is the same in both themes and its page follows the site's. */
+
+.ext-bar {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  align-items: center;
+  gap: calc(9 * var(--u));
+  height: calc(52 * var(--u));
+  padding: 0 calc(12 * var(--u));
+  background: var(--sc-bar);
+  border-top: calc(0.5 * var(--u)) solid var(--sc-sk);
+}
+
+.ext-bar-buttons { flex: none; display: flex; align-items: center; gap: calc(5 * var(--u)); }
+.ext-icon-big { width: calc(17 * var(--u)); height: calc(17 * var(--u)); }
+
+.ext-scene { --sc-bar: var(--sc-page); }
+
+/* ── The music player: a room lit by its record ───────────────────── */
+
+.ext-scene[data-scene='music'] {
+  --sc-bar: color-mix(in srgb, var(--sc-page) 92%, #7a3cff);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--sc-page) 88%, #4b1c7a);
+}
+
+.dark .ext-scene[data-scene='music'] { --sc-bar: #2c2536; background: #120a18; }
+
+.mus-wash { position: absolute; width: 80%; aspect-ratio: 1; border-radius: 50%; }
+.mus-wash-a { left: -24%; top: -46%; background: radial-gradient(closest-side, rgb(255 110 90 / 0.5), rgb(255 110 90 / 0)); }
+.mus-wash-b { right: -26%; bottom: -60%; background: radial-gradient(closest-side, rgb(120 60 220 / 0.48), rgb(120 60 220 / 0)); }
+.dark .mus-wash-a { background: radial-gradient(closest-side, rgb(255 110 90 / 0.62), rgb(255 110 90 / 0)); }
+.dark .mus-wash-b { background: radial-gradient(closest-side, rgb(140 70 255 / 0.68), rgb(140 70 255 / 0)); }
+
+.mus-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(26 * var(--u));
+  padding: 0 calc(12 * var(--u));
+}
+
+.mus-chips, .mus-tabs { display: flex; align-items: center; gap: calc(9 * var(--u)); }
+.mus-chips b, .mus-tabs b { font-size: calc(9 * var(--u)); font-weight: 650; }
+.mus-chips span, .mus-tabs span { color: var(--sc-ink-2); font-size: calc(8.5 * var(--u)); }
+
+.mus-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: calc(220 * var(--u)) minmax(0, 1fr);
+  gap: calc(20 * var(--u));
+  padding: calc(1 * var(--u)) calc(14 * var(--u)) 0;
+}
+
+.mus-stage { position: relative; width: calc(212 * var(--u)); height: calc(212 * var(--u)); }
+.mus-glow { position: absolute; inset: -20%; border-radius: 50%; opacity: 0.72; background: radial-gradient(closest-side, rgb(255 138 82 / 0.75), rgb(255 93 143 / 0.28) 60%, rgb(255 93 143 / 0)); }
+
+.mus-art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: calc(8 * var(--u));
+  background: radial-gradient(circle at 50% 50%, #1e6a7c, #123a58 58%, #0b1e38);
+  box-shadow: 0 calc(10 * var(--u)) calc(26 * var(--u)) calc(-8 * var(--u)) rgb(20 10 50 / 0.6);
+}
+
+.mus-arcs { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.mus-sun {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26%;
+  aspect-ratio: 1;
+  margin: -13% 0 0 -13%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff7e0, #ffd27d 55%, #ff9a4d);
+}
+
+.mus-queue { display: grid; align-content: start; gap: calc(6 * var(--u)); min-width: 0; }
+.mus-tabs { padding-bottom: calc(4 * var(--u)); border-bottom: calc(0.5 * var(--u)) solid var(--sc-sk-2); }
+
+.mus-row { display: flex; align-items: center; gap: calc(8 * var(--u)); height: calc(25 * var(--u)); padding: 0 calc(5 * var(--u)); border-radius: calc(5 * var(--u)); }
+.mus-row[data-current='true'] { background: var(--sc-sk); }
+.mus-row-text { flex: 1; min-width: 0; display: grid; gap: calc(1 * var(--u)); }
+.mus-row-text b { font-size: calc(8.5 * var(--u)); font-weight: 600; white-space: nowrap; }
+
+.mus-thumb { flex: none; width: calc(21 * var(--u)); height: calc(21 * var(--u)); border-radius: calc(3 * var(--u)); background: radial-gradient(circle, #ffd27d 0 16%, #1e6a7c 18% 42%, #ff5d8f 44% 58%, #123a58 60%); }
+.mus-thumb[data-n='2'] { background: linear-gradient(160deg, #e36b8e, #5b2d8e); }
+.mus-thumb[data-n='3'] { background: linear-gradient(40deg, #f2c14e, #d8572a); }
+.mus-thumb[data-n='4'] { background: radial-gradient(circle at 30% 30%, #8ee3d0, #1f5d7a); }
+.mus-thumb[data-n='5'] { background: linear-gradient(200deg, #33295e, #9a6bd8); }
+.mus-thumb[data-n='6'] { background: linear-gradient(120deg, #1b998b, #e7e247); }
+
+.mus-eq { flex: none; display: flex; align-items: flex-end; gap: calc(1.5 * var(--u)); height: calc(11 * var(--u)); }
+.mus-eq i { width: calc(2.5 * var(--u)); height: 100%; border-radius: calc(1 * var(--u)); background: #ff5d8f; transform-origin: bottom; }
+.mus-eq i:nth-child(1) { transform: scaleY(0.9); }
+.mus-eq i:nth-child(2) { transform: scaleY(0.6); }
+.mus-eq i:nth-child(3) { transform: scaleY(0.75); }
+.mus-bar-text { flex: 0 0 calc(82 * var(--u)); }
+
+/* ── The waveform page: a sea, with the track drawn across it ─────── */
+
+.wav-banner {
+  position: relative;
+  height: calc(200 * var(--u));
+  overflow: hidden;
+  background: linear-gradient(115deg, #0d4f6c 0%, #0b2547 42%, #2d1454 100%);
+}
+
+.wav-ribbon { position: absolute; border-radius: 50%; }
+.wav-ribbon-a { left: -18%; top: -44%; width: 88%; height: 150%; background: radial-gradient(closest-side, rgb(43 212 197 / 0.78), rgb(43 212 197 / 0)); }
+.wav-ribbon-b { right: -18%; top: -14%; width: 82%; height: 168%; background: radial-gradient(closest-side, rgb(255 110 89 / 0.82), rgb(255 110 89 / 0)); }
+.wav-flare { position: absolute; left: 36%; bottom: -46%; width: 46%; aspect-ratio: 1; border-radius: 50%; opacity: 0.55; background: radial-gradient(closest-side, rgb(255 226 170 / 0.85), rgb(255 226 170 / 0)); }
+
+.wav-head {
+  position: absolute;
+  inset: calc(14 * var(--u)) calc(14 * var(--u)) auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: calc(10 * var(--u));
+}
+
+.wav-play { position: relative; width: calc(34 * var(--u)); height: calc(34 * var(--u)); border-radius: 50%; background: #fff; }
+.wav-play::after { content: ''; position: absolute; left: calc(11.5 * var(--u)); top: calc(10 * var(--u)); width: calc(11 * var(--u)); height: calc(14 * var(--u)); border-inline: calc(4 * var(--u)) solid #e5683f; }
+
+.wav-labels { display: grid; justify-items: start; align-content: start; gap: calc(3 * var(--u)); }
+.wav-labels b {
+  padding: calc(2 * var(--u)) calc(6 * var(--u));
+  border-radius: calc(2 * var(--u));
+  background: rgb(8 12 28 / 0.72);
+  color: #fff;
+  font-size: calc(13 * var(--u));
+  font-weight: 600;
+}
+
+.wav-labels .wav-artist { font-size: calc(9 * var(--u)); color: #d7d9de; }
+
+/* The cover is a night sea, so this page shares nothing with the music page's record. */
+.wav-art {
+  position: relative;
+  width: calc(108 * var(--u));
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: calc(3 * var(--u));
+  background: linear-gradient(180deg, #120b3f 0%, #4b1f73 46%, #ff8a64 74%);
+  box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) rgb(0 0 0 / 0.4);
+}
+
+.wav-art-moon { position: absolute; left: 58%; top: 12%; width: 22%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 38% 36%, #fff, #dce4ff 62%, #a9b8ff); box-shadow: 0 0 calc(12 * var(--u)) rgb(200 215 255 / 0.7); }
+.wav-art-sea { position: absolute; left: 0; width: 100%; }
+.wav-art-sea-a { bottom: -8%; height: 52%; fill: #e0536f; }
+.wav-art-sea-b { bottom: -10%; height: 40%; fill: #1c8c9c; transform: scaleX(-1); }
+.wav-art-sea-c { bottom: -12%; height: 28%; fill: #0a2c4f; }
+
+.wav-wave { position: absolute; inset: auto calc(14 * var(--u)) calc(14 * var(--u)) calc(14 * var(--u)); height: calc(58 * var(--u)); }
+/* Rest and played bars beat as one, so the played part's clip can't cut the tops off. */
+.wav-bars-beat { position: absolute; inset: 0; transform-origin: bottom; }
+.wav-bars { position: absolute; inset: 0; width: 100%; height: 100%; }
+.wav-bars-rest { fill: rgb(255 255 255 / 0.82); }
+.wav-played-clip { position: absolute; inset: 0; overflow: hidden; transform: translateX(-60%); }
+.wav-played-inner { position: absolute; inset: 0; transform: translateX(60%); }
+.wav-bars-played { fill: #ffb25e; }
+
+.wav-avatars { position: absolute; inset: 100% 0 auto; display: flex; justify-content: space-around; }
+.wav-avatars i { width: calc(7 * var(--u)); height: calc(7 * var(--u)); margin-top: calc(1.5 * var(--u)); border-radius: 50%; background: linear-gradient(135deg, #ffe0a8, #ff7f8f); }
+
+.wav-below { display: flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(11 * var(--u)) calc(14 * var(--u)); }
+.wav-comment { flex: 1; padding: calc(4.5 * var(--u)) calc(9 * var(--u)); border-radius: calc(4 * var(--u)); background: var(--sc-sk); color: var(--sc-ink-2); font-size: calc(7.5 * var(--u)); }
+.wav-bar { background: var(--sc-chrome); }
+.dark .wav-bar { background: #2b2c34; }
+.wav-clock { flex: none; }
+.wav-progress { flex: 1; min-width: 0; height: calc(2.5 * var(--u)); border-radius: calc(2 * var(--u)); background: var(--sc-sk-2); }
+.wav-progress b { width: 100%; height: 100%; border-radius: inherit; background: #e5683f; transform: scaleX(0.4); transform-origin: left; }
+.wav-thumb { flex: none; width: calc(21 * var(--u)); height: calc(21 * var(--u)); border-radius: calc(3 * var(--u)); background: linear-gradient(180deg, #120b3f, #4b1f73 50%, #e0536f); }
+.wav-bar-text { flex: 0 0 calc(72 * var(--u)); margin-right: calc(132 * var(--u)); }

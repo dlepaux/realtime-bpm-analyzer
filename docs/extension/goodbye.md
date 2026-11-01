@@ -18,6 +18,7 @@ head:
 <script setup>
 import ExtensionGoodbye from '../.vitepress/components/ExtensionGoodbye.vue'
 import { STORE_URL } from '../.vitepress/tools/extension-live'
+import { storeLink } from '../.vitepress/tools/extension-promo'
 </script>
 
 # Sorry to see you go
@@ -30,7 +31,7 @@ of your visit to this site. [Extension privacy](/extension/privacy) has the deta
 
 ## Changed your mind?
 
-<p v-if="STORE_URL"><a :href="STORE_URL">Reinstall the extension</a> any time.</p>
+<p v-if="STORE_URL"><a :href="storeLink(STORE_URL, 'goodbye')">Reinstall the extension</a> any time.</p>
 
 If something broke, [report it on GitHub](https://github.com/dlepaux/realtime-bpm-analyzer/issues/new)
 with the site and what you expected. Bugs reported there get fixed.

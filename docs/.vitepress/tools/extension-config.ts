@@ -18,6 +18,6 @@ export const LEAD_CAPTURE: LeadCapture | null = null
 
 // Null until the extension has a store listing. Setting it to the listing's URL is
 // the one switch for the site's promotion (RBA-58): it builds the /extension/ page and
-// turns on its nav link, the home card, the links from the tools and the goodbye
+// turns on its nav link, the home hero action and section, the links from the tools and the goodbye
 // page's reinstall link. See tools/extension-promo.ts.
 export const EXTENSION_STORE_URL: string | null = null

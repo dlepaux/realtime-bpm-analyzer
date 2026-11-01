@@ -1,6 +1,6 @@
 ---
 title: React BPM Detection — Hook and Live Examples
-description: React integration examples for realtime-bpm-analyzer: file analysis, streaming audio, microphone input. Live demos with full source and TypeScript types.
+description: React integration examples for realtime-bpm-analyzer, with file analysis, streaming audio and microphone input. Live demos with full source and TypeScript types.
 ---
 
 # React Integration

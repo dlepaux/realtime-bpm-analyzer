@@ -41,7 +41,7 @@ export type TempogramTuning = {
   readonly thirdBeatPenalty: number;
   /**
    * Centre of the tempo prior, in BPM. A clean pulse T and its half T/2 tie at T/√2 = this, so on a
-   * range that holds both, a pulse above that tie reads at half: why the range is part of the settings.
+   * range that holds both, a pulse above that tie can read at half: why the range is part of the settings.
    */
   readonly priorBpm: number;
   /** Width of the tempo prior, in octaves */

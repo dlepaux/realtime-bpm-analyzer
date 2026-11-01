@@ -30,7 +30,8 @@ Options:
   --min-bpm <bpm>    Lowest tempo reported (default 90)
   --max-bpm <bpm>    Highest tempo reported (default 180, at least 2 x min)
   --detector <name>  peaks (default) or tempogram, which searches the range
-                     instead of folding into it: over about 179 reads half
+                     instead of folding into it: from about 2 x min a tempo
+                     can read half, as over about 179 does by default
   -h, --help         Show this help
   -v, --version      Show the version
 

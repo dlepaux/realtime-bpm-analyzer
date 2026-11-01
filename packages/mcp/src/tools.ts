@@ -17,7 +17,7 @@ const tempoArguments = {
   max_bpm: z.number().positive().max(2000).optional()
     .describe('Highest tempo to report, in BPM (default 180). Must be at least twice min_bpm.'),
   detector: z.enum(['peaks', 'tempogram']).optional()
-    .describe('Tempo detector (default peaks). The tempogram searches min_bpm..max_bpm instead of folding into it, so over about 179 BPM it reads half.'),
+    .describe('Tempo detector (default peaks). The tempogram searches min_bpm..max_bpm instead of folding into it, so from about twice min_bpm a tempo can read half, as over about 179 BPM does by default.'),
 };
 
 const path = z.string().min(1).max(4096);

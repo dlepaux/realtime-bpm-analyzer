@@ -286,10 +286,23 @@ argument run it on whole files. The default stays `'peaks'`.
 
 It searches 90 to 180 BPM, and a tempo outside that reads at the octave
 inside: over about 179 BPM reads half, so a 200 BPM track reads 100, and a
-70 BPM track reads 140. `tempoRange` changes what is searched, but nothing is
-folded into it. These settings were measured on real-time analysis at 90 to
-180 only: a wider range lets fast music read at half, and whole files run the
-same settings without having been scored at them. `continuousAnalysis` works
+70 BPM track reads 140.
+
+`tempoRange` changes what is searched, but nothing is folded into it. A tempo
+from about twice `min` up can read at half or a quarter, whatever `max` is, so
+a lower `min` halves more music and a higher `max` does not reach faster
+music. On a range wider than one octave, which of those tempos halve varies
+from one to the next. On clean click tracks:
+
+| `tempoRange` | Reads as itself | Reads at half |
+| --- | --- | --- |
+| 60 to 180 | 116, 140 | 120 as 60, 160 as 80 |
+| 70 to 140 | 130 | 140 as 70 |
+| 90 to 240 | 170 | 180 as 90 |
+
+These settings were measured on real-time analysis at 90 to 180 only, and
+whole files run the same settings without having been scored at them.
+`continuousAnalysis` works
 with it too, but a short `stabilizationTime` resets it before it can reach
 stable: at 10 seconds it never does.
 

@@ -36,6 +36,50 @@ function measuredAnalyzer(): RealTimeBpmAnalyzer {
   return analyzer;
 }
 
+// The figures the docs give for custom ranges (`Detector` in types.ts, the real-time guide). They describe
+// the locked settings on clean clicks, and they only hold while those settings do.
+describe('a custom tempogram range', () => {
+  for (const [min, max, heard, read] of [
+    [90, 180, 70, 140],
+    [90, 180, 175, 175],
+    [90, 180, 200, 100],
+    [60, 180, 116, 116],
+    [60, 180, 120, 60],
+    [60, 180, 140, 140],
+    [60, 180, 160, 80],
+    [70, 140, 130, 130],
+    [70, 140, 140, 70],
+    [90, 240, 170, 170],
+    [90, 240, 180, 90],
+  ]) {
+    it(`on ${min}-${max} reads ${heard} as ${read}`, async () => {
+      const candidates = await analyzeChannelData(createClickTrack(heard, sampleRate, 30), sampleRate, {
+        detector: 'tempogram',
+        tempoRange: {min, max},
+      });
+
+      expect(Math.round(candidates[0].tempo)).to.equal(read);
+    });
+  }
+});
+
+describe('options replaced whole, as 5.4.0 allowed', () => {
+  it('reads and reports progress as peaks, with no detector named', async () => {
+    const pcm = createClickTrack(128, sampleRate, 10);
+    const replaced = new RealTimeBpmAnalyzer();
+
+    replaced.options = {
+      continuousAnalysis: false,
+      stabilizationTime: 20_000,
+      muteTimeInIndexes: 10_000,
+      debug: false,
+      tempoRange: {min: 90, max: 180},
+    };
+
+    expect(await stream(replaced, pcm)).to.deep.equal(await stream(new RealTimeBpmAnalyzer(), pcm));
+  });
+});
+
 describe('one tempogram behaviour', () => {
   for (const [name, options] of [
     ['bare', {detector: 'tempogram'}],

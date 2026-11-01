@@ -427,6 +427,13 @@ function realRows(root: string): {readonly rows: ManifestRow[]; readonly refused
       return [];
     }
 
+    // The catalogue froze before the parser refused these, and it stays frozen so the split
+    // does not move: the same refusal is applied here.
+    if (!candidate.url.trim()) {
+      refused.push('no source page');
+      return [];
+    }
+
     if (reading.error || !reading.votes || !reading.duration) {
       refused.push('audio would not decode');
       return [];

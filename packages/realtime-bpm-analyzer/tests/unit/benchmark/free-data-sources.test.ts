@@ -79,6 +79,7 @@ describe('free data: what each host says', () => {
       expect(parseFma(fma({track_genres: "[{'genre_id': '2'}]"}), genres, null)).to.deep.equal({ok: false, reason: 'genre out of scope'});
       expect(parseFma(fma({license_url: 'http://creativecommons.org/licenses/by-nc/4.0/'}), genres, null)).to.deep.equal({ok: false, reason: 'licence not permissive'});
       expect(parseFma(fma({artist_name: 'Various Artists'}), genres, null)).to.deep.equal({ok: false, reason: 'no artist'});
+      expect(parseFma(fma({track_url: ' '}), genres, null)).to.deep.equal({ok: false, reason: 'no source page'});
     });
   });
 

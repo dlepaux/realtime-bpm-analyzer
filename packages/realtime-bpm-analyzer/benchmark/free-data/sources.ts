@@ -135,6 +135,12 @@ export function parseFma(row: FmaRow, genres: ReadonlyMap<string, GenreRow>, tem
     return {ok: false, reason: 'no artist'};
   }
 
+  // CC BY attribution and any later check of the licence both need the track's own page; a
+  // made-up address, or an album page standing in for it, would be evidence nobody could follow.
+  if (!row.track_url.trim()) {
+    return {ok: false, reason: 'no source page'};
+  }
+
   const number = row.track_id.padStart(6, '0');
 
   return {

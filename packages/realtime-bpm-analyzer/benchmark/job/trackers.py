@@ -13,12 +13,15 @@ Trackers and licences, stated because they matter (plan/rba-data-options.md):
 madmom's models and Essentia's TensorFlow models are non-commercial, so they are left out.
 """
 import argparse
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
+from concurrent.futures.process import BrokenProcessPool
 import json
 import multiprocessing
 import os
 import subprocess
 import sys
+import tempfile
+from collections import Counter, deque
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +30,10 @@ import scipy.stats
 SAMPLE_RATE = 22050
 ESSENTIA_RATE = 44100
 TOOL_TIMEOUT_SECONDS = 300
+# A native crash ends a whole pool, and any track in flight may be the cause. A track is only blamed
+# after this many crashes, and past the limit of crashes the job fails rather than blame everything.
+STRIKES_TO_REJECT = 3
+MOST_POOL_CRASHES = 12
 # Centre of the track: intros and outros are where tempo is least defined, and this bounds the cost
 EXCERPT_SECONDS = 120
 
@@ -46,6 +53,9 @@ _key = None
 def _setup(checkpoint):
     """Loads each tool once per worker. One thread each: the workers are the parallelism."""
     global _beats, _rhythm, _key
+    # Numba's cache on disk is shared by default, and workers compiling librosa's functions at once
+    # segfaulted on first use (seen with 4 workers, not with 2). Set before anything imports numba.
+    os.environ["NUMBA_CACHE_DIR"] = tempfile.mkdtemp(prefix="numba-")
     import essentia.standard as es
     import torch
     from beat_this.inference import Audio2Beats
@@ -199,25 +209,53 @@ def main():
     context = multiprocessing.get_context("spawn")
     _check_setup(context, args.checkpoint)
 
+    queue = deque(jobs)
+    strikes = Counter()
+    crashes = 0
     transient = 0
-    # An executor, not a Pool: a Pool waits forever on a task whose worker was killed, and a hung job
-    # raises no alert. This one raises BrokenProcessPool, which ends the job, and a new run resumes.
-    # Workers are recycled, as torch and essentia hold on to memory and the job has a hard limit.
-    with ProcessPoolExecutor(args.workers, mp_context=context, initializer=_setup,
-                             initargs=(args.checkpoint,), max_tasks_per_child=100) as pool, \
-            open(args.out, "a", encoding="utf8") as out:
-        futures = [pool.submit(analyse, job) for job in jobs]
-        for count, future in enumerate(as_completed(futures), start=1):
-            result = future.result()
-            if "transient" in result:
-                transient += 1
-                print(f"{result['id']}: left for the next run, {result['transient']}", file=sys.stderr, flush=True)
-            else:
-                out.write(json.dumps(result, allow_nan=False) + "\n")
-                out.flush()
-            if count % 50 == 0:
-                print(f"{count} of {len(jobs)}", file=sys.stderr, flush=True)
-    print(f"done, {transient} left for the next run", file=sys.stderr, flush=True)
+    finished = 0
+
+    def record(result):
+        nonlocal transient, finished
+        finished += 1
+        if "transient" in result:
+            transient += 1
+            print(f"{result['id']}: left for the next run, {result['transient']}", file=sys.stderr, flush=True)
+        else:
+            out.write(json.dumps(result, allow_nan=False) + "\n")
+            out.flush()
+        if finished % 50 == 0:
+            print(f"{finished} of {len(jobs)}", file=sys.stderr, flush=True)
+
+    with open(args.out, "a", encoding="utf8") as out:
+        while queue:
+            in_flight = {}
+            try:
+                # An executor, not a Pool: a Pool waits forever on a task whose worker was killed, and
+                # a hung job raises no alert. No more in flight than workers, so a crash blames few.
+                # Workers are recycled, as torch and essentia hold on to memory under a hard limit.
+                with ProcessPoolExecutor(args.workers, mp_context=context, initializer=_setup,
+                                         initargs=(args.checkpoint,), max_tasks_per_child=100) as pool:
+                    while queue or in_flight:
+                        while queue and len(in_flight) < args.workers:
+                            job = queue.popleft()
+                            in_flight[pool.submit(analyse, job)] = job
+                        done, _ = wait(in_flight, return_when=FIRST_COMPLETED)
+                        for future in done:
+                            record(future.result())
+                            del in_flight[future]
+            except BrokenProcessPool:
+                crashes += 1
+                print(f"pool crashed ({crashes}), suspects: {[job[0] for job in in_flight.values()]}", file=sys.stderr, flush=True)
+                if crashes > MOST_POOL_CRASHES:
+                    raise
+                for job in in_flight.values():
+                    strikes[job[0]] += 1
+                    if strikes[job[0]] >= STRIKES_TO_REJECT:
+                        record({"id": job[0], "error": f"tracker process crashed {STRIKES_TO_REJECT} times"})
+                    else:
+                        queue.append(job)
+    print(f"done, {transient} left for the next run, {crashes} pool crashes", file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":

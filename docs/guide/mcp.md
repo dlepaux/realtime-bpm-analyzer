@@ -50,6 +50,7 @@ tracks in ~/Music/house slower than 124 BPM."
 | `path`    | The audio file. Absolute, or starting with `~` for the home folder |
 | `min_bpm` | Lowest tempo reported (default 90)                                |
 | `max_bpm` | Highest tempo reported (default 180, at least 2 × `min_bpm`)      |
+| `detector` | `peaks` (default) or `tempogram`, which searches `min_bpm`..`max_bpm` instead of folding into it: over about 179 BPM reads half |
 
 ```json
 {
@@ -70,7 +71,7 @@ found. A file that cannot be analysed returns a tool error with a one-line reaso
 | `directory` | The folder                                                       |
 | `recursive` | Also analyse sub-folders (default `false`)                       |
 | `offset`    | First file to analyse, from the previous call's `next_offset`    |
-| `min_bpm`, `max_bpm` | As for `analyze_file`                                   |
+| `min_bpm`, `max_bpm`, `detector` | As for `analyze_file`                       |
 
 ```json
 {

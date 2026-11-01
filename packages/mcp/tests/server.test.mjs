@@ -5,7 +5,7 @@ import {describe, it, before, after} from 'node:test';
 import assert from 'node:assert/strict';
 import {copyFile, mkdir, mkdtemp, open, readFile, rm, symlink, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {Client} from '@modelcontextprotocol/client';
 import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
@@ -127,9 +127,20 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
   });
 
   it('runs the tempogram detector when asked', async () => {
-    const result = await client.callTool({name: 'analyze_file', arguments: {path: fixture('click-128.mp3'), detector: 'tempogram'}});
+    const call = (name, args) => client.callTool({name, arguments: args}).then(result => result.structuredContent);
+    const path = fixture('click-128.mp3');
+    const tempogram = await call('analyze_file', {path, detector: 'tempogram'});
+    const peaks = await call('analyze_file', {path});
 
-    near(result.structuredContent.bpm, 128);
+    near(tempogram.bpm, 128);
+    // Both read 128: only the candidates show which detector ran
+    assert.notDeepEqual(tempogram.candidates, peaks.candidates);
+
+    const directory = dirname(path);
+    const folder = await call('analyze_folder', {directory, detector: 'tempogram'});
+    const inFolder = folder.results.find(result => result.file === path);
+
+    assert.deepEqual(inFolder.candidates, tempogram.candidates);
   });
 
   it('folds the tempo into min_bpm..max_bpm', async () => {

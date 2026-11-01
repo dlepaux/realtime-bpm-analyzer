@@ -197,13 +197,13 @@ export type AnalyzeFullBufferOptions = BiquadFilterOptions & {
 };
 
 /**
- * Tempo detector of the real-time analyzer.
+ * Tempo detector, for real-time analysis and for whole files.
  *
  * - `peaks`, the default: amplitude peaks after a lowpass.
  * - `tempogram`: spectral flux across several bands, a sliding autocorrelation and a tempo prior.
  *   Searches 90 to 180 BPM unless `tempoRange` says otherwise, and a tempo outside that reads at the
- *   octave inside: 200 BPM reads 100, 70 reads 140. Other ranges work but were not measured, and a
- *   wider one lets fast music read at half.
+ *   octave inside: over about 179 BPM reads half, so 200 reads 100, and 70 reads 140. Other ranges
+ *   work but were not measured, and a wider one lets fast music read at half.
  *   A lowpass removes the bands it listens to: connect the source to `BpmAnalyzer.input`, which
  *   suits either detector, and not through {@link getBiquadFilter}.
  *   It reads about twice a second, leaves `threshold` at 0, and gives `count` as a salience score
@@ -217,7 +217,7 @@ export type Detector = 'peaks' | 'tempogram';
 /**
  * Holds a caller to the tempogram's measured settings. `extension` is for a browser extension listening
  * to a tab: it reads exactly as a bare `detector: 'tempogram'` does, 90 to 180 BPM with no lowpass, and
- * refuses any option that would leave those settings. A tempo over 180 BPM reads at half.
+ * refuses any option that would leave those settings. A tempo over about 179 BPM reads at half.
  *
  * @group Type Aliases
  */
@@ -238,14 +238,14 @@ export type RealTimeBpmAnalyzerParameters = {
   debug?: boolean;
   /**
    * Range every tempo is folded into (default: 90–180 BPM).
-   * With the `tempogram` detector, the range searched instead (default: 50–240 BPM).
+   * With the `tempogram` detector, the range searched instead, with the same default.
    */
   tempoRange?: TempoRange;
   /** Tempo detector (default: `peaks`) */
   detector?: Detector;
   /**
    * Pins the tempogram to its measured settings, real-time only. Needs `detector: 'tempogram'`, and refuses
-   * another `tempoRange` and `continuousAnalysis`, whose reset never lets the tempogram reach stable.
+   * another `tempoRange` and `continuousAnalysis`, whose reset can keep the tempogram from ever reaching stable.
    */
   tempogramMode?: TempogramMode;
 };

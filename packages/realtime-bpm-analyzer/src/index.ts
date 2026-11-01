@@ -198,12 +198,13 @@ export async function createRealtimeBpmAnalyzer(
     return new BpmAnalyzer(processorNode);
   }
 
-  // Idle until a source connects to it, so callers still wiring `.node` pay nothing for it
-  const lowpass = getBiquadFilter(audioContext);
+  return new BpmAnalyzer(processorNode, () => {
+    const lowpass = getBiquadFilter(audioContext);
 
-  lowpass.connect(processorNode);
+    lowpass.connect(processorNode);
 
-  return new BpmAnalyzer(processorNode, lowpass);
+    return lowpass;
+  });
 }
 
 /**

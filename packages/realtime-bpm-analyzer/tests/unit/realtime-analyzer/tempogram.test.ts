@@ -286,6 +286,30 @@ describe('detectTempogram', () => {
     expect(top.tempo).to.be.within(118, 122);
   });
 
+  it('keeps the music when the file ends in silence', () => {
+    const samples = new Float32Array(sampleRate * 42);
+
+    samples.set(createBrightClicks(128, 30));
+
+    const [top] = detectTempogram(samples, sampleRate);
+
+    expect(top.tempo).to.be.within(127, 129);
+  });
+
+  for (const seconds of [2.017, 3.009, 3.5]) {
+    it(`reads a ${seconds} s recording, whatever its length in hops`, () => {
+      const [top] = detectTempogram(createBrightClicks(120, seconds), sampleRate);
+
+      expect(top?.tempo).to.be.within(118, 122);
+    });
+  }
+
+  for (const rate of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, 49, '44100']) {
+    it(`refuses a sample rate of ${String(rate)}`, () => {
+      expect(() => detectTempogram(createBrightClicks(120, 3), rate as number)).to.throw(RangeError, 'sample rate');
+    });
+  }
+
   it('returns nothing for silence or for too little audio', () => {
     expect(detectTempogram(new Float32Array(sampleRate * 10), sampleRate)).to.deep.equal([]);
     expect(detectTempogram(createBrightClicks(120, 1), sampleRate)).to.deep.equal([]);

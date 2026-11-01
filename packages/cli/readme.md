@@ -29,7 +29,7 @@ rba -r --min-bpm 70 --max-bpm 140 ./music
 | `-r, --recursive` | Walk sub-folders (up to 32 levels)                             |
 | `--min-bpm <bpm>` | Lowest tempo reported (default 90)                             |
 | `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`) |
-| `--detector <name>` | `peaks` (default) or `tempogram`                             |
+| `--detector <name>` | `peaks` (default) or `tempogram`, which searches `--min-bpm`..`--max-bpm` instead of folding into it: over about 179 BPM reads half |
 | `-h, --help`      | Show the help                                                  |
 | `-v, --version`   | Show the version                                               |
 

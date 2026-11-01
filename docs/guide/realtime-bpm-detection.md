@@ -285,10 +285,13 @@ in Node, the CLI's `--detector tempogram` and the MCP server's `detector`
 argument run it on whole files. The default stays `'peaks'`.
 
 It searches 90 to 180 BPM, and a tempo outside that reads at the octave
-inside: a 200 BPM track reads 100, a 70 BPM track reads 140. `tempoRange`
-changes what is searched, but nothing is folded into it, and only 90 to 180
-was measured: a wider range lets fast music read at half. `continuousAnalysis`
-works with it too, but its reset keeps the tempogram from ever reaching stable.
+inside: over about 179 BPM reads half, so a 200 BPM track reads 100, and a
+70 BPM track reads 140. `tempoRange` changes what is searched, but nothing is
+folded into it. These settings were measured on real-time analysis at 90 to
+180 only: a wider range lets fast music read at half, and whole files run the
+same settings without having been scored at them. `continuousAnalysis` works
+with it too, but a short `stabilizationTime` resets it before it can reach
+stable: at 10 seconds it never does.
 
 ### `tempogramMode: 'extension'`
 

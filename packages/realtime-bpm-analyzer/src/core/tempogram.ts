@@ -34,7 +34,7 @@ export type TempogramTuning = {
   readonly halfLifeSeconds: number;
   /**
    * How much pulses halfway between a tempo's beats count against it: those beats are too slow.
-   * Off: at 0.25 the best dev score fell from 81.0 to 72.8, and further from there.
+   * Off: on dev, any weight worth having cost more than it gained.
    */
   readonly halfBeatPenalty: number;
   /** The same for pulses a third of the way through its beats */
@@ -90,7 +90,8 @@ export const defaultTempogramTuning: TempogramTuning = {
 /**
  * What the tuning above was measured on. The range is part of the settings: this prior is only a tilt once
  * the half of a fast tempo is out of reach, so a wider range is another detector, which nothing measured.
- * A tempo outside it reads at the octave inside: 200 BPM reads 100, 70 reads 140.
+ * A tempo outside it reads at the octave inside: 200 BPM reads 100, 70 reads 140. The grid stops just
+ * under the top of the range, so 179 and 180 already read half.
  */
 export const defaultTempogramRange: TempoRange = {min: 90, max: 180};
 
@@ -120,7 +121,7 @@ export function assertTempogramMode({tempogramMode, detector, tempoRange, contin
   }
 
   if (continuousAnalysis) {
-    throw new RangeError('tempogramMode \'extension\' was measured without continuousAnalysis, whose reset never lets the tempogram reach stable.');
+    throw new RangeError('tempogramMode \'extension\' was measured without continuousAnalysis, whose reset can keep the tempogram from ever reaching stable.');
   }
 }
 
@@ -150,6 +151,8 @@ export type TempogramReading = {
 };
 
 export type TempogramDetector = {
+  /** Candidates from everything heard so far, whatever the latest frame held */
+  candidates: () => Tempo[];
   /** Consumes samples, synchronously, returning a reading when a tempogram frame completes */
   process: (samples: Float32Array) => TempogramReading | null;
   /** Consumes one onset strength frame: `process` without the onset stage, for tuning replays */
@@ -648,6 +651,7 @@ export function createTempogramDetector({
   }
 
   return {
+    candidates: collectCandidates,
     process,
     ingest,
     onsetCurve,
@@ -666,10 +670,17 @@ const shortestRecordingSeconds = 1.5;
  * @param sampleRate Sample rate in Hz
  * @param tempoRange Tempos searched (default: 90 to 180 BPM)
  * @returns Up to 5 tempo candidates, best first, empty when no pulse stands out
- * @throws {RangeError} When `tempoRange` is invalid
+ * @throws {RangeError} When `tempoRange` or the sample rate is invalid
  */
 export function detectTempogram(channelData: Float32Array, sampleRate: number, tempoRange?: TempoRange): Tempo[] {
   const range = resolveTempoRange(tempoRange);
+  const {frameRate, warmupSeconds} = defaultTempogramTuning;
+
+  // Under the frame rate a hop rounds to no samples. A string is refused too, as the lowpass refuses it
+  if (!Number.isFinite(sampleRate) || sampleRate < frameRate) {
+    throw new RangeError(`Invalid sample rate: ${sampleRate}. The tempogram needs at least ${frameRate} Hz.`);
+  }
+
   const seconds = channelData.length / sampleRate;
 
   if (seconds < shortestRecordingSeconds) {
@@ -681,10 +692,13 @@ export function detectTempogram(channelData: Float32Array, sampleRate: number, t
     tempoRange: range,
     tuning: {
       halfLifeSeconds: Number.POSITIVE_INFINITY,
-      warmupSeconds: Math.min(defaultTempogramTuning.warmupSeconds, seconds),
+      // A frame short of the end: rounding must not ask for more frames than the file holds
+      warmupSeconds: Math.min(warmupSeconds, seconds - (1 / frameRate)),
     },
   });
-  const reading = detector.process(channelData);
 
-  return reading === null ? [] : [...reading.candidates];
+  detector.process(channelData);
+
+  // Not the last reading: a silent ending leaves that one empty, and says nothing of the music before it
+  return detector.candidates();
 }

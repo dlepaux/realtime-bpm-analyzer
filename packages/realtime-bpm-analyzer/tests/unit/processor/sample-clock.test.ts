@@ -16,8 +16,8 @@ type Scenario = {
   late?: (t: number) => number;
 };
 
-/** Runs the clock with a thread and an input at their own pace, with a report every 250 ms; returns the frames owed. */
-function owedIn({thread, input = () => 1, seconds, burst = 1, late = () => 0}: Scenario): number {
+/** Runs the clock with a thread and an input at their own pace, with a report every 250 ms. */
+function run({thread, input = () => 1, seconds, burst = 1, late = () => 0}: Scenario, onSecond?: (t: number, behind: boolean) => void): number {
   const clock = createSampleClock(rate);
   const step = 0.001;
   const reports: {at: number; delivered: number}[] = [];
@@ -25,8 +25,14 @@ function owedIn({thread, input = () => 1, seconds, burst = 1, late = () => 0}: S
   let due = 0;
   let nextReport = 0;
   let owed = 0;
+  let nextSecond = 0;
 
   for (let t = 0; t < seconds; t += step) {
+    if (t >= nextSecond) {
+      onSecond?.(t, clock.isBehind());
+      nextSecond += 1;
+    }
+
     delivered += input(t) * step;
     due += thread(t) * step * rate;
 
@@ -51,9 +57,60 @@ function owedIn({thread, input = () => 1, seconds, burst = 1, late = () => 0}: S
   return owed;
 }
 
+/** The frames owed */
+const owedIn = (scenario: Scenario): number => run(scenario);
+
+/** When the clock said it was behind, by the second */
+function behindIn(scenario: Scenario): number[] {
+  const seconds: number[] = [];
+
+  run(scenario, (t, behind) => {
+    if (behind) {
+      seconds.push(Math.round(t));
+    }
+  });
+
+  return seconds;
+}
+
 const steady = (share: number) => () => share;
 
 describe('createSampleClock', () => {
+  for (const pause of [0.9, 5]) {
+    it(`still pays what is lost after the input pauses for ${pause} s`, () => {
+      const owed = owedIn({
+        thread: t => (t < 60 ? 0.95 : 0.9),
+        input: t => (t >= 60 && t < 60 + pause ? 0 : 1),
+        seconds: 120,
+      });
+
+      // 3 s up to the pause and 6 s after it, in thread time and at the pace it was lost
+      expect(owed / rate).to.be.closeTo(9, 1);
+    });
+  }
+
+  it('is behind while time is lost, at a rate that shows, and not after', () => {
+    expect(behindIn({thread: () => 1, seconds: 20}).length).to.equal(0);
+    expect(behindIn({thread: steady(0.98), seconds: 20}).length).to.equal(0);
+
+    const behind = behindIn({thread: t => (t < 20 ? 0.9 : 1), seconds: 40});
+
+    expect(behind[0]).to.be.at.most(4);
+    expect(behind.at(-1)).to.be.within(20, 26);
+  });
+
+  for (const share of [0.45, 0.3]) {
+    it(`is behind at ${share * 100}%, where the silence owed can't be paid`, () => {
+      const behind = behindIn({thread: steady(share), seconds: 30});
+
+      expect(behind.length).to.be.greaterThan(15);
+    });
+  }
+
+  it('is not behind for reports that arrive late', () => {
+    expect(behindIn({thread: () => 1, seconds: 30, late: t => (Math.floor(t) % 2 === 0 ? 0.015 : 0)}).length).to.equal(0);
+  });
+
   it('owes nothing until the input reports: without a clock, nothing changes', () => {
     const clock = createSampleClock(rate);
 
@@ -220,7 +277,7 @@ async function reading(detector: 'peaks' | 'tempogram', bpm: number, share: numb
             result.top = event.data.bpm[0].tempo;
           }
 
-          if (event.type === 'bpmStable' && event.data.bpm[0]) {
+          if (event.type === 'bpmStable' && event.data.bpm[0] && !(kept && clock.isBehind())) {
             result.stable.push(event.data.bpm[0].tempo);
           }
         },
@@ -272,7 +329,12 @@ describe('A thread that keeps falling behind a live input', () => {
 
         expect(held.top, `${bpm} at ${share}`).to.be.closeTo(bpm, 1);
 
-        for (const stable of held.stable.slice(1)) {
+        // Paid silence gets the number back, but a lock heard meanwhile isn't called stable.
+        if (share < 0.95) {
+          expect(held.stable.length, `${bpm} at ${share}`).to.equal(0);
+        }
+
+        for (const stable of held.stable) {
           expect(stable, `${bpm} at ${share}`).to.be.closeTo(bpm, 1);
         }
       }

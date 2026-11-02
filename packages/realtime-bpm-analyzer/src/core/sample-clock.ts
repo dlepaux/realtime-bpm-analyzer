@@ -14,6 +14,10 @@
  * What the input has delivered reaches this clock late, never early, so a late report can only make the
  * deficit look smaller. A stall the thread recovers from is left alone: it renders what it missed in a burst, so
  * the smallest deficit of a window stays where it was (measured, stalls up to 500 ms).
+ *
+ * Paid silence puts the beats back on average, not each one: under sustained loss the tempogram still moves a hop
+ * or two (RBA-97: 120 read 117 and 118, 150 read 148). Below half speed the clock can't even pay what is lost. So
+ * while it is behind, a reading is usable but not to be called stable: see `isBehind`.
  */
 
 /** A window holds the smallest deficit seen, which outlasts any stall the thread recovers from */
@@ -28,67 +32,92 @@ const toleranceSeconds = 0.02;
  */
 const longestOwedSeconds = 2;
 
-/** Ahead of the input by less than this may only be a late report, and says nothing */
-const latestReportSeconds = 1;
+/**
+ * The input delivering nothing for this long has paused: time passes that it never meant to deliver, and none of that
+ * was lost. Told apart by what it delivered and not by the deficit falling, which a late report does as well. Longer
+ * than the time between reports of the track's clock, which moves in steps of 10 ms (measured).
+ */
+const pauseSeconds = 0.5;
+
+/** Lost in a window at this share of it or more, the clock is behind. Up to five percent reads right once paid (measured, 0.95 read 150 and 120). */
+const behindShare = 0.05;
+
+/** Windows with nothing lost before the clock stops being behind */
+const windowsToRecover = 3;
 
 export type SampleClock = {
   /** The input has delivered this much since it started, by its own clock */
   observe: (deliveredSeconds: number) => void;
   /** Whether a silent quantum is owed before this one, of this many frames */
   advance: (frames: number) => boolean;
+  /** Whether time is being lost now, so that what the analyzer hears can't be called stable */
+  isBehind: () => boolean;
 };
 
 export function createSampleClock(sampleRate: number): SampleClock {
   const windowFrames = windowSeconds * sampleRate;
   const tolerance = toleranceSeconds * sampleRate;
   const longestOwed = longestOwedSeconds * sampleRate;
-  const latestReport = latestReportSeconds * sampleRate;
+  const pause = pauseSeconds * sampleRate;
   // What the input had delivered before the first frame counted here
   let offset: number | null = null;
   let rendered = 0;
   let smallest = Number.POSITIVE_INFINITY;
-  let largest = Number.NEGATIVE_INFINITY;
   let credited = 0;
   let owed = 0;
   // Paid across the next window, at the pace it was lost: a lump would stretch the beats around it, and squeeze the others
   let pace = 0;
   let accrued = 0;
   let renderedInWindow = 0;
+  let lastDelivered = Number.NEGATIVE_INFINITY;
+  let renderedAtLastDelivered = 0;
+  let paused = false;
+  let behind = false;
+  let cleanWindows = 0;
 
   function startOver(): void {
     offset = null;
+    lastDelivered = Number.NEGATIVE_INFINITY;
+    paused = false;
     credited = 0;
     owed = 0;
   }
 
-  function settle(): void {
-    if (largest < -latestReport) {
-      // The whole window far ahead of the input: it paused, or stayed silent. Nothing to bank against what comes next.
-      offset! += largest;
-      credited = 0;
-      return;
-    }
-
+  /** Banks what a window lost, and returns how much that was */
+  function settle(): number {
     const gained = smallest - credited;
 
     if (gained > longestOwed) {
       startOver();
-    } else if (gained >= tolerance) {
+
+      return gained;
+    }
+
+    if (gained >= tolerance) {
       // Only upward: a thread can't get lost audio back, so what falls and rises again was never lost.
       owed = Math.min(longestOwed, owed + gained);
-      credited = smallest;
+      credited += gained;
+
+      return gained;
     }
+
+    return 0;
   }
 
   function closeWindow(): void {
     // No report in the window, the main thread being busy, says nothing: the next one will.
-    if (smallest !== Number.POSITIVE_INFINITY) {
-      settle();
+    const lost = smallest === Number.POSITIVE_INFINITY ? 0 : settle();
+
+    if (lost >= behindShare * renderedInWindow) {
+      behind = true;
+      cleanWindows = 0;
+    } else if (behind) {
+      cleanWindows += 1;
+      behind = cleanWindows < windowsToRecover;
     }
 
     pace = owed / renderedInWindow;
     smallest = Number.POSITIVE_INFINITY;
-    largest = Number.NEGATIVE_INFINITY;
     renderedInWindow = 0;
   }
 
@@ -98,10 +127,27 @@ export function createSampleClock(sampleRate: number): SampleClock {
 
       offset ??= delivered - rendered;
 
+      if (delivered > lastDelivered) {
+        if (paused) {
+          // Back where it paused, whatever passed since: none of that was lost.
+          offset = delivered - rendered - credited;
+          smallest = Number.POSITIVE_INFINITY;
+          paused = false;
+        }
+
+        lastDelivered = delivered;
+        renderedAtLastDelivered = rendered;
+      } else if (rendered - renderedAtLastDelivered > pause) {
+        paused = true;
+      }
+
+      if (paused) {
+        return;
+      }
+
       const deficit = delivered - offset - rendered;
 
       smallest = Math.min(smallest, deficit);
-      largest = Math.max(largest, deficit);
     },
     advance(frames) {
       rendered += frames;
@@ -111,7 +157,8 @@ export function createSampleClock(sampleRate: number): SampleClock {
         closeWindow();
       }
 
-      accrued += pace * frames;
+      // Bounded by what is owed: a long clean stretch mustn't save up into a lump.
+      accrued = Math.min(accrued + pace * frames, Math.max(owed, frames));
 
       if (accrued >= frames && owed >= frames) {
         accrued -= frames;
@@ -122,6 +169,7 @@ export function createSampleClock(sampleRate: number): SampleClock {
 
       return false;
     },
+    isBehind: () => behind,
   };
 }
 

@@ -90,6 +90,8 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   // Made by the first report of a live input's clock: a source the audio thread pulls waits for it and loses nothing.
   sampleClock: SampleClock | null = null;
   silentQuantum = new Float32Array(renderQuantumFrames);
+  /** A lock kept from the main thread while the clock was behind. It fires once, so the analyzer has to lock again. */
+  lockWithheld = false;
 
   constructor(options: AudioWorkletProcessorParameters) {
     super(options);
@@ -156,13 +158,18 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     // Ahead of the check below: time goes by for an input that is disconnected too, and nothing of it is lost.
     const owesSilence = this.sampleClock?.advance(renderQuantumFrames) ?? false;
 
+    if (this.lockWithheld && !this.sampleClock?.isBehind()) {
+      this.lockWithheld = false;
+      this.realTimeBpmAnalyzer.reset();
+    }
+
     if (!currentChunk) {
       return true;
     }
 
     // One quantum at most: at most one full buffer per call, which the guard in `analyze` would otherwise drop.
     if (owesSilence) {
-      this.analyze(this.silentQuantum);
+      this.analyze(this.silentQuantum, true);
     }
 
     this.analyze(currentChunk);
@@ -173,8 +180,9 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   /**
    * Aggregates a quantum, and analyzes the buffer when it is full
    * @param currentChunk The quantum
+   * @param anotherFollows Whether another quantum is aggregated at once, over the buffer an analysis may still be reading
    */
-  analyze(currentChunk: Float32Array): void {
+  analyze(currentChunk: Float32Array, anotherFollows = false): void {
     const {isBufferFull, buffer, bufferSize} = this.aggregate(currentChunk);
 
     if (isBufferFull && !this.analysisInProgress) {
@@ -183,9 +191,15 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       this.realTimeBpmAnalyzer
         .analyzeChunk({
           audioSampleRate: sampleRate,
-          channelData: buffer,
+          channelData: anotherFollows ? buffer.slice() : buffer,
           bufferSize,
           postMessage: event => {
+            // A wrong tempo marked stable is the worst this can show, and time being lost is when it happens (RBA-97).
+            if (event.type === 'bpmStable' && this.sampleClock?.isBehind()) {
+              this.lockWithheld = true;
+              return;
+            }
+
             this.port.postMessage(event);
           },
         })

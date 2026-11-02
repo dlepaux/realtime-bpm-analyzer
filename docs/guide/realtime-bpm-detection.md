@@ -332,6 +332,12 @@ at 10% lost, marked stable. Given the track, the analyzer follows its clock and
 counts what was lost as silence, which keeps the tempo right. It reads
 `MediaStreamTrack.stats` (Chrome 125) and does nothing where that is missing.
 
+While time is being lost at 5% or more, `bpm` keeps coming but `bpmStable` does
+not, since paid silence is close to the tempo and no more than that. The analyzer
+starts over once the loss ends, and locks on what it hears from there. Under
+loss that never ends it never locks. The clock follows the track until the track
+ends or `stop()` is called, so call `stop()` before closing the context.
+
 ```typescript
 const [track] = stream.getAudioTracks();
 const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {

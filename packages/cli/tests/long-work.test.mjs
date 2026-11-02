@@ -59,7 +59,7 @@ describe('bounds on the work one file costs', () => {
 
   it('stops the analysis when the signal aborts, not when it ends', async () => {
     // Aborted well after a decode ends, so the abort lands in the analysis, which takes ten times longer
-    const abortAfterMs = (2 * decodeMs) + 300;
+    const abortAfterMs = Math.round((2 * decodeMs) + 300);
     const started = performance.now();
     const result = await analyzeFile(long, {detector: 'tempogram', signal: AbortSignal.timeout(abortAfterMs)});
     const elapsed = performance.now() - started;

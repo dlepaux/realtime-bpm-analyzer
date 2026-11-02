@@ -175,3 +175,18 @@ Rules the code holds, and the tests check:
 Limits: a recording's identity is its hash, or its artist, title and rough length. The same recording under two spellings of an artist would slip through and could land on both sides of the split, which audio fingerprints would catch. They were left out to keep the image small, and the report's numbers should be read knowing that. Stretching is FFmpeg's `atempo`, which smears transients, so a derived track is no proxy for an attack-sensitive reading.
 
 Free-mixes is opt-in: `run.ts --sets free-mixes` reads it once `split-ids.json` is copied to `splits/free-mixes.json`, and it stays out of `loaders` and `tuningSets`, so nothing tunes on it or looks at it by default.
+
+### Confirming tempos by ear
+
+`listen/listen.py` serves `confirmation.md` one row at a time to a browser through an SSH tunnel, with standard-library Python only, as the host has no Node. It binds 127.0.0.1, and the audio streams from the box and is never copied. The page is blind: it shows a row number and the audio, never the id, title, label or key, and it never opens `confirmation-key.jsonl`. Tap tempo takes the median interval after eight taps; the x0.5 and x2 buttons settle the octave. Each answer is one line in `confirmation-answers.jsonl`, which is also how it resumes.
+
+```sh
+# On the Mac: starts the server for rows 1 to 60, opens the tunnel, and Ctrl-C stops both
+ssh -t -L 8459:127.0.0.1:8459 srv-compute 'python3 -I ~/rba-listen/listen.py serve --rows 1-60'
+# then open http://localhost:8459
+
+# After a batch only: agreement within 2%, octave and other errors, random rows apart from disagreements
+ssh srv-compute 'python3 -I ~/rba-listen/listen.py score'
+```
+
+`~/rba-listen` is a copy of `benchmark/listen/` on the box. The score takes the latest answer for each row, uses the label or, without one, the trackers' candidate, and leaves unsure and broken rows out of the agreement count.

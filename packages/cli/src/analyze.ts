@@ -19,6 +19,17 @@ export type AnalysisReply = {readonly ok: true; readonly candidates: Tempo[]} | 
 const workerUrl = new URL('analyze-worker.mjs', import.meta.url);
 
 /**
+ * The host's Node flags a worker can take. A worker inherits them by default, but it runs a
+ * file, so `--input-type` (set by a host that runs `node --input-type=module -e`) makes it
+ * fail to start, and every analysis with it.
+ * @param flags The host's process.execArgv
+ * @returns The flags without --input-type, in either form
+ */
+function workerExecArgv(flags: readonly string[]): string[] {
+  return flags.filter((flag, index) => !(flag === '--input-type' || flag.startsWith('--input-type=') || flags[index - 1] === '--input-type'));
+}
+
+/**
  * Runs the library's analysis on a worker thread. The samples are moved to the worker, not
  * copied, so the decoded audio is unusable here afterwards.
  * @param request Decoded audio, tempo range and detector
@@ -28,7 +39,11 @@ const workerUrl = new URL('analyze-worker.mjs', import.meta.url);
  */
 export async function analyzeOnWorker(request: AnalysisRequest, signal: AbortSignal | undefined): Promise<Tempo[]> {
   signal?.throwIfAborted();
-  const worker = new Worker(workerUrl, {workerData: request, transferList: [request.channelData.buffer]});
+  const worker = new Worker(workerUrl, {
+    execArgv: workerExecArgv(process.execArgv),
+    workerData: request,
+    transferList: [request.channelData.buffer],
+  });
   let onAbort = () => {};
   try {
     const reply = await new Promise<AnalysisReply>((resolve, reject) => {

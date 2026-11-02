@@ -232,7 +232,7 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
           const heard = await listen({detector, bpm, seconds: 35, share: () => share});
 
           expect(heard.stable).to.deep.equal([]);
-          expect(heard.top).to.be.closeTo(bpm, 3);
+          expect(heard.top).to.be.closeTo(bpm, 1);
           expect(heard.silent).to.be.greaterThan(0);
         });
       }
@@ -356,6 +356,19 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
     expect(heard.resets.length).to.equal(1);
     expect(heard.stable.at(-1)!.at).to.be.greaterThan(heard.resets[0]);
     expect(heard.stable.at(-1)!.tempo).to.be.closeTo(150, 1);
+  });
+
+  it('tempogram: starts over for a lock it held back, even when less was lost than the floor, and relocks', async function () {
+    this.timeout(60_000);
+    // 0.2 s lost at 9.5 s, under the 0.3 s floor, but the clock is still behind when the 11.5 s lock comes. Without the
+    // start-over the tempogram, which reports stable only once, would never be marked stable.
+    const heard = await listen({bpm: 150, seconds: 45, share: lossBetween(9.5, 10, 0.6)});
+
+    expect(heard.resets.length).to.equal(1);
+    expect(heard.resets[0]).to.be.greaterThan(10);
+    expect(heard.stable.length).to.be.greaterThan(0);
+    expect(heard.stable[0].at).to.be.greaterThan(heard.resets[0]);
+    expect(heard.stable[0].tempo).to.be.closeTo(150, 1);
   });
 
   it('continuous analysis: a reset it makes itself forgets the loss too', async function () {

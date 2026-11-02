@@ -340,12 +340,14 @@ So what it mostly guards is the word stable:
   paid the same way and can lock.
 - When the loss ends, about 3 s later, the analyzer starts over and emits
   `analyzerReset`, if a lock was held back, or if it lost 0.3 s or more and had
-  published no lock before the loss began. It then locks on what it hears from
-  there, about 11 s later with the tempogram. In simulation every lock after
+  published no lock 3 s or more before the loss showed. It then locks on what it
+  hears from there, about 11 s later with the tempogram. In simulation every lock after
   that was right, across loss of 0.3 s to 3 s and 100 to 174 BPM. A smaller drop
   doesn't start it over: those locks read within 1 BPM.
-- A lock published before the loss stands, and nothing tells the main thread it
-  has since heard less.
+- A loss takes up to 3 s of audio to show, so a lock published within 3 s before
+  it shows may have heard some of it. When 0.3 s or more is lost, that lock is
+  withdrawn: the analyzer starts over as above. A lock published earlier stands,
+  and nothing tells the main thread it has since heard less.
 - While reports of the track's clock stop for about 3 s, as they can on a hidden
   page whose timers are throttled, a lock is held back too: the clock can't vouch
   for it, and a window with no report doesn't count as clean.

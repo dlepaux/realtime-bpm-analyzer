@@ -359,6 +359,101 @@ describe('createSampleClock', () => {
     });
   });
 
+  describe('a lock published before the loss showed', () => {
+    const lossBetween = (from: number, to: number, share: number) => (rendered: number) => (rendered >= from && rendered < to ? share : 1);
+
+    /**
+     * Runs the clock with the input on time, offering one lock at `lockAt`, and tells when it was first behind, whether
+     * the lock went out, and how often it said to start over. Times are in seconds rendered.
+     */
+    function lockThenLoss(thread: (rendered: number) => number, seconds: number, lockAt = Number.POSITIVE_INFINITY) {
+      const clock = createSampleClock(rate);
+      let real = 0;
+      let behindFrom: number | null = null;
+      let allowed: boolean | null = null;
+      let startOvers = 0;
+
+      for (let i = 0; i < seconds * rate / quantum; i += 1) {
+        const rendered = i * quantum / rate;
+
+        real += quantum / rate / thread(rendered);
+
+        if (i % 94 === 0) {
+          clock.observe(real);
+        }
+
+        if (allowed === null && rendered >= lockAt) {
+          allowed = clock.offerLock();
+        }
+
+        clock.advance(quantum);
+
+        if (behindFrom === null && clock.isBehind()) {
+          behindFrom = rendered;
+        }
+
+        startOvers += clock.takeStartOver() ? 1 : 0;
+      }
+
+      return {behindFrom, allowed, startOvers};
+    }
+
+    it('withdraws one published under 3 windows before, and keeps one published more than 3 before', () => {
+      const loss = lossBetween(10, 14, 0.85);
+      const {behindFrom} = lockThenLoss(loss, 30);
+
+      expect(behindFrom).to.be.a('number');
+
+      const near = lockThenLoss(loss, 30, behindFrom! - 2.5);
+      const far = lockThenLoss(loss, 30, behindFrom! - 3.5);
+
+      expect(near.allowed).to.equal(true);
+      expect(near.startOvers, '2.5 s before').to.equal(1);
+      expect(far.allowed).to.equal(true);
+      expect(far.startOvers, '3.5 s before').to.equal(0);
+    });
+
+    it('withdraws one from just before a loss that takes longer than 3 windows to reach 0.3 s', () => {
+      // 7.5% of each window lost, so 0.3 s takes 4 windows: the lock is judged by when the loss showed, not by how far
+      // the loss had got when it reached the floor
+      const heard = lockThenLoss(lossBetween(10, 20, 0.93), 40, 9.5);
+
+      expect(heard.behindFrom! - 9.5).to.be.below(3);
+      expect(heard.allowed).to.equal(true);
+      expect(heard.startOvers).to.equal(1);
+    });
+  });
+
+  describe('a lock held back while the reports are missing', () => {
+    it('starts nothing over until the reports come back, then starts over once', () => {
+      const clock = createSampleClock(rate);
+      let startOvers = 0;
+
+      // On time throughout. Reports for 2 s, none for 20 s, then reports again.
+      for (let i = 0; i < 30 * rate / quantum; i += 1) {
+        const t = i * quantum / rate;
+        const reported = t < 2 || t >= 22;
+
+        if (reported && i % 94 === 0) {
+          clock.observe(t);
+        }
+
+        if (i === Math.round(12 * rate / quantum)) {
+          expect(clock.offerLock(), 'blind at 12 s').to.equal(false);
+        }
+
+        clock.advance(quantum);
+
+        const startsOver = clock.takeStartOver();
+
+        expect(startsOver && !reported, `started over at ${t.toFixed(2)} s with no report`).to.equal(false);
+        startOvers += startsOver ? 1 : 0;
+      }
+
+      expect(startOvers).to.equal(1);
+    });
+  });
+
   it('gives up when nearly nothing renders: there is no tempo to protect', () => {
     expect(owedIn({thread: steady(0.3), seconds: 60})).to.equal(0);
   });

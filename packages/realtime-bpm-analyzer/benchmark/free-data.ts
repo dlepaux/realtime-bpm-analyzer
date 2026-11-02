@@ -37,8 +37,11 @@ const fmaMetadataSha1 = 'f0df49ffe5f2a6008d7dc83c6915b31835dfe733';
 /** One artist adds little past this, and the card asks for many */
 const perArtist = 30;
 const mostBytesPerFile = 80 * 1024 * 1024;
-/** The whole set may not take more than this, whatever the catalogue says: 1.6 TB is shared */
-const mostBytesInAll = 150 * 1024 ** 3;
+/**
+ * The whole set may not take more than this, whatever the catalogue says. The disk is shared, so the
+ * cap stays below it. Raised from 150 GiB to reach 200 strict 165+ tracks (RBA-59 DECISION 2026-11-02)
+ */
+const mostBytesInAll = 250 * 1024 ** 3;
 /** Refusals in a row from a host end its fetch. A host saying no is an answer, not an obstacle */
 const refusalsToStop = 5;
 const iaPauseMs = 1000;

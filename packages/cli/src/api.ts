@@ -2,6 +2,7 @@
 
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import type {Detector, Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
+import {analyzeOnWorker} from './analyze';
 import {decodeFile, describeDecodedLimit} from './decode';
 import {errorMessage} from './errors';
 
@@ -30,8 +31,10 @@ export type AnalyzeOptions = {
   readonly detector?: Detector;
   /** ffmpeg binary for formats without a bundled decoder (default `ffmpeg` on PATH) */
   readonly ffmpegPath?: string;
-  /** Stops a decode in progress */
+  /** Stops the decode or the analysis in progress; the result is then `Cancelled.` */
   readonly signal?: AbortSignal;
+  /** Gives up on a file after this many milliseconds, decode and analysis together (no limit when omitted) */
+  readonly timeoutMs?: number;
   /** Refuse a file whose first channel decodes to more than this (default defaultMaxDecodedBytes) */
   readonly maxDecodedBytes?: number;
 };
@@ -41,6 +44,9 @@ export type AnalyzeOptions = {
  * the process peaks at about 2.1 times this much memory: analysis filters a copy of the samples.
  */
 export const defaultMaxDecodedBytes = 2 * 1024 * 1024 * 1024;
+
+// Longest delay a Node timer holds: a longer one fires after 1 ms instead
+const maxTimeoutMs = 2 ** 31 - 1;
 
 /** The default limit in the plain words of the refusal, for documentation and tool descriptions */
 export const decodedLimit: string = describeDecodedLimit(defaultMaxDecodedBytes);
@@ -69,20 +75,44 @@ function successResult(file: string, candidates: readonly Tempo[]): FileResult {
  * Decodes and analyses one file. Never throws: a file that cannot be read or decoded
  * comes back as `ok: false` with a one-line message, so a batch keeps going.
  * @param path File to analyse, reported as given
- * @param options Tempo range, detector, ffmpeg binary, abort signal and decoded size limit
+ * @param options Tempo range, detector, ffmpeg binary, abort signal, time limit and decoded size limit
  * @returns The result
  */
 export async function analyzeFile(path: string, options: AnalyzeOptions = {}): Promise<FileResult> {
+  const {timeoutMs} = options;
+  if (timeoutMs !== undefined && !(Number.isInteger(timeoutMs) && timeoutMs > 0 && timeoutMs <= maxTimeoutMs)) {
+    return {file: path, ok: false, error: `Invalid timeoutMs: ${timeoutMs}. Use a whole number of milliseconds from 1 to ${maxTimeoutMs}.`};
+  }
+
+  const timeout = timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs);
+  const signals = [options.signal, timeout].filter(signal => signal !== undefined);
+  const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
   try {
-    const {channelData, sampleRate} = await decodeFile(path, {
+    const decoded = await decodeFile(path, {
       ffmpegPath: options.ffmpegPath ?? 'ffmpeg',
       maxDecodedBytes: options.maxDecodedBytes ?? defaultMaxDecodedBytes,
-      signal: options.signal,
+      signal,
     });
-    return successResult(path, await analyzeChannelData(channelData, sampleRate, {tempoRange: options.tempoRange, detector: options.detector}));
+    return successResult(path, await analyzeOnWorker({...decoded, tempoRange: options.tempoRange, detector: options.detector}, signal));
   } catch (error: unknown) {
+    // Whatever the decoder or the worker threw on abort, the signal that fired first says why
+    if (signal?.aborted === true) {
+      const timedOut = timeout !== undefined && signal.reason === timeout.reason;
+      return {file: path, ok: false, error: timedOut ? `Took longer than the ${describeSeconds(timeoutMs ?? 0)} limit for one file.` : 'Cancelled.'};
+    }
+
     return {file: path, ok: false, error: errorMessage(error)};
   }
+}
+
+/**
+ * @param ms A duration
+ * @returns It in the plain words of the timeout refusal
+ */
+function describeSeconds(ms: number): string {
+  // A tenth of a second at most, so a short test timeout does not read as 0
+  const seconds = Math.round(ms / 100) / 10;
+  return seconds === 1 ? '1 second' : `${seconds} seconds`;
 }
 
 /**

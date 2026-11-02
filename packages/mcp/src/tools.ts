@@ -3,7 +3,7 @@
 import {McpServer} from '@modelcontextprotocol/server';
 import type {CallToolResult} from '@modelcontextprotocol/server';
 import {analyzeFile, decodedLimit, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
-import type {FileResult, TempoRange} from 'realtime-bpm-analyzer-cli';
+import type {Detector, FileResult, TempoRange} from 'realtime-bpm-analyzer-cli';
 import * as z from 'zod/v4';
 import {absolutePath, checkFile, firstLine, limits, listFolder} from './paths';
 
@@ -37,6 +37,7 @@ const analysis = {
 
 const formats = 'MP3, WAV, FLAC, OGG Vorbis and Opus (bundled decoders), plus M4A/AAC, AIFF and WMA through ffmpeg when it is installed';
 const sizeLimit = `${limits.maxFileBytes / (1024 * 1024)} MB`;
+const timeLimit = `A file that takes longer than ${limits.maxFileSeconds} seconds is given up on.`;
 const privacy = 'Runs on this computer: the audio is never uploaded.';
 
 /**
@@ -71,6 +72,16 @@ async function tempoRange(min: number | undefined, max: number | undefined): Pro
 const ffmpegPath = () => process.env.FFMPEG_PATH || 'ffmpeg';
 
 /**
+ * @param tempoRange Validated range, or undefined for the default
+ * @param detector Detector argument
+ * @param signal The request's signal, aborted when the client cancels
+ * @returns analyzeFile's options, with the per-file time limit
+ */
+const analyzeOptions = (tempoRange: TempoRange | undefined, detector: Detector | undefined, signal: AbortSignal) => ({
+  tempoRange, detector, signal, ffmpegPath: ffmpegPath(), timeoutMs: limits.maxFileSeconds * 1000,
+});
+
+/**
  * Builds the server with its two tools.
  * @param version Package version, reported to clients
  * @returns The server, not yet connected
@@ -81,7 +92,7 @@ export function createServer(version: string): McpServer {
   server.registerTool('analyze_file', {
     title: 'Analyse the BPM of an audio file',
     description: `Detects the tempo (BPM) of one audio file on this computer. Reads ${formats}. `
-      + `Returns the best tempo, its confidence and the ranked candidates. Files over ${sizeLimit} or ${decodedLimit} are refused. ${privacy}`,
+      + `Returns the best tempo, its confidence and the ranked candidates. Files over ${sizeLimit} or ${decodedLimit} are refused. ${timeLimit} ${privacy}`,
     inputSchema: z.strictObject({
       path: path.describe('Path of the audio file. Absolute, or starting with ~ for the home folder.'),
       ...tempoArguments,
@@ -99,7 +110,7 @@ export function createServer(version: string): McpServer {
       return toolError(checked.error);
     }
 
-    const result = await analyzeFile(checked.path, {tempoRange: range, detector, ffmpegPath: ffmpegPath(), signal: ctx.mcpReq.signal});
+    const result = await analyzeFile(checked.path, analyzeOptions(range, detector, ctx.mcpReq.signal));
     if (!result.ok) {
       return toolError(`Could not analyse ${result.file}: ${firstLine(result.error)}`);
     }
@@ -113,7 +124,7 @@ export function createServer(version: string): McpServer {
       + `Analyses at most ${limits.maxFolderFiles} files per call: when next_offset is not null, call again with offset set to it for the next files. `
       + `With recursive, walks sub-folders up to ${limits.maxDepth} levels deep and reads at most ${limits.maxFolderEntries} folder entries. `
       + 'Symbolic links to folders are not followed, and a link to a file outside the folder is refused. '
-      + `A file that cannot be read or decoded, or is over ${sizeLimit} or ${decodedLimit}, is reported with its error and does not stop the others. `
+      + `A file that cannot be read or decoded, or is over ${sizeLimit} or ${decodedLimit}, or takes longer than ${limits.maxFileSeconds} seconds, is reported with its error and does not stop the others. `
       + `A folder without audio files returns no results, not an error. ${privacy}`,
     inputSchema: z.strictObject({
       directory: path.describe('Path of the folder. Absolute, or starting with ~ for the home folder.'),
@@ -165,7 +176,7 @@ export function createServer(version: string): McpServer {
 
       results.push(entry.kind === 'error'
         ? {file: entry.path, ok: false, error: entry.error}
-        : clean(await analyzeFile(entry.path, {tempoRange: range, detector, ffmpegPath: ffmpegPath(), signal})));
+        : clean(await analyzeFile(entry.path, analyzeOptions(range, detector, signal))));
 
       // Long batches outlast a client's default request timeout unless it hears progress
       if (progressToken !== undefined) {

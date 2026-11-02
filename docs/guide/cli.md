@@ -106,3 +106,13 @@ Peak memory measured on macOS arm64 with Node 24:
 
 The peak is about twice the decoded size because analysis filters a copy of the samples.
 Programs using `analyzeFile` can change the limit with its `maxDecodedBytes` option.
+They can also stop a file with its `signal` option, during the decode or the analysis,
+and give up on a file after `timeoutMs` milliseconds. The analysis runs on a worker
+thread, so the program's own thread stays free while it does.
+
+### Sample rate
+
+Audio under 8 kHz is refused with an error, from the first block decoded. A sample costs
+more as the rate falls: a generated 100 MB WAV at 100 Hz took 392 seconds to analyse, and
+at 1 Hz the analysis never ended. No real recording goes under 8 kHz, the telephone rate,
+and at 8 kHz a sample costs at most about twice as much as at 44.1 kHz.

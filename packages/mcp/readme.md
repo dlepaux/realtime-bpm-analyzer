@@ -53,7 +53,7 @@ Then ask, for example: "What's the BPM of ~/Music/set/track.mp3?" or "Sort the t
 - Limits: files over 100 MB are refused, and so is audio that decodes to more than 2048 MB in
   its first channel: 202 minutes at 44.1 kHz, however small the file (a file that fits peaks at about
   4.2 GB of memory). Audio under 8 kHz is refused, and one file may take at most 120 seconds.
-  A cancelled call stops the file in progress. `analyze_folder` analyses 50 files per call and
+  The server analyses one file at a time; calls made at once wait their turn. A cancelled call stops the file in progress. `analyze_folder` analyses 50 files per call and
   returns a `next_offset` for the next 50; a recursive walk goes 16 levels deep and reads at
   most 10,000 folder entries.
 - Only files with an audio extension are read. In a folder, a symbolic link to another

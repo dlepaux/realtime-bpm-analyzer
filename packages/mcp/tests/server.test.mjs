@@ -203,6 +203,44 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     assert.ok(spent <= 1, `the server spent ${spent} s of CPU after the cancel`);
   });
 
+  it('analyses one file at a time across parallel calls, and drops a call cancelled while it waits', {timeout: 120_000}, async () => {
+    // A long tempogram first, then a short file: run at once, the short one would finish first
+    const path = join(scratch, 'queued-8k.wav');
+    await writeFile(path, clickWav(8000, 10_000_000));
+    const finished = [];
+    const call = (label, args) => client.callTool({name: 'analyze_file', arguments: args}).then(result => {
+      finished.push(label);
+      return result;
+    });
+    const long = call('long', {path, detector: 'tempogram'});
+    // Long enough for the first call to take the only slot
+    await new Promise(resolve => {
+      setTimeout(resolve, 300);
+    });
+
+    const cancel = new AbortController();
+    const dropped = client.callTool({name: 'analyze_file', arguments: {path: fixture('click-128.mp3')}}, {signal: cancel.signal});
+    dropped.catch(() => {});
+    const short = call('short', {path: fixture('click-128.mp3')});
+    await new Promise(resolve => {
+      setTimeout(resolve, 100);
+    });
+    cancel.abort();
+    await assert.rejects(dropped);
+
+    // The cancelled call gave its place up: the next one still runs once the long one ends
+    const [longResult, shortResult] = await Promise.all([long, short]);
+    assert.ok(!longResult.isError, text(longResult));
+    near(shortResult.structuredContent.bpm, 128);
+    assert.deepEqual(finished, ['long', 'short']);
+  });
+
+  it('packs the server bin', () => {
+    // CI runs the server from the workspace, so only the tarball's file list shows what ships
+    const [pack] = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8'}));
+    assert.ok(pack.files.some(file => file.path === 'dist/server.mjs'), pack.files.map(file => file.path).join(', '));
+  });
+
   it('states the time limit for one file', async () => {
     const {tools} = await client.listTools();
     for (const tool of tools) {

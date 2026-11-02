@@ -110,9 +110,16 @@ They can also stop a file with its `signal` option, during the decode or the ana
 and give up on a file after `timeoutMs` milliseconds. The analysis runs on a worker
 thread, so the program's own thread stays free while it does.
 
+The worker is a file of its own, `analyze-worker.mjs`, loaded from next to the package's
+`api.mjs`. Bundling `realtime-bpm-analyzer-cli` into your program's single file leaves it
+behind, and every analysis then fails with `ok: false` ("Cannot find module …/analyze-worker.mjs").
+Keep the package external in your bundler (esbuild `--packages=external`, or the package
+in rollup's `external` or webpack's `externals`).
+
 ### Sample rate
 
 Audio under 8 kHz is refused with an error, from the first block decoded. A sample costs
 more as the rate falls: a generated 100 MB WAV at 100 Hz took 392 seconds to analyse, and
-at 1 Hz the analysis never ended. No real recording goes under 8 kHz, the telephone rate,
-and at 8 kHz a sample costs at most about twice as much as at 44.1 kHz.
+at 1 Hz the analysis never ended. Recordings under 8 kHz, the telephone rate, are rare
+(some old game and sampler audio is at 5512, 6000 or 7350 Hz), and at 8 kHz a sample costs
+at most about twice as much as at 44.1 kHz.

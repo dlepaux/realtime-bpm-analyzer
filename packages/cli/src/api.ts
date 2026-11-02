@@ -98,7 +98,7 @@ export async function analyzeFile(path: string, options: AnalyzeOptions = {}): P
     // Whatever the decoder or the worker threw on abort, the signal that fired first says why
     if (signal?.aborted === true) {
       const timedOut = timeout !== undefined && signal.reason === timeout.reason;
-      return {file: path, ok: false, error: timedOut ? `Took longer than the ${describeSeconds(timeoutMs ?? 0)} limit for one file.` : 'Cancelled.'};
+      return {file: path, ok: false, error: timedOut ? `Took longer than the ${describeDuration(timeoutMs ?? 0)} limit for one file.` : 'Cancelled.'};
     }
 
     return {file: path, ok: false, error: errorMessage(error)};
@@ -106,11 +106,16 @@ export async function analyzeFile(path: string, options: AnalyzeOptions = {}): P
 }
 
 /**
- * @param ms A duration
+ * @param ms A duration, a whole number of milliseconds
  * @returns It in the plain words of the timeout refusal
  */
-function describeSeconds(ms: number): string {
-  // A tenth of a second at most, so a short test timeout does not read as 0
+function describeDuration(ms: number): string {
+  // Under a second in milliseconds, so a short limit never reads as 0 seconds
+  if (ms < 1000) {
+    return ms === 1 ? '1 millisecond' : `${ms} milliseconds`;
+  }
+
+  // A tenth of a second at most above it
   const seconds = Math.round(ms / 100) / 10;
   return seconds === 1 ? '1 second' : `${seconds} seconds`;
 }

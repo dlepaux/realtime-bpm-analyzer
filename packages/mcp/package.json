@@ -37,7 +37,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --format=esm --packages=external --banner:js='#!/usr/bin/env node' --outfile=dist/server.mjs && tsc --noEmit",
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --format=esm --packages=external --banner:js='#!/usr/bin/env node' --outfile=dist/server.mjs && esbuild src/queue.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/queue.mjs && tsc --noEmit",
     "prepack": "cp ../../license.md .",
     "postpack": "rm -f license.md",
     "lint": "eslint .",

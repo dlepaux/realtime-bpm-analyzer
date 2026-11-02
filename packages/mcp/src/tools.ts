@@ -6,6 +6,7 @@ import {analyzeFile, decodedLimit, resolveTempoRange} from 'realtime-bpm-analyze
 import type {Detector, FileResult, TempoRange} from 'realtime-bpm-analyzer-cli';
 import * as z from 'zod/v4';
 import {absolutePath, checkFile, firstLine, limits, listFolder} from './paths';
+import {createQueue} from './queue';
 
 // The two tools are this package's public interface: their names, argument names and
 // result shapes are what assistants learn and users' prompts rely on. Change them the way
@@ -88,6 +89,9 @@ const analyzeOptions = (tempoRange: TempoRange | undefined, detector: Detector |
  */
 export function createServer(version: string): McpServer {
   const server = new McpServer({name: 'realtime-bpm-analyzer', version});
+  const queue = createQueue(limits.maxFilesAtOnce);
+  // The per-file time limit starts once the file leaves the queue, so waiting does not use it up
+  const analyzeQueued = (file: string, options: ReturnType<typeof analyzeOptions>) => queue(() => analyzeFile(file, options), options.signal);
 
   server.registerTool('analyze_file', {
     title: 'Analyse the BPM of an audio file',
@@ -110,7 +114,11 @@ export function createServer(version: string): McpServer {
       return toolError(checked.error);
     }
 
-    const result = await analyzeFile(checked.path, analyzeOptions(range, detector, ctx.mcpReq.signal));
+    const result = await analyzeQueued(checked.path, analyzeOptions(range, detector, ctx.mcpReq.signal));
+    if (result === undefined) {
+      return toolError('Cancelled.');
+    }
+
     if (!result.ok) {
       return toolError(`Could not analyse ${result.file}: ${firstLine(result.error)}`);
     }
@@ -174,9 +182,16 @@ export function createServer(version: string): McpServer {
         return toolError('Cancelled.');
       }
 
-      results.push(entry.kind === 'error'
-        ? {file: entry.path, ok: false, error: entry.error}
-        : clean(await analyzeFile(entry.path, analyzeOptions(range, detector, signal))));
+      if (entry.kind === 'error') {
+        results.push({file: entry.path, ok: false, error: entry.error});
+      } else {
+        const result = await analyzeQueued(entry.path, analyzeOptions(range, detector, signal));
+        if (result === undefined) {
+          return toolError('Cancelled.');
+        }
+
+        results.push(clean(result));
+      }
 
       // Long batches outlast a client's default request timeout unless it hears progress
       if (progressToken !== undefined) {

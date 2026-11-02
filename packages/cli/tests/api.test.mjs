@@ -4,7 +4,10 @@ import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
+import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import {analyzeFile, audioExtensions, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
+// Built for the tests and not published
+import {decodeFile} from '../dist/decode.mjs';
 
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 
@@ -20,6 +23,34 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
   it('folds candidates into the tempo range it is given', async () => {
     const result = await analyzeFile(fixture('click-128.mp3'), {tempoRange: {min: 50, max: 100}});
     assert.ok(Math.abs(result.bpm - 64) <= 1, `got ${result.bpm}`);
+  });
+
+  it('runs the detector it is asked for, not peaks', async () => {
+    // 5.4.0 ignored an unknown option, so --detector tempogram silently ran peaks. The answer
+    // must be the library's tempogram on the same samples, and must differ from its peaks.
+    const path = fixture('click-128.mp3');
+    const decode = async () => decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
+    for (const detector of ['tempogram', 'peaks']) {
+      const {channelData, sampleRate} = await decode();
+      const result = await analyzeFile(path, {detector});
+      assert.deepEqual(result.candidates, await analyzeChannelData(channelData, sampleRate, {detector}), detector);
+    }
+
+    const {channelData, sampleRate} = await decode();
+    assert.notDeepEqual(
+      await analyzeChannelData(channelData, sampleRate, {detector: 'tempogram'}),
+      await analyzeChannelData(channelData, sampleRate, {detector: 'peaks'}),
+    );
+  });
+
+  it('asks for a library that has the tempogram', async () => {
+    // npm resolves the lowest version a range allows when that one is installed already
+    const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+    const range = manifest.dependencies['realtime-bpm-analyzer'];
+    const [, major, minor] = /^\^(\d+)\.(\d+)\.\d+$/.exec(range) ?? [];
+    assert.ok(Number(major) === 5 && Number(minor) >= 6, `range ${range} admits a library without the detector option`);
+    // The detector option is read, not ignored: 5.4.0 accepted any name
+    await assert.rejects(analyzeChannelData(new Float32Array(1), 44_100, {detector: 'magic'}), /detector/);
   });
 
   it('returns a failure instead of throwing', async () => {

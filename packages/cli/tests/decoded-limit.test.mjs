@@ -347,8 +347,7 @@ describe('decoded size limit', () => {
     const controller = new AbortController();
     controller.abort();
     const result = await analyzeFile(fixture('click-128.mp3'), {signal: controller.signal});
-    assert.equal(result.ok, false);
-    assert.match(result.error, /abort/i);
+    assert.deepEqual(result, {file: fixture('click-128.mp3'), ok: false, error: 'Cancelled.'});
   });
 
   describe('through ffmpeg', () => {

@@ -39,9 +39,11 @@ const perArtist = 30;
 const mostBytesPerFile = 80 * 1024 * 1024;
 /**
  * The whole set may not take more than this, whatever the catalogue says. The disk is shared, so the
- * cap stays below it. Raised from 150 GiB to reach 200 strict 165+ tracks (RBA-59 DECISION 2026-11-02)
+ * cap stays below it. Raised from 150 GiB to 1 TiB so the whole candidate list fits (about 280 GB at
+ * the measured 11.2 MB a track) on srv-compute's 2 TB data disk, which keeps over 700 GB for others
+ * (RBA-59, 2026-11-02)
  */
-const mostBytesInAll = 250 * 1024 ** 3;
+const mostBytesInAll = 1024 ** 4;
 /** Refusals in a row from a host end its fetch. A host saying no is an answer, not an obstacle */
 const refusalsToStop = 5;
 const iaPauseMs = 1000;

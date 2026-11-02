@@ -240,7 +240,7 @@ analyzer.on('bpmStable', (data) => {
 ```
 
 ### `analyzerReset`
-Emitted when continuous analysis resets:
+Emitted when continuous analysis resets, and when a `liveInput` analyzer starts over after losing audio ([`liveInput`](./realtime-bpm-detection.md#liveinput-for-a-mediastream)). Anything it had called stable may no longer hold:
 
 ```typescript
 analyzer.on('analyzerReset', () => {

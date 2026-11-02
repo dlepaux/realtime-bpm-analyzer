@@ -323,6 +323,65 @@ const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
 source.connect(bpmAnalyzer.input);
 ```
 
+### `liveInput` for a MediaStream
+
+A MediaStream arrives in real time whatever the audio thread does. When the
+thread stays behind, the browser drops part of the stream, and the analyzer reads
+a tempo as high as it lost: 150 BPM reads 167 at 10% lost, marked stable. Given
+the track, the analyzer follows the track's clock and counts what was lost as
+silence. That brings the number close to the tempo and no more than that: under
+sustained loss in Chrome, tab capture read 148 for 150, and 117 and 118 for 120.
+
+So what it mostly guards is the word stable:
+
+- While about 5% or more is being lost, `bpm` keeps coming but `bpmStable` does
+  not. The edge is soft, because the clock moves in steps: in simulation 96% render
+  was behind for part of the time, and a lock could come late. Smaller loss is
+  paid the same way and can lock.
+- When the loss ends, about 3 s later, the analyzer starts over and emits
+  `analyzerReset`, if a lock was held back, or if it lost 0.3 s or more and had
+  published no lock 3 s or more before the loss showed. It then locks on what it
+  hears from there, about 11 s later with the tempogram. In simulation every lock after
+  that was right, across loss of 0.3 s to 3 s and 100 to 174 BPM. A smaller drop
+  doesn't start it over: those locks read within 1 BPM.
+- A loss takes up to 3 s of audio to show, so a lock published within 3 s before
+  it shows may have heard some of it. When 0.3 s or more is lost, that lock is
+  withdrawn: the analyzer starts over as above. A lock published earlier stands,
+  and nothing tells the main thread it has since heard less.
+- While reports of the track's clock stop for about 3 s, as they can on a hidden
+  page whose timers are throttled, a lock is held back too: the clock can't vouch
+  for it, and a window with no report doesn't count as clean.
+- Under loss that never ends it never locks.
+
+Limits, since this is only as good as what was measured:
+
+- `MediaStreamTrack.stats` is specified for `getUserMedia` tracks. A track from
+  `captureStream`, a remote peer or a `MediaStreamAudioDestinationNode` may have
+  no stats, and then, as in a browser without them, this does nothing and says
+  nothing.
+- The specification says these frame counters lack Working Group consensus, so a
+  browser could change them.
+- Loss was measured on Chrome tab capture on Linux, and in simulation. A
+  microphone, Windows and a laptop on battery were not measured.
+- When the whole browser loses the CPU, the track slows with the thread and this
+  clock sees no loss. Only the track against the system clock shows that.
+
+The clock follows the track until the track ends or `stop()` is called, so call
+`stop()` before closing the context.
+
+```typescript
+const [track] = stream.getAudioTracks();
+const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  detector: 'tempogram',
+  liveInput: track,
+});
+
+audioContext.createMediaStreamSource(stream).connect(bpmAnalyzer.input);
+```
+
+A media element or a buffer has no such track: those wait for the thread and
+lose nothing.
+
 ## The lowpass filter — why it's there
 
 Every example above includes `getBiquadFilter(audioContext)` between the

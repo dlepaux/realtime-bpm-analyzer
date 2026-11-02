@@ -173,10 +173,11 @@ export async function createRealtimeBpmAnalyzer(
   audioContext: AudioContext,
   processorOptions?: CreateRealtimeBpmAnalyzerOptions,
 ): Promise<BpmAnalyzer> {
-  // processorUrl is a main-thread concern: kept out of the worklet's options, where a URL object
-  // would also fail structured cloning.
-  const {processorUrl, ...analyzerOptions} = processorOptions ?? {};
+  // processorUrl and liveInput are main-thread concerns: kept out of the worklet's options, where a URL object
+  // or a track would also fail structured cloning.
+  const {processorUrl, liveInput, ...analyzerOptions} = processorOptions ?? {};
   assertProcessorUrl(processorUrl);
+  assertLiveInput(liveInput);
   // A refusal here reaches the caller, for the same reason as the comment below
   assertTempogramMode(analyzerOptions);
   // Validate on the main thread: a throw inside the worklet constructor would not reach the caller.
@@ -195,7 +196,7 @@ export async function createRealtimeBpmAnalyzer(
   await audioContext.resume();
 
   if (options.detector === 'tempogram') {
-    return new BpmAnalyzer(processorNode);
+    return new BpmAnalyzer(processorNode, undefined, liveInput);
   }
 
   return new BpmAnalyzer(processorNode, () => {
@@ -204,7 +205,7 @@ export async function createRealtimeBpmAnalyzer(
     lowpass.connect(processorNode);
 
     return lowpass;
-  });
+  }, liveInput);
 }
 
 /**
@@ -224,6 +225,21 @@ function assertProcessorUrl(processorUrl: unknown): asserts processorUrl is stri
 
   if (typeof processorUrl !== 'string' || processorUrl.trim() === '') {
     throw new TypeError('processorUrl must be a non-empty string or a URL');
+  }
+}
+
+/**
+ * Validates the track before the worklet exists, as a plain JS caller can pass anything. Not `instanceof`: a track
+ * made in another frame or the offscreen document of an extension would fail it.
+ * @param liveInput The value the caller passed
+ */
+function assertLiveInput(liveInput: unknown): asserts liveInput is MediaStreamTrack | undefined {
+  if (liveInput === undefined) {
+    return;
+  }
+
+  if (typeof liveInput !== 'object' || liveInput === null || !('kind' in liveInput) || liveInput.kind !== 'audio') {
+    throw new TypeError('liveInput must be an audio MediaStreamTrack');
   }
 }
 

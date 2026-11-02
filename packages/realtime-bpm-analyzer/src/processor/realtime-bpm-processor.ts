@@ -1,6 +1,8 @@
 import {realtimeBpmProcessorName} from '../core/consts';
 import {chunkAggregator} from '../core/utils';
 import {RealTimeBpmAnalyzer} from '../core/realtime-bpm-analyzer';
+import {createSampleClock} from '../core/sample-clock';
+import type {SampleClock} from '../core/sample-clock';
 import type {
   ProcessorInputMessage,
   AggregateData,
@@ -74,6 +76,9 @@ declare function registerProcessor(
 ): void;
 /* eslint-enable no-var */
 
+/** Frames of a render quantum, fixed by the Web Audio specification */
+const renderQuantumFrames = 128;
+
 export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   aggregate: (pcmData: Float32Array) => AggregateData;
   realTimeBpmAnalyzer: RealTimeBpmAnalyzer;
@@ -82,6 +87,9 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   // render quantum; without this flag, a slow analysis could have multiple
   // concurrent invocations mutating the analyzer's shared state.
   analysisInProgress = false;
+  // Made by the first report of a live input's clock: a source the audio thread pulls waits for it and loses nothing.
+  sampleClock: SampleClock | null = null;
+  silentQuantum = new Float32Array(renderQuantumFrames);
 
   constructor(options: AudioWorkletProcessorParameters) {
     super(options);
@@ -107,11 +115,18 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     switch (event.data.type) {
       case 'reset': {
         this.realTimeBpmAnalyzer.reset();
+        this.sampleClock?.forget();
         break;
       }
 
       case 'stop': {
         this.stopped = true;
+        break;
+      }
+
+      case 'delivered': {
+        this.sampleClock ??= createSampleClock(sampleRate);
+        this.sampleClock.observe(event.data.seconds);
         break;
       }
 
@@ -139,10 +154,35 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       return true;
     }
 
+    // Ahead of the check below: time goes by for an input that is disconnected too, and nothing of it is lost.
+    const owesSilence = this.sampleClock?.advance(renderQuantumFrames) ?? false;
+
+    if (this.sampleClock?.takeStartOver()) {
+      this.realTimeBpmAnalyzer.startOver(event => {
+        this.port.postMessage(event);
+      });
+    }
+
     if (!currentChunk) {
       return true;
     }
 
+    // One quantum at most: at most one full buffer per call, which the guard in `analyze` would otherwise drop.
+    if (owesSilence) {
+      this.analyze(this.silentQuantum, true);
+    }
+
+    this.analyze(currentChunk);
+
+    return true;
+  }
+
+  /**
+   * Aggregates a quantum, and analyzes the buffer when it is full
+   * @param currentChunk The quantum
+   * @param anotherFollows Whether another quantum is aggregated at once, over the buffer an analysis may still be reading
+   */
+  analyze(currentChunk: Float32Array, anotherFollows = false): void {
     const {isBufferFull, buffer, bufferSize} = this.aggregate(currentChunk);
 
     if (isBufferFull && !this.analysisInProgress) {
@@ -151,9 +191,18 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       this.realTimeBpmAnalyzer
         .analyzeChunk({
           audioSampleRate: sampleRate,
-          channelData: buffer,
+          channelData: anotherFollows ? buffer.slice() : buffer,
           bufferSize,
           postMessage: event => {
+            // A wrong tempo marked stable is the worst this can show, and time being lost is when it happens (RBA-97).
+            if (event.type === 'bpmStable' && this.sampleClock?.offerLock() === false) {
+              return;
+            }
+
+            if (event.type === 'analyzerReset') {
+              this.sampleClock?.forget();
+            }
+
             this.port.postMessage(event);
           },
         })
@@ -174,8 +223,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
           this.analysisInProgress = false;
         });
     }
-
-    return true;
   }
 }
 

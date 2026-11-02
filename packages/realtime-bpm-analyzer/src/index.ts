@@ -173,9 +173,9 @@ export async function createRealtimeBpmAnalyzer(
   audioContext: AudioContext,
   processorOptions?: CreateRealtimeBpmAnalyzerOptions,
 ): Promise<BpmAnalyzer> {
-  // processorUrl is a main-thread concern: kept out of the worklet's options, where a URL object
-  // would also fail structured cloning.
-  const {processorUrl, ...analyzerOptions} = processorOptions ?? {};
+  // processorUrl and liveInput are main-thread concerns: kept out of the worklet's options, where a URL object
+  // or a track would also fail structured cloning.
+  const {processorUrl, liveInput, ...analyzerOptions} = processorOptions ?? {};
   assertProcessorUrl(processorUrl);
   // A refusal here reaches the caller, for the same reason as the comment below
   assertTempogramMode(analyzerOptions);
@@ -195,7 +195,7 @@ export async function createRealtimeBpmAnalyzer(
   await audioContext.resume();
 
   if (options.detector === 'tempogram') {
-    return new BpmAnalyzer(processorNode);
+    return new BpmAnalyzer(processorNode, undefined, liveInput);
   }
 
   return new BpmAnalyzer(processorNode, () => {
@@ -204,7 +204,7 @@ export async function createRealtimeBpmAnalyzer(
     lowpass.connect(processorNode);
 
     return lowpass;
-  });
+  }, liveInput);
 }
 
 /**

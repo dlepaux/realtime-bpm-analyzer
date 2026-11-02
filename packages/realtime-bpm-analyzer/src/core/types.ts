@@ -15,7 +15,7 @@ export type ProcessorOutputEvent =
  * Control events sent to the processor (Main Thread → Processor)
  * @group Events
  */
-export type ProcessorInputEvent = {type: 'reset'} | {type: 'stop'};
+export type ProcessorInputEvent = {type: 'reset'} | {type: 'stop'} | {type: 'delivered'; seconds: number};
 
 /**
  * MessagePort message wrapper for processor input events
@@ -252,14 +252,6 @@ export type RealTimeBpmAnalyzerParameters = {
    * another `tempoRange` and `continuousAnalysis`, whose reset can keep the tempogram from ever reaching stable.
    */
   tempogramMode?: TempogramMode;
-  /**
-   * The input arrives in real time whatever the audio thread does: a MediaStream, so tab capture or a microphone.
-   * When the thread can't keep up the browser drops part of such an input, and without this the tempo then reads
-   * high and stable (150 BPM reads 167 at 10% lost). Set it and the lost audio counts as silence, which keeps the tempo
-   * right. Leave it off for a media element or a buffer (default: false): those wait for the thread and lose nothing,
-   * so this would add silence that was never lost.
-   */
-  liveInput?: boolean;
 };
 
 /**
@@ -283,6 +275,14 @@ export type RealTimeBpmAnalyzerParameters = {
 export type CreateRealtimeBpmAnalyzerOptions = RealTimeBpmAnalyzerParameters & {
   /** URL of the processor file handed to `audioWorklet.addModule` (default: an inlined `blob:` URL) */
   processorUrl?: string | URL;
+  /**
+   * The track behind a MediaStream source, so tab capture or a microphone. Such an input arrives in real time whatever
+   * the audio thread does: when the thread can't keep up the browser drops part of it, and without this the tempo
+   * then reads high and stable (150 BPM reads 167 at 10% lost). Given the track, the analyzer follows its clock
+   * and counts what was lost as silence, which keeps the tempo right. Needs `MediaStreamTrack.stats` (Chrome 125);
+   * elsewhere it does nothing. A media element or a buffer has no such track: those wait for the thread and lose nothing.
+   */
+  liveInput?: MediaStreamTrack;
 };
 
 /**

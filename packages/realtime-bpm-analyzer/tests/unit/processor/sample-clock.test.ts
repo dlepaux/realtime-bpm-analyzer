@@ -1,105 +1,173 @@
 import {expect} from 'chai';
-import {createSampleClock} from '../../../src/core/sample-clock';
+import {createSampleClock, followTrackClock} from '../../../src/core/sample-clock';
 import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
 
 const rate = 48_000;
 const quantum = 128;
 
-/** Runs the clock over `seconds` with the thread at `share` of real time; returns the frames of silence it owed. */
-function owedAt(share: number, seconds: number, jitterQuanta = 1): number {
-  const advance = createSampleClock(rate);
+type Scenario = {
+  /** The thread's share of real time, and the input's, at a time in seconds */
+  thread: (t: number) => number;
+  input?: (t: number) => number;
+  seconds: number;
+  /** Quanta rendered at once, as a device asking for many does */
+  burst?: number;
+  /** How late a report may reach the thread, in seconds */
+  late?: (t: number) => number;
+};
+
+/** Runs the clock with a thread and an input at their own pace, with a report every 250 ms; returns the frames owed. */
+function owedIn({thread, input = () => 1, seconds, burst = 1, late = () => 0}: Scenario): number {
+  const clock = createSampleClock(rate);
+  const step = 0.001;
+  const reports: {at: number; delivered: number}[] = [];
+  let delivered = 0;
+  let due = 0;
+  let nextReport = 0;
   let owed = 0;
 
-  for (let i = 0; i * quantum < seconds * rate * share; i += 1) {
-    // A device asks for several quanta at once: they all run at the time of the first
-    const burst = Math.floor(i / jitterQuanta) * jitterQuanta;
-    const now = ((burst * quantum) / rate / share) * 1000;
+  for (let t = 0; t < seconds; t += step) {
+    delivered += input(t) * step;
+    due += thread(t) * step * rate;
 
-    owed += advance(now, quantum) ? quantum : 0;
+    if (t >= nextReport) {
+      reports.push({at: t + late(t), delivered});
+      nextReport += 0.25;
+    }
+
+    while (reports[0] && reports[0].at <= t) {
+      clock.observe(reports.shift()!.delivered);
+    }
+
+    while (due >= burst * quantum) {
+      for (let i = 0; i < burst; i += 1) {
+        owed += clock.advance(quantum) ? quantum : 0;
+      }
+
+      due -= burst * quantum;
+    }
   }
 
   return owed;
 }
 
+const steady = (share: number) => () => share;
+
 describe('createSampleClock', () => {
-  it('owes nothing to a thread on time, including a device asking for many quanta at once', () => {
-    expect(owedAt(1, 60)).to.equal(0);
-    expect(owedAt(1, 60, 8)).to.equal(0);
-    expect(owedAt(1, 60, 32)).to.equal(0);
+  it('owes nothing until the input reports: without a clock, nothing changes', () => {
+    const clock = createSampleClock(rate);
+
+    for (let i = 0; i < 60 * rate / quantum; i += 1) {
+      expect(clock.advance(quantum)).to.equal(false);
+    }
   });
 
-  it('owes what a thread behind has lost, once a window has passed', () => {
+  it('owes nothing to a thread on time, including a device asking for many quanta at once', () => {
+    expect(owedIn({thread: steady(1), seconds: 60})).to.equal(0);
+    // A report can land on either side of a burst: that much, once, and it doesn't add up over a minute
+    expect(owedIn({thread: steady(1), seconds: 60, burst: 8})).to.be.lessThan(8 * quantum);
+    expect(owedIn({thread: steady(1), seconds: 60, burst: 32})).to.be.lessThan(32 * quantum);
+  });
+
+  it('owes what a thread behind its input has lost, once a window has passed', () => {
     for (const share of [0.98, 0.95, 0.9, 0.85]) {
       const lost = 30 * (1 - share) * rate;
-      const owed = owedAt(share, 30);
 
-      expect(owed, `at ${share}`).to.be.closeTo(lost, 2 * (1 - share) * rate + 0.02 * rate);
+      expect(owedIn({thread: steady(share), seconds: 30}), `at ${share}`).to.be.closeTo(lost, 3 * (1 - share) * rate + 0.03 * rate);
+    }
+  });
+
+  it('owes nothing when the input slows with the thread: the whole browser short of CPU loses no audio', () => {
+    for (const share of [0.95, 0.9, 0.8, 0.7]) {
+      expect(owedIn({thread: steady(share), input: steady(share), seconds: 30}), `at ${share}`).to.equal(0);
     }
   });
 
   it('owes nothing for a stall the thread recovers from', () => {
-    const advance = createSampleClock(rate);
-    let now = 0;
-    let owed = 0;
+    // Every 3 s it stops for 500 ms, then renders what it missed at three times the pace
+    const thread = (t: number) => (t % 3 < 0.5 ? 0 : t % 3 < 0.75 ? 3 : 1);
 
-    for (let i = 0; i < 20 * rate / quantum; i += 1) {
-      // Every 3 s of audio it stops for 500 ms, and then renders what it missed as fast as it can
-      const audioMs = ((i * quantum) / rate) * 1000;
-      const stalled = audioMs % 3000 < 3;
-
-      now = Math.max(now, audioMs) + (stalled ? 500 : 0);
-      owed += advance(now, quantum) ? quantum : 0;
-    }
-
-    expect(owed).to.equal(0);
+    expect(owedIn({thread, seconds: 20})).to.equal(0);
   });
 
-  it('starts over after a long gap: a laptop asleep owes nothing', () => {
-    const advance = createSampleClock(rate);
-    let owed = 0;
-
-    for (let i = 0; i < 5 * rate / quantum; i += 1) {
-      owed += advance(((i * quantum) / rate) * 1000, quantum) ? quantum : 0;
-    }
-
-    for (let i = 0; i < 5 * rate / quantum; i += 1) {
-      owed += advance(3_600_000 + (((i * quantum) / rate) * 1000), quantum) ? quantum : 0;
-    }
-
-    expect(owed).to.equal(0);
+  it('owes nothing for reports held up by a busy main thread', () => {
+    // Half a second late, one second in every four
+    expect(owedIn({thread: steady(1), seconds: 40, late: t => (t % 4 >= 3 ? 0.5 : 0)})).to.equal(0);
   });
 
-  it('banks nothing from a device running ahead of the system clock', () => {
-    const fast = createSampleClock(rate);
-    let owed = 0;
-    let now = 0;
+  it('still owes what was lost when reports come late', () => {
+    const lost = 30 * 0.1 * rate;
 
-    for (let i = 0; i < 10 * rate / quantum; i += 1) {
-      now = (((i * quantum) / rate) * 1000) / 1.01;
-      owed += fast(now, quantum) ? quantum : 0;
-    }
-
-    // Then a share behind: what it is owed starts from there, not from what it gained
-    for (let i = 0; i < 10 * rate / quantum; i += 1) {
-      now += (((quantum / rate) * 1000) / 0.9);
-      owed += fast(now, quantum) ? quantum : 0;
-    }
-
-    expect(owed).to.be.closeTo(10 * 0.1 * rate / 0.9, 0.3 * rate);
+    expect(owedIn({thread: steady(0.9), seconds: 30, late: t => (t % 4 >= 3 ? 0.5 : 0)})).to.be.closeTo(lost, 0.5 * rate);
   });
 
-  it('stops growing what it owes when nearly nothing renders', () => {
-    const advance = createSampleClock(rate);
-    let now = 0;
-    let owed = 0;
+  it('starts over after a long gap: a context suspended or a laptop asleep owes nothing', () => {
+    const thread = (t: number) => (t > 5 && t < 15 ? 0 : 1);
 
-    for (let i = 0; i < 2000; i += 1) {
-      now += 20;
-      owed += advance(now, quantum) ? 1 : 0;
-    }
+    expect(owedIn({thread, seconds: 25})).to.equal(0);
+  });
 
-    expect(owed).to.be.greaterThan(0);
-    expect(owed * quantum).to.be.lessThan(2000 * quantum);
+  it('banks nothing from an input that paused, and pays what is lost afterwards', () => {
+    const input = (t: number) => (t < 10 ? 0 : 1);
+    const thread = (t: number) => (t < 20 ? 1 : 0.9);
+    const lost = 10 * 0.1 * rate;
+
+    expect(owedIn({thread, input, seconds: 30})).to.be.closeTo(lost, 0.3 * rate);
+  });
+
+  it('gives up when nearly nothing renders: there is no tempo to protect', () => {
+    expect(owedIn({thread: steady(0.3), seconds: 60})).to.equal(0);
+  });
+});
+
+describe('followTrackClock', () => {
+  const realSetInterval = globalThis.setInterval;
+  const realClearInterval = globalThis.clearInterval;
+  let tick: (() => void) | null;
+
+  beforeEach(() => {
+    tick = null;
+    (globalThis as any).setInterval = (fn: () => void) => {
+      tick = fn;
+      return 1;
+    };
+
+    (globalThis as any).clearInterval = () => {
+      tick = null;
+    };
+  });
+
+  afterEach(() => {
+    globalThis.setInterval = realSetInterval;
+    globalThis.clearInterval = realClearInterval;
+  });
+
+  it('reports seconds by the track\'s own clock, until told to stop', () => {
+    const reports: number[] = [];
+    const track = {readyState: 'live', stats: {totalFramesDuration: 1500}} as unknown as MediaStreamTrack;
+    const stop = followTrackClock(track, s => reports.push(s));
+
+    tick!();
+    expect(reports).to.deep.equal([1.5]);
+    stop();
+    expect(tick).to.equal(null);
+  });
+
+  it('stops by itself when the track ends', () => {
+    const reports: number[] = [];
+    const track = {readyState: 'ended', stats: {totalFramesDuration: 1500}} as unknown as MediaStreamTrack;
+
+    followTrackClock(track, s => reports.push(s));
+    tick!();
+    expect(reports).to.deep.equal([]);
+    expect(tick).to.equal(null);
+  });
+
+  it('does nothing in a browser that does not count', () => {
+    followTrackClock({readyState: 'live'} as unknown as MediaStreamTrack, () => {
+      throw new Error('no report expected');
+    })();
+    expect(tick).to.equal(null);
   });
 });
 
@@ -125,7 +193,7 @@ function groove(bpm: number, seconds: number): Float32Array {
  */
 async function reading(detector: 'peaks' | 'tempogram', bpm: number, share: number, kept: boolean): Promise<{top?: number; stable: number[]}> {
   const analyzer = new RealTimeBpmAnalyzer(detector === 'tempogram' ? {detector, tempogramMode: 'extension'} : {detector});
-  const advance = createSampleClock(rate);
+  const clock = createSampleClock(rate);
   const audio = groove(bpm, 45);
   const silent = new Float32Array(quantum);
   const buffer = new Float32Array(4096);
@@ -134,6 +202,7 @@ async function reading(detector: 'peaks' | 'tempogram', bpm: number, share: numb
   let written = 0;
   let quanta = 0;
   let nextLost = lostEvery;
+  let nextReport = 0;
   let at = 0;
 
   const feed = async (chunk: Float32Array) => {
@@ -160,7 +229,15 @@ async function reading(detector: 'peaks' | 'tempogram', bpm: number, share: numb
   };
 
   while (at + quantum < audio.length) {
-    const owes = advance(((quanta * quantum) / rate / share) * 1000, quantum);
+    // The input keeps real time, reported every 250 ms of it, while the thread runs at its share
+    const realSeconds = (quanta * quantum) / rate / share;
+
+    if (realSeconds >= nextReport) {
+      clock.observe(realSeconds);
+      nextReport += 0.25;
+    }
+
+    const owes = clock.advance(quantum);
 
     quanta += 1;
 

@@ -3,6 +3,7 @@ import type {
   ProcessorOutputEvent,
   ProcessorInputEvent,
 } from './types';
+import {followTrackClock} from './sample-clock';
 
 /**
  * Custom event class for BPM analyzer events with typed data.
@@ -110,16 +111,23 @@ export class BpmAnalyzer extends EventTarget {
 
   private inputNode?: AudioNode;
   private readonly createInput: () => AudioNode;
+  private readonly stopFollowing: () => void;
 
   /**
    * Creates a new BpmAnalyzer instance
    * @param workletNode - The AudioWorkletNode to wrap
    * @param createInput - Builds the node sources connect to, when it is not the worklet itself
+   * @param liveInput - The track of a MediaStream source, whose clock keeps the analyzer's time true
    */
-  constructor(workletNode: AudioWorkletNode, createInput: () => AudioNode = () => workletNode) {
+  constructor(workletNode: AudioWorkletNode, createInput: () => AudioNode = () => workletNode, liveInput?: MediaStreamTrack) {
     super();
     this.node = workletNode;
     this.createInput = createInput;
+    this.stopFollowing = liveInput
+      ? followTrackClock(liveInput, seconds => {
+        this.sendControlMessage({type: 'delivered', seconds});
+      })
+      : () => undefined;
     this.setupMessageHandler();
   }
 
@@ -154,6 +162,7 @@ export class BpmAnalyzer extends EventTarget {
    * ```
    */
   stop(): void {
+    this.stopFollowing();
     this.sendControlMessage({type: 'stop'});
   }
 

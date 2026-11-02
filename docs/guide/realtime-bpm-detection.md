@@ -328,20 +328,22 @@ source.connect(bpmAnalyzer.input);
 A MediaStream, so tab capture or a microphone, arrives in real time whatever
 the audio thread does. When the thread stays behind, the browser drops part of
 the stream, and the analyzer reads a tempo as high as it lost: 150 BPM reads 167
-at 10% lost, marked stable. With `liveInput: true` the lost audio counts as
-silence, which keeps the tempo right.
+at 10% lost, marked stable. Given the track, the analyzer follows its clock and
+counts what was lost as silence, which keeps the tempo right. It reads
+`MediaStreamTrack.stats` (Chrome 125) and does nothing where that is missing.
 
 ```typescript
+const [track] = stream.getAudioTracks();
 const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
   detector: 'tempogram',
-  liveInput: true,
+  liveInput: track,
 });
 
 audioContext.createMediaStreamSource(stream).connect(bpmAnalyzer.input);
 ```
 
-Leave it off for a media element or a buffer: those wait for the thread and
-lose nothing, so it would add silence that was never lost.
+A media element or a buffer has no such track: those wait for the thread and
+lose nothing.
 
 ## The lowpass filter — why it's there
 

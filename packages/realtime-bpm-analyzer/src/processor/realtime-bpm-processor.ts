@@ -87,8 +87,8 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   // render quantum; without this flag, a slow analysis could have multiple
   // concurrent invocations mutating the analyzer's shared state.
   analysisInProgress = false;
-  // Only for a live input, which the options declare: a source the audio thread pulls waits for it and loses nothing.
-  sampleClock: SampleClock | null;
+  // Made by the first report of a live input's clock: a source the audio thread pulls waits for it and loses nothing.
+  sampleClock: SampleClock | null = null;
   silentQuantum = new Float32Array(renderQuantumFrames);
 
   constructor(options: AudioWorkletProcessorParameters) {
@@ -98,7 +98,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     this.realTimeBpmAnalyzer = new RealTimeBpmAnalyzer(
       options.processorOptions,
     );
-    this.sampleClock = options.processorOptions?.liveInput ? createSampleClock(sampleRate) : null;
 
     this.port.addEventListener('message', this.onMessage.bind(this));
     this.port.start();
@@ -121,6 +120,12 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
       case 'stop': {
         this.stopped = true;
+        break;
+      }
+
+      case 'delivered': {
+        this.sampleClock ??= createSampleClock(sampleRate);
+        this.sampleClock.observe(event.data.seconds);
         break;
       }
 
@@ -149,7 +154,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     }
 
     // Ahead of the check below: time goes by for an input that is disconnected too, and nothing of it is lost.
-    const owesSilence = this.sampleClock?.(Date.now(), renderQuantumFrames) ?? false;
+    const owesSilence = this.sampleClock?.advance(renderQuantumFrames) ?? false;
 
     if (!currentChunk) {
       return true;

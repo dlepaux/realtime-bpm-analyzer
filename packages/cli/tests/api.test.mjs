@@ -2,6 +2,7 @@
 // Needs `npm run build` at the repo root first (dist/api.mjs and dist/types/api.d.ts).
 import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
+import {execFileSync, spawnSync} from 'node:child_process';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
@@ -10,6 +11,7 @@ import {analyzeFile, audioExtensions, resolveTempoRange} from 'realtime-bpm-anal
 import {decodeFile} from '../dist/decode.mjs';
 
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
+const packageDir = fileURLToPath(new URL('..', import.meta.url));
 
 describe('realtime-bpm-analyzer-cli programmatic API', () => {
   it('analyses a file into the result the CLI prints', async () => {
@@ -69,6 +71,28 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
   it('lists the extensions folder mode picks', () => {
     for (const extension of ['.mp3', '.wav', '.flac', '.ogg', '.opus', '.m4a']) {
       assert.ok(audioExtensions.has(extension), extension);
+    }
+  });
+
+  it('analyses from a host run with --input-type, which the worker must not inherit', () => {
+    // The package imports itself by name from its own folder, the way a consumer imports it
+    const code = `import('realtime-bpm-analyzer-cli')
+      .then(({analyzeFile}) => analyzeFile(${JSON.stringify(fixture('click-128.mp3'))}))
+      .then(result => console.log(JSON.stringify(result)))`;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', code], {cwd: packageDir, encoding: 'utf8', timeout: 30_000});
+    assert.equal(run.status, 0, run.stderr);
+    const result = JSON.parse(run.stdout);
+    assert.equal(result.ok, true, result.error);
+    assert.ok(Math.abs(result.bpm - 128) <= 1, `got ${result.bpm}`);
+  });
+
+  it('packs the worker next to the entries that load it', () => {
+    // CI imports the package through the workspace link, which has every file, so only the
+    // tarball's file list shows that the worker ships
+    const [pack] = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {cwd: packageDir, encoding: 'utf8'}));
+    const files = new Set(pack.files.map(file => file.path));
+    for (const file of ['dist/api.mjs', 'dist/cli.mjs', 'dist/analyze-worker.mjs', 'dist/types/api.d.ts']) {
+      assert.ok(files.has(file), `${file} is missing from the tarball: ${[...files].join(', ')}`);
     }
   });
 

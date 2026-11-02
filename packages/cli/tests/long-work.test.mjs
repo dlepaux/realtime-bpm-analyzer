@@ -11,6 +11,9 @@ import {decodeFile} from '../dist/decode.mjs';
 import {clickWav} from './click-wav.mjs';
 
 const tooLowRate = /^Sample rate too low to analyze: \d+ Hz, the lowest is 8000 Hz\.$/;
+// A low-rate regression stalls the analysis instead of failing it, and node --test has no
+// default timeout, so without one the job would hang until CI kills it
+const lowRateTimeout = {timeout: 30_000};
 
 describe('bounds on the work one file costs', () => {
   let root;
@@ -36,7 +39,7 @@ describe('bounds on the work one file costs', () => {
 
   describe('sample rate', () => {
     for (const rate of [1, 100, 7999]) {
-      it(`refuses ${rate} Hz before decoding the file`, async () => {
+      it(`refuses ${rate} Hz before decoding the file`, lowRateTimeout, async () => {
         // 1 Hz never ended before (the peaks detector stalled), 100 Hz cost a minute per 10 MB
         const path = join(root, `rate-${rate}.wav`);
         await writeFile(path, clickWav(rate, 10_000_000));
@@ -48,7 +51,7 @@ describe('bounds on the work one file costs', () => {
       });
     }
 
-    it('analyses 8 kHz, the lowest rate it reads', async () => {
+    it('analyses 8 kHz, the lowest rate it reads', lowRateTimeout, async () => {
       const path = join(root, 'rate-8000.wav');
       await writeFile(path, clickWav(8000, 8000 * 30));
       const result = await analyzeFile(path);
@@ -73,8 +76,13 @@ describe('bounds on the work one file costs', () => {
     const result = await analyzeFile(long, {detector: 'tempogram', timeoutMs});
     const elapsed = performance.now() - started;
     assert.equal(result.ok, false);
-    assert.match(result.error, /^Took longer than the [\d.]+ seconds? limit for one file\.$/);
+    assert.match(result.error, /^Took longer than the [\d.]+ (?:seconds?|milliseconds?) limit for one file\.$/);
     assert.ok(elapsed < timeoutMs + 500, `took ${Math.round(elapsed)} ms to stop, timeout ${Math.round(timeoutMs)} ms`);
+  });
+
+  it('states a limit under a second in milliseconds, never as 0 seconds', async () => {
+    const result = await analyzeFile(long, {timeoutMs: 1});
+    assert.deepEqual(result, {file: long, ok: false, error: 'Took longer than the 1 millisecond limit for one file.'});
   });
 
   for (const timeoutMs of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 31]) {

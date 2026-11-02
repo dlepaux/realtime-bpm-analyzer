@@ -1,6 +1,8 @@
 import {realtimeBpmProcessorName} from '../core/consts';
 import {chunkAggregator} from '../core/utils';
 import {RealTimeBpmAnalyzer} from '../core/realtime-bpm-analyzer';
+import {createSampleClock} from '../core/sample-clock';
+import type {SampleClock} from '../core/sample-clock';
 import type {
   ProcessorInputMessage,
   AggregateData,
@@ -74,6 +76,9 @@ declare function registerProcessor(
 ): void;
 /* eslint-enable no-var */
 
+/** Frames of a render quantum, fixed by the Web Audio specification */
+const renderQuantumFrames = 128;
+
 export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   aggregate: (pcmData: Float32Array) => AggregateData;
   realTimeBpmAnalyzer: RealTimeBpmAnalyzer;
@@ -82,6 +87,9 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   // render quantum; without this flag, a slow analysis could have multiple
   // concurrent invocations mutating the analyzer's shared state.
   analysisInProgress = false;
+  // Only for a live input, which the options declare: a source the audio thread pulls waits for it and loses nothing.
+  sampleClock: SampleClock | null;
+  silentQuantum = new Float32Array(renderQuantumFrames);
 
   constructor(options: AudioWorkletProcessorParameters) {
     super(options);
@@ -90,6 +98,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     this.realTimeBpmAnalyzer = new RealTimeBpmAnalyzer(
       options.processorOptions,
     );
+    this.sampleClock = options.processorOptions?.liveInput ? createSampleClock(sampleRate) : null;
 
     this.port.addEventListener('message', this.onMessage.bind(this));
     this.port.start();
@@ -139,10 +148,28 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       return true;
     }
 
+    // Ahead of the check below: time goes by for an input that is disconnected too, and nothing of it is lost.
+    const owesSilence = this.sampleClock?.(Date.now(), renderQuantumFrames) ?? false;
+
     if (!currentChunk) {
       return true;
     }
 
+    // One quantum at most: at most one full buffer per call, which the guard in `analyze` would otherwise drop.
+    if (owesSilence) {
+      this.analyze(this.silentQuantum);
+    }
+
+    this.analyze(currentChunk);
+
+    return true;
+  }
+
+  /**
+   * Aggregates a quantum, and analyzes the buffer when it is full
+   * @param currentChunk The quantum
+   */
+  analyze(currentChunk: Float32Array): void {
     const {isBufferFull, buffer, bufferSize} = this.aggregate(currentChunk);
 
     if (isBufferFull && !this.analysisInProgress) {
@@ -174,8 +201,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
           this.analysisInProgress = false;
         });
     }
-
-    return true;
   }
 }
 

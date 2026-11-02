@@ -252,6 +252,14 @@ export type RealTimeBpmAnalyzerParameters = {
    * another `tempoRange` and `continuousAnalysis`, whose reset can keep the tempogram from ever reaching stable.
    */
   tempogramMode?: TempogramMode;
+  /**
+   * The input arrives in real time whatever the audio thread does: a MediaStream, so tab capture or a microphone.
+   * When the thread can't keep up the browser drops part of such an input, and without this the tempo then reads
+   * high and stable (150 BPM reads 167 at 10% lost). Set it and the lost audio counts as silence, which keeps the tempo
+   * right. Leave it off for a media element or a buffer (default: false): those wait for the thread and lose nothing,
+   * so this would add silence that was never lost.
+   */
+  liveInput?: boolean;
 };
 
 /**

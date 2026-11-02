@@ -79,11 +79,14 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
     const code = `import('realtime-bpm-analyzer-cli')
       .then(({analyzeFile}) => analyzeFile(${JSON.stringify(fixture('click-128.mp3'))}))
       .then(result => console.log(JSON.stringify(result)))`;
-    const run = spawnSync(process.execPath, ['--input-type=module', '-e', code], {cwd: packageDir, encoding: 'utf8', timeout: 30_000});
-    assert.equal(run.status, 0, run.stderr);
-    const result = JSON.parse(run.stdout);
-    assert.equal(result.ok, true, result.error);
-    assert.ok(Math.abs(result.bpm - 128) <= 1, `got ${result.bpm}`);
+    // With a per-process flag too, which Node refuses in a worker's explicit execArgv
+    for (const flags of [['--input-type=module'], ['--input-type=commonjs', '--v8-pool-size=2']]) {
+      const run = spawnSync(process.execPath, [...flags, '-e', code], {cwd: packageDir, encoding: 'utf8', timeout: 30_000});
+      assert.equal(run.status, 0, run.stderr);
+      const result = JSON.parse(run.stdout);
+      assert.equal(result.ok, true, `${flags.join(' ')}: ${result.error}`);
+      assert.ok(Math.abs(result.bpm - 128) <= 1, `got ${result.bpm}`);
+    }
   });
 
   it('packs the worker next to the entries that load it', () => {

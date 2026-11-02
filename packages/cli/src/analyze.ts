@@ -18,16 +18,13 @@ export type AnalysisReply = {readonly ok: true; readonly candidates: Tempo[]} | 
 // Built next to the bundle that imports this file (dist/cli.mjs, dist/api.mjs)
 const workerUrl = new URL('analyze-worker.mjs', import.meta.url);
 
-/**
- * The host's Node flags a worker can take. A worker inherits them by default, but it runs a
- * file, so `--input-type` (set by a host that runs `node --input-type=module -e`) makes it
- * fail to start, and every analysis with it.
- * @param flags The host's process.execArgv
- * @returns The flags without --input-type, in either form
- */
-function workerExecArgv(flags: readonly string[]): string[] {
-  return flags.filter((flag, index) => !(flag === '--input-type' || flag.startsWith('--input-type=') || flags[index - 1] === '--input-type'));
-}
+// The worker starts from a line of code that imports its file, not from the file itself. A worker
+// inherits the host's Node flags, and a host run with `node --input-type=module -e` passes on
+// --input-type, which Node refuses for a worker started from a file: every analysis failed.
+// Filtering the flags is no way out, because Node checks flags it is given and refuses the
+// per-process ones (--v8-pool-size, --stack-trace-limit, ...) it lets a worker inherit. Code
+// is valid input for --input-type of either kind, and import() reads ESM from both.
+const workerCode = `import(${JSON.stringify(workerUrl.href)})`;
 
 /**
  * Runs the library's analysis on a worker thread. The samples are moved to the worker, not
@@ -39,11 +36,7 @@ function workerExecArgv(flags: readonly string[]): string[] {
  */
 export async function analyzeOnWorker(request: AnalysisRequest, signal: AbortSignal | undefined): Promise<Tempo[]> {
   signal?.throwIfAborted();
-  const worker = new Worker(workerUrl, {
-    execArgv: workerExecArgv(process.execArgv),
-    workerData: request,
-    transferList: [request.channelData.buffer],
-  });
+  const worker = new Worker(workerCode, {eval: true, workerData: request, transferList: [request.channelData.buffer]});
   let onAbort = () => {};
   try {
     const reply = await new Promise<AnalysisReply>((resolve, reject) => {

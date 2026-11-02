@@ -18,6 +18,11 @@ export const limits = {
    * Mac (RBA-64). Past this, a client that neither waits nor cancels no longer holds the CPU.
    */
   maxFileSeconds: 120,
+  /**
+   * Most files analysed at once across all calls; the others wait their turn. One file at its
+   * worst holds about 4.2 GB, so parallel calls must not multiply it.
+   */
+  maxFilesAtOnce: 1,
   /** Most files one analyze_folder call analyses (about 3 s each), so a call ends within a client's patience */
   maxFolderFiles: 50,
   /** Most directory entries one walk reads, so a walk of a huge tree stays short */

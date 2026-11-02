@@ -114,11 +114,14 @@ audio file your user account can read, as the command-line tool would.
   symbolic link to a file outside the folder is refused, so a walk stays inside the
   folder you named.
 - Errors come back as one plain line, never a stack trace.
-- Audio under 8 kHz is refused: a sample costs more as the rate falls, and no real
-  recording goes that low. See [the CLI guide](/guide/cli).
+- Audio under 8 kHz is refused: a sample costs more as the rate falls, and recordings
+  that low are rare. See [the CLI guide](/guide/cli).
 - One file may take at most 120 seconds, decode and analysis together. The costliest file
   the limits let through, 18 hours at 8 kHz with the tempogram, took 74 seconds on an
   Apple M-series Mac. In a folder, a file over the limit is reported with its error.
+- The server analyses one file at a time, whatever the number of calls an assistant
+  makes at once: the others wait their turn, so the worst-case memory above does not
+  multiply. The 120 seconds start when a file's turn comes.
 - The analysis runs on a worker thread, so the server keeps answering during it. A
   cancelled call stops the file in progress, decode or analysis, and stops ffmpeg; a
   cancelled `analyze_folder` call analyses no further file.

@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.6.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.5.0...v5.6.0) (2026-11-02)
+
+
+### Features
+
+* **analyzer:** follow a live input's clock so lost audio is never marked stable ([#309](https://github.com/dlepaux/realtime-bpm-analyzer/issues/309)) ([d377038](https://github.com/dlepaux/realtime-bpm-analyzer/commit/d377038d09acc416cce36cf8dbf3d1420805c83b))
+
 ## [5.5.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.4.0...v5.5.0) (2026-11-01)
 
 

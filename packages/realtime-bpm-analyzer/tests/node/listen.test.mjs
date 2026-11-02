@@ -8,7 +8,7 @@ import {request} from 'node:http';
 import {tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {addTap, finalTempo, restartAfterMs, tapsKept, tempoFromTaps} from '../../benchmark/listen/tap-tempo.mjs';
+import {addTap, finalTempo, isSteady, restartAfterMs, tapsKept, tempoFromTaps} from '../../benchmark/listen/tap-tempo.mjs';
 
 const listenPy = join(dirname(fileURLToPath(import.meta.url)), '../../benchmark/listen/listen.py');
 
@@ -54,6 +54,26 @@ describe('tap tempo', () => {
     assert.equal(tempoFromTaps(taps), 170);
   });
 
+  it('calls eight even taps steady, and a stray or missed tap not', () => {
+    assert.equal(isSteady(steady(174, 7)), false);
+    assert.equal(isSteady(steady(174, 8)), true);
+
+    const jitter = [0, 12, -9, 4, -14, 7, 0, -3];
+    assert.equal(isSteady(steady(140, 8).map((at, index) => at + jitter[index])), true, 'human jitter is steady');
+
+    assert.equal(isSteady(steady(172, 9).filter((_, index) => index !== 4)), false, 'a missed tap');
+    const stray = steady(172, 8);
+    stray[4] += 40;
+    assert.equal(isSteady(stray), false, 'a tap 40 ms late');
+  });
+
+  it('judges only the latest eight taps, so a messy start can still end steady', () => {
+    const messy = [1000, 1250, 1700, 1900];
+    const taps = [...messy, ...steady(170, 8, 1900 + 60_000 / 170)];
+
+    assert.equal(isSteady(taps), true);
+  });
+
   it('halves and doubles the tapped tempo', () => {
     assert.equal(finalTempo(87.4, 2), 174.8);
     assert.equal(finalTempo(174.8, 0.5), 87.4);
@@ -91,11 +111,13 @@ function makeRoot() {
   return {root, ids};
 }
 
-function startServer(root, rows) {
-  const child = spawn('python3', ['-I', listenPy, 'serve', '--root', root, '--port', '0', '--rows', rows], {stdio: ['ignore', 'pipe', 'inherit']});
+function startServer(root, rows, extra = []) {
+  const child = spawn('python3', ['-I', listenPy, 'serve', '--root', root, '--port', '0', '--rows', rows, ...extra], {stdio: ['ignore', 'pipe', 'inherit']});
 
   return new Promise((resolve, reject) => {
     child.once('error', reject);
+    // A server that quits before it listens fails the test instead of hanging it
+    child.once('exit', code => reject(new Error(`listen.py exited with ${code} before listening`)));
     child.stdout.once('data', chunk => {
       const port = Number(/127\.0\.0\.1:(\d+)/.exec(String(chunk))?.[1]);
       port ? resolve({child, port}) : reject(new Error(String(chunk)));
@@ -135,7 +157,7 @@ describe('listen.py', () => {
     let {child, port} = await startServer(root, '1-3');
     try {
       const state = JSON.parse((await call(port, '/api/state')).body);
-      assert.deepEqual(state, {first: 1, last: 3, total: 3, answered: 0, row: 1});
+      assert.deepEqual(state, {total: 3, answered: 0, row: 1});
 
       const page = String((await call(port, '/')).body) + String((await call(port, '/page.mjs')).body);
       assert.ok(!page.includes('secret'), 'the page names no track');
@@ -155,10 +177,10 @@ describe('listen.py', () => {
 
     ({child, port} = await startServer(root, '1-3'));
     try {
-      assert.deepEqual(JSON.parse((await call(port, '/api/state')).body), {first: 1, last: 3, total: 3, answered: 1, row: 2});
+      assert.deepEqual(JSON.parse((await call(port, '/api/state')).body), {total: 3, answered: 1, row: 2});
       assert.equal((await post(port, {kind: 'unsure', row: 2, tappedBpm: null, finalBpm: null, taps: 3, note: ' fades in '})).status, 200);
       const done = JSON.parse((await post(port, {kind: 'broken', row: 3, tappedBpm: null, finalBpm: null, taps: 0, note: 'silence'})).body);
-      assert.deepEqual(done, {first: 1, last: 3, total: 3, answered: 3, row: null});
+      assert.deepEqual(done, {total: 3, answered: 3, row: null});
     } finally {
       await stop(child);
     }
@@ -170,6 +192,7 @@ describe('listen.py', () => {
     assert.deepEqual({...first, at: undefined}, {row: 1, id: ids[0], tappedBpm: 87.4, finalBpm: 174.8, taps: 12, unsure: false, broken: false, note: '', at: undefined});
     assert.deepEqual([second.id, second.unsure, second.note, second.finalBpm], [ids[1], true, 'fades in', null]);
     assert.deepEqual([third.id, third.broken, third.unsure], [ids[2], true, false]);
+    assert.ok(lines.every(line => !('group' in line)), 'a row range batch tags no group');
   });
 
   it('refuses bad answers, other hosts, forms and paths out of the audio folder', async () => {
@@ -187,6 +210,88 @@ describe('listen.py', () => {
       assert.equal((await call(port, '/audio/9')).status, 404);
     } finally {
       await stop(child);
+    }
+  });
+
+  it('serves a batch of one group: fresh rows only, the same rows after a restart, the group never shown', async () => {
+    const groupRoot = mkdtempSync(join(tmpdir(), 'rba-listen-group-'));
+    try {
+      mkdirSync(join(groupRoot, 'audio/x'), {recursive: true});
+      const tracks = ['t1', 't2', 't3', 't4', 't5', 't6', 't7'];
+      const why = ['random', 'disagreement', 'random', 'random', 'disagreement', 'random', 'random'];
+      tracks.forEach((_, index) => writeFileSync(join(groupRoot, `audio/x/${index}.wav`), wav(1)));
+      writeFileSync(join(groupRoot, 'confirmation.md'), [
+        '| id | page | audio | sha256 | tempo heard |', '| --- | --- | --- | --- | --- |',
+        ...tracks.map((id, index) => `| ${id} | https://example.org/${id} | \`/data/rba-tempo/free-data/audio/x/${index}.wav\` | abcdef123456 |  |`), '',
+      ].join('\n'));
+      writeFileSync(join(groupRoot, 'confirmation-key.jsonl'), tracks.map((id, index) => JSON.stringify({id, why: why[index], label: 123.4, candidate: 123.4})).join('\n'));
+      // Row 1 (random) was answered in an earlier batch: it must not come back
+      writeFileSync(join(groupRoot, 'confirmation-answers.jsonl'), JSON.stringify({row: 1, id: 't1', finalBpm: 120, unsure: false, broken: false}) + '\n');
+
+      const onlyGroup = spawnSync('python3', ['-I', listenPy, 'serve', '--root', groupRoot, '--port', '0', '--count', '2'], {encoding: 'utf8'});
+      assert.notEqual(onlyGroup.status, 0, '--count without --group is refused');
+
+      const start = () => startServer(groupRoot, '1-7', ['--group', 'random', '--count', '3']);
+
+      let {child, port} = await start();
+      try {
+        const state = JSON.parse((await call(port, '/api/state')).body);
+        assert.deepEqual(state, {total: 3, answered: 0, row: 3}, 'rows 3, 4 and 6: random, unanswered');
+        // The state above holds only counts and a row number; the static page names no label or group either
+        // (it says "random" only for its Random spot button, so that word can't be tested here)
+        const shown = String((await call(port, '/')).body) + String((await call(port, '/page.mjs')).body);
+        assert.ok(!/disagreement|123\.4/.test(shown), 'the page names no group or label');
+        assert.equal((await call(port, '/audio/2')).status, 404, 'a disagreement row is not in the batch');
+        assert.equal((await call(port, '/audio/1')).status, 404, 'an answered row is not in the batch');
+        assert.equal((await call(port, '/audio/7')).status, 404, 'past the count');
+        assert.equal((await post(port, {kind: 'save', row: 2, tappedBpm: 120, finalBpm: 120, taps: 9, note: ''})).status, 400);
+        const next = JSON.parse((await post(port, {kind: 'save', row: 3, tappedBpm: 120, finalBpm: 120, taps: 9, note: ''})).body);
+        assert.deepEqual(next, {total: 3, answered: 1, row: 4});
+      } finally {
+        await stop(child);
+      }
+
+      ({child, port} = await start());
+      try {
+        assert.deepEqual(JSON.parse((await call(port, '/api/state')).body), {total: 3, answered: 1, row: 4}, 'the same batch after a restart');
+        assert.equal((await call(port, '/audio/7')).status, 404, 'a restart does not slide the batch forward');
+      } finally {
+        await stop(child);
+      }
+
+      const lines = readFileSync(join(groupRoot, 'confirmation-answers.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line));
+      assert.equal(lines.length, 2);
+      assert.deepEqual([lines[1].id, lines[1].group], ['t3', 'random']);
+    } finally {
+      rmSync(groupRoot, {recursive: true, force: true});
+    }
+  });
+
+  it('counts a tap within 4% as agreeing, half and double too, and keeps the 2% count beside it', () => {
+    const scoreRoot = mkdtempSync(join(tmpdir(), 'rba-listen-score4-'));
+    try {
+      const answers = [['a', 170], ['b', 91.5], ['c', 187], ['d', 186], ['e', 100]];
+      writeFileSync(join(scoreRoot, 'confirmation-answers.jsonl'), answers.map(([id, finalBpm]) => JSON.stringify({id, finalBpm, unsure: false, broken: false})).join('\n'));
+      writeFileSync(join(scoreRoot, 'confirmation-key.jsonl'), [
+        {id: 'a', label: 175}, // 2.9% off: tapping error
+        {id: 'b', label: 176}, // half of it is 88: 3.98% off
+        {id: 'c', label: 180}, // 3.9% off
+        {id: 'd', label: 178}, // 4.5% off: still other
+        {id: 'e', label: 100}, // exact
+      ].map(row => JSON.stringify({why: 'random', candidate: row.label, ...row})).join('\n'));
+
+      const json = spawnSync('python3', ['-I', listenPy, 'score', '--root', scoreRoot, '--json'], {encoding: 'utf8'});
+      assert.equal(json.status, 0, json.stderr);
+      const {random} = JSON.parse(json.stdout);
+      assert.deepEqual([random['agree 2%'], random['octave 2%'], random['other 2%']], [1, 0, 4]);
+      assert.deepEqual([random['agree 4%'], random['octave 4%'], random['other 4%']], [3, 1, 1]);
+
+      const table = spawnSync('python3', ['-I', listenPy, 'score', '--root', scoreRoot], {encoding: 'utf8'});
+      assert.equal(table.status, 0, table.stderr);
+      assert.match(table.stdout, /agree 2% \| octave 2% \| other 2% \| corrected 2% \| agree 4% \| octave 4% \| other 4% \| corrected 4%/);
+      assert.match(table.stdout, /\| random \| 5 \| 0 \| 0 \| 0 \| 5 \| 0 \| 1 \| 0 \| 4 \| 80\.0% \| 3 \| 1 \| 1 \| 40\.0% \|/);
+    } finally {
+      rmSync(scoreRoot, {recursive: true, force: true});
     }
   });
 
@@ -210,8 +315,11 @@ describe('listen.py', () => {
       const run = spawnSync('python3', ['-I', listenPy, 'score', '--root', scoreRoot, '--json'], {encoding: 'utf8'});
       assert.equal(run.status, 0, run.stderr);
       const groups = JSON.parse(run.stdout);
-      assert.deepEqual(groups.random, {answered: 2, broken: 0, unsure: 0, 'no reference': 0, scored: 2, agree: 1, octave: 1, other: 0, 'from candidate': 0});
-      assert.deepEqual(groups.disagreement, {answered: 4, broken: 1, unsure: 1, 'no reference': 0, scored: 2, agree: 1, octave: 0, other: 1, 'from candidate': 2});
+      const both = (agree2, octave2, other2, agree4, octave4, other4) => ({
+        'agree 2%': agree2, 'octave 2%': octave2, 'other 2%': other2, 'agree 4%': agree4, 'octave 4%': octave4, 'other 4%': other4,
+      });
+      assert.deepEqual(groups.random, {answered: 2, broken: 0, unsure: 0, 'no reference': 0, scored: 2, 'from candidate': 0, ...both(1, 1, 0, 1, 1, 0)});
+      assert.deepEqual(groups.disagreement, {answered: 4, broken: 1, unsure: 1, 'no reference': 0, scored: 2, 'from candidate': 2, ...both(1, 0, 1, 1, 0, 1)});
       assert.equal(groups.all.answered, 6);
     } finally {
       rmSync(scoreRoot, {recursive: true, force: true});

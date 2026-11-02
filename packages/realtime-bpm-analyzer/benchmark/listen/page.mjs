@@ -1,5 +1,5 @@
 // The listening page: one blind row at a time. It only ever knows a row number, never the track's id.
-import {addTap, finalTempo, tempoFromTaps} from './tap-tempo.mjs';
+import {addTap, finalTempo, isSteady, tempoFromTaps} from './tap-tempo.mjs';
 
 /** Where the groove usually is, past the intro */
 const startAt = 0.3;
@@ -20,6 +20,10 @@ function render() {
   $('taps').textContent = String(taps.length);
   $('tapped').textContent = tapped !== null && factor !== 1 ? `, tapped ${tapped}, x${factor}` : '';
   $('final').textContent = final === null ? '--' : final.toFixed(1);
+  // Tells the listener when to stop tapping: the first batch ran 40 to 64 taps a row where about a dozen would do
+  const steady = final !== null && isSteady(taps);
+  $('steady').textContent = steady ? 'Steady: press Enter to save and go on' : (final === null ? '' : 'Keep tapping until steady');
+  $('tempo').classList.toggle('steady', steady);
   /** @type {HTMLButtonElement} */ ($('save')).disabled = final === null || busy;
 }
 
@@ -121,6 +125,17 @@ document.addEventListener('keydown', event => {
   event.preventDefault();
   if (!event.repeat) {
     tap();
+  }
+}, {capture: true});
+// Enter saves from anywhere, so a row needs no trip to the mouse: the same as pressing Save and next
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' || event.repeat) {
+    return;
+  }
+
+  event.preventDefault();
+  if (!/** @type {HTMLButtonElement} */ ($('save')).disabled) {
+    void send('save');
   }
 }, {capture: true});
 document.addEventListener('keyup', event => {

@@ -178,15 +178,17 @@ Free-mixes is opt-in: `run.ts --sets free-mixes` reads it once `split-ids.json` 
 
 ### Confirming tempos by ear
 
-`listen/listen.py` serves `confirmation.md` one row at a time to a browser through an SSH tunnel, with standard-library Python only, as the host has no Node. It binds 127.0.0.1, and the audio streams from the box and is never copied. The page is blind: it shows a row number and the audio, never the id, title, label or key, and it never opens `confirmation-key.jsonl`. Tap tempo takes the median interval after eight taps; the x0.5 and x2 buttons settle the octave. Each answer is one line in `confirmation-answers.jsonl`, which is also how it resumes.
+`listen/listen.py` serves `confirmation.md` one row at a time to a browser through an SSH tunnel, with standard-library Python only, as the host has no Node. It binds 127.0.0.1, and the audio streams from the box and is never copied. The page is blind: it shows a row number and the audio, never the id, title, label, group or key. Only `--group` makes the server open `confirmation-key.jsonl`, and then it reads each row's `why` alone, to pick the batch. Tap tempo takes the median interval after eight taps; the x0.5 and x2 buttons settle the octave. Once the latest eight taps are steady (every interval within 10% of their median), the page says so and Enter saves: the first batch ran 40 to 64 taps a row where about a dozen would do. Each answer is one line in `confirmation-answers.jsonl`, which is also how it resumes.
 
 ```sh
 # On the Mac: starts the server for rows 1 to 60, opens the tunnel, and Ctrl-C stops both
 ssh -t -L 8459:127.0.0.1:8459 srv-compute 'python3 -I ~/rba-listen/listen.py serve --rows 1-60'
+# or 30 random-sample rows not answered before, in list order
+ssh -t -L 8459:127.0.0.1:8459 srv-compute 'python3 -I ~/rba-listen/listen.py serve --group random --count 30'
 # then open http://localhost:8459
 
-# After a batch only: agreement within 2%, octave and other errors, random rows apart from disagreements
+# After a batch only: agreement within 4% (and 2%, to compare), octave and other errors, random rows apart from disagreements
 ssh srv-compute 'python3 -I ~/rba-listen/listen.py score'
 ```
 
-`~/rba-listen` is a copy of `benchmark/listen/` on the box. The score takes the latest answer for each row, uses the label or, without one, the trackers' candidate, and leaves unsure and broken rows out of the agreement count.
+`~/rba-listen` is a copy of `benchmark/listen/` on the box. The score takes the latest answer for each row, uses the label or, without one, the trackers' candidate, and leaves unsure and broken rows out of the agreement count. Agreement is 4%, for half and double too: taps carry a few percent of human error, and four of the first batch's 40 scored rows fell between 2% and 4%. A group batch tags its answers with the group, so a restart serves the same rows while rows answered in an earlier batch stay out; answers match by id, so they keep their meaning if `consolidate` rebuilds the list, though a rebuilt list draws a new random sample and new row numbers.

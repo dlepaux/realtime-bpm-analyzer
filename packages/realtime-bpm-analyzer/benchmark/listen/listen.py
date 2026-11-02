@@ -2,10 +2,12 @@
 """RBA-59 blind tempo confirmation: a listening page, and the score once a batch is done.
 
 serve  Serves confirmation.md's rows one at a time on 127.0.0.1, reached through an SSH tunnel.
-       The browser sees a row number and the audio, never the id, title, label or key.
+       The browser sees a row number and the audio, never the id, title, label, group or key.
        Answers are appended to confirmation-answers.jsonl, so a restart resumes where it stopped.
-score  Compares the answers with confirmation-key.jsonl, apart for the random and disagreement rows.
-       Run it only after listening: serve never opens the key.
+       --group random --count 30 picks the batch from the key's groups: serve reads only `why`
+       there, never a label, candidate or vote.
+score  Compares the answers with confirmation-key.jsonl, apart for the random and disagreement rows,
+       at 2% and at 4%. Run it only after listening.
 
 Standard library only, so it runs on the box's own python3 with nothing installed.
 """
@@ -38,7 +40,10 @@ LOCAL_HOSTS = {'127.0.0.1', 'localhost'}
 MOST_BODY_BYTES = 4096
 MOST_NOTE_CHARS = 500
 CHUNK = 64 * 1024
-AGREE_WITHIN = 0.02
+# Taps carry a few percent of human error (rows 9, 31, 36 and 57 of the first batch fell at 2-4%),
+# so 4% is the agreement rule. 2% stays beside it so the first batch's figures can be compared.
+TOLERANCES = (0.02, 0.04)
+GROUPS = ('random', 'disagreement')
 
 
 def parse_list(text):
@@ -97,14 +102,14 @@ def bpm_or_none(value, low, high):
     return round(float(value), 1)
 
 
-def make_answer(body, rows, first, last, now):
-    """Validates a posted answer and adds what only the server may know: the id and the time."""
+def make_answer(body, rows, batch, now, group=None):
+    """Validates a posted answer and adds what only the server may know: the id, the time, the batch's group."""
     kind = body.get('kind')
     row = body.get('row')
     if kind not in ('save', 'unsure', 'broken'):
         raise ValueError('kind must be save, unsure or broken')
-    if isinstance(row, bool) or not isinstance(row, int) or not first <= row <= last:
-        raise ValueError(f'row must be from {first} to {last}')
+    if isinstance(row, bool) or not isinstance(row, int) or row not in batch:
+        raise ValueError('row is not in this batch')
     tapped = bpm_or_none(body.get('tappedBpm'), 30, 400)
     final = bpm_or_none(body.get('finalBpm'), 15, 800)
     taps = body.get('taps')
@@ -123,7 +128,7 @@ def make_answer(body, rows, first, last, now):
         raise ValueError('save needs at least 8 taps')
     if kind == 'broken' and tapped is not None:
         raise ValueError('a broken track has no tempo')
-    return {
+    answer = {
         'row': row,
         'id': rows[row - 1][0],
         'tappedBpm': tapped,
@@ -134,16 +139,16 @@ def make_answer(body, rows, first, last, now):
         'note': note.strip(),
         'at': now.isoformat(timespec='seconds'),
     }
+    if group is not None:
+        answer['group'] = group  # keeps a group batch the same rows across restarts
+    return answer
 
 
-def progress(rows, answers, first, last):
+def progress(rows, answers, batch):
     """Where the listener stands: the first unanswered row of the batch, or None when it is done."""
     done = {answer.get('id') for answer in answers}
-    batch = range(first, last + 1)
     pending = [row for row in batch if rows[row - 1][0] not in done]
     return {
-        'first': first,
-        'last': last,
         'total': len(batch),
         'answered': len(batch) - len(pending),
         'row': pending[0] if pending else None,
@@ -165,7 +170,7 @@ def parse_range(header, size):
     return start, end
 
 
-def make_handler(root, rows, first, last):
+def make_handler(root, rows, batch, group=None):
     answers_path = root / ANSWERS
     lock = threading.Lock()
 
@@ -214,14 +219,14 @@ def make_handler(root, rows, first, last):
                 self.send_bytes(HTTPStatus.OK, (HERE / name).read_bytes(), content_type)
             elif path == '/api/state':
                 with lock:
-                    self.send_json(HTTPStatus.OK, progress(rows, read_answers(answers_path), first, last))
+                    self.send_json(HTTPStatus.OK, progress(rows, read_answers(answers_path), batch))
             elif re.fullmatch(r'/audio/\d{1,4}', path):
                 self.send_audio(int(path.rsplit('/', 1)[1]))
             else:
                 self.send_text(HTTPStatus.NOT_FOUND, 'not found')
 
         def send_audio(self, row):
-            if not first <= row <= last:
+            if row not in batch:
                 self.send_text(HTTPStatus.NOT_FOUND, 'not in this batch')
                 return
             try:
@@ -279,13 +284,13 @@ def make_handler(root, rows, first, last):
                 body = json.loads(self.rfile.read(length))
                 if not isinstance(body, dict):
                     raise ValueError('body must be an object')
-                answer = make_answer(body, rows, first, last, datetime.datetime.now(datetime.timezone.utc))
+                answer = make_answer(body, rows, batch, datetime.datetime.now(datetime.timezone.utc), group)
             except ValueError as error:
                 self.send_text(HTTPStatus.BAD_REQUEST, str(error))
                 return
             with lock:
                 append_answer(answers_path, answer)
-                state = progress(rows, read_answers(answers_path), first, last)
+                state = progress(rows, read_answers(answers_path), batch)
             self.send_json(HTTPStatus.OK, state)
 
     return Handler
@@ -301,16 +306,60 @@ def batch_bounds(text, count):
     return first, last
 
 
+def read_groups(path):
+    """Each key id's group, and nothing else from the key: the listener's batch may depend on it, never a label."""
+    groups = {}
+    for line in path.read_text(encoding='utf-8').splitlines():
+        if line.strip():
+            entry = json.loads(line)
+            groups[entry['id']] = entry['why']
+    return groups
+
+
+def group_batch(rows, groups, answers, group, count, first, last):
+    """The group's rows in list order that are unanswered or were answered in a batch of this group, first `count`.
+
+    Rows answered before, outside any group batch, are skipped, so the batch holds only fresh rows; rows answered
+    in it stay in it, so a restart serves the same batch. It goes by id, not row number, as `consolidate` may rebuild the list.
+    """
+    latest = {answer.get('id'): answer for answer in answers}
+    batch = []
+    for row in range(first, last + 1):
+        track = rows[row - 1][0]
+        if groups.get(track) != group:
+            continue
+        if track in latest and latest[track].get('group') != group:
+            continue
+        batch.append(row)
+        if len(batch) == count:
+            break
+    return batch
+
+
 def serve(args):
     root = Path(args.root).resolve()
     rows = parse_list((root / 'confirmation.md').read_text(encoding='utf-8'))
     if not rows:
         raise SystemExit('confirmation.md lists no rows')
-    first, last = batch_bounds(args.rows, len(rows))
-    server = ThreadingHTTPServer(('127.0.0.1', args.port), make_handler(root, rows, first, last))
+    first, last = batch_bounds(args.rows, len(rows)) if args.rows else (1, len(rows))
+    answers = read_answers(root / ANSWERS)
+    if args.count is not None and args.count < 1:
+        raise SystemExit('--count must be at least 1')
+    if args.group:
+        batch = group_batch(rows, read_groups(root / KEY), answers, args.group, args.count, first, last)
+        if not batch:
+            raise SystemExit(f'no {args.group} rows left to answer in rows {first}-{last}')
+        if args.count is not None and len(batch) < args.count:
+            print(f'only {len(batch)} {args.group} rows left, not {args.count}', flush=True)
+    else:
+        if args.count is not None:
+            raise SystemExit('--count needs --group')
+        batch = list(range(first, last + 1))
+    server = ThreadingHTTPServer(('127.0.0.1', args.port), make_handler(root, rows, frozenset(batch), args.group))
     server.daemon_threads = True
-    state = progress(rows, read_answers(root / ANSWERS), first, last)
-    print(f'listening on http://127.0.0.1:{server.server_address[1]} rows {first}-{last}, {state["answered"]} of {state["total"]} answered. Ctrl-C stops.', flush=True)
+    state = progress(rows, answers, batch)
+    what = f'{len(batch)} {args.group} rows' if args.group else f'rows {first}-{last}'
+    print(f'listening on http://127.0.0.1:{server.server_address[1]} {what}, {state["answered"]} of {state["total"]} answered. Ctrl-C stops.', flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -319,10 +368,10 @@ def serve(args):
         server.server_close()
 
 
-def classify(heard, reference):
-    """agree within 2%, octave when half or double the reference within 2%, otherwise other."""
+def classify(heard, reference, within):
+    """agree within `within`, octave when half or double the reference within the same share, otherwise other."""
     def near(a, b):
-        return abs(a - b) <= AGREE_WITHIN * b
+        return abs(a - b) <= within * b
     if near(heard, reference):
         return 'agree'
     if near(heard, reference * 2) or near(heard, reference / 2):
@@ -338,7 +387,7 @@ def score_rows(answers, key):
         entry = key.get(answer['id'])
         why = entry['why'] if entry else 'not in key'
         for name in (why, 'all'):
-            counts = groups.setdefault(name, {'answered': 0, 'broken': 0, 'unsure': 0, 'no reference': 0, 'scored': 0, 'agree': 0, 'octave': 0, 'other': 0, 'from candidate': 0})
+            counts = groups.setdefault(name, empty_counts())
             counts['answered'] += 1
             if answer.get('broken'):
                 counts['broken'] += 1
@@ -353,17 +402,37 @@ def score_rows(answers, key):
                 continue
             counts['scored'] += 1
             counts['from candidate'] += label is None
-            counts[classify(answer['finalBpm'], reference)] += 1
+            for within in TOLERANCES:
+                counts[f'{classify(answer["finalBpm"], reference, within)} {percent(within)}'] += 1
     return groups
+
+
+def percent(within):
+    return f'{round(within * 100)}%'
+
+
+def empty_counts():
+    counts = {'answered': 0, 'broken': 0, 'unsure': 0, 'no reference': 0, 'scored': 0, 'from candidate': 0}
+    for within in TOLERANCES:
+        counts.update({f'{verdict} {percent(within)}': 0 for verdict in ('agree', 'octave', 'other')})
+    return counts
 
 
 def score_table(groups):
     names = [name for name in ('random', 'disagreement', 'not in key', 'all') if name in groups]
-    lines = ['| rows | answered | broken | unsure | no reference | scored | agree (2%) | octave | other | corrected | ref from candidate |', '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |']
+    shares = [percent(within) for within in TOLERANCES]
+    head = ['rows', 'answered', 'broken', 'unsure', 'no reference', 'scored', 'ref from candidate']
+    for share in shares:
+        head += [f'agree {share}', f'octave {share}', f'other {share}', f'corrected {share}']
+    lines = ['| ' + ' | '.join(head) + ' |', '| --- |' + ' ---: |' * (len(head) - 1)]
     for name in names:
         c = groups[name]
-        corrected = f'{100 * (c["octave"] + c["other"]) / c["scored"]:.1f}%' if c['scored'] else 'n/a'
-        lines.append(f'| {name} | {c["answered"]} | {c["broken"]} | {c["unsure"]} | {c["no reference"]} | {c["scored"]} | {c["agree"]} | {c["octave"]} | {c["other"]} | {corrected} | {c["from candidate"]} |')
+        cells = [name] + [str(c[field]) for field in ('answered', 'broken', 'unsure', 'no reference', 'scored', 'from candidate')]
+        for share in shares:
+            wrong = c[f'octave {share}'] + c[f'other {share}']
+            cells += [str(c[f'agree {share}']), str(c[f'octave {share}']), str(c[f'other {share}'])]
+            cells.append(f'{100 * wrong / c["scored"]:.1f}%' if c['scored'] else 'n/a')
+        lines.append('| ' + ' | '.join(cells) + ' |')
     return '\n'.join(lines)
 
 
@@ -387,7 +456,9 @@ def main(argv):
     serving = commands.add_parser('serve', help='serve the listening page on 127.0.0.1')
     serving.add_argument('--root', default='/srv/data/rba-tempo/free-data')
     serving.add_argument('--port', type=int, default=8459)
-    serving.add_argument('--rows', default='1-60', help='the batch, FIRST-LAST in list order')
+    serving.add_argument('--rows', help='FIRST-LAST in list order: the batch, or with --group the rows it picks from (default all)')
+    serving.add_argument('--group', choices=GROUPS, help="pick the batch from the key's group, skipping rows answered before")
+    serving.add_argument('--count', type=int, help='with --group, the batch size')
     scoring = commands.add_parser('score', help='compare the answers with the key, after listening')
     scoring.add_argument('--root', default='/srv/data/rba-tempo/free-data')
     scoring.add_argument('--json', action='store_true')

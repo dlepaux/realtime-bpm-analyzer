@@ -52,6 +52,32 @@ export function tempoFromTaps(taps) {
 }
 
 /**
+ * How far each of the latest intervals may stray from their median for the taps to count as steady.
+ * Loose enough that ordinary tapping (a few percent per interval) gets there, tight enough that a
+ * missed, doubled or clearly stray tap does not: the median of seven such intervals lands within
+ * about 2% of the tempo, inside the 4% the score allows.
+ */
+export const steadyWithin = 0.1;
+
+/**
+ * Whether the latest eight taps are even enough to save: no interval strays more than 10% from their median.
+ * The first batch ran 40 to 64 taps a row; once eight are steady, more taps barely move the answer.
+ * @param {readonly number[]} taps Tap times in milliseconds, oldest first
+ * @returns {boolean}
+ */
+export function isSteady(taps) {
+  if (taps.length < tapsBeforeTempo) {
+    return false;
+  }
+
+  const latest = taps.slice(-tapsBeforeTempo);
+  const intervals = latest.slice(1).map((at, index) => at - latest[index]);
+  const median = [...intervals].sort((a, b) => a - b)[Math.floor(intervals.length / 2)];
+
+  return median > 0 && intervals.every(interval => Math.abs(interval - median) <= steadyWithin * median);
+}
+
+/**
  * The answer after the half or double question.
  * @param {number | null} tapped The tapped BPM
  * @param {number} factor Product of the x0.5 and x2 presses, a power of two

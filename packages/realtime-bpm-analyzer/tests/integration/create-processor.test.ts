@@ -246,6 +246,28 @@ describe('createRealtimeBpmAnalyzer', function () {
       });
     }
 
+    for (const liveInput of [true, 'track', 42, null, {}, {kind: 'video'}]) {
+      it(`rejects liveInput ${JSON.stringify(liveInput)} before loading anything`, async () => {
+        const spy = spyOnAddModule(audioContext);
+        const caught = await rejectionOf(async () => createRealtimeBpmAnalyzer(audioContext, {
+          liveInput: liveInput as unknown as MediaStreamTrack,
+        })).finally(spy.restore);
+
+        expect(caught).to.be.instanceOf(TypeError);
+        expect((caught as Error).message).to.contain('liveInput');
+        expect(spy.calls).to.have.length(0);
+      });
+    }
+
+    it('takes an audio track, and keeps it out of the worklet options', async () => {
+      // A track in processorOptions would make the AudioWorkletNode constructor fail structured cloning
+      const liveInput = audioContext.createMediaStreamDestination().stream.getAudioTracks()[0];
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext, {liveInput});
+
+      expect(analyzer.node).to.be.instanceOf(AudioWorkletNode);
+      analyzer.stop();
+    });
+
     it('publishes a standalone processor file with no imports', async () => {
       const source = await (await fetch(publishedProcessorPath)).text();
 

@@ -286,10 +286,18 @@ export class RealTimeBpmAnalyzer {
       && this.effectiveBufferTime / audioSampleRate
         > this.computedStabilizationTimeInSeconds
     ) {
-      this.reset();
-      postMessage({type: 'analyzerReset'});
-      postMessage({type: 'progress', data: currentProgress(this)});
+      this.startOver(postMessage);
     }
+  }
+
+  /**
+   * Reset, and say so: progress falls back with it, and a consumer shouldn't have to guess why
+   * @param postMessage - Function to post a message to the processor node
+   */
+  startOver(postMessage: (data: ProcessorOutputEvent) => void): void {
+    this.reset();
+    postMessage({type: 'analyzerReset'});
+    postMessage({type: 'progress', data: currentProgress(this)});
   }
 
   /**

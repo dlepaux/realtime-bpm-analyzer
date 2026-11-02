@@ -90,8 +90,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   // Made by the first report of a live input's clock: a source the audio thread pulls waits for it and loses nothing.
   sampleClock: SampleClock | null = null;
   silentQuantum = new Float32Array(renderQuantumFrames);
-  /** A lock kept from the main thread while the clock was behind. It fires once, so the analyzer has to lock again. */
-  lockWithheld = false;
 
   constructor(options: AudioWorkletProcessorParameters) {
     super(options);
@@ -117,6 +115,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     switch (event.data.type) {
       case 'reset': {
         this.realTimeBpmAnalyzer.reset();
+        this.sampleClock?.forget();
         break;
       }
 
@@ -158,9 +157,10 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     // Ahead of the check below: time goes by for an input that is disconnected too, and nothing of it is lost.
     const owesSilence = this.sampleClock?.advance(renderQuantumFrames) ?? false;
 
-    if (this.lockWithheld && !this.sampleClock?.isBehind()) {
-      this.lockWithheld = false;
-      this.realTimeBpmAnalyzer.reset();
+    if (this.sampleClock?.takeStartOver()) {
+      this.realTimeBpmAnalyzer.startOver(event => {
+        this.port.postMessage(event);
+      });
     }
 
     if (!currentChunk) {
@@ -195,9 +195,12 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
           bufferSize,
           postMessage: event => {
             // A wrong tempo marked stable is the worst this can show, and time being lost is when it happens (RBA-97).
-            if (event.type === 'bpmStable' && this.sampleClock?.isBehind()) {
-              this.lockWithheld = true;
+            if (event.type === 'bpmStable' && this.sampleClock?.offerLock() === false) {
               return;
+            }
+
+            if (event.type === 'analyzerReset') {
+              this.sampleClock?.forget();
             }
 
             this.port.postMessage(event);

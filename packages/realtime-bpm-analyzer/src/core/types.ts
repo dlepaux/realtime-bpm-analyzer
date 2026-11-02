@@ -276,11 +276,13 @@ export type CreateRealtimeBpmAnalyzerOptions = RealTimeBpmAnalyzerParameters & {
   /** URL of the processor file handed to `audioWorklet.addModule` (default: an inlined `blob:` URL) */
   processorUrl?: string | URL;
   /**
-   * The track behind a MediaStream source, so tab capture or a microphone. Such an input arrives in real time whatever
-   * the audio thread does: when the thread can't keep up the browser drops part of it, and without this the tempo
-   * then reads high and stable (150 BPM reads 167 at 10% lost). Given the track, the analyzer follows its clock
-   * and counts what was lost as silence, which keeps the tempo right. Needs `MediaStreamTrack.stats` (Chrome 125);
-   * elsewhere it does nothing. A media element or a buffer has no such track: those wait for the thread and lose nothing.
+   * The track behind a MediaStream source. Such an input arrives in real time whatever the audio thread does: when the
+   * thread can't keep up the browser drops part of it, and without this the tempo then reads high and stable (150 BPM
+   * reads 167 at 10% lost). Given the track, the analyzer follows its clock and counts what was lost as silence, which
+   * brings the number close to the tempo. While about 5% or more is being lost, or the clock has stopped reporting, it
+   * holds `bpmStable` back. When the loss ends it may start over and emit `analyzerReset`. Needs `MediaStreamTrack.stats`,
+   * which is specified for `getUserMedia` tracks: without it, this silently does nothing. Measured on Chrome tab capture,
+   * not on a microphone. A media element or a buffer has no such track: those wait for the thread and lose nothing.
    */
   liveInput?: MediaStreamTrack;
 };

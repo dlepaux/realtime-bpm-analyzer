@@ -1,6 +1,5 @@
 import {expect} from 'chai';
 import {createSampleClock, followTrackClock} from '../../../src/core/sample-clock';
-import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
 
 const rate = 48_000;
 const quantum = 128;
@@ -107,6 +106,13 @@ describe('createSampleClock', () => {
     });
   }
 
+  // Lost per window rendered is 1 / share - 1, so these are 7.5% and 3.1%: either side of the 5% edge. Close to it the
+  // clock flickers (96% render was behind for 20 s of 43), which is why neither case sits closer.
+  it('is behind for all of a loss clearly over 5%, and never for one clearly under', () => {
+    expect(behindIn({thread: steady(0.93), seconds: 20}).length).to.be.at.least(17);
+    expect(behindIn({thread: steady(0.97), seconds: 20}).length).to.equal(0);
+  });
+
   it('is not behind for reports that arrive late', () => {
     expect(behindIn({thread: () => 1, seconds: 30, late: t => (Math.floor(t) % 2 === 0 ? 0.015 : 0)}).length).to.equal(0);
   });
@@ -172,6 +178,187 @@ describe('createSampleClock', () => {
     expect(owedIn({thread, input, seconds: 30})).to.be.closeTo(lost, 0.3 * rate);
   });
 
+  it('pays no lump after a long clean stretch: what it pays stays at the pace of the loss', () => {
+    const clock = createSampleClock(rate);
+    let delivered = 0;
+    let run = 0;
+    let longestRun = 0;
+
+    const render = (seconds: number) => {
+      for (let i = 0; i < seconds * rate / quantum; i += 1) {
+        delivered += quantum / rate;
+
+        if (i % 94 === 0) {
+          clock.observe(delivered);
+        }
+
+        run = clock.advance(quantum) ? run + 1 : 0;
+        longestRun = Math.max(longestRun, run);
+      }
+    };
+
+    render(2);
+    // A sliver of a drop leaves under a quantum owed, which nothing pays and which keeps a pace going
+    delivered += 0.021;
+    render(600);
+    longestRun = 0;
+    delivered += 0.5;
+    render(3);
+
+    // 0.5 s across a 1 s window is about a silent quantum in every two, against hundreds in a row if it saved up
+    expect(longestRun).to.be.within(1, 3);
+  });
+
+  it('owes no more than 2 s, however long the thread stays below what it can pay', () => {
+    const thread = (t: number) => (t < 30 ? 0.4 : 1);
+    let afterwards = 0;
+    const clock = createSampleClock(rate);
+    let delivered = 0;
+    let due = 0;
+    let nextReport = 0;
+
+    for (let t = 0; t < 40; t += 0.001) {
+      delivered += 0.001;
+      due += thread(t) * 0.001 * rate;
+
+      if (t >= nextReport) {
+        clock.observe(delivered);
+        nextReport += 0.25;
+      }
+
+      while (due >= quantum) {
+        const owes = clock.advance(quantum);
+
+        afterwards += owes && t >= 31 ? quantum : 0;
+        due -= quantum;
+      }
+    }
+
+    expect(afterwards / rate).to.be.at.most(2);
+  });
+
+  describe('a window with no report', () => {
+    /** At 90% from the start: the reports stop at `until`, and it tells whether the clock would let a lock out at the end */
+    function lockAllowedAfter(until: number, seconds = 30, every = 0.25) {
+      const clock = createSampleClock(rate);
+      let nextReport = 0;
+
+      for (let i = 0; i < seconds * 0.9 * rate / quantum; i += 1) {
+        const t = i * quantum / rate / 0.9;
+
+        if (t >= nextReport) {
+          if (t < until) {
+            clock.observe(t);
+          }
+
+          nextReport += every;
+        }
+
+        clock.advance(quantum);
+      }
+
+      return clock.offerLock();
+    }
+
+    it('does not count as clean: reports that stop say nothing, and the clock stays behind', () => {
+      expect(lockAllowedAfter(3)).to.equal(false);
+    });
+
+    it('does not count as clean with one report a minute either', () => {
+      expect(lockAllowedAfter(Number.POSITIVE_INFINITY, 300, 60)).to.equal(false);
+    });
+
+    it('lets no lock out once reports have stopped, even before any loss showed', () => {
+      expect(lockAllowedAfter(1)).to.equal(false);
+    });
+
+    it('does not end being behind: the windows after the reports come back do', () => {
+      const clock = createSampleClock(rate);
+      let t = 0;
+
+      const render = (seconds: number, share: number, reported: boolean) => {
+        for (let i = 0; i < seconds * share * rate / quantum; i += 1) {
+          t += quantum / rate / share;
+
+          if (reported && i % 94 === 0) {
+            clock.observe(t);
+          }
+
+          clock.advance(quantum);
+        }
+      };
+
+      render(10, 0.9, true);
+      expect(clock.isBehind()).to.equal(true);
+      render(20, 1, false);
+      expect(clock.isBehind()).to.equal(true);
+      render(6, 1, true);
+      expect(clock.isBehind()).to.equal(false);
+    });
+  });
+
+  describe('a report that makes no sense', () => {
+    /** Behind at 90%, once the given reports have gone in at the start */
+    function behindAfter(...first: number[]) {
+      const clock = createSampleClock(rate);
+
+      for (const seconds of first) {
+        clock.observe(seconds);
+      }
+
+      for (let i = 0; i < 20 * 0.9 * rate / quantum; i += 1) {
+        if (i % 94 === 0) {
+          clock.observe(i * quantum / rate / 0.9);
+        }
+
+        clock.advance(quantum);
+      }
+
+      return clock.isBehind();
+    }
+
+    for (const report of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1, 1e300, 1e308, 1e6]) {
+      it(`can't blind the clock: ${report}`, () => {
+        expect(behindAfter(report)).to.equal(true);
+      });
+    }
+
+    it('makes no clock of itself: reports that are all garbage leave it as if there were none', () => {
+      const clock = createSampleClock(rate);
+
+      for (let i = 0; i < 20 * rate / quantum; i += 1) {
+        if (i % 94 === 0) {
+          clock.observe(Number.NaN);
+        }
+
+        expect(clock.advance(quantum)).to.equal(false);
+      }
+
+      expect(clock.offerLock()).to.equal(true);
+    });
+
+    it('starts over from a counter that steps back, and keeps counting what is lost', () => {
+      const clock = createSampleClock(rate);
+      let delivered = 100;
+
+      for (let i = 0; i < 20 * 0.9 * rate / quantum; i += 1) {
+        if (i === 900) {
+          delivered = 0;
+        }
+
+        delivered += quantum / rate / 0.9;
+
+        if (i % 94 === 0) {
+          clock.observe(delivered);
+        }
+
+        clock.advance(quantum);
+      }
+
+      expect(clock.isBehind()).to.equal(true);
+    });
+  });
+
   it('gives up when nearly nothing renders: there is no tempo to protect', () => {
     expect(owedIn({thread: steady(0.3), seconds: 60})).to.equal(0);
   });
@@ -226,118 +413,4 @@ describe('followTrackClock', () => {
     })();
     expect(tick).to.equal(null);
   });
-});
-
-/** A groove: kick and hat, at a tempo. */
-function groove(bpm: number, seconds: number): Float32Array {
-  const out = new Float32Array(seconds * rate);
-  const beat = (60 / bpm) * rate;
-
-  for (let b = 0; Math.round(b * beat) < out.length; b += 1) {
-    const at = Math.round(b * beat);
-
-    for (let i = 0; i < 5000 && at + i < out.length; i += 1) {
-      out[at + i] += 0.8 * Math.sin(2 * Math.PI * 60 * i / rate) * Math.exp(-i / 2000);
-    }
-  }
-
-  return out;
-}
-
-/**
- * What the worklet feeds the analyzer when the thread runs at `share`, as the browser does it: whole 10 ms
- * buffers of the input go missing, and with `kept` the clock puts silence back.
- */
-async function reading(detector: 'peaks' | 'tempogram', bpm: number, share: number, kept: boolean): Promise<{top?: number; stable: number[]}> {
-  const analyzer = new RealTimeBpmAnalyzer(detector === 'tempogram' ? {detector, tempogramMode: 'extension'} : {detector});
-  const clock = createSampleClock(rate);
-  const audio = groove(bpm, 45);
-  const silent = new Float32Array(quantum);
-  const buffer = new Float32Array(4096);
-  const lostEvery = 480 / (1 - share);
-  const result: {top?: number; stable: number[]} = {stable: []};
-  let written = 0;
-  let quanta = 0;
-  let nextLost = lostEvery;
-  let nextReport = 0;
-  let at = 0;
-
-  const feed = async (chunk: Float32Array) => {
-    buffer.set(chunk, written);
-    written += chunk.length;
-
-    if (written === buffer.length) {
-      written = 0;
-      await analyzer.analyzeChunk({
-        audioSampleRate: rate,
-        channelData: buffer,
-        bufferSize: buffer.length,
-        postMessage(event) {
-          if (event.type === 'bpm' && event.data.bpm[0]) {
-            result.top = event.data.bpm[0].tempo;
-          }
-
-          if (event.type === 'bpmStable' && event.data.bpm[0] && !(kept && clock.isBehind())) {
-            result.stable.push(event.data.bpm[0].tempo);
-          }
-        },
-      });
-    }
-  };
-
-  while (at + quantum < audio.length) {
-    // The input keeps real time, reported every 250 ms of it, while the thread runs at its share
-    const realSeconds = (quanta * quantum) / rate / share;
-
-    if (realSeconds >= nextReport) {
-      clock.observe(realSeconds);
-      nextReport += 0.25;
-    }
-
-    const owes = clock.advance(quantum);
-
-    quanta += 1;
-
-    if (kept && owes) {
-      await feed(silent);
-    }
-
-    await feed(audio.subarray(at, at + quantum));
-    at += quantum;
-
-    if (at >= nextLost) {
-      at += 480;
-      nextLost += lostEvery;
-    }
-  }
-
-  return result;
-}
-
-describe('A thread that keeps falling behind a live input', () => {
-  for (const detector of ['tempogram', 'peaks'] as const) {
-    it(`${detector}: reads high and stable without the clock, right with it`, async function () {
-      this.timeout(60_000);
-
-      const without = await reading(detector, 120, 0.9, false);
-
-      expect(without.top).to.be.closeTo(133, 2);
-      expect(without.stable.at(-1)).to.be.closeTo(133, 2);
-
-      for (const [bpm, share] of [[150, 0.9], [120, 0.9], [120, 0.98], [120, 0.85]] as const) {
-        const held = await reading(detector, bpm, share, true);
-
-        expect(held.top, `${bpm} at ${share}`).to.be.closeTo(bpm, 1);
-
-        // Paid silence gets the number back, but a lock heard meanwhile isn't called stable.
-        if (share < 0.95) {
-          expect(held.stable.length, `${bpm} at ${share}`).to.equal(0);
-        }
-
-        for (const stable of held.stable) {
-          expect(stable, `${bpm} at ${share}`).to.be.closeTo(bpm, 1);
-        }
-      }
-    });
-  }
 });

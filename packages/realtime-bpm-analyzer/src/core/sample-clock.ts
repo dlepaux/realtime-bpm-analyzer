@@ -39,19 +39,42 @@ const longestOwedSeconds = 2;
  */
 const pauseSeconds = 0.5;
 
-/** Lost in a window at this share of it or more, the clock is behind. Up to five percent reads right once paid (measured, 0.95 read 150 and 120). */
+/** Lost in a window at this share of it or more, the clock is behind. Up to five percent reads right once paid (measured, 0.95 read 150 and 120). Deficits move in steps and a window keeps the smallest, so the edge is soft: 96% render was behind for part of the time. */
 const behindShare = 0.05;
 
 /** Windows with nothing lost before the clock stops being behind */
 const windowsToRecover = 3;
+
+/** Going this many windows without a report, the clock can't say whether anything is being lost */
+const windowsToGoBlind = 3;
+
+/**
+ * Lost in a spell behind and since the analyzer started over, past this what it heard can't back a lock, so it starts
+ * over when the loss ends. Under it a lock read within 1 BPM (RBA-97, simulated: 596 runs, 100 to 174 BPM), and
+ * starting over would cost a capture 11.5 s for one small drop. Above the 0.25 s a healed stall of 1.9 s adds, and
+ * below the 0.9 s that first read 143 for 100.
+ */
+const lostToStartOverSeconds = 0.3;
+
+/**
+ * Loss takes up to this many windows to show as behind, because a window keeps its smallest deficit. A lock published
+ * in that time may have heard it.
+ */
+const windowsToNotice = 3;
 
 export type SampleClock = {
   /** The input has delivered this much since it started, by its own clock */
   observe: (deliveredSeconds: number) => void;
   /** Whether a silent quantum is owed before this one, of this many frames */
   advance: (frames: number) => boolean;
-  /** Whether time is being lost now, so that what the analyzer hears can't be called stable */
+  /** Whether time is being lost now */
   isBehind: () => boolean;
+  /** Asks to publish a lock, and remembers the answer: no while behind or blind, and the analyzer then has to start over */
+  offerLock: () => boolean;
+  /** Whether the analyzer should start over now, because what it heard was lost. Answers yes once for each loss */
+  takeStartOver: () => boolean;
+  /** The analyzer started over: it no longer holds any lock, or anything that was lost */
+  forget: () => void;
 };
 
 export function createSampleClock(sampleRate: number): SampleClock {
@@ -59,6 +82,9 @@ export function createSampleClock(sampleRate: number): SampleClock {
   const tolerance = toleranceSeconds * sampleRate;
   const longestOwed = longestOwedSeconds * sampleRate;
   const pause = pauseSeconds * sampleRate;
+  const blindAfter = windowsToGoBlind * windowFrames;
+  const lostToStartOver = lostToStartOverSeconds * sampleRate;
+  const notice = windowsToNotice * windowFrames;
   // What the input had delivered before the first frame counted here
   let offset: number | null = null;
   let rendered = 0;
@@ -74,6 +100,12 @@ export function createSampleClock(sampleRate: number): SampleClock {
   let paused = false;
   let behind = false;
   let cleanWindows = 0;
+  let renderedAtLastReport: number | null = null;
+  // The rest is about the analyzer's memory, so it lasts until the analyzer starts over, not the clock
+  let renderedAtLock: number | null = null;
+  let lockPrecedesLoss = false;
+  let lostSinceForgotten = 0;
+  let mustStartOver = false;
 
   function startOver(): void {
     offset = null;
@@ -81,6 +113,7 @@ export function createSampleClock(sampleRate: number): SampleClock {
     paused = false;
     credited = 0;
     owed = 0;
+    smallest = Number.POSITIVE_INFINITY;
   }
 
   /** Banks what a window lost, and returns how much that was */
@@ -104,11 +137,14 @@ export function createSampleClock(sampleRate: number): SampleClock {
     return 0;
   }
 
-  function closeWindow(): void {
-    // No report in the window, the main thread being busy, says nothing: the next one will.
-    const lost = smallest === Number.POSITIVE_INFINITY ? 0 : settle();
+  function judge(lost: number): void {
+    lostSinceForgotten += lost;
 
     if (lost >= behindShare * renderedInWindow) {
+      if (!behind) {
+        lockPrecedesLoss = renderedAtLock !== null && rendered - renderedAtLock >= notice;
+      }
+
       behind = true;
       cleanWindows = 0;
     } else if (behind) {
@@ -116,14 +152,48 @@ export function createSampleClock(sampleRate: number): SampleClock {
       behind = cleanWindows < windowsToRecover;
     }
 
+    if (behind && !lockPrecedesLoss && lostSinceForgotten >= lostToStartOver) {
+      mustStartOver = true;
+    }
+  }
+
+  function closeWindow(): void {
+    // A window with no report, the main thread being busy or the input paused, says nothing either way: not lost, not clean.
+    if (smallest !== Number.POSITIVE_INFINITY) {
+      judge(settle());
+    }
+
     pace = owed / renderedInWindow;
     smallest = Number.POSITIVE_INFINITY;
     renderedInWindow = 0;
   }
 
+  function isBlind(): boolean {
+    return renderedAtLastReport !== null && rendered - renderedAtLastReport > blindAfter;
+  }
+
+  function forget(): void {
+    renderedAtLock = null;
+    lockPrecedesLoss = false;
+    lostSinceForgotten = 0;
+    mustStartOver = false;
+  }
+
   return {
     observe(deliveredSeconds) {
       const delivered = deliveredSeconds * sampleRate;
+
+      // No browser should send these. Believed, one would freeze the clock for good.
+      if (!Number.isFinite(delivered) || delivered < 0) {
+        return;
+      }
+
+      renderedAtLastReport = rendered;
+
+      // The counter only goes up, so a step back means it restarted, or that the highest value was the wrong one.
+      if (delivered < lastDelivered) {
+        startOver();
+      }
 
       offset ??= delivered - rendered;
 
@@ -170,6 +240,27 @@ export function createSampleClock(sampleRate: number): SampleClock {
       return false;
     },
     isBehind: () => behind,
+    offerLock() {
+      if (behind || isBlind()) {
+        mustStartOver = true;
+
+        return false;
+      }
+
+      renderedAtLock = rendered;
+
+      return true;
+    },
+    takeStartOver() {
+      if (!mustStartOver || behind || isBlind()) {
+        return false;
+      }
+
+      forget();
+
+      return true;
+    },
+    forget,
   };
 }
 

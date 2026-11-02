@@ -3,8 +3,9 @@
 import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync, spawnSync} from 'node:child_process';
-import {readFile} from 'node:fs/promises';
-import {fileURLToPath} from 'node:url';
+import {copyFile, mkdtemp, readFile, rm} from 'node:fs/promises';
+import {join} from 'node:path';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import {analyzeFile, audioExtensions, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
 // Built for the tests and not published
@@ -86,6 +87,25 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
       const result = JSON.parse(run.stdout);
       assert.equal(result.ok, true, `${flags.join(' ')}: ${result.error}`);
       assert.ok(Math.abs(result.bpm - 128) <= 1, `got ${result.bpm}`);
+    }
+  });
+
+  it('reports a worker file left behind as a plain failure, whatever the host does with rejections', async () => {
+    // What bundling the package into one file does: api.mjs without analyze-worker.mjs next to
+    // it. Inside dist, so the copy still resolves the package's dependencies.
+    const lone = await mkdtemp(join(packageDir, 'dist', 'bundled-'));
+    try {
+      await copyFile(join(packageDir, 'dist', 'api.mjs'), join(lone, 'api.mjs'));
+      const code = `import(${JSON.stringify(pathToFileURL(join(lone, 'api.mjs')).href)})
+        .then(({analyzeFile}) => analyzeFile(${JSON.stringify(fixture('click-128.mp3'))}))
+        .then(result => console.log(JSON.stringify(result)))`;
+      const run = spawnSync(process.execPath, ['--unhandled-rejections=none', '--input-type=module', '-e', code], {encoding: 'utf8', timeout: 30_000});
+      assert.equal(run.status, 0, run.stderr);
+      const result = JSON.parse(run.stdout);
+      assert.equal(result.ok, false);
+      assert.match(result.error, /Cannot find module .*analyze-worker\.mjs/);
+    } finally {
+      await rm(lone, {recursive: true, force: true});
     }
   });
 

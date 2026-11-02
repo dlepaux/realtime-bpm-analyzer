@@ -23,8 +23,10 @@ const workerUrl = new URL('analyze-worker.mjs', import.meta.url);
 // --input-type, which Node refuses for a worker started from a file: every analysis failed.
 // Filtering the flags is no way out, because Node checks flags it is given and refuses the
 // per-process ones (--v8-pool-size, --stack-trace-limit, ...) it lets a worker inherit. Code
-// is valid input for --input-type of either kind, and import() reads ESM from both.
-const workerCode = `import(${JSON.stringify(workerUrl.href)})`;
+// is valid input for --input-type of either kind, and import() reads ESM from both. A failed
+// import is thrown again as an exception: a rejection alone ends the worker quietly, with no
+// cause, when the host runs with --unhandled-rejections=none or =warn.
+const workerCode = `import(${JSON.stringify(workerUrl.href)}).catch(error => { process.nextTick(() => { throw error; }); })`;
 
 /**
  * Runs the library's analysis on a worker thread. The samples are moved to the worker, not

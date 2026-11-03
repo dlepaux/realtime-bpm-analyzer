@@ -1,6 +1,6 @@
 ---
-title: How BPM Detection Works — Algorithm and Audio Pipeline
-description: How realtime-bpm-analyzer detects tempo — Web Audio API decoding, low-pass filtering, AudioWorklet peak detection, interval analysis. Architecture and algorithm explained.
+title: 'How BPM Detection Works: Algorithm and Audio Pipeline'
+description: 'How realtime-bpm-analyzer detects tempo: Web Audio API decoding, low-pass filtering, AudioWorklet peak detection, interval analysis. Architecture and algorithm explained.'
 ---
 
 # How It Works
@@ -113,7 +113,7 @@ function computeIntervals(peaks, sampleRate) {
 
 ### Step 5: Tempo Grouping
 
-The analyzer compares each detected peak with up to the next nine peaks. It converts each sample interval to BPM, folds it into the tempo range (90–180 by default, set with the `tempoRange` option) by doubling or halving, rounds it to an integer, and groups intervals with the same rounded BPM. It does not merge tempos using a percentage tolerance.
+The analyzer compares each detected peak with up to the next nine peaks. It converts each sample interval to BPM, folds it into the tempo range (90 to 180 by default, set with the `tempoRange` option) by doubling or halving, rounds it to an integer, and groups intervals with the same rounded BPM. It does not merge tempos using a percentage tolerance.
 
 ```typescript
 function groupByTempo(intervalCounts, sampleRate, {min, max} = {min: 90, max: 180}) {
@@ -136,7 +136,7 @@ function groupByTempo(intervalCounts, sampleRate, {min, max} = {min: 90, max: 18
 
 ### Step 6: Candidate Ranking
 
-BPM candidates are sorted by **count** (how many interval comparisons resolve to that rounded tempo), and the top 5 are returned. Each one also gets a `confidence`: the share of all votes, across every tempo group, that land within ±1 BPM of it. Pooling the neighbours absorbs rounding jitter, since a true 128 BPM splits its votes over 127–129.
+BPM candidates are sorted by **count** (how many interval comparisons resolve to that rounded tempo), and the top 5 are returned. Each one also gets a `confidence`: the share of all votes, across every tempo group, that land within ±1 BPM of it. Pooling the neighbours absorbs rounding jitter, since a true 128 BPM splits its votes over 127 to 129.
 
 ```typescript
 function getBPMCandidates(groups) {
@@ -158,7 +158,7 @@ A perfect click track scores about **0.46**, not 1: each peak is paired with the
 
 ### Low-Pass Filtering
 
-The optional `getBiquadFilter()` function creates a low-pass filter that:
+With the default `peaks` detector, `bpmAnalyzer.input` puts a low-pass filter in front of the analyzer, the same one `getBiquadFilter()` builds. It:
 - Removes high frequencies (treble)
 - Emphasizes bass frequencies (where beats typically occur)
 - Improves detection accuracy

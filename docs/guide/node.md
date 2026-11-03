@@ -1,5 +1,5 @@
 ---
-title: BPM Detection in Node.js, Get the Tempo of Audio Files
+title: 'BPM Detection in Node.js: Get the Tempo of Audio Files'
 description: Get the tempo of MP3, WAV or FLAC files in Node.js, Bun or Deno with realtime-bpm-analyzer/node. Decode with ffmpeg or any decoder, analyse one file or a folder, and print the result as JSON.
 ---
 
@@ -41,8 +41,8 @@ The test suite checks this on every change:
 - on the test fixture and on click tracks from 90 to 174 BPM, both functions
   return identical candidates: same tempos, counts and confidences
 
-`analyzeFullBuffer` analyses the first channel of the buffer. Pass channel 0 to
-reproduce it exactly, or a mono downmix of your own.
+Pass channel 0 to match `analyzeFullBuffer`, which reads the first channel, or
+a mono downmix of your own.
 
 ## Decoding the audio
 
@@ -90,9 +90,9 @@ console.log(tempos[0] ? `${tempos[0].tempo} BPM` : 'no clear beat');
 node bpm.mjs song.mp3
 ```
 
-`-ac 1` is ffmpeg's mono downmix of all channels. To reproduce the browser's
-`analyzeFullBuffer` exactly, take the first channel instead: replace `'-ac', '1'`
-with `'-af', 'pan=mono|c0=c0'`.
+`-ac 1` is ffmpeg's mono downmix of all channels. To match `analyzeFullBuffer`,
+which reads the first channel, replace `'-ac', '1'` with `'-af', 'pan=mono|c0=c0'`. The browser decodes at the audio
+context's sample rate, so its samples can still differ slightly from ffmpeg's.
 
 ## A folder, as JSON
 

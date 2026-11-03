@@ -1,5 +1,5 @@
 ---
-title: Browser Compatibility — Web Audio + AudioWorklet Support
+title: 'Browser Compatibility: Web Audio and AudioWorklet Support'
 description: Which browsers support realtime-bpm-analyzer? Works in any modern browser with the Web Audio API and AudioWorklet. Feature-detection snippet, minimum requirements, and platform notes.
 ---
 
@@ -42,10 +42,8 @@ if (isSupported()) {
 
 ### Chrome / Chromium
 
-✅ **Best Performance**
-- Excellent AudioWorklet implementation
-- Lowest latency
-- Best mobile support
+✅ **Supported** (66+)
+- AudioWorklet since Chrome 66
 
 **Notes:**
 - Requires HTTPS or localhost for AudioContext
@@ -53,7 +51,7 @@ if (isSupported()) {
 
 ### Firefox
 
-✅ **Excellent Support**
+✅ **Supported**
 - Reliable AudioWorklet implementation
 - Good performance
 
@@ -101,7 +99,7 @@ if (isSupported()) {
 
 ### Edge (Chromium-based)
 
-✅ **Excellent Support** (79+)
+✅ **Supported** (79+)
 - Same engine as Chrome
 - Identical performance and compatibility
 
@@ -110,10 +108,9 @@ if (isSupported()) {
 ### Mobile Browsers
 
 #### Android Chrome
-✅ **Excellent Support**
+✅ **Supported**
 - Full feature parity with desktop Chrome
-- Good battery efficiency
-- Reliable AudioWorkletcreateRealTimeBpmProcessor
+- Reliable AudioWorklet
 
 **Tips:**
 - Test battery impact on target devices

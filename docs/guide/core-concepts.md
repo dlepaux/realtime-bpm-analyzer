@@ -1,6 +1,6 @@
 ---
-title: Core Concepts — Real-Time vs Continuous BPM Analysis
-description: Understand realtime-bpm-analyzer's usage modes — real-time, continuous (auto-reset), and offline buffer analysis — and pick the right pattern for files, streams, or microphone input.
+title: 'Core Concepts: Real-Time vs Continuous BPM Analysis'
+description: Understand realtime-bpm-analyzer's usage modes (real-time, continuous with auto-reset, and offline buffer analysis) and pick the right pattern for files, streams, or microphone input.
 ---
 
 # Core Concepts
@@ -82,12 +82,12 @@ The library uses the Web Audio API's node-based architecture:
 
 ### Why the Low-Pass Filter?
 
-The optional `getBiquadFilter()` creates a low-pass filter that:
+Connecting the source to `bpmAnalyzer.input` puts a low-pass filter in front of the default `peaks` detector (the same filter `getBiquadFilter()` builds). It:
 - Isolates bass frequencies (typically where the beat is strongest)
 - Reduces noise from high-frequency content
 - Improves peak detection accuracy
 
-You can skip it if analyzing music with prominent high-frequency beats.
+To skip it or use your own filter, connect to `bpmAnalyzer.node` instead, the analyzer with nothing in front of it. The `tempogram` detector needs the full band, so its `.input` adds no filter.
 
 ## How BPM Detection Works
 

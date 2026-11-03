@@ -4,7 +4,8 @@
   "separate-pull-requests": true,
   "plugins": [
     {
-      "type": "node-workspace"
+      "type": "node-workspace",
+      "merge": true
     }
   ],
   "packages": {
@@ -13,42 +14,21 @@
       "component": "realtime-bpm-analyzer",
       "include-component-in-tag": false,
       "release-as": "6.1.0",
-      "changelog-path": "changelog.md",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "/package-lock.json",
-          "jsonpath": "$.packages['packages/realtime-bpm-analyzer'].version"
-        }
-      ]
+      "changelog-path": "changelog.md"
     },
     "packages/cli": {
       "package-name": "realtime-bpm-analyzer-cli",
       "component": "cli",
       "include-component-in-tag": true,
       "changelog-path": "changelog.md",
-      "initial-version": "0.1.0",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "/package-lock.json",
-          "jsonpath": "$.packages['packages/cli'].version"
-        }
-      ]
+      "initial-version": "0.1.0"
     },
     "packages/mcp": {
       "package-name": "realtime-bpm-analyzer-mcp",
       "component": "mcp",
       "include-component-in-tag": true,
       "changelog-path": "changelog.md",
-      "initial-version": "0.1.0",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "/package-lock.json",
-          "jsonpath": "$.packages['packages/mcp'].version"
-        }
-      ]
+      "initial-version": "0.1.0"
     }
   }
 }

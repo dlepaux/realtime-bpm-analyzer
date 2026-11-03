@@ -6,7 +6,7 @@ import {
   resolveTempoRange,
 } from '../../../src/core/tempo';
 import {generateValidPeaksModel} from '../../../src/core/utils';
-import type {Interval, Peaks, TempoRange, ValidPeaks} from '../../../src/core/types';
+import type {Interval, TempoRange, ValidPeaks} from '../../../src/core/types';
 
 /**
  * Tempo range (octave folding) and confidence v1 (RBA-22).
@@ -17,7 +17,7 @@ const sampleRate = 44100;
 /**
  * Peaks of a perfect click train, in samples
  */
-function clickTrain(bpm: number, beats = 40): Peaks {
+function clickTrain(bpm: number, beats = 40): number[] {
   const samplesPerBeat = (60 / bpm) * sampleRate;
   return Array.from({length: beats}, (_, i) => Math.round((i + 1) * samplesPerBeat));
 }
@@ -38,9 +38,9 @@ function seededRandom(seed: number): () => number {
 /**
  * Peaks with random spacing between 0.25 s (the detector's mute window) and 1 s
  */
-function randomPeaks(seed: number, count = 40): Peaks {
+function randomPeaks(seed: number, count = 40): number[] {
   const random = seededRandom(seed);
-  const peaks: Peaks = [];
+  const peaks: number[] = [];
   let position = 0;
   for (let i = 0; i < count; i++) {
     position += Math.round((0.25 + (random() * 0.75)) * sampleRate);
@@ -53,7 +53,7 @@ function randomPeaks(seed: number, count = 40): Peaks {
 /**
  * A click train whose peaks drift by up to ±jitterMs, like a loose live drummer
  */
-function jitteredClickTrain(bpm: number, jitterMs: number, seed: number): Peaks {
+function jitteredClickTrain(bpm: number, jitterMs: number, seed: number): number[] {
   const random = seededRandom(seed);
   const jitter = (jitterMs / 1000) * sampleRate;
   return clickTrain(bpm).map(peak => Math.round(peak + (((random() * 2) - 1) * jitter)));
@@ -62,7 +62,7 @@ function jitteredClickTrain(bpm: number, jitterMs: number, seed: number): Peaks 
 /**
  * computeBpm reads the highest threshold holding more than minPeaks peaks
  */
-function asValidPeaks(peaks: Peaks): ValidPeaks {
+function asValidPeaks(peaks: number[]): ValidPeaks {
   const model = generateValidPeaksModel();
   const [firstThreshold] = Object.keys(model);
   return {...model, [firstThreshold]: peaks};
@@ -112,7 +112,7 @@ describe('analyzer - tempo range', () => {
    * [tempo, count] pairs produced by computeBpm at 4bd2442, before the range option existed.
    * The default path must keep returning exactly these.
    */
-  const baselineBeforeRba22: Array<[string, Peaks, Array<[number, number]>]> = [
+  const baselineBeforeRba22: Array<[string, number[], Array<[number, number]>]> = [
     ['clickTrain(128)', clickTrain(128), [[128, 145], [171, 71], [102, 35], [146, 33], [114, 31]]],
     ['clickTrain(85)', clickTrain(85), [[170, 145], [113, 71], [136, 35], [97, 33], [151, 31]]],
     ['randomPeaks(1)', randomPeaks(1), [[122, 12], [99, 10], [140, 9], [92, 8], [94, 8]]],

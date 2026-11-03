@@ -2,7 +2,7 @@ import {expect} from 'chai';
 import {against285, candidate, gatedBands, heldoutTracks, lookFaults, measure, outOfRange, passBar, reference, reference285} from '../../../benchmark/lib/pass-bar';
 import {detectors, lookDetectors, pickedConfiguration} from '../../../benchmark/lib/detectors';
 import {parseRows, pickWithGuard} from '../../../benchmark/lib/sweep';
-import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
+import {resolveEngine} from '../../../src/core/engine';
 import {defaultTempogramRange, defaultTempogramTuning} from '../../../src/core/tempogram';
 import type {TrackResult} from '../../../benchmark/lib/types';
 
@@ -180,7 +180,7 @@ describe('what the second look fixes', () => {
   it('runs the mode through its option, with no override and no lowpass', () => {
     const {options, tuning, lowpass} = detectors[candidate];
 
-    expect(options).to.deep.equal({detector: 'tempogram', tempogramMode: 'extension'});
+    expect(options).to.deep.equal({engine: {name: 'tempogram', mode: 'extension'}});
     expect(tuning).to.equal(undefined);
     expect(lowpass).to.equal(false);
   });
@@ -205,7 +205,7 @@ describe('what the second look fixes', () => {
   });
 
   it('leaves peaks the default detector, and the first pick only as a row to compare against', () => {
-    expect(new RealTimeBpmAnalyzer().options.detector).to.equal('peaks');
+    expect(resolveEngine(undefined, undefined).engine.name).to.equal('peaks');
     expect(detectors.peaks.options).to.deep.equal({});
     expect(detectors['tempogram-first'].tuning).to.include({priorBpm: 110, priorOctaves: 0.7, thirdBeatPenalty: 0.2});
     expect(detectors['tempogram-first'].options.tempoRange).to.deep.equal({min: 50, max: 240});

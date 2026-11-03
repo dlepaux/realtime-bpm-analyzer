@@ -3,7 +3,8 @@ import {analyzeFullBuffer} from '../../src/index';
 import {analyzeChannelData, applyLowpass} from '../../src/node';
 import {getOfflineLowPassSource, getBiquadFilter} from '../../src/core/offline-pipeline';
 import {lowpassCoefficients} from '../../src/core/lowpass';
-import type {BiquadFilterOptions, Tempo} from '../../src/core/types';
+import type {BiquadFilterOptions} from '../../src/core/types';
+import type {OfflineResult} from '../../src/contract/types';
 import {createClickTrack, createNoise, clickTrackTempos} from '../fixtures/click-track';
 import {bassTestExpected} from '../fixtures/bass-test-expected';
 
@@ -46,14 +47,13 @@ function maxAbsDifference(a: Float32Array, b: Float32Array): number {
   return max;
 }
 
-function expectSameCandidates(node: Tempo[], browser: Tempo[]): void {
+function expectSameReading(node: OfflineResult, browser: OfflineResult): void {
   // Two empty results would agree without proving anything
-  expect(browser).to.not.be.empty;
-  expect(node.map(t => t.tempo)).to.deep.equal(browser.map(t => t.tempo));
-  expect(node.map(t => t.count)).to.deep.equal(browser.map(t => t.count));
-  node.forEach((candidate, i) => {
-    expect(candidate.confidence).to.be.closeTo(browser[i].confidence, 1e-9);
-  });
+  expect(browser).to.not.equal(null);
+  expect(node?.bpm).to.equal(browser?.bpm);
+  expect(node?.candidates).to.deep.equal(browser?.candidates);
+  expect(node?.audio).to.deep.equal(browser?.audio);
+  expect(node?.confidence).to.be.closeTo(browser!.confidence, 1e-9);
 }
 
 async function loadFixture(): Promise<AudioBuffer> {
@@ -113,10 +113,9 @@ describe('Node entry parity with Web Audio', () => {
 
       console.log(`[parity] bass-test.wav browser ${JSON.stringify(browser)}`);
       console.log(`[parity] bass-test.wav node    ${JSON.stringify(node)}`);
-      expectSameCandidates(node, browser);
+      expectSameReading(node, browser);
       // Pins the value tests/node checks in plain Node, so both runtimes share one reference
-      expect(browser[0].tempo).to.equal(bassTestExpected.tempo);
-      expect(browser[0].count).to.equal(bassTestExpected.count);
+      expect(browser?.bpm).to.equal(bassTestExpected.tempo);
     });
 
     for (const bpm of clickTrackTempos) {
@@ -126,29 +125,30 @@ describe('Node entry parity with Web Audio', () => {
         const browser = await analyzeFullBuffer(audioBufferFrom(samples, sampleRate));
         const node = await analyzeChannelData(samples, sampleRate);
 
-        console.log(`[parity] click ${bpm} BPM: browser ${browser[0]?.tempo} (count ${browser[0]?.count}), node ${node[0]?.tempo} (count ${node[0]?.count})`);
-        expectSameCandidates(node, browser);
+        console.log(`[parity] click ${bpm} BPM: browser ${browser?.bpm} (confidence ${browser?.confidence}), node ${node?.bpm} (confidence ${node?.confidence})`);
+        expectSameReading(node, browser);
       });
     }
 
     it('returns the tempogram candidates analyzeFullBuffer returns', async () => {
       const sampleRate = 44_100;
       const samples = createClickTrack(128, sampleRate);
-      const options = {detector: 'tempogram'} as const;
+      const options = {engine: 'tempogram'} as const;
       const browser = await analyzeFullBuffer(audioBufferFrom(samples, sampleRate), options);
 
-      expect(browser.length).to.be.greaterThan(0);
+      expect(browser?.engine).to.equal('tempogram');
       expect(await analyzeChannelData(samples, sampleRate, options)).to.deep.equal(browser);
     });
 
     it('applies the custom filter and tempo range like analyzeFullBuffer', async () => {
       const sampleRate = 44_100;
       const samples = createClickTrack(174, sampleRate);
-      const options = {frequencyValue: 150, qualityValue: 2, tempoRange: {min: 70, max: 140}};
+      const options = {engine: {name: 'peaks', lowpass: {frequency: 150, q: 2}}, tempoRange: {min: 70, max: 140}} as const;
       const browser = await analyzeFullBuffer(audioBufferFrom(samples, sampleRate), options);
       const node = await analyzeChannelData(samples, sampleRate, options);
 
-      expectSameCandidates(node, browser);
+      expectSameReading(node, browser);
+      expect(browser?.bpm).to.be.within(70, 140);
     });
   });
 });

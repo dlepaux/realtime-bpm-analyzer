@@ -30,9 +30,9 @@ describe('streamPcm', () => {
   async function lastTempo(tempoRange: {min: number; max: number}): Promise<number> {
     let last = 0;
 
-    await streamPcm(clicks(60, 20), sampleRate, {detector: 'tempogram', tempoRange}, event => {
-      if (event.type === 'bpm' && event.data.bpm[0]) {
-        last = event.data.bpm[0].tempo;
+    await streamPcm(clicks(60, 20), sampleRate, {engine: 'tempogram', tempoRange}, message => {
+      if (message.type === 'step' && message.status !== 'listening') {
+        last = message.reading.bpm;
       }
     }, {priorBpm: 60, priorOctaves: 0.4});
 

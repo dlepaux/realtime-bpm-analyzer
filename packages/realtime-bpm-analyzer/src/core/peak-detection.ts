@@ -1,6 +1,5 @@
 import {descendingOverThresholds} from './utils';
 import type {
-  Peaks,
   PeaksAndThreshold,
   AnalyzerFindPeaksOptions,
   AnalyzerFindPeaksAtTheshold,
@@ -39,7 +38,7 @@ export function findPeaksAtThreshold({
     );
   }
 
-  const peaks: Peaks = [];
+  const peaks: number[] = [];
   const skipForwardIndexes = utils.computeIndexesToSkip(
     consts.peakSkipDuration,
     audioSampleRate,
@@ -88,7 +87,7 @@ export async function findPeaks({
     throw new Error('Invalid channel data: buffer is empty or undefined.');
   }
 
-  let validPeaks: Peaks = [];
+  let validPeaks: number[] = [];
   let validThreshold = 0;
 
   await descendingOverThresholds(async threshold => {

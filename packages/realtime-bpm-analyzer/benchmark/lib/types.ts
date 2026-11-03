@@ -41,7 +41,7 @@ export type TrackResult = {
   readonly firstReadingAt: number | null;
   /** Seconds of audio heard before the first reading within ±4% */
   readonly firstCorrectAt: number | null;
-  /** Each `bpmStable` reading as [seconds of audio, top candidate] */
+  /** Each move to `locked` as [seconds of audio, its bpm] (5.x: each `bpmStable`) */
   readonly stable: ReadonlyArray<readonly [number, number]>;
   /** Top candidate of the offline path, on detectors that have one */
   readonly offline?: number | null;
@@ -59,11 +59,11 @@ export type Summary = {
   readonly medianFirstCorrect: number | null;
   /** Share of tracks read correctly at some point */
   readonly everCorrect: number;
-  /** Share of all `bpmStable` readings outside ±4% */
+  /** Share of all locks (5.x: `bpmStable`) outside ±4% */
   readonly falseStable: number | null;
-  /** Same, keeping only the first `bpmStable` of each track, so chatty tracks do not dominate */
+  /** Same, keeping only the first lock of each track, so chatty tracks do not dominate */
   readonly falseFirstStable: number | null;
-  /** Share of tracks with at least one `bpmStable`: a detector that never says stable has no false stables */
+  /** Share of tracks with at least one lock: a detector that never locks has no false stables */
   readonly stableCoverage: number;
   readonly stableReadings: number;
   /** Offline path accuracy, when the detector has one */

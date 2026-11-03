@@ -7,6 +7,7 @@
       "package-name": "realtime-bpm-analyzer",
       "component": "realtime-bpm-analyzer",
       "include-component-in-tag": false,
+      "release-as": "6.1.0",
       "changelog-path": "changelog.md",
       "extra-files": [
         {

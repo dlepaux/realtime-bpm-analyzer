@@ -1,10 +1,9 @@
 # v6 reporting contract
 
 This folder holds the contract for what realtime-bpm-analyzer 6.x reports. It covers the public types
-(`types.ts`), and the transition table plus the pure reducer that enforces it (`transitions.ts`). Nothing
-imports this folder yet, so the 5.x bundles, declarations and API docs are unchanged. Phase 3 of RBA-108
-wires it into the analyzer and removes the 5.x surface. The plan is `plan/rba-v6-reporting.md` in the
-workspace.
+(`types.ts`), and the transition table plus the pure reducer that enforces it (`transitions.ts`). The
+analyzer runs on it: the worklet's session (`core/session.ts`) sends `WorkletMessage`s, and `BpmAnalyzer`
+reduces them. The plan is `plan/rba-v6-reporting.md` in the workspace.
 
 This note sits beside the code rather than in `docs/`, because VitePress would publish it as a page for an
 API that hasn't shipped yet. The migration guide (phase 6) moves the mapping table below into `docs/`.
@@ -44,7 +43,7 @@ Splitting them this way gives four guarantees, and the tests check each one:
 Two smaller choices sit alongside these:
 
 - Every message carries a protocol version. A stale processor (an old `processorUrl` copy, or a 5.x file
-  copied into an extension build) fails loudly with `ProtocolError` instead of misbehaving: the factory waits for its `ready` message with a timeout (phase 3), and a 5.x processor never sends one.
+  copied into an extension build) fails loudly with `ProtocolError` instead of misbehaving: the factory waits for its `ready` message with a timeout, and a 5.x processor never sends one.
 - Any protocol violation is fatal (`stopped`, reason `failed`, a `ProtocolError` in `state.error`). That
   covers an illegal transition, a malformed message, a future epoch and audio time going back. Dropping
   the message instead would leave the processor believing in a state the main thread refused, and every
@@ -56,8 +55,8 @@ Two smaller choices sit alongside these:
 
 Hysteresis belongs to the engine. Locking and unlocking use different bands and dwell times (`Hysteresis`),
 so the state can't flap, and `pulseLostAfterSeconds` keeps a short break from bouncing settling and
-listening. The reducer enforces only the table. The values are placeholders until phase 3 measures them on
-the benchmark.
+listening. The reducer enforces only the table, and the worklet's tracker (`core/tracker.ts`) applies the
+values. They map today's behaviour and are marked for tuning on the benchmark (see `HYSTERESIS`).
 
 ## Transition table
 

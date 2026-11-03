@@ -1,8 +1,9 @@
-import {RealTimeBpmAnalyzer} from '../../src/core/realtime-bpm-analyzer';
-import {createTempogramDetector} from '../../src/core/tempogram';
+import {resolveEngine} from '../../src/core/engine';
+import {createSession} from '../../src/core/session';
 import type {TempogramTuning} from '../../src/core/tempogram';
 import {chunkAggregator} from '../../src/core/utils';
-import type {ProcessorOutputEvent, RealTimeBpmAnalyzerParameters} from '../../src/core/types';
+import type {WorkletMessage} from '../../src/contract/types';
+import type {BenchmarkOptions} from './detectors';
 import {isCorrect} from './metrics';
 import type {Track, TrackResult} from './types';
 
@@ -25,27 +26,28 @@ export function repeatTo(pcm: Float32Array, length: number): Float32Array {
 }
 
 /**
- * Feeds PCM through the same steps as `RealTimeBpmProcessor.process()`, a render quantum at a
- * time, and records the events in the order a listener would have got them.
+ * Feeds PCM through the same steps as `RealTimeBpmProcessor.process()`, a render quantum at a time, into the
+ * session the worklet runs, and records its messages in the order the main thread would get them.
  * @param pcm Mono samples as the worklet would receive them
  * @param sampleRate Sample rate in Hz
  * @param options The analyzer options
- * @param onEvent Called with each event and the seconds of audio heard so far
+ * @param onMessage Called with each message and the seconds of audio heard so far
  * @param tuning Tempogram overrides, for tuning runs on dev
  */
 export async function streamPcm(
   pcm: Float32Array,
   sampleRate: number,
-  options: RealTimeBpmAnalyzerParameters,
-  onEvent: (event: ProcessorOutputEvent, heard: number) => void,
+  options: BenchmarkOptions,
+  onMessage: (message: WorkletMessage, heard: number) => void,
   tuning?: Partial<TempogramTuning>,
 ): Promise<void> {
-  const analyzer = new RealTimeBpmAnalyzer(options);
-
-  if (tuning) {
-    analyzer.tempogram = createTempogramDetector({sampleRate, tempoRange: options.tempoRange, tuning});
-  }
-
+  const {engine, tempoRange} = resolveEngine(options.engine, options.tempoRange);
+  // restartAfterSeconds and tuning are internal: the rows that measure them set them here, past the public option
+  const session = createSession({
+    engine: {...engine, restartAfterSeconds: options.restartAfterSeconds ?? engine.restartAfterSeconds, tuning},
+    tempoRange,
+    debug: false,
+  });
   const aggregate = chunkAggregator();
 
   for (let start = 0; start + renderQuantum <= pcm.length; start += renderQuantum) {
@@ -53,14 +55,9 @@ export async function streamPcm(
 
     if (isBufferFull) {
       const heard = (start + renderQuantum) / sampleRate;
-
-      await analyzer.analyzeChunk({
-        audioSampleRate: sampleRate,
-        channelData: buffer,
-        bufferSize,
-        postMessage: event => {
-          onEvent(event, heard);
-        },
+      const messages = await session.analyze(buffer, bufferSize, sampleRate);
+      messages.forEach(message => {
+        onMessage(message, heard);
       });
     }
   }
@@ -88,13 +85,13 @@ export function withReading(readings: readonly Reading[], reading: Reading): rea
  * @param sampleRate Sample rate in Hz
  * @param options The analyzer options
  * @param tuning Tempogram overrides, for tuning runs on dev
- * @returns What the listener saw
+ * @returns What the listener saw: `stable` holds each move to `locked`, `final` the last reading
  */
 export async function listen(
   track: Track,
   pcm: Float32Array,
   sampleRate: number,
-  options: RealTimeBpmAnalyzerParameters,
+  options: BenchmarkOptions,
   tuning?: Partial<TempogramTuning>,
 ): Promise<TrackResult> {
   let final: number | null = null;
@@ -104,20 +101,14 @@ export async function listen(
   let readings: readonly Reading[] = [];
   const stable: Array<readonly [number, number]> = [];
 
-  await streamPcm(pcm, sampleRate, options, (event, heard) => {
-    if (event.type !== 'bpm' && event.type !== 'bpmStable') {
+  await streamPcm(pcm, sampleRate, options, (message, heard) => {
+    if (message.type !== 'step' || message.status === 'listening') {
       return;
     }
 
-    const top = event.data.bpm[0]?.tempo;
-
-    if (top === undefined) {
-      return;
-    }
-
-    if (event.type === 'bpmStable') {
+    const top = message.reading.bpm;
+    if (message.status === 'locked' && message.reason === 'locked') {
       stable.push([heard, top]);
-      return;
     }
 
     final = top;

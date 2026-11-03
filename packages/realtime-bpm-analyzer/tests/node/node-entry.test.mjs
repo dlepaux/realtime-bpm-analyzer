@@ -68,40 +68,52 @@ describe('realtime-bpm-analyzer/node', () => {
     assert.equal(typeof cjs.applyLowpass, 'function');
   });
 
-  it('runs the tempogram, which refuses an unknown detector', async () => {
-    const [top] = await analyzeChannelData(createClickTrack(128), 44_100, {detector: 'tempogram'});
+  it('runs the tempogram, which refuses an unknown engine', async () => {
+    const reading = await analyzeChannelData(createClickTrack(128), 44_100, {engine: 'tempogram'});
 
-    assert.ok(Math.abs(top.tempo - 128) <= 1, `got ${top.tempo}`);
-    await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {detector: 'magic'}), RangeError);
-    // What is published: the first pick, on 50 to 240, read this at half
-    const [fast] = await analyzeChannelData(createClickTrack(174), 44_100, {detector: 'tempogram'});
+    assert.ok(Math.abs(reading.bpm - 128) <= 1, `got ${reading.bpm}`);
+    assert.equal(reading.engine, 'tempogram');
+    await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: 'magic'}), RangeError);
+    // The first pick, on 50 to 240, read this at half
+    const fast = await analyzeChannelData(createClickTrack(174), 44_100, {engine: 'tempogram'});
 
-    assert.ok(Math.abs(fast.tempo - 174) <= 3, `got ${fast.tempo}`);
+    assert.ok(Math.abs(fast.bpm - 174) <= 3, `got ${fast.bpm}`);
+  });
+
+  it('returns a reading: top candidate first with its relation, confidence from 0 to 1, the whole file as its audio', async () => {
+    const reading = await analyzeChannelData(createClickTrack(120, 44_100, 30), 44_100);
+
+    assert.deepEqual(reading.candidates[0], {bpm: reading.bpm, relation: 'top'});
+    assert.ok(reading.candidates.slice(1).every(({relation}) => ['half', 'double', 'other'].includes(relation)));
+    assert.ok(reading.confidence >= 0 && reading.confidence <= 1);
+    assert.deepEqual(reading.audio, {from: 0, to: 30});
+    assert.equal(reading.engine, 'peaks');
+    assert.ok(Object.isFrozen(reading));
   });
 
   it('finds the tempo analyzeFullBuffer finds for the bass-test fixture', async () => {
     const {channelData, sampleRate} = await readWavChannel0(new URL('../fixtures/bass-test.wav', import.meta.url));
     assert.equal(sampleRate, bassTestExpected.sampleRate);
 
-    const [top] = await analyzeChannelData(channelData, sampleRate);
-    assert.equal(top.tempo, bassTestExpected.tempo);
-    assert.equal(top.count, bassTestExpected.count);
+    const reading = await analyzeChannelData(channelData, sampleRate);
+    assert.equal(reading.bpm, bassTestExpected.tempo);
   });
 
   for (const bpm of clickTrackTempos) {
     it(`finds ${bpm} BPM in a click track`, async () => {
-      const [top] = await analyzeChannelData(createClickTrack(bpm), 44_100);
-      assert.ok(Math.abs(top.tempo - bpm) <= 1, `expected ${bpm}, got ${top.tempo}`);
+      const reading = await analyzeChannelData(createClickTrack(bpm), 44_100);
+      assert.ok(Math.abs(reading.bpm - bpm) <= 1, `expected ${bpm}, got ${reading.bpm}`);
     });
   }
 
   it('folds tempos into the requested range', async () => {
-    const [top] = await analyzeChannelData(createClickTrack(174), 44_100, {tempoRange: {min: 70, max: 140}});
-    assert.ok(Math.abs(top.tempo - 87) <= 1, `expected 87, got ${top.tempo}`);
+    const reading = await analyzeChannelData(createClickTrack(174), 44_100, {tempoRange: {min: 70, max: 140}});
+    assert.ok(Math.abs(reading.bpm - 87) <= 1, `expected 87, got ${reading.bpm}`);
   });
 
-  it('returns no candidate for silence', async () => {
-    assert.deepEqual(await analyzeChannelData(new Float32Array(44_100), 44_100), []);
+  it('returns null for silence, with either engine', async () => {
+    assert.equal(await analyzeChannelData(new Float32Array(44_100), 44_100), null);
+    assert.equal(await analyzeChannelData(new Float32Array(44_100 * 10), 44_100, {engine: 'tempogram'}), null);
   });
 
   it('rejects invalid input before analysing', async () => {
@@ -109,7 +121,7 @@ describe('realtime-bpm-analyzer/node', () => {
     await assert.rejects(analyzeChannelData([0.1, 0.2], 44_100), /non-empty Float32Array/);
     await assert.rejects(analyzeChannelData(new Float32Array(10), 0), RangeError);
     await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {tempoRange: {min: 100, max: 150}}), RangeError);
-    await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {frequencyValue: Number.NaN}), RangeError);
+    await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {engine: {name: 'peaks', lowpass: {frequency: Number.NaN}}}), RangeError);
   });
 });
 

@@ -1,6 +1,5 @@
 import * as realtimeBpm from '../../src/index';
 import type {Manifest, Closure, AudioFile} from '../types';
-import type {BiquadFilterOptions} from '../../src/core/types';
 
 /**
  * Batch an array of closure that triggers a Promise
@@ -28,10 +27,10 @@ export async function batchPromises(closures: Array<Closure<AudioFile>>, batchSi
 /**
  *
  * @param manifest Manifest of audio filename: bpm
- * @param options BiquadFilterOptions
+ * @param frequency Cutoff of the peaks engine's lowpass, in Hz
  * @returns Array<Closure<AudioFile>>
  */
-export function buildPromises(manifest: Manifest, options?: BiquadFilterOptions): Array<Closure<AudioFile>> {
+export function buildPromises(manifest: Manifest, frequency?: number): Array<Closure<AudioFile>> {
   const audioContext = new AudioContext();
 
   return Object.keys(manifest).map(filename => async () => {
@@ -39,12 +38,12 @@ export function buildPromises(manifest: Manifest, options?: BiquadFilterOptions)
     const response = await fetch(`/testing/datasets/${encodeURIComponent(filename)}`);
     const buffer = await response.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(buffer);
-    const tempos = await realtimeBpm.analyzeFullBuffer(audioBuffer, options);
+    const reading = await realtimeBpm.analyzeFullBuffer(audioBuffer, {engine: {name: 'peaks', lowpass: {frequency}}});
 
     const audioFile: AudioFile = {
       filename,
       bpm,
-      tempos: tempos.slice(0, 5),
+      tempos: reading?.candidates ?? [],
     };
 
     return audioFile;

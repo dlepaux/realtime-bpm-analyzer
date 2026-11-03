@@ -1,12 +1,14 @@
 import {expect} from 'chai';
-import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
+import {PeaksEngine} from '../../../src/core/peaks-engine';
+
+const newEngine = (): PeaksEngine => new PeaksEngine({tempoRange: {min: 90, max: 180}});
 import * as utils from '../../../src/core/utils';
 
 /**
  * Helper function to find the actual key in validPeaks/nextIndexPeaks that represents a given threshold
  * This handles floating-point precision issues by comparing normalized values
  */
-function getThresholdKey(analyzer: RealTimeBpmAnalyzer, threshold: number): string {
+function getThresholdKey(analyzer: PeaksEngine, threshold: number): string {
   const target = threshold.toFixed(2);
   const key = Object.keys(analyzer.validPeaks).find(k =>
     Number.parseFloat(k).toFixed(2) === target,
@@ -19,13 +21,13 @@ function getThresholdKey(analyzer: RealTimeBpmAnalyzer, threshold: number): stri
 }
 
 /**
- * Unit tests for RealTimeBpmAnalyzer.clearValidPeaks method
+ * Unit tests for PeaksEngine.clearValidPeaks method
  * Tests threshold-based peak cleanup for memory optimization
  */
-describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
+describe('PeaksEngine - clearValidPeaks', () => {
   describe('threshold cleanup', () => {
     it('should remove peaks below specified threshold', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key090 = getThresholdKey(analyzer, 0.9);
       const key085 = getThresholdKey(analyzer, 0.85);
@@ -55,7 +57,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
     });
 
     it('should remove nextIndexPeaks below threshold', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key090 = getThresholdKey(analyzer, 0.9);
       const key085 = getThresholdKey(analyzer, 0.85);
@@ -80,7 +82,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
     });
 
     it('should update minValidThreshold', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
       expect(analyzer.minValidThreshold).to.equal(0.2);
 
       await analyzer.clearValidPeaks(0.75);
@@ -89,7 +91,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
     });
 
     it('should handle threshold at exact boundary', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key085 = getThresholdKey(analyzer, 0.85);
       const key080 = getThresholdKey(analyzer, 0.8);
@@ -114,7 +116,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
 
   describe('edge cases', () => {
     it('should handle empty validPeaks', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       // No peaks populated
       await analyzer.clearValidPeaks(0.8);
@@ -124,7 +126,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
     });
 
     it('should handle clearing all peaks', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key050 = getThresholdKey(analyzer, 0.5);
       const key045 = getThresholdKey(analyzer, 0.45);
@@ -144,7 +146,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
     });
 
     it('should handle clearing no peaks (very low threshold)', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key085 = getThresholdKey(analyzer, 0.85);
       const key080 = getThresholdKey(analyzer, 0.8);
@@ -165,7 +167,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
     });
 
     it('should handle threshold with many decimal places', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key085 = getThresholdKey(analyzer, 0.85);
       const key080 = getThresholdKey(analyzer, 0.8);
@@ -185,7 +187,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
     });
 
     it('should handle multiple calls with increasing thresholds', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key090 = getThresholdKey(analyzer, 0.9);
       const key085 = getThresholdKey(analyzer, 0.85);
@@ -219,7 +221,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
 
   describe('memory optimization', () => {
     it('should free memory by removing entries', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       // Populate with large arrays using the actual threshold keys
       for (let threshold = 90; threshold >= 20; threshold -= 5) {
@@ -254,7 +256,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
     });
 
     it('should handle large peak arrays', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key050 = getThresholdKey(analyzer, 0.5);
       const key085 = getThresholdKey(analyzer, 0.85);
@@ -273,7 +275,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
 
   describe('floating-point precision', () => {
     it('should handle floating-point comparison correctly', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key085 = getThresholdKey(analyzer, 0.85);
       const key080 = getThresholdKey(analyzer, 0.8);
@@ -293,7 +295,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
     });
 
     it('should handle threshold normalization', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key085 = getThresholdKey(analyzer, 0.85);
       const key075 = getThresholdKey(analyzer, 0.75);
@@ -313,7 +315,7 @@ describe('RealTimeBpmAnalyzer - clearValidPeaks', () => {
 
   describe('integration with threshold model', () => {
     it('should work with standard threshold model', async () => {
-      const analyzer = new RealTimeBpmAnalyzer();
+      const analyzer = newEngine();
 
       const key085 = getThresholdKey(analyzer, 0.85);
       const key075 = getThresholdKey(analyzer, 0.75);

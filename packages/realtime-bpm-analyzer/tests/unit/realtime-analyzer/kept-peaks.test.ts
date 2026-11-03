@@ -1,32 +1,24 @@
 import {expect} from 'chai';
-import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
+import {PeaksEngine} from '../../../src/core/peaks-engine';
 import {maxKeptPeaks} from '../../../src/core/consts';
 import {createClickTrack} from '../../fixtures/click-track';
 
 const bufferSize = 4096;
 const audioSampleRate = 44_100;
 
-describe('RealTimeBpmAnalyzer - kept peaks are bounded (RBA-107)', () => {
+describe('PeaksEngine - kept peaks are bounded (RBA-107)', () => {
   it('keeps at most maxKeptPeaks per threshold over a long listen, the newest ones, and still reads the tempo', async function () {
     this.timeout(30_000);
     // 240 BPM clicks give about 4 peaks a second: 2 minutes is near twice the cap
     const samples = createClickTrack(240, audioSampleRate, 120);
-    const analyzer = new RealTimeBpmAnalyzer();
+    const analyzer = new PeaksEngine({tempoRange: {min: 90, max: 180}});
     let lastPeak = -1;
     let most = 0;
     let tempo: number | undefined;
 
     for (let start = 0; start + bufferSize <= samples.length; start += bufferSize) {
-      await analyzer.analyzeChunk({
-        audioSampleRate,
-        channelData: samples.subarray(start, start + bufferSize),
-        bufferSize,
-        postMessage(event) {
-          if (event.type === 'bpm') {
-            tempo = event.data.bpm[0]?.tempo;
-          }
-        },
-      });
+      const step = await analyzer.analyze(samples.subarray(start, start + bufferSize), bufferSize, audioSampleRate);
+      tempo = step.candidates[0]?.tempo ?? tempo;
 
       for (const peaks of Object.values(analyzer.validPeaks)) {
         most = Math.max(most, peaks.length);

@@ -1,12 +1,8 @@
 import {descendingOverThresholds} from './utils';
 import type {
-  Peaks,
-  BpmCandidates,
-  BpmProgress,
+  RungTempos,
   Interval,
-  Detector,
   Tempo,
-  Threshold,
   TempoRange,
   AnalyzerGroupByTempoOptions,
   AnalyzerComputeBpmOptions,
@@ -26,14 +22,14 @@ export async function computeBpm({
   audioSampleRate,
   data,
   tempoRange,
-}: AnalyzerComputeBpmOptions): Promise<BpmCandidates> {
+}: AnalyzerComputeBpmOptions): Promise<RungTempos> {
   /**
    * Flag to fix Object.keys looping
    */
   let hasPeaks = false;
   let foundThreshold = consts.minValidThreshold;
 
-  await descendingOverThresholds(async (threshold: Threshold) => {
+  await descendingOverThresholds(async (threshold: number) => {
     if (hasPeaks) {
       return true;
     }
@@ -51,12 +47,7 @@ export async function computeBpm({
     const tempos = groupByTempo({audioSampleRate, intervalCounts: intervals, tempoRange});
     const candidates = getTopCandidates(tempos);
 
-    const bpmCandidates: BpmCandidates = {
-      bpm: candidates,
-      threshold: foundThreshold,
-    };
-
-    return bpmCandidates;
+    return {bpm: candidates, threshold: foundThreshold};
   }
 
   return {
@@ -68,16 +59,13 @@ export async function computeBpm({
 /**
  * Measure how close the valid peaks are to a first BPM result
  * @param data - Valid peaks by threshold
- * @returns The best-filled threshold's peak count, capped at the count `computeBpm` needs
+ * @returns From 0 to 1: the best-filled threshold's share of the peaks `computeBpm` needs
  */
-export function computeProgress(data: ValidPeaks): BpmProgress {
+export function computeProgress(data: ValidPeaks): number {
   // computeBpm succeeds as soon as any threshold is full, so the fullest one is the progress
   const mostPeaks = Math.max(0, ...Object.values(data).map(peaks => peaks.length));
 
-  return {
-    peaks: Math.min(mostPeaks, consts.requiredPeaks),
-    requiredPeaks: consts.requiredPeaks,
-  };
+  return Math.min(mostPeaks, consts.requiredPeaks) / consts.requiredPeaks;
 }
 
 /**
@@ -114,7 +102,7 @@ export function getTopCandidate(candidates: Tempo[]): number {
  * @param peaks - Array of qualified bass peaks
  * @returns Return a collection of intervals between peaks
  */
-export function identifyIntervals(peaks: Peaks): Interval[] {
+export function identifyIntervals(peaks: readonly number[]): Interval[] {
   const intervals: Interval[] = [];
 
   for (let n = 0; n < peaks.length; n++) {
@@ -184,20 +172,6 @@ export function resolveTempoRange(tempoRange?: TempoRange): TempoRange {
   }
 
   return {min, max};
-}
-
-/**
- * Validate a caller-supplied detector, or return the default
- * @param detector - Detector from the caller's options
- * @returns A known detector
- * @throws {RangeError} When the detector is unknown
- */
-export function resolveDetector(detector?: Detector): Detector {
-  if (detector === undefined || detector === 'peaks' || detector === 'tempogram') {
-    return detector ?? 'peaks';
-  }
-
-  throw new RangeError(`Invalid detector: ${String(detector)}. Use 'peaks' or 'tempogram'.`);
 }
 
 /**

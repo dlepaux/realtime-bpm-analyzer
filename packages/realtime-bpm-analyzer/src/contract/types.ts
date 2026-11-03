@@ -1,9 +1,7 @@
 /**
  * The v6 public types: what the analyzer reports, engine-neutral.
  *
- * Not exported yet. Nothing in `src/index.ts` or `src/node.ts` imports this folder, so the 5.x bundles and
- * declarations are unchanged. Phase 3 of RBA-108 wires it in and removes the 5.x surface.
- * Design note and the 5.x mapping: `./readme.md`.
+ * `src/index.ts` and `src/node.ts` re-export the public part. Design note and the 5.x mapping: `./readme.md`.
  */
 
 /** Version of the worklet protocol. Bumped on any change to {@link WorkletMessage} or {@link HostMessage}. */
@@ -123,8 +121,13 @@ export type Reading = {
    */
   readonly bpm: number;
   /**
-   * Calibrated probability, 0 to 1, that `bpm` is within 4% of the true tempo: 0.8 is right about 80% of the
-   * time on the held-out set. Removed from the API if RBA-106 shows it adds nothing.
+   * UNCALIBRATED, 0 to 1. For now the engine's own normalised score for the top tempo, so it means something
+   * different per engine and between realtime and offline: `peaks` gives the share of interval votes within
+   * ±1 BPM (about 0.46 on a perfect click), `tempogram` its accumulated salience. Compare values from one engine
+   * only, and set no absolute cut-off on it.
+   *
+   * The aim (RBA-106) is a calibrated probability that `bpm` is within 4% of the true tempo, so that 0.8 is right
+   * about 80% of the time on held-out data. If calibration shows it adds nothing, it is removed from the API.
    */
   readonly confidence: number;
   /**
@@ -309,8 +312,9 @@ export type BpmAnalyzerContract = {
 /** Worklet to main thread. Every message carries the protocol version and the epoch it was measured in. */
 export type WorkletMessage =
   /**
-   * Sent once when the processor starts. The analyzer's factory waits for it, with a timeout, before it
-   * resolves (phase 3), so a stale processor fails at startup: a 5.x one never sends it.
+   * Sent when the processor starts, with epoch 0, and again each time it adopts the epoch of a `reset`. The
+   * factory waits for the first, with a timeout, before it resolves, so a stale processor fails at startup: a 5.x
+   * one never sends it. The later ones end the epoch watchdog's count.
    */
   | {readonly type: 'ready'; readonly protocol: number; readonly epoch: number}
   /** One per analysis step while listening. `reason` only when this step moved the status. */
@@ -360,13 +364,25 @@ export type Hysteresis = {
 };
 
 /**
- * PLACEHOLDER values, to be set in phase 3 from the benchmark (RBA-51 dev half). Only the shape and the
- * invariant `unlockBand > lockBand` are part of this contract.
+ * The hysteresis both engines report with. The one place these numbers live: the tempogram's stable rule reads
+ * `lockBand` and `lockAfterSeconds` from here.
+ *
+ * TO TUNE on the benchmark's dev half (RBA-51, RBA-106), then check once on held-out data. Until then each is
+ * today's behaviour, or the nearest thing to it:
+ * - `lockBand` 0.02 and `lockAfterSeconds` 8: the tempogram's 5.x stable rule (`stableTolerance`, `stableSeconds`:
+ *   80% of the frames of the last 8 s agree within 2%, besides its lead and salience, which stay engine detail).
+ *   The 2% is also the band rba-pro copied by hand to tell stable from settling (`reading.ts`, `STABLE_TOLERANCE`).
+ *   The peaks engine keeps its own lock rule (10 s of audio, then a fuller threshold rung, RBA-107): its readings
+ *   jump by whole BPM, so a band on them was never measured.
+ * - `unlockBand` 0.04: the benchmark's ±4% for a correct reading. Leaving a lock while the reading is still within
+ *   it would be noise, and twice the lock band keeps the two apart.
+ * - `unlockAfterSeconds` 2 and `pulseLostAfterSeconds` 2: new. 5.x dropped a tempogram lock on the first frame
+ *   without a pulse, and rba-pro on the first reading outside 2%, so both flapped. Four tempogram frames.
  */
-export const HYSTERESIS_PLACEHOLDER: Hysteresis = {
+export const HYSTERESIS: Hysteresis = Object.freeze({
   lockBand: 0.02,
   lockAfterSeconds: 8,
   unlockBand: 0.04,
   unlockAfterSeconds: 2,
   pulseLostAfterSeconds: 2,
-};
+});

@@ -1,5 +1,6 @@
 import {resolveTempoRange} from './tempo';
-import type {RealTimeBpmAnalyzerParameters, Tempo, TempoRange} from './types';
+import type {Tempo, TempoRange} from './types';
+import {HYSTERESIS} from '../contract/types';
 
 /**
  * Knobs of the tempogram detector. Values are tuned on the benchmark's dev split only, see
@@ -79,9 +80,10 @@ export const defaultTempogramTuning: TempogramTuning = {
   thirdBeatPenalty: 0.3,
   priorBpm: 80,
   priorOctaves: 1.7,
-  stableSeconds: 8,
+  // The contract's lock band and dwell time: the tempogram's stable rule is what they were taken from
+  stableSeconds: HYSTERESIS.lockAfterSeconds,
   stableAgreement: 0.8,
-  stableTolerance: 0.02,
+  stableTolerance: HYSTERESIS.lockBand,
   stableSalience: 0.15,
   stableMargin: 1.25,
   readingSalience: 0.02,
@@ -94,36 +96,6 @@ export const defaultTempogramTuning: TempogramTuning = {
  * under the top of the range, so 179 and 180 already read half.
  */
 export const defaultTempogramRange: TempoRange = {min: 90, max: 180};
-
-/**
- * Refuses a named mode whose guarantee the other options would break. The mode changes no setting, it only
- * holds the caller to the settings that were measured, which include the range and the absence of a reset.
- * @param options The analyzer's options
- * @throws {RangeError} When the mode is unknown, or the options contradict it
- */
-export function assertTempogramMode({tempogramMode, detector, tempoRange, continuousAnalysis}: RealTimeBpmAnalyzerParameters): void {
-  if (tempogramMode === undefined) {
-    return;
-  }
-
-  if (tempogramMode !== 'extension') {
-    throw new RangeError(`Invalid tempogramMode: ${String(tempogramMode)}. Use 'extension'.`);
-  }
-
-  const {min, max} = defaultTempogramRange;
-
-  if (detector !== 'tempogram') {
-    throw new RangeError('tempogramMode needs detector: \'tempogram\'.');
-  }
-
-  if (tempoRange !== undefined && (tempoRange.min !== min || tempoRange.max !== max)) {
-    throw new RangeError(`tempogramMode 'extension' searches ${min} to ${max} BPM, and tempoRange asks for another range.`);
-  }
-
-  if (continuousAnalysis) {
-    throw new RangeError('tempogramMode \'extension\' was measured without continuousAnalysis, whose reset can keep the tempogram from ever reaching stable.');
-  }
-}
 
 /** Tempo grid resolution: tempo ratio between neighbours, finer than the ±4% that counts as correct */
 const gridRatio = 1.01;
@@ -146,6 +118,8 @@ const maxCandidates = 5;
 export type TempogramReading = {
   /** Candidates, best first. Empty when no pulse stands out. */
   readonly candidates: readonly Tempo[];
+  /** The stable rule holds on this frame: salience, lead, and agreement over `stableSeconds` */
+  readonly isStable: boolean;
   /** The reading has just become stable, or the stable tempo has just changed */
   readonly isNewlyStable: boolean;
 };
@@ -571,7 +545,7 @@ export function createTempogramDetector({
       tempogramFrames += 1;
       stableTempo = 0;
 
-      return {candidates: [], isNewlyStable: false};
+      return {candidates: [], isStable: false, isNewlyStable: false};
     }
 
     const frameBest = bestOf(salience);
@@ -594,7 +568,7 @@ export function createTempogramDetector({
       stableTempo = top.tempo;
     }
 
-    return {candidates, isNewlyStable};
+    return {candidates, isStable, isNewlyStable};
   }
 
   function process(samples: Float32Array): TempogramReading | null {

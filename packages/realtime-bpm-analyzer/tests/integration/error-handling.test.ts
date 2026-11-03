@@ -1,10 +1,10 @@
 import {expect} from 'chai';
 import {createRealtimeBpmAnalyzer, analyzeFullBuffer} from '../../src/index';
+import type {OfflineResult} from '../../src/index';
 import {
   createTestAudioContext,
   closeAudioContext,
   createSyntheticBeat,
-  createSilentAudio,
   createNoiseAudio,
 } from '../setup';
 
@@ -12,6 +12,14 @@ import {
  * Error handling and edge case tests
  * Tests the library's resilience to invalid inputs and error conditions
  */
+/** No tempo found is null; anything else is a reading inside the default range */
+function expectResult(result: OfflineResult): void {
+  if (result !== null) {
+    expect(result.bpm).to.be.within(90, 180);
+    expect(result.candidates[0]).to.deep.equal({bpm: result.bpm, relation: 'top'});
+  }
+}
+
 describe('Error Handling & Edge Cases', function () {
   this.timeout(10000);
 
@@ -33,9 +41,7 @@ describe('Error Handling & Edge Cases', function () {
 
       const result = await analyzeFullBuffer(silentBuffer);
 
-      expect(result).to.be.an('array');
-      // Silent audio might return empty results or no valid BPM
-      expect(result.length).to.be.at.least(0);
+      expect(result).to.equal(null);
     });
 
     it('should handle very short audio buffers', async () => {
@@ -46,7 +52,7 @@ describe('Error Handling & Edge Cases', function () {
       const result = await analyzeFullBuffer(shortBuffer);
 
       // Should not crash, but may not detect BPM
-      expect(result).to.be.an('array');
+      expectResult(result);
     });
 
     it('should handle white noise audio', async () => {
@@ -58,7 +64,7 @@ describe('Error Handling & Edge Cases', function () {
       const result = await analyzeFullBuffer(noiseBuffer);
 
       // Random noise shouldn't produce reliable BPM
-      expect(result).to.be.an('array');
+      expectResult(result);
     });
 
     it('should handle mono audio', async () => {
@@ -68,9 +74,9 @@ describe('Error Handling & Edge Cases', function () {
 
       const result = await analyzeFullBuffer(monoBuffer);
 
-      expect(result).to.be.an('array');
-      if (result.length > 0) {
-        expect(result[0].tempo).to.be.a('number');
+      expectResult(result);
+      if (result !== null) {
+        expect(result.bpm).to.be.a('number');
       }
     });
 
@@ -82,7 +88,7 @@ describe('Error Handling & Edge Cases', function () {
 
       const result = await analyzeFullBuffer(stereoBuffer);
 
-      expect(result).to.be.an('array');
+      expectResult(result);
     });
 
     it('should handle different sample rates', async () => {
@@ -94,7 +100,7 @@ describe('Error Handling & Edge Cases', function () {
         buffer.copyToChannel(beatData.slice(), 0);
 
         const result = await analyzeFullBuffer(buffer);
-        expect(result).to.be.an('array');
+        expectResult(result);
       }
     });
 
@@ -105,7 +111,7 @@ describe('Error Handling & Edge Cases', function () {
 
       const result = await analyzeFullBuffer(buffer);
 
-      expect(result).to.be.an('array');
+      expectResult(result);
       // Flat audio at max amplitude shouldn't have beats
     });
 
@@ -122,7 +128,7 @@ describe('Error Handling & Edge Cases', function () {
 
       // Should not crash
       const result = await analyzeFullBuffer(buffer);
-      expect(result).to.be.an('array');
+      expectResult(result);
     });
   });
 
@@ -141,9 +147,8 @@ describe('Error Handling & Edge Cases', function () {
 
     it('should accept all valid processor options', async () => {
       const processor = await createRealtimeBpmAnalyzer(audioContext, {
-        continuousAnalysis: true,
-        stabilizationTime: 30000,
-        muteTimeInIndexes: 15000,
+        engine: {name: 'peaks', restartAfterSeconds: 30},
+        tempoRange: {min: 60, max: 200},
         debug: true,
       });
 
@@ -189,13 +194,13 @@ describe('Error Handling & Edge Cases', function () {
       processor.disconnect();
     });
 
-    it('should handle reset() after stop()', async () => {
+    it('refuses reset() after stop()', async () => {
       const processor = await createRealtimeBpmAnalyzer(audioContext);
+      processor.stop();
 
       expect(() => {
-        processor.stop();
         processor.reset();
-      }).to.not.throw();
+      }).to.throw(DOMException).with.property('name', 'InvalidStateError');
 
       processor.disconnect();
     });
@@ -230,7 +235,7 @@ describe('Error Handling & Edge Cases', function () {
       const handler = () => {};
 
       expect(() => {
-        processor.removeEventListener('bpm', handler);
+        processor.off('reading', handler);
       }).to.not.throw();
 
       processor.disconnect();
@@ -243,27 +248,26 @@ describe('Error Handling & Edge Cases', function () {
 
       expect(() => {
         for (const handler of handlers) {
-          processor.addEventListener('bpm', handler);
+          processor.on('reading', handler);
         }
 
         for (const handler of handlers) {
-          processor.removeEventListener('bpm', handler);
+          processor.off('reading', handler);
         }
       }).to.not.throw();
 
       processor.disconnect();
     });
 
-    it('should handle error event listeners', async () => {
+    it('fails with a ProcessorError when the processor throws', async () => {
       const processor = await createRealtimeBpmAnalyzer(audioContext);
-      let errorReceived = false;
+      const errors: string[] = [];
+      processor.on('error', ({name}) => errors.push(name));
 
-      processor.on('error', () => {
-        errorReceived = true;
-      });
+      processor.node.onprocessorerror?.(new ErrorEvent('processorerror'));
 
-      // Just verify listener is set up (actual errors would come from processor)
-      expect(processor).to.exist;
+      expect(errors).to.deep.equal(['ProcessorError']);
+      expect(processor.state.status).to.equal('stopped');
       processor.disconnect();
     });
   });
@@ -325,7 +329,7 @@ describe('Error Handling & Edge Cases', function () {
 
       const result = await analyzeFullBuffer(buffer);
 
-      expect(result).to.be.an('array');
+      expectResult(result);
       // Zero amplitude is effectively silent
     });
 
@@ -336,7 +340,7 @@ describe('Error Handling & Edge Cases', function () {
 
       const result = await analyzeFullBuffer(buffer);
 
-      expect(result).to.be.an('array');
+      expectResult(result);
     });
 
     it('should handle BPM at lower boundary (90 BPM)', async () => {
@@ -346,9 +350,9 @@ describe('Error Handling & Edge Cases', function () {
 
       const result = await analyzeFullBuffer(buffer);
 
-      expect(result).to.be.an('array');
-      if (result.length > 0) {
-        expect(result[0].tempo).to.be.at.least(90);
+      expectResult(result);
+      if (result !== null) {
+        expect(result.bpm).to.be.at.least(90);
       }
     });
 
@@ -359,9 +363,9 @@ describe('Error Handling & Edge Cases', function () {
 
       const result = await analyzeFullBuffer(buffer);
 
-      expect(result).to.be.an('array');
-      if (result.length > 0) {
-        expect(result[0].tempo).to.be.at.most(180);
+      expectResult(result);
+      if (result !== null) {
+        expect(result.bpm).to.be.at.most(180);
       }
     });
 
@@ -374,7 +378,7 @@ describe('Error Handling & Edge Cases', function () {
         buffer.copyToChannel(beatData.slice(), 0);
 
         const result = await analyzeFullBuffer(buffer);
-        expect(result).to.be.an('array');
+        expectResult(result);
       }
     });
   });
@@ -390,7 +394,7 @@ describe('Error Handling & Edge Cases', function () {
 
       const result = await analyzeFullBuffer(buffer);
 
-      expect(result).to.be.an('array');
+      expectResult(result);
     });
 
     it('should handle processor with many chunks', async () => {

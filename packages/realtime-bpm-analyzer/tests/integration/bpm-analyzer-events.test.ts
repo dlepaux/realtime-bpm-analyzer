@@ -1,14 +1,15 @@
 import {expect} from 'chai';
 import {createRealtimeBpmAnalyzer} from '../../src/index';
-import type {BpmAnalyzerEventMap} from '../../src/index';
-import {createTestAudioContext, closeAudioContext, loadTestAudio, audioBufferToChunks, waitForEvent} from '../setup';
+import type {AnalyzerEventMap, BpmAnalyzer, StateChange} from '../../src/index';
+import {PROTOCOL_VERSION} from '../../src/contract/types';
+import {createClickTrack} from '../fixtures/click-track';
+import {createTestAudioContext, closeAudioContext, waitForEvent} from '../setup';
 
 /**
- * Integration tests for BpmAnalyzer event system
- * Tests the core event emission and listener functionality
+ * The event contract on a real analyzer: messages are fed to its port as the processor would send them, so what
+ * is tested is the wiring from the port through the reducer to `on()` listeners and `state`.
  */
-describe('BpmAnalyzer - Event System', function () {
-  // AudioWorklet loading takes time, set higher timeout
+describe('BpmAnalyzer - events and commands', function () {
   this.timeout(5000);
 
   let audioContext: AudioContext;
@@ -21,282 +22,257 @@ describe('BpmAnalyzer - Event System', function () {
     await closeAudioContext(audioContext);
   });
 
-  describe('.on() method', () => {
-    it('should register event listeners for bpm events', async () => {
+  const reading = (bpm: number, to: number) => ({
+    bpm,
+    confidence: 0.5,
+    candidates: [{bpm, relation: 'top'}, {bpm: bpm / 2, relation: 'half'}],
+    audio: {from: 0, to},
+    engine: 'peaks',
+  });
+
+  /** What the processor would post, delivered the way its port delivers it */
+  function send(analyzer: BpmAnalyzer, data: Record<string, unknown>): void {
+    analyzer.node.port.onmessage?.(new MessageEvent('message', {data: {protocol: PROTOCOL_VERSION, ...data}}));
+  }
+
+  function record<T extends keyof AnalyzerEventMap>(analyzer: BpmAnalyzer, type: T): Array<AnalyzerEventMap[T]> {
+    const received: Array<AnalyzerEventMap[T]> = [];
+    analyzer.on(type, detail => received.push(detail));
+    return received;
+  }
+
+  describe('on() and off()', () => {
+    it('calls every listener with the typed payload, in registration order', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      let eventReceived = false;
+      const order: string[] = [];
+      analyzer.on('progress', ({fraction}) => order.push(`first ${fraction}`));
+      analyzer.on('progress', ({fraction}) => order.push(`second ${fraction}`));
 
-      analyzer.on('bpm', () => {
-        eventReceived = true;
-      });
+      send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.25});
 
-      // Manually trigger would happen during audio processing
-      // For now, verify the listener was registered without error
-      expect(analyzer.on).to.be.a('function');
-      expect(eventReceived).to.be.false; // Not yet triggered
+      expect(order).to.deep.equal(['first 0.25', 'second 0.25']);
+      expect(analyzer.state).to.deep.include({status: 'listening', progress: 0.25});
     });
 
-    it('should receive typed event data for bpm events', async () => {
+    it('returns an unsubscribe function, and off() removes the same listener', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      let receivedData: any;
+      const viaReturn: number[] = [];
+      const viaOff: number[] = [];
+      const listener = ({fraction}: {fraction: number}) => viaOff.push(fraction);
+      const unsubscribe = analyzer.on('progress', ({fraction}) => viaReturn.push(fraction));
+      analyzer.on('progress', listener);
 
-      analyzer.on('bpm', data => {
-        receivedData = data;
-        // TypeScript should ensure data has correct structure
-        expect(data).to.have.property('bpm');
-        expect(data).to.have.property('threshold');
-      });
+      send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.1});
+      unsubscribe();
+      analyzer.off('progress', listener);
+      send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.2});
 
-      expect(analyzer.on).to.be.a('function');
+      expect(viaReturn).to.deep.equal([0.1]);
+      expect(viaOff).to.deep.equal([0.1]);
     });
 
-    it('should support multiple listeners on the same event', async () => {
+    it('calls a listener added twice once, and ignores off() of one never added', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      let listener1Called = false;
-      let listener2Called = false;
+      const calls: number[] = [];
+      const listener = ({fraction}: {fraction: number}) => calls.push(fraction);
+      analyzer.on('progress', listener);
+      analyzer.on('progress', listener);
 
-      analyzer.on('bpm', () => {
-        listener1Called = true;
-      });
+      expect(() => analyzer.off('reading', () => undefined)).to.not.throw();
+      send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.3});
 
-      analyzer.on('bpm', () => {
-        listener2Called = true;
-      });
+      expect(calls).to.deep.equal([0.3]);
+    });
 
-      // Both listeners should be registered
-      expect(analyzer.on).to.be.a('function');
+    it('honours once and an aborted signal', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const once: number[] = [];
+      const signalled: number[] = [];
+      const controller = new AbortController();
+      analyzer.on('progress', ({fraction}) => once.push(fraction), {once: true});
+      analyzer.on('progress', ({fraction}) => signalled.push(fraction), {signal: controller.signal});
+
+      send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.1});
+      controller.abort();
+      send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.2});
+
+      expect(once).to.deep.equal([0.1]);
+      expect(signalled).to.deep.equal([0.1]);
     });
   });
 
-  describe('.once() method', () => {
-    it('should register one-time event listeners', async () => {
+  describe('state and transitions', () => {
+    it('settles on the first reading and locks, with statechange before reading and state already moved', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      let callCount = 0;
-
-      analyzer.once('bpm', () => {
-        callCount++;
+      const order: string[] = [];
+      analyzer.on('statechange', ({to, reason}) => {
+        expect(analyzer.state).to.equal(to);
+        order.push(`statechange ${to.status} ${reason}`);
       });
+      analyzer.on('reading', ({bpm}) => order.push(`reading ${bpm}`));
 
-      expect(analyzer.once).to.be.a('function');
+      send(analyzer, {type: 'step', epoch: 0, status: 'settling', reason: 'first-reading', reading: reading(128, 2)});
+      send(analyzer, {type: 'step', epoch: 0, status: 'settling', reading: reading(128, 3)});
+      send(analyzer, {type: 'step', epoch: 0, status: 'locked', reason: 'locked', reading: reading(128, 4)});
+
+      expect(order).to.deep.equal([
+        'statechange settling first-reading', 'reading 128', 'reading 128', 'statechange locked locked', 'reading 128',
+      ]);
+      expect(analyzer.state.status).to.equal('locked');
     });
 
-    it('should support once listeners for bpmStable events', async () => {
+    it('reports a reading as frozen data carrying the half and double relation', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      let stableDetected = false;
+      const readings = record(analyzer, 'reading');
 
-      analyzer.once('bpmStable', data => {
-        stableDetected = true;
-        expect(data).to.have.property('bpm');
-        expect(data).to.have.property('threshold');
-      });
+      send(analyzer, {type: 'step', epoch: 0, status: 'settling', reason: 'first-reading', reading: reading(128, 2)});
 
-      expect(analyzer.once).to.be.a('function');
+      expect(readings).to.have.length(1);
+      expect(readings[0].candidates).to.deep.equal([{bpm: 128, relation: 'top'}, {bpm: 64, relation: 'half'}]);
+      expect(Object.isFrozen(readings[0])).to.equal(true);
+    });
+
+    it('goes back to listening on pulse-lost, then settles again', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const changes = record(analyzer, 'statechange');
+
+      send(analyzer, {type: 'step', epoch: 0, status: 'settling', reason: 'first-reading', reading: reading(128, 2)});
+      send(analyzer, {type: 'step', epoch: 0, status: 'listening', reason: 'pulse-lost', progress: 0});
+      send(analyzer, {type: 'step', epoch: 0, status: 'settling', reason: 'first-reading', reading: reading(120, 6)});
+
+      expect(changes.map(({from, to, reason}) => `${from.status}>${to.status} ${reason}`)).to.deep.equal([
+        'listening>settling first-reading', 'settling>listening pulse-lost', 'listening>settling first-reading',
+      ]);
+    });
+
+    it('fails with a ProtocolError on a move the table forbids, and stops', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const errors = record(analyzer, 'error');
+
+      send(analyzer, {type: 'step', epoch: 0, status: 'locked', reason: 'locked', reading: reading(128, 2)});
+
+      expect(analyzer.state).to.deep.include({status: 'stopped'});
+      expect(errors.map(({name}) => name)).to.deep.equal(['ProtocolError']);
+    });
+
+    it('fails on a message from another protocol, as a stale processor file would send', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      analyzer.node.port.onmessage?.(new MessageEvent('message', {data: {message: 'BPM', data: {bpm: []}}}));
+
+      expect(analyzer.state.status).to.equal('stopped');
+      expect(analyzer.state.status === 'stopped' && analyzer.state.error?.name).to.equal('ProtocolError');
+    });
+
+    it('forwards a non-fatal fault as an error event and keeps listening', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const errors = record(analyzer, 'error');
+
+      send(analyzer, {type: 'fault', epoch: 0, fatal: false, error: {name: 'AnalysisError', message: 'one buffer failed'}});
+
+      expect(errors).to.deep.equal([{name: 'AnalysisError', message: 'one buffer failed'}]);
+      expect(analyzer.state.status).to.equal('listening');
+    });
+
+    it('forwards debug only as debug events', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext, {debug: true});
+      const debug = record(analyzer, 'debug');
+
+      send(analyzer, {type: 'debug', epoch: 0, engine: 'peaks', data: {threshold: 0.5}});
+
+      expect(debug).to.deep.equal([{engine: 'peaks', data: {threshold: 0.5}}]);
     });
   });
 
-  describe('removeEventListener method', () => {
-    it('should remove registered event listeners', async () => {
+  describe('reset()', () => {
+    it('moves to listening with reason reset in a new epoch, before it returns', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      const handler = (event: Event) => {
-        // Handler logic
-      };
+      const changes = record(analyzer, 'statechange');
+      const progress = record(analyzer, 'progress');
+      send(analyzer, {type: 'step', epoch: 0, status: 'settling', reason: 'first-reading', reading: reading(128, 2)});
 
-      analyzer.addEventListener('bpm', handler);
-      analyzer.removeEventListener('bpm', handler);
+      analyzer.reset();
 
-      expect(analyzer.removeEventListener).to.be.a('function');
-    });
-  });
-
-  describe('event types', () => {
-    it('should support bpm event type', async () => {
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-
-      analyzer.on('bpm', data => {
-        expect(data).to.have.property('bpm');
-        expect(data.bpm).to.be.an('array');
-        expect(data).to.have.property('threshold');
-        expect(data.threshold).to.be.a('number');
-      });
-
-      expect(analyzer).to.exist;
+      expect(analyzer.state).to.deep.equal({status: 'listening', epoch: 1, progress: 0, reason: 'reset'});
+      const last: StateChange | undefined = changes.at(-1);
+      expect(last?.reason).to.equal('reset');
+      expect(last?.from.status).to.equal('settling');
+      expect(progress.at(-1)).to.deep.equal({fraction: 0});
     });
 
-    it('should support bpmStable event type', async () => {
+    it('drops what the processor measured before the reset', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      analyzer.reset();
+      const readings = record(analyzer, 'reading');
 
-      analyzer.on('bpmStable', data => {
-        expect(data).to.have.property('bpm');
-        expect(data.bpm).to.be.an('array');
-        expect(data).to.have.property('threshold');
-        expect(data.threshold).to.be.a('number');
-      });
+      send(analyzer, {type: 'step', epoch: 0, status: 'settling', reason: 'first-reading', reading: reading(128, 2)});
 
-      expect(analyzer).to.exist;
+      expect(readings).to.deep.equal([]);
+      expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
     });
 
-    it('should support analyzerReset event type', async () => {
+    it('fails on a flood of stale messages, as a processor that never adopted the epoch would send', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      analyzer.reset();
 
-      analyzer.on('analyzerReset', () => {
-        // This event has no data (void)
-      });
+      for (let i = 0; i < 17; i += 1) {
+        send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.1});
+      }
 
-      expect(analyzer).to.exist;
+      expect(analyzer.state.status).to.equal('stopped');
+      expect(analyzer.state.status === 'stopped' && analyzer.state.error?.name).to.equal('ProtocolError');
     });
 
-    it('should forward progress events from the processor', async () => {
+    it('lets a listener reset from inside a statechange, after the current dispatch', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      const received: Array<BpmAnalyzerEventMap['progress']> = [];
-      analyzer.on('progress', data => received.push(data));
-
-      const data = {peaks: 3, requiredPeaks: 16};
-      analyzer.node.port.onmessage?.(new MessageEvent('message', {data: {type: 'progress', data}}));
-
-      expect(received).to.deep.equal([data]);
-    });
-
-    it('should support error event type', async () => {
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-
-      analyzer.on('error', data => {
-        expect(data).to.have.property('message');
-        expect(data).to.have.property('error');
-      });
-
-      expect(analyzer).to.exist;
-    });
-  });
-
-  describe('event emission with real audio', () => {
-    it('should emit bpm events during audio processing', async function () {
-      this.timeout(10000);
-
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      const audioBuffer = await loadTestAudio(audioContext);
-      const source = audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-
-      let bpmEventCount = 0;
-      analyzer.on('bpm', data => {
-        bpmEventCount++;
-        expect(data).to.have.property('bpm');
-        expect(data).to.have.property('threshold');
-      });
-
-      source.connect(analyzer.node);
-      analyzer.node.connect(audioContext.destination);
-
-      // Start playback
-      source.start();
-
-      // Wait a bit for processing
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Stop
-      source.stop();
-      source.disconnect();
-      analyzer.disconnect();
-
-      // Should have received some bpm events
-      // Note: This might be 0 if AudioWorklet doesn't process in test env
-      // but the setup should be correct
-      expect(bpmEventCount).to.be.a('number');
-    });
-
-    it('should emit events with valid BPM data structure', async function () {
-      this.timeout(10000);
-
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      const audioBuffer = await loadTestAudio(audioContext);
-      const source = audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-
-      let receivedValidData = false;
-      analyzer.on('bpm', data => {
-        if (data.bpm.length > 0) {
-          receivedValidData = true;
-          const firstCandidate = data.bpm[0];
-          expect(firstCandidate).to.have.property('tempo');
-          expect(firstCandidate).to.have.property('count');
-          expect(firstCandidate).to.have.property('confidence');
-          expect(firstCandidate.tempo).to.be.a('number');
-          expect(firstCandidate.count).to.be.a('number');
-          expect(firstCandidate.confidence).to.be.a('number');
+      const seen: string[] = [];
+      analyzer.on('statechange', ({to, reason}) => {
+        seen.push(`${to.status} ${reason}`);
+        if (to.status === 'settling') {
+          analyzer.reset();
         }
       });
+      analyzer.on('reading', ({bpm}) => seen.push(`reading ${bpm}`));
 
-      source.connect(analyzer.node);
-      analyzer.node.connect(audioContext.destination);
+      send(analyzer, {type: 'step', epoch: 0, status: 'settling', reason: 'first-reading', reading: reading(128, 2)});
+
+      expect(seen).to.deep.equal(['settling first-reading', 'reading 128', 'listening reset']);
+      expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
+    });
+  });
+
+  describe('stop()', () => {
+    it('moves to stopped once, ignores later messages, and refuses reset()', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const changes = record(analyzer, 'statechange');
+
+      analyzer.stop();
+      analyzer.stop();
+      send(analyzer, {type: 'step', epoch: 0, status: 'settling', reason: 'first-reading', reading: reading(128, 2)});
+
+      expect(changes.map(({to, reason}) => `${to.status} ${reason}`)).to.deep.equal(['stopped stopped']);
+      expect(analyzer.state).to.deep.equal({status: 'stopped', epoch: 0, error: null});
+      expect(() => analyzer.reset()).to.throw(DOMException).with.property('name', 'InvalidStateError');
+    });
+  });
+
+  describe('with audio', () => {
+    it('reports listening progress from the real processor', async function () {
+      this.timeout(10_000);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const pcm = createClickTrack(128, audioContext.sampleRate, 3);
+      const buffer = audioContext.createBuffer(1, pcm.length, audioContext.sampleRate);
+      buffer.copyToChannel(pcm, 0);
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(analyzer.input);
+
+      const progress = waitForEvent(analyzer, 'progress', 5000);
       source.start();
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
+      const {fraction} = await progress;
       source.stop();
-      source.disconnect();
-      analyzer.node.disconnect();
+      analyzer.stop();
 
-      // Structure validation passed (even if no events due to test env)
-      expect(receivedValidData).to.be.a('boolean');
-    });
-  });
-
-  describe('event listener management', () => {
-    it('should not throw when removing non-existent listener', async () => {
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      const handler = () => {};
-
-      expect(() => {
-        analyzer.removeEventListener('bpm', handler);
-      }).to.not.throw();
-    });
-  });
-
-  describe('control methods integration with events', () => {
-    it('should work with reset() method', async () => {
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      let resetEventReceived = false;
-
-      analyzer.on('analyzerReset', () => {
-        resetEventReceived = true;
-      });
-
-      expect(() => {
-        analyzer.reset();
-      }).to.not.throw();
-
-      // Reset message sent to processor
-      expect(analyzer.reset).to.be.a('function');
-    });
-
-    it('should work with stop() method', async () => {
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-
-      expect(() => {
-        analyzer.stop();
-      }).to.not.throw();
-    });
-  });
-
-  describe('debug mode events', () => {
-    it('should support debug events when enabled', async () => {
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
-        debug: true,
-      });
-
-      let debugEventReceived = false;
-      analyzer.on('analyzeChunk', data => {
-        debugEventReceived = true;
-        expect(data).to.be.instanceOf(Float32Array);
-      });
-
-      analyzer.on('validPeak', data => {
-        expect(data).to.have.property('threshold');
-        expect(data).to.have.property('index');
-      });
-
-      // Debug events would be emitted during processing
-      expect(analyzer).to.exist;
+      expect(fraction).to.be.within(0, 1);
     });
   });
 });

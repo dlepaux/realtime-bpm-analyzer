@@ -1,122 +1,24 @@
-/**
- * Events emitted by the BPM analyzer processor (Processor → Main Thread)
- * @group Events
- */
-export type ProcessorOutputEvent =
-  | {type: 'bpm'; data: BpmCandidates}
-  | {type: 'bpmStable'; data: BpmCandidates}
-  | {type: 'analyzerReset'}
-  | {type: 'progress'; data: BpmProgress}
-  | {type: 'analyzeChunk'; data: Float32Array}
-  | {type: 'validPeak'; data: {threshold: Threshold; index: number}}
-  | {type: 'error'; data: {message: string; error: Error}};
-
-/**
- * Control events sent to the processor (Main Thread → Processor)
- * @group Events
- */
-export type ProcessorInputEvent = {type: 'reset'} | {type: 'stop'} | {type: 'delivered'; seconds: number};
-
-/**
- * MessagePort message wrapper for processor input events
- * @internal
- */
-export type ProcessorInputMessage = {
-  data: ProcessorInputEvent;
-};
-
-/**
- * Type-safe event listener map for BPM analyzer events
- * @group Events
- */
-export type BpmAnalyzerEventMap = {
-  /** Emitted continuously during BPM analysis with current tempo candidates */
-  bpm: BpmCandidates;
-  /**
-   * Emitted when BPM detection has stabilized with high confidence. The `peaks` detector waits for 10 s of audio
-   * first, or for `stabilizationTime` with `continuousAnalysis` when that is shorter.
-   */
-  bpmStable: BpmCandidates;
-  /** Emitted when the analyzer state has been reset */
-  analyzerReset: void;
-  /**
-   * Emitted once per analysed chunk with how close the analyzer is to its first BPM.
-   * @remarks
-   * Not debug-only. After `analyzerReset` a `progress` event with `peaks: 0` follows,
-   * so a progress bar can restart in step with the analysis.
-   * @example
-   * ```ts
-   * analyzer.on('progress', ({peaks, requiredPeaks}) => {
-   *   progressBar.value = peaks / requiredPeaks;
-   * });
-   * ```
-   */
-  progress: BpmProgress;
-  /** Emitted in debug mode when analyzing audio chunks */
-  analyzeChunk: Float32Array;
-  /** Emitted in debug mode when a valid peak is detected */
-  validPeak: {threshold: Threshold; index: number};
-  /**
-   * Emitted when an error occurs during processing.
-   * @remarks
-   * Worklet-load failures thrown by `createRealtimeBpmAnalyzer` wrap the
-   * underlying cause via `Error.cause` (ES2022). Inspect `error.cause`
-   * to read the originating DOMException.
-   * @example
-   * ```ts
-   * analyzer.on('error', ({error}) => {
-   *   console.log(error.message);
-   *   console.log((error as Error).cause);
-   * });
-   * ```
-   */
-  error: {message: string; error: Error};
-};
-
-/**
- * Threshold value for peak detection (0.0 to 1.0)
- * @group Type Aliases
- */
-export type Threshold = number;
-
-/**
- * Array of peak positions in audio samples
- * @group Type Aliases
- */
-export type Peaks = number[];
+// Internal types of the engines. The public types are in ../contract/types.ts.
+export type {TempoRange} from '../contract/types';
+import type {TempoRange} from '../contract/types';
 
 /**
  * Peaks with their associated threshold
  * @internal
  */
 export type PeaksAndThreshold = {
-  peaks: Peaks;
-  threshold: Threshold;
+  peaks: number[];
+  threshold: number;
 };
 
 /**
- * BPM analysis results with tempo candidates
- * @group Type Aliases
+ * The peaks engine's candidates on the rung it read them from
+ * @internal
  */
-export type BpmCandidates = {
+export type RungTempos = {
   /** Up to 5 tempo candidates, sorted by `count` (highest first) */
-  readonly bpm: readonly Tempo[];
-  /** Threshold value used for peak detection */
-  readonly threshold: Threshold;
-};
-
-/**
- * Progress toward the first BPM result of the realtime analyzer
- * @group Type Aliases
- */
-export type BpmProgress = {
-  /**
-   * Peaks found at the best-filled threshold, capped at `requiredPeaks`,
-   * so `peaks / requiredPeaks` is a fraction from 0 to 1
-   */
-  readonly peaks: number;
-  /** Peaks one threshold needs before the analyzer can report a tempo */
-  readonly requiredPeaks: number;
+  readonly bpm: Tempo[];
+  readonly threshold: number;
 };
 
 /**
@@ -142,8 +44,8 @@ export type Group = {
 };
 
 /**
- * Detected tempo with confidence metrics
- * @group Type Aliases
+ * One engine candidate, before it becomes a public `Candidate`
+ * @internal
  */
 export type Tempo = {
   /** Detected tempo in beats per minute */
@@ -163,148 +65,6 @@ export type Tempo = {
    * cut-off has been calibrated on real music yet.
    */
   readonly confidence: number;
-};
-
-/**
- * Tempo range, in BPM, that every detected tempo is folded into by doubling or halving.
- *
- * @remarks
- * The detector cannot tell a tempo from its double or half from peak intervals alone,
- * so it reports the octave that lands inside this range. The default, 90–180, reads an
- * 85 BPM hip-hop track as 170; a 70–140 range reads it as 85.
- * `max` must be at least twice `min`, so that every tempo has an octave inside the range.
- * Keep the expected tempo away from the bounds: folding happens before rounding, so a tempo
- * sitting on an edge splits its votes between the two octaves.
- *
- * @group Type Aliases
- */
-export type TempoRange = {
-  /** Lowest tempo reported, in BPM (default: 90) */
-  readonly min: number;
-  /** Highest tempo reported, in BPM (default: 180) */
-  readonly max: number;
-};
-
-/**
- * Options for {@link analyzeFullBuffer}: lowpass filter settings, the tempo range and the detector
- * @group Type Aliases
- */
-export type AnalyzeFullBufferOptions = BiquadFilterOptions & {
-  /**
-   * Range every tempo is folded into (default: 90–180 BPM).
-   * With the `tempogram` detector, the range searched instead, with the same default.
-   */
-  tempoRange?: TempoRange;
-  /** Tempo detector (default: `peaks`). The `tempogram` uses no lowpass, so it ignores the filter settings. */
-  detector?: Detector;
-};
-
-/**
- * Tempo detector, for real-time analysis and for whole files.
- *
- * - `peaks`, the default: amplitude peaks after a lowpass.
- * - `tempogram`: spectral flux across several bands, a sliding autocorrelation and a tempo prior.
- *   Searches 90 to 180 BPM unless `tempoRange` says otherwise. A tempo under `min` reads at a
- *   multiple inside the range, usually its octave: 70 reads 140. From about twice `min` up, a tempo
- *   can read at half or a quarter, whatever `max` is: over about 179 BPM by default, so 200 reads 100.
- *   On a range wider than one octave, which of those tempos halve varies from one to the next:
- *   60 to 180 reads 116 as 116, 120 as 60, 140 as 140 and 160 as 80, 70 to 140 reads 140 as 70, and
- *   90 to 240 reads 170 as 170 and 180 as 90. So a lower `min` halves more, and a higher `max` does not
- *   reach faster music. These figures are clean clicks: ranges other than 90 to 180 were not measured.
- *   A lowpass removes the bands it listens to: connect the source to `BpmAnalyzer.input`, which
- *   suits either detector, and not through {@link getBiquadFilter}.
- *   It reads about twice a second, leaves `threshold` at 0, and gives `count` as a salience score
- *   used for ranking. `bpmStable` means the estimates agreed over time, and `confidence` is the
- *   normalised autocorrelation at the tempo.
- *
- * @group Type Aliases
- */
-export type Detector = 'peaks' | 'tempogram';
-
-/**
- * Holds a caller to the tempogram's measured settings. `extension` is for a browser extension listening
- * to a tab: it reads exactly as a bare `detector: 'tempogram'` does, 90 to 180 BPM with no lowpass, and
- * refuses any option that would leave those settings. A tempo over about 179 BPM reads at half.
- *
- * @group Type Aliases
- */
-export type TempogramMode = 'extension';
-
-/**
- * Configuration options for the real-time BPM analyzer
- * @group Type Aliases
- */
-export type RealTimeBpmAnalyzerParameters = {
-  /** Continue analyzing after stable BPM is found (default: false) */
-  continuousAnalysis?: boolean;
-  /** Time in milliseconds to consider BPM stable (default: `defaultStabilizationTime` — 20 000 ms) */
-  stabilizationTime?: number;
-  /** Audio samples to skip between peaks (default: `defaultMuteTimeInIndexes` — 10 000 sample indexes) */
-  muteTimeInIndexes?: number;
-  /** Enable debug event logging (default: false) */
-  debug?: boolean;
-  /**
-   * Range every tempo is folded into (default: 90–180 BPM).
-   * With the `tempogram` detector, the range searched instead, with the same default.
-   */
-  tempoRange?: TempoRange;
-  /** Tempo detector (default: `peaks`) */
-  detector?: Detector;
-  /**
-   * Pins the tempogram to its measured settings, real-time only. Needs `detector: 'tempogram'`, and refuses
-   * another `tempoRange` and `continuousAnalysis`, whose reset can keep the tempogram from ever reaching stable.
-   */
-  tempogramMode?: TempogramMode;
-};
-
-/**
- * Options accepted by `createRealtimeBpmAnalyzer`: the analyzer parameters plus where to load the worklet from.
- *
- * @remarks
- * By default the processor is loaded from a `blob:` URL built from an inlined copy, so no extra file
- * has to be served. Pages whose Content Security Policy refuses `blob:` scripts, and Manifest V3
- * extensions (whose CSP cannot allow `blob:`), set `processorUrl` to a copy of the published
- * `realtime-bpm-analyzer/processor` file served from their own origin instead.
- *
- * @example
- * ```typescript
- * // MV3 extension, with dist/realtime-bpm-processor.js copied into the extension build
- * const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
- *   processorUrl: chrome.runtime.getURL('realtime-bpm-processor.js'),
- * });
- * ```
- * @group Type Aliases
- */
-export type CreateRealtimeBpmAnalyzerOptions = RealTimeBpmAnalyzerParameters & {
-  /** URL of the processor file handed to `audioWorklet.addModule` (default: an inlined `blob:` URL) */
-  processorUrl?: string | URL;
-  /**
-   * The track behind a MediaStream source. Such an input arrives in real time whatever the audio thread does: when the
-   * thread can't keep up the browser drops part of it, and without this the tempo then reads high and stable (150 BPM
-   * reads 167 at 10% lost). Given the track, the analyzer follows its clock and counts what was lost as silence, which
-   * brings the number close to the tempo. While about 5% or more is being lost, or the clock has stopped reporting, it
-   * holds `bpmStable` back. When the loss ends it may start over and emit `analyzerReset`. Needs `MediaStreamTrack.stats`,
-   * which is specified for `getUserMedia` tracks: without it, this silently does nothing. Measured on Chrome tab capture,
-   * not on a microphone. A media element or a buffer has no such track: those wait for the thread and lose nothing.
-   */
-  liveInput?: MediaStreamTrack;
-};
-
-/**
- * Internal analyzer options with required fields
- * @internal
- */
-export type RealTimeBpmAnalyzerOptions = {
-  continuousAnalysis: boolean;
-  stabilizationTime: number;
-  muteTimeInIndexes: number;
-  debug: boolean;
-  tempoRange: TempoRange;
-  /**
-   * Optional though the constructor always sets it: `options` is a public field that 5.4.0 callers may
-   * replace whole, with the five fields above. Absent reads as `peaks`, what those callers got.
-   */
-  detector?: Detector;
 };
 
 /**
@@ -343,39 +103,15 @@ export type AnalyzerComputeBpmOptions = {
 export type AnalyzerFindPeaksAtTheshold = {
   audioSampleRate: number;
   data: Float32Array;
-  threshold: Threshold;
+  threshold: number;
   offset?: number;
-};
-
-/**
- * Options for real-time peak detection in audio worklet
- * @internal
- */
-export type RealtimeFindPeaksOptions = {
-  audioSampleRate: number;
-  channelData: Float32Array;
-  bufferSize: number;
-  currentMinIndex: number;
-  currentMaxIndex: number;
-  postMessage: (data: ProcessorOutputEvent) => void;
-};
-
-/**
- * Options for analyzing audio chunks in real-time
- * @internal
- */
-export type RealtimeAnalyzeChunkOptions = {
-  audioSampleRate: number;
-  channelData: Float32Array;
-  bufferSize: number;
-  postMessage: (data: ProcessorOutputEvent) => void;
 };
 
 /**
  * Map of threshold values to their corresponding detected peaks
  * @internal
  */
-export type ValidPeaks = Record<string, Peaks>;
+export type ValidPeaks = Record<string, number[]>;
 
 /**
  * Map of threshold values to the next peak index to search from
@@ -387,7 +123,7 @@ export type NextIndexPeaks = Record<string, number>;
  * Callback function executed when processing each threshold level
  * @internal
  */
-export type OnThresholdFunction = (threshold: Threshold) => Promise<boolean>;
+export type OnThresholdFunction = (threshold: number) => Promise<boolean>;
 
 /**
  * Aggregated audio buffer data for real-time analysis

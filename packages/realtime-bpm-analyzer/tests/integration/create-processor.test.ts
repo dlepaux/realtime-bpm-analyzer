@@ -35,14 +35,36 @@ describe('createRealtimeBpmAnalyzer', function () {
       expect(processor.node).to.be.instanceOf(AudioWorkletNode);
     });
 
-    it('should accept processor options', async () => {
-      const processor = await createRealtimeBpmAnalyzer(audioContext, {
-        continuousAnalysis: true,
-        stabilizationTime: 10000,
-        muteTimeInIndexes: 5000,
-        debug: false,
-      });
-      expect(processor).to.be.instanceOf(BpmAnalyzer);
+    it('should accept engine options', async () => {
+      const peaks = await createRealtimeBpmAnalyzer(audioContext, {engine: {name: 'peaks', restartAfterSeconds: 10}, debug: false});
+      const tempogram = await createRealtimeBpmAnalyzer(audioContext, {engine: {name: 'tempogram', mode: 'extension'}});
+      expect(peaks).to.be.instanceOf(BpmAnalyzer);
+      expect(tempogram).to.be.instanceOf(BpmAnalyzer);
+    });
+
+    it('resolves once the processor is ready, listening with reason started', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      expect(analyzer.state).to.deep.equal({status: 'listening', epoch: 0, progress: 0, reason: 'started'});
+      analyzer.stop();
+      expect(analyzer.state).to.deep.equal({status: 'stopped', epoch: 0, error: null});
+    });
+
+    it('refuses an invalid engine or debug on the main thread', async () => {
+      const invalid: Array<[unknown, typeof RangeError | typeof TypeError]> = [
+        [{engine: 'magic'}, RangeError],
+        [{engine: {name: 'peaks', restartAfterSeconds: -1}}, RangeError],
+        [{debug: 'yes'}, TypeError],
+      ];
+      for (const [options, expected] of invalid) {
+        let caught: unknown;
+        try {
+          await createRealtimeBpmAnalyzer(audioContext, options as Parameters<typeof createRealtimeBpmAnalyzer>[1]);
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught, JSON.stringify(options)).to.be.instanceOf(expected);
+      }
     });
 
     it('should accept a tempo range', async () => {
@@ -54,7 +76,7 @@ describe('createRealtimeBpmAnalyzer', function () {
 
     it('gives peaks a lowpass in front of the worklet, and the tempogram nothing', async () => {
       const peaks = await createRealtimeBpmAnalyzer(audioContext);
-      const tempogram = await createRealtimeBpmAnalyzer(audioContext, {detector: 'tempogram'});
+      const tempogram = await createRealtimeBpmAnalyzer(audioContext, {engine: 'tempogram'});
 
       expect(peaks.input).to.be.instanceOf(BiquadFilterNode);
       expect((peaks.input as BiquadFilterNode).type).to.equal('lowpass');
@@ -218,7 +240,7 @@ describe('createRealtimeBpmAnalyzer', function () {
     it('accepts a URL object and keeps it out of the worklet options', async () => {
       // A URL in processorOptions would make the AudioWorkletNode constructor fail structured cloning
       const processorUrl = new URL(publishedProcessorPath, location.href);
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext, {processorUrl, continuousAnalysis: true});
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext, {processorUrl, engine: 'tempogram'});
 
       expect(analyzer.node).to.be.instanceOf(AudioWorkletNode);
     });
@@ -381,6 +403,16 @@ describe('Public API exports', () => {
 
   it('should export createRealtimeBpmAnalyzer function', () => {
     expect(typeof createRealtimeBpmAnalyzer === 'function').to.be.equal(true);
+  });
+
+  it('exports none of the 5.x surface', async () => {
+    const entry: Record<string, unknown> = await import('../../src/index');
+
+    for (const removed of ['RealTimeBpmAnalyzer', 'createRealTimeBpmProcessor']) {
+      expect(entry, removed).to.not.have.property(removed);
+    }
+
+    expect(Object.keys(entry).sort()).to.deep.equal(['BpmAnalyzer', 'RELATION_TOLERANCE', 'analyzeFullBuffer', 'createRealtimeBpmAnalyzer', 'getBiquadFilter']);
   });
 });
 

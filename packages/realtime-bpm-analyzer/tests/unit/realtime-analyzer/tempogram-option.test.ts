@@ -1,43 +1,34 @@
 import {expect} from 'chai';
-import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
+import {createSession} from '../../../src/core/session';
+import {resolveEngine} from '../../../src/core/engine';
+import type {ResolvedEngine} from '../../../src/core/engine';
 import {createTempogramDetector} from '../../../src/core/tempogram';
-import type {ProcessorOutputEvent} from '../../../src/core/types';
+import type {EngineOption, TempoRange, WorkletMessage} from '../../../src/contract/types';
 import {analyzeChannelData} from '../../../src/node';
 import {createClickTrack} from '../../fixtures/click-track';
+import {feedSession} from '../../setup';
 
 const sampleRate = 44_100;
 
-async function stream(analyzer: RealTimeBpmAnalyzer, pcm: Float32Array): Promise<ProcessorOutputEvent[]> {
-  const events: ProcessorOutputEvent[] = [];
-
-  for (let start = 0; start + 4096 <= pcm.length; start += 4096) {
-    await analyzer.analyzeChunk({
-      audioSampleRate: sampleRate,
-      channelData: pcm.subarray(start, start + 4096),
-      bufferSize: 4096,
-      postMessage: event => {
-        events.push(event);
-      },
-    });
-  }
-
-  return events;
+async function streamResolved(engine: ResolvedEngine, tempoRange: TempoRange, pcm: Float32Array): Promise<WorkletMessage[]> {
+  const session = createSession({engine, tempoRange, debug: false});
+  return (await feedSession(session, pcm, sampleRate)).map(({message}) => message);
 }
+
+async function stream(engine: EngineOption | undefined, pcm: Float32Array, tempoRange?: TempoRange): Promise<WorkletMessage[]> {
+  const resolved = resolveEngine(engine, tempoRange);
+  return streamResolved(resolved.engine, resolved.tempoRange, pcm);
+}
+
+const readingsOf = (messages: readonly WorkletMessage[]): number[] =>
+  messages.flatMap(message => (message.type === 'step' && message.status !== 'listening' ? [message.reading.bpm] : []));
 
 // Literals on purpose: what the DECISION locked, not what the source holds today
 const lockedRange = {min: 90, max: 180};
 const lockedTuning = {priorBpm: 80, priorOctaves: 1.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.3};
 
-function measuredAnalyzer(): RealTimeBpmAnalyzer {
-  const analyzer = new RealTimeBpmAnalyzer({detector: 'tempogram', tempoRange: lockedRange});
-
-  analyzer.tempogram = createTempogramDetector({sampleRate, tempoRange: lockedRange, tuning: lockedTuning});
-
-  return analyzer;
-}
-
-// The figures the docs give for custom ranges (`Detector` in types.ts, the real-time guide). They describe
-// the locked settings on clean clicks, and they only hold while those settings do.
+// The figures the docs give for custom ranges (the real-time guide). They describe the locked settings on clean
+// clicks, and they only hold while those settings do.
 describe('a custom tempogram range', () => {
   for (const [min, max, heard, read] of [
     [90, 180, 70, 140],
@@ -53,42 +44,26 @@ describe('a custom tempogram range', () => {
     [90, 240, 180, 90],
   ]) {
     it(`on ${min}-${max} reads ${heard} as ${read}`, async () => {
-      const candidates = await analyzeChannelData(createClickTrack(heard, sampleRate, 30), sampleRate, {
-        detector: 'tempogram',
+      const reading = await analyzeChannelData(createClickTrack(heard, sampleRate, 30), sampleRate, {
+        engine: 'tempogram',
         tempoRange: {min, max},
       });
 
-      expect(Math.round(candidates[0].tempo)).to.equal(read);
+      expect(Math.round(reading!.bpm)).to.equal(read);
     });
   }
 });
 
-describe('options replaced whole, as 5.4.0 allowed', () => {
-  it('reads and reports progress as peaks, with no detector named', async () => {
-    const pcm = createClickTrack(128, sampleRate, 10);
-    const replaced = new RealTimeBpmAnalyzer();
-
-    replaced.options = {
-      continuousAnalysis: false,
-      stabilizationTime: 20_000,
-      muteTimeInIndexes: 10_000,
-      debug: false,
-      tempoRange: {min: 90, max: 180},
-    };
-
-    expect(await stream(replaced, pcm)).to.deep.equal(await stream(new RealTimeBpmAnalyzer(), pcm));
-  });
-});
-
 describe('one tempogram behaviour', () => {
-  for (const [name, options] of [
-    ['bare', {detector: 'tempogram'}],
-    ['named mode', {detector: 'tempogram', tempogramMode: 'extension'}],
+  for (const [name, engine] of [
+    ['bare', 'tempogram'],
+    ['named mode', {name: 'tempogram', mode: 'extension'}],
   ] as const) {
     it(`reads the locked settings, as the ${name} option`, async () => {
       const pcm = createClickTrack(128, sampleRate, 20);
+      const measured = await streamResolved({name: 'tempogram', tuning: lockedTuning}, lockedRange, pcm);
 
-      expect(await stream(new RealTimeBpmAnalyzer(options), pcm)).to.deep.equal(await stream(measuredAnalyzer(), pcm));
+      expect(await stream(engine, pcm)).to.deep.equal(measured);
     });
   }
 
@@ -100,83 +75,78 @@ describe('one tempogram behaviour', () => {
       tempoRange: lockedRange,
       tuning: {...lockedTuning, halfLifeSeconds: Number.POSITIVE_INFINITY},
     }).process(pcm);
+    const reading = await analyzeChannelData(pcm, sampleRate, {engine: 'tempogram'});
 
-    expect(await analyzeChannelData(pcm, sampleRate, {detector: 'tempogram'})).to.deep.equal(measured?.candidates);
+    expect(reading?.bpm).to.equal(measured?.candidates[0].tempo);
+    expect(reading?.candidates.map(({bpm}) => bpm)).to.deep.equal(measured?.candidates.slice(0, 5).map(({tempo}) => tempo));
   });
 
   it('reads fast music as itself on both paths, where the first pick read it at half', async () => {
     const pcm = createClickTrack(174, sampleRate, 30);
-    const events = await stream(new RealTimeBpmAnalyzer({detector: 'tempogram'}), pcm);
-    const readings = events.flatMap(event => (event.type === 'bpm' ? [event.data.bpm[0].tempo] : []));
-    const [whole] = await analyzeChannelData(pcm, sampleRate, {detector: 'tempogram'});
+    const readings = readingsOf(await stream('tempogram', pcm));
+    const whole = await analyzeChannelData(pcm, sampleRate, {engine: 'tempogram'});
 
     expect(readings.at(-1)).to.be.within(170, 178);
-    expect(whole.tempo).to.be.within(170, 178);
+    expect(whole?.bpm).to.be.within(170, 178);
   });
 
   it('still lets a caller set the range searched', async () => {
-    const candidates = await analyzeChannelData(createClickTrack(128, sampleRate, 20), sampleRate, {detector: 'tempogram', tempoRange: {min: 50, max: 100}});
+    const reading = await analyzeChannelData(createClickTrack(128, sampleRate, 20), sampleRate, {engine: 'tempogram', tempoRange: {min: 50, max: 100}});
 
-    expect(candidates.every(({tempo}) => tempo >= 50 && tempo <= 100)).to.equal(true);
+    expect(reading?.candidates.every(({bpm}) => bpm >= 50 && bpm <= 100)).to.equal(true);
   });
 });
 
-describe('tempogramMode', () => {
-  const extension = {detector: 'tempogram', tempogramMode: 'extension'} as const;
+describe('the extension mode', () => {
+  const extension = {name: 'tempogram', mode: 'extension'} as const;
 
   it('searches 90 to 180 BPM, so a fast pulse cannot read at half', async () => {
-    const events = await stream(new RealTimeBpmAnalyzer(extension), createClickTrack(170, sampleRate, 20));
-    const readings = events.flatMap(event => (event.type === 'bpm' ? [event.data.bpm[0].tempo] : []));
+    const readings = readingsOf(await stream(extension, createClickTrack(170, sampleRate, 20)));
 
     expect(readings.at(-1)).to.be.within(165, 175);
   });
 
-  it('accepts its own range, and refuses another, a reset timer, or another detector', () => {
-    expect(() => new RealTimeBpmAnalyzer({...extension, tempoRange: {min: 90, max: 180}})).to.not.throw();
-    expect(() => new RealTimeBpmAnalyzer({...extension, tempoRange: {min: 50, max: 240}})).to.throw(RangeError, 'another range');
-    expect(() => new RealTimeBpmAnalyzer({...extension, continuousAnalysis: true})).to.throw(RangeError, 'continuousAnalysis');
-    expect(() => new RealTimeBpmAnalyzer({tempogramMode: 'extension'})).to.throw(RangeError, 'needs detector');
+  it('accepts its own range, and refuses another or an unknown mode', () => {
+    expect(() => resolveEngine(extension, {min: 90, max: 180})).to.not.throw();
+    expect(() => resolveEngine(extension, {min: 50, max: 240})).to.throw(RangeError, 'another range');
     // @ts-expect-error Invalid on purpose
-    expect(() => new RealTimeBpmAnalyzer({detector: 'tempogram', tempogramMode: 'magic'})).to.throw(RangeError, 'Invalid tempogramMode');
+    expect(() => resolveEngine({name: 'tempogram', mode: 'magic'}, undefined)).to.throw(RangeError, 'Invalid engine.mode');
   });
 });
 
-describe('detector option', () => {
-  it('defaults to the peaks detector', () => {
-    expect(new RealTimeBpmAnalyzer().options.detector).to.equal('peaks');
+describe('engine option', () => {
+  it('defaults to the peaks engine', () => {
+    expect(resolveEngine(undefined, undefined).engine).to.deep.equal({name: 'peaks'});
   });
 
-  it('refuses an unknown detector', () => {
+  it('refuses an unknown engine, and a restart period that is not a positive number', () => {
     // @ts-expect-error Invalid on purpose
-    expect(() => new RealTimeBpmAnalyzer({detector: 'magic'})).to.throw(RangeError);
+    expect(() => resolveEngine('magic', undefined)).to.throw(RangeError, 'Invalid engine');
+    expect(() => resolveEngine({name: 'peaks', restartAfterSeconds: 0}, undefined)).to.throw(RangeError, 'restartAfterSeconds');
+    expect(() => resolveEngine({name: 'peaks', restartAfterSeconds: Number.NaN}, undefined)).to.throw(RangeError, 'restartAfterSeconds');
   });
 
-  it('emits the same event types with the tempogram', async () => {
-    const events = await stream(new RealTimeBpmAnalyzer({detector: 'tempogram'}), createClickTrack(128, sampleRate, 20));
-    const bpm = events.filter(event => event.type === 'bpm');
-    const stable = events.filter(event => event.type === 'bpmStable');
-    const progress = events.flatMap(event => (event.type === 'progress' ? [event.data] : []));
+  it('moves the tempogram through the same states as peaks: one first reading, then one lock', async () => {
+    const messages = await stream('tempogram', createClickTrack(128, sampleRate, 20));
+    const moves = messages.flatMap(message => (message.type === 'step' && message.reason !== undefined ? [`${message.status}/${message.reason}`] : []));
+    const progress = messages.flatMap(message => (message.type === 'step' && message.status === 'listening' ? [message.progress] : []));
 
-    expect(bpm.length).to.be.greaterThan(10);
-    expect(stable.length).to.equal(1);
-    expect(progress[0].peaks).to.equal(0);
-    expect(progress.at(-1)).to.deep.equal({peaks: 16, requiredPeaks: 16});
+    expect(moves).to.deep.equal(['settling/first-reading', 'locked/locked']);
+    expect(readingsOf(messages).length).to.be.greaterThan(10);
+    expect(progress[0]).to.equal(0);
+    expect(progress.every(fraction => fraction >= 0 && fraction <= 1)).to.equal(true);
   });
 
-  it('starts over with continuous analysis', async () => {
-    const analyzer = new RealTimeBpmAnalyzer({detector: 'tempogram', continuousAnalysis: true, stabilizationTime: 5000});
-    const events = await stream(analyzer, createClickTrack(128, sampleRate, 7));
-    const resetAt = events.findIndex(event => event.type === 'analyzerReset');
+  it('starts the tempogram over when told to restart, with progress back at 0', async () => {
+    const messages = await streamResolved({name: 'tempogram', restartAfterSeconds: 10}, lockedRange, createClickTrack(128, sampleRate, 14));
+    const restart = messages.find(message => message.type === 'step' && message.reason === 'tempo-changed');
 
-    expect(resetAt).to.be.greaterThan(-1);
-    expect(events[resetAt + 1]).to.deep.equal({type: 'progress', data: {peaks: 0, requiredPeaks: 16}});
+    expect(restart).to.deep.include({status: 'listening', progress: 0});
   });
 
-  it('leaves the peaks detector untouched', async () => {
-    const pcm = createClickTrack(128, sampleRate, 20);
-    const events = await stream(new RealTimeBpmAnalyzer(), pcm);
-    const last = events.filter(event => event.type === 'bpm').at(-1);
+  it('leaves the peaks engine reading what it read', async () => {
+    const readings = readingsOf(await stream(undefined, createClickTrack(128, sampleRate, 20)));
 
-    expect(last?.type === 'bpm' && last.data.bpm[0].tempo).to.equal(128);
+    expect(readings.at(-1)).to.equal(128);
   });
 });

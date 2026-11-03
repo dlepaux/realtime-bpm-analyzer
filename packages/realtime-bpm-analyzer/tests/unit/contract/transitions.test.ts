@@ -9,9 +9,9 @@ import {
   relationTo,
   type ReducerInput,
   type ReducerResult,
-} from '../../../src/v6/transitions';
+} from '../../../src/contract/transitions';
 import {
-  HYSTERESIS_PLACEHOLDER,
+  HYSTERESIS,
   PROTOCOL_VERSION,
   type ActiveStatus,
   type AnalyzerEvent,
@@ -19,7 +19,7 @@ import {
   type EngineReason,
   type Reading,
   type Status,
-} from '../../../src/v6/types';
+} from '../../../src/contract/types';
 
 const protocol = PROTOCOL_VERSION;
 const active: ActiveStatus[] = ['listening', 'settling', 'locked'];
@@ -93,7 +93,7 @@ describe('v6 transition table', () => {
   });
 
   it('keeps the unlock band wider than the lock band, whatever phase 3 sets', () => {
-    expect(HYSTERESIS_PLACEHOLDER.unlockBand).to.be.greaterThan(HYSTERESIS_PLACEHOLDER.lockBand);
+    expect(HYSTERESIS.unlockBand).to.be.greaterThan(HYSTERESIS.lockBand);
   });
 });
 

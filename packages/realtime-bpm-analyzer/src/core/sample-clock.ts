@@ -69,6 +69,8 @@ export type SampleClock = {
   advance: (frames: number) => boolean;
   /** Whether time is being lost now */
   isBehind: () => boolean;
+  /** Whether a lock would be refused now: time is being lost, or the clock has stopped reporting */
+  isLosing: () => boolean;
   /** Asks to publish a lock, and remembers the answer: no while behind or blind, and the analyzer then has to start over */
   offerLock: () => boolean;
   /** Whether the analyzer should start over now, because what it heard was lost. Answers yes once for each loss */
@@ -240,6 +242,7 @@ export function createSampleClock(sampleRate: number): SampleClock {
       return false;
     },
     isBehind: () => behind,
+    isLosing: () => behind || isBlind(),
     offerLock() {
       if (behind || isBlind()) {
         mustStartOver = true;

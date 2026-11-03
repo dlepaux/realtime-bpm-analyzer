@@ -11,8 +11,11 @@ import {existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, 
 import {join} from 'node:path';
 import {parseArgs} from 'node:util';
 import {dataRoot, loaders} from './lib/datasets';
+import {freeLoaders} from './lib/free-mixes';
+import {isFreeSet} from './lib/free-mixes-rows';
 import {rebuild, stopCommands} from './lib/fetch';
 import type {DataReport} from './lib/fetch';
+import type {SetReport} from './lib/sources';
 import {tuningSets} from './lib/licences';
 import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
 import {lookDetectorRefusal, lookRefusal, lookScopeRefusal} from './lib/look';
@@ -78,7 +81,7 @@ async function runEntry(entry: string, args: readonly string[]): Promise<void> {
   }
 }
 
-async function tune(summary: Summary, sets: readonly string[]): Promise<void> {
+async function tune(summary: Summary, sets: readonly string[], plan: string): Promise<void> {
   const data = summary.data!;
   const expected = sets.reduce((sum, set) => sum + data.sets[set].dev, 0);
   const setArgs = ['--sets', sets.join(',')];
@@ -101,7 +104,7 @@ async function tune(summary: Summary, sets: readonly string[]): Promise<void> {
 
   summary.stage = 'sweep';
   save(summary);
-  await runEntry('tune', ['--cache', curves, '--sweep', 'job/sweep-plan.json', '--out', runDir, ...setArgs]);
+  await runEntry('tune', ['--cache', curves, '--sweep', plan, '--out', runDir, ...setArgs]);
   summary.sweep = JSON.parse(readFileSync(join(runDir, 'sweep-report.json'), 'utf8'));
   summary.runDir = runDir;
 }
@@ -154,12 +157,32 @@ async function heldout(summary: Summary, sets: readonly string[], reason: string
   summary.skipped = (JSON.parse(readFileSync(heldoutOut, 'utf8')) as {skipped: RunFailure[]}).skipped;
 }
 
-async function stages(summary: Summary, mode: string, wanted: readonly string[], options: {reason?: string; detector: string}): Promise<void> {
+/**
+ * RBA-59's sets are on the volume already and have no source to fetch here: their pipeline owns them,
+ * and this only counts their dev tracks. A count of zero fails, as a set that did not come back.
+ */
+function freeSetReports(sets: readonly string[]): DataReport['sets'] {
+  return Object.fromEntries(sets.filter(isFreeSet).map(set => {
+    const dev = freeLoaders[set]().length;
+
+    if (dev === 0) {
+      throw new Error(`${set} has no dev track on the volume`);
+    }
+
+    // Held-out is not read, so it counts nothing here
+    const report: SetReport = {dev, heldout: 0, found: dev, missing: [], unexpected: [], differs: []};
+
+    return [set, report];
+  }));
+}
+
+async function stages(summary: Summary, mode: string, wanted: readonly string[], options: {reason?: string; detector: string; plan: string}): Promise<void> {
   summary.stage = 'data';
   save(summary);
 
   const clean = wanted.filter(set => tuningSets.has(set));
-  const data = await rebuild(dataRoot, benchmarkDir, wanted);
+  const fetched = await rebuild(dataRoot, benchmarkDir, wanted.filter(set => !isFreeSet(set)));
+  const data: DataReport = {...fetched, sets: {...fetched.sets, ...freeSetReports(wanted)}};
 
   summary.data = data;
 
@@ -170,7 +193,7 @@ async function stages(summary: Summary, mode: string, wanted: readonly string[],
   }
 
   if (mode === 'tune') {
-    await tune(summary, clean);
+    await tune(summary, clean, options.plan);
   } else if (mode === 'dev') {
     await devScores(summary, clean, options.detector);
   } else if (mode === 'heldout') {
@@ -188,6 +211,7 @@ function parseJobArgs() {
       sets: {type: 'string'},
       reason: {type: 'string'},
       detector: {type: 'string'},
+      plan: {type: 'string', default: 'job/sweep-plan.json'},
     }});
   } catch {
     return null;
@@ -232,7 +256,7 @@ async function main(): Promise<number> {
   const wanted = args?.values.sets?.split(',') ?? Object.keys(loaders);
 
   if (!args || !['tune', 'fetch', 'dev', 'heldout'].includes(mode) || !process.env.RBA_TEMPO_ROOT
-    || (mode === 'heldout' && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set))) {
+    || (mode === 'heldout' && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set) || (mode !== 'heldout' && isFreeSet(set)))) {
     console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|dev|heldout --reason <why>] [--sets a,b]');
     return 2;
   }
@@ -272,7 +296,7 @@ async function main(): Promise<number> {
   };
 
   try {
-    await stages(summary, mode, wanted, {reason: values.reason, detector});
+    await stages(summary, mode, wanted, {reason: values.reason, detector, plan: values.plan});
   } catch (error) {
     summary.status = 'failed';
     summary.error = String(error);

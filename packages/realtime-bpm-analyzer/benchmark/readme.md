@@ -158,6 +158,26 @@ The references are measured as they have been: peaks with its lowpass, folding i
 
 **The look, taken 2026-10-31 at 9a9ebbb: the bar reads yes, 13 of 13**, in [`results/rba-51-look-2-verdict.md`](results/rba-51-look-2-verdict.md). Clean macro Acc1 74.0 against peaks' 38.4, Acc2 90.1 against 46.6. It passes where the band is small only because not-below is weak there: clean 165 to 180, 48 tracks, Acc1 50.0 against 56.3, difference -6.3 [-19.5, +4.1]. #285 beats the candidate on 140 to 165 beyond noise, +3.3 [+1.5, +5.4] pooled and +4.4 [+1.5, +7.7] clean, which goes to David. A pass leaves the extension on peaks until David's MP3 test and a real-browser run.
 
+## The third sweep: RBA-59's full mixes, dev only
+
+RBA-51's third sweep tunes on dev with RBA-59's licence-clean full mixes added to fsld, groove and guitarset. Everything here was fixed before its rows existed, in `lib/retune2.ts`, `job/sweep-plan-retune2.json` and this section.
+
+- **Dev only.** `lib/free-mixes-rows.ts` reads `free-data/split-ids.json` and takes the dev ids. It never parses a held-out line of `manifest.jsonl`, refuses any row whose own split is not dev, and `run.ts` and `job.ts` refuse a held-out run naming a free set. The look waits for a DECISION on RBA-51.
+- **Tiers.** `free-mixes` holds strict labels: label present, no octave split between trackers, halves not disagreeing (RBA-59's verdict rule, without its genre and licence-class filters). `free-mixes-contested` holds the rest of the labelled rows. It is scored and reported apart and never tuned on, because a disputed octave is no target. Unlabelled rows are left out. Each result carries its confidence (`trackers-all` or `trackers-two`), and the reports split by it.
+- **Excerpt.** A mix is scored on its first 60 s, decoded once into `pcm/<set>-60s`. The other sets are clips and are read whole.
+- **Licences.** The free mixes carry CC BY and CC BY-SA ports and versions (for example CC-BY-2.5-CA). `isTuningLicence` admits those with the base licences.
+- **Range.** 90 to 180 only, the extension's range.
+- **Score.** Macro Acc1 over the four tuning sets, as before.
+- **Guard.** Peaks' real-path Acc1 on 140 to 165 and on 165 and up, pooled over the four tuning sets on dev, read by `retune2.ts floors` from the dev run before the sweep. It is in the plan.
+- **Noise.** Each row stores `scoreSe`, the standard deviation of its score over 200 seeded draws resampling artists (groups) within each set. Many mixes share an artist, so a track-level error would be too narrow.
+- **The rule** (`pickRetune2`). Among rows the guard lets through, take those within one `scoreSe` of the best. Of those, keep the ones with no knob at the measured minimum or maximum, where a penalty at 0 is the end of the knob rather than of the grid. Then take the fewest knobs moved from the 5.5.0 settings, and then the higher score. If no row is left, the rule refuses rather than pick an edge. 5.5.0 itself wins when it is within noise and interior.
+
+```sh
+./benchmark/run.sh retune2 floors <dev.json>
+./benchmark/run.sh retune2 pick job/sweep-plan-retune2.json <sweep.jsonl>    # exit 1 on refusal
+./benchmark/run.sh retune2 report <dev.json>[,<dev.json>] candidate,tempogram,peaks
+```
+
 ## Results
 
 The licence-clean defaults, fixed in `b1ab9d3` before one logged look with image `sha256:140ca595…`. **Old** is #285's tuning, kept as the `tempogram-285` detector. Peaks has its lowpass. Licence: **clean** sets could tune, **evaluation-only** sets never did. Per-genre tables are in [`results/rba-51-report.md`](results/rba-51-report.md). The RBA-50 numbers on the old mixed tuning are in [`results/report.md`](results/report.md).

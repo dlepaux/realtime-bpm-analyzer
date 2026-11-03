@@ -17,6 +17,7 @@ import {loaders} from './lib/datasets';
 import {freeLoaders} from './lib/free-mixes';
 import {isFreeSet} from './lib/free-mixes-rows';
 import {assertTunable, tuningSets} from './lib/licences';
+import {cacheStem} from './lib/cache-name';
 import {decode, sampleRate, writeAtomic} from './lib/decode';
 import {bandCounts, errorProfile, isCorrect, summarize} from './lib/metrics';
 import {assertReplayable, bestRow, groupScoreNoise, guardShortfalls, parseRows, rowKey, scoreOf, secondSweepGuard, stageTunings} from './lib/sweep';
@@ -29,7 +30,7 @@ type Job = {track: Track; cache: string; build: boolean; tuning: Partial<Tempogr
 const framePeriod = 0.01;
 
 function buildCurve(job: Job): void {
-  const path = join(job.cache, `${job.track.set}-${job.track.id}.f32`);
+  const path = join(job.cache, `${cacheStem(`${job.track.set}-${job.track.id}`)}.f32`);
 
   if (existsSync(path)) {
     return;
@@ -43,7 +44,7 @@ function buildCurve(job: Job): void {
 }
 
 function replay({track, cache, tuning, tempoRange}: Job): TrackResult {
-  const bytes = readFileSync(join(cache, `${track.set}-${track.id}.f32`));
+  const bytes = readFileSync(join(cache, `${cacheStem(`${track.set}-${track.id}`)}.f32`));
   const curve = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
   const detector = createTempogramDetector({sampleRate, tempoRange, tuning});
   let final: number | null = null;

@@ -2,6 +2,7 @@ import {spawnSync} from 'node:child_process';
 import {existsSync, mkdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {threadId} from 'node:worker_threads';
+import {cacheStem} from './cache-name';
 import {dataRoot} from './datasets';
 import {assertDecoded} from './look';
 import {repeatTo} from './stream';
@@ -31,7 +32,7 @@ export function writeAtomic(path: string, data: Uint8Array): void {
 export function decode(track: Track): Float32Array {
   // An excerpt is another file than the whole track, so its length names the folder
   const folder = track.excerptSeconds === undefined ? track.set : `${track.set}-${track.excerptSeconds}s`;
-  const cachePath = join(dataRoot, 'pcm', folder, `${track.id}.f32`);
+  const cachePath = join(dataRoot, 'pcm', folder, `${cacheStem(track.id)}.f32`);
   const excerpt = track.excerptSeconds === undefined ? [] : ['-t', String(track.excerptSeconds)];
 
   if (!existsSync(cachePath)) {

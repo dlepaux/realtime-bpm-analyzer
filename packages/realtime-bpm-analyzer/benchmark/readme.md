@@ -178,6 +178,8 @@ RBA-51's third sweep tunes on dev with RBA-59's licence-clean full mixes added t
 ./benchmark/run.sh retune2 report <dev.json>[,<dev.json>] candidate,tempogram,peaks
 ```
 
+**The outcome, 2026-11-03.** Sweep at 6f83ba9 (alloc 9fb20f2d), 443 rows, [`results/rba-51-retune2-sweep.jsonl`](results/rba-51-retune2-sweep.jsonl), rule output in [`results/rba-51-retune2-pick.json`](results/rba-51-retune2-pick.json). 321 rows pass the guard. The best is 50 BPM, 2.4 octaves, third 0.3, `stableSalience` 0.1, at 80.61, with a group-aware error of 3.55. 268 rows are within noise of it, and 122 of those are interior. **The rule chooses 5.5.0 unchanged** (80.24, no knob moved). The prior grid is bracketed: a ridge runs from 50/2.4 to 110/0.7 at 80.0 to 80.3, and it falls on every side (76.6 at 50/1.3, 76.8 at 140/0.7, 78.6 to 79.7 at 3.4 octaves). No single knob beats 5.5.0 by more than 0.4. Dev tables for 5.5.0 against peaks: [`results/rba-51-retune2-dev.md`](results/rba-51-retune2-dev.md).
+
 ## Results
 
 The licence-clean defaults, fixed in `b1ab9d3` before one logged look with image `sha256:140ca595…`. **Old** is #285's tuning, kept as the `tempogram-285` detector. Peaks has its lowpass. Licence: **clean** sets could tune, **evaluation-only** sets never did. Per-genre tables are in [`results/rba-51-report.md`](results/rba-51-report.md). The RBA-50 numbers on the old mixed tuning are in [`results/report.md`](results/report.md).

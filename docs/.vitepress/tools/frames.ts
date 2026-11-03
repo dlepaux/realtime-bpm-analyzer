@@ -8,8 +8,9 @@ export interface FrameRate {
   label: string
 }
 
-// 23.976 is 24000/1001, not 23.976: over a three-minute song the rounded value is off
-// by about a frame, which is exactly the error an editor cutting on the beat would see.
+// 23.976 is 24000/1001, not 23.976. The rounded value is close (about 0.004 frames off over
+// three minutes), but the editors define the rate as the fraction, so the counts shown here are
+// the ones the editor computes, and the marker export (beat-markers.ts) uses the same fractions.
 export const FRAME_RATES: readonly FrameRate[] = [
   { fps: 24_000 / 1001, label: '23.976' },
   { fps: 24, label: '24' },
@@ -25,6 +26,8 @@ export const MIN_FPS = 1
 export const MAX_FPS = 240
 export const MIN_BEATS_PER_BAR = 1
 export const MAX_BEATS_PER_BAR = 16
+/** A typed rate this close to a preset is that preset. */
+export const PRESET_TOLERANCE = 1e-3
 
 /** Frames in one beat. Fractional when the beat doesn't land on a frame boundary. */
 export function framesPerBeat(bpm: number, fps: number): number {
@@ -71,5 +74,8 @@ export function parseFps(raw: string): number | null {
   if (known) return known.fps
   const fps = Number(trimmed)
   if (!Number.isFinite(fps) || fps < MIN_FPS || fps > MAX_FPS) return null
-  return fps
+  // "29.970" or "23.9760" is a preset written another way: return the preset's exact fps,
+  // so the page doesn't add it again as a custom row (RBA-124).
+  const near = FRAME_RATES.find((rate) => Math.abs(rate.fps - fps) < PRESET_TOLERANCE)
+  return near ? near.fps : fps
 }

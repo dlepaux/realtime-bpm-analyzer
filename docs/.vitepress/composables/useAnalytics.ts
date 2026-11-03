@@ -34,6 +34,7 @@ export type BpmAnalyticsEvent =
   | 'bpm_frames_copied'
   | 'bpm_metronome_started'
   | 'bpm_tool_link_clicked'
+  | 'bpm_markers_exported'
   | 'github_star_clicked'
   | 'extension_uninstall_reason'
 

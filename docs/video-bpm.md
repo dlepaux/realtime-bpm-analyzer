@@ -59,7 +59,28 @@ drifts away from the music over time. The
 [BPM to frames calculator](/bpm-to-frames) shows the exact count at every
 common frame rate, and how far a rounded cut drifts each bar.
 
-Beat markers you can import into a video editor are planned.
+## Export beat markers
+
+After a file result, **Export beat markers** writes a marker on every beat, from
+the first strong beat at the detected tempo. Pick the format and the frame rate
+of your timeline, then download. Import into Premiere Pro, DaVinci Resolve or
+Final Cut Pro, or open the CSV in a spreadsheet:
+
+- **Premiere Pro**: an XML sequence. File > Import adds a sequence with the
+  markers.
+- **DaVinci Resolve**: an EDL. Right-click your timeline in the Media Pool, then
+  Timelines > Import > Timeline Markers from EDL. The markers assume the timeline
+  starts at 01:00:00:00.
+- **Final Cut Pro**: an FCPXML file. File > Import > XML adds a project with the
+  markers.
+- **CSV**: the time of each beat in seconds, frames and timecode.
+
+The markers are a fixed grid, so they suit songs with a steady tempo. A song
+that speeds up, slows down or changes tempo drifts away from them. The markers
+use the whole-number tempo, so on a long song they can slide off the beat when
+the real tempo sits between two numbers. Check that the first marker and the
+last one sit on the beat before you cut. The file is made in your
+browser, from audio that never leaves your device.
 
 ## Limits
 

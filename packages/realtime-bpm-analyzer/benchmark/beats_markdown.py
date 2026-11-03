@@ -24,14 +24,15 @@ def _scores_table(rows):
 
 
 def _realtime_table(realtime):
-    lines = ['| tracks | lookahead s | predictions | median abs error ms | p90 abs error ms | within 20 ms % | within 40 ms % |',
-             '|---|---:|---:|---|---|---|---|']
+    lines = ['| tracks | lookahead s | predictions | median abs error ms | p90 abs error ms | within 20 ms % | within 40 ms % '
+             '| beyond a quarter beat % | near the off-beat % |', '|---|---:|---:|---|---|---|---|---:|---:|']
     for name, block in realtime.items():
         for h, stats in block.items():
             if not stats:
                 continue
             lines.append(f"| {name} | {h} | {stats['predictions']['value']} | {cell(stats['median ms'], 0)} | "
-                         f"{cell(stats['p90 ms'], 0)} | {cell(stats['within 20 ms'])} | {cell(stats['within 40 ms'])} |")
+                         f"{cell(stats['p90 ms'], 0)} | {cell(stats['within 20 ms'])} | {cell(stats['within 40 ms'])} | "
+                         f"{cell(stats['beyond a quarter beat %'])} | {cell(stats['near the off-beat %'])} |")
     return '\n'.join(lines)
 
 

@@ -128,6 +128,17 @@ def _histogram_stats(bins):
     return stats
 
 
+PHASE_SHARES = ('beyond a quarter beat %', 'near the off-beat %')
+
+
+def _phase_shares(rows, h, keep):
+    """Shares of predictions off by more than a quarter of the true beat, and by 0.4 to 0.6 of it"""
+    beats_off = [abs(e) * r['trueBpm'] / 60 for r in rows if keep(r) for e in r['realtime'][h]]
+    n = len(beats_off) or 1
+    return {PHASE_SHARES[0]: 100 * sum(b > 0.25 for b in beats_off) / n,
+            PHASE_SHARES[1]: 100 * sum(0.4 <= b <= 0.6 for b in beats_off) / n}
+
+
 def _realtime_block(rows, draws, keep):
     block = {}
     for h in rows[0]['realtime']:
@@ -145,7 +156,8 @@ def _realtime_block(rows, draws, keep):
                     total[i] += c
             drawn.append(_histogram_stats(total))
         drawn = [d for d in drawn if d]
-        block[h] = {name: ({'value': value} if name == 'predictions' else
+        point.update(_phase_shares(rows, h, keep))
+        block[h] = {name: ({'value': value} if name in ('predictions',) + PHASE_SHARES else
                            {'value': value, 'lo': _percentile([d[name] for d in drawn], 0.025),
                             'hi': _percentile([d[name] for d in drawn], 0.975)})
                     for name, value in point.items()}

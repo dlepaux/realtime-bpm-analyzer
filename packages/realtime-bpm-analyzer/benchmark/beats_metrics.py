@@ -23,8 +23,6 @@ def trim(beats, start=TRIM_SECONDS):
 
 def f_measure(reference, estimated, window=F_WINDOW):
     """Share of beats matched one to one within +-window, as an F-measure. Both lists sorted."""
-    if not reference and not estimated:
-        return 1.0
     if not reference or not estimated:
         return 0.0
     matched = _greedy_matches(reference, estimated, window)
@@ -49,40 +47,46 @@ def _greedy_matches(reference, estimated, window):
     return matched
 
 
-def _interval(reference, k):
-    if len(reference) < 2:
-        return None
-    return reference[k + 1] - reference[k] if k + 1 < len(reference) else reference[k] - reference[k - 1]
-
-
 def _nearest(reference, t):
     k = bisect_left(reference, t)
     if k == 0:
         return 0
     if k == len(reference):
         return k - 1
+    # A tie goes to the earlier beat, as numpy's argmin does
     return k if reference[k] - t < t - reference[k - 1] else k - 1
 
 
+def _beat_ok(reference, estimated, m, k, threshold):
+    """mir_eval's test of one estimated beat against its nearest annotation k"""
+    if m == 0 or k == 0:
+        # The first beat or the first annotation reads its intervals forward
+        ref_interval = reference[k + 1] - reference[k] if k + 1 < len(reference) else reference[k] - reference[k - 1]
+        est_interval = estimated[m + 1] - estimated[m] if m + 1 < len(estimated) else estimated[m] - estimated[m - 1]
+    else:
+        ref_interval = reference[k] - reference[k - 1]
+        est_interval = estimated[m] - estimated[m - 1]
+    if ref_interval == 0:
+        return False
+    phase = abs(estimated[m] - reference[k]) / ref_interval
+    period = abs(1 - est_interval / ref_interval)
+    return phase < threshold and period < threshold
+
+
 def _correct_flags(reference, estimated, threshold):
-    """Per estimated beat: within the phase and the period tolerance of its nearest reference beat"""
+    """Per estimated beat: matched to an unused nearest annotation within both tolerances"""
+    used = [False] * len(reference)
     flags = []
     for m, t in enumerate(estimated):
         k = _nearest(reference, t)
-        interval = _interval(reference, k)
-        phase_ok = abs(t - reference[k]) <= threshold * interval
-        if m == 0:
-            # The first beat has no previous one: its period is read forward, as mir_eval does
-            own = estimated[1] - t if len(estimated) > 1 else None
-        else:
-            own = t - estimated[m - 1]
-        period_ok = own is not None and abs(own - interval) <= threshold * interval
-        flags.append(phase_ok and period_ok)
+        ok = not used[k] and _beat_ok(reference, estimated, m, k, threshold)
+        used[k] = used[k] or ok
+        flags.append(ok)
     return flags
 
 
 def _cml(reference, estimated, threshold):
-    """(longest run share, total share) of correct beats, over the larger of the two counts"""
+    """(longest run share, total share) of correct beats, over the larger of the two counts, as mir_eval"""
     if len(reference) < 2 or len(estimated) < 2:
         return 0.0, 0.0
     flags = _correct_flags(reference, estimated, threshold)

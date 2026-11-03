@@ -4,22 +4,17 @@ Fresh code after D. Ellis, "Beat tracking by dynamic programming", JNMR 36(1), 2
 the path through the onset curve that best trades onset strength against a log-Gaussian penalty on
 each gap's departure from the period the engine read. No trained model is used.
 
-Frame times. The curve is `onsetCurve` of src/core/tempogram.ts at 100 Hz: frame i is computed once
-(i + 1) hops of audio are in, from a 1024-sample Hann window that ends there, and is then smoothed by
-a symmetric 5-tap filter over the last 5 frames. So frame i describes audio at about
-(i + 1) * hop - 512 samples, two frames late: CURVE_DELAY below. That is read from the code, not
-fitted. The dev report prints the signed timing error so a wrong constant would show.
+Frame times. The curve is `onsetCurve` of src/core/tempogram.ts at 100 Hz: frame i is the raw onset
+strength computed once (i + 1) hops of audio are in, from a 1024-sample Hann window that ends there.
+The 5-tap smoothing is applied later, in `ingest`, so it is not in this curve. Frame i therefore
+describes audio about half a window back: CURVE_DELAY. Groove's MIDI note times, aligned to the audio
+within 2 ms, check it on dev: beats_dev.py records each track's best lag and the report prints it.
 """
 
 import math
 
 FRAME_RATE = 100.0
-CURVE_DELAY = 512 / 44100 + 2 / FRAME_RATE
-# Measured on beat dev, from Groove's MIDI note times (aligned to the audio within 2 ms), not from any
-# beat label: the curve peaks a median 2 frames before CURVE_DELAY puts the notes (178 of 180 tracks
-# within -4 to -1 frames, see results/rba-109-beats-dev.md). Log compression makes the flux rise as an
-# onset enters the window, which cancels the smoothing's 2 frames. Held-out would test it.
-CALIBRATED_DELAY = CURVE_DELAY - 2 / FRAME_RATE
+CURVE_DELAY = 512 / 44100
 TIGHTNESS = 100.0
 STRONG_QUANTILE = 0.9
 

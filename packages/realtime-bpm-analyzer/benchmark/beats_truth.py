@@ -3,9 +3,10 @@
 - groove: the metronome grid of the MIDI file, which the drummer played to. Gillick et al. 2019 align
   the TD-11 audio to the MIDI within 2 ms. Bars start at tick 0.
 - guitarset: the `beat_position` annotation of the JAMS file, the click the player recorded to.
-- fsld: a well-cut loop starts on a beat, so its beats are k * 60 / bpm, repeated with the loop as the
-  benchmark plays it (lib/stream.ts repeatTo). Only loops whose length is a whole number of beats
-  within LOOP_TOLERANCE pass: on any other, a repeat would move the grid.
+- fsld: a well-cut loop starts on a beat and holds a whole number of them, so its beats divide the loop
+  evenly, repeated with the loop as the benchmark plays it (lib/stream.ts repeatTo). The tempo label
+  only picks the count: loops whose length is not within LOOP_TOLERANCE of a whole number of labelled
+  beats are refused, as the label and the cut disagree.
 
 Callers pass dev tracks only. Nothing here decides a split.
 """
@@ -112,6 +113,7 @@ def loop_beats(loop_samples, bpm, total_samples):
     if count < 2 or abs(loop - count * beat) > LOOP_TOLERANCE:
         return None
     total = total_samples / SAMPLE_RATE
-    # The grid restarts with each repeat: the loop's own length, not count * beat, sets the repeat
-    beats = [m * loop + k * beat for m in range(int(total / loop) + 1) for k in range(count)]
+    # The loop's length sets the spacing: the label is rounded, the cut is what plays
+    spacing = loop / count
+    beats = [m * loop + k * spacing for m in range(int(total / loop) + 1) for k in range(count)]
     return {'beats': [b for b in beats if b < total], 'beatsPerLoop': count}

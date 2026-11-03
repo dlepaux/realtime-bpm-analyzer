@@ -12,6 +12,7 @@ Fixed before scoring. At each instant `now` (every STEP seconds from START until
 """
 
 import math
+from bisect import bisect_left
 
 from beats_tracker import CURVE_DELAY, FRAME_RATE, frame_time, track_frames
 
@@ -44,7 +45,8 @@ def _line(beats, now, bpm):
 
 
 def _nearest_error(reference, t):
-    return min((t - r for r in reference), key=abs)
+    k = bisect_left(reference, t)
+    return min((t - reference[i] for i in (k - 1, k) if 0 <= i < len(reference)), key=abs)
 
 
 def predictions(curve, readings, truth, end, delay=CURVE_DELAY):

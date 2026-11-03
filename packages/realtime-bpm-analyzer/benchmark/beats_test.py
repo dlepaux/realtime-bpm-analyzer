@@ -57,6 +57,17 @@ class Metrics(unittest.TestCase):
 
     def test_empty(self):
         self.assertEqual(scores(GRID, [])['F'], 0.0)
+        self.assertEqual(f_measure([], []), 0.0)
+
+    def test_an_annotation_counts_once_in_continuity(self):
+        # Two estimates around one annotation: mir_eval marks it used after the first
+        _, cml_t, _, _ = continuity([1.0, 2.0, 3.0], [1.0, 1.05, 2.0, 3.0])
+        self.assertLess(cml_t, 1.0)
+
+    def test_first_annotation_reads_its_period_forward(self):
+        # The estimate's second beat matches annotation 0, so both intervals are read forward
+        _, cml_t, _, _ = continuity([0.5, 1.0, 1.5, 2.0], [0.0, 0.5, 1.0, 1.5, 2.0])
+        self.assertAlmostEqual(cml_t, 4 / 5)
 
     def test_trim_drops_the_first_five_seconds(self):
         early = [t for t in GRID if t < 5] + [t + 0.2 for t in GRID if t >= 5]
@@ -134,6 +145,14 @@ class Truth(unittest.TestCase):
         self.assertEqual(whole['beatsPerLoop'], 4)
         self.assertEqual(len(whole['beats']), 12)
         self.assertIsNone(loop_beats(int(4.1 * 22050), 120, 30 * 44100))
+
+    def test_loop_beats_divide_the_cut_not_the_label(self):
+        # 3.9834 s holds 8 beats of a 120.5 label within tolerance: spacing follows the cut
+        loop = round(3.9834 * 44100)
+        truth = loop_beats(loop, 120.5, 2 * loop)
+        self.assertEqual(truth['beatsPerLoop'], 8)
+        self.assertAlmostEqual(truth['beats'][8], loop / 44100, places=6)
+        self.assertAlmostEqual(truth['beats'][7], 7 * loop / 44100 / 8, places=6)
 
 
 class Split(unittest.TestCase):

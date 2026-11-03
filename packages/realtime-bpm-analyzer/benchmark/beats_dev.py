@@ -1,6 +1,6 @@
 """RBA-109 phase 0: score the beat tracker on beat dev only, where the data lives.
 
-    python3 -I benchmark/beats_dev.py run <data root> <curves dir> <dev.json> <rows.jsonl> <analytic|calibrated> [workers]
+    python3 -I benchmark/beats_dev.py run <data root> <curves dir> <dev.json> <rows.jsonl> [workers]
     python3 -I benchmark/beats_dev.py report <rows.jsonl> <out.md> <out.json>
 
 `run` writes one row per track (it stays with the data). `report` prints aggregates only.
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from beats_metrics import F_WINDOW, scores, trim
 from beats_realtime import LOOKAHEADS, predictions
 from beats_truth import groove_beats, guitarset_beats, loop_beats
-from beats_tracker import CALIBRATED_DELAY, CURVE_DELAY, grid_baseline, track
+from beats_tracker import CURVE_DELAY, grid_baseline, track
 from beats_stats import report
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -82,11 +82,9 @@ def note_lag(curve, notes, reach=10):
     return max(range(-reach, reach + 1), key=strength)
 
 
-DELAYS = {'analytic': CURVE_DELAY, 'calibrated': CALIBRATED_DELAY}
-
-
 def evaluate(job):
-    root, curves, row, groove_midi, delay = job
+    root, curves, row, groove_midi = job
+    delay = CURVE_DELAY
     curve = list(_floats(os.path.join(curves, f"{row['set']}-{row['id']}.f32")))
     truth = truth_of(root, row, groove_midi, len(curve))
     base = {k: row[k] for k in ('set', 'id', 'group', 'truth', 'offline')}
@@ -110,7 +108,7 @@ def evaluate(job):
     }
 
 
-def run(root, curves, dev_path, out_path, delay_name, workers):
+def run(root, curves, dev_path, out_path, workers):
     with open(dev_path, encoding='utf8') as handle:
         dev = json.load(handle)
     assert dev['split'] == 'dev', 'beats_dev reads dev result files only'
@@ -118,7 +116,7 @@ def run(root, curves, dev_path, out_path, delay_name, workers):
     rows = [r for r in dev['results']['tempogram'] if r['set'] in SETS and r['id'] in allowed[r['set']]]
     assert all(r['id'] in allowed[r['set']] for r in rows)
     groove_midi = _groove_paths(root)
-    jobs = [(root, curves, r, groove_midi, DELAYS[delay_name]) for r in rows]
+    jobs = [(root, curves, r, groove_midi) for r in rows]
     with Pool(workers) as pool, open(out_path + '.tmp', 'w', encoding='utf8') as out:
         for result in pool.imap_unordered(evaluate, jobs, chunksize=4):
             out.write(json.dumps(result) + '\n')
@@ -129,7 +127,7 @@ def run(root, curves, dev_path, out_path, delay_name, workers):
 if __name__ == '__main__':
     mode, *args = sys.argv[1:]
     if mode == 'run':
-        run(*args[:5], int(args[5]) if len(args) > 5 else 4)
+        run(*args[:4], int(args[4]) if len(args) > 4 else 4)
     elif mode == 'report':
         report(*args)
     else:

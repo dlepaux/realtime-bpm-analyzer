@@ -80,7 +80,7 @@ export const HOME_FAQ = [
   },
   {
     q: 'Is my audio sent to a server?',
-    a: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends nothing anywhere. Your audio never leaves your device. The website uses Google Analytics to record how the tool is used: the tempo found and, for a file, its size, type and duration. It never records the file, its sound or its name.',
+    a: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends nothing anywhere. Your audio never leaves your device. The website uses Google Analytics to record how the tool is used, such as the tempo found and, for a file, its size, type and duration. It never records the file, its sound or its name.',
   },
   {
     q: 'Which audio formats are supported?',

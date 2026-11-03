@@ -116,7 +116,7 @@ interval gives the BPM. The analysis happens on your device.
 **No.** Files you drop, microphone input and stream audio are all analysed in
 your browser by the open-source library, which sends nothing anywhere. Your audio
 never leaves your device. The website uses Google Analytics to record how the
-tool is used: the tempo found and, for a file, its size, type and duration. It
+tool is used, such as the tempo found and, for a file, its size, type and duration. It
 never records the file, its sound or its name. [Website Privacy](/website-privacy)
 has the details.
 
@@ -165,7 +165,7 @@ npm install realtime-bpm-analyzer
 ### Analyse audio in real time
 
 ```typescript
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 // Create audio context
 const audioContext = new AudioContext();
@@ -176,19 +176,20 @@ const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
 // Set up audio source
 const track = document.getElementById('audio') as HTMLAudioElement;
 const source = audioContext.createMediaElementSource(track);
-const lowpass = getBiquadFilter(audioContext);
 
-// Connect nodes
-source.connect(lowpass).connect(bpmAnalyzer.node);
+// Connect nodes: the analyzer's input holds the low-pass filter it needs
+source.connect(bpmAnalyzer.input);
 source.connect(audioContext.destination);
 
 // Listen for BPM events
 bpmAnalyzer.on('bpm', (data) => console.log('Current BPM:', data.bpm));
 bpmAnalyzer.on('bpmStable', (data) => console.log('Stable BPM detected:', data.bpm));
 
-// Call this when you're done listening
+// Call this when you're done listening: stop() ends the analysis,
+// disconnect() alone would leave it running
 function stop() {
-  bpmAnalyzer.disconnect();
+  bpmAnalyzer.stop();
+  source.disconnect();
 }
 ```
 

@@ -80,7 +80,8 @@ test('tool FAQs: the privacy answer says what Google Analytics records, and the 
   const homeAnswer = HOME_FAQ.find(({ q }) => q === 'Is my audio sent to a server?')?.a
   for (const answer of [homeAnswer, videoAnswer]) {
     assert.ok(answer)
-    assert.match(answer, /the tempo found/)
+    // "such as": the list is examples, not everything the site sends (website-privacy.md is).
+    assert.match(answer, /, such as the tempo found/)
     assert.match(answer, /size, type and duration/)
     assert.match(answer, /never records the (file|video), its sound or its name/)
   }

@@ -1,5 +1,5 @@
 ---
-title: "Video BPM Finder: Find a Video's Tempo"
+title: "Video BPM Finder: Find the BPM of a Video"
 description: Find the BPM of the music in a video. Drop an MP4, WebM or MOV file and your browser detects the tempo, with the beat in frames. The file stays on your device.
 aside: false
 editLink: false

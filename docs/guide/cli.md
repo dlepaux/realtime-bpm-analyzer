@@ -6,7 +6,7 @@ description: Detect the BPM of MP3, WAV, FLAC, OGG and Opus files from a termina
 # BPM Detection from the Command Line
 
 `realtime-bpm-analyzer-cli` is a separate npm package that decodes audio files and
-analyses them with [`analyzeChannelData`](./node), the library's Node.js entry point.
+analyses them with [`analyzeChannelData`](./node.md), the library's Node.js entry point.
 It is separate so the library itself keeps zero dependencies.
 
 The tool runs on your computer. It makes no network calls and sends no telemetry, so

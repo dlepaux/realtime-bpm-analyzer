@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    - cron: '0 6 * * 1'
   # Manual retry when a release fails after its commit landed (e.g. npm's provenance step).
   workflow_dispatch:
 
@@ -96,6 +98,63 @@ jobs:
           name: mcp-dist
           path: packages/mcp/dist/
           retention-days: 1
+
+  # We use a local anchor-aware markdown checker on every PR so repo-relative links
+  # are verified without depending on third-party network health. Lychee is still a
+  # good fit for scheduled external URL checks, but it runs only as a warning-only
+  # pass there because those URLs can fail for reasons outside the repo.
+  link-check:
+    name: Link check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the docs site
+        run: npm run docs:build
+
+      - name: Check repo-local markdown links and anchors
+        run: node scripts/check-markdown-links.mjs
+
+  link-check-external:
+    name: External link check (warn only)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check external links on schedule
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --base-url https://www.realtime-bpm-analyzer.com
+            --include-fragments
+            --max-retries 2
+            --timeout 20
+            --no-progress
+            readme.md docs/**/*.md examples/**/*.md packages/*/readme.md
 
   # Release to GitHub and npm. release-please keeps one release PR open per package
   # (version bump + changelog, from the conventional commits under that package's path).

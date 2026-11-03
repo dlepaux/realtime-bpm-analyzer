@@ -134,7 +134,7 @@ When adding new examples:
 
 ## Need Help?
 
-- Check the [main documentation](../docs/)
-- Review the [API reference](../docs/api/)
+- Check the [main documentation](../docs/index.md)
+- Review the [API reference](../docs/api/index.md)
 - Look at similar examples for your framework
 - Compare with the allegro-project reference implementation

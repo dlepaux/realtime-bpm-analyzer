@@ -26,10 +26,12 @@ cookies in your browser and receives:
   and how you arrived on the site;
 - how you use the tools, as events tied to the random ID in the Google Analytics
   cookie, not to your name: the tempo found, the length, size and extension of an
-  analysed file (never its name or content), whether a stream is one of the listed
+  analysed file (never its name or content) and how long its analysis took,
+  whether you dropped or browsed for it, whether a stream is one of the listed
   stations or your own, with its scheme and format (never its address), the name
   of the platform when you paste a link such as a YouTube one (never the link),
-  and error types;
+  and when something fails, the error type and the browser's error message, with
+  any web address in it removed;
 - the version numbers in the address of the pages the browser extension opens:
   its version when you install it or remove it, its new and previous versions
   when it updates. If you remove it and pick a reason from the list on that page,
@@ -62,4 +64,4 @@ linked to your name.
 The site is run by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 1 November 2026._
+_Last updated: 3 November 2026._

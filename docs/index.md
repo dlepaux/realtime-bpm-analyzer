@@ -1,12 +1,12 @@
 ---
 layout: home
-title: Find the BPM of Any Song, Free
-description: Find the BPM of any song free in your browser — drop a file, use your microphone, or paste a radio stream URL. Your audio never leaves your device. Also a zero-dependency TypeScript library for developers.
+title: "BPM Finder: Find the BPM of Any Song"
+description: Find the BPM of any song in your browser. This free BPM detector reads a file, the microphone or a stream, and your audio never leaves your device.
 
 hero:
   name: "Realtime BPM Analyzer"
-  text: "Find the BPM of Any Song"
-  tagline: Free BPM detection right in your browser, and your audio stays on your device. Also a zero-dependency TypeScript library for developers.
+  text: "BPM Finder: Find the BPM of Any Song"
+  tagline: A free BPM detector that runs in your browser. Drop a song, use the microphone or play a stream, and your audio stays on your device. Also a zero-dependency TypeScript library for developers.
   image:
     src: /logo.svg
     alt: Realtime BPM Analyzer
@@ -16,6 +16,18 @@ hero:
       link: /guide/getting-started
 
 features:
+  - icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>'
+    title: Video BPM Finder
+    details: Find the BPM of the music in a video file, with one beat in frames for cutting.
+    link: /video-bpm
+    linkText: Find a video's BPM
+
+  - icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/></svg>'
+    title: BPM to Frames Calculator
+    details: Frames per beat and per bar at 23.976 to 60 fps, and the drift of a rounded cut.
+    link: /bpm-to-frames
+    linkText: Get frames per beat
+
   - icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>'
     title: Tap Tempo
     details: Tap along with any song to measure its tempo, with a steadiness score.
@@ -35,27 +47,58 @@ features:
     linkText: Start the metronome
 ---
 
+## Find the BPM of a song
+
+Choose how the music reaches the tool above. It listens, finds the beats and
+counts them, then shows the tempo in beats per minute (BPM). Everything runs in
+your browser, with no account and no upload.
+
+- **A song file.** Drop an MP3, WAV, FLAC, M4A or OGG file, or click to browse.
+  The tool reads the whole song and gives its BPM.
+- **The microphone.** Play music near your phone or computer and it works as a
+  live BPM counter: the number updates as it listens, then holds once the beat
+  is steady.
+- **A stream or another tab.** Paste the address of an online radio stream to
+  read its tempo as it plays. A YouTube or Spotify link can't play here, so on
+  desktop Chrome and Edge the tool offers to share the audio of the tab that
+  plays it, and elsewhere the microphone.
+- **A video.** To find the BPM of a video and get the beat in frames, use the
+  [video BPM finder](/video-bpm).
+
+Not sure of a reading? [Tap along](/tap-tempo) to check it.
+
+## Limits
+
+- **One tempo per file.** A song that changes tempo, or a file with several
+  songs, gets one reading.
+- **The beat must be steady and audible.** Ambient, rubato or beatless music may
+  not give a confident result. Through the microphone, room noise and quiet
+  playback make it harder.
+- **A reading can be half or double** the tempo you hear. Both describe the same
+  music.
+- **Streams must allow it.** A station has to let other sites play its audio.
+  Sharing a tab's audio works on desktop Chrome and Edge only.
+- **The file is read into memory.** A very long recording can be more than a
+  browser tab can hold.
+
 ## What is BPM?
 
-**BPM** stands for _beats per minute_ — the tempo of a piece of music. It is the
-count of the underlying beats in one minute. A typical house track runs at 120–130
-BPM, drum and bass at 160–180, ambient and downtempo below 100. DJs match BPMs to
+**BPM** stands for _beats per minute_, the tempo of a piece of music. It is the
+count of the underlying beats in one minute. A typical house track runs at 120 to 130
+BPM, drum and bass at 160 to 180, ambient and downtempo below 100. DJs match BPMs to
 mix songs smoothly. Fitness instructors pick tracks by BPM to match exercise intensity.
 Producers check BPM to build remixes. Dancers count BPM to choose routines.
-
-Drop a file, use your microphone, or paste a radio stream URL above — everything
-is analysed right in your browser. **Your audio never leaves your device**, and no account is required.
 
 ## Who is it for?
 
 <div class="tip custom-block" style="padding-top: 8px">
 
-- **DJs and producers** — find the BPM of a track before dropping it into a mix
-- **Dancers and choreographers** — pick routines to match a song's tempo
-- **Fitness instructors** — curate playlists that match workout intensity
-- **Music educators** — teach rhythm with concrete numbers
-- **Content creators** — sync video cuts or transitions to a song's beat: find the [BPM of a video](/video-bpm), then the [beat in frames](/bpm-to-frames)
-- **Developers** — embed the same detection in your own app via the library below
+- **DJs and producers:** find the BPM of a track before dropping it into a mix.
+- **Dancers and choreographers:** pick routines to match a song's tempo.
+- **Fitness instructors:** build playlists that match workout intensity.
+- **Music educators:** teach rhythm with concrete numbers.
+- **Content creators:** cut video to a song's beat. Find the [BPM of a video](/video-bpm), then the [beat in frames](/bpm-to-frames).
+- **Developers:** embed the same detection in your own app with the library below.
 
 </div>
 
@@ -72,8 +115,10 @@ interval gives the BPM. The analysis happens on your device.
 
 **No.** Files you drop, microphone input and stream audio are all analysed in
 your browser by the open-source library, which sends nothing anywhere. Your audio
-never leaves your device. The website does measure its own pages with Google Analytics,
-but never your audio or your file names. [Website Privacy](/website-privacy) has the details.
+never leaves your device. The website uses Google Analytics to record how the
+tool is used: the tempo found and, for a file, its size, type and duration. It
+never records the file, its sound or its name. [Website Privacy](/website-privacy)
+has the details.
 
 ### Which audio formats are supported?
 
@@ -141,18 +186,20 @@ source.connect(audioContext.destination);
 bpmAnalyzer.on('bpm', (data) => console.log('Current BPM:', data.bpm));
 bpmAnalyzer.on('bpmStable', (data) => console.log('Stable BPM detected:', data.bpm));
 
-// Cleanup when done
-bpmAnalyzer.disconnect();
+// Call this when you're done listening
+function stop() {
+  bpmAnalyzer.disconnect();
+}
 ```
 
 ### Tutorials
 
-- [Realtime BPM Detection in the Browser](/guide/realtime-bpm-detection) —
-  AudioWorklet-native, file + mic + stream, the modern way.
-- [How to Detect BPM from a Microphone in JavaScript](/guide/bpm-from-microphone)
-  — `getUserMedia`, permissions, mobile gotchas, and a working pattern.
-- [useBpm — A React Hook for Realtime BPM Detection](/guide/react-bpm-hook) —
-  drop-in hook with full TypeScript types and StrictMode-safe cleanup.
+- [Realtime BPM Detection in the Browser](/guide/realtime-bpm-detection):
+  AudioWorklet-native, for a file, the microphone or a stream.
+- [How to Detect BPM from a Microphone in JavaScript](/guide/bpm-from-microphone):
+  `getUserMedia`, permissions, mobile gotchas, and a working pattern.
+- [useBpm, a React Hook for Realtime BPM Detection](/guide/react-bpm-hook):
+  a drop-in hook with full TypeScript types and StrictMode-safe cleanup.
 
 See the [full developer guide](/guide/getting-started), the
 [API reference](/api/), and the [examples](/examples/basic-usage) for file

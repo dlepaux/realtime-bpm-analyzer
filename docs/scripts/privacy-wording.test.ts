@@ -71,6 +71,24 @@ test('home FAQ: the audio answer also says the website measures its pages', () =
   assert.match(answer.a, /Google Analytics/)
 })
 
+// The tool's answers said GA measured "its own pages" while it records the tempo and the
+// file's size, type and duration (RBA-125). Each answer names what is recorded, and the page
+// links the policy, since a frontmatter answer renders as plain text.
+test('tool FAQs: the privacy answer says what Google Analytics records, and the page links the policy', () => {
+  const video = read('../video-bpm.md')
+  const videoAnswer = video.split('\n').find((line) => line.includes('Google Analytics'))
+  const homeAnswer = HOME_FAQ.find(({ q }) => q === 'Is my audio sent to a server?')?.a
+  for (const answer of [homeAnswer, videoAnswer]) {
+    assert.ok(answer)
+    assert.match(answer, /the tempo found/)
+    assert.match(answer, /size, type and duration/)
+    assert.match(answer, /never records the (file|video), its sound or its name/)
+  }
+  for (const path of ['../index.md', '../video-bpm.md']) {
+    assert.match(read(path), /\]\(\/website-privacy\)/, path)
+  }
+})
+
 // These are published on the website too, where a reader takes "no tracking" for the site's own.
 test('library documents: each one points at the website privacy page', () => {
   for (const path of ['../../readme.md', '../../privacy.md', '../../security.md']) {

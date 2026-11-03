@@ -62,3 +62,13 @@ test('no unmeasured tolerance or accuracy praise in the guides', () => {
   assert.ok(guides.length > 5, 'the guides moved')
   for (const name of guides) assert.ok(!claim.test(readFileSync(new URL(name, dir), 'utf8')), name)
 })
+
+test('no long dash on home, the video pages or in the home markup', () => {
+  // Plain copy rule (RBA-124): a long dash reads as generated text, in the snippet too.
+  const dash = /[\u2013\u2014]/
+  for (const name of ['index.md', 'video-bpm.md', 'bpm-to-frames.md']) {
+    const source = readFileSync(new URL(`../${name}`, import.meta.url), 'utf8')
+    for (const [index, line] of source.split('\n').entries()) assert.ok(!dash.test(line), `${name}:${index + 1}`)
+  }
+  assert.ok(!dash.test(JSON.stringify([HOME_FAQ, SCHEMA_WEB_APPLICATION])))
+})

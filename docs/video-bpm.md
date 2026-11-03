@@ -1,5 +1,5 @@
 ---
-title: "Video BPM Finder: Find the BPM of a Video"
+title: "Video BPM Finder: Find a Video's Tempo"
 description: Find the BPM of the music in a video. Drop an MP4, WebM or MOV file and your browser detects the tempo, with the beat in frames. The file stays on your device.
 aside: false
 editLink: false
@@ -14,7 +14,7 @@ faq:
   - q: How do I find the BPM of a video?
     a: Drop the video file on the tool at the top of this page, or click it to browse. Your browser decodes the sound track and the analyzer reads the tempo from it. The result shows the BPM and the length of one beat in milliseconds and in frames at 24 fps.
   - q: Is my video uploaded?
-    a: No. The file is read and analysed in your browser by the open-source library, which sends nothing anywhere, so the video stays on your device. The website measures its own pages with Google Analytics, but never your video or its file name.
+    a: No. The file is read and analysed in your browser by the open-source library, which sends nothing anywhere, so the video stays on your device. The website uses Google Analytics to record how the tool is used: the tempo found and the file's size, type and duration. It never records the video, its sound or its name. The Website Privacy page has the details.
   - q: Which video formats work?
     a: Any file whose sound your browser can decode. MP4 with AAC sound and WebM usually work. MOV and MKV depend on the browser and on the codec inside. If a file fails, export the sound as WAV or MP3 from your editor and drop that instead.
   - q: Why is the BPM half or double what I expected?
@@ -40,7 +40,9 @@ milliseconds and in frames, ready for cutting to the beat.
   <BpmHeroTool variant="video" />
 </div>
 
-The file is analysed in your browser and stays on your device. For a video
+The file is analysed in your browser and stays on your device. The website
+records how the tool is used, never the file itself: see
+[Website Privacy](/website-privacy). For a video
 online, paste its link in the **Stream** tab: on desktop Chrome and Edge the
 tool offers to share the audio of the tab that plays it, and elsewhere the
 microphone.

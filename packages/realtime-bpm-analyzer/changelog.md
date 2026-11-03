@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.6.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.6.0...v5.6.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **analyzer:** peaks bpmStable waits 10 s, exact thresholds, bounded peak lists ([#321](https://github.com/dlepaux/realtime-bpm-analyzer/issues/321)) ([a004780](https://github.com/dlepaux/realtime-bpm-analyzer/commit/a004780b36e7291216c039e77bb8acdeedfdf242))
+
 ## [5.6.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.5.0...v5.6.0) (2026-11-02)
 
 

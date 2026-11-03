@@ -42,14 +42,15 @@ loadBtn.addEventListener('click', async () => {
     audioElement.crossOrigin = 'anonymous';
 
     // Create BPM analyzer
-    bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+    const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+    bpmAnalyzer = analyzer;
 
-    // Listen for BPM stable events
-    bpmAnalyzer.on('statechange', ({ to }) => {
-      if (to.status === 'locked') {
-        const primaryBpm = to.reading.bpm;
-        displayBpm(primaryBpm);
-        showStatus(`Stable BPM detected: ${Math.round(primaryBpm)}`, 'playing');
+    // The state is current inside a reading listener. A lock can move without a statechange (peaks relocks
+    // on a fuller rung), so the locked BPM is read from every reading, not only from the move to locked.
+    analyzer.on('reading', reading => {
+      if (analyzer.state.status === 'locked') {
+        displayBpm(reading.bpm);
+        showStatus(`Stable BPM detected: ${Math.round(reading.bpm)}`, 'playing');
       }
     });
 

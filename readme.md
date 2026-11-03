@@ -42,17 +42,26 @@ npm install realtime-bpm-analyzer
 ```typescript
 import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
-// Create analyzer
+// Create the analyzer
 const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-// Connect your audio source
-audioSource.connect(analyzer.node);
+// Connect your audio source to its input, which holds the filter the engine needs
+audioSource.connect(analyzer.input);
 
-// Listen for BPM detection
-analyzer.on('bpm', (data) => {
-  console.log('BPM detected:', data.bpm[0].tempo);
+// A reading on each analysis step, about twice a second
+analyzer.on('reading', (reading) => {
+  console.log('BPM:', reading.bpm, 'state:', analyzer.state.status);
+});
+
+// The state moves through listening, settling, locked and stopped
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') {
+    console.log('Locked on', to.reading.bpm);
+  }
 });
 ```
+
+While locked, keep showing the latest `reading`: the tempo can still move without a `statechange`.
 
 ### Strict CSP and browser extensions
 
@@ -68,13 +77,13 @@ See the [strict CSP guide](https://www.realtime-bpm-analyzer.com/guide/strict-cs
 
 ### Node.js
 
-`realtime-bpm-analyzer/node` analyses decoded PCM samples without Web Audio, in Node.js, Bun or Deno, with no added dependency. It returns the same candidates as `analyzeFullBuffer` for the same samples. Decoding is up to you (a WAV reader, ffmpeg, ...):
+`realtime-bpm-analyzer/node` analyses decoded PCM samples without Web Audio, in Node.js, Bun or Deno, with no added dependency. It returns the same reading as `analyzeFullBuffer` for the same samples, or `null` when it finds no tempo. Decoding is up to you (a WAV reader, ffmpeg, ...):
 
 ```typescript
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 
-const tempos = await analyzeChannelData(channelData, 44100); // Float32Array of one channel
-console.log(tempos[0]?.tempo);
+const reading = await analyzeChannelData(channelData, 44100); // Float32Array of one channel
+console.log(reading?.bpm, reading?.candidates);
 ```
 
 See the [Node.js guide](https://www.realtime-bpm-analyzer.com/guide/node).

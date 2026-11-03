@@ -326,15 +326,18 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
     source.connect(localAnalyzer.input)
     // Intentionally do NOT connect to destination — avoids mic feedback.
 
+    // The state is current inside a reading listener. A lock can move without a
+    // statechange (peaks relocks on a fuller rung), so the locked BPM follows every reading.
     localAnalyzer.on('reading', reading => {
       micLiveBpm.value = Math.round(reading.bpm)
+      if (localAnalyzer.state.status === 'locked') micStableBpm.value = micLiveBpm.value
     })
 
     localAnalyzer.on('statechange', ({ to }) => {
       if (to.status !== 'locked') return
       const bpm = Math.round(to.reading.bpm)
       // The analyzer can lock again after it unlocks or loses the pulse: report a tempo
-      // once, and again only when it changes (RBA-5).
+      // once per lock, and again only when it changes (RBA-5).
       if (bpm !== micStableBpm.value) track('bpm_mic_stable', { bpm })
       micStableBpm.value = bpm
       micStatus.value = 'result'
@@ -391,7 +394,7 @@ function stopMic() {
 
 // ─── Stream flow ─────────────────────────────────────────────────────────
 // Note: with a restart period the analyzer keeps running after the
-// first lock — a live radio stream has no natural "end". We
+// first lock: a live radio stream has no natural "end". We
 // therefore stay in the `'analysing'` status and surface the stable reading
 // as a prominent pill inside the same panel, rather than transitioning to
 // `'result'` (which would imply the session is finished).
@@ -403,8 +406,11 @@ function resetStreamReadings() {
 }
 
 function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: StreamEventParams | { input_method: 'tab' }) {
+  // The state is current inside a reading listener. A lock can move without a
+  // statechange (peaks relocks on a fuller rung), so the locked BPM follows every reading.
   analyzer.on('reading', reading => {
     streamLiveBpm.value = Math.round(reading.bpm)
+    if (analyzer.state.status === 'locked') streamStableBpm.value = streamLiveBpm.value
   })
 
   analyzer.on('statechange', ({ to }) => {

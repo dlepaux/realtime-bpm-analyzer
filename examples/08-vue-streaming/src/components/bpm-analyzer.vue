@@ -65,10 +65,11 @@ const handleLoad = async () => {
     const analyzer = await createRealtimeBpmAnalyzer(audioContext);
     bpmAnalyzer = analyzer;
 
-    // Listen for BPM stable events
-    analyzer.on('statechange', ({ to }) => {
-      if (to.status === 'locked') {
-        bpm.value = to.reading.bpm;
+    // The state is current inside a reading listener. A lock can move without a statechange (peaks relocks
+    // on a fuller rung), so the locked BPM is read from every reading, not only from the move to locked.
+    analyzer.on('reading', reading => {
+      if (analyzer.state.status === 'locked') {
+        bpm.value = reading.bpm;
       }
     });
 

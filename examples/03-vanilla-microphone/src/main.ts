@@ -1,4 +1,4 @@
-import { createRealtimeBpmAnalyzer, type BpmAnalyzer, type StateChange } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
 
 // Get DOM elements
 const startBtn = document.getElementById('startBtn') as HTMLButtonElement;
@@ -89,15 +89,14 @@ async function handleStream(audioCtx: AudioContext, stream: MediaStream) {
   mediaStreamSource.connect(analyzer.input);
 
   // Setup event listeners for BPM detection
-  analyzer.on('statechange', onStateChange);
-}
-
-function onStateChange({ to }: StateChange) {
-  if (to.status === 'locked') {
-    const primaryBpm = to.reading.bpm;
-    displayBpm(primaryBpm);
-    showStatus(`Stable BPM detected: ${Math.round(primaryBpm)}`, 'success');
-  }
+  // The state is current inside a reading listener. A lock can move without a statechange (peaks relocks
+  // on a fuller rung), so the locked BPM is read from every reading, not only from the move to locked.
+  analyzer.on('reading', reading => {
+    if (analyzer.state.status === 'locked') {
+      displayBpm(reading.bpm);
+      showStatus(`Stable BPM detected: ${Math.round(reading.bpm)}`, 'success');
+    }
+  });
 }
 
 // Stop listening

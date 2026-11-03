@@ -68,10 +68,11 @@ function BpmAnalyzer() {
     mediaStreamSource.connect(analyserNode);
     mediaStreamSource.connect(analyzer.input);
 
-    // Setup event listeners
-    analyzer.on('statechange', ({ to }) => {
-      if (to.status === 'locked') {
-        setBpm(to.reading.bpm);
+    // The state is current inside a reading listener. A lock can move without a statechange (peaks relocks
+    // on a fuller rung), so the locked BPM is read from every reading, not only from the move to locked.
+    analyzer.on('reading', reading => {
+      if (analyzer.state.status === 'locked') {
+        setBpm(reading.bpm);
       }
     });
   };

@@ -54,7 +54,7 @@ counted from the first beat, keeps every cut within half a frame.
 ## Frames per beat chart
 
 Common tempos, in frames per beat, rounded to two decimals. The calculator above
-shows the full value. On a narrow screen the chart scrolls sideways.
+shows up to six decimals. On a narrow screen the chart scrolls sideways.
 
 | BPM | 23.976 | 24 | 25 | 29.97 | 30 | 50 | 59.94 | 60 |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|

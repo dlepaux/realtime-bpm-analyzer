@@ -12,6 +12,7 @@ import {
   pushTap,
   tempoMarking,
   withBpmParam,
+  writeBpmToUrl,
 } from '../.vitepress/tools/tempo.ts'
 
 const close = (actual: number, expected: number, epsilon = 1e-9) =>
@@ -106,4 +107,28 @@ test('withBpmParam: the tempo in ?bpm=, within the parseBpmParam bounds, other p
   assert.equal(withBpmParam('?bpm=90', null), '')
   assert.equal(withBpmParam('?a=1&bpm=90', Number.NaN), '?a=1')
   for (const bpm of [20, 64.5, 128, 300]) assert.equal(parseBpmParam(new URLSearchParams(withBpmParam('', bpm)).get('bpm')), bpm)
+})
+
+function fakeWindow(search: string, replaceState: (url: string) => void) {
+  return {
+    location: { pathname: '/bpm-to-frames', search, hash: '#chart' },
+    history: { state: { kept: true }, replaceState: (_state: unknown, _unused: string, url: string) => replaceState(url) },
+  }
+}
+
+test('writeBpmToUrl: replaces the address with the tempo, keeping the path and hash', () => {
+  const urls: string[] = []
+  assert.equal(writeBpmToUrl(fakeWindow('?utm_source=x', (url) => urls.push(url)), 128), true)
+  assert.deepEqual(urls, ['/bpm-to-frames?utm_source=x&bpm=128#chart'])
+})
+
+test('writeBpmToUrl: no call when the address already holds the tempo', () => {
+  let calls = 0
+  assert.equal(writeBpmToUrl(fakeWindow('?bpm=128', () => calls++), 128), true)
+  assert.equal(calls, 0)
+})
+
+test('writeBpmToUrl: a refused replaceState (Safari rate limit) is caught, not thrown', () => {
+  const refuse = () => { throw new Error('SecurityError: Attempt to use history.replaceState() more than 100 times per 30 seconds') }
+  assert.equal(writeBpmToUrl(fakeWindow('', refuse), 128), false)
 })

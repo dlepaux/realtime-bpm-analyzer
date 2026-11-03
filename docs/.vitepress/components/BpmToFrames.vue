@@ -1,19 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Check, Copy, Hand } from 'lucide-vue-next'
 import { useAnalytics } from '../composables/useAnalytics'
-import { MAX_BPM, MIN_BPM, clampBpm, noteMs, parseBpmParam, tempoMarking, withBpmParam } from '../tools/tempo'
+import { MAX_BPM, MIN_BPM, clampBpm, noteMs, parseBpmParam, tempoMarking, writeBpmToUrl } from '../tools/tempo'
 import {
   FRAME_RATES,
   MAX_BEATS_PER_BAR,
   MAX_FPS,
   MIN_BEATS_PER_BAR,
   MIN_FPS,
-  framesPerBeat,
-  framesPerBeats,
+  decimalFraction,
+  driftFraction,
   formatFrames,
-  isWholeFrames,
+  framesFraction,
+  framesPerBeats,
+  isWhole,
   parseFps,
+  type Fraction,
   roundingDrift,
   type FrameRate,
 } from '../tools/frames'
@@ -39,7 +42,7 @@ const beatsPerBar = computed(() => {
 const custom = computed<FrameRate | null>(() => {
   const fps = parseFps(customFps.value)
   if (fps === null || FRAME_RATES.some((rate) => rate.fps === fps)) return null
-  return { fps, label: String(fps) }
+  return { fps, label: String(fps), exact: decimalFraction(fps) }
 })
 
 const rows = computed(() => {
@@ -48,36 +51,41 @@ const rows = computed(() => {
     const current = bpm.value
     // No tempo yet: empty cells, and their copy buttons are disabled.
     if (current === null) return { ...rate, beat: '', bar: '', drift: '', driftLine: '', isCustom: rate === custom.value }
-    const bar = framesPerBeats(current, rate.fps, beatsPerBar.value)
+    const bar = framesFraction(current, rate.exact, beatsPerBar.value)
+    const drift = driftParts(bar, framesPerBeats(current, rate.fps, beatsPerBar.value), rate.fps)
     return {
       ...rate,
-      beat: formatFrames(framesPerBeat(current, rate.fps)),
+      beat: formatFrames(framesFraction(current, rate.exact, 1)),
       bar: formatFrames(bar),
-      drift: driftText(bar, rate.fps),
-      driftLine: driftLine(bar, rate.fps),
+      drift: drift ? `${drift.rounded} f: ${drift.text}` : 'none',
+      driftLine: drift ? `Rounded bar ${drift.rounded} f, drift ${drift.text}` : 'Rounded bar: no drift',
       isCustom: rate === custom.value,
     }
   })
 })
 
-function driftText(exactFrames: number, fps: number): string {
-  if (isWholeFrames(exactFrames)) return 'none'
-  const drift = roundingDrift(exactFrames, fps)
+// The drift is shown twice: in its column, and on its own line under the rate where the table
+// is too narrow for the column. The frames come from the exact fraction, so they show in full
+// only when they really end; the float gives the sign and the milliseconds.
+function driftParts(exact: Fraction, frames: number, fps: number): { rounded: number, text: string } | null {
+  if (isWhole(exact)) return null
+  const drift = roundingDrift(frames, fps)
   const sign = drift.frames > 0 ? '+' : '−'
-  return `${drift.rounded} f: ${sign}${formatFrames(Math.abs(drift.frames))} f (${sign}${Math.abs(drift.ms).toFixed(1)} ms)`
-}
-
-// The same drift on its own line under the rate, where the table is too narrow for the column.
-function driftLine(exactFrames: number, fps: number): string {
-  if (isWholeFrames(exactFrames)) return 'Rounded bar: no drift'
-  const drift = roundingDrift(exactFrames, fps)
-  const sign = drift.frames > 0 ? '+' : '−'
-  return `Rounded bar ${drift.rounded} f, drift ${sign}${formatFrames(Math.abs(drift.frames))} f (${sign}${Math.abs(drift.ms).toFixed(1)} ms)`
+  return {
+    rounded: drift.rounded,
+    text: `${sign}${formatFrames(driftFraction(exact))} f (${sign}${Math.abs(drift.ms).toFixed(1)} ms)`,
+  }
 }
 
 function commitBpm() {
   if (bpm.value !== null) bpmInput.value = Number(bpm.value.toFixed(2))
 }
+
+// The address follows the tempo once it settles. A held arrow key or a slider drag changes it
+// many times a second, and Safari throws past about 100 replaceState calls per 30 s.
+const URL_SETTLE_MS = 400
+let urlTimer: number | undefined
+onUnmounted(() => window.clearTimeout(urlTimer))
 
 let copiedTimer: number | undefined
 async function copy(key: string, text: string, label: string) {
@@ -98,14 +106,10 @@ async function copy(key: string, text: string, label: string) {
 onMounted(() => {
   const fromUrl = parseBpmParam(new URLSearchParams(window.location.search).get('bpm'))
   if (fromUrl !== null) bpmInput.value = fromUrl
-  // The address follows the typed tempo, so a copied link opens on it. replaceState, not
-  // pushState: each keystroke would otherwise be a Back step. Started after the read above,
-  // so a ?bpm= link is never overwritten by the default tempo.
+  // Started after the read above, so a ?bpm= link is never overwritten by the default tempo.
   watch(bpm, (current) => {
-    const search = withBpmParam(window.location.search, current)
-    if (search === window.location.search) return
-    const { pathname, hash } = window.location
-    window.history.replaceState(window.history.state, '', `${pathname}${search}${hash}`)
+    window.clearTimeout(urlTimer)
+    urlTimer = window.setTimeout(() => writeBpmToUrl(window, current), URL_SETTLE_MS)
   })
 })
 </script>
@@ -381,18 +385,6 @@ onMounted(() => {
   color: var(--vp-c-text-2);
 }
 
-@container (max-width: 460px) {
-  .vp-doc .tt-table .drift-col { display: none; }
-  .vp-doc .tt-table tr.drift-row { display: table-row; }
-  .vp-doc .tt-table { border-spacing: 0 2px; }
-  .cell { gap: 0.25rem; padding: 0.4rem; }
-}
-
-/* The narrowest screens drop the copy icon for room; a copied value still turns green. */
-@container (max-width: 300px) {
-  .cell:not(.is-copied) .cell-icon { display: none; }
-}
-
 .cell {
   display: flex;
   align-items: center;
@@ -425,6 +417,19 @@ onMounted(() => {
 
 .cell.is-copied { color: var(--vp-c-green-1); }
 .cell.is-copied .cell-icon { opacity: 1; color: var(--vp-c-green-1); }
+
+/* After the base .cell rules on purpose: same specificity, so the later rule wins. */
+@container (max-width: 460px) {
+  .vp-doc .tt-table .drift-col { display: none; }
+  .vp-doc .tt-table tr.drift-row { display: table-row; }
+  .vp-doc .tt-table { border-spacing: 0 2px; }
+  .cell { gap: 0.25rem; padding: 0.4rem; }
+}
+
+/* The narrowest screens drop the copy icon for room; a copied value still turns green. */
+@container (max-width: 300px) {
+  .cell:not(.is-copied) .cell-icon { display: none; }
+}
 
 .visually-hidden {
   position: absolute;

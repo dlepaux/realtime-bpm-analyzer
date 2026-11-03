@@ -214,33 +214,6 @@ describe('BpmAnalyzer - events and commands', function () {
       expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
     });
 
-    it('drops a backlog of stale messages, however long, as a blocked main thread receives it after reset()', async () => {
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      analyzer.reset();
-
-      for (let i = 0; i < 100; i += 1) {
-        send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.1});
-      }
-
-      expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
-    });
-
-    it('fails on stale messages still coming a second after reset(), as a processor deaf to it sends', async function () {
-      this.timeout(5000);
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
-      analyzer.reset();
-      const resetAt = audioContext.currentTime;
-      await new Promise<void>(resolve => {
-        const wait = () => (audioContext.currentTime - resetAt > 1.1 ? resolve() : setTimeout(wait, 50));
-        wait();
-      });
-
-      send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.1});
-
-      expect(analyzer.state.status).to.equal('stopped');
-      expect(analyzer.state.status === 'stopped' && analyzer.state.error?.name).to.equal('ProtocolError');
-    });
-
     it('lets a listener reset from inside a statechange, after the current dispatch', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       const seen: string[] = [];

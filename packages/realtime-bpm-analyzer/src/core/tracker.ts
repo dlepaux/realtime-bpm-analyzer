@@ -50,7 +50,8 @@ export function createTracker(hysteresis: Hysteresis): Tracker {
   let anchor = 0;
   let outsideSince: number | null = null;
   let lastPulseAt = 0;
-  // A lock the engine offered on the step that left listening: peaks offers once per rung, so it would be lost
+  // A lock the engine offered while listening, or on the step that left it: peaks offers once per rung, and
+  // after a lost pulse it may offer on its kept history before the pulse is back, so the offer would be lost
   let pendingOffer = false;
 
   const enterListening = (reason: Exclude<ListeningReason, 'started' | 'reset'>): TrackerOutput => {
@@ -88,12 +89,12 @@ export function createTracker(hysteresis: Hysteresis): Tracker {
     }
 
     if (status === 'listening') {
+      pendingOffer ||= input.lockOffered;
       if (input.bpm === null || !input.pulse) {
         return hold();
       }
 
       status = 'settling';
-      pendingOffer = input.lockOffered;
       return {status, reason: 'first-reading'};
     }
 

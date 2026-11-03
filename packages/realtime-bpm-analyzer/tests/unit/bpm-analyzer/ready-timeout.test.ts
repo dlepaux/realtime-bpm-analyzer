@@ -6,11 +6,52 @@ import {PROTOCOL_VERSION} from '../../../src/contract/types';
 function fakeNode() {
   const posted: unknown[] = [];
   const port = {onmessage: null as ((event: MessageEvent) => void) | null, onmessageerror: null, postMessage: (message: unknown) => posted.push(message)};
-  // Test double at the boundary: the analyzer only touches the port and onprocessorerror
-  const node = {port, onprocessorerror: null} as unknown as AudioWorkletNode;
+  // The test moves the context's clock by hand
+  const context = {currentTime: 0};
+  // Test double at the boundary: the analyzer only touches the port, onprocessorerror and the context's clock
+  const node = {port, onprocessorerror: null, context} as unknown as AudioWorkletNode;
   const send = (data: unknown) => port.onmessage?.(new MessageEvent('message', {data}));
-  return {node, posted, send};
+  return {node, posted, send, context};
 }
+
+describe('BpmAnalyzer - epoch watchdog', () => {
+  const stale = {type: 'step', protocol: PROTOCOL_VERSION, epoch: 0, status: 'listening', progress: 0.1};
+
+  it('drops a backlog of old epochs that lands at once after reset(), however long', () => {
+    const {node, send} = fakeNode();
+    const analyzer = new BpmAnalyzer(node);
+    analyzer.reset();
+    for (let i = 0; i < 100; i += 1) {
+      send(stale);
+    }
+
+    expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
+  });
+
+  it('fails with a ProtocolError, and stops the processor, when old epochs still come a second after reset()', () => {
+    const {node, send, posted, context} = fakeNode();
+    const analyzer = new BpmAnalyzer(node);
+    analyzer.reset();
+    send(stale);
+    context.currentTime = 1.5;
+    send(stale);
+
+    const {state} = analyzer;
+    expect(state.status === 'stopped' && state.error?.name).to.equal('ProtocolError');
+    expect(posted.at(-1)).to.deep.equal({type: 'stop', protocol: PROTOCOL_VERSION});
+  });
+
+  it('trusts a processor that answered the reset, whatever comes late', () => {
+    const {node, send, context} = fakeNode();
+    const analyzer = new BpmAnalyzer(node);
+    analyzer.reset();
+    send({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1});
+    context.currentTime = 5;
+    send(stale);
+
+    expect(analyzer.state.status).to.equal('listening');
+  });
+});
 
 describe('BpmAnalyzer - startup', () => {
   it('resolves once the processor says ready in epoch 0', async () => {

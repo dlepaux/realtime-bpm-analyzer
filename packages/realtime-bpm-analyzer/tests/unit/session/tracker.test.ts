@@ -32,10 +32,17 @@ describe('tracker - engine-neutral states', () => {
   it('locks only when the engine offers it, and only from settling', () => {
     const tracker = createTracker(hysteresis);
 
-    // Offered while listening: the first reading comes first
-    expect(tracker.step(input(0.1, 120, {lockOffered: true}))).to.deep.equal({status: 'settling', reason: 'first-reading'});
+    expect(tracker.step(input(0.1, 120))).to.deep.equal({status: 'settling', reason: 'first-reading'});
     expect(tracker.step(input(0.2, 120))).to.deep.equal({status: 'settling'});
     expect(tracker.step(input(0.3, 120, {lockOffered: true}))).to.deep.equal({status: 'locked', reason: 'locked'});
+  });
+
+  it('keeps a lock offered while listening, even without a pulse, for the first step that settles', () => {
+    const tracker = createTracker(hysteresis);
+
+    expect(tracker.step(input(0.1, 120, {pulse: false, lockOffered: true}))).to.deep.equal({status: 'listening'});
+    expect(tracker.step(input(0.2, 120))).to.deep.equal({status: 'settling', reason: 'first-reading'});
+    expect(tracker.step(input(0.3, 120))).to.deep.equal({status: 'locked', reason: 'locked'});
   });
 
   it('holds the lock inside the unlock band, wider than the lock band', () => {

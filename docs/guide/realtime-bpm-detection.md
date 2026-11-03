@@ -1,6 +1,6 @@
 ---
 title: Detect BPM in Real Time with JavaScript
-description: Read the tempo of an audio or video element, a microphone or a live stream in the browser, with the Web Audio API and an AudioWorklet. TypeScript for each source, and what each event means.
+description: "Detect BPM in real time with JavaScript: the tempo of an audio or video element, the microphone or a live stream, with Web Audio and an AudioWorklet."
 head:
   - - meta
     - name: keywords
@@ -9,11 +9,11 @@ head:
 
 # Detect BPM in Real Time with JavaScript
 
-This guide shows how to read the tempo of audio while it plays in the
-browser: from an `<audio>` or `<video>` element, a microphone, or a live
-HTTP stream. It uses the Web Audio API and `realtime-bpm-analyzer`, whose
-analysis runs in an AudioWorklet on the audio thread, so the page's own
-work can't stall it.
+To detect BPM in real time, connect the audio source to
+`realtime-bpm-analyzer`'s AudioWorklet node and read the tempo from its `bpm`
+and `bpmStable` events. The source can be an `<audio>` or `<video>` element,
+a microphone or a live HTTP stream. The analysis runs on the audio thread, so
+the page's own work can't stall it.
 
 Only need the BPM of a song, not code? The [free tool on the home page](/)
 reads a file, a radio stream URL or the microphone.
@@ -285,9 +285,8 @@ const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
 source.connect(bpmAnalyzer.input);
 ```
 
-`analyzeFullBuffer(buffer, {detector: 'tempogram'})`, `analyzeChannelData`
-in Node, the CLI's `--detector tempogram` and the MCP server's `detector`
-argument run it on whole files. The default stays `'peaks'`.
+`analyzeFullBuffer(buffer, {detector: 'tempogram'})` and `analyzeChannelData`
+in Node run it on whole files. The default stays `'peaks'`.
 
 It searches 90 to 180 BPM, and a tempo outside that reads at the octave
 inside: over about 179 BPM reads half, so a 200 BPM track reads 100, and a

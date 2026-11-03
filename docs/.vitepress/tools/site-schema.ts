@@ -6,6 +6,7 @@
 //   - WebSite: on the home page, where Google reads the site's name for search results.
 //   - WebApplication: the free online BPM tool, which lives on the home page. The other
 //     tool pages build their own from frontmatter (see config.ts).
+//   - TechArticle: each guide, with its author and the git date of its last change.
 //   - FAQPage: the home page's questions. Google no longer shows FAQ rich results, so
 //     this is here for other readers of the markup. Its text must match the page, and a
 //     test holds it to docs/index.md, because the two are separate copies.
@@ -14,6 +15,18 @@
 // search and AI engines treat them as one entity rather than three strings.
 
 const SITE = 'https://www.realtime-bpm-analyzer.com/'
+
+// One person writes, maintains and publishes the site, the tools and the library.
+const AUTHOR = {
+  '@type': 'Person',
+  name: 'David Lepaux',
+  url: 'https://david.lepaux.com',
+  sameAs: [
+    'https://github.com/dlepaux',
+    'https://www.npmjs.com/~dlepaux',
+    'https://www.linkedin.com/in/david-lepaux',
+  ],
+}
 
 const SCHEMA_SOFTWARE_SOURCE_CODE = {
   '@type': 'SoftwareSourceCode',
@@ -27,16 +40,7 @@ const SCHEMA_SOFTWARE_SOURCE_CODE = {
   programmingLanguage: ['TypeScript', 'JavaScript'],
   runtimePlatform: 'Browser',
   license: 'https://spdx.org/licenses/Apache-2.0',
-  author: {
-    '@type': 'Person',
-    name: 'David Lepaux',
-    url: 'https://david.lepaux.com',
-    sameAs: [
-      'https://github.com/dlepaux',
-      'https://www.npmjs.com/~dlepaux',
-      'https://www.linkedin.com/in/david-lepaux',
-    ],
-  },
+  author: AUTHOR,
 }
 
 const SCHEMA_WEB_SITE = {
@@ -55,6 +59,8 @@ export const SCHEMA_WEB_APPLICATION = {
   browserRequirements: 'Requires Web Audio API support (any modern browser).',
   inLanguage: 'en',
   isAccessibleForFree: true,
+  author: AUTHOR,
+  publisher: AUTHOR,
   offers: {
     '@type': 'Offer',
     price: '0',
@@ -65,6 +71,7 @@ export const SCHEMA_WEB_APPLICATION = {
     'Detect BPM from microphone input',
     'Detect BPM from a live radio stream',
     'Detect BPM from the audio of another browser tab (desktop Chrome and Edge)',
+    'Detect BPM from the sound track of a video file',
     'Audio processed locally in the browser, never uploaded',
   ],
 }
@@ -125,9 +132,72 @@ export function siteGraph(relativePath: string): object[] {
 }
 
 /**
- * True for a sitemap URL whose page is noindex. Only docs/readme.md today: it is the
- * docs' own developer notes, published because everything under docs/ is.
+ * Guides for packages that aren't on npm yet. Their pages stay at the same URLs but are
+ * noindex, out of the sitemap, the sidebar, the search and llms.txt, and nothing links
+ * to them (RBA-122). They come back with the v6 release, PR #323.
+ */
+export const UNPUBLISHED_GUIDES: readonly string[] = ['guide/cli', 'guide/mcp']
+
+/** A page's path without its leading slash, `.md` or `.html`: `guide/cli`. */
+function pagePath(urlOrSource: string): string {
+  return urlOrSource.replace(/^\//, '').replace(/\.(md|html)$/, '')
+}
+
+/** True for a guide whose package isn't published yet, by URL or by source path. */
+export function isUnpublishedGuide(urlOrSource: string): boolean {
+  return UNPUBLISHED_GUIDES.includes(pagePath(urlOrSource))
+}
+
+/**
+ * True for a sitemap URL whose page is noindex: docs/readme.md, the docs' own developer
+ * notes, published because everything under docs/ is, and the unpublished guides.
  */
 export function isNoindexPage(url: string): boolean {
-  return /^\/?readme(\.html)?$/.test(url)
+  return pagePath(url) === 'readme' || isUnpublishedGuide(url)
+}
+
+/** True for a guide page, which is an article: og:type article and a TechArticle. */
+export function isGuidePage(relativePath: string): boolean {
+  return relativePath.startsWith('guide/') && !isUnpublishedGuide(relativePath)
+}
+
+/** A git timestamp as an ISO date, or undefined when git had none (an uncommitted file). */
+export function isoDate(timestamp: number | undefined): string | undefined {
+  return timestamp && Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : undefined
+}
+
+/**
+ * A page's date as readers see it: "November 3, 2026". Formatted in UTC so the server
+ * HTML and the browser agree, which lets the date ship in the prerendered page.
+ */
+export function readableDate(timestamp: number | undefined): string | undefined {
+  if (!isoDate(timestamp)) return undefined
+  return new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(timestamp)
+}
+
+type ArticleFacts = {
+  readonly headline: string
+  readonly description: string
+  readonly url: string
+  /** Git timestamps in ms, the same source the sitemap's lastmod uses. */
+  readonly modified?: number
+  readonly published?: number
+}
+
+/** The TechArticle for a guide. Dates git doesn't know are left out, never guessed. */
+export function techArticle({ headline, description, url, modified, published }: ArticleFacts) {
+  const dateModified = isoDate(modified)
+  const datePublished = isoDate(published)
+  return {
+    '@type': 'TechArticle',
+    headline,
+    description,
+    url,
+    mainEntityOfPage: url,
+    inLanguage: 'en',
+    author: AUTHOR,
+    publisher: AUTHOR,
+    ...(datePublished === undefined ? {} : { datePublished }),
+    ...(dateModified === undefined ? {} : { dateModified }),
+  }
 }

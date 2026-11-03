@@ -1,6 +1,6 @@
 ---
 title: "BPM to Frames (FPS) Calculator"
-description: Convert BPM to frames per beat and per bar at 23.976, 24, 25, 29.97, 30, 50, 59.94 and 60 fps, or a custom frame rate, to cut video on the beat. Shows the drift of a rounded cut.
+description: "BPM to frames calculator: frames per beat and per bar at 23.976 to 60 fps or any frame rate, to cut video on the beat, with the drift of a rounded cut."
 aside: false
 editLink: false
 tool:
@@ -30,6 +30,9 @@ import ToolFaq from './.vitepress/components/ToolFaq.vue'
 </script>
 
 # BPM to Frames Calculator
+
+Frames per beat equals the frame rate times 60, divided by the BPM. At 120 BPM
+and 24 fps one beat is 12 frames, and a 4/4 bar is 48 frames.
 
 Type a tempo and get the length of one beat and one bar in frames, at every
 common frame rate, for cutting video on the beat. Click any value to copy it.
@@ -72,7 +75,8 @@ Common tempos, in frames per beat:
 | 180 | 7.99 | 8 | 8.33 | 9.99 | 10 | 16.67 | 19.98 | 20 |
 
 Don't know the tempo? Find it from the file with the
-[video BPM finder](/video-bpm), or [tap it](/tap-tempo).
+[video BPM finder](/video-bpm), from a song with the
+[BPM finder](/), or [tap it](/tap-tempo).
 
 For a marker on every beat in your editor, drop the file on the
 [video BPM finder](/video-bpm#export-beat-markers) and export beat markers. They

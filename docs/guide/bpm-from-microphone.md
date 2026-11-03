@@ -9,12 +9,15 @@ head:
 
 # Detect BPM from the Microphone in JavaScript
 
-This guide reads the tempo of music the microphone hears, in the browser,
-with `getUserMedia`, the Web Audio API and `realtime-bpm-analyzer`. The
-microphone picks up more noise than a file or a stream: room reverb,
-background noise, a keyboard or a laptop fan all reach the signal.
-It is also the one a live performance tool, a music game or a fitness app
-needs.
+To detect BPM from the microphone, open it with `getUserMedia` and its voice
+processing turned off, connect it to `realtime-bpm-analyzer`'s AudioWorklet
+node, and read the tempo from the `bpmStable` event. The microphone picks up
+more noise than a file or a stream: room reverb, background noise, a keyboard
+or a laptop fan all reach the signal. It is also the source a live
+performance tool, a music game or a fitness app needs.
+
+The tempo is one number. Where each beat falls is a different task, which
+[Beat detection in the browser](/guide/beat-detection-web-audio) explains.
 
 Only want the BPM of the music around you, not code? The
 [tool on the home page](/) listens to the microphone in your browser.

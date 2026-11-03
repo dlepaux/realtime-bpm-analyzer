@@ -4,33 +4,20 @@ import { useData } from 'vitepress'
 import BpmHeroTool from '../components/BpmHeroTool.vue'
 
 const { Layout } = DefaultTheme
-const { frontmatter } = useData()
+const { site } = useData()
 </script>
 
 <template>
   <Layout>
+    <!-- The brand sits above the page's only h1, not inside it: the h1 holds the hero's
+         `text` alone, at every width (RBA-129). Below 960px custom.css reorders the
+         hero so the brand and the h1 come before the tool, as one headline. -->
+    <template #home-hero-info-before>
+      <p class="bpm-hero-brand">
+        {{ site.title }}
+      </p>
+    </template>
     <template #home-hero-image>
-      <!-- Mobile-only headline block (name + text): appears above the tool so the
-           identity + value prop reads as one unit, then the tool follows as demo.
-           On desktop this block is `display: none` (see custom.css) and the
-           VitePress-rendered `.VPHero .main .name` + `.text` take over.
-           On mobile the VitePress originals are `display: none` — which removes
-           them from the a11y tree — so screen readers see this block as the
-           page's primary heading. No `aria-hidden` here. -->
-      <div class="bpm-mobile-hero-head">
-        <div
-          v-if="frontmatter.hero?.name"
-          class="bpm-mobile-hero-name"
-        >
-          {{ frontmatter.hero.name }}
-        </div>
-        <div
-          v-if="frontmatter.hero?.text"
-          class="bpm-mobile-hero-text"
-        >
-          {{ frontmatter.hero.text }}
-        </div>
-      </div>
       <BpmHeroTool />
     </template>
   </Layout>

@@ -38,15 +38,30 @@
   }
 }
 
-/* Mobile-only headline block shown ABOVE the tool (see Layout.vue). Hidden on
-   desktop where the VitePress-rendered .VPHero .main copy is visible on the left. */
-.bpm-mobile-hero-head {
-  display: none;
+/* ── Hero headline: the brand line and the page's only h1 ────────────────
+   Layout.vue puts the brand in a <p> above VitePress's h1, which holds only the
+   hero's `text` (RBA-129). The brand copies VitePress's `.name` look. */
+.bpm-hero-brand {
+  width: fit-content;
+  max-width: 392px;
+  margin: 0 auto;
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: pre-wrap;
+  color: var(--vp-home-hero-name-color, var(--vp-c-brand-1));
+  background: var(--vp-home-hero-name-background);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: var(--vp-home-hero-name-color, transparent);
 }
 
-/* Mobile: VitePress default applies negative margins (-76px top, -24px sides,
-   -48px bottom) on .VPHero .image, which drags the tool under the navbar and
-   into the copy below. Reset those — our tool owns its own spacing. */
+/* Mobile and tablet: brand and h1 first, then the tool, then the tagline and the
+   actions. `display: contents` lets the hero's items join the column so `order`
+   can place them around the tool, which VitePress puts first (order 1). The
+   sizes and gaps are the ones the old mobile-only copy used, so the tool's
+   tabs stay where they were (about 309px from the top at 375x812). */
 @media (max-width: 959px) {
   .VPHero .image {
     margin: 0 !important;
@@ -58,48 +73,43 @@
     margin: 0 auto 2rem !important;
   }
 
-  /* Hide the original hero name + text on mobile — we render them above the tool instead. */
-  .VPHero .main .name,
-  .VPHero .main .text {
-    display: none;
+  .VPHero.has-image .main {
+    display: contents;
   }
-
-  .bpm-mobile-hero-head {
-    display: block;
-    text-align: center;
-    max-width: 100%;
-    margin: 0 auto 1.75rem;
+  .VPHero.has-image .main > * {
+    order: 2;
   }
-
-  /* Mobile hero name — brand-colored, matches VitePress native .name sizing. */
-  .bpm-mobile-hero-name {
+  .VPHero.has-image .main > .bpm-hero-brand,
+  .VPHero.has-image .main > .heading {
+    order: 0;
+  }
+  .VPHero.has-image .main > .heading {
+    margin: 0.25rem 0 1.75rem;
+  }
+  .VPHero.has-image .main .heading .text {
     font-size: 32px;
     line-height: 40px;
-    font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--vp-home-hero-name-color, var(--vp-c-brand-1));
-    background: var(--vp-home-hero-name-background);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: var(--vp-home-hero-name-color, transparent);
-  }
-
-  /* Mobile hero text — the pitch line, paired right under the name. */
-  .bpm-mobile-hero-text {
-    font-size: 32px;
-    line-height: 40px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--vp-c-text-1);
-    margin-top: 0.25rem;
   }
 }
 
 @media (min-width: 640px) and (max-width: 959px) {
-  .bpm-mobile-hero-name,
-  .bpm-mobile-hero-text {
+  .bpm-hero-brand,
+  .VPHero.has-image .main .heading .text {
     font-size: 56px;
     line-height: 64px;
+  }
+}
+
+/* Desktop: the copy on the left, as VitePress lays it out, with the brand at
+   the size of VitePress's own name line. */
+@media (min-width: 960px) {
+  .bpm-hero-brand {
+    max-width: 576px;
+    margin: 0;
+    font-size: 56px;
+    line-height: 64px;
+    letter-spacing: -0.4px;
   }
 }
 

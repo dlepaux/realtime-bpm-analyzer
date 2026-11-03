@@ -1,6 +1,6 @@
 ---
 title: Beat Detection in the Browser with Web Audio
-description: Beat detection in JavaScript, explained. Onsets, tempo and beat tracking are three different problems. A small AnalyserNode onset sketch, then the tempo of live audio and of whole files with the Web Audio API.
+description: "Beat detection in JavaScript with the Web Audio API: onsets, tempo and beat tracking explained, an onset sketch, and the tempo of live audio and files."
 head:
   - - meta
     - name: keywords
@@ -9,10 +9,11 @@ head:
 
 # Beat Detection in the Browser with Web Audio
 
-"Beat detection" covers three questions that need different code. This guide
-separates them, shows a small onset detector built on the Web Audio API alone,
-then shows how to get the tempo of live audio and of whole files with
-`realtime-bpm-analyzer` today, and where its limits are.
+Beat detection is three tasks: onset detection finds when each sound starts,
+tempo estimation finds how fast the music is, and beat tracking finds where
+each beat falls. They need different code. Below is a small onset detector
+built on the Web Audio API alone, then the tempo of live audio and of whole
+files with `realtime-bpm-analyzer`, and where its limits are.
 
 ## Three questions behind "beat detection"
 

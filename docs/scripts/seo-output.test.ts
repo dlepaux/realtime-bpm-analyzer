@@ -15,6 +15,7 @@ function site(overrides: Record<string, string> = {}): BuiltSite {
     'website-privacy.html': '<p>privacy</p>',
     'guide/cli.html': `${NOINDEX}<a href="/guide/mcp">MCP</a>`,
     'guide/mcp.html': `${NOINDEX}<a href="/guide/cli#formats">CLI</a>`,
+    'guide/quick-start.html': '<meta http-equiv="refresh" content="0; url=/guide/getting-started">',
     ...Object.fromEntries(['node', 'getting-started', 'how-it-works', 'performance', 'react-bpm-hook'].map((name) => [`guide/${name}.html`, GUIDE])),
     ...overrides,
   }

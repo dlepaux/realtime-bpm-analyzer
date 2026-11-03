@@ -11,6 +11,8 @@ const H1 = /<h1\b[^>]*>([\s\S]*?)<\/h1>/g
 // A <time> with text in it: the date is in the server HTML, not only added by JavaScript.
 const FILLED_TIME = /<time\b[^>]*\bdatetime="[^"]+"[^>]*>[^<\s][^<]*<\/time>/
 
+const REDIRECT = /<meta http-equiv="refresh"/
+
 const text = (html: string) => html.replace(/<!--[\s\S]*?-->|<[^>]+>/g, '').trim()
 
 function homeProblems(site: BuiltSite): string[] {
@@ -40,6 +42,8 @@ function unpublishedProblems(site: BuiltSite): string[] {
 function guideProblems(site: BuiltSite): string[] {
   const guides = site.paths.filter((path) => /^guide\/[^/]+\.html$/.test(path))
     .filter((path) => !UNPUBLISHED.some((page) => path === `${page}.html`))
+    // Legacy URLs such as guide/quick-start.html are redirect stubs (build-redirects.ts).
+    .filter((path) => !REDIRECT.test(site.read(path)))
   if (guides.length < 5) return [`only ${guides.length} guides built`]
   return guides.flatMap((path) => {
     const html = site.read(path)

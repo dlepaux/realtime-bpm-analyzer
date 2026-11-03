@@ -1,4 +1,4 @@
-import { createRealtimeBpmAnalyzer, type BpmAnalyzer, type BpmCandidates } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, type BpmAnalyzer, type StateChange } from 'realtime-bpm-analyzer';
 
 // Get DOM elements
 const startBtn = document.getElementById('startBtn') as HTMLButtonElement;
@@ -86,15 +86,15 @@ async function handleStream(audioCtx: AudioContext, stream: MediaStream) {
   // Connect everything together
   // CRITICAL: BPM analyzer MUST be in the audio graph!
   mediaStreamSource.connect(analyserNode);
-  mediaStreamSource.connect(analyzer.node);
+  mediaStreamSource.connect(analyzer.input);
 
   // Setup event listeners for BPM detection
-  analyzer.on('bpmStable', onBpmStable);
+  analyzer.on('statechange', onStateChange);
 }
 
-function onBpmStable(data: BpmCandidates) {
-  if (data.bpm.length > 0) {
-    const primaryBpm = data.bpm[0].tempo;
+function onStateChange({ to }: StateChange) {
+  if (to.status === 'locked') {
+    const primaryBpm = to.reading.bpm;
     displayBpm(primaryBpm);
     showStatus(`Stable BPM detected: ${Math.round(primaryBpm)}`, 'success');
   }

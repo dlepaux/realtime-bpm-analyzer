@@ -2,9 +2,7 @@
 import { ref, onUnmounted } from 'vue';
 import { 
   createRealtimeBpmAnalyzer, 
-  getBiquadFilter, 
-  type BpmAnalyzer, 
-  type BpmCandidates 
+  type BpmAnalyzer
 } from 'realtime-bpm-analyzer';
 
 const bpm = ref<number>();
@@ -17,7 +15,6 @@ let audioContext: AudioContext | null = null;
 let audioElement: HTMLAudioElement | null = null;
 let mediaSource: MediaElementAudioSourceNode | null = null;
 let bpmAnalyzer: BpmAnalyzer | null = null;
-let biquadFilter: BiquadFilterNode | null = null;
 
 // Initialize audio context
 audioContext = new AudioContext();
@@ -32,11 +29,6 @@ const cleanup = () => {
   if (mediaSource) {
     mediaSource.disconnect();
     mediaSource = null;
-  }
-
-  if (biquadFilter) {
-    biquadFilter.disconnect();
-    biquadFilter = null;
   }
 
   if (bpmAnalyzer) {
@@ -73,14 +65,10 @@ const handleLoad = async () => {
     const analyzer = await createRealtimeBpmAnalyzer(audioContext);
     bpmAnalyzer = analyzer;
 
-    // Create biquad filter
-    const filter = getBiquadFilter(audioContext);
-    biquadFilter = filter;
-
     // Listen for BPM stable events
-    analyzer.on('bpmStable', (data: BpmCandidates) => {
-      if (data.bpm.length > 0) {
-        bpm.value = data.bpm[0].tempo;
+    analyzer.on('statechange', ({ to }) => {
+      if (to.status === 'locked') {
+        bpm.value = to.reading.bpm;
       }
     });
 
@@ -88,8 +76,8 @@ const handleLoad = async () => {
     const source = audioContext.createMediaElementSource(audioElement);
     mediaSource = source;
 
-    source.connect(filter);
-    filter.connect(analyzer.node);
+    // The analyzer's input holds the lowpass
+    source.connect(analyzer.input);
     source.connect(audioContext.destination);
 
     // Wait for audio to be ready

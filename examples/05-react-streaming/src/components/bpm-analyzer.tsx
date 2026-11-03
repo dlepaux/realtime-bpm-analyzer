@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   createRealtimeBpmAnalyzer, 
-  getBiquadFilter, 
-  type BpmAnalyzer as BpmAnalyzerType, 
-  type BpmCandidates 
+  type BpmAnalyzer as BpmAnalyzerType
 } from 'realtime-bpm-analyzer';
 import './bpm-analyzer.css';
 
@@ -18,7 +16,6 @@ function BpmAnalyzer() {
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const bpmAnalyzerRef = useRef<BpmAnalyzerType | null>(null);
-  const biquadFilterRef = useRef<BiquadFilterNode | null>(null);
 
   // Initialize audio context
   useEffect(() => {
@@ -42,10 +39,6 @@ function BpmAnalyzer() {
       mediaSourceRef.current = null;
     }
 
-    if (biquadFilterRef.current) {
-      biquadFilterRef.current.disconnect();
-      biquadFilterRef.current = null;
-    }
 
     if (bpmAnalyzerRef.current) {
       bpmAnalyzerRef.current.disconnect();
@@ -83,14 +76,10 @@ function BpmAnalyzer() {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       bpmAnalyzerRef.current = analyzer;
 
-      // Create biquad filter
-      const filter = getBiquadFilter(audioContext);
-      biquadFilterRef.current = filter;
-
       // Listen for BPM stable events
-      analyzer.on('bpmStable', (data: BpmCandidates) => {
-        if (data.bpm.length > 0) {
-          setBpm(data.bpm[0].tempo);
+      analyzer.on('statechange', ({ to }) => {
+        if (to.status === 'locked') {
+          setBpm(to.reading.bpm);
         }
       });
 
@@ -98,8 +87,8 @@ function BpmAnalyzer() {
       const source = audioContext.createMediaElementSource(audioElement);
       mediaSourceRef.current = source;
 
-      source.connect(filter);
-      filter.connect(analyzer.node);
+      // The analyzer's input holds the lowpass
+      source.connect(analyzer.input);
       source.connect(audioContext.destination);
 
       // Wait for audio to be ready

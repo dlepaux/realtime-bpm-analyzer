@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   createRealtimeBpmAnalyzer, 
-  type BpmAnalyzer as BpmAnalyzerType, 
-  type BpmCandidates 
+  type BpmAnalyzer as BpmAnalyzerType
 } from 'realtime-bpm-analyzer';
 import './bpm-analyzer.css';
 
@@ -67,12 +66,12 @@ function BpmAnalyzer() {
 
     // Connect everything together
     mediaStreamSource.connect(analyserNode);
-    mediaStreamSource.connect(analyzer.node);
+    mediaStreamSource.connect(analyzer.input);
 
     // Setup event listeners
-    analyzer.on('bpmStable', (data: BpmCandidates) => {
-      if (data.bpm.length > 0) {
-        setBpm(data.bpm[0].tempo);
+    analyzer.on('statechange', ({ to }) => {
+      if (to.status === 'locked') {
+        setBpm(to.reading.bpm);
       }
     });
   };

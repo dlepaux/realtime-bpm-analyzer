@@ -2,8 +2,7 @@
 import { ref, onUnmounted } from 'vue';
 import { 
   createRealtimeBpmAnalyzer, 
-  type BpmAnalyzer, 
-  type BpmCandidates 
+  type BpmAnalyzer
 } from 'realtime-bpm-analyzer';
 
 const bpm = ref<number>();
@@ -57,12 +56,12 @@ const handleStream = async (audioCtx: AudioContext, stream: MediaStream) => {
 
   // Connect everything together
   mediaStreamSource.connect(analyserNode);
-  mediaStreamSource.connect(analyzer.node);
+  mediaStreamSource.connect(analyzer.input);
 
   // Setup event listeners
-  analyzer.on('bpmStable', (data: BpmCandidates) => {
-    if (data.bpm.length > 0) {
-      bpm.value = data.bpm[0].tempo;
+  analyzer.on('statechange', ({ to }) => {
+    if (to.status === 'locked') {
+      bpm.value = to.reading.bpm;
     }
   });
 };

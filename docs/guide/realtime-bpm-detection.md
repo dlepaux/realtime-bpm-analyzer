@@ -224,12 +224,13 @@ bpmAnalyzer.on('bpm', ({ bpm }) => {
   // Fires on every analysed chunk: about ten times a second with the
   // default detector, every half second with the tempogram.
   // Arrives early, before detection has settled, and can be empty at first.
+  // With the tempogram it does not fire at all for the first 4 s (warm-up).
   // Use for a live-updating display.
 });
 
 bpmAnalyzer.on('bpmStable', ({ bpm }) => {
   // Fires once the detector trusts a value: after 10 s of audio at the
-  // earliest with the default detector, about 11 s with the tempogram.
+  // earliest with the default detector, about 11.5 s with the tempogram.
   // It can fire again later as the reading firms up.
   // Use for "the answer": the BPM you keep in application state.
 });

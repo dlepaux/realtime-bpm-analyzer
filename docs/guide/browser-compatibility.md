@@ -110,7 +110,6 @@ if (isSupported()) {
 #### Android Chrome
 ✅ **Supported**
 - Full feature parity with desktop Chrome
-- Good battery efficiency
 - Reliable AudioWorklet
 
 **Tips:**

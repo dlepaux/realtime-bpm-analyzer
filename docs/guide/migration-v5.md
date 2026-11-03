@@ -50,7 +50,7 @@ useEffect(() => {
   
   return () => {
     analyzer.removeEventListener('bpm', handleBpm);
-    analyzer.disconnect();
+    analyzer.stop();
   };
 }, [analyzer]);
 ```

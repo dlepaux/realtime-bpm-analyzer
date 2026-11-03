@@ -186,10 +186,11 @@ call `track.stop()` separately. Both, every time.
 Two events fire as audio flows. They mean different things:
 
 - **`bpm`** fires on every analysed chunk, about ten times a second
-  with the default detector. It arrives early and is often noisy. Use it
+  with the default detector, every half second with the tempogram after
+  its first 4 s of warm-up. It arrives early and is often noisy. Use it
   for a live display where users want immediate feedback.
 - **`bpmStable`** fires when the detector trusts a value: with the
-  default `peaks` detector, 10 seconds in at the earliest, and about 11
+  default `peaks` detector, 10 seconds in at the earliest, and about 11.5
   seconds with the tempogram. Use it as "the answer": keep it in
   application state, persist it, log it.
 

@@ -16,6 +16,7 @@ export type RunOptions = {engine: Detector; sampleRate: number; seconds: number}
 
 export type QuantumReport = {
   clock: string;
+  minuteMs: number[];
   quanta: number;
   recorded: number;
   budgetMs: number;
@@ -66,6 +67,7 @@ function report(dump: TimingDump, sampleRate: number): QuantumReport {
 
   return {
     clock: dump.clock,
+    minuteMs: dump.minuteMs,
     quanta: dump.quanta,
     recorded: dump.recorded,
     budgetMs,

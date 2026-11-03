@@ -63,6 +63,9 @@ describe('browser cost harness', () => {
     expect(dump.spilled).to.equal(0);
     expect(dump.errors).to.equal(0);
     expect(dump.lastBpm).to.be.a('number');
+    // 12 s of audio fill the first minute only, and it holds every millisecond counted
+    expect(dump.minuteMs).to.have.length(1);
+    expect(dump.minuteMs[0]).to.equal(dump.totalMs);
     // A plain quantum reads the clock twice, so it costs exactly one tick
     expect(dump.costs[0]).to.equal(1);
   });

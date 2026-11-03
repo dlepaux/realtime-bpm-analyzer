@@ -83,6 +83,13 @@ section('Memory, heap after a forced GC, 44.1 kHz', [
   }),
 ]);
 
+const msPerSecond = (run: Run, minute: number) => ms(run.minuteMs[minute] / 60);
+
+section('Cost over a long run, ms of CPU per audio second, by audio minute', [
+  '| engine | where | minute 1 | minute 2 | minute 5 | minute 10 | last / first |\n|---|---|---:|---:|---:|---:|---:|',
+  ...results.filter(result => result.suite === 'memory').flatMap(result => [['AudioWorklet', result.realtime as Run], ['main-thread replay', result.replay as Run]] as const).filter(([, run]) => run.minuteMs.length >= 10).map(([where, run]) => `| ${run.engine} | ${where} | ${msPerSecond(run, 0)} | ${msPerSecond(run, 1)} | ${msPerSecond(run, 4)} | ${msPerSecond(run, 9)} | ${(run.minuteMs[9] / run.minuteMs[0]).toFixed(2)} |`),
+]);
+
 section('Memory runs, realtime timing over the whole run', [quantumHeader, ...results.filter(result => result.suite === 'memory').map(result => quantumRow(result.realtime as Run, 1))]);
 
 const sizes = results.find(result => result.suite === 'bundle');

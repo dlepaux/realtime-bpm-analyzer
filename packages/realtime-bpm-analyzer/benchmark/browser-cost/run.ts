@@ -234,7 +234,8 @@ async function sizes(withTempogram: boolean) {
     },
   };
   const index = await bundle(resolve(pkg, 'src/index.ts'), {minify: true, platform: 'neutral', plugins: [...plugins, inlined]});
-  const tempogramBytes = (meta: esbuild.Metafile) => Object.values(meta.outputs)[0].inputs['src/core/tempogram.ts']?.bytesInOutput ?? 0;
+  // Matched by suffix: esbuild keys inputs relative to its working directory, which may differ from ours
+  const tempogramBytes = (meta: esbuild.Metafile) => Object.entries(Object.values(meta.outputs)[0].inputs).find(([path]) => path.endsWith('src/core/tempogram.ts'))?.[1].bytesInOutput ?? 0;
 
   return {
     processor: {minified: text(processor).length, gzip: gzipBytes(text(processor)), tempogramModuleBytes: tempogramBytes(processor.metafile)},

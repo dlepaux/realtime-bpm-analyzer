@@ -10,8 +10,13 @@ export const quantumKind = {plain: 0, analysis: 1, reading: 2} as const;
 /** Quanta recorded one by one: 68 s at 48 kHz. Later quanta still count in the totals and the maximum. */
 export const recordCapacity = 1 << 15;
 
+/** Audio minutes the per-minute totals cover */
+export const minuteBuckets = 64;
+
 export type TimingDump = {
   clock: string;
+  // Milliseconds spent per audio minute, from the first quantum: shows a cost that grows with the run
+  minuteMs: number[];
   quanta: number;
   recorded: number;
   costs: Float64Array;
@@ -40,6 +45,8 @@ type HarnessMessage = {data?: {type?: string}};
 export function timedProcessor(Base: typeof RealTimeBpmProcessor, now: () => number, clock: string) {
   return class TimedBpmProcessor extends Base {
     costs = new Float64Array(recordCapacity);
+    minuteMs = new Float64Array(minuteBuckets);
+    framesPerMinute = 60 * (globalThis as unknown as {sampleRate: number}).sampleRate;
     kinds = new Uint8Array(recordCapacity);
     analysisCosts = new Float64Array(recordCapacity);
     quanta = 0;
@@ -119,6 +126,7 @@ export function timedProcessor(Base: typeof RealTimeBpmProcessor, now: () => num
         this.kinds[this.quanta] = kind;
       }
 
+      this.minuteMs[Math.min(minuteBuckets - 1, Math.floor((this.quanta * 128) / this.framesPerMinute))] += cost;
       this.quanta += 1;
       this.totalMs += cost;
       this.maxMs = Math.max(this.maxMs, cost);
@@ -141,6 +149,7 @@ export function timedProcessor(Base: typeof RealTimeBpmProcessor, now: () => num
     dump(): TimingDump {
       return {
         clock,
+        minuteMs: [...this.minuteMs.subarray(0, Math.ceil((this.quanta * 128) / this.framesPerMinute))],
         quanta: this.quanta,
         recorded: Math.min(this.quanta, recordCapacity),
         costs: this.costs.slice(0, Math.min(this.quanta, recordCapacity)),

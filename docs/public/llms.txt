@@ -19,6 +19,7 @@
 
 - [Getting started](https://www.realtime-bpm-analyzer.com/guide/getting-started): install `realtime-bpm-analyzer` from npm; zero dependencies, AudioWorklet-based
 - [How it works](https://www.realtime-bpm-analyzer.com/guide/how-it-works): peak detection, threshold scan and interval grouping
+- [Beat detection with Web Audio](https://www.realtime-bpm-analyzer.com/guide/beat-detection-web-audio): onsets, tempo and beat tracking compared; the tempo of live audio and of whole files
 - [Node.js](https://www.realtime-bpm-analyzer.com/guide/node): BPM detection outside the browser
 - [Command line](https://www.realtime-bpm-analyzer.com/guide/cli): BPM detection from a terminal
 - [MCP server](https://www.realtime-bpm-analyzer.com/guide/mcp): BPM detection for AI assistants

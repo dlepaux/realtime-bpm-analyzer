@@ -278,6 +278,7 @@ The algorithm works best with:
 
 ## Next Steps
 
+- [Beat Detection with Web Audio](/guide/beat-detection-web-audio) - Onsets, tempo and beat tracking, and where this library fits
 - [Performance Tips](/guide/performance) - Optimize for your use case
 - [Browser Compatibility](/guide/browser-compatibility) - Platform support details
 - [Examples](/examples/basic-usage) - Practical implementations

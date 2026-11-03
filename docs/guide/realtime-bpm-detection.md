@@ -1,27 +1,28 @@
 ---
-title: Realtime BPM Detection in the Browser
-description: A practical guide to detecting BPM in real time using the Web Audio API and AudioWorklet — files, microphone, and streams. The modern replacement for the 2014 ScriptProcessorNode tutorials.
+title: Detect BPM in Real Time with JavaScript
+description: Read the tempo of an audio or video element, a microphone or a live stream in the browser, with the Web Audio API and an AudioWorklet. TypeScript for each source, and what each event means.
 head:
   - - meta
     - name: keywords
-      content: realtime bpm javascript, web audio bpm, bpm detection javascript, audioworklet bpm, javascript beat detection, detect tempo browser
+      content: realtime bpm javascript, web audio bpm, bpm detection javascript, audioworklet bpm, detect tempo browser, detect bpm javascript
 ---
 
-# Realtime BPM Detection in the Browser
+# Detect BPM in Real Time with JavaScript
 
-Most BPM-detection tutorials on the web were written in 2014. They use
-`ScriptProcessorNode`, which has been deprecated since 2019, and they assume
-you only ever want to analyse a file you already have on disk. Real
-applications — DJ tools, music games, fitness trackers, visualizers — need
-to detect tempo **as audio is playing**, from a microphone, an `<audio>`
-element, or a live HTTP stream, with no glitches and on a separate audio
-thread.
+This guide shows how to read the tempo of audio while it plays in the
+browser: from an `<audio>` or `<video>` element, a microphone, or a live
+HTTP stream. It uses the Web Audio API and `realtime-bpm-analyzer`, whose
+analysis runs in an AudioWorklet on the audio thread, so the page's own
+work can't stall it.
 
-This guide is the modern version. It uses the **AudioWorklet API**, which
-runs your analysis off the main thread on a real-time audio rendering
-thread. It works the same way across files, microphone input, and streaming
-sources, because it operates on `AudioNode` graphs — the universal
-abstraction the Web Audio API gives you.
+Only need the BPM of a song, not code? The [free tool on the home page](/)
+reads a file, a radio stream URL or the microphone.
+
+Many older tutorials use `ScriptProcessorNode`, deprecated since 2019, and
+only analyse a file already on disk. The pattern below works the same way
+for every source, because it works on `AudioNode` graphs. To analyse a
+whole file at once instead, see
+[Beat detection in the browser](/guide/beat-detection-web-audio#tempo-of-a-whole-file).
 
 ## The shape of the problem
 

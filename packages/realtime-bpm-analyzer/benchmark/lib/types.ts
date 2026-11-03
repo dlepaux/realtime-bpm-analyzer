@@ -45,6 +45,10 @@ export type TrackResult = {
   readonly stable: ReadonlyArray<readonly [number, number]>;
   /** Top candidate of the offline path, on detectors that have one */
   readonly offline?: number | null;
+  /** The last `bpm` event's candidates as [tempo, confidence], best first. Absent before RBA-106's ensemble run */
+  readonly candidates?: ReadonlyArray<readonly [number, number]>;
+  /** Each change of the top candidate as [seconds of audio, tempo, its confidence]. Absent before RBA-106's ensemble run */
+  readonly readings?: ReadonlyArray<readonly [number, number, number]>;
 };
 
 export type Summary = {

@@ -152,7 +152,7 @@ Contributions are welcome! See [contributing.md](contributing.md) for guidelines
 
 ## License
 
-Apache-2.0 License - See [licence.md](licence.md) for details.
+Apache-2.0 License - See [license.md](license.md) for details.
 
 For commercial licensing inquiries, contact: d.lepaux@gmail.com
 

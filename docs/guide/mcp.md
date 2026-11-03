@@ -8,7 +8,7 @@ description: Let Claude Desktop, Claude Code or any MCP client detect the BPM of
 `realtime-bpm-analyzer-mcp` is a local [Model Context Protocol](https://modelcontextprotocol.io)
 server. An assistant that speaks MCP (Claude Desktop, Claude Code and others) can ask
 it for the tempo of audio files on your computer. It uses the same decoders and
-analysis as the [command-line tool](./cli).
+analysis as the [command-line tool](./cli.md).
 
 The server runs on your machine and talks to the assistant's app over stdio. It makes
 no network calls and sends no telemetry, so the audio never leaves your computer. The
@@ -105,7 +105,7 @@ audio file your user account can read, as the command-line tool would.
   that is the first channel at 32 bits per sample, so 202 minutes at 44.1 kHz (186 at
   48 kHz in the bundled decoders; ffmpeg always delivers 44.1 kHz). Low-bitrate audio reaches it long before 100 MB. The check runs on
   the file's headers first and on the decoded samples after, so a file cannot hide
-  its length. See [the CLI guide](/guide/cli) for the memory this means.
+  its length. See [the CLI guide](./cli.md) for the memory this means.
 - `analyze_folder` analyses at most 50 files per call, about 3 seconds each, so a call
   ends before the client gives up. `next_offset` pages through the rest.
 - A recursive walk goes at most 16 levels deep and reads at most 10,000 folder
@@ -115,7 +115,7 @@ audio file your user account can read, as the command-line tool would.
   folder you named.
 - Errors come back as one plain line, never a stack trace.
 - Audio under 8 kHz is refused: a sample costs more as the rate falls, and recordings
-  that low are rare. See [the CLI guide](/guide/cli).
+  that low are rare. See [the CLI guide](./cli.md).
 - One file may take at most 120 seconds, decode and analysis together. The costliest file
   the limits let through, 18 hours at 8 kHz with the tempogram, took 74 seconds on an
   Apple M-series Mac. In a folder, a file over the limit is reported with its error.
@@ -131,5 +131,5 @@ audio file your user account can read, as the command-line tool would.
 MP3, WAV, FLAC, OGG Vorbis and Opus decode in pure JavaScript and WebAssembly. M4A/AAC,
 AIFF and WMA go through [ffmpeg](https://ffmpeg.org) when it is installed; to use a
 binary that is not on the `PATH`, set `FFMPEG_PATH` in the server's `env` in the client
-configuration. See [the command-line guide](./cli#formats-and-decoders) for the
+configuration. See [the command-line guide](./cli.md#formats-and-decoders) for the
 decoders and their licences.

@@ -74,6 +74,11 @@ jobs:
       - name: Docs typecheck
         run: npm run typecheck -w docs
 
+      - name: Docs build and local link check
+        run: |
+          npm run docs:build
+          node scripts/check-markdown-links.mjs
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:

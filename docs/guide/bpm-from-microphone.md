@@ -195,7 +195,8 @@ Two events fire as audio flows. They mean different things:
   often noisy. Use for a live-updating UI display where users want
   immediate feedback.
 - **`bpmStable`** — fires when the detection algorithm has high
-  confidence in a value. Slower, often 5–15 seconds in. Use as
+  confidence in a value. Slower: with the default `peaks` detector, 10 seconds in
+  at the earliest. Use as
   "the answer" — pin into application state, persist, log.
 
 For a UI that shows "listening… 122… 124… 122 ✓" the pattern is:
@@ -309,9 +310,10 @@ calls and zero analytics. The samples that reach the analyzer are
 processed and discarded; nothing is stored on disk by the library.
 
 This is a useful trust signal in your own UI — say it explicitly. "Audio
-is analysed locally in your browser. Nothing is uploaded." Users who
+is analysed locally in your browser and never uploaded." Users who
 are sensitive about microphone access will be more willing to grant
-permission when the boundary is stated up front.
+permission when the boundary is stated up front. Keep the sentence about
+the audio: if your page runs analytics, that is a separate thing to disclose.
 
 ## Try it
 

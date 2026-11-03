@@ -1,5 +1,6 @@
 import {expect} from 'chai';
 import * as utils from '../../../src/core/utils';
+import * as consts from '../../../src/core/consts';
 
 /**
  * Unit tests for utility functions
@@ -58,12 +59,22 @@ describe('utils - comprehensive tests', () => {
         0.1,
       );
 
-      // Algorithm decrements first: 0.5 -> 0.4, 0.3, 0.2, 0.1 (stops when <= 0.2 after iteration)
-      expect(thresholds.length).to.equal(4);
-      expect(thresholds[0]).to.be.closeTo(0.4, 0.001);
-      expect(thresholds[1]).to.be.closeTo(0.3, 0.001);
-      expect(thresholds[2]).to.be.closeTo(0.2, 0.001);
-      expect(thresholds[3]).to.be.closeTo(0.1, 0.001);
+      // Decrements first and stops on the first rung at or under the floor. A 0.1 rung used to follow
+      // only because float drift left the 0.2 rung at 0.20000000000000004, over the floor (RBA-107)
+      expect(thresholds).to.deep.equal([0.4, 0.3, 0.2]);
+    });
+
+    it('walks the default ladder in exact rungs, the last one equal to minValidThreshold (RBA-107)', async () => {
+      const thresholds: number[] = [];
+
+      await utils.descendingOverThresholds(async threshold => {
+        thresholds.push(threshold);
+        return false;
+      });
+
+      expect(thresholds).to.deep.equal([0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2]);
+      expect(thresholds.at(-1)).to.equal(consts.minValidThreshold);
+      expect(Object.keys(utils.generateValidPeaksModel()).map(Number)).to.have.members(thresholds);
     });
 
     it('should stop immediately on first true return', async () => {
@@ -180,9 +191,9 @@ describe('utils - comprehensive tests', () => {
       const model = utils.generateValidPeaksModel(0.5, 0.8, 0.1);
       const keys = Object.keys(model).map(Number);
 
-      // Algorithm: start=0.8, decrement first: 0.7, 0.6, 0.5, 0.4 (stops when <= 0.5)
-      expect(Math.max(...keys)).to.be.closeTo(0.7, 0.01);
-      expect(Math.min(...keys)).to.be.closeTo(0.4, 0.01);
+      // Start=0.8, decrement first: 0.7, 0.6, 0.5, and stop on the floor (0.4 came only from float drift)
+      expect(Math.max(...keys)).to.equal(0.7);
+      expect(Math.min(...keys)).to.equal(0.5);
     });
 
     it('should create independent arrays for each threshold', () => {
@@ -238,9 +249,9 @@ describe('utils - comprehensive tests', () => {
       const model = utils.generateNextIndexPeaksModel(0.5, 0.8, 0.1);
       const keys = Object.keys(model).map(Number);
 
-      // Algorithm: start=0.8, decrement first: 0.7, 0.6, 0.5, 0.4 (stops when <= 0.5)
-      expect(Math.max(...keys)).to.be.closeTo(0.7, 0.01);
-      expect(Math.min(...keys)).to.be.closeTo(0.4, 0.01);
+      // Start=0.8, decrement first: 0.7, 0.6, 0.5, and stop on the floor (0.4 came only from float drift)
+      expect(Math.max(...keys)).to.equal(0.7);
+      expect(Math.min(...keys)).to.equal(0.5);
     });
 
     it('should have same keys as generateValidPeaksModel', () => {

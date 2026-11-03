@@ -10,6 +10,14 @@ export type Track = {
   /** Recordings that must stay on the same side of the split: album, recording or progression */
   readonly group: string;
   readonly audioPath: string;
+  /** SPDX id read from the item's source, or `evaluationOnly`. See lib/licences.ts */
+  readonly licence: string;
+  /** A loop shorter than this repeats up to it, in seconds: a player looping it is what a listener hears */
+  readonly loopToSeconds?: number;
+  /** Only this many seconds from the start are decoded and scored: see lib/free-mixes.ts */
+  readonly excerptSeconds?: number;
+  /** How the tempo label was reached, where a set grades its labels: RBA-59's `confidence` */
+  readonly label?: string;
 };
 
 export type Split = 'dev' | 'heldout';
@@ -21,6 +29,10 @@ export type TrackResult = {
   readonly set: string;
   readonly id: string;
   readonly genre: string;
+  /** The track's group, for error ranges that know such tracks are not independent. Absent before RBA-51's second look */
+  readonly group?: string;
+  /** The track's label grade, on sets that have one */
+  readonly label?: string;
   readonly truth: number;
   readonly duration: number;
   /** Top candidate of the last `bpm` event, null when the detector never gave a reading */
@@ -33,6 +45,10 @@ export type TrackResult = {
   readonly stable: ReadonlyArray<readonly [number, number]>;
   /** Top candidate of the offline path, on detectors that have one */
   readonly offline?: number | null;
+  /** The last `bpm` event's candidates as [tempo, confidence], best first. Absent before RBA-106's ensemble run */
+  readonly candidates?: ReadonlyArray<readonly [number, number]>;
+  /** Each change of the top candidate as [seconds of audio, tempo, its confidence]. Absent before RBA-106's ensemble run */
+  readonly readings?: ReadonlyArray<readonly [number, number, number]>;
 };
 
 export type Summary = {

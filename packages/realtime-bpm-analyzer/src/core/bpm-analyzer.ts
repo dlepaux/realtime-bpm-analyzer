@@ -3,6 +3,7 @@ import type {
   ProcessorOutputEvent,
   ProcessorInputEvent,
 } from './types';
+import {followTrackClock} from './sample-clock';
 
 /**
  * Custom event class for BPM analyzer events with typed data.
@@ -96,12 +97,37 @@ export class BpmAnalyzer extends EventTarget {
   readonly node: AudioWorkletNode;
 
   /**
+   * Where to connect the audio source: `source.connect(analyzer.input)`
+   * @remarks
+   * Holds what the detector needs in front of it, the lowpass for `peaks` and nothing for
+   * `tempogram`, so changing detector never changes the graph. Built on first use: a caller wiring `.node`
+   * keeps the graph 5.4 gave it, with no idle node feeding the worklet.
+   */
+  get input(): AudioNode {
+    this.inputNode ??= this.createInput();
+
+    return this.inputNode;
+  }
+
+  private inputNode?: AudioNode;
+  private readonly createInput: () => AudioNode;
+  private readonly stopFollowing: () => void;
+
+  /**
    * Creates a new BpmAnalyzer instance
    * @param workletNode - The AudioWorkletNode to wrap
+   * @param createInput - Builds the node sources connect to, when it is not the worklet itself
+   * @param liveInput - The track of a MediaStream source, whose clock keeps the analyzer's time true
    */
-  constructor(workletNode: AudioWorkletNode) {
+  constructor(workletNode: AudioWorkletNode, createInput: () => AudioNode = () => workletNode, liveInput?: MediaStreamTrack) {
     super();
     this.node = workletNode;
+    this.createInput = createInput;
+    this.stopFollowing = liveInput
+      ? followTrackClock(liveInput, seconds => {
+        this.sendControlMessage({type: 'delivered', seconds});
+      })
+      : () => undefined;
     this.setupMessageHandler();
   }
 
@@ -136,6 +162,7 @@ export class BpmAnalyzer extends EventTarget {
    * ```
    */
   stop(): void {
+    this.stopFollowing();
     this.sendControlMessage({type: 'stop'});
   }
 

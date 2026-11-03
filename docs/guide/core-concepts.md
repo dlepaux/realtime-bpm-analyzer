@@ -43,7 +43,7 @@ Analyze complete audio files without real-time constraints:
 
 - Processes entire buffer at once
 - Fastest results
-- Best for: File uploads, music libraries, batch processing
+- Best for: Local files, music libraries, batch processing
 
 ```typescript
 import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
@@ -240,7 +240,7 @@ analyzer.on('bpmStable', (data) => {
 ```
 
 ### `analyzerReset`
-Emitted when continuous analysis resets:
+Emitted when continuous analysis resets, and when a `liveInput` analyzer starts over after losing audio ([`liveInput`](./realtime-bpm-detection.md#liveinput-for-a-mediastream)). Anything it had called stable may no longer hold:
 
 ```typescript
 analyzer.on('analyzerReset', () => {

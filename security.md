@@ -35,11 +35,13 @@ If you discover a security vulnerability in Realtime BPM Analyzer, please report
 
 ### Client-Side Processing
 
-This library runs entirely in the browser:
+The library runs on the user's device, in the browser or in Node.js:
 
-- ✅ No audio data is sent to external servers
-- ✅ No data collection or tracking
-- ✅ All processing happens locally in the Web Audio API
+- ✅ The library sends no audio data to external servers
+- ✅ The library does no data collection or tracking
+- ✅ All of its processing happens locally
+
+This covers the library, not the website that presents it. The website measures its own pages, as [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy) describes.
 
 ### Microphone Access
 

@@ -3,9 +3,10 @@
 import {McpServer} from '@modelcontextprotocol/server';
 import type {CallToolResult} from '@modelcontextprotocol/server';
 import {analyzeFile, decodedLimit, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
-import type {FileResult, TempoRange} from 'realtime-bpm-analyzer-cli';
+import type {Detector, FileResult, TempoRange} from 'realtime-bpm-analyzer-cli';
 import * as z from 'zod/v4';
 import {absolutePath, checkFile, firstLine, limits, listFolder} from './paths';
+import {createQueue} from './queue';
 
 // The two tools are this package's public interface: their names, argument names and
 // result shapes are what assistants learn and users' prompts rely on. Change them the way
@@ -13,17 +14,19 @@ import {absolutePath, checkFile, firstLine, limits, listFolder} from './paths';
 
 const tempoArguments = {
   min_bpm: z.number().positive().max(1000).optional()
-    .describe('Lowest tempo to report, in BPM (default 90). Tempos are folded by octaves into min_bpm..max_bpm.'),
+    .describe('Lowest tempo to report, in BPM (default 90). The peaks detector folds tempos by octaves into min_bpm..max_bpm, the tempogram searches that range.'),
   max_bpm: z.number().positive().max(2000).optional()
     .describe('Highest tempo to report, in BPM (default 180). Must be at least twice min_bpm.'),
+  detector: z.enum(['peaks', 'tempogram']).optional()
+    .describe('Tempo detector (default peaks). The tempogram searches min_bpm..max_bpm instead of folding into it, so from about twice min_bpm a tempo can read half, as over about 179 BPM does by default.'),
 };
 
 const path = z.string().min(1).max(4096);
 
 const candidate = z.object({
   tempo: z.number().describe('Tempo in BPM'),
-  count: z.number().describe('Peak intervals that voted for this tempo; candidates are ranked by it'),
-  confidence: z.number().describe('Share of all votes that agree with this tempo, from 0 to 1'),
+  count: z.number().describe('Ranking score: peak intervals that voted for this tempo, or the tempogram\'s salience score'),
+  confidence: z.number().describe('From 0 to 1: the share of all votes that agree with this tempo, or how strongly the audio pulses at it with the tempogram'),
 });
 
 const analysis = {
@@ -35,6 +38,7 @@ const analysis = {
 
 const formats = 'MP3, WAV, FLAC, OGG Vorbis and Opus (bundled decoders), plus M4A/AAC, AIFF and WMA through ffmpeg when it is installed';
 const sizeLimit = `${limits.maxFileBytes / (1024 * 1024)} MB`;
+const timeLimit = `A file that takes longer than ${limits.maxFileSeconds} seconds is given up on.`;
 const privacy = 'Runs on this computer: the audio is never uploaded.';
 
 /**
@@ -69,24 +73,37 @@ async function tempoRange(min: number | undefined, max: number | undefined): Pro
 const ffmpegPath = () => process.env.FFMPEG_PATH || 'ffmpeg';
 
 /**
+ * @param tempoRange Validated range, or undefined for the default
+ * @param detector Detector argument
+ * @param signal The request's signal, aborted when the client cancels
+ * @returns analyzeFile's options, with the per-file time limit
+ */
+const analyzeOptions = (tempoRange: TempoRange | undefined, detector: Detector | undefined, signal: AbortSignal) => ({
+  tempoRange, detector, signal, ffmpegPath: ffmpegPath(), timeoutMs: limits.maxFileSeconds * 1000,
+});
+
+/**
  * Builds the server with its two tools.
  * @param version Package version, reported to clients
  * @returns The server, not yet connected
  */
 export function createServer(version: string): McpServer {
   const server = new McpServer({name: 'realtime-bpm-analyzer', version});
+  const queue = createQueue(limits.maxFilesAtOnce);
+  // The per-file time limit starts once the file leaves the queue, so waiting does not use it up
+  const analyzeQueued = (file: string, options: ReturnType<typeof analyzeOptions>) => queue(() => analyzeFile(file, options), options.signal);
 
   server.registerTool('analyze_file', {
     title: 'Analyse the BPM of an audio file',
     description: `Detects the tempo (BPM) of one audio file on this computer. Reads ${formats}. `
-      + `Returns the best tempo, its confidence and the ranked candidates. Files over ${sizeLimit} or ${decodedLimit} are refused. ${privacy}`,
+      + `Returns the best tempo, its confidence and the ranked candidates. Files over ${sizeLimit} or ${decodedLimit} are refused. ${timeLimit} ${privacy}`,
     inputSchema: z.strictObject({
       path: path.describe('Path of the audio file. Absolute, or starting with ~ for the home folder.'),
       ...tempoArguments,
     }),
     outputSchema: z.object(analysis),
     annotations: {readOnlyHint: true, idempotentHint: true, openWorldHint: false},
-  }, async ({path: raw, min_bpm: min, max_bpm: max}, ctx) => {
+  }, async ({path: raw, min_bpm: min, max_bpm: max, detector}, ctx) => {
     const range = await tempoRange(min, max);
     if (range !== undefined && 'error' in range) {
       return toolError(range.error);
@@ -97,7 +114,11 @@ export function createServer(version: string): McpServer {
       return toolError(checked.error);
     }
 
-    const result = await analyzeFile(checked.path, {tempoRange: range, ffmpegPath: ffmpegPath(), signal: ctx.mcpReq.signal});
+    const result = await analyzeQueued(checked.path, analyzeOptions(range, detector, ctx.mcpReq.signal));
+    if (result === undefined) {
+      return toolError('Cancelled.');
+    }
+
     if (!result.ok) {
       return toolError(`Could not analyse ${result.file}: ${firstLine(result.error)}`);
     }
@@ -111,7 +132,7 @@ export function createServer(version: string): McpServer {
       + `Analyses at most ${limits.maxFolderFiles} files per call: when next_offset is not null, call again with offset set to it for the next files. `
       + `With recursive, walks sub-folders up to ${limits.maxDepth} levels deep and reads at most ${limits.maxFolderEntries} folder entries. `
       + 'Symbolic links to folders are not followed, and a link to a file outside the folder is refused. '
-      + `A file that cannot be read or decoded, or is over ${sizeLimit} or ${decodedLimit}, is reported with its error and does not stop the others. `
+      + `A file that cannot be read or decoded, or is over ${sizeLimit} or ${decodedLimit}, or takes longer than ${limits.maxFileSeconds} seconds, is reported with its error and does not stop the others. `
       + `A folder without audio files returns no results, not an error. ${privacy}`,
     inputSchema: z.strictObject({
       directory: path.describe('Path of the folder. Absolute, or starting with ~ for the home folder.'),
@@ -135,7 +156,7 @@ export function createServer(version: string): McpServer {
       scan_truncated: z.boolean().describe(`Whether the walk stopped after ${limits.maxFolderEntries} folder entries, so total leaves files out`),
     }),
     annotations: {readOnlyHint: true, idempotentHint: true, openWorldHint: false},
-  }, async ({directory: raw, recursive = false, offset = 0, min_bpm: min, max_bpm: max}, ctx) => {
+  }, async ({directory: raw, recursive = false, offset = 0, min_bpm: min, max_bpm: max, detector}, ctx) => {
     const range = await tempoRange(min, max);
     if (range !== undefined && 'error' in range) {
       return toolError(range.error);
@@ -161,9 +182,16 @@ export function createServer(version: string): McpServer {
         return toolError('Cancelled.');
       }
 
-      results.push(entry.kind === 'error'
-        ? {file: entry.path, ok: false, error: entry.error}
-        : clean(await analyzeFile(entry.path, {tempoRange: range, ffmpegPath: ffmpegPath(), signal})));
+      if (entry.kind === 'error') {
+        results.push({file: entry.path, ok: false, error: entry.error});
+      } else {
+        const result = await analyzeQueued(entry.path, analyzeOptions(range, detector, signal));
+        if (result === undefined) {
+          return toolError('Cancelled.');
+        }
+
+        results.push(clean(result));
+      }
 
       // Long batches outlast a client's default request timeout unless it hears progress
       if (progressToken !== undefined) {

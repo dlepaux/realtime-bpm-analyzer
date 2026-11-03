@@ -1,11 +1,11 @@
 ---
 title: Extension Privacy
-description: What the Realtime BPM Analyzer browser extension does with your tab audio, what it sends and what the pages it opens measure. Your audio never leaves your device.
+description: What the Live BPM Detector browser extension does with your tab audio, what it sends and what the pages it opens measure. Your audio never leaves your device.
 ---
 
 # Browser extension privacy
 
-This page covers the **Realtime BPM Analyzer** browser extension. The website has its own page:
+This page covers the **Live BPM Detector** browser extension. The website has its own page:
 [Website Privacy](/website-privacy).
 
 ## Your audio never leaves your device
@@ -14,9 +14,9 @@ When you click the extension's button on a tab, it listens to that tab's audio a
 on your computer. The audio is not recorded, stored or sent anywhere. Nobody, including us, can hear it
 or receive it.
 
-Listening starts only when you click. It continues on that tab, even if the tab goes to another page or
-site, until you click again, close the overlay or close the tab. Clicking the button on a different tab
-moves listening to that tab.
+Listening starts only when you click. It continues on that tab as you move around the same site, until
+you click again, close the overlay or close the tab. If the tab goes to another site, listening stops
+once that page has loaded. Clicking the button on a different tab moves listening to that tab.
 
 ## What the extension handles
 
@@ -24,8 +24,11 @@ moves listening to that tab.
 - **The capture state and the id of that tab**, kept in the browser's session storage so the extension
   can keep track of the capture. The id is removed when listening stops, and the browser clears the
   rest when it closes.
-- **The page's hostname and media player**, read on your device to place the overlay and show the
-  playback speed. They are not stored or sent.
+- **The page's hostname, its media player and what it says is playing**, read on your device to place the
+  overlay, show the playback speed and notice when the track changes. What it says is playing means the
+  site's own id for the video, the title, artist and album the page gives the browser's media controls,
+  and the address of the audio it plays. These stay in the page: only hashes of them reach the rest of
+  the extension, held in memory until listening stops. None of this is stored or sent.
 
 ## What the extension sends
 
@@ -60,4 +63,4 @@ the change applies.
 The extension is made by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 31 October 2026._
+_Last updated: 1 November 2026._

@@ -16,6 +16,8 @@ import {
   type BpmCandidates,
 } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
+import { fileExtensionParam } from '../tools/analytics-params'
+import { decodeAndClose, openAnalysis } from '../tools/audio-setup'
 import {
   PLATFORM_LABELS,
   STATIONS,
@@ -32,6 +34,8 @@ import {
 } from '../tools/stream-input'
 import GithubStarSupport from './GithubStarSupport.vue'
 import ResultToolLinks from './ResultToolLinks.vue'
+import { STORE_URL } from '../tools/extension-live'
+import { EXTENSION_PAGE } from '../tools/extension-promo'
 
 type Mode = 'file' | 'mic' | 'stream'
 type Status = 'idle' | 'analysing' | 'result' | 'error'
@@ -184,7 +188,7 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
   fileDuration.value = null
   fileElapsedMs.value = null
 
-  const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+  const extension = fileExtensionParam(file.name)
   track('bpm_file_selected', {
     input_method: inputMethod,
     size_kb: Math.round(file.size / 1024),
@@ -198,11 +202,9 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
 
   try {
     const arrayBuffer = await file.arrayBuffer()
-    const audioContext = new AudioContext()
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+    const audioBuffer = await decodeAndClose(new AudioContext(), arrayBuffer)
     stage = 'analyse'
     const candidates = await analyzeFullBuffer(audioBuffer)
-    audioContext.close().catch((e) => console.debug('[BpmHeroTool] file context close:', e))
 
     const top = candidates?.[0]?.tempo
     if (top === undefined) throw new Error('No BPM candidate returned')
@@ -273,11 +275,11 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
     })
     if (gen !== generation) return disposeLocalMic(localStream, null, null)
 
-    const localContext = new AudioContext()
-    await localContext.resume()
-    if (gen !== generation) return disposeLocalMic(localStream, localContext, null)
-
-    const localAnalyzer = await createRealtimeBpmAnalyzer(localContext)
+    const { context: localContext, analyzer: localAnalyzer } = await openAnalysis(
+      () => new AudioContext(),
+      context => createRealtimeBpmAnalyzer(context),
+      () => localStream.getTracks().forEach(t => t.stop()),
+    )
     if (gen !== generation) return disposeLocalMic(localStream, localContext, localAnalyzer)
 
     // Commit the locals to component state only after all awaits succeed.
@@ -315,8 +317,7 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
     micStatus.value = 'error'
     track('bpm_mic_error', { reason })
     console.error('[BpmHeroTool] mic setup failed:', error)
-    // Nothing was committed to component state, and locals are out of scope
-    // here; teardownMic() is a no-op safety net for anything that did land.
+    // openAnalysis released what it opened. This covers what was already committed.
     teardownMic()
   }
 }
@@ -429,15 +430,20 @@ async function startStream() {
     localAudioEl.src = url
     localAudioEl.preload = 'auto'
 
-    const localContext = new AudioContext()
-    await localContext.resume()
-    if (gen !== generation) return disposeLocalStream(localAudioEl, localContext, null, null)
-
-    const localAnalyzer = await createRealtimeBpmAnalyzer(localContext, {
-      continuousAnalysis: true,
-      stabilizationTime: STREAM_STABILIZATION_MS,
-    })
+    const { context: localContext, analyzer: localAnalyzer } = await openAnalysis(
+      () => new AudioContext(),
+      context => createRealtimeBpmAnalyzer(context, {
+        continuousAnalysis: true,
+        stabilizationTime: STREAM_STABILIZATION_MS,
+      }),
+      () => disposeLocalStream(localAudioEl, null, null, null),
+    )
     if (gen !== generation) return disposeLocalStream(localAudioEl, localContext, localAnalyzer, null)
+
+    // Committed before anything else can throw, so that a failure below is torn down with the rest.
+    streamAudioEl.value = localAudioEl
+    streamContext.value = localContext
+    streamAnalyzer.value = localAnalyzer
 
     const source = localContext.createMediaElementSource(localAudioEl)
     // Analyzer is a sink — it consumes audio for BPM detection and produces no
@@ -451,10 +457,6 @@ async function startStream() {
     source.connect(localGain)
     localGain.connect(localContext.destination)
 
-    // Commit to component state.
-    streamAudioEl.value = localAudioEl
-    streamContext.value = localContext
-    streamAnalyzer.value = localAnalyzer
     streamGain.value = localGain
 
     listenToStreamAnalyzer(localAnalyzer, eventParams)
@@ -983,6 +985,17 @@ function formatDuration(seconds: number): string {
                 >
                   play it next to your mic
                 </button>.
+              </div>
+              <!-- Only here, where tab audio works: the extension needs a desktop
+                   browser, and this is the moment its job is exactly what's wanted. -->
+              <div
+                v-if="STORE_URL"
+                class="bpm-stream-hint"
+              >
+                Do this often? <a
+                  class="bpm-text-btn"
+                  :href="EXTENSION_PAGE"
+                >Live BPM Detector</a> shows the tempo on the player, with no sharing.
               </div>
             </template>
             <template v-else>

@@ -1,5 +1,6 @@
 import {existsSync, readdirSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
+import {evaluationOnly} from './licences';
 import type {Track} from './types';
 
 /**
@@ -33,6 +34,7 @@ function giantsteps(): Track[] {
         bpm: readBpm(join(base, 'annotations_v2/tempo', name)),
         group: id,
         audioPath: join(audio, `${id}.mp3`),
+        licence: evaluationOnly,
       };
     })
     .filter(track => track.bpm > 0);
@@ -79,6 +81,7 @@ function ballroom(): Track[] {
           bpm: readBpm(join(labels, `${id}.bpm`)),
           group: ballroomGroup(id),
           audioPath: join(base, entry.name, name),
+          licence: evaluationOnly,
         };
       }));
 }
@@ -103,6 +106,7 @@ function gtzan(): Track[] {
         bpm: readBpm(join(labels, name)),
         group: `${genre}-${Math.floor(Number(number) / 10)}`,
         audioPath: join(base, genre, `${genre}.${number}.wav`),
+        licence: evaluationOnly,
       };
     })
     .filter(track => existsSync(track.audioPath));
@@ -132,8 +136,126 @@ function guitarset(): Track[] {
         bpm: Number(tempo),
         group: `${style}${progression}-${tempo}`,
         audioPath: join(base, name),
+        licence: 'CC-BY-4.0',
       };
     });
 }
 
-export const loaders: Record<string, () => Track[]> = {giantsteps, ballroom, gtzan, guitarset};
+/** Freesound's licence URLs, exact: anything else in the metadata stays evaluation-only */
+const freesoundLicences: Record<string, string> = {
+  'http://creativecommons.org/publicdomain/zero/1.0/': 'CC0-1.0',
+  'http://creativecommons.org/licenses/by/3.0/': 'CC-BY-3.0',
+};
+
+/** Seconds a loop repeats up to: the first bpmStable comes after about 12 */
+const loopSeconds = 30;
+
+type FreesoundMetadata = Record<string, {username: string; license: string}>;
+
+type LoopAnnotation = {
+  discard: boolean;
+  defined_tempo: boolean;
+  well_cut: boolean;
+  bpm: string;
+  genres: string[];
+};
+
+function loopAnnotations(base: string): Map<string, LoopAnnotation[]> {
+  const byLoop = new Map<string, LoopAnnotation[]>();
+  const root = join(base, 'annotations');
+
+  // Sorted: the first annotator gives the label and the genre, and directory order differs per filesystem
+  const annotators = readdirSync(root, {withFileTypes: true}).filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
+
+  for (const annotator of annotators) {
+    for (const name of readdirSync(join(root, annotator)).filter(file => file.endsWith('.json'))) {
+      const id = name.replace('sound-', '').replace('.json', '');
+      const annotation = JSON.parse(readFileSync(join(root, annotator, name), 'utf8')) as LoopAnnotation;
+
+      byLoop.set(id, [...(byLoop.get(id) ?? []), annotation]);
+    }
+  }
+
+  return byLoop;
+}
+
+/**
+ * Tempo of a loop from its expert annotators, or null when none is trustworthy: an annotator threw
+ * it out, heard no defined tempo or a bad cut, or two annotators are more than 4% apart. The BPM in
+ * the Freesound metadata is the uploader's, so it is not used.
+ */
+function agreedTempo(annotations: readonly LoopAnnotation[]): number | null {
+  const tempos = annotations.map(annotation => Number.parseFloat(annotation.bpm));
+  const isUsable = annotations.every(annotation => !annotation.discard && annotation.defined_tempo && annotation.well_cut);
+
+  if (!isUsable || !tempos.every(tempo => tempo > 0) || Math.max(...tempos) > 1.04 * Math.min(...tempos)) {
+    return null;
+  }
+
+  return tempos[0];
+}
+
+/**
+ * Freesound Loop Dataset (Ramires et al. 2020), loops with an expert tempo. The licence is the
+ * loop's own Freesound licence. An uploader stays on one side: their loops are often one pack.
+ */
+function freesoundLoops(): Track[] {
+  const base = join(dataRoot, 'fsld');
+  const metadata = JSON.parse(readFileSync(join(base, 'FSL10K/metadata.json'), 'utf8')) as FreesoundMetadata;
+  const audio = readdirSync(join(base, 'FSL10K/audio/wav'));
+  const audioOf = new Map(audio.map(name => [name.split('_')[0].replace(/\..*$/, ''), name]));
+
+  return [...loopAnnotations(base)].flatMap(([id, annotations]) => {
+    const bpm = agreedTempo(annotations);
+    const item = metadata[id];
+    const file = audioOf.get(id);
+
+    if (bpm === null || !item || !file) {
+      return [];
+    }
+
+    return [{
+      set: item.license in freesoundLicences ? 'fsld' : 'fsld-nc',
+      id,
+      genre: annotations[0].genres[0] ?? 'none',
+      bpm,
+      group: item.username,
+      audioPath: join(base, 'FSL10K/audio/wav', file),
+      licence: freesoundLicences[item.license] ?? evaluationOnly,
+      loopToSeconds: loopSeconds,
+    }];
+  });
+}
+
+/** Performances under this long are fills and fragments: a stable reading needs about 12 s */
+const shortestPerformance = 16;
+
+/**
+ * Groove MIDI Dataset (Gillick et al. 2019), human drumming through a Roland TD-11, with the
+ * metronome tempo it was played to. A drummer's session stays on one side.
+ */
+function groove(): Track[] {
+  const base = join(dataRoot, 'groove/groove');
+  const [header, ...rows] = readFileSync(join(base, 'info.csv'), 'utf8').trim().split(/\r?\n/).map(line => line.split(','));
+  const column = (name: string) => header.indexOf(name);
+
+  return rows
+    .filter(row => row[column('audio_filename')] !== '' && row[column('beat_type')] === 'beat'
+      && Number(row[column('duration')]) >= shortestPerformance)
+    .map(row => ({
+      set: 'groove',
+      id: row[column('id')].replaceAll('/', '-'),
+      genre: row[column('style')].split('/')[0],
+      bpm: Number(row[column('bpm')]),
+      group: `${row[column('drummer')]}-${row[column('session')]}`,
+      audioPath: join(base, row[column('audio_filename')]),
+      licence: 'CC-BY-4.0',
+    }));
+}
+
+const fsld = (): Track[] => freesoundLoops().filter(track => track.set === 'fsld');
+const fsldNc = (): Track[] => freesoundLoops().filter(track => track.set === 'fsld-nc');
+
+export const loaders: Record<string, () => Track[]> = {
+  giantsteps, ballroom, gtzan, guitarset, fsld, 'fsld-nc': fsldNc, groove,
+};

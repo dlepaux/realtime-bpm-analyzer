@@ -10,8 +10,19 @@ import {audioExtensions} from 'realtime-bpm-analyzer-cli';
 // before a decoder sees it, and every walk is bounded. Nothing is written, nothing is sent.
 
 export const limits = {
-  /** Largest file analysed, which bounds the time of a call. analyzeFile bounds the memory. */
+  /** Largest file analysed. analyzeFile bounds the memory, and the decoded size the time. */
   maxFileBytes: 100 * 1024 * 1024,
+  /**
+   * Longest one file may take, decode and analysis together. The costliest file the limits let
+   * through, 2 GB decoded at 8 kHz (18 hours), took 74 s with the tempogram on an Apple M-series
+   * Mac (RBA-64). Past this, a client that neither waits nor cancels no longer holds the CPU.
+   */
+  maxFileSeconds: 120,
+  /**
+   * Most files analysed at once across all calls; the others wait their turn. One file at its
+   * worst holds about 4.2 GB, so parallel calls must not multiply it.
+   */
+  maxFilesAtOnce: 1,
   /** Most files one analyze_folder call analyses (about 3 s each), so a call ends within a client's patience */
   maxFolderFiles: 50,
   /** Most directory entries one walk reads, so a walk of a huge tree stays short */

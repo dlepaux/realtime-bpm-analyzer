@@ -26,6 +26,7 @@ faq:
 <script setup>
 import Metronome from './.vitepress/components/Metronome.vue'
 import ToolFaq from './.vitepress/components/ToolFaq.vue'
+import ExtensionMention from './.vitepress/components/ExtensionMention.vue'
 </script>
 
 # Online Metronome
@@ -49,6 +50,8 @@ tempo, pick a time signature and a subdivision, and press **Start** or
 Need the tempo of a recording? [Tap it](/tap-tempo), or detect it
 automatically with the [BPM Analyzer](/). Setting up a delay to match? Use the
 [BPM to ms calculator](/bpm-to-ms).
+
+<ExtensionMention />
 
 ## Frequently asked questions
 

@@ -1,6 +1,8 @@
 import {expect} from 'chai';
 import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
+import {createTempogramDetector} from '../../../src/core/tempogram';
 import type {ProcessorOutputEvent} from '../../../src/core/types';
+import {analyzeChannelData} from '../../../src/node';
 import {createClickTrack} from '../../fixtures/click-track';
 
 const sampleRate = 44_100;
@@ -21,6 +23,123 @@ async function stream(analyzer: RealTimeBpmAnalyzer, pcm: Float32Array): Promise
 
   return events;
 }
+
+// Literals on purpose: what the DECISION locked, not what the source holds today
+const lockedRange = {min: 90, max: 180};
+const lockedTuning = {priorBpm: 80, priorOctaves: 1.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.3};
+
+function measuredAnalyzer(): RealTimeBpmAnalyzer {
+  const analyzer = new RealTimeBpmAnalyzer({detector: 'tempogram', tempoRange: lockedRange});
+
+  analyzer.tempogram = createTempogramDetector({sampleRate, tempoRange: lockedRange, tuning: lockedTuning});
+
+  return analyzer;
+}
+
+// The figures the docs give for custom ranges (`Detector` in types.ts, the real-time guide). They describe
+// the locked settings on clean clicks, and they only hold while those settings do.
+describe('a custom tempogram range', () => {
+  for (const [min, max, heard, read] of [
+    [90, 180, 70, 140],
+    [90, 180, 175, 175],
+    [90, 180, 200, 100],
+    [60, 180, 116, 116],
+    [60, 180, 120, 60],
+    [60, 180, 140, 140],
+    [60, 180, 160, 80],
+    [70, 140, 130, 130],
+    [70, 140, 140, 70],
+    [90, 240, 170, 170],
+    [90, 240, 180, 90],
+  ]) {
+    it(`on ${min}-${max} reads ${heard} as ${read}`, async () => {
+      const candidates = await analyzeChannelData(createClickTrack(heard, sampleRate, 30), sampleRate, {
+        detector: 'tempogram',
+        tempoRange: {min, max},
+      });
+
+      expect(Math.round(candidates[0].tempo)).to.equal(read);
+    });
+  }
+});
+
+describe('options replaced whole, as 5.4.0 allowed', () => {
+  it('reads and reports progress as peaks, with no detector named', async () => {
+    const pcm = createClickTrack(128, sampleRate, 10);
+    const replaced = new RealTimeBpmAnalyzer();
+
+    replaced.options = {
+      continuousAnalysis: false,
+      stabilizationTime: 20_000,
+      muteTimeInIndexes: 10_000,
+      debug: false,
+      tempoRange: {min: 90, max: 180},
+    };
+
+    expect(await stream(replaced, pcm)).to.deep.equal(await stream(new RealTimeBpmAnalyzer(), pcm));
+  });
+});
+
+describe('one tempogram behaviour', () => {
+  for (const [name, options] of [
+    ['bare', {detector: 'tempogram'}],
+    ['named mode', {detector: 'tempogram', tempogramMode: 'extension'}],
+  ] as const) {
+    it(`reads the locked settings, as the ${name} option`, async () => {
+      const pcm = createClickTrack(128, sampleRate, 20);
+
+      expect(await stream(new RealTimeBpmAnalyzer(options), pcm)).to.deep.equal(await stream(measuredAnalyzer(), pcm));
+    });
+  }
+
+  it('reads a whole file with the locked settings, for analyzeChannelData and all that calls it', async () => {
+    const seconds = 20;
+    const pcm = createClickTrack(128, sampleRate, seconds);
+    const measured = createTempogramDetector({
+      sampleRate,
+      tempoRange: lockedRange,
+      tuning: {...lockedTuning, halfLifeSeconds: Number.POSITIVE_INFINITY},
+    }).process(pcm);
+
+    expect(await analyzeChannelData(pcm, sampleRate, {detector: 'tempogram'})).to.deep.equal(measured?.candidates);
+  });
+
+  it('reads fast music as itself on both paths, where the first pick read it at half', async () => {
+    const pcm = createClickTrack(174, sampleRate, 30);
+    const events = await stream(new RealTimeBpmAnalyzer({detector: 'tempogram'}), pcm);
+    const readings = events.flatMap(event => (event.type === 'bpm' ? [event.data.bpm[0].tempo] : []));
+    const [whole] = await analyzeChannelData(pcm, sampleRate, {detector: 'tempogram'});
+
+    expect(readings.at(-1)).to.be.within(170, 178);
+    expect(whole.tempo).to.be.within(170, 178);
+  });
+
+  it('still lets a caller set the range searched', async () => {
+    const candidates = await analyzeChannelData(createClickTrack(128, sampleRate, 20), sampleRate, {detector: 'tempogram', tempoRange: {min: 50, max: 100}});
+
+    expect(candidates.every(({tempo}) => tempo >= 50 && tempo <= 100)).to.equal(true);
+  });
+});
+
+describe('tempogramMode', () => {
+  const extension = {detector: 'tempogram', tempogramMode: 'extension'} as const;
+
+  it('searches 90 to 180 BPM, so a fast pulse cannot read at half', async () => {
+    const events = await stream(new RealTimeBpmAnalyzer(extension), createClickTrack(170, sampleRate, 20));
+    const readings = events.flatMap(event => (event.type === 'bpm' ? [event.data.bpm[0].tempo] : []));
+
+    expect(readings.at(-1)).to.be.within(165, 175);
+  });
+
+  it('accepts its own range, and refuses another, a reset timer, or another detector', () => {
+    expect(() => new RealTimeBpmAnalyzer({...extension, tempoRange: {min: 90, max: 180}})).to.not.throw();
+    expect(() => new RealTimeBpmAnalyzer({...extension, tempoRange: {min: 50, max: 240}})).to.throw(RangeError, 'another range');
+    expect(() => new RealTimeBpmAnalyzer({...extension, continuousAnalysis: true})).to.throw(RangeError, 'continuousAnalysis');
+    expect(() => new RealTimeBpmAnalyzer({tempogramMode: 'extension'})).to.throw(RangeError, 'needs detector');
+    // @ts-expect-error Invalid on purpose
+    expect(() => new RealTimeBpmAnalyzer({detector: 'tempogram', tempogramMode: 'magic'})).to.throw(RangeError, 'Invalid tempogramMode');
+  });
+});
 
 describe('detector option', () => {
   it('defaults to the peaks detector', () => {

@@ -50,7 +50,7 @@ Pick the mode that matches your use case:
 |----------|------|--------|-----|----------|
 | Audio/Video Player | Real-time | Low | Low | High |
 | Radio Stream | Continuous | Medium | Medium | Medium |
-| File Upload | Offline | High | High | Highest |
+| Local File | Offline | High | High | Highest |
 
 #### Real-time Mode
 

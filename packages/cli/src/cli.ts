@@ -28,7 +28,7 @@ async function analyzeAll(options: CliOptions, onResult: (result: FileResult) =>
   for (const target of await collectTargets(options.paths, options.recursive)) {
     const result: FileResult = target.kind === 'error'
       ? {file: target.path, ok: false, error: target.message}
-      : await analyzeFile(target.path, {tempoRange: options.tempoRange, ffmpegPath});
+      : await analyzeFile(target.path, {tempoRange: options.tempoRange, detector: options.detector, ffmpegPath});
 
     results.push(result);
     onResult(result);

@@ -5,7 +5,11 @@ export default {
   files: ['tests/**/*.ts'],
   nodeResolve: true,
   browserLogs: true,
-  testsFinishTimeout: 30000, // Increased from 10000 for integration tests
+  // A CI run reached 28 s of this, on a busy runner
+  testsFinishTimeout: 60000,
+  // Tempogram tests run minutes of audio offline and passed 2 s only on a quiet runner: two of them
+  // timed out on one PR, on code that had not changed
+  testFramework: {config: {timeout: 10000}},
   browsers: [
     puppeteerLauncher({
       launchOptions: {

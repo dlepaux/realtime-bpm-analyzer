@@ -68,6 +68,17 @@ describe('realtime-bpm-analyzer/node', () => {
     assert.equal(typeof cjs.applyLowpass, 'function');
   });
 
+  it('runs the tempogram, which refuses an unknown detector', async () => {
+    const [top] = await analyzeChannelData(createClickTrack(128), 44_100, {detector: 'tempogram'});
+
+    assert.ok(Math.abs(top.tempo - 128) <= 1, `got ${top.tempo}`);
+    await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {detector: 'magic'}), RangeError);
+    // What is published: the first pick, on 50 to 240, read this at half
+    const [fast] = await analyzeChannelData(createClickTrack(174), 44_100, {detector: 'tempogram'});
+
+    assert.ok(Math.abs(fast.tempo - 174) <= 3, `got ${fast.tempo}`);
+  });
+
   it('finds the tempo analyzeFullBuffer finds for the bass-test fixture', async () => {
     const {channelData, sampleRate} = await readWavChannel0(new URL('../fixtures/bass-test.wav', import.meta.url));
     assert.equal(sampleRate, bassTestExpected.sampleRate);

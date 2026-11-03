@@ -2,7 +2,9 @@ import {realtimeBpmProcessorName} from './core/consts';
 import realtimeBpmProcessorContent from './generated-processor';
 import {type RealTimeBpmAnalyzerParameters, type CreateRealtimeBpmAnalyzerOptions} from './core/types';
 import {BpmAnalyzer} from './core/bpm-analyzer';
+import {getBiquadFilter} from './core/offline-pipeline';
 import {resolveDetector, resolveTempoRange} from './core/tempo';
+import {assertTempogramMode} from './core/tempogram';
 
 // Public API surface — explicit named re-exports only.
 // Internal types stay in core/types.ts and are emitted into dist/core/types.d.ts
@@ -25,6 +27,7 @@ export type {
   RealTimeBpmAnalyzerParameters,
   CreateRealtimeBpmAnalyzerOptions,
   Detector,
+  TempogramMode,
   BiquadFilterOptions,
   TempoRange,
   AnalyzeFullBufferOptions,
@@ -47,6 +50,7 @@ export type {
  * The returned `BpmAnalyzer` is an event emitter that wraps an AudioWorkletNode.
  * - Use the analyzer directly for event listening: `analyzer.on('bpm', ...)`
  * - Use `.node` property for Web Audio API connections: `source.connect(analyzer.node)`
+ * - Or connect the source to `.input`, the wiring that suits every detector: `source.connect(analyzer.input)`
  *
  * @example
  * **Basic Usage with Audio Element**
@@ -169,18 +173,18 @@ export async function createRealtimeBpmAnalyzer(
   audioContext: AudioContext,
   processorOptions?: CreateRealtimeBpmAnalyzerOptions,
 ): Promise<BpmAnalyzer> {
-  // processorUrl is a main-thread concern: kept out of the worklet's options, where a URL object
-  // would also fail structured cloning.
-  const {processorUrl, ...analyzerOptions} = processorOptions ?? {};
+  // processorUrl and liveInput are main-thread concerns: kept out of the worklet's options, where a URL object
+  // or a track would also fail structured cloning.
+  const {processorUrl, liveInput, ...analyzerOptions} = processorOptions ?? {};
   assertProcessorUrl(processorUrl);
+  assertLiveInput(liveInput);
+  // A refusal here reaches the caller, for the same reason as the comment below
+  assertTempogramMode(analyzerOptions);
   // Validate on the main thread: a throw inside the worklet constructor would not reach the caller.
   // The worklet receives the validated plain object, so structured cloning cannot alter it.
   const options: RealTimeBpmAnalyzerParameters = {
     ...analyzerOptions,
-    // The tempogram searches its own wider range unless the caller set one
-    tempoRange: analyzerOptions.detector === 'tempogram' && analyzerOptions.tempoRange === undefined
-      ? undefined
-      : resolveTempoRange(analyzerOptions.tempoRange),
+    tempoRange: resolveTempoRange(analyzerOptions.tempoRange),
     detector: resolveDetector(analyzerOptions.detector),
   };
   const processorNode = await setupAudioWorkletNode(
@@ -190,7 +194,18 @@ export async function createRealtimeBpmAnalyzer(
     processorUrl,
   );
   await audioContext.resume();
-  return new BpmAnalyzer(processorNode);
+
+  if (options.detector === 'tempogram') {
+    return new BpmAnalyzer(processorNode, undefined, liveInput);
+  }
+
+  return new BpmAnalyzer(processorNode, () => {
+    const lowpass = getBiquadFilter(audioContext);
+
+    lowpass.connect(processorNode);
+
+    return lowpass;
+  }, liveInput);
 }
 
 /**
@@ -210,6 +225,21 @@ function assertProcessorUrl(processorUrl: unknown): asserts processorUrl is stri
 
   if (typeof processorUrl !== 'string' || processorUrl.trim() === '') {
     throw new TypeError('processorUrl must be a non-empty string or a URL');
+  }
+}
+
+/**
+ * Validates the track before the worklet exists, as a plain JS caller can pass anything. Not `instanceof`: a track
+ * made in another frame or the offscreen document of an extension would fail it.
+ * @param liveInput The value the caller passed
+ */
+function assertLiveInput(liveInput: unknown): asserts liveInput is MediaStreamTrack | undefined {
+  if (liveInput === undefined) {
+    return;
+  }
+
+  if (typeof liveInput !== 'object' || liveInput === null || !('kind' in liveInput) || liveInput.kind !== 'audio') {
+    throw new TypeError('liveInput must be an audio MediaStreamTrack');
   }
 }
 

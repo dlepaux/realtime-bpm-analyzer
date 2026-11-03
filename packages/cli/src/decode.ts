@@ -9,7 +9,7 @@ import type {AudioLayout} from './declared-length';
 
 export type DecodedAudio = {
   /** Channel 0, the channel analyzeFullBuffer analyses in the browser */
-  readonly channelData: Float32Array;
+  readonly channelData: Float32Array<ArrayBuffer>;
   readonly sampleRate: number;
 };
 
@@ -61,6 +61,13 @@ const sniffBytes = 64;
 // copy that buffer at every step, so without this a tiny-audio file costs minutes and gigabytes.
 const maxBytesWithoutAudio = 32 * 1024 * 1024;
 
+// Lowest sample rate analysed. The cost of a sample grows as the rate falls: a frame of the
+// tempogram is a hundredth of a second however few samples it holds, and below 2 Hz the peaks
+// detector never moves past a peak. A generated 100 MB WAV at 100 Hz took 392 s (RBA-64).
+// 8 kHz, the telephone rate, is the lowest any real recording uses, and its worst case at the
+// size limits stays within twice that of 44.1 kHz audio.
+export const minSampleRate = 8000;
+
 const bytesPerSample = Float32Array.BYTES_PER_ELEMENT;
 const sinkStepBytes = 16 * 1024 * 1024;
 
@@ -81,10 +88,20 @@ function tooLong(maxBytes: number): Error {
   return new Error(`Too long to analyze: the limit is ${describeDecodedLimit(maxBytes)}, for the first channel.`);
 }
 
+/**
+ * @param rate Sample rate a decoder reports
+ * @throws {Error} When the rate is under minSampleRate, or not a rate at all
+ */
+function assertSampleRate(rate: number): void {
+  if (!(Number.isFinite(rate) && rate >= minSampleRate)) {
+    throw new Error(`Sample rate too low to analyze: ${rate} Hz, the lowest is ${minSampleRate} Hz.`);
+  }
+}
+
 type PcmSink = {
   /** Adds the samples, or returns false and adds nothing when they would pass the limit */
   readonly push: (samples: Float32Array) => boolean;
-  readonly samples: () => Float32Array;
+  readonly samples: () => Float32Array<ArrayBuffer>;
 };
 
 /**
@@ -243,7 +260,12 @@ async function decodeBundled(handle: FileHandle, format: BuiltInFormat, layout: 
   let bytesWithoutAudio = 0;
   const take = ({channelData: [first], sampleRate: rate}: DecodedChannels) => {
     if (first !== undefined && first.length > 0) {
-      sampleRate ||= rate;
+      if (sampleRate === 0) {
+        // Checked on the first decoded step, before the file can cost anything
+        assertSampleRate(rate);
+        sampleRate = rate;
+      }
+
       bytesWithoutAudio = 0;
       if (!sink.push(first)) {
         throw tooLong(maxDecodedBytes);

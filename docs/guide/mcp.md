@@ -12,7 +12,9 @@ analysis as the [command-line tool](./cli).
 
 The server runs on your machine and talks to the assistant's app over stdio. It makes
 no network calls and sends no telemetry, so the audio never leaves your computer. The
-assistant only sees the results: paths, tempos and confidences.
+assistant only sees the results: paths, tempos and confidences. Its app handles those
+like any other tool result, so they can reach its AI provider. `npx` itself contacts npm
+to fetch the package.
 
 ## Install
 
@@ -50,6 +52,7 @@ tracks in ~/Music/house slower than 124 BPM."
 | `path`    | The audio file. Absolute, or starting with `~` for the home folder |
 | `min_bpm` | Lowest tempo reported (default 90)                                |
 | `max_bpm` | Highest tempo reported (default 180, at least 2 × `min_bpm`)      |
+| `detector` | `peaks` (default) or `tempogram`, which searches `min_bpm`..`max_bpm` instead of folding into it: from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default |
 
 ```json
 {
@@ -70,7 +73,7 @@ found. A file that cannot be analysed returns a tool error with a one-line reaso
 | `directory` | The folder                                                       |
 | `recursive` | Also analyse sub-folders (default `false`)                       |
 | `offset`    | First file to analyse, from the previous call's `next_offset`    |
-| `min_bpm`, `max_bpm` | As for `analyze_file`                                   |
+| `min_bpm`, `max_bpm`, `detector` | As for `analyze_file`                       |
 
 ```json
 {
@@ -111,7 +114,17 @@ audio file your user account can read, as the command-line tool would.
   symbolic link to a file outside the folder is refused, so a walk stays inside the
   folder you named.
 - Errors come back as one plain line, never a stack trace.
-- A cancelled `analyze_folder` call stops before the next file, and stops ffmpeg.
+- Audio under 8 kHz is refused: a sample costs more as the rate falls, and recordings
+  that low are rare. See [the CLI guide](/guide/cli).
+- One file may take at most 120 seconds, decode and analysis together. The costliest file
+  the limits let through, 18 hours at 8 kHz with the tempogram, took 74 seconds on an
+  Apple M-series Mac. In a folder, a file over the limit is reported with its error.
+- The server analyses one file at a time, whatever the number of calls an assistant
+  makes at once: the others wait their turn, so the worst-case memory above does not
+  multiply. The 120 seconds start when a file's turn comes.
+- The analysis runs on a worker thread, so the server keeps answering during it. A
+  cancelled call stops the file in progress, decode or analysis, and stops ffmpeg; a
+  cancelled `analyze_folder` call analyses no further file.
 
 ## Formats
 

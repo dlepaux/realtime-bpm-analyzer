@@ -13,11 +13,16 @@ const commonConfig = {
 
 const outdir = 'dist';
 
+// The syntax level 5.4.0's browser bundles parsed at. Without a target esbuild keeps whatever the source
+// uses, and one newer operator makes a browser refuse the whole file at load, on any detector.
+const browserTarget = 'es2020';
+
 async function main() {
   const processorConfig: BuildOptions = {
     entryPoints: ['src/processor/realtime-bpm-processor.ts'],
     outfile: `${outdir}/realtime-bpm-processor.js`,
     ...commonConfig,
+    target: browserTarget,
     // Published as `realtime-bpm-analyzer/processor` for callers that load it by URL (strict CSP,
     // MV3 extensions). addModule always evaluates a module, so emit ESM; bundling leaves no imports.
     format: 'esm',
@@ -58,6 +63,7 @@ async function main() {
     entryPoints: ['src/index.ts'],
     outfile: `${outdir}/index.esm.js`,
     ...commonConfig,
+    target: browserTarget,
     platform: 'neutral',
     format: 'esm',
   };

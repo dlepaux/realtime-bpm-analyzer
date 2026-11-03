@@ -294,3 +294,149 @@
 
 .vp-doc .ext-goodbye p[role='status']:empty { margin: 0; }
 .vp-doc .ext-goodbye-thanks:focus { outline: none; }
+
+/* ── The extension's own page (/extension/) ───────────────────────────────── */
+
+/* Written for people who want the tempo, not the library: the real overlay first, one
+   action, then what they'd ask next. Wider than a doc page so the pictures can be read. */
+.ext-landing {
+  max-width: 1104px;
+  margin: 0 auto;
+  padding: 48px 24px 72px;
+}
+
+.vp-doc .ext-hero {
+  display: grid;
+  gap: 2rem;
+  align-items: center;
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 960px) {
+  .vp-doc .ext-hero { grid-template-columns: 1fr 1.25fr; gap: 3.5rem; }
+}
+
+.vp-doc .ext-hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3rem);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.vp-doc .ext-lede {
+  margin: 1rem 0 1.5rem;
+  max-width: 34rem;
+  color: var(--vp-c-text-2);
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+/* width and height are set on each image, so its box is reserved before it loads. */
+.vp-doc .ext-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+
+.ext-install-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+/* Large enough to hit on a touchscreen, even though the install itself needs a computer. */
+.vp-doc a.ext-install-btn {
+  min-height: 48px;
+  padding: 0.65rem 1.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vp-doc a.ext-install-btn.tt-btn-primary,
+.vp-doc a.ext-install-btn.tt-btn-primary:hover { color: var(--vp-button-brand-text); }
+
+.vp-doc a.ext-install-btn:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+.vp-doc .ext-install-note {
+  margin: 0.6rem 0 0;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+}
+
+.vp-doc .ext-small {
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+}
+
+/* The steps are a real sequence, so they keep their numbers. */
+.vp-doc ol.ext-howto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.75rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: ext-howto;
+}
+
+.vp-doc .ext-howto li { margin: 0; counter-increment: ext-howto; }
+.vp-doc .ext-howto h3 { margin: 0 0 0.35rem; font-size: 1.05rem; }
+
+.vp-doc .ext-howto h3::before {
+  content: counter(ext-howto);
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.vp-doc .ext-howto p { margin: 0; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.6; }
+
+.ext-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.ext-gallery figure { margin: 0; }
+
+.vp-doc .ext-gallery figcaption {
+  margin-top: 0.6rem;
+  color: var(--vp-c-text-2);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.ext-sites {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.vp-doc .ext-sites h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+.vp-doc .ext-sites ul { margin: 0; padding: 0; list-style: none; }
+.vp-doc .ext-sites li { margin: 0.15rem 0; }
+.vp-doc .ext-sites p { margin: 0; }
+
+.vp-doc .ext-closing {
+  margin-top: 3.5rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--vp-c-divider);
+}
+
+.vp-doc .ext-closing h2 { margin: 0 0 1.25rem; padding: 0; border: 0; }
+
+@media (max-width: 639px) {
+  .ext-landing { padding-top: 24px; }
+}

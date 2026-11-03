@@ -52,6 +52,46 @@ describe('createRealtimeBpmAnalyzer', function () {
       expect(processor).to.be.instanceOf(BpmAnalyzer);
     });
 
+    it('gives peaks a lowpass in front of the worklet, and the tempogram nothing', async () => {
+      const peaks = await createRealtimeBpmAnalyzer(audioContext);
+      const tempogram = await createRealtimeBpmAnalyzer(audioContext, {detector: 'tempogram'});
+
+      expect(peaks.input).to.be.instanceOf(BiquadFilterNode);
+      expect((peaks.input as BiquadFilterNode).type).to.equal('lowpass');
+      expect(peaks.input).to.equal(peaks.input);
+      expect(tempogram.input).to.equal(tempogram.node);
+    });
+
+    it('builds the lowpass only when asked, and wires it to the worklet', async () => {
+      const connections: AudioNode[] = [];
+      const {connect} = BiquadFilterNode.prototype;
+      let built = 0;
+      const {createBiquadFilter} = audioContext;
+
+      audioContext.createBiquadFilter = function (this: BaseAudioContext) {
+        built += 1;
+
+        return createBiquadFilter.call(this);
+      };
+
+      BiquadFilterNode.prototype.connect = function (this: BiquadFilterNode, destination: AudioNode) {
+        connections.push(destination);
+
+        return connect.call(this, destination as never) as unknown as AudioNode;
+      } as typeof connect;
+
+      try {
+        const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+
+        expect(built).to.equal(0);
+        expect(analyzer.input).to.be.instanceOf(BiquadFilterNode);
+        expect(built).to.equal(1);
+        expect(connections).to.deep.equal([analyzer.node]);
+      } finally {
+        BiquadFilterNode.prototype.connect = connect;
+      }
+    });
+
     it('should reject an invalid tempo range on the main thread', async () => {
       let caught: unknown;
       try {
@@ -205,6 +245,28 @@ describe('createRealtimeBpmAnalyzer', function () {
         expect(spy.calls).to.have.length(0);
       });
     }
+
+    for (const liveInput of [true, 'track', 42, null, {}, {kind: 'video'}]) {
+      it(`rejects liveInput ${JSON.stringify(liveInput)} before loading anything`, async () => {
+        const spy = spyOnAddModule(audioContext);
+        const caught = await rejectionOf(async () => createRealtimeBpmAnalyzer(audioContext, {
+          liveInput: liveInput as unknown as MediaStreamTrack,
+        })).finally(spy.restore);
+
+        expect(caught).to.be.instanceOf(TypeError);
+        expect((caught as Error).message).to.contain('liveInput');
+        expect(spy.calls).to.have.length(0);
+      });
+    }
+
+    it('takes an audio track, and keeps it out of the worklet options', async () => {
+      // A track in processorOptions would make the AudioWorkletNode constructor fail structured cloning
+      const liveInput = audioContext.createMediaStreamDestination().stream.getAudioTracks()[0];
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext, {liveInput});
+
+      expect(analyzer.node).to.be.instanceOf(AudioWorkletNode);
+      analyzer.stop();
+    });
 
     it('publishes a standalone processor file with no imports', async () => {
       const source = await (await fetch(publishedProcessorPath)).text();

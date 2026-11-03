@@ -10,6 +10,7 @@ function tracks(count: number): Track[] {
     bpm: 120,
     group: `g${Math.floor(i / 4)}`,
     audioPath: '',
+    licence: 'CC0-1.0',
   }));
 }
 

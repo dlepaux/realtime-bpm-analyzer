@@ -3,18 +3,27 @@
 // at the repo root first: it builds the library, the CLI this package imports, then this.
 import {describe, it, before, after} from 'node:test';
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
 import {copyFile, mkdir, mkdtemp, open, readFile, rm, symlink, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {Client} from '@modelcontextprotocol/client';
 import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
+// The library the CLI resolves through the workspace, and the CLI's own decoder, to check
+// which detector ran against the library itself
+import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
+import {decodeFile} from '../../cli/dist/decode.mjs';
+import {clickWav} from '../../cli/tests/click-wav.mjs';
 
 const server = fileURLToPath(new URL('../dist/server.mjs', import.meta.url));
 // The CLI's click-track fixtures, read in place
 const fixtures = fileURLToPath(new URL('../../cli/tests/fixtures/', import.meta.url));
 const fixture = name => join(fixtures, name);
 const megabyte = 1024 * 1024;
+
+/** Process id of each connected client's server */
+const serverPids = new WeakMap();
 
 /**
  * Starts the server as a child process and connects a client to it.
@@ -26,8 +35,20 @@ async function connect(cwd, home = process.env.HOME ?? '') {
   const client = new Client({name: 'realtime-bpm-analyzer-mcp-test', version: '0.0.0'});
   // A missing ffmpeg, so M4A fails the same way on every machine
   const env = {PATH: process.env.PATH ?? '', HOME: home, FFMPEG_PATH: '/nonexistent/ffmpeg'};
-  await client.connect(new StdioClientTransport({command: process.execPath, args: [server], cwd, env, stderr: 'pipe'}));
+  const transport = new StdioClientTransport({command: process.execPath, args: [server], cwd, env, stderr: 'pipe'});
+  await client.connect(transport);
+  serverPids.set(client, transport.pid);
   return client;
+}
+
+/**
+ * @param {number} pid A process
+ * @returns {number} The CPU time it has used, in seconds, as ps reports it ([[dd-]hh:]mm:ss[.cc])
+ */
+function cpuSeconds(pid) {
+  const time = execFileSync('ps', ['-o', 'time=', '-p', String(pid)], {encoding: 'utf8'}).trim();
+  const [days, clock] = time.includes('-') ? time.split('-') : ['0', time];
+  return clock.split(':').reduce((total, part) => (total * 60) + Number(part), 0) + (Number(days) * 86_400);
 }
 
 /**
@@ -70,9 +91,9 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     assert.deepEqual(tools.map(tool => tool.name).sort(), ['analyze_file', 'analyze_folder']);
 
     const byName = Object.fromEntries(tools.map(tool => [tool.name, tool]));
-    assert.deepEqual(Object.keys(byName.analyze_file.inputSchema.properties).sort(), ['max_bpm', 'min_bpm', 'path']);
+    assert.deepEqual(Object.keys(byName.analyze_file.inputSchema.properties).sort(), ['detector', 'max_bpm', 'min_bpm', 'path']);
     assert.deepEqual(byName.analyze_file.inputSchema.required, ['path']);
-    assert.deepEqual(Object.keys(byName.analyze_folder.inputSchema.properties).sort(), ['directory', 'max_bpm', 'min_bpm', 'offset', 'recursive']);
+    assert.deepEqual(Object.keys(byName.analyze_folder.inputSchema.properties).sort(), ['detector', 'directory', 'max_bpm', 'min_bpm', 'offset', 'recursive']);
     assert.deepEqual(byName.analyze_folder.inputSchema.required, ['directory']);
 
     for (const tool of tools) {
@@ -89,6 +110,7 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
   });
 
   for (const [label, args, pattern] of [
+    ['an unknown detector', {path: fixture('click-128.mp3'), detector: 'magic'}, /detector/],
     ['a missing path', {}, /path/],
     ['an unknown argument', {path: 'click-128.mp3', file: 'x'}, /file|unrecognized/i],
     ['a negative tempo', {path: 'click-128.mp3', min_bpm: -5}, /min_bpm/],
@@ -122,6 +144,107 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
       near(result.structuredContent.bpm, 100);
     } finally {
       await homeClient.close();
+    }
+  });
+
+  it('runs the tempogram detector when asked', async () => {
+    const call = (name, args) => client.callTool({name, arguments: args}).then(result => result.structuredContent);
+    const path = fixture('click-128.mp3');
+    const tempogram = await call('analyze_file', {path, detector: 'tempogram'});
+    const peaks = await call('analyze_file', {path});
+
+    near(tempogram.bpm, 128);
+    // Both read 128: only the candidates show which detector ran. On 5.4.0 the library ignored
+    // the option and ran peaks, so check them against its tempogram on the same samples.
+    assert.notDeepEqual(tempogram.candidates, peaks.candidates);
+    const {channelData, sampleRate} = await decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
+    assert.deepEqual(tempogram.candidates, await analyzeChannelData(channelData, sampleRate, {detector: 'tempogram'}));
+
+    const directory = dirname(path);
+    const folder = await call('analyze_folder', {directory, detector: 'tempogram'});
+    const inFolder = folder.results.find(result => result.file === path);
+
+    assert.deepEqual(inFolder.candidates, tempogram.candidates);
+  });
+
+  it('answers while a long file is analysed, and stops it when the client cancels', async () => {
+    // 83 minutes at 8 kHz: its tempogram runs for several seconds, and used to block the server
+    const path = join(scratch, 'long-8k.wav');
+    await writeFile(path, clickWav(8000, 40_000_000));
+    const cancel = new AbortController();
+    const long = client.callTool({name: 'analyze_file', arguments: {path, detector: 'tempogram'}}, {signal: cancel.signal});
+    long.catch(() => {});
+    await new Promise(resolve => {
+      setTimeout(resolve, 1000);
+    });
+
+    const started = performance.now();
+    await client.ping();
+    const pingMs = performance.now() - started;
+    cancel.abort();
+    await assert.rejects(long);
+
+    // The analysis stopped on the server too: it spends no CPU over 3 s it would have filled.
+    // ps counts whole seconds on Linux, so one tick of slack.
+    const pid = serverPids.get(client);
+    await new Promise(resolve => {
+      setTimeout(resolve, 200);
+    });
+    const before = cpuSeconds(pid);
+    await new Promise(resolve => {
+      setTimeout(resolve, 3000);
+    });
+    const spent = cpuSeconds(pid) - before;
+
+    // A cancel leaves the server serving
+    const next = await client.callTool({name: 'analyze_file', arguments: {path: fixture('click-128.mp3')}});
+    near(next.structuredContent.bpm, 128);
+    assert.ok(pingMs < 250, `a ping waited ${Math.round(pingMs)} ms behind the analysis`);
+    assert.ok(spent <= 1, `the server spent ${spent} s of CPU after the cancel`);
+  });
+
+  it('analyses one file at a time across parallel calls, and drops a call cancelled while it waits', {timeout: 120_000}, async () => {
+    // A long tempogram first, then a short file: run at once, the short one would finish first
+    const path = join(scratch, 'queued-8k.wav');
+    await writeFile(path, clickWav(8000, 10_000_000));
+    const finished = [];
+    const call = (label, args) => client.callTool({name: 'analyze_file', arguments: args}).then(result => {
+      finished.push(label);
+      return result;
+    });
+    const long = call('long', {path, detector: 'tempogram'});
+    // Long enough for the first call to take the only slot
+    await new Promise(resolve => {
+      setTimeout(resolve, 300);
+    });
+
+    const cancel = new AbortController();
+    const dropped = client.callTool({name: 'analyze_file', arguments: {path: fixture('click-128.mp3')}}, {signal: cancel.signal});
+    dropped.catch(() => {});
+    const short = call('short', {path: fixture('click-128.mp3')});
+    await new Promise(resolve => {
+      setTimeout(resolve, 100);
+    });
+    cancel.abort();
+    await assert.rejects(dropped);
+
+    // The cancelled call gave its place up: the next one still runs once the long one ends
+    const [longResult, shortResult] = await Promise.all([long, short]);
+    assert.ok(!longResult.isError, text(longResult));
+    near(shortResult.structuredContent.bpm, 128);
+    assert.deepEqual(finished, ['long', 'short']);
+  });
+
+  it('packs the server bin', () => {
+    // CI runs the server from the workspace, so only the tarball's file list shows what ships
+    const [pack] = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8'}));
+    assert.ok(pack.files.some(file => file.path === 'dist/server.mjs'), pack.files.map(file => file.path).join(', '));
+  });
+
+  it('states the time limit for one file', async () => {
+    const {tools} = await client.listTools();
+    for (const tool of tools) {
+      assert.match(tool.description, /longer than 120 seconds/, tool.name);
     }
   });
 

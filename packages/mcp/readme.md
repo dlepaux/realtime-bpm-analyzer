@@ -6,7 +6,9 @@ disk, with the [realtime-bpm-analyzer](https://www.npmjs.com/package/realtime-bp
 engine.
 
 **Privacy:** the server runs on your computer and talks to the client over stdio. It
-makes no network calls and sends no telemetry: your audio never leaves the machine.
+makes no network calls and sends no telemetry: your audio never leaves the machine. The
+client gets the results (paths, tempos, confidences) and handles them like any other tool
+result, so they can reach its AI provider. `npx` itself contacts npm to fetch the package.
 
 ## Install
 
@@ -37,8 +39,8 @@ Node.js 20 or later.
 
 | Tool             | Arguments                                                | Returns |
 | ---------------- | -------------------------------------------------------- | ------- |
-| `analyze_file`   | `path`, optional `min_bpm`, `max_bpm`                    | `bpm`, `confidence` (0 to 1) and the ranked `candidates` |
-| `analyze_folder` | `directory`, optional `recursive`, `offset`, `min_bpm`, `max_bpm` | one result per file, in path order; a file that fails carries its `error` and the others go on |
+| `analyze_file`   | `path`, optional `min_bpm`, `max_bpm`, `detector`        | `bpm`, `confidence` (0 to 1) and the ranked `candidates` |
+| `analyze_folder` | `directory`, optional `recursive`, `offset`, `min_bpm`, `max_bpm`, `detector` | one result per file, in path order; a file that fails carries its `error` and the others go on |
 
 Then ask, for example: "What's the BPM of ~/Music/set/track.mp3?" or "Sort the tracks in
 ~/Music/house by tempo."
@@ -46,11 +48,12 @@ Then ask, for example: "What's the BPM of ~/Music/set/track.mp3?" or "Sort the t
 - Formats: MP3, WAV, FLAC, OGG Vorbis and Opus decode in pure JavaScript/WebAssembly.
   M4A/AAC, AIFF and WMA go through [ffmpeg](https://ffmpeg.org) when it is installed (set
   `FFMPEG_PATH` in the server's `env` to point at a binary that is not on the `PATH`).
-- Tempos are folded into `min_bpm`..`max_bpm` (default 90 to 180).
+- Tempos are folded into `min_bpm`..`max_bpm` (default 90 to 180). With `detector: "tempogram"` that range is searched instead, and a tempo under it reads at the octave inside, and from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default.
 - Paths are absolute, start with `~`, or are relative to the server's working directory.
 - Limits: files over 100 MB are refused, and so is audio that decodes to more than 2048 MB in
   its first channel: 202 minutes at 44.1 kHz, however small the file (a file that fits peaks at about
-  4.2 GB of memory). `analyze_folder` analyses 50 files per call and
+  4.2 GB of memory). Audio under 8 kHz is refused, and one file may take at most 120 seconds.
+  The server analyses one file at a time; calls made at once wait their turn. A cancelled call stops the file in progress. `analyze_folder` analyses 50 files per call and
   returns a `next_offset` for the next 50; a recursive walk goes 16 levels deep and reads at
   most 10,000 folder entries.
 - Only files with an audio extension are read. In a folder, a symbolic link to another

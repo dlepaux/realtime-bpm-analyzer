@@ -9,6 +9,9 @@ description: Detect the BPM of MP3, WAV, FLAC, OGG and Opus files from a termina
 analyses them with [`analyzeChannelData`](./node), the library's Node.js entry point.
 It is separate so the library itself keeps zero dependencies.
 
+The tool runs on your computer. It makes no network calls and sends no telemetry, so
+the audio never leaves your computer. `npx` itself contacts npm to fetch the package.
+
 ```bash
 npx realtime-bpm-analyzer-cli song.mp3
 ```
@@ -34,6 +37,7 @@ contents sorted by path. A file that fails is reported and the batch goes on.
 | `-r, --recursive` | Walk sub-folders                                               |
 | `--min-bpm <bpm>` | Lowest tempo reported (default 90)                             |
 | `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`) |
+| `--detector <name>` | `peaks` (default) or `tempogram`, which searches `--min-bpm`..`--max-bpm` instead of folding into it: from about twice `--min-bpm` a tempo can read half, as over about 179 BPM does by default |
 | `-h, --help`      | Show the help                                                  |
 | `-v, --version`   | Show the version                                               |
 
@@ -102,3 +106,20 @@ Peak memory measured on macOS arm64 with Node 24:
 
 The peak is about twice the decoded size because analysis filters a copy of the samples.
 Programs using `analyzeFile` can change the limit with its `maxDecodedBytes` option.
+They can also stop a file with its `signal` option, during the decode or the analysis,
+and give up on a file after `timeoutMs` milliseconds. The analysis runs on a worker
+thread, so the program's own thread stays free while it does.
+
+The worker is a file of its own, `analyze-worker.mjs`, loaded from next to the package's
+`api.mjs`. Bundling `realtime-bpm-analyzer-cli` into your program's single file leaves it
+behind, and every analysis then fails with `ok: false` ("Cannot find module …/analyze-worker.mjs").
+Keep the package external in your bundler (esbuild `--packages=external`, or the package
+in rollup's `external` or webpack's `externals`).
+
+### Sample rate
+
+Audio under 8 kHz is refused with an error, from the first block decoded. A sample costs
+more as the rate falls: a generated 100 MB WAV at 100 Hz took 392 seconds to analyse, and
+at 1 Hz the analysis never ended. Recordings under 8 kHz, the telephone rate, are rare
+(some old game and sampler audio is at 5512, 6000 or 7350 Hz), and at 8 kHz a sample costs
+at most about twice as much as at 44.1 kHz.

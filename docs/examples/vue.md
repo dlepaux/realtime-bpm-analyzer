@@ -11,9 +11,9 @@ How to integrate Realtime BPM Analyzer in Vue 3 applications using the Compositi
 
 We've built complete Vue 3 examples demonstrating different use cases. Each is a fully functional application you can interact with:
 
-### Basic File Upload
+### Basic File Analysis
 
-Upload and analyze audio files to detect their BPM.
+Pick an audio file and analyze it in the browser to detect its BPM.
 
 <ExampleEmbed example="07-vue-basic" height="500px" />
 

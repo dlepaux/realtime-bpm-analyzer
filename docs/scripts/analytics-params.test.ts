@@ -1,7 +1,18 @@
 // Run with `npm test` (node --test, Node's own type stripping; no test framework).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { REDACTED, isUrlShaped, scrubEventParams } from '../.vitepress/tools/analytics-params.ts'
+import { REDACTED, fileExtensionParam, isUrlShaped, scrubEventParams } from '../.vitepress/tools/analytics-params.ts'
+
+test('fileExtensionParam: keeps a known format, whatever its case', () => {
+  assert.equal(fileExtensionParam('song.MP3'), 'mp3')
+  assert.equal(fileExtensionParam('my.long.name.flac'), 'flac')
+})
+
+test('fileExtensionParam: never sends a piece of the name', () => {
+  for (const name of ['My Secret Demo', 'Artist.Title', 'demo.', '.hidden', '']) {
+    assert.equal(fileExtensionParam(name), 'other', name)
+  }
+})
 
 test('isUrlShaped: catches the addresses people paste and browsers quote', () => {
   for (const value of [

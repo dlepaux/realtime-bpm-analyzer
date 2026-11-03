@@ -180,7 +180,7 @@ The analyzer emits two main types of BPM events:
 
 Now that you have the basics, check out practical examples:
 
-- [Basic Usage](/examples/basic-usage) - File upload and offline analysis
+- [Basic Usage](/examples/basic-usage) - Whole-file analysis of a local file
 - [Streaming Audio](/examples/streaming-audio) - Real-time stream analysis
 - [Microphone Input](/examples/microphone-input) - Real-time audio from microphone
 - [React Integration](/examples/react) - React hooks and patterns

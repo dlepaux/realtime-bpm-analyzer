@@ -24,7 +24,7 @@ import ExtensionPill from './ExtensionPill.vue'
       </div>
       <h3>Pin the button</h3>
       <p>
-        Open the puzzle-piece menu in the toolbar and pin <strong>Realtime BPM Analyzer</strong>,
+        Open the puzzle-piece menu in the toolbar and pin <strong>Live BPM Detector</strong>,
         so its button stays one click away.
       </p>
     </li>
@@ -69,8 +69,8 @@ import ExtensionPill from './ExtensionPill.vue'
       </div>
       <h3>Click it</h3>
       <p>
-        Click the button, or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>. The tempo
-        appears on the player within seconds. Click again to stop.
+        Click the button. On a Mac, <kbd>Option</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> does the
+        same. The tempo appears on the player within seconds. Click again to stop.
       </p>
     </li>
   </ol>

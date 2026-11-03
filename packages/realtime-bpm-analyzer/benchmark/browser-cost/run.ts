@@ -242,13 +242,34 @@ async function sizes(withTempogram: boolean) {
   };
 }
 
+async function measure(browser: Browser, origin: string, suite: string, throttle: number, seconds: number) {
+  const {page} = await openPage(browser, origin, throttle);
+  const probe = await page.evaluate(() => window.bench.probe());
+  const base = {suite, throttle, machine: machine(), browser: await browser.version(), probe};
+
+  console.log(JSON.stringify(base));
+
+  const engine = engines.find(name => name === args.engine);
+
+  if (suite === 'memory' && !engine) {
+    throw new Error(`unknown engine ${args.engine}`);
+  }
+
+  const result = suite === 'cost' ? await cost(page, seconds) : await memory(browser, page, engine!, seconds);
+
+  await page.close();
+
+  return {...base, ...result};
+}
+
 async function main(): Promise<void> {
   const [suite] = positionals;
-  const throttle = Number(args.throttle);
+  // Several levels run in one job, so they share one CPU: GitHub's runners differ from job to job
+  const throttles = args.throttle.split(',').map(Number);
   const seconds = Number(args.seconds);
 
-  if (!args.out || !['cost', 'memory', 'bundle'].includes(suite) || !(throttle >= 1) || !(seconds > 0)) {
-    throw new Error('usage: run <cost|memory|bundle> [--throttle N] [--engine E] [--seconds N] --out file.json');
+  if (!args.out || !['cost', 'memory', 'bundle'].includes(suite) || !throttles.every(rate => rate >= 1) || !(seconds > 0)) {
+    throw new Error('usage: run <cost|memory|bundle> [--throttle N[,N...]] [--engine E] [--seconds N] --out file.json');
   }
 
   // esbuild's metafile names inputs from here, and the bundles resolve the library's sources from here
@@ -257,30 +278,21 @@ async function main(): Promise<void> {
   if (suite === 'bundle') {
     const result = {suite, machine: machine(), with: await sizes(true), without: await sizes(false)};
 
-    writeFileSync(args.out, `${JSON.stringify(result, null, 2)}\n`);
+    writeFileSync(args.out, `${JSON.stringify([result], null, 2)}\n`);
 
     return;
   }
 
   const {server, origin} = await serve();
   const browser = await launch();
+  const results = [];
 
   try {
-    const {page} = await openPage(browser, origin, throttle);
-    const probe = await page.evaluate(() => window.bench.probe());
-    const base = {suite, throttle, machine: machine(), browser: await browser.version(), probe};
-
-    console.log(JSON.stringify(base));
-
-    const engine = engines.find(name => name === args.engine);
-
-    if (suite === 'memory' && !engine) {
-      throw new Error(`unknown engine ${args.engine}`);
+    for (const throttle of throttles) {
+      results.push(await measure(browser, origin, suite, throttle, seconds));
     }
 
-    const result = suite === 'cost' ? await cost(page, seconds) : await memory(browser, page, engine!, seconds);
-
-    writeFileSync(args.out, `${JSON.stringify({...base, ...result}, null, 2)}\n`);
+    writeFileSync(args.out, `${JSON.stringify(results, null, 2)}\n`);
   } finally {
     await browser.close();
     server.close();

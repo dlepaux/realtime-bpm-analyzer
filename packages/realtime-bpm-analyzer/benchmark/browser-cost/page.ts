@@ -1,7 +1,5 @@
-// Page entry, driven by run.ts through puppeteer. The shim goes first: the processor's module reads the
-// worklet globals when it loads.
-import './page-shim';
-import {RealTimeBpmProcessor} from '../../src/processor/realtime-bpm-processor';
+// Page entry, driven by run.ts through puppeteer
+import {installWorkletShim} from './page-shim';
 import {analyzeFullBuffer, getBiquadFilter} from '../../src/core/offline-pipeline';
 import {applyLowpass} from '../../src/core/lowpass';
 import {resolveDetector, resolveTempoRange} from '../../src/core/tempo';
@@ -164,8 +162,11 @@ async function realtime({engine, sampleRate, seconds}: RunOptions) {
  * @returns Timings, and the heap samples
  */
 async function replay({engine, sampleRate, seconds}: RunOptions, heapEverySeconds = 0) {
+  installWorkletShim();
   (globalThis as unknown as {sampleRate: number}).sampleRate = sampleRate;
 
+  // Loaded after the shim, which it reads when it loads
+  const {RealTimeBpmProcessor} = await import('../../src/processor/realtime-bpm-processor');
   const Processor = timedProcessor(RealTimeBpmProcessor, () => performance.now(), 'performance.now, main thread');
   const processor = new Processor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(engine)});
   const loopFrames = Math.floor((loopSeconds * sampleRate) / quantumFrames) * quantumFrames;

@@ -1,7 +1,5 @@
-// The shim first: the processor's module reads the worklet globals when it loads
-import '../../../benchmark/browser-cost/page-shim';
 import {expect} from 'chai';
-import {RealTimeBpmProcessor} from '../../../src/processor/realtime-bpm-processor';
+import {installWorkletShim} from '../../../benchmark/browser-cost/page-shim';
 import {percentile, quantumBudgetMs, summarise, ofKinds} from '../../../benchmark/browser-cost/stats';
 import {drumMix} from '../../../benchmark/browser-cost/signal';
 import {quantumKind, timedProcessor} from '../../../benchmark/browser-cost/timed-processor';
@@ -33,7 +31,10 @@ describe('browser cost harness', () => {
   });
 
   it('times every quantum and every analysis of the real processor, without changing what it posts', async () => {
+    installWorkletShim();
     (globalThis as unknown as {sampleRate: number}).sampleRate = 8000;
+
+    const {RealTimeBpmProcessor} = await import('../../../src/processor/realtime-bpm-processor');
 
     let tick = 0;
     const Timed = timedProcessor(RealTimeBpmProcessor, () => tick++, 'counter');

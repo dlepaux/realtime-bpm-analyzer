@@ -29,14 +29,12 @@ env:
   HARNESS: packages/realtime-bpm-analyzer/benchmark/browser-cost/run.sh
 
 jobs:
+  # One job for every throttle level: GitHub's runners differ in CPU from job to job (an AMD EPYC
+  # 9V45 and an Intel Xeon 6975P on the same run), so levels compared across jobs would compare machines
   cost:
-    name: Cost, CPU throttle ${{ matrix.throttle }}x
+    name: Cost, CPU throttle 1x, 4x and 6x
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        throttle: [1, 4, 6]
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -47,11 +45,11 @@ jobs:
       - name: Runner CPU
         run: lscpu
       - name: Measure
-        run: $HARNESS run cost --throttle ${{ matrix.throttle }} --seconds "$COST_SECONDS" --out "cost-${{ matrix.throttle }}.json"
+        run: $HARNESS run cost --throttle 1,4,6 --seconds "$COST_SECONDS" --out cost.json
       - uses: actions/upload-artifact@v7
         with:
-          name: browser-cost-cost-${{ matrix.throttle }}
-          path: cost-${{ matrix.throttle }}.json
+          name: browser-cost-cost
+          path: cost.json
 
   memory:
     name: Memory, ${{ matrix.engine }}

@@ -23,7 +23,8 @@ type Result = {
 };
 
 const {positionals} = parseArgs({allowPositionals: true, options: {root: {type: 'string'}}});
-const results = positionals.map(file => JSON.parse(readFileSync(file, 'utf8')) as Result);
+// Each file holds an array: run.ts measures several throttle levels in one job
+const results = positionals.flatMap(file => JSON.parse(readFileSync(file, 'utf8')) as Result[]);
 const ms = (value: number | undefined) => (value === undefined ? 'n/a' : value < 1 ? value.toFixed(3) : value.toFixed(2));
 const pct = (value: number) => `${(value * 100).toFixed(1)}%`;
 const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];

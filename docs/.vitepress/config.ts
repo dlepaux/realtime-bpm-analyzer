@@ -261,6 +261,7 @@ export default defineConfig({
           items: [
             { text: 'Realtime BPM Detection in the Browser', link: '/guide/realtime-bpm-detection' },
             { text: 'Detect BPM from a Microphone', link: '/guide/bpm-from-microphone' },
+            { text: 'Beat Detection with Web Audio', link: '/guide/beat-detection-web-audio' },
             { text: 'useBpm — A React Hook for BPM Detection', link: '/guide/react-bpm-hook' }
           ]
         },

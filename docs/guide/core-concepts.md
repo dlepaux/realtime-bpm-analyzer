@@ -282,3 +282,4 @@ Now that you understand the core concepts:
 - [React Integration →](/examples/react)
 - [Microphone Input →](/examples/microphone-input)
 - [How It Works →](/guide/how-it-works)
+- [Beat Detection with Web Audio →](/guide/beat-detection-web-audio)

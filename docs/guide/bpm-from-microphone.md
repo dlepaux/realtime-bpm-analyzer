@@ -1,24 +1,23 @@
 ---
-title: How to Detect BPM from a Microphone in JavaScript
-description: A complete guide to real-time BPM detection from microphone input using the Web Audio API and AudioWorklet — permissions, feedback loops, mobile gotchas, and a working pattern.
+title: Detect BPM from the Microphone in JavaScript
+description: Read the tempo of live music from the microphone with getUserMedia and the Web Audio API. HTTPS and permissions, why to turn off echo cancellation, iOS, cleanup, and a working TypeScript pattern.
 head:
   - - meta
     - name: keywords
       content: bpm from microphone javascript, microphone bpm detection, web audio api microphone, getUserMedia bpm, javascript live bpm, realtime bpm microphone
 ---
 
-# How to Detect BPM from a Microphone in JavaScript
+# Detect BPM from the Microphone in JavaScript
 
-Reading BPM from a microphone is the hardest of the three input modes —
-file, stream, mic — because the signal is dirty. Room reverb, ambient
-noise, the user's keyboard clacking, the laptop fan. None of which were
-problems when the audio came from an MP3.
+This guide reads the tempo of music the microphone hears, in the browser,
+with `getUserMedia`, the Web Audio API and `realtime-bpm-analyzer`. The
+microphone is the hardest input of the three (file, stream, mic): room
+reverb, background noise, a keyboard or a laptop fan all reach the signal.
+It is also the one a live performance tool, a music game or a fitness app
+needs.
 
-It is also the most useful mode. A live performance tool, a music game, a
-fitness trainer that picks up the user's footfalls, a "what's playing in
-this café" detector, an accessibility tool that responds to ambient
-music — all of these need the microphone. Files don't help; streams
-don't help; only `getUserMedia` does.
+Only want the BPM of the music around you, not code? The
+[tool on the home page](/) listens to the microphone in your browser.
 
 This guide is the working pattern. It uses
 `realtime-bpm-analyzer` and the AudioWorklet API to keep analysis off the

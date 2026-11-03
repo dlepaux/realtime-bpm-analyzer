@@ -16,6 +16,8 @@ const WEBSITE_SURFACES = [
   '../tap-tempo.md',
   '../metronome.md',
   '../bpm-to-ms.md',
+  '../bpm-to-frames.md',
+  '../video-bpm.md',
   '../website-privacy.md',
   '../public/llms.txt',
   '../.vitepress/tools/site-schema.ts',

@@ -45,6 +45,25 @@ const STREAM_STABILIZATION_MS = 20_000
 const GAIN_UNMUTED = 1
 const GAIN_MUTED = 0
 
+// `video` frames the file panel for a video (the /video-bpm page): same analysis,
+// since the browser decodes a video's sound track like any audio file.
+const props = withDefaults(defineProps<{ variant?: 'audio' | 'video' }>(), { variant: 'audio' })
+const FILE_COPY = {
+  audio: {
+    drop: 'Drop an audio file or click to browse',
+    headline: 'Drop audio file',
+    formats: 'MP3, WAV, FLAC, M4A, OGG & more',
+    decodeError: 'Your browser couldn’t decode that file. Try MP3, WAV, FLAC, M4A or OGG.',
+  },
+  video: {
+    drop: 'Drop a video or audio file or click to browse',
+    headline: 'Drop video file',
+    formats: 'MP4, WebM, MOV & audio files',
+    decodeError: 'Your browser couldn’t decode the sound of that file. Try MP4 or WebM, or export the audio as WAV.',
+  },
+} as const
+const fileCopy = computed(() => FILE_COPY[props.variant])
+
 const { track } = useAnalytics()
 
 const mode = ref<Mode>('file')
@@ -223,7 +242,7 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown'
     fileError.value = stage === 'decode'
-      ? 'Your browser couldn’t decode that file. Try MP3, WAV, FLAC, M4A or OGG.'
+      ? fileCopy.value.decodeError
       : 'No clear beat found in that file. Try a section with drums or bass.'
     fileStatus.value = 'error'
     track('bpm_file_error', {
@@ -711,7 +730,7 @@ function formatDuration(seconds: number): string {
             :class="dropZoneClasses"
             role="button"
             tabindex="0"
-            aria-label="Drop an audio file or click to browse"
+            :aria-label="fileCopy.drop"
             @click="openFilePicker"
             @keydown.enter.prevent="openFilePicker"
             @keydown.space.prevent="openFilePicker"
@@ -730,7 +749,7 @@ function formatDuration(seconds: number): string {
             </div>
             <div class="bpm-copy">
               <div class="bpm-headline">
-                Drop audio file
+                {{ fileCopy.headline }}
               </div>
               <div class="bpm-sub">
                 or click to browse
@@ -745,7 +764,7 @@ function formatDuration(seconds: number): string {
             @change="onFileChange"
           />
           <div class="bpm-formats">
-            MP3, WAV, FLAC, M4A, OGG &amp; more
+            {{ fileCopy.formats }}
           </div>
         </template>
 
@@ -787,6 +806,7 @@ function formatDuration(seconds: number): string {
               v-if="fileBpm !== null"
               :bpm="fileBpm"
               source="file"
+              :video="variant === 'video'"
             />
             <div class="bpm-result-actions">
               <button

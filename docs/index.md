@@ -54,7 +54,7 @@ is analysed right in your browser. **Your audio never leaves your device**, and 
 - **Dancers and choreographers** — pick routines to match a song's tempo
 - **Fitness instructors** — curate playlists that match workout intensity
 - **Music educators** — teach rhythm with concrete numbers
-- **Content creators** — sync video cuts or transitions to a song's beat
+- **Content creators** — sync video cuts or transitions to a song's beat: find the [BPM of a video](/video-bpm), then the [beat in frames](/bpm-to-frames)
 - **Developers** — embed the same detection in your own app via the library below
 
 </div>

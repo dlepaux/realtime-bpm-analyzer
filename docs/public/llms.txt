@@ -7,6 +7,8 @@
 - [BPM Analyzer](https://www.realtime-bpm-analyzer.com/): detects the BPM of an audio file, the microphone or a live radio stream, in the browser
 - [Tap Tempo](https://www.realtime-bpm-analyzer.com/tap-tempo): measures a tempo from taps (least-squares fit over the last 16 taps)
 - [BPM to ms Calculator](https://www.realtime-bpm-analyzer.com/bpm-to-ms): note lengths in ms and Hz, straight, dotted and triplet; quarter note ms = 60000 / BPM
+- [Video BPM Finder](https://www.realtime-bpm-analyzer.com/video-bpm): detects the BPM of the sound track of a video file (MP4, WebM, MOV when the browser decodes it), in the browser
+- [BPM to Frames Calculator](https://www.realtime-bpm-analyzer.com/bpm-to-frames): frames per beat and per bar at 23.976 to 60 fps or a custom rate; frames per beat = fps * 60 / BPM
 - [Online Metronome](https://www.realtime-bpm-analyzer.com/metronome): 20-300 BPM, 1-12 beats per bar, subdivisions, tap to set
 
 ## Privacy

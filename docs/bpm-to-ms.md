@@ -72,7 +72,8 @@ Common tempos, in milliseconds:
 | 180 | 333.33 | 166.67 | 250 | 111.11 | 83.33 | 1333.33 |
 
 Don't know the tempo? [Tap it](/tap-tempo), or let the [BPM Analyzer](/)
-detect it from the track itself.
+detect it from the track itself. Cutting video? The
+[BPM to frames calculator](/bpm-to-frames) gives the beat in frames.
 
 ## Frequently asked questions
 
@@ -84,4 +85,5 @@ detect it from the track itself.
   <a class="tt-tool" href="/"><strong>BPM Analyzer</strong><span>Detect the tempo of a file, the mic or a stream</span></a>
   <a class="tt-tool" href="/tap-tempo"><strong>Tap Tempo</strong><span>Tap along to measure any tempo</span></a>
   <a class="tt-tool" href="/metronome"><strong>Metronome</strong><span>Accents, subdivisions and tap to set</span></a>
+  <a class="tt-tool" href="/bpm-to-frames"><strong>BPM to Frames</strong><span>Frames per beat and per bar for video</span></a>
 </div>

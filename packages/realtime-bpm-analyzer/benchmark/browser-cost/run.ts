@@ -217,7 +217,7 @@ const withoutTempogram: esbuild.Plugin = {
   setup(build) {
     build.onResolve({filter: /\/tempogram$/}, () => ({path: 'tempogram-stub', namespace: 'stub'}));
     build.onLoad({filter: /.*/, namespace: 'stub'}, () => ({
-      contents: 'export function assertTempogramMode() {}\nexport function createTempogramDetector() { throw new Error("stub"); }\nexport function detectTempogram() { throw new Error("stub"); }\n',
+      contents: 'export const defaultTempogramRange = {min: 90, max: 180};\nexport function createTempogramDetector() { throw new Error("stub"); }\nexport function detectTempogram() { throw new Error("stub"); }\n',
       loader: 'js',
     }));
   },

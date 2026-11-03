@@ -1,5 +1,8 @@
 import type {RealTimeBpmProcessor} from '../../src/processor/realtime-bpm-processor';
-import type {ProcessorOutputEvent, RealtimeAnalyzeChunkOptions} from '../../src/core/types';
+import {PROTOCOL_VERSION} from '../../src/contract/types';
+import type {EngineName, PostedWorkletMessage} from '../../src/contract/types';
+import {resolveEngine} from '../../src/core/engine';
+import type {ProcessorOptions} from '../../src/core/session';
 
 /** Name the worklet registers the timed processor under */
 export const timedProcessorName = 'timed-bpm-processor';
@@ -32,6 +35,15 @@ export type TimingDump = {
 };
 
 type HarnessMessage = {data?: {type?: string}};
+
+/**
+ * The processor options createRealtimeBpmAnalyzer hands the worklet for this engine, at its defaults
+ * @param engine - Engine to time
+ * @returns The validated options
+ */
+export function harnessOptions(engine: EngineName): ProcessorOptions {
+  return {...resolveEngine(engine, undefined), debug: false, liveInput: false, protocol: PROTOCOL_VERSION};
+}
 
 /**
  * Subclass of the library's own processor that times each render quantum, without changing what it does.
@@ -69,30 +81,42 @@ export function timedProcessor(Base: typeof RealTimeBpmProcessor, now: () => num
     }
 
     wrapAnalysis(): void {
-      const analyzer = this.realTimeBpmAnalyzer;
-      const original = analyzer.analyzeChunk.bind(analyzer);
+      const session = this.session;
+      if (session === null) {
+        throw new Error('The processor refused its options: the harness has nothing to time');
+      }
 
-      analyzer.analyzeChunk = (options: RealtimeAnalyzeChunkOptions) => {
-        const call = this.calls;
-        const quantumStart = this.quantumStart;
-        const start = now();
+      this.session = {
+        ...session,
+        analyze: (...args: Parameters<typeof session.analyze>) => {
+          const call = this.calls;
+          const quantumStart = this.quantumStart;
+          const start = now();
 
-        this.analysisThisQuantum = true;
-        this.readingThisAnalysis = false;
-        this.pending = original(options).finally(() => {
-          const end = now();
+          this.analysisThisQuantum = true;
+          const analysis = session.analyze(...args);
+          // The processor posts the step's messages in its own callback, which runs after this one, so whether the
+          // step gave a reading is read off the messages it returns, not off the port. The time ends there, so it
+          // leaves out the posting
+          this.pending = analysis.then(messages => {
+            this.readingThisAnalysis = messages.some(message => message.type === 'step' && message.status !== 'listening');
+          }, () => {
+            this.readingThisAnalysis = false;
+          }).finally(() => {
+            const end = now();
 
-          this.analysisCosts[this.analyses % recordCapacity] = end - start;
-          this.analyses += 1;
+            this.analysisCosts[this.analyses % recordCapacity] = end - start;
+            this.analyses += 1;
 
-          if (this.calls !== call) {
-            this.spilled += 1;
-          }
+            if (this.calls !== call) {
+              this.spilled += 1;
+            }
 
-          this.record(end - quantumStart, this.readingThisAnalysis ? quantumKind.reading : quantumKind.analysis);
-        });
+            this.record(end - quantumStart, this.readingThisAnalysis ? quantumKind.reading : quantumKind.analysis);
+          });
 
-        return this.pending;
+          return analysis;
+        },
       };
     }
 
@@ -100,13 +124,12 @@ export function timedProcessor(Base: typeof RealTimeBpmProcessor, now: () => num
       const port = this.port;
       const post = port.postMessage.bind(port);
 
-      port.postMessage = (event: ProcessorOutputEvent) => {
-        if (event.type === 'bpm') {
-          this.readingThisAnalysis = true;
-          this.lastBpm = event.data.bpm[0]?.tempo ?? null;
+      port.postMessage = (event: PostedWorkletMessage) => {
+        if (event.type === 'step' && event.status !== 'listening') {
+          this.lastBpm = event.reading.bpm;
         }
 
-        if (event.type === 'error') {
+        if (event.type === 'fault') {
           this.errors += 1;
         }
 

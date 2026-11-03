@@ -13,7 +13,9 @@ const FILLED_TIME = /<time\b[^>]*\bdatetime="[^"]+"[^>]*>[^<\s][^<]*<\/time>/
 
 const REDIRECT = /<meta http-equiv="refresh"/
 
-const text = (html: string) => html.replace(/<!--[\s\S]*?-->|<[^>]+>/g, '').trim()
+// The words between the tags of a fragment of our own build, for comparing, never for
+// rendering. VitePress's markers (<!--[-->) are tags to this split too.
+const text = (html: string) => html.split(/<[^>]*>/).join('').trim()
 
 function homeProblems(site: BuiltSite): string[] {
   const home = site.read('index.html')

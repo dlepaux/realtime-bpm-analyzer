@@ -7,7 +7,7 @@ const hysteresis = HYSTERESIS;
 
 /** One step, heard at `now`, with a pulse and a reading at `bpm` unless told otherwise */
 function input(now: number, bpm: number | null, more: Partial<TrackerInput> = {}): TrackerInput {
-  return {now, bpm, pulse: bpm !== null, lockOffered: false, audioLost: false, acceptLock: () => true, ...more};
+  return {now, bpm, pulse: bpm !== null, lockOffered: false, acceptLock: () => true, ...more};
 }
 
 /** A tracker taken to locked at 120, at 1 s */
@@ -83,22 +83,20 @@ describe('tracker - engine-neutral states', () => {
     expect(tracker.step(input(5.5, 120))).to.deep.equal({status: 'settling', reason: 'first-reading'});
   });
 
-  it('reports audio-lost once while live input is lost, whatever the status, then settles again', () => {
-    const tracker = lockedTracker();
-
-    expect(tracker.step(input(2, 120, {audioLost: true}))).to.deep.equal({status: 'listening', reason: 'audio-lost'});
-    expect(tracker.step(input(2.5, 120, {audioLost: true}))).to.deep.equal({status: 'listening'});
-    expect(tracker.step(input(3, 120))).to.deep.equal({status: 'settling', reason: 'first-reading'});
-
-    const listening = createTracker(hysteresis);
-    expect(listening.step(input(0.5, null, {audioLost: true}))).to.deep.equal({status: 'listening', reason: 'audio-lost'});
-  });
-
-  it('turns a lock the live input clock withholds into audio-lost', () => {
+  it('holds through a lock the live input clock withholds: the start-over reports the loss', () => {
     const tracker = createTracker(hysteresis);
     tracker.step(input(0.5, 120));
 
-    expect(tracker.step(input(1, 120, {lockOffered: true, acceptLock: () => false}))).to.deep.equal({status: 'listening', reason: 'audio-lost'});
+    expect(tracker.step(input(1, 120, {lockOffered: true, acceptLock: () => false}))).to.deep.equal({status: 'settling'});
+    expect(tracker.step(input(1.5, 120, {lockOffered: true}))).to.deep.equal({status: 'locked', reason: 'locked'});
+    expect(tracker.restart('audio-lost')).to.deep.equal({status: 'listening', reason: 'audio-lost'});
+  });
+
+  it('keeps a lock offered on the step that left listening, as peaks offers once per rung', () => {
+    const tracker = createTracker(hysteresis);
+
+    expect(tracker.step(input(0.5, 120, {lockOffered: true}))).to.deep.equal({status: 'settling', reason: 'first-reading'});
+    expect(tracker.step(input(1, 120))).to.deep.equal({status: 'locked', reason: 'locked'});
   });
 
   it('asks the clock only when about to lock', () => {

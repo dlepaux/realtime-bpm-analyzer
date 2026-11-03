@@ -81,6 +81,8 @@ export function initialState(): AnalyzerState {
   return {status: 'listening', epoch: 0, progress: 0, reason: 'started'};
 }
 
+const resetAfterStop: Refusal = {name: 'InvalidStateError', message: 'reset() after stop()'};
+
 const unchanged = (state: AnalyzerState): ReducerResult => ({state, events: [], post: [], refused: null});
 
 function transition(from: AnalyzerState, to: AnalyzerState, reason: StateChangeReason): AnalyzerEvent {
@@ -89,7 +91,10 @@ function transition(from: AnalyzerState, to: AnalyzerState, reason: StateChangeR
 
 function fail(state: AnalyzerState, error: AnalyzerError): ReducerResult {
   const to: AnalyzerState = {status: 'stopped', epoch: state.epoch, error};
-  return {state: to, events: [transition(state, to, 'failed')], post: [], refused: null};
+  // The processor is told too: a failure seen on the main thread (no ready, a protocol violation, the watchdog)
+  // would otherwise leave it analysing for an analyzer that reports nothing more. A processor that failed
+  // itself has stopped already, and ignores it.
+  return {state: to, events: [transition(state, to, 'failed')], post: [{type: 'stop', protocol: PROTOCOL_VERSION}], refused: null};
 }
 
 const protocolError = (state: AnalyzerState, message: string) => fail(state, freeze({name: 'ProtocolError', message}));
@@ -105,7 +110,7 @@ function assertNever(value: never): never {
 export function reduce(state: AnalyzerState, input: ReducerInput): ReducerResult {
   if (state.status === 'stopped') {
     return input.kind === 'reset'
-      ? {...unchanged(state), refused: {name: 'InvalidStateError', message: 'reset() after stop()'}}
+      ? {...unchanged(state), refused: resetAfterStop}
       : unchanged(state);
   }
 
@@ -316,8 +321,10 @@ export function createDispatcher(
 
   const apply = (input: ReducerInput): Refusal | null => {
     if (dispatching) {
-      if (input.kind === 'reset' && state.status === 'stopped') {
-        return reduce(state, input).refused;
+      // A stop or a fault queued ahead ends the dispatch stopped: the reset after it must throw now, as it
+      // would once stopped, rather than be refused in the loop where nobody reads the refusal
+      if (input.kind === 'reset' && (state.status === 'stopped' || queue.some(({kind}) => kind === 'stop' || kind === 'fault'))) {
+        return resetAfterStop;
       }
 
       if (queue.length >= MAX_QUEUED_COMMANDS) {

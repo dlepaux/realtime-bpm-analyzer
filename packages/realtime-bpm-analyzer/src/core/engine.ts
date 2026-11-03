@@ -36,8 +36,8 @@ export type Engine = {
   /** Discards the history */
   readonly restart: () => void;
   /**
-   * The tracker went back to listening while the history stays (`pulse-lost`, or `audio-lost` with no start-over):
-   * the engine must offer a lock again, even where its own rule would only offer the next one higher up
+   * The tracker gave up a reading while the history stays (`pulse-lost`, or `unlocked` on a tempo change): the
+   * engine must offer a lock again, even where its own rule would only offer the next one higher up
    */
   readonly onReadingLost: () => void;
 };

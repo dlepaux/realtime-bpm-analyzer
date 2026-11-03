@@ -12,9 +12,10 @@ export type TrackerInput = {
   readonly pulse: boolean;
   /** Whether the engine's own lock rule holds in this step */
   readonly lockOffered: boolean;
-  /** Whether live input is being lost now (`liveInput` only) */
-  readonly audioLost: boolean;
-  /** Asked only when about to lock: false withholds the lock (the `liveInput` clock) */
+  /**
+   * Asked only when about to lock. False withholds it: the `liveInput` clock refuses a lock heard while input is
+   * lost, and arms its start-over, whose move to listening (reason `audio-lost`) is the transition callers see.
+   */
   readonly acceptLock: () => boolean;
 };
 
@@ -45,16 +46,17 @@ export type Tracker = {
  */
 export function createTracker(hysteresis: Hysteresis): Tracker {
   let status: ActiveStatus = 'listening';
-  let listeningReason: ListeningReason = 'started';
   // The tempo the lock was taken at, moved each time the engine confirms a lock
   let anchor = 0;
   let outsideSince: number | null = null;
   let lastPulseAt = 0;
+  // A lock the engine offered on the step that left listening: peaks offers once per rung, so it would be lost
+  let pendingOffer = false;
 
   const enterListening = (reason: Exclude<ListeningReason, 'started' | 'reset'>): TrackerOutput => {
     status = 'listening';
-    listeningReason = reason;
     outsideSince = null;
+    pendingOffer = false;
     return {status, reason};
   };
 
@@ -81,14 +83,6 @@ export function createTracker(hysteresis: Hysteresis): Tracker {
   }
 
   function step(input: TrackerInput): TrackerOutput {
-    if (input.audioLost) {
-      if (status !== 'listening' || listeningReason !== 'audio-lost') {
-        return enterListening('audio-lost');
-      }
-
-      return hold();
-    }
-
     if (input.pulse) {
       lastPulseAt = input.now;
     }
@@ -99,6 +93,7 @@ export function createTracker(hysteresis: Hysteresis): Tracker {
       }
 
       status = 'settling';
+      pendingOffer = input.lockOffered;
       return {status, reason: 'first-reading'};
     }
 
@@ -114,13 +109,16 @@ export function createTracker(hysteresis: Hysteresis): Tracker {
       return stepLocked(input.bpm, input);
     }
 
-    if (!input.lockOffered) {
+    const offered = input.lockOffered || pendingOffer;
+    pendingOffer = false;
+    if (!offered) {
       return hold();
     }
 
-    // A lock the live input's clock refuses was heard while audio was lost: say so rather than drop it silently
+    // Refused while input is lost: readings go on, and the clock's start-over reports the loss once it ends.
+    // Moving to listening here would flap, as the tempogram offers a lock on every step.
     if (!input.acceptLock()) {
-      return enterListening('audio-lost');
+      return hold();
     }
 
     status = 'locked';
@@ -133,14 +131,15 @@ export function createTracker(hysteresis: Hysteresis): Tracker {
     step,
     restart(reason) {
       lastPulseAt = 0;
+      pendingOffer = false;
       return status === 'listening' ? hold() : enterListening(reason);
     },
     reset() {
       status = 'listening';
-      listeningReason = 'reset';
       anchor = 0;
       outsideSince = null;
       lastPulseAt = 0;
+      pendingOffer = false;
     },
     status: () => status,
   };

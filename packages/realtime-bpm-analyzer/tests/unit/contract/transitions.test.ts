@@ -209,6 +209,7 @@ describe('v6 reducer: caller commands and faults', () => {
 
       expect(result.state).to.deep.equal({status: 'stopped', epoch: 0, error});
       expect(result.events[0].type === 'statechange' && result.events[0].detail.reason).to.equal('failed');
+      expect(result.post).to.deep.equal([{type: 'stop', protocol}]);
     });
   }
 
@@ -413,6 +414,22 @@ describe('v6 dispatch: order, late subscribers and re-entrancy', () => {
     expect(seen).to.deep.equal(['statechange', 'progress', 'statechange']);
     expect(analyzer.state().status).to.equal('stopped');
     expect(refusal).to.deep.include({name: 'InvalidStateError'});
+  });
+
+  it('refuses at once a reset() a listener queues behind its own stop()', () => {
+    const analyzer = harness();
+    let refusal: unknown = 'not called';
+    analyzer.listen(event => {
+      if (event.type === 'statechange' && event.detail.reason === 'first-reading') {
+        analyzer.apply({kind: 'stop'});
+        refusal = analyzer.apply({kind: 'reset'});
+      }
+    });
+    analyzer.apply(step('settling', 'first-reading'));
+
+    expect(refusal).to.deep.include({name: 'InvalidStateError'});
+    expect(analyzer.state().status).to.equal('stopped');
+    expect(analyzer.posted).to.deep.equal([{type: 'stop', protocol}]);
   });
 
   it('throws instead of looping when a listener resets on every statechange', () => {

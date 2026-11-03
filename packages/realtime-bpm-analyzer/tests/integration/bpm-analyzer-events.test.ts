@@ -148,11 +148,15 @@ describe('BpmAnalyzer - events and commands', function () {
     it('fails with a ProtocolError on a move the table forbids, and stops', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       const errors = record(analyzer, 'error');
+      const changes = record(analyzer, 'statechange');
 
       send(analyzer, {type: 'step', epoch: 0, status: 'locked', reason: 'locked', reading: reading(128, 2)});
 
-      expect(analyzer.state).to.deep.include({status: 'stopped'});
-      expect(errors.map(({name}) => name)).to.deep.equal(['ProtocolError']);
+      // Fatal faults live in the state, not in error events, which are for non-fatal ones
+      const {state} = analyzer;
+      expect(state.status === 'stopped' && state.error?.name).to.equal('ProtocolError');
+      expect(changes.map(({reason}) => reason)).to.deep.equal(['failed']);
+      expect(errors).to.deep.equal([]);
     });
 
     it('fails on a message from another protocol, as a stale processor file would send', async () => {
@@ -210,13 +214,28 @@ describe('BpmAnalyzer - events and commands', function () {
       expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
     });
 
-    it('fails on a flood of stale messages, as a processor that never adopted the epoch would send', async () => {
+    it('drops a backlog of stale messages, however long, as a blocked main thread receives it after reset()', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       analyzer.reset();
 
-      for (let i = 0; i < 17; i += 1) {
+      for (let i = 0; i < 100; i += 1) {
         send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.1});
       }
+
+      expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
+    });
+
+    it('fails on stale messages still coming a second after reset(), as a processor deaf to it sends', async function () {
+      this.timeout(5000);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      analyzer.reset();
+      const resetAt = audioContext.currentTime;
+      await new Promise<void>(resolve => {
+        const wait = () => (audioContext.currentTime - resetAt > 1.1 ? resolve() : setTimeout(wait, 50));
+        wait();
+      });
+
+      send(analyzer, {type: 'step', epoch: 0, status: 'listening', progress: 0.1});
 
       expect(analyzer.state.status).to.equal('stopped');
       expect(analyzer.state.status === 'stopped' && analyzer.state.error?.name).to.equal('ProtocolError');

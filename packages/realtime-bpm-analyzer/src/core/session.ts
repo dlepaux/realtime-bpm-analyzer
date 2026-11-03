@@ -7,7 +7,6 @@ import type {TrackerOutput} from './tracker';
 
 /** The part of the `liveInput` clock a session reads */
 export type LockClock = {
-  readonly isLosing: () => boolean;
   readonly offerLock: () => boolean;
   readonly forget: () => void;
 };
@@ -90,24 +89,16 @@ export function createSession(options: SessionOptions, clock: () => LockClock | 
     }
 
     const lossClock = clock();
-    const audioLost = lossClock?.isLosing() ?? false;
-    if (audioLost && step.lockOffered) {
-      // Refused, as 5.x refused it: the clock then starts the engine over once the loss ends, since what backed
-      // this lock was heard while input was lost
-      lossClock?.offerLock();
-    }
-
     const top = step.candidates[0];
     const moved = tracker.step({
       now: seconds,
       bpm: top?.tempo ?? null,
       pulse: step.pulse,
       lockOffered: step.lockOffered,
-      audioLost,
       acceptLock: () => lossClock?.offerLock() ?? true,
     });
 
-    if (moved.reason === 'pulse-lost' || moved.reason === 'audio-lost') {
+    if (moved.reason === 'pulse-lost' || moved.reason === 'unlocked') {
       engine.onReadingLost();
     }
 

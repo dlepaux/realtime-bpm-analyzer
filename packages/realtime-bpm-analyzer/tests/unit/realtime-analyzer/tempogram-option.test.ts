@@ -133,7 +133,8 @@ describe('engine option', () => {
 
     expect(moves).to.deep.equal(['settling/first-reading', 'locked/locked']);
     expect(readingsOf(messages).length).to.be.greaterThan(10);
-    expect(progress[0]).to.equal(0);
+    // The main thread starts at 0; the first step reports what one buffer added
+    expect(progress[0]).to.be.lessThan(0.1);
     expect(progress.every(fraction => fraction >= 0 && fraction <= 1)).to.equal(true);
   });
 

@@ -272,22 +272,15 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
         expect(steps.filter(step => step.reason === 'audio-lost')).to.have.length(1);
       });
 
-      it('relocks a lock audio-lost took away when nothing is started over', async function () {
-        this.timeout(60_000);
-        const heard = await listen({detector, bpm: 150, seconds: 40, share: lossBetween(16, 26, 0.9)});
-        const reasons = heard.messages.flatMap(message => (message.type === 'step' && message.reason ? [message.reason] : []));
-
-        expect(reasons).to.include('audio-lost');
-        expect(reasons.at(-1)).to.equal('locked');
-        expect(heard.stable.at(-1)!.at).to.be.greaterThan(26);
-      });
-
       it('leaves a lock from before the loss alone: nothing to start over for', async function () {
         this.timeout(60_000);
         const heard = await listen({detector, bpm: 150, seconds: 40, share: lossBetween(16, 26, 0.9)});
 
+        const reasons = heard.messages.flatMap(message => (message.type === 'step' && message.reason ? [message.reason] : []));
+
         expect(heard.stable[0].at).to.be.lessThan(16);
         expect(heard.resets).to.deep.equal([]);
+        expect(reasons).to.not.include('audio-lost');
       });
 
       it('starts nothing over for a small drop before the first lock: it reads right', async function () {

@@ -55,8 +55,9 @@ Two smaller choices sit alongside these:
 
 Hysteresis belongs to the engine. Locking and unlocking use different bands and dwell times (`Hysteresis`),
 so the state can't flap, and `pulseLostAfterSeconds` keeps a short break from bouncing settling and
-listening. The reducer enforces only the table, and the worklet's tracker (`core/tracker.ts`) applies the
-values. They map today's behaviour and are marked for tuning on the benchmark (see `HYSTERESIS`).
+listening. The reducer enforces only the table. The worklet's tracker (`core/tracker.ts`) applies the unlock
+and pulse values. The lock follows each engine's own rule: the tempogram's stable rule reads `lockBand` and
+`lockAfterSeconds`, and peaks locks on a fuller peak rung after its 10 s warm-up, with no band of its own. They map today's behaviour and are marked for tuning on the benchmark (see `HYSTERESIS`).
 
 ## Transition table
 

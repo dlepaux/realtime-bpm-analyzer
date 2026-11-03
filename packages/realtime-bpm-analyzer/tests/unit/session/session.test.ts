@@ -76,11 +76,10 @@ describe('session - what the worklet sends', () => {
     expect(session.restartForLostAudio()).to.deep.equal([{type: 'step', protocol: PROTOCOL_VERSION, epoch: 0, status: 'listening', progress: 0, reason: 'audio-lost'}]);
   });
 
-  it('reports audio-lost while the live input clock is losing, and arms its start-over on a lock heard then', async () => {
+  it('reads on while the live input clock is losing, and withholds the lock, which arms its start-over', async () => {
     let losing = false;
     let offered = 0;
     const clock: LockClock = {
-      isLosing: () => losing,
       offerLock: () => {
         offered += 1;
         return !losing;
@@ -92,13 +91,23 @@ describe('session - what the worklet sends', () => {
     const firstHalf = await feedSession(session, pcm.subarray(0, sampleRate * 9), sampleRate);
     losing = true;
     const lost = await feedSession(session, pcm.subarray(sampleRate * 9, sampleRate * 15), sampleRate);
-    const lostSteps = stepsOf(lost);
 
     expect(stepsOf(firstHalf).some(step => step.status === 'settling')).to.equal(true);
-    expect(lostSteps[0]).to.deep.include({status: 'listening', reason: 'audio-lost'});
-    expect(lostSteps.slice(1).every(step => step.status === 'listening' && step.reason === undefined)).to.equal(true);
-    // The warm-up ended during the loss: the engine offered a lock, which the clock refused
+    // The warm-up ended during the loss: the engine offered a lock, the clock refused it, and readings went on
     expect(offered).to.be.greaterThan(0);
+    expect(stepsOf(lost).every(step => step.status === 'settling' && step.reason === undefined)).to.equal(true);
     reduceAll([...firstHalf, ...lost]);
+  });
+
+  it('relocks peaks after a lost pulse, on the rung it locked on before', async () => {
+    const session = createSession({engine: {name: 'peaks'}, tempoRange: range, debug: false});
+    const clicks = createClickTrack(120, sampleRate, 14);
+    const pcm = new Float32Array(clicks.length * 2 + sampleRate * 4);
+    pcm.set(clicks, 0);
+    pcm.set(clicks, clicks.length + sampleRate * 4);
+    const moves = stepsOf(await feedSession(session, pcm, sampleRate)).flatMap(step => (step.reason ? [step.reason] : []));
+
+    expect(moves).to.include('pulse-lost');
+    expect(moves.slice(moves.indexOf('pulse-lost'))).to.include('locked');
   });
 });

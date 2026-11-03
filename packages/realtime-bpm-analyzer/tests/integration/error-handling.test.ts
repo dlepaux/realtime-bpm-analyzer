@@ -266,8 +266,10 @@ describe('Error Handling & Edge Cases', function () {
 
       processor.node.onprocessorerror?.(new ErrorEvent('processorerror'));
 
-      expect(errors).to.deep.equal(['ProcessorError']);
-      expect(processor.state.status).to.equal('stopped');
+      // Fatal: kept in the state, not sent as an error event
+      const {state} = processor;
+      expect(state.status === 'stopped' && state.error?.name).to.equal('ProcessorError');
+      expect(errors).to.deep.equal([]);
       processor.disconnect();
     });
   });

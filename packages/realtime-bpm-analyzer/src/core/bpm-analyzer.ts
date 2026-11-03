@@ -19,11 +19,12 @@ import {followTrackClock} from './sample-clock';
 export const readyTimeoutMs = 5000;
 
 /**
- * Messages from older epochs tolerated after a `reset()` before the processor is judged deaf to it. About as
- * many as arrive in 1.5 s of listening steps: a healthy processor sends one or two in flight. Counted rather
- * than timed, because a suspended context sends nothing at all, and a timer would fail an analyzer that is fine.
+ * How long, in context time after a `reset()`, messages from older epochs may still arrive before the processor
+ * is judged deaf to it. The port is FIFO, so whatever was sent before the reset lands in one burst however long
+ * the main thread was blocked, at about the context time of the reset: a backlog never trips this, and a count
+ * would. Context time, because a suspended context sends nothing and must not fail an analyzer that is fine.
  */
-export const staleMessagesTolerated = 16;
+export const staleAfterSeconds = 1;
 
 type Listener = (detail: never) => void;
 
@@ -118,7 +119,8 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
   private readonly stopFollowing: () => void;
   private readonly dispatcher: Dispatcher;
   private readonly listeners = new Map<AnalyzerEventType, Map<Listener, EventListener>>();
-  private staleMessages = 0;
+  // The context time of the last reset(), while messages of older epochs are still expected
+  private resetAt: number | null = null;
   private markReady: () => void = () => undefined;
   private markFailed: () => void = () => undefined;
 
@@ -167,8 +169,10 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
    * @throws {DOMException} `InvalidStateError` once stopped
    */
   reset(): void {
-    this.staleMessages = 0;
+    this.resetAt = this.node.context.currentTime;
     const refused = this.dispatcher.apply({kind: 'reset'});
+    // A listener of the reset may have stopped the analyzer
+    this.settle();
     if (refused !== null) {
       throw new DOMException(refused.message, refused.name);
     }
@@ -243,6 +247,7 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
    */
   fault(error: AnalyzerError): void {
     this.dispatcher.apply({kind: 'fault', error: Object.freeze({...error})});
+    this.settle();
     this.settle();
   }
 
@@ -353,8 +358,11 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
 
     const epoch = this.state.epoch;
     const stale = typeof message?.epoch === 'number' && message.epoch < epoch && message.type !== 'fault';
-    this.staleMessages = stale ? this.staleMessages + 1 : message?.epoch === epoch ? 0 : this.staleMessages;
-    if (this.staleMessages > staleMessagesTolerated) {
+    if (message?.epoch === epoch) {
+      this.resetAt = null;
+    }
+
+    if (stale && this.resetAt !== null && this.node.context.currentTime - this.resetAt > staleAfterSeconds) {
       this.fault({name: 'ProtocolError', message: `the processor kept sending epoch ${String(message?.epoch)} after reset() moved to ${epoch}`});
       return;
     }

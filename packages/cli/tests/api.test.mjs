@@ -29,16 +29,16 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
     assert.ok(Math.abs(result.bpm - 64) <= 1, `got ${result.bpm}`);
   });
 
-  it('runs the detector it is asked for, not peaks', async () => {
-    // 5.4.0 ignored an unknown option, so --detector tempogram silently ran peaks. The answer
+  it('runs the engine it is asked for, not peaks', async () => {
+    // 5.4.0 ignored an unknown option, so asking for the tempogram silently ran peaks. The answer
     // must be the library's tempogram on the same samples, and must differ from its peaks.
     const path = fixture('click-128.mp3');
     const decode = async () => decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
-    for (const detector of ['tempogram', 'peaks']) {
+    for (const engine of ['tempogram', 'peaks']) {
       const {channelData, sampleRate} = await decode();
-      const result = await analyzeFile(path, {detector});
-      const reading = await analyzeChannelData(channelData, sampleRate, {engine: detector});
-      assert.deepEqual({bpm: result.bpm, confidence: result.confidence, candidates: result.candidates}, {bpm: reading.bpm, confidence: reading.confidence, candidates: reading.candidates}, detector);
+      const result = await analyzeFile(path, {engine});
+      const reading = await analyzeChannelData(channelData, sampleRate, {engine});
+      assert.deepEqual({bpm: result.bpm, confidence: result.confidence, candidates: result.candidates}, {bpm: reading.bpm, confidence: reading.confidence, candidates: reading.candidates}, engine);
     }
 
     const {channelData, sampleRate} = await decode();
@@ -61,7 +61,7 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
     const [haveMajor, ...haveRest] = have.map(Number);
     const atLeast = haveRest[0] > rest[0] || (haveRest[0] === rest[0] && haveRest[1] >= rest[1]);
     assert.ok(major > 0 && haveMajor === major && atLeast, `range ${range} does not accept the workspace library ${version}`);
-    // The engine option is read, not ignored: 5.4.0 accepted any detector name
+    // The engine option is read, not ignored: 5.4.0 accepted any engine name
     await assert.rejects(analyzeChannelData(new Float32Array(1), 44_100, {engine: 'magic'}), /engine/);
   });
 

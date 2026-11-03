@@ -63,7 +63,7 @@ const maxBytesWithoutAudio = 32 * 1024 * 1024;
 
 // Lowest sample rate analysed. The cost of a sample grows as the rate falls: a frame of the
 // tempogram is a hundredth of a second however few samples it holds, and below 2 Hz the peaks
-// detector never moves past a peak. A generated 100 MB WAV at 100 Hz took 392 s (RBA-64).
+// engine never moves past a peak. A generated 100 MB WAV at 100 Hz took 392 s (RBA-64).
 // 8 kHz, the telephone rate, is the lowest any real recording uses, and its worst case at the
 // size limits stays within twice that of 44.1 kHz audio.
 export const minSampleRate = 8000;

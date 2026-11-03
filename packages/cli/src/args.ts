@@ -10,7 +10,7 @@ export type CliOptions = {
   readonly json: boolean;
   readonly recursive: boolean;
   readonly tempoRange: TempoRange | undefined;
-  readonly detector: EngineName;
+  readonly engine: EngineName;
 };
 
 export type ParsedArgs =
@@ -29,7 +29,7 @@ Options:
   -r, --recursive    Walk sub-folders of a folder (up to 32 levels)
   --min-bpm <bpm>    Lowest tempo reported (default 90)
   --max-bpm <bpm>    Highest tempo reported (default 180, at least 2 x min)
-  --detector <name>  peaks (default) or tempogram, which searches the range
+  --engine <name>    peaks (default) or tempogram, which searches the range
                      instead of folding into it: from about 2 x min a tempo
                      can read half, as over about 179 does by default
   -h, --help         Show this help
@@ -57,7 +57,7 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
         recursive: {type: 'boolean', short: 'r', default: false},
         'min-bpm': {type: 'string'},
         'max-bpm': {type: 'string'},
-        detector: {type: 'string', default: 'peaks'},
+        engine: {type: 'string', default: 'peaks'},
         help: {type: 'boolean', short: 'h', default: false},
         version: {type: 'boolean', short: 'v', default: false},
       },
@@ -79,9 +79,9 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
     return {kind: 'usage-error', message: 'Missing a file or folder to analyse.'};
   }
 
-  const {detector} = values;
-  if (detector !== 'peaks' && detector !== 'tempogram') {
-    return {kind: 'usage-error', message: `Invalid detector: ${detector}. Use peaks or tempogram.`};
+  const {engine} = values;
+  if (engine !== 'peaks' && engine !== 'tempogram') {
+    return {kind: 'usage-error', message: `Invalid engine: ${engine}. Use peaks or tempogram.`};
   }
 
   const range = await parseTempoRange(values['min-bpm'], values['max-bpm']);
@@ -91,7 +91,7 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
 
   return {
     kind: 'run',
-    options: {paths: positionals, json: values.json, recursive: values.recursive, tempoRange: range, detector},
+    options: {paths: positionals, json: values.json, recursive: values.recursive, tempoRange: range, engine},
   };
 }
 

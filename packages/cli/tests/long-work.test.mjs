@@ -40,7 +40,7 @@ describe('bounds on the work one file costs', () => {
   describe('sample rate', () => {
     for (const rate of [1, 100, 7999]) {
       it(`refuses ${rate} Hz before decoding the file`, lowRateTimeout, async () => {
-        // 1 Hz never ended before (the peaks detector stalled), 100 Hz cost a minute per 10 MB
+        // 1 Hz never ended before (the peaks engine stalled), 100 Hz cost a minute per 10 MB
         const path = join(root, `rate-${rate}.wav`);
         await writeFile(path, clickWav(rate, 10_000_000));
         const started = performance.now();
@@ -64,7 +64,7 @@ describe('bounds on the work one file costs', () => {
     // Aborted well after a decode ends, so the abort lands in the analysis, which takes ten times longer
     const abortAfterMs = Math.round((2 * decodeMs) + 300);
     const started = performance.now();
-    const result = await analyzeFile(long, {detector: 'tempogram', signal: AbortSignal.timeout(abortAfterMs)});
+    const result = await analyzeFile(long, {engine: 'tempogram', signal: AbortSignal.timeout(abortAfterMs)});
     const elapsed = performance.now() - started;
     assert.deepEqual(result, {file: long, ok: false, error: 'Cancelled.'});
     assert.ok(elapsed < abortAfterMs + 500, `took ${Math.round(elapsed)} ms to stop, aborted at ${Math.round(abortAfterMs)} ms`);
@@ -73,7 +73,7 @@ describe('bounds on the work one file costs', () => {
   it('gives up after timeoutMs with a plain error', async () => {
     const timeoutMs = Math.round((2 * decodeMs) + 300);
     const started = performance.now();
-    const result = await analyzeFile(long, {detector: 'tempogram', timeoutMs});
+    const result = await analyzeFile(long, {engine: 'tempogram', timeoutMs});
     const elapsed = performance.now() - started;
     assert.equal(result.ok, false);
     assert.match(result.error, /^Took longer than the [\d.]+ (?:seconds?|milliseconds?) limit for one file\.$/);

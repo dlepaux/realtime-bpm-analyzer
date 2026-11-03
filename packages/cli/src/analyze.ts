@@ -10,7 +10,7 @@ import type {DecodedAudio} from './decode';
 
 export type AnalysisRequest = DecodedAudio & {
   readonly tempoRange: TempoRange | undefined;
-  readonly detector: EngineName | undefined;
+  readonly engine: EngineName | undefined;
 };
 
 export type AnalysisReply = {readonly ok: true; readonly reading: OfflineResult} | {readonly ok: false; readonly error: string};
@@ -31,7 +31,7 @@ const workerCode = `import(${JSON.stringify(workerUrl.href)}).catch(error => { p
 /**
  * Runs the library's analysis on a worker thread. The samples are moved to the worker, not
  * copied, so the decoded audio is unusable here afterwards.
- * @param request Decoded audio, tempo range and detector
+ * @param request Decoded audio, tempo range and engine
  * @param signal Ends the analysis: the worker is terminated and the promise rejects, with the reason as cause
  * @returns The reading, or null when no beat was found
  * @throws {Error} The library's error, or the abort

@@ -11,10 +11,7 @@ import {errorMessage} from './errors';
 // and analysis path. Its declarations are emitted from this file alone and must stay free
 // of relative imports in type positions: only the library's types may appear in signatures.
 
-export type {Candidate, CandidateRelation, TempoRange} from 'realtime-bpm-analyzer/node';
-
-/** The library's engine, under the name this package's `--detector` option and `detector` argument give it */
-export type Detector = EngineName;
+export type {Candidate, CandidateRelation, EngineName, TempoRange} from 'realtime-bpm-analyzer/node';
 
 export type FileResult =
   | {
@@ -32,8 +29,8 @@ export type FileResult =
 export type AnalyzeOptions = {
   /** Tempo range to fold candidates into, or to search with the tempogram; the library's default when omitted */
   readonly tempoRange?: TempoRange;
-  /** Tempo detector; the library's default (`peaks`) when omitted */
-  readonly detector?: Detector;
+  /** Tempo engine; the library's default (`peaks`) when omitted */
+  readonly engine?: EngineName;
   /** ffmpeg binary for formats without a bundled decoder (default `ffmpeg` on PATH) */
   readonly ffmpegPath?: string;
   /** Stops the decode or the analysis in progress; the result is then `Cancelled.` */
@@ -61,7 +58,7 @@ export const audioExtensions: ReadonlySet<string> = new Set([
   '.mp3', '.wav', '.wave', '.flac', '.ogg', '.oga', '.opus', '.m4a', '.aac', '.aif', '.aiff', '.wma',
 ]);
 
-// The library's default tempoRange, the same for both detectors, to fill a missing bound. /node does
+// The library's default tempoRange, the same for both engines, to fill a missing bound. /node does
 // not export it, so tests/cli.test.mjs pins these values to the library's behaviour.
 const defaultTempoRange: TempoRange = {min: 90, max: 180};
 
@@ -79,7 +76,7 @@ function successResult(file: string, reading: OfflineResult): FileResult {
  * Decodes and analyses one file. Never throws: a file that cannot be read or decoded
  * comes back as `ok: false` with a one-line message, so a batch keeps going.
  * @param path File to analyse, reported as given
- * @param options Tempo range, detector, ffmpeg binary, abort signal, time limit and decoded size limit
+ * @param options Tempo range, engine, ffmpeg binary, abort signal, time limit and decoded size limit
  * @returns The result
  */
 export async function analyzeFile(path: string, options: AnalyzeOptions = {}): Promise<FileResult> {
@@ -97,7 +94,7 @@ export async function analyzeFile(path: string, options: AnalyzeOptions = {}): P
       maxDecodedBytes: options.maxDecodedBytes ?? defaultMaxDecodedBytes,
       signal,
     });
-    return successResult(path, await analyzeOnWorker({...decoded, tempoRange: options.tempoRange, detector: options.detector}, signal));
+    return successResult(path, await analyzeOnWorker({...decoded, tempoRange: options.tempoRange, engine: options.engine}, signal));
   } catch (error: unknown) {
     // Whatever the decoder or the worker threw on abort, the signal that fired first says why
     if (signal?.aborted === true) {

@@ -3,7 +3,7 @@
 import {McpServer} from '@modelcontextprotocol/server';
 import type {CallToolResult} from '@modelcontextprotocol/server';
 import {analyzeFile, decodedLimit, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
-import type {Detector, FileResult, TempoRange} from 'realtime-bpm-analyzer-cli';
+import type {EngineName, FileResult, TempoRange} from 'realtime-bpm-analyzer-cli';
 import * as z from 'zod/v4';
 import {absolutePath, checkFile, firstLine, limits, listFolder} from './paths';
 import {createQueue} from './queue';
@@ -14,11 +14,11 @@ import {createQueue} from './queue';
 
 const tempoArguments = {
   min_bpm: z.number().positive().max(1000).optional()
-    .describe('Lowest tempo to report, in BPM (default 90). The peaks detector folds tempos by octaves into min_bpm..max_bpm, the tempogram searches that range.'),
+    .describe('Lowest tempo to report, in BPM (default 90). The peaks engine folds tempos by octaves into min_bpm..max_bpm, the tempogram searches that range.'),
   max_bpm: z.number().positive().max(2000).optional()
     .describe('Highest tempo to report, in BPM (default 180). Must be at least twice min_bpm.'),
-  detector: z.enum(['peaks', 'tempogram']).optional()
-    .describe('Tempo detector (default peaks). The tempogram searches min_bpm..max_bpm instead of folding into it, so from about twice min_bpm a tempo can read half, as over about 179 BPM does by default.'),
+  engine: z.enum(['peaks', 'tempogram']).optional()
+    .describe('Tempo engine (default peaks). The tempogram searches min_bpm..max_bpm instead of folding into it, so from about twice min_bpm a tempo can read half, as over about 179 BPM does by default.'),
 };
 
 const path = z.string().min(1).max(4096);
@@ -32,7 +32,7 @@ const candidate = z.object({
 const analysis = {
   file: z.string().describe('Absolute path of the file'),
   bpm: z.number().nullable().describe('Best tempo, or null when no clear beat was found'),
-  confidence: z.number().nullable().describe('From 0 to 1, how strongly the detector holds the best tempo. Uncalibrated: compare it between files of one detector, not as a probability'),
+  confidence: z.number().nullable().describe('From 0 to 1, how strongly the engine holds the best tempo. Uncalibrated: compare it between files of one engine, not as a probability'),
   candidates: z.array(candidate).describe('Tempo candidates, best first'),
 };
 
@@ -74,12 +74,12 @@ const ffmpegPath = () => process.env.FFMPEG_PATH || 'ffmpeg';
 
 /**
  * @param tempoRange Validated range, or undefined for the default
- * @param detector Detector argument
+ * @param engine Engine argument
  * @param signal The request's signal, aborted when the client cancels
  * @returns analyzeFile's options, with the per-file time limit
  */
-const analyzeOptions = (tempoRange: TempoRange | undefined, detector: Detector | undefined, signal: AbortSignal) => ({
-  tempoRange, detector, signal, ffmpegPath: ffmpegPath(), timeoutMs: limits.maxFileSeconds * 1000,
+const analyzeOptions = (tempoRange: TempoRange | undefined, engine: EngineName | undefined, signal: AbortSignal) => ({
+  tempoRange, engine, signal, ffmpegPath: ffmpegPath(), timeoutMs: limits.maxFileSeconds * 1000,
 });
 
 /**
@@ -103,7 +103,7 @@ export function createServer(version: string): McpServer {
     }),
     outputSchema: z.object(analysis),
     annotations: {readOnlyHint: true, idempotentHint: true, openWorldHint: false},
-  }, async ({path: raw, min_bpm: min, max_bpm: max, detector}, ctx) => {
+  }, async ({path: raw, min_bpm: min, max_bpm: max, engine}, ctx) => {
     const range = await tempoRange(min, max);
     if (range !== undefined && 'error' in range) {
       return toolError(range.error);
@@ -114,7 +114,7 @@ export function createServer(version: string): McpServer {
       return toolError(checked.error);
     }
 
-    const result = await analyzeQueued(checked.path, analyzeOptions(range, detector, ctx.mcpReq.signal));
+    const result = await analyzeQueued(checked.path, analyzeOptions(range, engine, ctx.mcpReq.signal));
     if (result === undefined) {
       return toolError('Cancelled.');
     }
@@ -156,7 +156,7 @@ export function createServer(version: string): McpServer {
       scan_truncated: z.boolean().describe(`Whether the walk stopped after ${limits.maxFolderEntries} folder entries, so total leaves files out`),
     }),
     annotations: {readOnlyHint: true, idempotentHint: true, openWorldHint: false},
-  }, async ({directory: raw, recursive = false, offset = 0, min_bpm: min, max_bpm: max, detector}, ctx) => {
+  }, async ({directory: raw, recursive = false, offset = 0, min_bpm: min, max_bpm: max, engine}, ctx) => {
     const range = await tempoRange(min, max);
     if (range !== undefined && 'error' in range) {
       return toolError(range.error);
@@ -185,7 +185,7 @@ export function createServer(version: string): McpServer {
       if (entry.kind === 'error') {
         results.push({file: entry.path, ok: false, error: entry.error});
       } else {
-        const result = await analyzeQueued(entry.path, analyzeOptions(range, detector, signal));
+        const result = await analyzeQueued(entry.path, analyzeOptions(range, engine, signal));
         if (result === undefined) {
           return toolError('Cancelled.');
         }

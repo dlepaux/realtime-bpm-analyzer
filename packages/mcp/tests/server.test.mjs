@@ -131,8 +131,8 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     const output = result.structuredContent;
     assert.equal(output.file, fixture('click-128.mp3'));
     near(output.bpm, 128);
-    assert.equal(output.confidence, output.candidates[0].confidence);
-    assert.deepEqual(Object.keys(output.candidates[0]).sort(), ['confidence', 'count', 'tempo']);
+    assert.ok(output.confidence > 0 && output.confidence <= 1, `got ${output.confidence}`);
+    assert.deepEqual(output.candidates[0], {bpm: output.bpm, relation: 'top'});
     assert.deepEqual(JSON.parse(text(result)), output);
   });
 
@@ -156,9 +156,10 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     near(tempogram.bpm, 128);
     // Both read 128: only the candidates show which detector ran. On 5.4.0 the library ignored
     // the option and ran peaks, so check them against its tempogram on the same samples.
-    assert.notDeepEqual(tempogram.candidates, peaks.candidates);
+    assert.notDeepEqual({confidence: tempogram.confidence, candidates: tempogram.candidates}, {confidence: peaks.confidence, candidates: peaks.candidates});
     const {channelData, sampleRate} = await decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
-    assert.deepEqual(tempogram.candidates, await analyzeChannelData(channelData, sampleRate, {detector: 'tempogram'}));
+    const reading = await analyzeChannelData(channelData, sampleRate, {engine: 'tempogram'});
+    assert.deepEqual({confidence: tempogram.confidence, candidates: tempogram.candidates}, {confidence: reading.confidence, candidates: reading.candidates});
 
     const directory = dirname(path);
     const folder = await call('analyze_folder', {directory, detector: 'tempogram'});

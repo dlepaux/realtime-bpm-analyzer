@@ -111,7 +111,7 @@ describe('realtime-bpm-analyzer CLI', () => {
     const {results: [tempogram]} = await runJson(['--detector', 'tempogram', fixture('click-140.ogg')]);
 
     assert.ok(Math.abs(tempogram.bpm - 140) <= 2, `got ${tempogram.bpm}`);
-    assert.notDeepEqual(tempogram.candidates, peaks.candidates);
+    assert.notDeepEqual({confidence: tempogram.confidence, candidates: tempogram.candidates}, {confidence: peaks.confidence, candidates: peaks.candidates});
     // A lone --min-bpm is measured against 180: the first pick's 240 would let this through
     assert.match((await run(['--detector', 'tempogram', '--min-bpm', '91', bassTest])).stderr, /max \(180\) must be at least twice min \(91\)/);
   });
@@ -126,14 +126,13 @@ describe('realtime-bpm-analyzer CLI', () => {
   it('prints the BPM, confidence and candidates as text by default', async () => {
     const {code, stdout} = await run([clickMp3]);
     assert.equal(code, 0);
-    assert.match(stdout, /click-128\.mp3: 128 BPM \(confidence 0\.\d\d\)\n {2}candidates: 128 \(count \d+, confidence 0\.\d\d\), /);
+    assert.match(stdout, /click-128\.mp3: 128 BPM \(confidence 0\.\d\d\)\n {2}candidates: 128(, |$)/m);
   });
 
   it('finds the bass-test fixture tempo the browser finds', async () => {
     const {code, results: [result]} = await runJson([bassTest]);
     assert.equal(code, 0);
     assert.equal(result.bpm, bassTestExpected.tempo);
-    assert.equal(result.candidates[0].count, bassTestExpected.count);
   });
 
   for (const [name, bpm] of [['bass-test.wav', bassTestExpected.tempo], ['click-128.mp3', 128], ['click-100.flac', 100], ['click-140.ogg', 140], ['click-140.opus', 140]]) {
@@ -150,15 +149,14 @@ describe('realtime-bpm-analyzer CLI', () => {
     assert.deepEqual(Object.keys(result), ['file', 'ok', 'bpm', 'confidence', 'candidates']);
     assert.equal(result.file, clickFlac);
     assert.equal(result.ok, true);
-    assert.equal(result.confidence, result.candidates[0].confidence);
+    assert.ok(result.confidence > 0 && result.confidence <= 1, `got ${result.confidence}`);
     assert.ok(result.candidates.length > 0 && result.candidates.length <= 5);
+    assert.deepEqual(result.candidates[0], {bpm: result.bpm, relation: 'top'});
 
     for (const candidate of result.candidates) {
-      assert.deepEqual(Object.keys(candidate), ['tempo', 'count', 'confidence']);
+      assert.deepEqual(Object.keys(candidate), ['bpm', 'relation']);
+      assert.ok(['top', 'half', 'double', 'other'].includes(candidate.relation), candidate.relation);
     }
-
-    const counts = result.candidates.map(candidate => candidate.count);
-    assert.deepEqual(counts, [...counts].sort((a, b) => b - a));
   });
 
   it('folds tempos into --min-bpm/--max-bpm', async () => {

@@ -24,15 +24,15 @@ const tempoArguments = {
 const path = z.string().min(1).max(4096);
 
 const candidate = z.object({
-  tempo: z.number().describe('Tempo in BPM'),
-  count: z.number().describe('Ranking score: peak intervals that voted for this tempo, or the tempogram\'s salience score'),
-  confidence: z.number().describe('From 0 to 1: the share of all votes that agree with this tempo, or how strongly the audio pulses at it with the tempogram'),
+  bpm: z.number().describe('Tempo in BPM'),
+  relation: z.enum(['top', 'half', 'double', 'other'])
+    .describe('How it relates to the best tempo: top is the best tempo itself, half and double are within 2% of half or twice it'),
 });
 
 const analysis = {
   file: z.string().describe('Absolute path of the file'),
   bpm: z.number().nullable().describe('Best tempo, or null when no clear beat was found'),
-  confidence: z.number().nullable().describe('Confidence of the best tempo, from 0 to 1'),
+  confidence: z.number().nullable().describe('From 0 to 1, how strongly the detector holds the best tempo. Uncalibrated: compare it between files of one detector, not as a probability'),
   candidates: z.array(candidate).describe('Tempo candidates, best first'),
 };
 

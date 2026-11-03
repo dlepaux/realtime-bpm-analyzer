@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import {Worker} from 'node:worker_threads';
-import type {Detector, Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
+import type {EngineName, OfflineResult, TempoRange} from 'realtime-bpm-analyzer/node';
 import type {DecodedAudio} from './decode';
 
 // The library's analyzeChannelData is synchronous inside: on the thread that calls it, nothing
@@ -10,10 +10,10 @@ import type {DecodedAudio} from './decode';
 
 export type AnalysisRequest = DecodedAudio & {
   readonly tempoRange: TempoRange | undefined;
-  readonly detector: Detector | undefined;
+  readonly detector: EngineName | undefined;
 };
 
-export type AnalysisReply = {readonly ok: true; readonly candidates: Tempo[]} | {readonly ok: false; readonly error: string};
+export type AnalysisReply = {readonly ok: true; readonly reading: OfflineResult} | {readonly ok: false; readonly error: string};
 
 // Built next to the bundle that imports this file (dist/cli.mjs, dist/api.mjs)
 const workerUrl = new URL('analyze-worker.mjs', import.meta.url);
@@ -33,10 +33,10 @@ const workerCode = `import(${JSON.stringify(workerUrl.href)}).catch(error => { p
  * copied, so the decoded audio is unusable here afterwards.
  * @param request Decoded audio, tempo range and detector
  * @param signal Ends the analysis: the worker is terminated and the promise rejects, with the reason as cause
- * @returns The candidates, best first
+ * @returns The reading, or null when no beat was found
  * @throws {Error} The library's error, or the abort
  */
-export async function analyzeOnWorker(request: AnalysisRequest, signal: AbortSignal | undefined): Promise<Tempo[]> {
+export async function analyzeOnWorker(request: AnalysisRequest, signal: AbortSignal | undefined): Promise<OfflineResult> {
   signal?.throwIfAborted();
   const worker = new Worker(workerCode, {eval: true, workerData: request, transferList: [request.channelData.buffer]});
   let onAbort = () => {};
@@ -57,7 +57,7 @@ export async function analyzeOnWorker(request: AnalysisRequest, signal: AbortSig
       throw new Error(reply.error);
     }
 
-    return reply.candidates;
+    return reply.reading;
   } finally {
     signal?.removeEventListener('abort', onAbort);
     await worker.terminate();

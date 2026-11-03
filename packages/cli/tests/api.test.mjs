@@ -20,7 +20,8 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
     assert.equal(result.ok, true);
     assert.equal(result.file, fixture('click-128.mp3'));
     assert.ok(Math.abs(result.bpm - 128) <= 1, `got ${result.bpm}`);
-    assert.equal(result.confidence, result.candidates[0].confidence);
+    assert.ok(result.confidence > 0 && result.confidence <= 1, `got ${result.confidence}`);
+    assert.deepEqual(result.candidates[0], {bpm: result.bpm, relation: 'top'});
   });
 
   it('folds candidates into the tempo range it is given', async () => {
@@ -36,13 +37,14 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
     for (const detector of ['tempogram', 'peaks']) {
       const {channelData, sampleRate} = await decode();
       const result = await analyzeFile(path, {detector});
-      assert.deepEqual(result.candidates, await analyzeChannelData(channelData, sampleRate, {detector}), detector);
+      const reading = await analyzeChannelData(channelData, sampleRate, {engine: detector});
+      assert.deepEqual({bpm: result.bpm, confidence: result.confidence, candidates: result.candidates}, {bpm: reading.bpm, confidence: reading.confidence, candidates: reading.candidates}, detector);
     }
 
     const {channelData, sampleRate} = await decode();
     assert.notDeepEqual(
-      await analyzeChannelData(channelData, sampleRate, {detector: 'tempogram'}),
-      await analyzeChannelData(channelData, sampleRate, {detector: 'peaks'}),
+      await analyzeChannelData(channelData, sampleRate, {engine: 'tempogram'}),
+      await analyzeChannelData(channelData, sampleRate, {engine: 'peaks'}),
     );
   });
 
@@ -52,8 +54,8 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
     const range = manifest.dependencies['realtime-bpm-analyzer'];
     const [, major, minor] = /^\^(\d+)\.(\d+)\.\d+$/.exec(range) ?? [];
     assert.ok(Number(major) === 5 && Number(minor) >= 6, `range ${range} admits a library without the detector option`);
-    // The detector option is read, not ignored: 5.4.0 accepted any name
-    await assert.rejects(analyzeChannelData(new Float32Array(1), 44_100, {detector: 'magic'}), /detector/);
+    // The engine option is read, not ignored: 5.4.0 accepted any detector name
+    await assert.rejects(analyzeChannelData(new Float32Array(1), 44_100, {engine: 'magic'}), /engine/);
   });
 
   it('returns a failure instead of throwing', async () => {

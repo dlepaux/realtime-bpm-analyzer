@@ -15,7 +15,7 @@ const {channelData, sampleRate, tempoRange, detector} = workerData as AnalysisRe
  */
 async function analyse(): Promise<AnalysisReply> {
   try {
-    return {ok: true, candidates: await analyzeChannelData(channelData, sampleRate, {tempoRange, detector})};
+    return {ok: true, reading: await analyzeChannelData(channelData, sampleRate, {tempoRange, engine: detector})};
   } catch (error: unknown) {
     return {ok: false, error: errorMessage(error)};
   }

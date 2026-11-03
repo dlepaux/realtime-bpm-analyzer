@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
-import type {Detector, Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
+import type {Candidate, EngineName, OfflineResult, TempoRange} from 'realtime-bpm-analyzer/node';
 import {analyzeOnWorker} from './analyze';
 import {decodeFile, describeDecodedLimit} from './decode';
 import {errorMessage} from './errors';
@@ -11,16 +11,21 @@ import {errorMessage} from './errors';
 // and analysis path. Its declarations are emitted from this file alone and must stay free
 // of relative imports in type positions: only the library's types may appear in signatures.
 
-export type {Detector, Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
+export type {Candidate, CandidateRelation, TempoRange} from 'realtime-bpm-analyzer/node';
+
+/** The library's engine, under the name this package's `--detector` option and `detector` argument give it */
+export type Detector = EngineName;
 
 export type FileResult =
   | {
     readonly file: string;
     readonly ok: true;
-    /** Top candidate's tempo, or null when no beat was found */
+    /** The reading's tempo, or null when no beat was found */
     readonly bpm: number | null;
+    /** The engine's normalised value from 0 to 1, uncalibrated: not a probability */
     readonly confidence: number | null;
-    readonly candidates: readonly Tempo[];
+    /** At most 5, best first, each with its relation to the top one; empty when no beat was found */
+    readonly candidates: readonly Candidate[];
   }
   | {readonly file: string; readonly ok: false; readonly error: string};
 
@@ -63,12 +68,11 @@ const defaultTempoRange: TempoRange = {min: 90, max: 180};
 /**
  * Builds the result of an analysed file.
  * @param file Path as reported
- * @param candidates Candidates from analyzeChannelData, best first
+ * @param reading What analyzeChannelData read, or null
  * @returns The result
  */
-function successResult(file: string, candidates: readonly Tempo[]): FileResult {
-  const [top] = candidates;
-  return {file, ok: true, bpm: top?.tempo ?? null, confidence: top?.confidence ?? null, candidates};
+function successResult(file: string, reading: OfflineResult): FileResult {
+  return {file, ok: true, bpm: reading?.bpm ?? null, confidence: reading?.confidence ?? null, candidates: reading?.candidates ?? []};
 }
 
 /**

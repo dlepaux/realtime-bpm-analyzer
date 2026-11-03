@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import {parseArgs} from 'node:util';
-import type {Detector, TempoRange} from 'realtime-bpm-analyzer/node';
+import type {EngineName, TempoRange} from 'realtime-bpm-analyzer/node';
 import {resolveTempoRange} from './api';
 import {errorMessage} from './errors';
 
@@ -10,7 +10,7 @@ export type CliOptions = {
   readonly json: boolean;
   readonly recursive: boolean;
   readonly tempoRange: TempoRange | undefined;
-  readonly detector: Detector;
+  readonly detector: EngineName;
 };
 
 export type ParsedArgs =

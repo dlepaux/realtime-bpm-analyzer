@@ -15,7 +15,7 @@ export function formatText(result: FileResult): string {
   }
 
   const candidates = result.candidates
-    .map(({tempo, count, confidence}) => `${tempo} (count ${count}, confidence ${confidence.toFixed(2)})`)
+    .map(({bpm, relation}) => (relation === 'top' || relation === 'other' ? `${bpm}` : `${bpm} (${relation})`))
     .join(', ');
   return `${result.file}: ${result.bpm} BPM (confidence ${(result.confidence ?? 0).toFixed(2)})\n  candidates: ${candidates}`;
 }

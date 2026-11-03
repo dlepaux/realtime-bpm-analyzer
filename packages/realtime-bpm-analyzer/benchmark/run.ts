@@ -17,6 +17,8 @@ import {detectTempo} from '../src/core/detect-tempo';
 import {resolveTempoRange} from '../src/core/tempo';
 import {detectTempogram} from '../src/core/tempogram';
 import {loaders} from './lib/datasets';
+import {freeLoaders} from './lib/free-mixes';
+import {isFreeSet} from './lib/free-mixes-rows';
 import {assertTunable, tuningSets} from './lib/licences';
 import {decode, sampleRate, writeAtomic} from './lib/decode';
 import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
@@ -69,6 +71,15 @@ function excludedFromHeldout(benchmarkDir: string, set: string): Set<string> {
 
 function selectTracks(benchmarkDir: string, split: Split, sets: string[]): Track[] {
   return sets.flatMap(set => {
+    // RBA-59's sets have no held-out route here: their look waits for a DECISION on RBA-51
+    if (isFreeSet(set)) {
+      if (split !== 'dev') {
+        throw new Error(`${set} is read on dev only`);
+      }
+
+      return freeLoaders[set]();
+    }
+
     const ids = new Set((JSON.parse(readFileSync(join(benchmarkDir, 'splits', `${set}.json`), 'utf8')) as Record<Split, string[]>)[split]);
     const excluded = split === 'heldout' ? excludedFromHeldout(benchmarkDir, set) : new Set<string>();
 
@@ -78,7 +89,7 @@ function selectTracks(benchmarkDir: string, split: Split, sets: string[]): Track
 
 /** A held-out look is spent once logged, so everything that could abort it is checked first */
 function assertArguments(names: string[], sets: string[], out: string | undefined, limit: string | undefined): void {
-  const unknown = [...names.filter(name => !(name in detectors)), ...sets.filter(set => !(set in loaders))];
+  const unknown = [...names.filter(name => !(name in detectors)), ...sets.filter(set => !(set in loaders) && !isFreeSet(set))];
 
   if (unknown.length > 0) {
     throw new Error(`Unknown detector or set: ${unknown.join(', ')}`);
@@ -178,6 +189,11 @@ async function main(): Promise<void> {
   const sets = (values.sets ?? (split === 'dev' ? [...tuningSets] : Object.keys(loaders)).join(',')).split(',');
 
   assertArguments(names, sets, values.out, values.limit);
+
+  // Before the log line, so naming one of them in a look spends nothing
+  if (split === 'heldout' && sets.some(set => isFreeSet(set))) {
+    throw new Error('RBA-59\'s sets are read on dev only until a DECISION on RBA-51 opens their look');
+  }
 
   if (split !== 'dev' && split !== 'heldout') {
     throw new Error('--split must be dev or heldout');

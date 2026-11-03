@@ -14,6 +14,10 @@ export type Track = {
   readonly licence: string;
   /** A loop shorter than this repeats up to it, in seconds: a player looping it is what a listener hears */
   readonly loopToSeconds?: number;
+  /** Only this many seconds from the start are decoded and scored: see lib/free-mixes.ts */
+  readonly excerptSeconds?: number;
+  /** How the tempo label was reached, where a set grades its labels: RBA-59's `confidence` */
+  readonly label?: string;
 };
 
 export type Split = 'dev' | 'heldout';
@@ -27,6 +31,8 @@ export type TrackResult = {
   readonly genre: string;
   /** The track's group, for error ranges that know such tracks are not independent. Absent before RBA-51's second look */
   readonly group?: string;
+  /** The track's label grade, on sets that have one */
+  readonly label?: string;
   readonly truth: number;
   readonly duration: number;
   /** Top candidate of the last `bpm` event, null when the detector never gave a reading */

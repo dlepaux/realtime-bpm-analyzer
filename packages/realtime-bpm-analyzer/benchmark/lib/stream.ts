@@ -116,6 +116,7 @@ export async function listen(
     id: track.id,
     genre: track.genre,
     group: track.group,
+    ...(track.label === undefined ? {} : {label: track.label}),
     truth: track.bpm,
     duration: pcm.length / sampleRate,
     final,

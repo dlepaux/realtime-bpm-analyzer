@@ -46,6 +46,32 @@ export const EXPORT_RATES: readonly ExportRate[] = [
   { label: '60', numerator: 60, denominator: 1, timebase: 60, canDropFrame: false, fcpFormatName: 'FFVideoFormat1080p60' },
 ]
 
+/**
+ * A frame rate with its timecode, as the export offers it: 29.97 and 59.94 come twice, drop-frame
+ * and non-drop, because editors use both and a sequence imports only into its own kind.
+ */
+export interface ExportTimecode {
+  /** Stable value for the select and the `frame_rate` analytics param: "25", "29.97 DF". */
+  id: string
+  /** "25 fps", "29.97 fps DF", "29.97 fps NDF". */
+  label: string
+  rate: ExportRate
+  dropFrame: boolean
+}
+
+function timecodeSuffix(rate: ExportRate, dropFrame: boolean): string {
+  if (!rate.canDropFrame) return ''
+  return dropFrame ? ' DF' : ' NDF'
+}
+
+export const EXPORT_TIMECODES: readonly ExportTimecode[] = EXPORT_RATES.flatMap((rate) =>
+  (rate.canDropFrame ? [true, false] : [false]).map((dropFrame) => ({
+    id: `${rate.label}${timecodeSuffix(rate, dropFrame)}`,
+    label: `${rate.label} fps${timecodeSuffix(rate, dropFrame)}`,
+    rate,
+    dropFrame,
+  })))
+
 export type MarkerFormat = 'csv' | 'fcpxml' | 'edl' | 'fcp7xml'
 
 export const MARKER_FORMATS: readonly { id: MarkerFormat; label: string; extension: string; mime: string }[] = [
@@ -294,8 +320,11 @@ const WRITERS: Record<MarkerFormat, (input: MarkerExport) => string> = {
   fcp7xml: toFcp7Xml,
 }
 
-/** A download name from the analysed file's: its stem, without characters file systems refuse. */
-export function downloadName(fileName: string, format: MarkerFormat, rate: ExportRate): string {
+/**
+ * A download name from the analysed file's: its stem, without characters file systems refuse,
+ * then the rate and, at 29.97 and 59.94, DF or NDF, so both kinds can sit in one folder.
+ */
+export function downloadName(fileName: string, format: MarkerFormat, rate: ExportRate, dropFrame: boolean): string {
   const dot = fileName.lastIndexOf('.')
   const stem = mapCodePoints(dot > 0 ? fileName.slice(0, dot) : fileName,
     (character, codePoint) => (isControl(codePoint) ? '_' : character))
@@ -303,11 +332,11 @@ export function downloadName(fileName: string, format: MarkerFormat, rate: Expor
     .trim()
     .slice(0, 80) || 'audio'
   const extension = MARKER_FORMATS.find((entry) => entry.id === format)!.extension
-  return `${stem} beat markers ${rate.label} fps.${extension}`
+  return `${stem} beat markers ${rate.label} fps${timecodeSuffix(rate, dropFrame)}.${extension}`
 }
 
 export function markerFile(format: MarkerFormat, input: MarkerExport): { name: string; mime: string; content: string } {
   const entry = MARKER_FORMATS.find((candidate) => candidate.id === format)
   if (!entry) throw new RangeError(`Unknown marker format: ${String(format)}`)
-  return { name: downloadName(input.name, format, input.rate), mime: entry.mime, content: WRITERS[format](input) }
+  return { name: downloadName(input.name, format, input.rate, input.dropFrame), mime: entry.mime, content: WRITERS[format](input) }
 }

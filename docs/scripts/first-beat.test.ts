@@ -53,7 +53,7 @@ test('firstStrongFrame: the first frame at the 90th percentile, null for silence
 
 test('firstBeatSeconds: the first click of a 120 BPM track after a second of silence', () => {
   const beats = Array.from({ length: 16 }, (_, index) => 1 + index * 0.5)
-  const first = firstBeatSeconds(clicks(beats, 10), SAMPLE_RATE)
+  const first = firstBeatSeconds(clicks(beats, 10), SAMPLE_RATE, 120)
   assert.ok(first !== null)
   // Within a frame and a half of the click: the curve's 10 ms frames and half-window delay.
   assert.ok(Math.abs(first - 1) < 0.015, `first beat at ${first}`)
@@ -61,19 +61,52 @@ test('firstBeatSeconds: the first click of a 120 BPM track after a second of sil
 
 test('firstBeatSeconds: the same at 48 kHz, the usual browser rate', () => {
   const beats = Array.from({ length: 12 }, (_, index) => 0.73 + index * 0.6)
-  const first = firstBeatSeconds(clicks(beats, 8, 48_000), 48_000)
+  const first = firstBeatSeconds(clicks(beats, 8, 48_000), 48_000, 100)
   assert.ok(first !== null && Math.abs(first - 0.73) < 0.015, `first beat at ${first}`)
 })
 
 test('firstBeatSeconds: null for silence', () => {
-  assert.equal(firstBeatSeconds(new Float32Array(SAMPLE_RATE * 3), SAMPLE_RATE), null)
+  assert.equal(firstBeatSeconds(new Float32Array(SAMPLE_RATE * 3), SAMPLE_RATE, 120), null)
 })
 
 test('firstBeatSecondsInSlices: the same answer, pausing between slices, and stops when cancelled', async () => {
   const samples = clicks(Array.from({ length: 20 }, (_, index) => 2.2 + index * 0.4), 12)
   let pauses = 0
   const pause = async () => { pauses += 1 }
-  assert.equal(await firstBeatSecondsInSlices(samples, SAMPLE_RATE, pause), firstBeatSeconds(samples, SAMPLE_RATE))
+  assert.equal(await firstBeatSecondsInSlices(samples, SAMPLE_RATE, 150, pause), firstBeatSeconds(samples, SAMPLE_RATE, 150))
   assert.ok(pauses >= 5, `${pauses} pauses`)
-  assert.equal(await firstBeatSecondsInSlices(samples, SAMPLE_RATE, pause, () => true), null)
+  assert.equal(await firstBeatSecondsInSlices(samples, SAMPLE_RATE, 150, pause, () => true), null)
+})
+
+/** The QA's kick: a decaying 60 Hz thump under a short 1 kHz click, cut off at 120 ms. */
+function kicks(offset: number, period: number, seconds: number, sampleRate = SAMPLE_RATE): Float32Array {
+  const samples = new Float32Array(Math.round(seconds * sampleRate))
+  const length = Math.floor(0.12 * sampleRate)
+  const click = Math.round(0.02 * sampleRate)
+  for (let beat = 0; Math.round((offset + beat * period) * sampleRate) < samples.length; beat += 1) {
+    const start = Math.round((offset + beat * period) * sampleRate)
+    for (let i = 0; i < length && start + i < samples.length; i += 1) {
+      samples[start + i] = 0.8 * Math.exp(-i / (0.03 * sampleRate)) * Math.sin((2 * Math.PI * 60 * i) / sampleRate)
+        + (i < click ? 0.3 * (1 - i / click) * Math.sin((2 * Math.PI * 1000 * i) / sampleRate) : 0)
+    }
+  }
+  return samples
+}
+
+test('firstBeatSeconds: a kick on the very first sample starts the grid at 0, within a frame at 30 fps', () => {
+  for (const sampleRate of [SAMPLE_RATE, 48_000]) {
+    const first = firstBeatSeconds(kicks(0, 0.5, 20, sampleRate), sampleRate, 120)
+    assert.ok(first !== null && first < 1 / 30, `first beat at ${first} at ${sampleRate} Hz`)
+  }
+  // A kick a quarter second in was already right, and stays right.
+  const later = firstBeatSeconds(kicks(0.25, 0.5, 20), SAMPLE_RATE, 120)
+  assert.ok(later !== null && Math.abs(later - 0.25) < 1 / 30, `first beat at ${later}`)
+})
+
+test('firstBeatSeconds: audio that starts mid-sound off the grid does not start the grid at 0', () => {
+  // A steady tone from the first sample, as in a clip trimmed mid-song, with the beats 230 ms in.
+  const samples = clicks(Array.from({ length: 16 }, (_, index) => 0.23 + index * 0.5), 10)
+  for (let i = 0; i < samples.length; i += 1) samples[i] = samples[i]! + 0.5 * Math.sin((2 * Math.PI * 440 * i) / SAMPLE_RATE)
+  const first = firstBeatSeconds(samples, SAMPLE_RATE, 120)
+  assert.ok(first !== null && Math.abs(first - 0.23) < 0.015, `first beat at ${first}`)
 })

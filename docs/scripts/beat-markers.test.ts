@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { FRAME_RATES } from '../.vitepress/tools/frames.ts'
 import {
   EXPORT_RATES,
+  EXPORT_TIMECODES,
   MAX_MARKERS,
   beatTimes,
   downloadName,
@@ -252,12 +253,53 @@ test('FCP7 XML: whole rates are not NTSC', () => {
 })
 
 test('downloadName: the stem, the format and the rate, without characters file systems refuse', () => {
-  assert.equal(downloadName('song.mp3', 'edl', rate('25')), 'song beat markers 25 fps.edl')
-  assert.equal(downloadName('a/b:c*?.final.wav', 'fcp7xml', rate('29.97')), 'a_b_c__.final beat markers 29.97 fps.xml')
-  assert.equal(downloadName('.mp3', 'csv', rate('24')), '.mp3 beat markers 24 fps.csv')
-  assert.equal(downloadName('???', 'fcpxml', rate('24')), '___ beat markers 24 fps.fcpxml')
-  assert.equal(downloadName('   .wav', 'csv', rate('24')), 'audio beat markers 24 fps.csv')
-  assert.equal(downloadName(`a${String.fromCharCode(1)}b.wav`, 'csv', rate('24')), 'a_b beat markers 24 fps.csv')
+  assert.equal(downloadName('song.mp3', 'edl', rate('25'), false), 'song beat markers 25 fps.edl')
+  assert.equal(downloadName('a/b:c*?.final.wav', 'fcp7xml', rate('29.97'), true), 'a_b_c__.final beat markers 29.97 fps DF.xml')
+  assert.equal(downloadName('song.mp3', 'csv', rate('59.94'), false), 'song beat markers 59.94 fps NDF.csv')
+  assert.equal(downloadName('.mp3', 'csv', rate('24'), false), '.mp3 beat markers 24 fps.csv')
+  assert.equal(downloadName('???', 'fcpxml', rate('24'), false), '___ beat markers 24 fps.fcpxml')
+  assert.equal(downloadName('   .wav', 'csv', rate('24'), false), 'audio beat markers 24 fps.csv')
+  assert.equal(downloadName(`a${String.fromCharCode(1)}b.wav`, 'csv', rate('24'), false), 'a_b beat markers 24 fps.csv')
+})
+
+test('EXPORT_TIMECODES: 29.97 and 59.94 offered as drop-frame and non-drop, every other rate once', () => {
+  assert.deepEqual(EXPORT_TIMECODES.map((entry) => entry.label), [
+    '23.976 fps', '24 fps', '25 fps', '29.97 fps DF', '29.97 fps NDF', '30 fps', '50 fps', '59.94 fps DF', '59.94 fps NDF', '60 fps',
+  ])
+  assert.equal(new Set(EXPORT_TIMECODES.map((entry) => entry.id)).size, EXPORT_TIMECODES.length)
+  for (const entry of EXPORT_TIMECODES) assert.ok(!entry.dropFrame || entry.rate.canDropFrame, entry.label)
+})
+
+test('drop-frame and non-drop are each written as chosen in all four formats', () => {
+  // One timecode minute: frame 1800 at 29.97 (00:01:00:00 NDF, 00:01:00;02 DF), 3600 at 59.94.
+  // The beat at 60 s of audio falls just before it, on 00:00:59 either way.
+  for (const [label, minuteFrame, dropped] of [['29.97', 1800, '02'], ['59.94', 3600, '04']] as const) {
+    for (const choice of EXPORT_TIMECODES.filter((entry) => entry.rate.label === label)) {
+      const marks = input({ bpm: 60, firstBeat: 0, duration: 61, rate: choice.rate, dropFrame: choice.dropFrame })
+      const atMinute = markerFile('csv', marks).content.split('\r\n').find((line) => line.startsWith('Beat 61,'))
+      const edl = toEdl(marks)
+      const fcpxml = toFcpxml(marks)
+      const xmeml = toFcp7Xml(marks)
+      assert.ok(atMinute, `${choice.label}: no marker at one minute`)
+      if (choice.dropFrame) {
+        assert.match(atMinute, /,00:00:59;\d\d$/, choice.label)
+        assert.equal(timecode(minuteFrame, choice.rate, true), `00:01:00;${dropped}`)
+        assert.match(edl, /^FCM: DROP FRAME$/m)
+        assert.match(edl, /01:00:00;00 01:00:00;01/)
+        assert.match(fcpxml, /tcFormat="DF"/)
+        assert.match(xmeml, /<string>00:00:00;00<\/string><frame>0<\/frame><displayformat>DF<\/displayformat>/)
+      } else {
+        assert.match(atMinute, /,00:00:59:\d\d$/, choice.label)
+        assert.doesNotMatch(markerFile('csv', marks).content, /;/, choice.label)
+        assert.equal(timecode(minuteFrame, choice.rate, false), '00:01:00:00')
+        assert.match(edl, /^FCM: NON-DROP FRAME$/m)
+        assert.doesNotMatch(edl, /\d;\d/)
+        assert.match(edl, /01:00:00:00 01:00:00:01/)
+        assert.match(fcpxml, /tcFormat="NDF"/)
+        assert.match(xmeml, /<string>00:00:00:00<\/string><frame>0<\/frame><displayformat>NDF<\/displayformat>/)
+      }
+    }
+  }
 })
 
 test('markerFile: name, type and content per format', () => {

@@ -1,13 +1,14 @@
 import {expect} from 'chai';
 import {
+  MAX_QUEUED_COMMANDS,
   TRANSITIONS,
-  dispatchInOrder,
-  initialState,
+  createDispatcher,
   isLegal,
-  isReading,
+  readReading,
   reduce,
   relationTo,
   type ReducerInput,
+  type ReducerResult,
 } from '../../../src/v6/transitions';
 import {
   HYSTERESIS_PLACEHOLDER,
@@ -36,7 +37,7 @@ const reading = (bpm = 128, to = 10): Reading => ({
 function stateOf(status: Status, epoch = 0): AnalyzerState {
   switch (status) {
     case 'listening':
-      return {status, epoch, progress: 0.5};
+      return {status, epoch, progress: 0.5, reason: 'started'};
     case 'settling':
     case 'locked':
       return {status, epoch, reading: reading()};
@@ -55,6 +56,14 @@ function step(status: ActiveStatus, reason?: EngineReason, epoch = 0, audioTo = 
 
 const types = (events: readonly AnalyzerEvent[]) => events.map(event => event.type);
 
+/** A protocol violation is fatal: stopped, reason failed, a ProtocolError kept in the state. */
+function expectProtocolError(from: AnalyzerState, result: ReducerResult, label = '') {
+  expect(result.state, label).to.deep.equal({status: 'stopped', epoch: from.epoch, error: result.state.status === 'stopped' ? result.state.error : null});
+  expect(result.state.status === 'stopped' && result.state.error?.name, label).to.equal('ProtocolError');
+  expect(types(result.events), label).to.deep.equal(['statechange']);
+  expect(result.events[0].type === 'statechange' && result.events[0].detail.reason, label).to.equal('failed');
+}
+
 describe('v6 transition table', () => {
   it('lists exactly the legal transitions of the contract', () => {
     const expected = [
@@ -63,6 +72,7 @@ describe('v6 transition table', () => {
       'locked>settling:unlocked:engine',
       ...['pulse-lost', 'audio-lost', 'tempo-changed'].flatMap(reason =>
         [`settling>listening:${reason}:engine`, `locked>listening:${reason}:engine`]),
+      'listening>listening:audio-lost:engine',
       ...active.map(from => `${from}>listening:reset:caller`),
       ...active.map(from => `${from}>stopped:stopped:caller`),
       ...active.map(from => `${from}>stopped:failed:fault`),
@@ -73,11 +83,11 @@ describe('v6 transition table', () => {
     expect(actual).to.have.length(expected.length);
   });
 
-  it('never leaves stopped, and the engine never moves a status to itself', () => {
+  it('never leaves stopped, and the engine moves a status to itself only for a lost input while listening', () => {
     for (const rule of TRANSITIONS) {
       expect(rule.from).to.not.equal('stopped');
-      if (rule.source === 'engine') {
-        expect(rule.to).to.not.equal(rule.from);
+      if (rule.source === 'engine' && rule.to === rule.from) {
+        expect(`${rule.from}:${rule.reason}`).to.equal('listening:audio-lost');
       }
     }
   });
@@ -90,7 +100,10 @@ describe('v6 transition table', () => {
 describe('v6 reducer: engine transitions', () => {
   for (const rule of TRANSITIONS.filter(rule => rule.source === 'engine')) {
     it(`moves ${rule.from} to ${rule.to} for ${rule.reason}, then dispatches the measurement`, () => {
-      const from = stateOf(rule.from);
+      // From pulse-lost, so audio-lost is a change of reason even while listening
+      const from: AnalyzerState = rule.from === 'listening'
+        ? {status: 'listening', epoch: 0, progress: 0.5, reason: 'pulse-lost'}
+        : stateOf(rule.from);
       const result = reduce(from, step(rule.to as ActiveStatus, rule.reason as EngineReason));
 
       expect(result.state.status).to.equal(rule.to);
@@ -109,30 +122,35 @@ describe('v6 reducer: engine transitions', () => {
           continue;
         }
 
-        it(`refuses ${from} to ${to} for ${reason}, and keeps the state`, () => {
+        it(`refuses ${from} to ${to} for ${reason}, fatally`, () => {
           const state = stateOf(from);
-          const result = reduce(state, step(to, reason));
-
-          expect(result.state).to.equal(state);
-          expect(result.events).to.deep.equal([{type: 'error', detail: result.events[0].detail}]);
-          expect(result.events[0].type === 'error' && result.events[0].detail.name).to.equal('IllegalTransition');
+          expectProtocolError(state, reduce(state, step(to, reason)));
         });
       }
     }
   }
 
-  it('refuses a change of status without a reason', () => {
+  it('refuses a change of status without a reason, and a reason only callers or faults give', () => {
     const state = stateOf('settling');
-    const result = reduce(state, step('locked'));
+    expectProtocolError(state, reduce(state, step('locked')));
+    for (const reason of ['reset', 'stopped', 'failed']) {
+      expectProtocolError(state, reduce(state, message({type: 'step', protocol, epoch: 0, status: 'listening', progress: 0, reason})), reason);
+    }
+  });
 
-    expect(result.state).to.equal(state);
-    expect(result.events[0].type === 'error' && result.events[0].detail.name).to.equal('IllegalTransition');
+  it('reports lost input while listening once, and keeps the reason until the next reading', () => {
+    const lost = reduce(stateOf('listening'), step('listening', 'audio-lost'));
+    expect(types(lost.events)).to.deep.equal(['statechange', 'progress']);
+    expect(lost.state).to.deep.equal({status: 'listening', epoch: 0, progress: 0.25, reason: 'audio-lost'});
+
+    expectProtocolError(lost.state, reduce(lost.state, step('listening', 'audio-lost')));
+    expect(reduce(lost.state, step('listening')).state).to.deep.include({reason: 'audio-lost'});
   });
 
   it('updates the reading or the progress without a statechange when the status holds', () => {
     const listening = reduce(stateOf('listening'), step('listening'));
     expect(types(listening.events)).to.deep.equal(['progress']);
-    expect(listening.state).to.deep.equal({status: 'listening', epoch: 0, progress: 0.25});
+    expect(listening.state).to.deep.equal({status: 'listening', epoch: 0, progress: 0.25, reason: 'started'});
 
     const settling = stateOf('settling');
     const next = reduce(settling, step('settling', undefined, 0, 12));
@@ -141,18 +159,15 @@ describe('v6 reducer: engine transitions', () => {
     expect(next.state.status === 'settling' && next.state.reading.audio.to).to.equal(12);
   });
 
-  it('refuses a reading whose audio goes back in time within the epoch', () => {
+  it('refuses a reading whose audio goes back in time within the epoch, fatally', () => {
     const state = stateOf('locked');
-    const result = reduce(state, step('locked', undefined, 0, 9));
-
-    expect(result.state).to.equal(state);
-    expect(result.events[0].type === 'error' && result.events[0].detail.name).to.equal('MalformedMessage');
+    expectProtocolError(state, reduce(state, step('locked', undefined, 0, 9)));
   });
 
   it('runs a whole lock and loss in the documented order', () => {
     const inputs = [step('listening'), step('settling', 'first-reading'), step('locked', 'locked', 0, 12),
       step('settling', 'unlocked', 0, 13), step('listening', 'pulse-lost')];
-    let state = initialState();
+    let state = stateOf('listening');
     const seen: string[] = [];
     for (const input of inputs) {
       const result = reduce(state, input);
@@ -172,7 +187,7 @@ describe('v6 reducer: caller commands and faults', () => {
       const state = stateOf(from, 3);
       const result = reduce(state, {kind: 'reset'});
 
-      expect(result.state).to.deep.equal({status: 'listening', epoch: 4, progress: 0});
+      expect(result.state).to.deep.equal({status: 'listening', epoch: 4, progress: 0, reason: 'reset'});
       expect(result.events).to.deep.equal([
         {type: 'statechange', detail: {from: state, to: result.state, reason: 'reset'}},
         {type: 'progress', detail: {fraction: 0}},
@@ -230,9 +245,10 @@ describe('v6 reducer: caller commands and faults', () => {
 });
 
 describe('v6 reducer: epochs and protocol', () => {
-  it('drops a message measured before the last reset()', () => {
+  it('drops a message measured before the last reset(), a non-fatal fault included', () => {
     const afterReset = reduce(stateOf('locked'), {kind: 'reset'}).state;
-    for (const input of [step('locked'), step('settling', 'unlocked'), message({type: 'nonsense', protocol, epoch: 0})]) {
+    const staleFault = message({type: 'fault', protocol, epoch: 0, fatal: false, error: {name: 'AnalysisError', message: 'x'}});
+    for (const input of [step('locked'), step('settling', 'unlocked'), message({type: 'nonsense', protocol, epoch: 0}), staleFault]) {
       const result = reduce(afterReset, input);
       expect(result.state).to.equal(afterReset);
       expect(result.events).to.deep.equal([]);
@@ -244,18 +260,19 @@ describe('v6 reducer: epochs and protocol', () => {
     expect(types(reduce(afterReset, step('listening', undefined, 1)).events)).to.deep.equal(['progress']);
   });
 
-  it('still fails on a fatal fault from an older epoch: the processor is gone either way', () => {
+  it('still fails on a fatal fault from any epoch: the processor is gone either way', () => {
     const afterReset = reduce(stateOf('locked'), {kind: 'reset'}).state;
-    const result = reduce(afterReset, message({type: 'fault', protocol, epoch: 0, fatal: true, error: {name: 'ProcessorError', message: 'x'}}));
-    expect(result.state.status).to.equal('stopped');
+    const error = {name: 'ProcessorError', message: 'x'};
+    for (const epoch of [0, 7]) {
+      const result = reduce(afterReset, message({type: 'fault', protocol, epoch, fatal: true, error}));
+      expect(result.state).to.deep.equal({status: 'stopped', epoch: 1, error});
+    }
   });
 
-  it('reports a message from a future epoch, or with no valid epoch, and drops it', () => {
+  it('fails on a message from a future epoch, or with no valid epoch: the processor cannot know one', () => {
     const state = stateOf('settling');
-    for (const epoch of [1, -1, 0.5, 'zero']) {
-      const result = reduce(state, message({type: 'step', protocol, epoch, status: 'settling', reading: reading(128, 11)}));
-      expect(result.state).to.equal(state);
-      expect(result.events[0].type === 'error' && result.events[0].detail.name).to.equal('MalformedMessage');
+    for (const epoch of [1, -1, 0.5, 'zero', undefined]) {
+      expectProtocolError(state, reduce(state, message({type: 'step', protocol, epoch, status: 'settling', reading: reading(128, 11)})), String(epoch));
     }
   });
 
@@ -264,12 +281,12 @@ describe('v6 reducer: epochs and protocol', () => {
     for (const data of [fiveX, {type: 'ready', protocol: protocol + 1, epoch: 0}, 'ready', null]) {
       const result = reduce(stateOf('listening'), message(data));
       expect(result.state.status).to.equal('stopped');
-      expect(result.state.status === 'stopped' && result.state.error?.name).to.equal('ProtocolMismatch');
+      expect(result.state.status === 'stopped' && result.state.error?.name).to.equal('ProtocolError');
       expect(result.events[0].type === 'statechange' && result.events[0].detail.reason).to.equal('failed');
     }
   });
 
-  it('reports malformed messages of the right protocol and keeps the state', () => {
+  it('fails on malformed messages of the right protocol', () => {
     const bad = [
       {type: 'unknown', protocol, epoch: 0},
       {type: 'step', protocol, epoch: 0, status: 'drifting'},
@@ -277,20 +294,27 @@ describe('v6 reducer: epochs and protocol', () => {
       {type: 'step', protocol, epoch: 0, status: 'listening', progress: 0.1, reason: 'bored'},
       {type: 'step', protocol, epoch: 0, status: 'settling', reading: {...reading(), bpm: 129}},
       {type: 'fault', protocol, epoch: 0, fatal: 'yes', error: {name: 'AnalysisError', message: 'x'}},
+      {type: 'fault', protocol, epoch: 0, fatal: false, error: {name: 'IllegalTransition', message: 'x'}},
       {type: 'debug', protocol, epoch: 0, data: 1},
     ];
     const state = stateOf('listening');
     for (const data of bad) {
-      const result = reduce(state, message(data));
-      expect(result.state, JSON.stringify(data)).to.equal(state);
-      expect(result.events[0].type === 'error' && result.events[0].detail.name).to.equal('MalformedMessage');
+      expectProtocolError(state, reduce(state, message(data)), JSON.stringify(data));
     }
   });
 });
 
 describe('v6 reading validation and relations', () => {
+  it('rebuilds a reading from its known fields only, frozen', () => {
+    const leaky = {...reading(), threshold: 0.6, candidates: [{bpm: 128, relation: 'top', count: 40}]};
+    const read = readReading(leaky);
+
+    expect(read).to.deep.equal({bpm: 128, confidence: 0.8, candidates: [{bpm: 128, relation: 'top'}], audio: {from: 2, to: 10}, engine: 'tempogram'});
+    expect(Object.isFrozen(read) && Object.isFrozen(read?.candidates) && Object.isFrozen(read?.candidates[0]) && Object.isFrozen(read?.audio)).to.equal(true);
+  });
+
   it('holds a reading to its documented guarantees', () => {
-    expect(isReading(reading())).to.equal(true);
+    expect(readReading(reading())).to.deep.equal(reading());
     const invalid = [
       {...reading(), confidence: 1.2},
       {...reading(), candidates: []},
@@ -299,9 +323,11 @@ describe('v6 reading validation and relations', () => {
       {...reading(), candidates: Array.from({length: 6}, (_, i) => ({bpm: 128, relation: i === 0 ? 'top' : 'other'}))},
       {...reading(), audio: {from: 5, to: 4}},
       {...reading(), engine: 'magic'},
+      {...reading(), candidates: [{bpm: 128, relation: 'top'}, {bpm: 90, relation: 'half'}]},
+      {...reading(), candidates: [{bpm: 128, relation: 'top'}, {bpm: 64, relation: 'other'}]},
     ];
     for (const value of invalid) {
-      expect(isReading(value), JSON.stringify(value)).to.equal(false);
+      expect(readReading(value), JSON.stringify(value)).to.equal(null);
     }
   });
 
@@ -314,17 +340,12 @@ describe('v6 reading validation and relations', () => {
   });
 });
 
-/** The analyzer's dispatch loop as phase 3 will run it, reduced to state and listeners. */
+/** The analyzer as phase 3 will run it, reduced to the dispatcher and a list of listeners. */
 function harness() {
-  let state = initialState();
   const listeners: ((event: AnalyzerEvent) => void)[] = [];
-  const apply = (input: ReducerInput) => {
-    const result = reduce(state, input);
-    state = result.state;
-    dispatchInOrder(result, () => state, event => listeners.forEach(listener => listener(event)));
-  };
-
-  return {apply, listen: (listener: (event: AnalyzerEvent) => void) => listeners.push(listener), state: () => state};
+  const posted: unknown[] = [];
+  const dispatcher = createDispatcher(event => listeners.forEach(listener => listener(event)), message => posted.push(message), stateOf('listening'));
+  return {...dispatcher, posted, listen: (listener: (event: AnalyzerEvent) => void) => listeners.push(listener)};
 }
 
 describe('v6 dispatch: order, late subscribers and re-entrancy', () => {
@@ -351,36 +372,62 @@ describe('v6 dispatch: order, late subscribers and re-entrancy', () => {
     expect(state.status === 'locked' && state.reading.bpm).to.equal(128);
   });
 
-  it('drops the rest of a step when a listener resets inside statechange', () => {
+  it('runs a reset() from a listener after every listener has the whole step', () => {
     const analyzer = harness();
-    const seen: string[] = [];
+    const first: string[] = [];
+    const second: string[] = [];
     analyzer.listen(event => {
-      seen.push(event.type);
+      first.push(`${event.type}@${analyzer.state().status}`);
       if (event.type === 'statechange' && event.detail.reason === 'locked') {
-        analyzer.apply({kind: 'reset'});
+        expect(analyzer.apply({kind: 'reset'})).to.equal(null);
       }
     });
+    analyzer.listen(event => second.push(`${event.type}@${analyzer.state().status}`));
     analyzer.apply(step('settling', 'first-reading'));
     analyzer.apply(step('locked', 'locked', 0, 12));
 
-    // The lock's reading is never dispatched: it belongs to the epoch the reset ended
-    expect(seen).to.deep.equal(['statechange', 'reading', 'statechange', 'statechange', 'progress']);
-    expect(analyzer.state()).to.deep.equal({status: 'listening', epoch: 1, progress: 0});
+    const expected = ['statechange@settling', 'reading@settling', 'statechange@locked', 'reading@locked',
+      'statechange@listening', 'progress@listening'];
+    expect(first).to.deep.equal(expected);
+    expect(second).to.deep.equal(expected);
+    expect(analyzer.state()).to.deep.equal({status: 'listening', epoch: 1, progress: 0, reason: 'reset'});
+    expect(analyzer.posted).to.deep.equal([{type: 'reset', protocol, epoch: 1}]);
   });
 
-  it('dispatches nothing after a stop() inside a listener', () => {
+  it('runs a stop() from a listener after the step, and refuses a reset() once stopped', () => {
     const analyzer = harness();
     const seen: string[] = [];
+    let refusal: unknown = 'not called';
     analyzer.listen(event => {
       seen.push(event.type);
       if (event.type === 'progress' && event.detail.fraction === 0) {
         analyzer.apply({kind: 'stop'});
+      }
+
+      if (event.type === 'statechange' && event.detail.reason === 'stopped') {
+        refusal = analyzer.apply({kind: 'reset'});
       }
     });
     analyzer.apply({kind: 'reset'});
 
     expect(seen).to.deep.equal(['statechange', 'progress', 'statechange']);
     expect(analyzer.state().status).to.equal('stopped');
+    expect(refusal).to.deep.include({name: 'InvalidStateError'});
+  });
+
+  it('throws instead of looping when a listener resets on every statechange', () => {
+    const analyzer = harness();
+    analyzer.listen(event => {
+      if (event.type === 'statechange') {
+        analyzer.apply({kind: 'reset'});
+      }
+    });
+
+    expect(() => analyzer.apply({kind: 'reset'})).to.throw(RangeError);
+    expect(analyzer.state().epoch).to.equal(MAX_QUEUED_COMMANDS + 1);
+    // The dispatcher is usable again afterwards
+    expect(analyzer.apply(step('listening', undefined, MAX_QUEUED_COMMANDS + 1))).to.equal(null);
+    expect(analyzer.state()).to.deep.include({progress: 0.25});
   });
 });
 

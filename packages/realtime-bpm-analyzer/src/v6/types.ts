@@ -17,24 +17,32 @@ export const PROTOCOL_VERSION = 1;
  */
 export type EngineName = 'peaks' | 'tempogram';
 
-/** The engine option: a bare name, or a name with the settings only that engine understands. */
+/**
+ * The realtime engine option: a bare name, or a name with the settings only that engine understands.
+ * Realtime and offline take different settings, so each has its own type and none is accepted where it does
+ * nothing.
+ */
 export type EngineOption =
   | EngineName
   | {
     readonly name: 'peaks';
     /**
      * Discard the history and start over every this many seconds of audio, so a tempo change is followed.
-     * Each restart is a `statechange` to `listening` with reason `tempo-changed`. Absent: never restarts.
+     * A restart outside `listening` is a `statechange` to `listening` with reason `tempo-changed`; a restart
+     * while still listening is silent, as nothing was reported yet. Absent: never restarts.
      */
     readonly restartAfterSeconds?: number;
-    /** Lowpass applied before peak picking, offline only. Realtime callers place their own filter. */
-    readonly lowpass?: {readonly frequency?: number; readonly q?: number};
   }
   | {
     readonly name: 'tempogram';
     /** `extension` pins the measured settings for tab capture and refuses another `tempoRange`. */
     readonly mode?: 'extension';
   };
+
+/** The offline engine option. Realtime callers place their own filter, so only offline takes a lowpass. */
+export type OfflineEngineOption =
+  | EngineName
+  | {readonly name: 'peaks'; readonly lowpass?: {readonly frequency?: number; readonly q?: number}};
 
 /**
  * Range every tempo is reported in, in BPM. `max` must be at least twice `min`, so every tempo has an octave
@@ -54,7 +62,7 @@ export type AnalyzerOptions = {
   readonly processorUrl?: string | URL;
   /**
    * The track behind a MediaStream source. The analyzer follows its clock, counts lost input as silence, and
-   * leaves `locked` with reason `audio-lost` while input is being lost.
+   * moves to `listening` with reason `audio-lost` while input is being lost.
    */
   readonly liveInput?: MediaStreamTrack;
   /** Emit `debug` events. Default false. */
@@ -63,7 +71,7 @@ export type AnalyzerOptions = {
 
 /** Options for whole-buffer analysis, in the browser and in Node. */
 export type OfflineOptions = {
-  readonly engine?: EngineOption;
+  readonly engine?: OfflineEngineOption;
   readonly tempoRange?: TempoRange;
 };
 
@@ -109,14 +117,20 @@ export type AudioSpan = {
  * A reading is a measurement, not a state. Whether the analyzer trusts it is `state.status`.
  */
 export type Reading = {
-  /** The reported tempo, in BPM, inside `tempoRange`. Always equal to `candidates[0].bpm`. */
+  /**
+   * The reported tempo, in BPM, inside `tempoRange`. Always equal to `candidates[0].bpm`. Other candidates may
+   * fall outside the range: a `half` or `double` often does.
+   */
   readonly bpm: number;
   /**
    * Calibrated probability, 0 to 1, that `bpm` is within 4% of the true tempo: 0.8 is right about 80% of the
    * time on the held-out set. Removed from the API if RBA-106 shows it adds nothing.
    */
   readonly confidence: number;
-  /** At most 5, `candidates[0]` first with relation `top`, the rest in the engine's rank order. Never empty. */
+  /**
+   * At most 5, `candidates[0]` first with relation `top`, the rest in the engine's rank order, each labelled as
+   * {@link relationTo} would. Never empty.
+   */
   readonly candidates: readonly Candidate[];
   readonly audio: AudioSpan;
   readonly engine: EngineName;
@@ -128,14 +142,17 @@ export type Reading = {
  */
 export type OfflineResult = Reading | null;
 
-/** Error names. Serialisable through `postMessage`: never an `Error` instance. */
+/**
+ * Error names, after the DOM's `...Error` names. Serialisable through `postMessage`: never an `Error` instance.
+ * The detail is in `message`, which has no stable format.
+ */
 export type AnalyzerErrorName =
-  /** The processor speaks another protocol version: a stale `processorUrl` copy. Fatal. */
-  | 'ProtocolMismatch'
-  /** A worklet message failed validation: wrong shape, future epoch. The message is dropped. */
-  | 'MalformedMessage'
-  /** The engine asked for a transition the table refuses. The message is dropped. */
-  | 'IllegalTransition'
+  /**
+   * The processor broke the protocol: another version (a stale `processorUrl` copy), a malformed message, a
+   * future epoch, a transition the table refuses or audio time going back. Fatal: carrying on would leave the
+   * main thread and the processor disagreeing about the state.
+   */
+  | 'ProtocolError'
   /** The processor threw, or its port failed (`processorerror`, `messageerror`). Fatal. */
   | 'ProcessorError'
   /** One analysis step failed. Non-fatal: the next step runs. */
@@ -152,10 +169,16 @@ export type Status = AnalyzerState['status'];
 /** Any status but `stopped`. */
 export type ActiveStatus = Exclude<Status, 'stopped'>;
 
+/** Why the analyzer is listening, so a late subscriber can tell a fresh start from a lost pulse or lost input. */
+export type ListeningReason = 'started' | 'reset' | 'pulse-lost' | 'audio-lost' | 'tempo-changed';
+
 /**
- * What the analyzer is doing now: a snapshot, like `AudioContext.state`.
+ * What the analyzer is doing now: a snapshot, like `AudioContext.state`. An object rather than a string,
+ * because each status carries its own fields.
  *
- * - `listening`: no reading yet in this stretch of audio. `progress` runs 0 to 1 toward the first reading.
+ * - `listening`: no reading yet in this stretch of audio. `progress` runs 0 to 1 toward the first reading, and
+ *   `reason` says why it is listening. `audio-lost` lasts until the next reading, and that is how a late
+ *   subscriber learns live input is being lost.
  * - `settling`: readings are coming but have not agreed long enough to lock.
  * - `locked`: readings agree. Leaving needs more disagreement than entering (hysteresis), so it does not flap.
  * - `stopped`: final. `error` is null after `stop()`, set after a fatal fault.
@@ -163,13 +186,14 @@ export type ActiveStatus = Exclude<Status, 'stopped'>;
  * @remarks
  * Guarantees:
  * - Read it any time. A listener added late reads the current state here: events are never replayed.
- * - It is updated before any event about it is dispatched, so inside a listener it is already current.
+ * - It is updated before any event about it is dispatched, so inside a listener it is already current, for every
+ *   listener of every event of that step.
  * - Every snapshot is a new object: compare by reference to see whether anything changed.
  * - `epoch` counts `reset()` calls. Messages from an older epoch are dropped, so after `reset()` returns,
  *   nothing measured before it is ever reported.
  */
 export type AnalyzerState =
-  | {readonly status: 'listening'; readonly epoch: number; readonly progress: number}
+  | {readonly status: 'listening'; readonly epoch: number; readonly progress: number; readonly reason: ListeningReason}
   | {readonly status: 'settling'; readonly epoch: number; readonly reading: Reading}
   | {readonly status: 'locked'; readonly epoch: number; readonly reading: Reading}
   | {readonly status: 'stopped'; readonly epoch: number; readonly error: AnalyzerError | null};
@@ -184,7 +208,7 @@ export type EngineReason =
   | 'unlocked'
   /** settling or locked to listening: no pulse is heard any more. */
   | 'pulse-lost'
-  /** settling or locked to listening: live input is being lost (`liveInput`). */
+  /** settling, locked or listening to listening: live input is being lost (`liveInput`). */
   | 'audio-lost'
   /** settling or locked to listening: the engine discarded its history to follow a new tempo. */
   | 'tempo-changed';
@@ -217,9 +241,10 @@ export type DebugInfo = {readonly engine: EngineName; readonly data: unknown};
  * The analyzer's events.
  *
  * @remarks
- * Dispatch order, for each analysis step: `state` is updated, then `statechange` fires if the status or epoch
- * changed, then `reading` (settling, locked) or `progress` (listening). Never both a `reading` and a `progress`
- * for one step. If a listener calls `reset()` or `stop()`, the rest of that step's events are not dispatched.
+ * Dispatch order, for each analysis step: `state` is updated, then `statechange` fires if the status, the
+ * listening reason or the epoch changed, then `reading` (settling, locked) or `progress` (listening). Never both a
+ * `reading` and a `progress` for one step. A `reset()` or `stop()` called from a listener is queued: it runs once
+ * every listener has had every event of the current step, so all listeners see the same sequence.
  *
  * - `statechange`: on every transition, and only then.
  * - `reading`: on each analysis step outside `listening`, about twice a second. A measurement, not a state.
@@ -272,8 +297,9 @@ export type BpmAnalyzerContract = {
   /** Removes a listener added with `on()`. Unknown listeners are ignored. */
   off<K extends AnalyzerEventType>(type: K, listener: (detail: AnalyzerEventMap[K]) => void): void;
   /**
-   * Starts over: synchronously moves to `listening` with the next epoch, dispatches `statechange` (reason
-   * `reset`) then `progress` (0), and tells the processor. Throws `InvalidStateError` once stopped.
+   * Starts over: moves to `listening` with the next epoch, dispatches `statechange` (reason `reset`) then
+   * `progress` (0), and tells the processor. Synchronous, except from inside a listener, where it runs once the
+   * current step's events are dispatched. Throws `InvalidStateError` once stopped.
    */
   reset(): void;
   /** Final: moves to `stopped` and stops the processor. A second call does nothing. */
@@ -282,7 +308,10 @@ export type BpmAnalyzerContract = {
 
 /** Worklet to main thread. Every message carries the protocol version and the epoch it was measured in. */
 export type WorkletMessage =
-  /** Sent once when the processor starts, so a stale processor fails at startup rather than mid-analysis. */
+  /**
+   * Sent once when the processor starts. The analyzer's factory waits for it, with a timeout, before it
+   * resolves (phase 3), so a stale processor fails at startup: a 5.x one never sends it.
+   */
   | {readonly type: 'ready'; readonly protocol: number; readonly epoch: number}
   /** One per analysis step while listening. `reason` only when this step moved the status. */
   | {
@@ -303,6 +332,7 @@ export type WorkletMessage =
     readonly reason?: EngineReason;
   }
   | {readonly type: 'fault'; readonly protocol: number; readonly epoch: number; readonly fatal: boolean; readonly error: AnalyzerError}
+  /** Only sent with `debug: true`: the processor filters, not the reducer. */
   | {readonly type: 'debug'; readonly protocol: number; readonly epoch: number; readonly engine: EngineName; readonly data: unknown};
 
 /** Main thread to worklet. The processor ignores unknown types, and adopts `epoch` from `reset`. */
@@ -313,7 +343,7 @@ export type HostMessage =
   | {readonly type: 'delivered'; readonly protocol: number; readonly seconds: number};
 
 /**
- * Hysteresis between locking and unlocking, engine-neutral: it reads only `bpm` and audio time.
+ * Hysteresis between locking and unlocking, and before a lost pulse, engine-neutral: it reads only `bpm`, the pulse and audio time.
  * The engine applies it; the reducer enforces only the table.
  */
 export type Hysteresis = {
@@ -325,6 +355,8 @@ export type Hysteresis = {
   readonly unlockBand: number;
   /** ...for this many seconds of audio. */
   readonly unlockAfterSeconds: number;
+  /** Report `pulse-lost` only after this many seconds without a pulse, so a break does not flap the state. */
+  readonly pulseLostAfterSeconds: number;
 };
 
 /**
@@ -336,4 +368,5 @@ export const HYSTERESIS_PLACEHOLDER: Hysteresis = {
   lockAfterSeconds: 8,
   unlockBand: 0.04,
   unlockAfterSeconds: 2,
+  pulseLostAfterSeconds: 2,
 };

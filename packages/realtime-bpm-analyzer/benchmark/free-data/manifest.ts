@@ -264,21 +264,78 @@ export function placeRows<T extends {readonly id: string; readonly artistKey: st
 }
 
 /**
- * Keeps one copy of each recording. Hosts overlap, netlabels above all, and a recording on both
- * sides of a split would leak. A copy an earlier run placed comes first, so a new copy never takes a
- * frozen track's place; then the first by id, which does not depend on a score.
- * @param rows Rows with their content identity: a hash, or a fingerprint when one exists
+ * When each id an earlier run placed was placed, as a rank: lower was placed first. A union of two
+ * runs' split-ids holds both copies of a recording, and the copy placed first is the frozen one.
+ * The order is the run that first placed the id (`first-placed.json`); an id with no record was placed
+ * before records were kept, so it counts as earliest. Within one run, the copy fetched first was there
+ * first, as fetched.jsonl is append-only; then the id, so the order is total.
  * @param placedBefore Ids an earlier run placed
+ * @param firstPlaced For each id, the stamp of the consolidate that first placed it
+ * @param fetchOrder For each id, its line in fetched.jsonl
+ * @returns For each id of `placedBefore`, its rank
+ */
+export function placementOrder(
+  placedBefore: ReadonlySet<string>,
+  firstPlaced: ReadonlyMap<string, string>,
+  fetchOrder: ReadonlyMap<string, number>,
+): ReadonlyMap<string, number> {
+  const key = (id: string) => [firstPlaced.get(id) ?? '', fetchOrder.get(id) ?? Number.MAX_SAFE_INTEGER, id] as const;
+  // Code-unit order, not the locale's: a locale may skip the punctuation an ISO time sorts by
+  const text = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+  const ordered = [...placedBefore].map(id => ({id, key: key(id)})).sort((a, b) => {
+    const [stampA, fetchA, idA] = a.key;
+    const [stampB, fetchB, idB] = b.key;
+
+    return text(stampA, stampB) || fetchA - fetchB || text(idA, idB);
+  });
+
+  return new Map(ordered.map(({id}, rank) => [id, rank]));
+}
+
+/**
+ * The record `placementOrder` reads, after a consolidate stamped `stamp` placed `placed`. A stamp is
+ * never moved: an id keeps the run that first placed it, even after it leaves and comes back. An id an
+ * earlier run placed with no record stays unrecorded, as it counts as earliest.
+ * @param record The record before this consolidate
+ * @param placed Ids this consolidate placed
+ * @param placedBefore Ids an earlier run placed
+ * @param stamp This consolidate's stamp, sortable as text (an ISO time)
+ * @returns The record to write
+ */
+export function recordFirstPlaced(
+  record: Readonly<Record<string, string>>,
+  placed: readonly string[],
+  placedBefore: ReadonlySet<string>,
+  stamp: string,
+): Record<string, string> {
+  const next = {...record};
+
+  for (const id of placed) {
+    if (next[id] === undefined && !placedBefore.has(id)) {
+      next[id] = stamp;
+    }
+  }
+
+  return next;
+}
+
+/**
+ * Keeps one copy of each recording. Hosts overlap, netlabels above all, and a recording on both
+ * sides of a split would leak. A copy an earlier run placed comes first, the one placed first ahead of
+ * a later one, so a new copy never takes a frozen track's place; then the first by id, which does not
+ * depend on a score.
+ * @param rows Rows with their content identity: a hash, or a fingerprint when one exists
+ * @param placedOrder For each id an earlier run placed, its rank from `placementOrder`
  * @returns Rows kept, and for each dropped id the id it duplicates
  */
 export function dropDuplicates<T extends {readonly id: string; readonly contentKeys: readonly string[]}>(
   rows: readonly T[],
-  placedBefore: ReadonlySet<string> = new Set(),
+  placedOrder: ReadonlyMap<string, number> = new Map(),
 ): {readonly kept: T[]; readonly dropped: ReadonlyMap<string, string>} {
   const owner = new Map<string, string>();
   const dropped = new Map<string, string>();
   const kept: T[] = [];
-  const rank = (row: T) => (placedBefore.has(row.id) ? 0 : 1);
+  const rank = (row: T) => placedOrder.get(row.id) ?? Number.MAX_SAFE_INTEGER;
 
   for (const row of [...rows].sort((a, b) => rank(a) - rank(b) || (a.id < b.id ? -1 : 1))) {
     const twin = row.contentKeys.map(key => owner.get(key)).find(id => id !== undefined);

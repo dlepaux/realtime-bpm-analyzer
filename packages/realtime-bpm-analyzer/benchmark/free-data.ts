@@ -17,9 +17,9 @@ import {keyConsensus, normaliseKey, pickForConfirmation, tempoConsensus} from '.
 import {derivedRow, factorsTowards, ffmpegFilter} from './free-data/derive';
 import {mixLicence, planMixes, renderMix} from './free-data/loop-mix';
 import type {Loop, LoopRole} from './free-data/loop-mix';
-import {artistGroups, artistKeyOf, dropDuplicates, extendFreeze, placeRows, rowProblems} from './free-data/manifest';
+import {artistGroups, artistKeyOf, dropDuplicates, extendFreeze, placeRows, placementOrder, recordFirstPlaced, rowProblems} from './free-data/manifest';
 import type {FrozenSplit, ManifestRow, TempoVote} from './free-data/manifest';
-import {bandOf, buildReport, calibrate, withoutFetchStops} from './free-data/report';
+import {bandOf, buildReport, calibrate, standingStops, withoutFetchStops} from './free-data/report';
 import type {Stop} from './free-data/report';
 import {classifyLicence, echonestTempos, narrow, parseCsv, parseFma, parseInternetArchive} from './free-data/sources';
 import type {Candidate, FmaRow, GenreRow, IaItem, Parsed} from './free-data/sources';
@@ -424,7 +424,14 @@ function recordingKey(candidate: Candidate, duration: number): string {
   return `${candidate.artistKey}|${title}|${Math.round(duration / 4)}`;
 }
 
-function realRows(root: string): {readonly rows: ManifestRow[]; readonly refused: Record<string, number>} {
+/** When each id was first placed, by consolidate stamp. Read by `placementOrder`, kept by `recordFirstPlaced` */
+function readFirstPlaced(root: string): Record<string, string> {
+  const path = join(root, 'first-placed.json');
+
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) as Record<string, string> : {};
+}
+
+function realRows(root: string): {readonly rows: ManifestRow[]; readonly refused: Record<string, number>; readonly placedBefore: ReadonlySet<string>} {
   const candidates = new Map(readJsonl<Candidate>(join(root, 'catalogue/candidates.jsonl')).map(row => [row.id, row]));
   const fetched = new Map(readJsonl<Fetched>(join(root, 'fetched.jsonl')).map(row => [row.id, row]));
   const refused: string[] = [];
@@ -471,7 +478,9 @@ function realRows(root: string): {readonly rows: ManifestRow[]; readonly refused
   const idsPath = join(root, 'split-ids.json');
   const earlier = existsSync(idsPath) ? JSON.parse(readFileSync(idsPath, 'utf8')) as {dev: string[]; heldout: string[]} : {dev: [], heldout: []};
   const placedBefore = new Set([...earlier.dev, ...earlier.heldout]);
-  const {kept, dropped} = dropDuplicates(labelled, placedBefore);
+  const fetchOrder = new Map([...fetched.keys()].map((id, line) => [id, line]));
+  const order = placementOrder(placedBefore, new Map(Object.entries(readFirstPlaced(root))), fetchOrder);
+  const {kept, dropped} = dropDuplicates(labelled, order);
   const freezePath = join(root, 'split-frozen.json');
   const previous = existsSync(freezePath) ? JSON.parse(readFileSync(freezePath, 'utf8')) as FrozenSplit : {seed, artists: {}};
   const {frozen, conflicted} = extendFreeze(kept, groups, previous);
@@ -526,7 +535,7 @@ function realRows(root: string): {readonly rows: ManifestRow[]; readonly refused
     };
   });
 
-  return {rows, refused: tally(refused)};
+  return {rows, refused: tally(refused), placedBefore};
 }
 
 function confirmationFile(root: string, rows: readonly ManifestRow[]): void {
@@ -570,7 +579,7 @@ function confirmationFile(root: string, rows: readonly ManifestRow[]): void {
 }
 
 function consolidate(root: string): void {
-  const {rows, refused} = realRows(root);
+  const {rows, refused, placedBefore} = realRows(root);
   const problems = rows.flatMap(row => rowProblems(row).map(problem => `${row.id}: ${problem}`));
 
   if (problems.length > 0) {
@@ -579,6 +588,8 @@ function consolidate(root: string): void {
 
   writeAtomic(join(root, 'manifest.jsonl'), rows.map(row => JSON.stringify(row)).join('\n') + '\n');
   writeAtomic(join(root, 'refused.json'), JSON.stringify(refused, null, 2));
+  // Before split-ids, so a kill between the two never leaves a new id placed with no stamp, which would count as earliest
+  writeAtomic(join(root, 'first-placed.json'), JSON.stringify(recordFirstPlaced(readFirstPlaced(root), rows.map(row => row.id), placedBefore, new Date().toISOString())));
   writeAtomic(join(root, 'split-ids.json'), JSON.stringify({
     seed,
     dev: rows.filter(row => row.split === 'dev').map(row => row.id).sort(),
@@ -814,9 +825,16 @@ function report(root: string): void {
     ...['generated', 'derived', 'loop-mixes'].flatMap(name => readJsonl<ManifestRow>(join(root, `not-real-${name}.jsonl`))),
   ];
   const readings = new Map(readJsonl<Reading>(join(root, 'readings.jsonl')).map(row => [row.id, row.votes ?? []]));
-  const candidates = readJsonl<Candidate>(join(root, 'catalogue/candidates.jsonl')).length;
-  const fetched = readJsonl<Fetched>(join(root, 'fetched.jsonl')).length;
-  const stops = readJsonl<Stop>(join(root, 'stops.jsonl')).map(row => row.stop);
+  const candidateRows = readJsonl<Candidate>(join(root, 'catalogue/candidates.jsonl'));
+  const candidates = candidateRows.length;
+  const fetchedRows = readJsonl<Fetched>(join(root, 'fetched.jsonl'));
+  const fetchedIds = new Set(fetchedRows.map(row => row.id));
+  const fetched = fetchedRows.length;
+  const stops = standingStops(readJsonl<Stop>(join(root, 'stops.jsonl')), {
+    fetchedBytes: fetchedRows.reduce((sum, row) => sum + row.bytes, 0),
+    mostBytes: mostBytesInAll,
+    unfetched: candidateRows.filter(row => !fetchedIds.has(row.id)).length,
+  }).map(row => row.stop);
   const body = {
     ...buildReport(rows),
     // A stop or a gap means the counts are a floor, not what free data can give

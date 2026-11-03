@@ -20,6 +20,26 @@ export function withoutFetchStops(stops: readonly Stop[]): Stop[] {
   return stops.filter(row => row.stage !== 'fetch' && !fetchStopWording.test(row.stop));
 }
 
+/** What a fetch can see now, which decides whether its disk-limit stop still holds */
+export type FetchState = {readonly fetchedBytes: number; readonly mostBytes: number; readonly unfetched: number};
+
+const diskStopWording = /: stopped at the disk limit$/;
+
+/**
+ * The stops that still hold, for the report. A disk-limit stop says the set reached its cap with work
+ * left, which the state shows: once the cap is raised past what is fetched, the stop no longer holds,
+ * with or without a fetch since, and reporting it would read as a stop that is not there. Any other
+ * stop holds until the next fetch drops it (`withoutFetchStops`).
+ * @param stops Lines of stops.jsonl
+ * @param state Bytes fetched, the cap, and candidates not fetched
+ * @returns The stops to report
+ */
+export function standingStops(stops: readonly Stop[], state: FetchState): Stop[] {
+  const diskStopHolds = state.fetchedBytes > state.mostBytes && state.unfetched > 0;
+
+  return stops.filter(row => diskStopHolds || !diskStopWording.test(row.stop));
+}
+
 export type Band = 'under-140' | '140-165' | '165+' | 'no-label';
 
 export function bandOf(bpm: number | null): Band {

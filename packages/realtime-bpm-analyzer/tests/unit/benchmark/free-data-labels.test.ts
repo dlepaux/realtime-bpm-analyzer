@@ -1,8 +1,8 @@
 import {expect} from 'chai';
 import {hintVerdict, keyConsensus, normaliseKey, pickForConfirmation, relationOf, tempoConsensus} from '../../../benchmark/free-data/consensus';
-import {artistGroups, artistKeyOf, dropDuplicates, extendFreeze, freezeByArtist, placeRows, rowProblems} from '../../../benchmark/free-data/manifest';
+import {artistGroups, artistKeyOf, dropDuplicates, extendFreeze, freezeByArtist, placeRows, placementOrder, recordFirstPlaced, rowProblems} from '../../../benchmark/free-data/manifest';
 import type {ManifestRow} from '../../../benchmark/free-data/manifest';
-import {bandOf, buildReport, calibrate, withoutFetchStops} from '../../../benchmark/free-data/report';
+import {bandOf, buildReport, calibrate, standingStops, withoutFetchStops} from '../../../benchmark/free-data/report';
 
 const vote = (bpm: number | null, method = 'm') => ({method, bpm});
 
@@ -220,10 +220,59 @@ describe('free data: labels', () => {
       {id: 'a-new', contentKeys: ['h1', 'r2']},
       {id: 'b-old', contentKeys: ['h3', 'r2']},
       {id: 'c-old', contentKeys: ['h1', 'r4']},
-    ], new Set(['b-old', 'c-old']));
+    ], placementOrder(new Set(['b-old', 'c-old']), new Map(), new Map()));
 
     expect(kept.map(item => item.id)).to.deep.equal(['b-old', 'c-old']);
     expect(dropped.get('a-new')).to.equal('c-old');
+  });
+
+  // RBA-59 reconsolidate: the union of two runs' split-ids held both copies of 186 recordings, and the later copy won by id
+  it('keeps the copy placed first when an earlier and a later run both placed a copy', () => {
+    const order = placementOrder(new Set(['a-cap2', 'z-before']), new Map(), new Map([['z-before', 10], ['a-cap2', 900]]));
+    const {kept, dropped} = dropDuplicates([
+      {id: 'a-cap2', contentKeys: ['h1', 'r1']},
+      {id: 'z-before', contentKeys: ['h2', 'r1']},
+    ], order);
+
+    expect(kept.map(item => item.id)).to.deep.equal(['z-before']);
+    expect(dropped.get('a-cap2')).to.equal('z-before');
+  });
+
+  describe('placementOrder', () => {
+    it('ranks an id with no record first, then by the run that placed it, then by fetch, then by id', () => {
+      const order = placementOrder(
+        new Set(['late-run', 'early-run', 'old-fetched-late', 'old-fetched-early', 'old-never-fetched-b', 'old-never-fetched-a']),
+        new Map([['late-run', '2026-12-01T00:00:00.000Z'], ['early-run', '2026-11-04T00:00:00.000Z']]),
+        new Map([['early-run', 1], ['late-run', 0], ['old-fetched-late', 50], ['old-fetched-early', 5]]),
+      );
+
+      expect([...order.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id)).to.deep.equal([
+        'old-fetched-early', 'old-fetched-late', 'old-never-fetched-a', 'old-never-fetched-b', 'early-run', 'late-run',
+      ]);
+    });
+
+    it('ranks only the ids placed before', () => {
+      expect([...placementOrder(new Set(['a']), new Map([['b', '2026-11-04']]), new Map([['c', 0]])).keys()]).to.deep.equal(['a']);
+    });
+  });
+
+  describe('recordFirstPlaced', () => {
+    it('stamps only new placements, and never moves a stamp', () => {
+      const record = recordFirstPlaced(
+        {kept: '2026-11-04T00:00:00.000Z', left: '2026-11-04T00:00:00.000Z'},
+        ['kept', 'old-unrecorded', 'new'],
+        new Set(['kept', 'old-unrecorded']),
+        '2026-12-01T00:00:00.000Z',
+      );
+
+      expect(record).to.deep.equal({kept: '2026-11-04T00:00:00.000Z', left: '2026-11-04T00:00:00.000Z', new: '2026-12-01T00:00:00.000Z'});
+    });
+
+    it('keeps the first stamp of an id that left and comes back as new', () => {
+      const record = recordFirstPlaced({back: '2026-11-04T00:00:00.000Z'}, ['back'], new Set(), '2026-12-01T00:00:00.000Z');
+
+      expect(record.back).to.equal('2026-11-04T00:00:00.000Z');
+    });
   });
 
   describe('placeRows', () => {
@@ -251,6 +300,31 @@ describe('free data: labels', () => {
       {stop: 'fma: refused 5 in a row, queue stopped: HTTP 429'},
       {stop: 'fma: stopped at the disk limit', stage: 'fetch'},
     ])).to.deep.equal([{stop: 'internet archive, techno: stopped at the page limit, more items exist'}]);
+  });
+
+  describe('standingStops', () => {
+    const stops = [
+      {stop: 'internet archive, techno: stopped at the page limit, more items exist'},
+      {stop: 'internet-archive: stopped at the disk limit'},
+      {stop: 'fma: stopped at the disk limit', stage: 'fetch' as const},
+      {stop: 'fma: refused 5 in a row, queue stopped: HTTP 429', stage: 'fetch' as const},
+    ];
+
+    // RBA-59 reconsolidate: the 150 GiB stop stayed in the report after the cap went to 1 TiB, as no fetch ran since
+    it('drops a disk-limit stop once the cap is above what is fetched, with no fetch since', () => {
+      expect(standingStops(stops, {fetchedBytes: 268e9, mostBytes: 1024 ** 4, unfetched: 543}).map(row => row.stop)).to.deep.equal([
+        'internet archive, techno: stopped at the page limit, more items exist',
+        'fma: refused 5 in a row, queue stopped: HTTP 429',
+      ]);
+    });
+
+    it('keeps a disk-limit stop while the set is over its cap with work left', () => {
+      expect(standingStops(stops, {fetchedBytes: 170e9, mostBytes: 150 * 1024 ** 3, unfetched: 9400})).to.deep.equal(stops);
+    });
+
+    it('drops a disk-limit stop when nothing is left to fetch', () => {
+      expect(standingStops(stops, {fetchedBytes: 170e9, mostBytes: 150 * 1024 ** 3, unfetched: 0})).to.have.length(2);
+    });
   });
 
   describe('buildReport', () => {

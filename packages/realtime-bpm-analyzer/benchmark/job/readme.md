@@ -7,7 +7,10 @@ entrypoint [tune]                               # the data, then the dev sweep. 
 entrypoint fetch                                # the data only
 entrypoint dev --detector a,b                         # the data, then those detectors on dev through the real path, into `_job/dev-<commit>.json`. No look
 entrypoint heldout --reason "why" [--detector a,b]   # the data, a dev scoring, then a logged held-out look
+entrypoint free-look --reason "why"                   # RBA-51's one look at RBA-59's held-out free mixes, then its verdict
 ```
+
+`free-look` scores peaks and `tempogram` (5.5.0) on `free-mixes` and `free-mixes-contested` held-out, whole, and takes no `--sets` or `--detector`. It has its own log, `_job/free-heldout-log.md`, and one line there spends it. Its files are `_job/free-heldout-<commit>.json` (per track, which stays on the volume), `_job/free-heldout-progress-<commit>.jsonl`, and `_job/free-verdict-<commit>.md` and `.json`, the aggregates `free-verdict.ts` writes. A restart after the look's file only judges it again. The `heldout` mode refuses the free sets.
 
 `--sets a,b` narrows any of them but a look, for a test. A `tune` that narrow says so in `scope`, and proves less. Curves and rows live in `_job/tune-<commit>-<scope>/`, so a test or a new image never mixes with an earlier run. `RBA_JOB_WORKERS` sets the worker count, and a job should set it: a container sees the host's cores, not its own limit. Run one at a time on a volume: two jobs fight over the same part files.
 

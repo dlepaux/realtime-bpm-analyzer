@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {UndecodableTrack, assertDecoded, lookHeader, lookDetectorRefusal, lookRefusal, lookScopeRefusal, progressRows, refusalOf, resumesLook, skippedTracks, undecodableLimit} from '../../../benchmark/lib/look';
+import {UndecodableTrack, assertDecoded, freeLookRefusal, lookHeader, lookDetectorRefusal, lookRefusal, lookScopeRefusal, progressRows, refusalOf, resumesLook, skippedTracks, undecodableLimit} from '../../../benchmark/lib/look';
 import type {RunFailure} from '../../../benchmark/lib/look';
 
 const row = (id: string) => `\n${JSON.stringify({detector: 'peaks', result: {id}})}\n`;
@@ -118,4 +118,22 @@ describe('benchmark held-out looks', () => {
       expect(lookRefusal(line + line, true, 'second look')).to.equal(null);
     });
   });
+
+  describe('the one look at the held-out free mixes', () => {
+    const line = '| 2026-11-03T15:00:00.000Z | abc | peaks, tempogram | why |\n';
+
+    it('starts once, with a reason, on an empty log of its own', () => {
+      expect(freeLookRefusal('', false, 'RBA-51 look at the free mixes')).to.equal(null);
+      expect(freeLookRefusal('', false, ' ')).to.contain('reason');
+    });
+
+    it('is spent by one line, whatever the reason or the commit', () => {
+      expect(freeLookRefusal(line, false, 'Second look, prompted by the first, rule amended')).to.contain('spent');
+    });
+
+    it('resumes its own progress after a kill, which spends nothing', () => {
+      expect(freeLookRefusal(line, true, 'why')).to.equal(null);
+    });
+  });
 });
+

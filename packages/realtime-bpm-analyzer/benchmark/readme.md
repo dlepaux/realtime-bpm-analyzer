@@ -178,7 +178,16 @@ RBA-51's third sweep tunes on dev with RBA-59's licence-clean full mixes added t
 ./benchmark/run.sh retune2 report <dev.json>[,<dev.json>] candidate,tempogram,peaks
 ```
 
-**The outcome, 2026-11-03.** Sweep at 6f83ba9 (alloc 9fb20f2d), 443 rows, [`results/rba-51-retune2-sweep.jsonl`](results/rba-51-retune2-sweep.jsonl), rule output in [`results/rba-51-retune2-pick.json`](results/rba-51-retune2-pick.json). 321 rows pass the guard. The best is 50 BPM, 2.4 octaves, third 0.3, `stableSalience` 0.1, at 80.61, with a group-aware error of 3.55. 268 rows are within noise of it, and 122 of those are interior. **The rule chooses 5.5.0 unchanged** (80.24, no knob moved). The prior grid is bracketed: a ridge runs from 50/2.4 to 110/0.7 at 80.0 to 80.3, and it falls on every side (76.6 at 50/1.3, 76.8 at 140/0.7, 78.6 to 79.7 at 3.4 octaves). No single knob beats 5.5.0 by more than 0.4. Dev tables for 5.5.0 against peaks: [`results/rba-51-retune2-dev.md`](results/rba-51-retune2-dev.md).
+**The outcome, 2026-11-03.** Sweep at 6f83ba9 (alloc 9fb20f2d), 443 rows, [`results/rba-51-retune2-sweep.jsonl`](results/rba-51-retune2-sweep.jsonl), rule output in [`results/rba-51-retune2-pick.json`](results/rba-51-retune2-pick.json). 321 rows pass the guard. The best is 50 BPM, 2.4 octaves, third 0.3, `stableSalience` 0.1, at 80.61, with a group-aware error of 3.55. 268 rows are within noise of it, and 122 of those are interior. **The rule chooses 5.5.0 unchanged** (80.24, no knob moved). A ridge runs from 50/2.4 to 110/0.7 at 80.0 to 80.3, and it falls on every measured side (76.6 at 50/1.3, 76.8 at 140/0.7, 78.6 to 79.7 at 3.4 octaves). It is not bracketed below: 50 BPM is the floor of the priorBpm grid, and nothing under it was measured. The rule leaves edge rows out, so this does not reach the pick. The one-knob stage moved eight other knobs one at a time around the best row, 50/2.4, which sits on that grid edge, so none of its 22 rows could be picked: no knob gained more than 0.4 there, which was measured around 50/2.4 and not around 5.5.0. Dev tables for 5.5.0 against peaks: [`results/rba-51-retune2-dev.md`](results/rba-51-retune2-dev.md).
+
+## The held-out look on the free mixes
+
+RBA-51's DECISION of 2026-11-03 allows one look at RBA-59's held-out free mixes: 5.5.0's tempogram as shipped (`tempogram`) against peaks, on the real path at 90 to 180, judged by the pass bar proposed on RBA-51 that day. The bar was committed as `lib/free-look.ts` and `free-verdict.ts`, with tests, before the route to that half was opened.
+
+- **Gates** (all must hold, strict labels only): 1, Acc1 and Acc2 above peaks with the 95% artist range wholly above zero, over every strict track; 2, on 140 to 165 and 165 to 180, Acc1 and Acc2 not below peaks beyond noise; 4, false-stable not above peaks as a point estimate; 5, no Acc1 regression against 5.5.0 on the old clean sets' held-out halves, which is met by construction since the candidate is 5.5.0, and reads no data.
+- **Void:** gate 3 and the half of gate 2 against 5.5.0, as the candidate is 5.5.0.
+- **Reported, gating nothing:** coverage, the contested tier, `trackers-all` and `trackers-two`, tracks labelled outside 90 to 180, and the one-standard-error version of each test.
+- **Sealed:** per-track held-out output stays on the data volume. Only the verdict's aggregates are committed.
 
 ## Results
 

@@ -1,6 +1,6 @@
 # RBA-51 third sweep: dev, real path, 5.5.0 against peaks
 
-From `/srv/data/rba-tempo/_job/dev-61446af818ac.json` (job rba-tempo-write/dispatch-1793699769-7d66146f, alloc 4164a6fa, image sha-61446af), kept on the box: 7 MB of per-track rows. `tempogram` is 5.5.0, which is also the third sweep's pick. 90 to 180, free mixes on their first 60 s. Made by `./benchmark/run.sh retune2 report <dev.json> tempogram,peaks`.
+From `/data/rba-tempo/_job/dev-61446af818ac.json` (job dispatch-1793699769-7d66146f, alloc 4164a6fa, image sha-61446af), kept on the box: 7 MB of per-track rows. `tempogram` is 5.5.0, which is also the third sweep's pick. 90 to 180, free mixes on their first 60 s. Made by `./benchmark/run.sh retune2 report <dev.json> tempogram,peaks`.
 
 **Acc1**, value [95% range, resampling groups: artists for the free mixes]
 

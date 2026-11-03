@@ -1,5 +1,6 @@
 import {expect} from 'chai';
-import {devTracks, excerptSeconds, freeHeldoutRefusal, isFreeSet, tierOf} from '../../../benchmark/lib/free-mixes-rows';
+import {freeLookDetectors, freeLookSets} from '../../../benchmark/lib/free-look';
+import {devTracks, excerptSeconds, freeHeldoutRefusal, freeJobModeRefusal, freeLookScope, isFreeSet, splitTracks, tierOf} from '../../../benchmark/lib/free-mixes-rows';
 
 function row(id: string, split: string, extra: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -62,17 +63,46 @@ describe('RBA-59 free mixes, dev half', () => {
     expect(isFreeSet('fsld')).to.equal(false);
   });
 
-  // run.ts and job.ts both apply this before logging or reading anything
+  // run.ts and job.ts both apply these before logging or reading anything
   describe('the held-out refusal', () => {
-    it('refuses a held-out run naming a free set, alone or beside other sets', () => {
-      expect(freeHeldoutRefusal('heldout', ['free-mixes'])).to.include('dev only');
-      expect(freeHeldoutRefusal('heldout', ['free-mixes-contested'])).to.include('dev only');
-      expect(freeHeldoutRefusal('heldout', ['fsld', 'free-mixes'])).to.include('dev only');
+    const look = ['peaks', 'tempogram'];
+
+    it('refuses a held-out run on a free set that is not the whole look', () => {
+      expect(freeHeldoutRefusal('heldout', ['free-mixes'], look)).to.include('one look');
+      expect(freeHeldoutRefusal('heldout', ['free-mixes-contested'], look)).to.include('one look');
+      expect(freeHeldoutRefusal('heldout', ['fsld', 'free-mixes', 'free-mixes-contested'], look)).to.include('one look');
+      expect(freeHeldoutRefusal('heldout', ['free-mixes', 'free-mixes-contested'], ['tempogram'])).to.include('one look');
+      expect(freeHeldoutRefusal('heldout', ['free-mixes', 'free-mixes-contested'], [...look, 'tempogram-ridge-50-90-180'])).to.include('one look');
     });
 
-    it('lets dev read the free sets, and a held-out run without them start', () => {
-      expect(freeHeldoutRefusal('dev', ['free-mixes', 'free-mixes-contested'])).to.equal(null);
-      expect(freeHeldoutRefusal('heldout', ['fsld', 'groove'])).to.equal(null);
+    it('lets the whole look through, in any order, and dev and the clean sets as before', () => {
+      expect(freeHeldoutRefusal('heldout', ['free-mixes-contested', 'free-mixes'], ['tempogram', 'peaks'])).to.equal(null);
+      expect(freeHeldoutRefusal('dev', ['free-mixes', 'free-mixes-contested'], ['tempogram-ridge-50-90-180'])).to.equal(null);
+      expect(freeHeldoutRefusal('heldout', ['fsld', 'groove'], ['peaks'])).to.equal(null);
+    });
+
+    it('keeps the free sets out of the job\'s heldout mode, which has the clean sets\' budget', () => {
+      expect(freeJobModeRefusal('heldout', ['fsld', 'free-mixes'])).to.include('free-look');
+      expect(freeJobModeRefusal('heldout', ['fsld', 'groove'])).to.equal(null);
+      expect(freeJobModeRefusal('dev', ['free-mixes'])).to.equal(null);
+    });
+
+    it('names the look as the verdict judges it', () => {
+      expect(freeLookScope.detectors).to.have.members([...freeLookDetectors]);
+      expect(freeLookScope.sets).to.have.members([...freeLookSets]);
+    });
+  });
+
+  describe('the held-out half, for the look only', () => {
+    it('reads held-out ids and never parses a dev line', () => {
+      const manifest = [row('h', 'heldout'), '{"id":"a", not json at all'].join('\n');
+
+      expect(splitTracks('heldout', splitIds, manifest)['free-mixes'].map(({id}) => id)).to.deep.equal(['h']);
+    });
+
+    it('refuses a held-out id whose row says dev, and a split list with no such half', () => {
+      expect(() => splitTracks('heldout', splitIds, row('h', 'dev'))).to.throw('heldout list');
+      expect(() => splitTracks('heldout', JSON.stringify({dev: ['a']}), row('a', 'dev'))).to.throw('no heldout ids');
     });
   });
 });

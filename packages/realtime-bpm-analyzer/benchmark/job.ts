@@ -3,6 +3,7 @@
 //   job.mjs fetch                                 the data only
 //   job.mjs dev --detector a,b                    the data, then a dev scoring through the real path. No look
 //   job.mjs heldout --reason "..." [--detector]   the data, a dev scoring, then a held-out look, logged
+//   job.mjs free-look --reason "..."              RBA-51's one look at RBA-59's held-out free mixes, then its verdict
 // Every stage is safe to kill and restart. Exit: 0 done, 1 failed, 2 bad arguments, 3 the sweep is
 // done on clean data but an evaluation set did not come back whole.
 import {spawn} from 'node:child_process';
@@ -12,13 +13,13 @@ import {join} from 'node:path';
 import {parseArgs} from 'node:util';
 import {dataRoot, loaders} from './lib/datasets';
 import {freeLoaders} from './lib/free-mixes';
-import {freeHeldoutRefusal, isFreeSet} from './lib/free-mixes-rows';
+import {freeJobModeRefusal, freeLookScope, isFreeSet} from './lib/free-mixes-rows';
 import {rebuild, stopCommands} from './lib/fetch';
 import type {DataReport} from './lib/fetch';
 import type {SetReport} from './lib/sources';
 import {assertTunableSets, cleanSets} from './lib/licences';
 import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
-import {lookDetectorRefusal, lookRefusal, lookScopeRefusal} from './lib/look';
+import {freeLookRefusal, lookDetectorRefusal, lookRefusal, lookScopeRefusal} from './lib/look';
 import type {RunFailure} from './lib/look';
 import {bandCounts} from './lib/metrics';
 import {guardShortfalls} from './lib/sweep';
@@ -32,6 +33,11 @@ const benchmarkSha = (process.env.RBA_BENCHMARK_SHA || 'local').slice(0, 12);
 const heldoutOut = join(jobDir, `heldout-${benchmarkSha}.json`);
 const heldoutProgress = join(jobDir, `heldout-progress-${benchmarkSha}.jsonl`);
 const incompleteEvaluation = 3;
+// RBA-51's look at the held-out free mixes: its own files and log, so it touches nothing of the clean sets' looks
+const freeLog = join(jobDir, 'free-heldout-log.md');
+const freeOut = join(jobDir, `free-heldout-${benchmarkSha}.json`);
+const freeProgress = join(jobDir, `free-heldout-progress-${benchmarkSha}.jsonl`);
+const freeVerdict = {md: join(jobDir, `free-verdict-${benchmarkSha}.md`), json: join(jobDir, `free-verdict-${benchmarkSha}.json`)};
 
 type Summary = {
   mode: string;
@@ -53,6 +59,8 @@ type Summary = {
   heldout: string | null;
   /** Tracks a look scored without, because their file cannot decode. Each one is named here */
   skipped: readonly RunFailure[];
+  /** The free-mix look's verdict: free-verdict's exit (0 yes, 1 no) and its aggregate files */
+  verdict?: {exit: number; md: string; json: string};
 };
 
 /** One file per mode: a fetch or a held-out look must not overwrite the sweep's evidence */
@@ -67,7 +75,7 @@ function save(summary: Summary): void {
 
 let child: ChildProcess | null = null;
 
-async function runEntry(entry: string, args: readonly string[]): Promise<void> {
+async function runEntry(entry: string, args: readonly string[], okCodes: readonly number[] = [0]): Promise<number> {
   const code = await new Promise<number>((resolve, reject) => {
     child = spawn('./run.sh', [entry, ...args], {stdio: 'inherit'})
       .on('error', reject)
@@ -76,9 +84,11 @@ async function runEntry(entry: string, args: readonly string[]): Promise<void> {
       });
   });
 
-  if (code !== 0) {
+  if (!okCodes.includes(code)) {
     throw new Error(`${entry} exited ${code}`);
   }
+
+  return code;
 }
 
 async function tune(summary: Summary, sets: readonly string[], plan: string): Promise<void> {
@@ -158,6 +168,34 @@ async function heldout(summary: Summary, sets: readonly string[], reason: string
 }
 
 /**
+ * RBA-51's one look at the held-out free mixes, then the verdict committed before it. No dev scoring
+ * first: 5.5.0 and peaks were scored on this dev half through the real path at 61446af, and the
+ * candidate is the library as shipped, so there is no replayed pick to hold to a guard. The sets live on
+ * the volume and have no source to fetch. A restart after the look's file only judges it again: the
+ * verdict reads that file and nothing new.
+ */
+async function freeLook(summary: Summary, reason: string): Promise<void> {
+  if (!existsSync(freeOut)) {
+    summary.stage = 'heldout';
+    save(summary);
+    await runEntry('run', [
+      '--split', 'heldout', '--detector', freeLookScope.detectors.join(','), '--sets', freeLookScope.sets.join(','), '--reason', reason,
+      '--out', freeOut, '--progress', freeProgress,
+    ]);
+  }
+
+  summary.heldout = freeOut;
+  summary.skipped = (JSON.parse(readFileSync(freeOut, 'utf8')) as {skipped: RunFailure[]}).skipped;
+  summary.stage = 'verdict';
+  save(summary);
+
+  const exit = await runEntry('free-verdict', [freeOut, freeVerdict.md, freeVerdict.json], [0, 1]);
+
+  summary.verdict = {exit, ...freeVerdict};
+  summary.status = 'ok';
+}
+
+/**
  * RBA-59's sets are on the volume already and have no source to fetch here: their pipeline owns them,
  * and this only counts their dev tracks. A count of zero fails, as a set that did not come back.
  */
@@ -177,6 +215,11 @@ function freeSetReports(sets: readonly string[]): DataReport['sets'] {
 }
 
 async function stages(summary: Summary, mode: string, wanted: readonly string[], options: {reason?: string; detector: string; plan: string}): Promise<void> {
+  if (mode === 'free-look') {
+    await freeLook(summary, options.reason!);
+    return;
+  }
+
   summary.stage = 'data';
   save(summary);
 
@@ -238,6 +281,28 @@ function refuseLook(reason: string, names: readonly string[], sets: readonly str
 }
 
 /**
+ * The free-mix look may start, or resume its own progress or its verdict. Anything else is refused
+ * before anything runs.
+ * @returns Why not, or null
+ */
+function refuseFreeLook(reason: string, sets: string | undefined, detector: string | undefined): string | null {
+  if (sets !== undefined || detector !== undefined) {
+    return 'The free-mix look takes no --sets or --detector: its scope is fixed in lib/free-mixes-rows.ts';
+  }
+
+  const summaryPath = join(jobDir, 'summary-free-look.json');
+  const isRunning = existsSync(summaryPath) && (JSON.parse(readFileSync(summaryPath, 'utf8')) as Summary).status === 'running';
+
+  if (existsSync(freeOut)) {
+    return isRunning ? null : `${freeOut} exists: that look is spent`;
+  }
+
+  const log = existsSync(freeLog) ? readFileSync(freeLog, 'utf8') : '';
+
+  return freeLookRefusal(log, existsSync(freeProgress) && statSync(freeProgress).size > 0, reason);
+}
+
+/**
  * Scoring a finished look again would be a new look: that takes deleting its file by hand. A kill
  * can land after the file and before the summary, and then this restart only closes the summary.
  */
@@ -261,14 +326,24 @@ async function main(): Promise<number> {
   const mode = args?.positionals[0] ?? 'tune';
   const wanted = args?.values.sets?.split(',') ?? Object.keys(loaders);
 
-  if (!args || !['tune', 'fetch', 'dev', 'heldout'].includes(mode) || !process.env.RBA_TEMPO_ROOT
-    || (mode === 'heldout' && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set) || isFreeSet(set))
-    || freeHeldoutRefusal(mode, wanted) !== null) {
-    console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|dev|heldout --reason <why>] [--sets a,b]');
+  // The clean sets' heldout mode never takes a free set: the free-mix look is its own mode
+  if (!args || !['tune', 'fetch', 'dev', 'heldout', 'free-look'].includes(mode) || !process.env.RBA_TEMPO_ROOT
+    || ((mode === 'heldout' || mode === 'free-look') && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set) || isFreeSet(set))
+    || freeJobModeRefusal(mode, wanted) !== null) {
+    console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|dev|heldout --reason <why>|free-look --reason <why>] [--sets a,b]');
     return 2;
   }
 
   const {values} = args;
+
+  if (mode === 'free-look') {
+    const freeRefusal = refuseFreeLook(values.reason!, values.sets, values.detector);
+
+    if (freeRefusal) {
+      console.error(freeRefusal);
+      return 2;
+    }
+  }
 
   if (mode === 'heldout' && existsSync(heldoutOut)) {
     return closeSpentLook();
@@ -287,7 +362,7 @@ async function main(): Promise<number> {
   const summary: Summary = {
     mode,
     sha: process.env.RBA_BENCHMARK_SHA || 'local',
-    scope: values.sets ?? 'all',
+    scope: mode === 'free-look' ? freeLookScope.sets.join(',') : values.sets ?? 'all',
     startedAt: new Date().toISOString(),
     finishedAt: null,
     stage: 'start',

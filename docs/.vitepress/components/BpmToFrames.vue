@@ -45,7 +45,8 @@ const rows = computed(() => {
   const rates = custom.value ? [...FRAME_RATES, custom.value] : FRAME_RATES
   return rates.map((rate) => {
     const current = bpm.value
-    if (current === null) return { ...rate, beat: '—', bar: '—', drift: '—', isCustom: rate === custom.value }
+    // No tempo yet: empty cells, and their copy buttons are disabled.
+    if (current === null) return { ...rate, beat: '', bar: '', drift: '', isCustom: rate === custom.value }
     const bar = framesPerBeats(current, rate.fps, beatsPerBar.value)
     return {
       ...rate,
@@ -74,7 +75,7 @@ function commitBpm() {
 
 let copiedTimer: number | undefined
 async function copy(key: string, text: string, label: string) {
-  if (text === '—') return
+  if (text === '') return
   try {
     await navigator.clipboard.writeText(text)
     copied.value = key
@@ -199,6 +200,7 @@ onMounted(() => {
                 type="button"
                 class="cell"
                 :class="{ 'is-copied': copied === `${row.label}-${cell}` }"
+                :disabled="row[cell] === ''"
                 :aria-label="`Copy ${row[cell]} frames per ${cell} at ${row.label} fps`"
                 @click="copy(`${row.label}-${cell}`, row[cell], `${row.label} fps ${cell}`)"
               >
@@ -348,6 +350,9 @@ onMounted(() => {
 }
 
 .cell:hover { background: var(--vp-c-bg); color: var(--vp-c-brand-1); }
+
+.cell:disabled { cursor: default; background: none; }
+.cell:disabled .cell-icon { display: none; }
 
 .cell-icon {
   flex-shrink: 0;

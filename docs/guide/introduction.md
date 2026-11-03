@@ -5,7 +5,7 @@ description: A zero-dependency TypeScript library for detecting tempo (BPM) in t
 
 # What is Realtime BPM Analyzer?
 
-Realtime BPM Analyzer is a powerful, dependency-free TypeScript/JavaScript library that enables you to detect the **beats-per-minute (BPM)** or **tempo** of audio and video sources directly in the browser.
+Realtime BPM Analyzer is a dependency-free TypeScript/JavaScript library that enables you to detect the **beats-per-minute (BPM)** or **tempo** of audio and video sources directly in the browser.
 
 ## Key Features
 
@@ -30,7 +30,7 @@ Works with various audio sources:
 - Any source compatible with Web Audio API
 
 ### 📦 TypeScript Support
-Written in TypeScript with complete type definitions for excellent IDE integration and type safety.
+Written in TypeScript with complete type definitions, so your editor autocompletes and type-checks every call.
 
 ## How It Works
 
@@ -45,7 +45,7 @@ The library analyzes audio data in real-time using the Web Audio API's `AudioWor
 
 ## Use Cases
 
-Perfect for:
+Used for:
 
 - 🎧 **DJ Applications** - Auto-sync tracks, beatmatching
 - 🎵 **Music Players** - Display current track tempo

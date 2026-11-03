@@ -11,19 +11,18 @@ head:
 
 This guide reads the tempo of music the microphone hears, in the browser,
 with `getUserMedia`, the Web Audio API and `realtime-bpm-analyzer`. The
-microphone is the hardest input of the three (file, stream, mic): room
-reverb, background noise, a keyboard or a laptop fan all reach the signal.
+microphone picks up more noise than a file or a stream: room reverb,
+background noise, a keyboard or a laptop fan all reach the signal.
 It is also the one a live performance tool, a music game or a fitness app
 needs.
 
 Only want the BPM of the music around you, not code? The
 [tool on the home page](/) listens to the microphone in your browser.
 
-This guide is the working pattern. It uses
-`realtime-bpm-analyzer` and the AudioWorklet API to keep analysis off the
-main thread, handles the permission and HTTPS gotchas, and avoids the two
-classic traps (feedback loop, leaked tracks) that make first attempts
-fail.
+The pattern below uses `realtime-bpm-analyzer` and the AudioWorklet API
+to keep analysis off the main thread. It handles permissions and HTTPS,
+and avoids two common mistakes: a feedback loop and microphone tracks
+left open.
 
 ## What you'll get
 
@@ -32,28 +31,28 @@ A web page that:
 - Asks the user for microphone permission via `getUserMedia`.
 - Routes the microphone signal through a low-pass filter into a BPM
   analyzer running on the audio thread.
-- Emits a stable BPM value once detection settles (typically 5–15
-  seconds of audible rhythmic content).
+- Emits a stable BPM value once detection settles: after 10 seconds of
+  audio at the earliest, longer when the rhythm is faint.
 - Releases the microphone cleanly when the user stops.
 
-It does **not** play the microphone back through the speakers — that
+It does **not** play the microphone back through the speakers, which
 would create a feedback loop. The audio is captured, analysed, and
 discarded.
 
 ## Prerequisites
 
-Three constraints are non-negotiable:
+Three requirements:
 
 1. **HTTPS or localhost.** The `getUserMedia` API only works on secure
    origins. Local development on `http://localhost` works; staging on
-   `http://192.168.1.10` does not. Plan around this from day one.
+   `http://192.168.1.10` does not.
 2. **A user gesture.** Both the microphone permission prompt and the
    `AudioContext` resume must happen inside a click, touch, or
-   keypress handler. Browsers silently refuse otherwise. The "Start
-   listening" button is mandatory.
-3. **AudioWorklet support.** Any browser shipped after early 2021 will
-   work — Chrome 66+, Firefox 76+, Safari 14.1+, Edge 79+. iOS Safari
-   under 14.5 has known issues; gracefully degrade or warn.
+   keypress handler. Otherwise the browser refuses without an error, so
+   the page needs a "Start listening" button.
+3. **AudioWorklet support.** Chrome 66+, Firefox 76+, Safari 14.1+ or
+   Edge 79+. iOS Safari under 14.5 has known issues, so show a warning
+   there.
 
 ## Installation
 
@@ -64,7 +63,7 @@ npm install realtime-bpm-analyzer
 ## The complete pattern
 
 ```typescript
-import { createRealtimeBpmAnalyzer, getBiquadFilter, BpmAnalyzer } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
 
 let audioContext: AudioContext | null = null;
 let mediaStream: MediaStream | null = null;
@@ -76,7 +75,7 @@ async function startListening(onBpm: (bpm: number) => void) {
   await audioContext.resume();
 
   // 2. Ask for microphone access. Disable noise suppression and echo
-  //    cancellation — they're tuned for voice and will eat the
+  //    cancellation: they're tuned for voice and remove the
   //    rhythmic transients we want to detect.
   mediaStream = await navigator.mediaDevices.getUserMedia({
     audio: {
@@ -86,12 +85,12 @@ async function startListening(onBpm: (bpm: number) => void) {
     },
   });
 
-  // 3. Build the audio graph: mic -> lowpass -> analyzer.
+  // 3. Build the audio graph: mic -> analyzer. `.input` holds the
+  //    lowpass filter the default detector expects.
   const source = audioContext.createMediaStreamSource(mediaStream);
-  const lowpass = getBiquadFilter(audioContext);
   bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-  source.connect(lowpass).connect(bpmAnalyzer.node);
+  source.connect(bpmAnalyzer.input);
   // Note: do NOT connect to audioContext.destination. Feedback loop.
 
   // 4. Surface stable detections to the application.
@@ -103,10 +102,10 @@ async function startListening(onBpm: (bpm: number) => void) {
 }
 
 async function stopListening() {
-  bpmAnalyzer?.disconnect();
+  bpmAnalyzer?.stop();
   bpmAnalyzer = null;
 
-  // Stop every track on the MediaStream — without this the browser
+  // Stop every track on the MediaStream. Without this the browser
   // keeps the microphone open and the recording indicator on.
   mediaStream?.getTracks().forEach((track) => track.stop());
   mediaStream = null;
@@ -127,22 +126,21 @@ document.getElementById('stop')?.addEventListener('click', () => {
 });
 ```
 
-That's the whole thing. The audio thread runs the analyzer, the main
-thread renders BPM updates, and `stopListening` is the symmetric inverse
-of `startListening` — every resource opened gets closed.
+The audio thread runs the analyzer, the main thread renders BPM updates,
+and `stopListening` closes every resource `startListening` opened.
 
 ## Why disable echo cancellation
 
 By default, `getUserMedia` returns a stream with three "voice mode"
 processors enabled: `echoCancellation`, `noiseSuppression`, and
-`autoGainControl`. These are excellent for video calls — they make
-speech clearer at the cost of musical content. The compressor in
+`autoGainControl`. They are made for video calls: they make speech
+clearer at the cost of musical content. The compressor in
 `autoGainControl` flattens dynamics; `noiseSuppression` removes
 exactly the kinds of transients (kick drums, claps, low rumbles) that
 beat detection depends on.
 
-Set all three to `false` for music analysis. The signal will be raw —
-that's what you want.
+Set all three to `false` for music analysis, so the analyzer gets the
+raw signal.
 
 ```typescript
 audio: {
@@ -154,16 +152,15 @@ audio: {
 
 ## Why no `connect(audioContext.destination)`
 
-The single most common mistake. If you connect a microphone source to
-the audio context's `destination`, the speakers play whatever the
-microphone hears. The microphone hears whatever the speakers play.
-Audio loops back, gain compounds, the user gets a 110 dB feedback
-howl, the application is uninstalled.
+If you connect a microphone source to the audio context's
+`destination`, the speakers play whatever the microphone hears, and the
+microphone hears whatever the speakers play. The audio loops back, the
+gain builds up, and the user hears loud feedback.
 
-If you genuinely need to play the microphone back — for example, a
-live monitor in a singing app — route through a `GainNode` and keep
-its gain low, and warn the user about headphones. For BPM detection,
-just don't connect to `destination` at all. The analyzer reads the
+If you do need to play the microphone back, for example as a live
+monitor in a singing app, route it through a `GainNode` with a low gain
+and ask the user to wear headphones. For BPM detection, don't connect to
+`destination` at all. The analyzer reads the
 samples; nothing else needs to.
 
 ## Releasing the microphone
@@ -177,10 +174,8 @@ recording indicator (red dot, orange dot, depending on OS) lit until
 mediaStream.getTracks().forEach((track) => track.stop());
 ```
 
-Forget this and the user sees a "this site is recording" indicator
-forever and they will tell other people you spy on them. Safari in
-particular will leave the orange dot lit through entire navigations
-across pages.
+Without it, the browser keeps showing that the site is recording.
+Safari keeps the orange dot lit even as the user moves between pages.
 
 `AudioContext.close()` does not stop tracks. It releases the audio
 thread and disconnects every node, which is necessary, but you must
@@ -190,15 +185,15 @@ call `track.stop()` separately. Both, every time.
 
 Two events fire as audio flows. They mean different things:
 
-- **`bpm`** — fires every chunk (~once per second). Always present,
-  often noisy. Use for a live-updating UI display where users want
-  immediate feedback.
-- **`bpmStable`** — fires when the detection algorithm has high
-  confidence in a value. Slower: with the default `peaks` detector, 10 seconds in
-  at the earliest. Use as
-  "the answer" — pin into application state, persist, log.
+- **`bpm`** fires on every analysed chunk, about ten times a second
+  with the default detector. It arrives early and is often noisy. Use it
+  for a live display where users want immediate feedback.
+- **`bpmStable`** fires when the detector trusts a value: with the
+  default `peaks` detector, 10 seconds in at the earliest, and about 11
+  seconds with the tempogram. Use it as "the answer": keep it in
+  application state, persist it, log it.
 
-For a UI that shows "listening… 122… 124… 122 ✓" the pattern is:
+For a UI that shows "listening, 122, 124, 122, locked", the pattern is:
 
 ```typescript
 bpmAnalyzer.on('bpm', ({ bpm }) => {
@@ -218,11 +213,11 @@ bpmAnalyzer.on('bpmStable', ({ bpm }) => {
 `bpm` is sorted by `count`, the number of peak intervals that voted for
 each tempo. `bpm[0]` is the top candidate, and `bpm[0].confidence` is the
 share of all votes within ±1 BPM of it (0 to 1). Every tempo is folded
-into the 90–180 BPM default range, so half-time and double-time readings
+into the default range of 90 to 180 BPM, so half-time and double-time readings
 usually land on the same value; pass `tempoRange: { min: 70, max: 140 }`
 for slower music so an 85 BPM track reads 85 rather than 170.
 
-## Mobile gotchas
+## Mobile browsers {#mobile-gotchas}
 
 iOS and Android both add constraints absent from desktop browsers.
 
@@ -230,16 +225,15 @@ iOS and Android both add constraints absent from desktop browsers.
 will not move to `running` until you `await audioContext.resume()`
 inside a user gesture handler. The microphone permission prompt is
 also gated on a user gesture. Both must happen synchronously inside
-the same click — `await` between them is fine, but the click handler
-must be the call origin. Background tabs suspend the audio context
-within ~30 seconds; the `bpm` event will stop firing.
+the same click: `await` between them is fine, but the click handler
+must start the chain. Background tabs suspend the audio context within
+about 30 seconds, and the `bpm` event then stops firing.
 
 **Android Chrome.** Less strict than iOS but still wants the
 permission prompt inside a user gesture. The "noise suppression" mode
-on some Android device microphones is aggressive even when disabled
-via `getUserMedia` constraints — if accuracy is poor on a specific
-phone, an external USB or Bluetooth microphone bypasses the device's
-DSP.
+on some Android device microphones stays on even when disabled via
+`getUserMedia` constraints. If readings are poor on a specific phone, an
+external USB or Bluetooth microphone bypasses the device's processing.
 
 **Permission denied.** Always handle the rejection of `getUserMedia`.
 The user might have blocked microphone access at the browser level,
@@ -268,16 +262,19 @@ try {
 
 The default lowpass filter (200 Hz, `Q = 1`) is set for a microphone
 held close to a speaker or for an instrumental signal in a fairly quiet
-room. If your application detects ambient music — coffee shop, gym,
-laptop microphone three meters from the source — accuracy will drop
-because the kick drum is no longer the dominant low-frequency signal
-once it's reflected off walls and mixed with HVAC rumble.
+room. If your application listens to music in a room (a coffee shop,
+a gym, a laptop microphone three meters from the speaker), readings get
+less reliable, because the kick drum is no longer the strongest
+low-frequency signal once it's reflected off walls and mixed with
+ventilation rumble.
 
-Two tuning levers help:
+Two settings help. Both replace the filter that `.input` provides, so
+connect your own chain to `bpmAnalyzer.node`, the analyzer with nothing
+in front of it:
 
-1. **Move the lowpass cutoff up.** A 400–500 Hz cutoff catches more
-   of the low-mid drum content and is more robust to room rumble. You
-   can build a custom `BiquadFilterNode` directly:
+1. **Move the lowpass cutoff up.** A cutoff of 400 to 500 Hz catches
+   more of the low-mid drum content and is less affected by room
+   rumble. Build a `BiquadFilterNode` directly:
 
    ```typescript
    const filter = audioContext.createBiquadFilter();
@@ -297,21 +294,20 @@ Two tuning levers help:
    source.connect(highpass).connect(filter).connect(bpmAnalyzer.node);
    ```
 
-For a tap-tempo or beat-along game, where the user hits the
-microphone or claps directly, the default filter works fine — the
-signal is loud and the room is irrelevant.
+For a tap-tempo or beat-along game, where the user taps the
+microphone or claps close to it, the default filter is enough: the
+signal is loud and the room matters little.
 
 ## Privacy
 
 Audio captured by the microphone never leaves the device. The Web
-Audio API is in-process. `realtime-bpm-analyzer` ships zero network
-calls and zero analytics. The samples that reach the analyzer are
-processed and discarded; nothing is stored on disk by the library.
+Audio API runs in the browser, and `realtime-bpm-analyzer` makes no
+network call of its own and collects nothing. The samples that reach the
+analyzer are processed and discarded; the library stores nothing on disk.
 
-This is a useful trust signal in your own UI — say it explicitly. "Audio
-is analysed locally in your browser and never uploaded." Users who
-are sensitive about microphone access will be more willing to grant
-permission when the boundary is stated up front. Keep the sentence about
+Say this in your own UI: "Audio is analysed locally in your browser and
+never uploaded." Users wary of microphone access are more likely to
+grant it when this is stated up front. Keep the sentence about
 the audio: if your page runs analytics, that is a separate thing to disclose.
 
 ## Try it
@@ -319,11 +315,11 @@ the audio: if your page runs analytics, that is a separate thing to disclose.
 The library ships a runnable vanilla microphone example, plus React
 and Vue equivalents:
 
-- [Vanilla microphone example](/examples/microphone-input) — drop-in
-  HTML + TypeScript.
-- [React example](/examples/react#microphone-input) — full source
+- [Vanilla microphone example](/examples/microphone-input): HTML and
+  TypeScript you can drop in.
+- [React example](/examples/react#microphone-input): full source,
   including a hook-based version.
-- [Vue example](/examples/vue) — composable equivalent.
+- [Vue example](/examples/vue): the same as a composable.
 
 ## What's next
 
@@ -335,6 +331,6 @@ and Vue equivalents:
   algorithm sometimes lands on half-time or double-time aliases and
   what the confidence values mean.
 
-If this library is part of a project you ship, **a star on
-[GitHub](https://github.com/dlepaux/realtime-bpm-analyzer)** is the
-single highest-leverage way to support continued maintenance.
+If this library is part of a project you ship, a star on
+[GitHub](https://github.com/dlepaux/realtime-bpm-analyzer) helps other
+developers find it.

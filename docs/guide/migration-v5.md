@@ -1,6 +1,6 @@
 ---
-title: Migration Guide — Upgrading from v4 to v5
-description: Migrate realtime-bpm-analyzer from v4 to v5 — removed removeAllListeners and off, AudioWorklet-only, stricter TypeScript types. Step-by-step upgrade instructions.
+title: 'Migration Guide: Upgrading from v4 to v5'
+description: 'Migrate realtime-bpm-analyzer from v4 to v5: removed removeAllListeners and off, AudioWorklet-only, stricter TypeScript types. Step-by-step upgrade instructions.'
 ---
 
 # Migration Guide: v4 to v5

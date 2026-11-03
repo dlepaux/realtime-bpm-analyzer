@@ -1,5 +1,5 @@
 ---
-title: Getting Started — Install realtime-bpm-analyzer
+title: 'Getting Started: Install realtime-bpm-analyzer'
 description: Install realtime-bpm-analyzer via npm, yarn, or pnpm and detect BPM from audio files, microphone, and streams in the browser. Zero dependencies, full TypeScript types.
 ---
 
@@ -67,7 +67,7 @@ Create an audio element:
 ### 2. JavaScript Implementation
 
 ```javascript
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 async function setupBPMAnalyzer() {
   // Create audio context
@@ -82,12 +82,9 @@ async function setupBPMAnalyzer() {
   // Create media source from audio element
   const source = audioContext.createMediaElementSource(audioElement);
   
-  // Create and configure low-pass filter (helps isolate bass frequencies)
-  const lowpass = getBiquadFilter(audioContext);
-  
-  // Connect the audio graph - use .node to connect the AudioWorkletNode
-  source.connect(lowpass);
-  lowpass.connect(bpmAnalyzer.node);
+  // Connect the source to the analyzer's input, which holds the low-pass
+  // filter the default detector expects (it isolates bass frequencies)
+  source.connect(bpmAnalyzer.input);
   source.connect(audioContext.destination);
   
   // Listen for BPM events using the event emitter API
@@ -128,7 +125,6 @@ For TypeScript projects, you get full type safety:
 ```typescript
 import { 
   createRealtimeBpmAnalyzer, 
-  getBiquadFilter,
   type BpmCandidates
 } from 'realtime-bpm-analyzer';
 
@@ -138,9 +134,8 @@ async function setupBPMAnalyzer(): Promise<void> {
   
   const audioElement = document.getElementById('track') as HTMLAudioElement;
   const source = audioContext.createMediaElementSource(audioElement);
-  const lowpass = getBiquadFilter(audioContext);
   
-  source.connect(lowpass).connect(bpmAnalyzer.node);
+  source.connect(bpmAnalyzer.input);
   source.connect(audioContext.destination);
   
   bpmAnalyzer.on('bpm', (data: BpmCandidates) => {
@@ -166,7 +161,7 @@ The analyzer emits two main types of BPM events:
 
 ### `bpm` Event
 - Emitted frequently during analysis
-- Contains up to 5 BPM candidates, each with a vote `count` and a `confidence` share (0–1)
+- Contains up to 5 BPM candidates, each with a vote `count` and a `confidence` share (0 to 1)
 - Values may fluctuate as more data is analyzed
 - Use for real-time display or progressive analysis
 

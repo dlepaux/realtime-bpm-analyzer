@@ -1,11 +1,11 @@
 ---
 title: Performance Tips for Browser BPM Detection
-description: Optimise realtime-bpm-analyzer for accuracy, latency, and battery life — AudioWorklet, low-pass filtering, threshold tuning, mobile gotchas. Practical recommendations.
+description: 'Optimise realtime-bpm-analyzer for accuracy, latency, and battery life: AudioWorklet, low-pass filtering, threshold tuning and mobile browsers.'
 ---
 
 # Performance Tips
 
-Optimize Realtime BPM Analyzer for the best performance and accuracy in your application.
+Tune Realtime BPM Analyzer for speed and reliable readings in your application.
 
 ## General Best Practices
 
@@ -23,16 +23,15 @@ No configuration needed - this is handled automatically by `createRealtimeBpmAna
 
 ### 2. Apply Low-Pass Filtering
 
-Always use the optional low-pass filter for better accuracy:
+Connect the source to `bpmAnalyzer.input`. With the default `peaks` detector it holds the 200 Hz low-pass filter (the one `getBiquadFilter` builds); with `tempogram` it holds nothing, since that detector needs the full band:
 
 ```typescript
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
-const lowpass = getBiquadFilter(audioContext);
 
-// Connect with filter
-source.connect(lowpass).connect(bpmAnalyzer.node);
+// The low-pass filter comes with the input
+source.connect(bpmAnalyzer.input);
 ```
 
 **Benefits:**
@@ -119,13 +118,12 @@ Always clean up when done:
 
 ```typescript
 // Stop analysis
-await audioContext.suspend();
+bpmAnalyzer.stop();
 
-// Disconnect nodes
+// Disconnect the source
 source.disconnect();
-analyzerNode.disconnect();
 
-// Close context if no longer needed
+// Close the context if no longer needed
 await audioContext.close();
 ```
 
@@ -369,7 +367,7 @@ audioElement.addEventListener('playing', () => {
 
 ## Performance Checklist
 
-- ✅ Use `getBiquadFilter()` for better detection
+- ✅ Connect the source to `bpmAnalyzer.input`, which holds the low-pass filter
 - ✅ Choose appropriate analysis mode
 - ✅ Set reasonable `stabilizationTime` for continuous analysis
 - ✅ Clean up AudioContext and nodes when done

@@ -1,24 +1,22 @@
 ---
-title: useBpm — A React Hook for Realtime BPM Detection
-description: A drop-in, fully typed React hook that wraps realtime-bpm-analyzer for file, microphone, and stream BPM detection. StrictMode-safe cleanup, no global state, no leaked audio contexts.
+title: 'useBpm: A React Hook for Realtime BPM Detection'
+description: A typed React hook that wraps realtime-bpm-analyzer for file, microphone, and stream BPM detection. StrictMode-safe cleanup, no global state, no leaked audio contexts.
 head:
   - - meta
     - name: keywords
       content: react bpm detection, react bpm hook, useBpm react, bpm detection react, web audio react hook, realtime bpm react
 ---
 
-# useBpm — A React Hook for Realtime BPM Detection
+# useBpm: A React Hook for Realtime BPM Detection {#usebpm-—-a-react-hook-for-realtime-bpm-detection}
 
-There is no canonical React hook for BPM detection. Most React tutorials
-that touch the Web Audio API stash an `AudioContext` in component state,
-forget to close it on unmount, and leak audio threads on every navigation.
-Once `<React.StrictMode>` enters the picture in development, effects fire
-twice and the leaks compound — two contexts open, two microphones held,
-two analyzers running.
+An `AudioContext` kept in component state and never closed keeps its
+audio thread running after the component unmounts. Under
+`<React.StrictMode>` in development, effects run twice, so the leak
+doubles: two contexts open, two microphones held, two analyzers running.
 
-This guide builds a `useBpm` hook that does it correctly. One source in,
-one BPM value out, full TypeScript types, StrictMode-safe cleanup. You
-can copy it into your project today.
+This guide builds a `useBpm` hook that avoids that. One source in, one
+BPM value out, TypeScript types, and cleanup that holds under StrictMode.
+You can copy it into your project.
 
 ## What you'll get
 
@@ -32,8 +30,8 @@ function MyApp() {
       <audio ref={audioRef} src="/song.mp3" controls />
       <button onClick={start} disabled={state !== 'idle'}>Start</button>
       <button onClick={stop} disabled={state === 'idle'}>Stop</button>
-      <p>Live: {bpm ?? '—'}</p>
-      <p>Stable: {stableBpm ?? '—'}</p>
+      <p>Live: {bpm ?? '-'}</p>
+      <p>Stable: {stableBpm ?? '-'}</p>
       {error && <p>Error: {error.message}</p>}
     </div>
   );
@@ -50,8 +48,8 @@ a state machine, an error, and explicit `start`/`stop` controls.
 npm install realtime-bpm-analyzer
 ```
 
-React 18 or 19. The hook is framework-agnostic in spirit — port to
-Solid, Preact, or Svelte runes is straightforward.
+React 18 or 19. The same structure ports to Solid, Preact or Svelte
+runes.
 
 ## The hook
 
@@ -61,7 +59,6 @@ Save as `useBpm.ts`. It's about 100 lines and self-contained.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createRealtimeBpmAnalyzer,
-  getBiquadFilter,
   type BpmAnalyzer,
 } from 'realtime-bpm-analyzer';
 
@@ -73,9 +70,9 @@ type Source =
 export type UseBpmState = 'idle' | 'starting' | 'listening' | 'error';
 
 export interface UseBpmReturn {
-  /** Live BPM — updates ~once per second. Null until first detection. */
+  /** Live BPM, updated as the analysis runs. Null until first detection. */
   bpm: number | null;
-  /** Stable BPM — high-confidence value. Null until algorithm settles. */
+  /** Stable BPM, from 10 s of audio at the earliest. Null until then. */
   stableBpm: number | null;
   /** Current state. Drives UI affordances. */
   state: UseBpmState;
@@ -93,13 +90,13 @@ export function useBpm(source: Source | null): UseBpmReturn {
   const [state, setState] = useState<UseBpmState>('idle');
   const [error, setError] = useState<Error | null>(null);
 
-  // Live refs — survive re-renders, don't trigger effects.
+  // Live refs: survive re-renders, don't trigger effects.
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyzerRef = useRef<BpmAnalyzer | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const stop = useCallback(() => {
-    analyzerRef.current?.disconnect();
+    analyzerRef.current?.stop();
     analyzerRef.current = null;
 
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -143,7 +140,7 @@ export function useBpm(source: Source | null): UseBpmReturn {
         });
         streamRef.current = stream;
         sourceNode = audioContext.createMediaStreamSource(stream);
-        // Mic must NOT connect to destination — feedback loop.
+        // Mic must NOT connect to destination: that makes a feedback loop.
       } else {
         // type: 'stream'
         const audio = new Audio(source.url);
@@ -156,8 +153,8 @@ export function useBpm(source: Source | null): UseBpmReturn {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       analyzerRef.current = analyzer;
 
-      const lowpass = getBiquadFilter(audioContext);
-      sourceNode.connect(lowpass).connect(analyzer.node);
+      // `.input` holds the lowpass filter the default detector expects.
+      sourceNode.connect(analyzer.input);
 
       analyzer.on('bpm', ({ bpm: candidates }) => {
         if (candidates.length > 0) setBpm(candidates[0].tempo);
@@ -175,7 +172,7 @@ export function useBpm(source: Source | null): UseBpmReturn {
   }, [source, state, stop]);
 
   // StrictMode-safe cleanup. The empty deps array means cleanup runs on
-  // unmount only — but in StrictMode, React mounts twice in dev, so the
+  // unmount only. But in StrictMode, React mounts twice in dev, so the
   // first cleanup MUST tear everything down. The refs above guarantee
   // idempotency: stop() can be called safely from a cleanup that runs on
   // a hook instance that never started anything.
@@ -187,9 +184,9 @@ export function useBpm(source: Source | null): UseBpmReturn {
 }
 ```
 
-That is the entire hook. Three states it can be in (`idle`, `starting`,
-`listening`, `error`), three sources it can wire (`audio`, `microphone`,
-`stream`), one symmetric cleanup path that releases everything.
+The hook has four states (`idle`, `starting`, `listening`, `error`),
+three sources it can wire (`audio`, `microphone`, `stream`), and one
+cleanup path that releases everything.
 
 ## Usage: file analysis
 
@@ -212,16 +209,16 @@ export function FileAnalyzer() {
       <button onClick={stop} disabled={state === 'idle'}>
         Stop
       </button>
-      <div>Live BPM: {bpm ?? '—'}</div>
-      <div>Stable BPM: {stableBpm ?? '—'}</div>
+      <div>Live BPM: {bpm ?? '-'}</div>
+      <div>Stable BPM: {stableBpm ?? '-'}</div>
       {error && <div role="alert">{error.message}</div>}
     </div>
   );
 }
 ```
 
-The `audioRef.current ? ... : null` guard handles the first render —
-the ref is null until React commits the DOM. After mount it's fine.
+The `audioRef.current ? ... : null` guard handles the first render: the
+ref is null until React commits the DOM.
 
 ## Usage: microphone
 
@@ -237,8 +234,8 @@ export function MicAnalyzer() {
       <button onClick={stop} disabled={state === 'idle'}>
         Stop
       </button>
-      <div>Live BPM: {bpm ?? '—'}</div>
-      <div>Stable BPM: {stableBpm ?? '—'}</div>
+      <div>Live BPM: {bpm ?? '-'}</div>
+      <div>Stable BPM: {stableBpm ?? '-'}</div>
       {state === 'starting' && <div>Asking for microphone…</div>}
       {error && <div role="alert">{error.message}</div>}
     </div>
@@ -247,7 +244,7 @@ export function MicAnalyzer() {
 ```
 
 The microphone variant doesn't need a ref. Just call `start` from a
-click handler — the `getUserMedia` permission prompt is gated on a user
+click handler: the `getUserMedia` permission prompt is gated on a user
 gesture, and the click satisfies that.
 
 ## Usage: streaming URL
@@ -260,7 +257,7 @@ export function StreamAnalyzer({ url }: { url: string }) {
     <div>
       <button onClick={start}>Listen to stream</button>
       <button onClick={stop}>Stop</button>
-      <div>BPM: {stableBpm ?? bpm ?? '—'}</div>
+      <div>BPM: {stableBpm ?? bpm ?? '-'}</div>
     </div>
   );
 }
@@ -275,22 +272,20 @@ anything about transport.
 
 `<React.StrictMode>` mounts every component twice in development. If the
 hook's effect started anything during the first mount, the first cleanup
-must tear it back down before the second mount runs. Otherwise: two
-audio contexts, two analyzers, two open microphones. By the third
-re-render, the user is staring at a screaming feedback loop.
+must tear it back down before the second mount runs. Otherwise you get
+two audio contexts, two analyzers and two open microphones.
 
 The hook avoids this by **not starting anything in the effect**. Start
-is explicit — it only fires when the user clicks. The effect only runs
+is explicit: it only fires when the user clicks. The effect only runs
 the cleanup. Re-mounts are free; nothing is held until `start` is called.
 
 The cleanup is also idempotent. `stop()` checks the refs and only acts
 when something is open. Calling it from a never-started component does
 nothing.
 
-This pattern is the default-safe shape for any hook that touches a
-real-world resource (audio, video, sockets, geolocation, file system).
-Consider it the React equivalent of the "explicit lifetime" pattern in
-Rust.
+The same shape suits any hook that holds a resource outside React
+(audio, video, sockets, geolocation, the file system): start on an
+explicit call, release in an idempotent cleanup.
 
 ## The state machine, in one diagram
 
@@ -304,20 +299,18 @@ Rust.
    └────────────────┴──────── stop() ────────┘
 ```
 
-`state` is a useful UI affordance. Disable buttons when not in `idle`,
-show a "requesting permission" indicator in `starting`, render an alert
-in `error`. The state machine is tight enough that you can render any
-UI directly off it.
+Drive the UI from `state`: disable buttons when not in `idle`, show a
+"requesting permission" indicator in `starting`, render an alert in
+`error`.
 
 ## TypeScript notes
 
-The hook is fully typed. The `Source` union forces the caller to pick a
-mode at the type level — there is no way to call `start` without the
-source being a valid kind. The return shape is stable across renders;
+The hook is typed. The `Source` union makes the caller pick a mode at
+the type level, so `start` can't be called with an invalid source. The return shape is stable across renders;
 `bpm` and `stableBpm` are `number | null` and never undefined.
 
-If you want to consume the underlying analyzer events directly — for
-example, to read the `confidence` field on each candidate — you can
+If you want to consume the underlying analyzer events directly, for
+example to read the `confidence` field on each candidate, you can
 expose an `onAnalyzer` callback in the source object and forward it
 inside `start`:
 
@@ -345,30 +338,32 @@ This hook is intentionally small. Things you might add for production:
   `candidates[0].confidence` clears a cut-off you measured on your own
   material. `confidence` is the share of interval votes within ±1 BPM of
   the candidate: a perfect click track scores about 0.46 and random peaks
-  below 0.1. No cut-off has been calibrated on real music yet.
+  below 0.1. No cut-off has been calibrated on real music yet. In plain
+  words: confidence never reaches 1, even on a perfect beat, so compare
+  values on your own music rather than expecting a high score.
 
-All of these are 5–10 line additions. Keep the hook itself focused; let
+Each of these takes a few lines. Keep the hook itself focused; let
 the consuming component compose.
 
 ## Try it live
 
-The library ships three runnable React examples — file, streaming,
-microphone — alongside this hook pattern in the official
+The library ships three runnable React examples (file, streaming,
+microphone) in the
 [examples directory](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples).
 
 - [React example overview](/examples/react)
-- [Vue example overview](/examples/vue) — composable equivalent
+- [Vue example overview](/examples/vue): the same as a composable
 
 ## What's next
 
 - The [Realtime BPM Detection guide](/guide/realtime-bpm-detection) covers
   the underlying API in depth.
 - The [Microphone tutorial](/guide/bpm-from-microphone) goes deeper on
-  permissions, mobile gotchas, and ambient detection.
+  permissions, mobile browsers and ambient detection.
 - The [How It Works guide](/guide/how-it-works) explains why the
-  algorithm sometimes picks half-time or double-time aliases — useful if
-  your hook needs to disambiguate.
+  algorithm sometimes picks half-time or double-time readings, which
+  helps if your hook needs to tell them apart.
 
-If `useBpm` saved you an afternoon, **a star on
-[GitHub](https://github.com/dlepaux/realtime-bpm-analyzer)** is what
-keeps this kind of content shipping.
+If `useBpm` helps you, a star on
+[GitHub](https://github.com/dlepaux/realtime-bpm-analyzer) helps other
+developers find the library.

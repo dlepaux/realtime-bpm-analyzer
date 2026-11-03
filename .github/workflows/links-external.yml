@@ -1,0 +1,39 @@
+name: External links
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  link-check-external:
+    name: External link check
+    continue-on-error: true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check external links on schedule
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --base-url https://www.realtime-bpm-analyzer.com
+            --include-fragments
+            --max-retries 2
+            --timeout 20
+            --no-progress
+            readme.md docs/**/*.md examples/**/*.md packages/*/readme.md

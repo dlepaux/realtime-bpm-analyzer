@@ -40,7 +40,7 @@ test('home FAQ: every question and answer in the markup is on the page, word for
 test('no accuracy figure on the tool pages or in the markup', () => {
   // "within 1-2 BPM" had no measurement behind it. A figure comes back only with one.
   const figure = /within\s+\**\d[^.]*BPM/i
-  const pages = ['index.md', 'tap-tempo.md', 'metronome.md', 'bpm-to-ms.md']
+  const pages = ['index.md', 'tap-tempo.md', 'metronome.md', 'bpm-to-ms.md', 'bpm-to-frames.md', 'video-bpm.md']
     .map((name) => [name, readFileSync(new URL(`../${name}`, import.meta.url), 'utf8')] as const)
   for (const [name, source] of pages) assert.ok(!figure.test(source), name)
   assert.ok(!figure.test(JSON.stringify([HOME_FAQ, SCHEMA_WEB_APPLICATION])))

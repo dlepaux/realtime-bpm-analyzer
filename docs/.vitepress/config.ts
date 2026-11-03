@@ -225,6 +225,8 @@ export default defineConfig({
           { text: 'BPM Analyzer', link: '/' },
           { text: 'Tap Tempo', link: '/tap-tempo' },
           { text: 'BPM to ms Calculator', link: '/bpm-to-ms' },
+          { text: 'Video BPM Finder', link: '/video-bpm' },
+          { text: 'BPM to Frames Calculator', link: '/bpm-to-frames' },
           { text: 'Metronome', link: '/metronome' },
         ],
       },

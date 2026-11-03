@@ -31,6 +31,7 @@ export type BpmAnalyticsEvent =
   | 'bpm_tab_capture_failed'
   | 'bpm_tap_measured'
   | 'bpm_delay_copied'
+  | 'bpm_frames_copied'
   | 'bpm_metronome_started'
   | 'bpm_tool_link_clicked'
   | 'github_star_clicked'

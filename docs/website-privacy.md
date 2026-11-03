@@ -38,6 +38,8 @@ cookies in your browser and receives:
   start sharing a tab's sound, and the reason when that fails; and when something
   fails, the error type and the browser's error message, with any web address in
   it removed;
+- when you download beat markers from a file result: the format and the frame
+  rate you picked, once per result (never the markers or the file's name);
 - the version numbers in the address of the pages the browser extension opens:
   its version when you install it or remove it, its new and previous versions
   when it updates. If you remove it and pick a reason from the list on that page,

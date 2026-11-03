@@ -74,7 +74,9 @@ Common tempos, in frames per beat:
 Don't know the tempo? Find it from the file with the
 [video BPM finder](/video-bpm), or [tap it](/tap-tempo).
 
-Beat markers you can import into a video editor are planned.
+For a marker on every beat in your editor, drop the file on the
+[video BPM finder](/video-bpm#export-beat-markers) and export beat markers. They
+suit songs with a steady tempo.
 
 ## Frequently asked questions
 

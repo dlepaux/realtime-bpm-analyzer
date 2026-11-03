@@ -66,6 +66,21 @@ export async function streamPcm(
   }
 }
 
+export type Reading = readonly [heard: number, tempo: number, confidence: number];
+
+/** Candidates kept from the last `bpm` event: enough to see the other metrical level, not the tail */
+const keptCandidates = 5;
+
+/**
+ * Keeps a timeline of what a listener saw without one entry per event: only the changes of the top tempo
+ * @param readings The timeline so far
+ * @param reading The newest top candidate
+ * @returns The timeline, the same one when the top tempo did not change
+ */
+export function withReading(readings: readonly Reading[], reading: Reading): readonly Reading[] {
+  return readings.at(-1)?.[1] === reading[1] ? readings : [...readings, reading];
+}
+
 /**
  * Listens to a whole track through the streaming path
  * @param track The track and its label
@@ -85,6 +100,8 @@ export async function listen(
   let final: number | null = null;
   let firstReadingAt: number | null = null;
   let firstCorrectAt: number | null = null;
+  let candidates: ReadonlyArray<readonly [number, number]> = [];
+  let readings: readonly Reading[] = [];
   const stable: Array<readonly [number, number]> = [];
 
   await streamPcm(pcm, sampleRate, options, (event, heard) => {
@@ -105,6 +122,8 @@ export async function listen(
 
     final = top;
     firstReadingAt ??= heard;
+    candidates = event.data.bpm.slice(0, keptCandidates).map(({tempo, confidence}) => [tempo, confidence] as const);
+    readings = withReading(readings, [heard, top, event.data.bpm[0].confidence]);
 
     if (firstCorrectAt === null && isCorrect(top, track.bpm)) {
       firstCorrectAt = heard;
@@ -116,11 +135,14 @@ export async function listen(
     id: track.id,
     genre: track.genre,
     group: track.group,
+    ...(track.label === undefined ? {} : {label: track.label}),
     truth: track.bpm,
     duration: pcm.length / sampleRate,
     final,
     firstReadingAt,
     firstCorrectAt,
     stable,
+    candidates,
+    readings,
   };
 }

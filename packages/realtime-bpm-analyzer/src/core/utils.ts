@@ -8,10 +8,46 @@ import type {
 } from './types';
 
 /**
+ * Rungs are rounded to nine decimals, this scale. Subtracting the step in floats drifts (0.95 - 0.05 is
+ * 0.8999999999999999 and the last default rung was 0.19999999999999968), so a rung never equalled the
+ * floor it was compared with and stopping on it depended on the drift. Rounded, each rung is the
+ * literal it stands for and compares exactly with `minValidThreshold`.
+ */
+const thresholdDecimals = 1e9;
+
+/**
+ * The thresholds from one step under `startThreshold` down to the first one at or under `minValidThreshold`
+ * @param minValidThreshold Lowest threshold, included when it falls on a rung
+ * @param startThreshold Threshold above the first rung
+ * @param thresholdStep Distance between rungs
+ * @returns At least one rung, in descending order
+ */
+function thresholdLadder(
+  minValidThreshold: number,
+  startThreshold: number,
+  thresholdStep: number,
+): number[] {
+  const rungs: number[] = [];
+  // Bounded: the ladder can't hold more rungs than there are steps from the start down to zero
+  const maxRungs = Math.max(1, Math.ceil(startThreshold / thresholdStep));
+
+  for (let n = 1; n <= maxRungs; n++) {
+    const threshold = Math.round((startThreshold - (n * thresholdStep)) * thresholdDecimals) / thresholdDecimals;
+    rungs.push(threshold);
+
+    if (threshold <= minValidThreshold) {
+      break;
+    }
+  }
+
+  return rungs;
+}
+
+/**
  * Loop between .9 and minValidThreshold at .2 by default, passing the threshold to the function
  * @param onThreshold Function for each iteration, you must return a boolean, true will exit the loop process
  * @param minValidThreshold minValidThreshold usualy 0.2
- * @param startThreshold startThreshold usualy 0.9
+ * @param startThreshold startThreshold usualy 0.95
  * @param thresholdStep thresholdStep usuably 0.05
  * @returns A promise that resolves nothing
  */
@@ -21,15 +57,12 @@ export async function descendingOverThresholds(
   startThreshold = consts.startThreshold,
   thresholdStep = consts.thresholdStep,
 ): Promise<void> {
-  let threshold = startThreshold;
-
-  do {
-    threshold -= thresholdStep;
+  for (const threshold of thresholdLadder(minValidThreshold, startThreshold, thresholdStep)) {
     const shouldExit = await onThreshold(threshold);
     if (shouldExit) {
       break;
     }
-  } while (threshold > minValidThreshold);
+  }
 }
 
 /**
@@ -47,13 +80,10 @@ function generateThresholdMap<T>(
   thresholdStep = consts.thresholdStep,
 ): Record<string, T> {
   const object: Record<string, T> = {};
-  let threshold = startThreshold;
 
-  do {
-    threshold -= thresholdStep;
-    // Use toFixed to handle floating point precision issues (e.g., 0.7499999 -> "0.75")
+  for (const threshold of thresholdLadder(minValidThreshold, startThreshold, thresholdStep)) {
     object[threshold.toString()] = initialValueFactory();
-  } while (threshold > minValidThreshold);
+  }
 
   return object;
 }

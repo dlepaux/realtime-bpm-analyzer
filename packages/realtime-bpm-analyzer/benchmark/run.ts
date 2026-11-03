@@ -17,10 +17,12 @@ import {detectTempo} from '../src/core/detect-tempo';
 import {resolveTempoRange} from '../src/core/tempo';
 import {detectTempogram} from '../src/core/tempogram';
 import {loaders} from './lib/datasets';
-import {assertTunable, tuningSets} from './lib/licences';
+import {freeHeldoutLoaders, freeLoaders} from './lib/free-mixes';
+import {freeHeldoutRefusal, isFreeSet} from './lib/free-mixes-rows';
+import {assertLicenceClean, cleanSets} from './lib/licences';
 import {decode, sampleRate, writeAtomic} from './lib/decode';
 import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
-import {UndecodableTrack, lookDetectorRefusal, lookHeader, lookRefusal, lookScopeRefusal, progressRows, refusalOf, resumesLook, skippedTracks} from './lib/look';
+import {UndecodableTrack, freeLookRefusal, lookDetectorRefusal, lookHeader, lookRefusal, lookScopeRefusal, progressRows, refusalOf, resumesLook, skippedTracks} from './lib/look';
 import type {RunFailure} from './lib/look';
 import {listen} from './lib/stream';
 import {workerCount} from './lib/workers';
@@ -69,6 +71,11 @@ function excludedFromHeldout(benchmarkDir: string, set: string): Set<string> {
 
 function selectTracks(benchmarkDir: string, split: Split, sets: string[]): Track[] {
   return sets.flatMap(set => {
+    // RBA-59's held-out half is RBA-51's one look, reached only past freeHeldoutRefusal and the look's log line
+    if (isFreeSet(set)) {
+      return split === 'dev' ? freeLoaders[set]() : freeHeldoutLoaders[set]();
+    }
+
     const ids = new Set((JSON.parse(readFileSync(join(benchmarkDir, 'splits', `${set}.json`), 'utf8')) as Record<Split, string[]>)[split]);
     const excluded = split === 'heldout' ? excludedFromHeldout(benchmarkDir, set) : new Set<string>();
 
@@ -78,7 +85,7 @@ function selectTracks(benchmarkDir: string, split: Split, sets: string[]): Track
 
 /** A held-out look is spent once logged, so everything that could abort it is checked first */
 function assertArguments(names: string[], sets: string[], out: string | undefined, limit: string | undefined): void {
-  const unknown = [...names.filter(name => !(name in detectors)), ...sets.filter(set => !(set in loaders))];
+  const unknown = [...names.filter(name => !(name in detectors)), ...sets.filter(set => !(set in loaders) && !isFreeSet(set))];
 
   if (unknown.length > 0) {
     throw new Error(`Unknown detector or set: ${unknown.join(', ')}`);
@@ -138,11 +145,9 @@ function readProgress(path: string | undefined): string {
  * Logs a look, unless its own progress file says this is that look resuming. The log line comes
  * first: a kill between the two spends the look unread, which costs a look and never scores unlogged.
  */
-function logLook(logPath: string, look: string, reason: string, names: readonly string[], sets: readonly string[], progress: string | undefined): void {
+function logLook(logPath: string, look: string, progress: string | undefined, refuse: (log: string, isResuming: boolean) => string | null): void {
   const isResuming = resumesLook(readProgress(progress), look);
-  const refusal = lookDetectorRefusal(pickedConfiguration, names, lookDetectors)
-    ?? lookScopeRefusal(names, sets, lookDetectors, Object.keys(loaders))
-    ?? lookRefusal(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '', isResuming, reason);
+  const refusal = refuse(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '', isResuming);
 
   if (refusal) {
     throw new Error(refusal);
@@ -175,9 +180,16 @@ async function main(): Promise<void> {
   const split = values.split as Split;
   const names = values.detector.split(',');
   // Dev feeds tuning decisions, so it is the licence-clean sets unless a held-out run says otherwise
-  const sets = (values.sets ?? (split === 'dev' ? [...tuningSets] : Object.keys(loaders)).join(',')).split(',');
+  const sets = (values.sets ?? (split === 'dev' ? [...cleanSets] : Object.keys(loaders)).join(',')).split(',');
 
   assertArguments(names, sets, values.out, values.limit);
+
+  // Before the log line, so naming one of them in a look spends nothing
+  const freeRefusal = freeHeldoutRefusal(split, sets, names);
+
+  if (freeRefusal) {
+    throw new Error(freeRefusal);
+  }
 
   if (split !== 'dev' && split !== 'heldout') {
     throw new Error('--split must be dev or heldout');
@@ -197,21 +209,28 @@ async function main(): Promise<void> {
     }
 
     const sha = assertCommittedTree(benchmarkDir);
+    const reason = values.reason;
+    // freeHeldoutRefusal has held a free look to its whole scope: it keeps its own log and budget
+    const isFreeLook = sets.some(set => isFreeSet(set));
+    const logName = isFreeLook ? 'free-heldout-log.md' : 'heldout-log.md';
 
     logLook(
-      process.env.RBA_TEMPO_ROOT ? join(process.env.RBA_TEMPO_ROOT, '_job', 'heldout-log.md') : join(benchmarkDir, 'heldout-log.md'),
-      `| ${sha.slice(0, 12)} | ${names.join(', ')} | ${values.reason} (sets ${sets.join(', ')}, limit ${values.limit ?? 'none'}) |`,
-      values.reason,
-      names,
-      sets,
+      process.env.RBA_TEMPO_ROOT ? join(process.env.RBA_TEMPO_ROOT, '_job', logName) : join(benchmarkDir, logName),
+      `| ${sha.slice(0, 12)} | ${names.join(', ')} | ${reason} (sets ${sets.join(', ')}, limit ${values.limit ?? 'none'}) |`,
       values.progress,
+      isFreeLook
+        ? (log, isResuming) => freeLookRefusal(log, isResuming, reason)
+        : (log, isResuming) => lookDetectorRefusal(pickedConfiguration, names, lookDetectors)
+          ?? lookScopeRefusal(names, sets, lookDetectors, Object.keys(loaders))
+          ?? lookRefusal(log, isResuming, reason),
     );
   }
 
   const tracks = selectTracks(benchmarkDir, split, sets);
 
+  // Scoring on dev is not tuning: contested labels are scored there, never tuned on (tune.ts holds that)
   if (split === 'dev') {
-    assertTunable(tracks);
+    assertLicenceClean(tracks);
   }
 
   const limited = values.limit ? tracks.slice(0, Number(values.limit)) : tracks;
@@ -257,7 +276,10 @@ async function main(): Promise<void> {
     throw new Error(`${refusal}. ${failures.length} of ${jobs.length} runs failed: restart to retry them, finished ones are in ${values.progress}`);
   }
 
-  writeAtomic(values.out!, Buffer.from(`${JSON.stringify({split, sampleRate, results, skipped})}\n`));
+  // The loader's count per set, so a verdict can tell a whole run from a shrunk one
+  const tracksPerSet = Object.fromEntries(sets.map(set => [set, limited.filter(track => track.set === set).length]));
+
+  writeAtomic(values.out!, Buffer.from(`${JSON.stringify({split, sampleRate, results, skipped, tracks: tracksPerSet})}\n`));
   console.log(`${jobs.length} runs in ${((Date.now() - start) / 1000).toFixed(0)} s, ${skipped.length} tracks skipped as undecodable: ${skipped.map(({set, id}) => `${set}/${id}`).join(', ') || 'none'}`);
 
   // Scores are written anyway, a look cannot be repeated, but a shrunk denominator must not pass quietly

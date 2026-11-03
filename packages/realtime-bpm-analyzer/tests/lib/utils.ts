@@ -17,7 +17,8 @@ describe('Utils - Unit tests', () => {
       });
 
       // Check if object have only ONE entry
-      expect(JSON.stringify(object)).to.be.equal('{"foo":0.8999999999999999}');
+      // The first rung is exactly 0.9, not the float-drifted 0.8999999999999999 (RBA-107)
+      expect(JSON.stringify(object)).to.be.equal('{"foo":0.9}');
     });
 
     it('should iterate over all thresholds when callback returns false', async () => {

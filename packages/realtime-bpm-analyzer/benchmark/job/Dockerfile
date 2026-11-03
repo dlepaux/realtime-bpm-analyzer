@@ -5,7 +5,7 @@ WORKDIR /src
 COPY . .
 RUN npm ci --ignore-scripts
 WORKDIR /src/packages/realtime-bpm-analyzer/benchmark
-RUN mkdir dist && ../../../node_modules/.bin/esbuild job.ts tune.ts run.ts \
+RUN mkdir dist && ../../../node_modules/.bin/esbuild job.ts tune.ts run.ts retune2.ts free-verdict.ts \
   --bundle --platform=node --format=esm --target=node22 --log-level=warning --outdir=dist --out-extension:.js=.mjs
 
 FROM node:24.22.1-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c

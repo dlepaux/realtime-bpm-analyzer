@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {assertTunable, evaluationOnly} from '../../../benchmark/lib/licences';
+import {assertLicenceClean, assertTunable, assertTunableSets, evaluationOnly} from '../../../benchmark/lib/licences';
 import type {Track} from '../../../benchmark/lib/types';
 
 function track(set: string, licence: string): Track {
@@ -34,5 +34,28 @@ describe('benchmark licence gate', () => {
     expect(() => {
       assertTunable([track('fsld', 'CC0-1.0'), track('fsld', 'CC-BY-NC-3.0')]);
     }).to.throw('CC-BY-NC-3.0');
+  });
+
+  describe('contested labels', () => {
+    it('are refused by tuning, by track and by set name', () => {
+      expect(() => {
+        assertTunable([track('free-mixes', 'CC-BY-4.0'), track('free-mixes-contested', 'CC-BY-4.0')]);
+      }).to.throw('free-mixes-contested');
+      expect(() => {
+        assertTunableSets(['fsld', 'free-mixes', 'free-mixes-contested']);
+      }).to.throw('free-mixes-contested');
+      expect(() => {
+        assertTunableSets(['fsld', 'groove', 'guitarset', 'free-mixes']);
+      }).to.not.throw();
+    });
+
+    it('may still be scored on dev, unlike an evaluation-only set', () => {
+      expect(() => {
+        assertLicenceClean([track('free-mixes-contested', 'CC-BY-SA-3.0'), track('free-mixes', 'CC0-1.0')]);
+      }).to.not.throw();
+      expect(() => {
+        assertLicenceClean([track('gtzan', 'CC0-1.0')]);
+      }).to.throw('gtzan');
+    });
   });
 });

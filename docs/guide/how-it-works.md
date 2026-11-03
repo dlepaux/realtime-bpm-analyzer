@@ -214,7 +214,8 @@ analyzer.on('bpmStable', (data) => {
 
 **Characteristics:**
 - More reliable result
-- Requires sufficient data collection
+- Requires sufficient data collection: with the default `peaks` detector, never before 10 seconds of
+  audio (or a shorter `stabilizationTime` with `continuousAnalysis`)
 - Threshold increases over time for better accuracy
 - Best for final BPM determination
 
@@ -237,7 +238,8 @@ createRealtimeBpmAnalyzer(audioContext, {
 });
 ```
 
-This prevents memory leaks in long-running analysis.
+Without it, each threshold keeps only its newest 256 peaks, so memory and the work per chunk stay
+bounded on a long listen, and the reading follows the latest minute or more of audio.
 
 ### Data Buffering
 

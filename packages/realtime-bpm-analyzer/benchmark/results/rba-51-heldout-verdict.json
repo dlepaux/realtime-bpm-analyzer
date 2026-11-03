@@ -1,0 +1,2957 @@
+{
+  "verdict": "pass",
+  "conditions": [
+    {
+      "gate": 1,
+      "what": "acc1, free mixes, strict",
+      "difference": {
+        "value": 0.15238954012623984,
+        "low": 0.13774354327140914,
+        "high": 0.1672836649699213,
+        "narrowLow": 0.1446216034134291,
+        "narrowHigh": 0.15976465263634299
+      },
+      "rule": "above peaks: range wholly above zero",
+      "isMet": true,
+      "isMetAtOneSe": true
+    },
+    {
+      "gate": 1,
+      "what": "acc2, free mixes, strict",
+      "difference": {
+        "value": 0.16005410279531118,
+        "low": 0.1451831750339213,
+        "high": 0.17496129174961295,
+        "narrowLow": 0.15249266862170086,
+        "narrowHigh": 0.16796267496111972
+      },
+      "rule": "above peaks: range wholly above zero",
+      "isMet": true,
+      "isMetAtOneSe": true
+    },
+    {
+      "gate": 2,
+      "what": "acc1, 140-165, free mixes, strict",
+      "difference": {
+        "value": 0.2269230769230769,
+        "low": 0.19330143540669853,
+        "high": 0.2622950819672131,
+        "narrowLow": 0.20921305182341654,
+        "narrowHigh": 0.24440298507462688
+      },
+      "rule": "not below peaks beyond noise: range reaches zero or above",
+      "isMet": true,
+      "isMetAtOneSe": true
+    },
+    {
+      "gate": 2,
+      "what": "acc2, 140-165, free mixes, strict",
+      "difference": {
+        "value": 0.2269230769230769,
+        "low": 0.19216417910447758,
+        "high": 0.26190476190476186,
+        "narrowLow": 0.20967741935483863,
+        "narrowHigh": 0.24493731918997108
+      },
+      "rule": "not below peaks beyond noise: range reaches zero or above",
+      "isMet": true,
+      "isMetAtOneSe": true
+    },
+    {
+      "gate": 2,
+      "what": "acc1, 165-180, free mixes, strict",
+      "difference": {
+        "value": 0.26960784313725494,
+        "low": 0.2038461538461538,
+        "high": 0.3370786516853933,
+        "narrowLow": 0.23560209424083767,
+        "narrowHigh": 0.30243902439024384
+      },
+      "rule": "not below peaks beyond noise: range reaches zero or above",
+      "isMet": true,
+      "isMetAtOneSe": true
+    },
+    {
+      "gate": 2,
+      "what": "acc2, 165-180, free mixes, strict",
+      "difference": {
+        "value": 0.3382352941176471,
+        "low": 0.2678571428571428,
+        "high": 0.4145077720207254,
+        "narrowLow": 0.3028846153846154,
+        "narrowHigh": 0.37688442211055284
+      },
+      "rule": "not below peaks beyond noise: range reaches zero or above",
+      "isMet": true,
+      "isMetAtOneSe": true
+    },
+    {
+      "gate": 4,
+      "what": "falseStable, free mixes, strict",
+      "difference": {
+        "value": -0.22573211315902286,
+        "low": -0.24138522147209962,
+        "high": -0.2102925289967431,
+        "narrowLow": -0.23397049985675253,
+        "narrowHigh": -0.21799626537868416
+      },
+      "rule": "not above peaks, point estimate",
+      "isMet": true,
+      "isMetAtOneSe": true
+    },
+    {
+      "gate": 5,
+      "what": "acc1, fsld + groove + guitarset held-out halves, clean macro, candidate less 5.5.0",
+      "difference": null,
+      "rule": "not below 5.5.0 beyond noise. The candidate is 5.5.0: zero by construction, no data read",
+      "isMet": true,
+      "isMetAtOneSe": true
+    }
+  ],
+  "voidGates": [
+    "Gate 2 against 5.5.0: void, the candidate is 5.5.0",
+    "Gate 3 (Acc1 over 90 to 180 against 5.5.0): void, the candidate is 5.5.0"
+  ],
+  "tracks": {
+    "free-mixes": 4436,
+    "free-mixes-contested": 3427
+  },
+  "skipped": {
+    "free-mixes": 0,
+    "free-mixes-contested": 0
+  },
+  "tables": [
+    {
+      "metric": "acc1",
+      "title": "Acc1",
+      "rows": [
+        {
+          "scope": "free mixes, strict",
+          "tracks": 4436,
+          "values": {
+            "tempogram": {
+              "value": 0.8814247069431921,
+              "low": 0.8690900981266726,
+              "high": 0.8935059037238874,
+              "narrowLow": 0.874913614374568,
+              "narrowHigh": 0.8875393612235718
+            },
+            "peaks": {
+              "value": 0.7290351668169522,
+              "low": 0.7097966728280961,
+              "high": 0.7476697736351531,
+              "narrowLow": 0.7194743130227002,
+              "narrowHigh": 0.7385016595542911
+            }
+          },
+          "difference": {
+            "value": 0.15238954012623984,
+            "low": 0.13774354327140914,
+            "high": 0.1672836649699213,
+            "narrowLow": 0.1446216034134291,
+            "narrowHigh": 0.15976465263634299
+          }
+        },
+        {
+          "scope": "free mixes, strict, labelled 90 to 180",
+          "tracks": 4144,
+          "values": {
+            "tempogram": {
+              "value": 0.9295366795366795,
+              "low": 0.9199204178065158,
+              "high": 0.9384653101250306,
+              "narrowLow": 0.9247633283507724,
+              "narrowHigh": 0.9342105263157895
+            },
+            "peaks": {
+              "value": 0.7763030888030888,
+              "low": 0.7579223254705743,
+              "high": 0.7943675649429474,
+              "narrowLow": 0.7672434803802096,
+              "narrowHigh": 0.7858023169829924
+            }
+          },
+          "difference": {
+            "value": 0.15323359073359066,
+            "low": 0.13781180538404547,
+            "high": 0.1692688971499381,
+            "narrowLow": 0.14525283797729616,
+            "narrowHigh": 0.1609929078014185
+          }
+        },
+        {
+          "scope": "free mixes, strict, trackers-all",
+          "tracks": 3543,
+          "values": {
+            "tempogram": {
+              "value": 0.9127857747671465,
+              "low": 0.9019159279382327,
+              "high": 0.9235474006116208,
+              "narrowLow": 0.9073627844712182,
+              "narrowHigh": 0.9183618843683083
+            },
+            "peaks": {
+              "value": 0.7516229184307084,
+              "low": 0.7309111552653988,
+              "high": 0.7707786526684165,
+              "narrowLow": 0.741528034504005,
+              "narrowHigh": 0.7614342179559571
+            }
+          },
+          "difference": {
+            "value": 0.16116285633643812,
+            "low": 0.1440271109855974,
+            "high": 0.17786105505909477,
+            "narrowLow": 0.1523864289821737,
+            "narrowHigh": 0.16930638995084646
+          }
+        },
+        {
+          "scope": "free mixes, strict, trackers-two",
+          "tracks": 893,
+          "values": {
+            "tempogram": {
+              "value": 0.7569988801791714,
+              "low": 0.7238204833141542,
+              "high": 0.788826815642458,
+              "narrowLow": 0.7401847575057737,
+              "narrowHigh": 0.7734204793028322
+            },
+            "peaks": {
+              "value": 0.6394176931690929,
+              "low": 0.6015452538631346,
+              "high": 0.6780045351473923,
+              "narrowLow": 0.6202247191011236,
+              "narrowHigh": 0.6583990980834273
+            }
+          },
+          "difference": {
+            "value": 0.11758118701007847,
+            "low": 0.09230769230769231,
+            "high": 0.1433333333333333,
+            "narrowLow": 0.10483870967741937,
+            "narrowHigh": 0.13024282560706402
+          }
+        },
+        {
+          "scope": "free mixes, contested",
+          "tracks": 3427,
+          "values": {
+            "tempogram": {
+              "value": 0.785234899328859,
+              "low": 0.7654001151410478,
+              "high": 0.8050333535476046,
+              "narrowLow": 0.7751581368602645,
+              "narrowHigh": 0.7949754548079699
+            },
+            "peaks": {
+              "value": 0.644878902830464,
+              "low": 0.6201067615658363,
+              "high": 0.6684998472349526,
+              "narrowLow": 0.6328932261768083,
+              "narrowHigh": 0.6572493014591742
+            }
+          },
+          "difference": {
+            "value": 0.14035599649839503,
+            "low": 0.124963841481053,
+            "high": 0.15520628683693516,
+            "narrowLow": 0.1322922804949911,
+            "narrowHigh": 0.1478080568720379
+          }
+        },
+        {
+          "scope": "free mixes, contested, labelled 90 to 180",
+          "tracks": 2929,
+          "values": {
+            "tempogram": {
+              "value": 0.9108910891089109,
+              "low": 0.8976920427144334,
+              "high": 0.9230509618629767,
+              "narrowLow": 0.9042695130086724,
+              "narrowHigh": 0.9170845870946172
+            },
+            "peaks": {
+              "value": 0.7497439399112324,
+              "low": 0.7281217571774472,
+              "high": 0.7698036560595802,
+              "narrowLow": 0.7392204208347706,
+              "narrowHigh": 0.760229720028715
+            }
+          },
+          "difference": {
+            "value": 0.16114714919767847,
+            "low": 0.143672373279624,
+            "high": 0.17937853107344637,
+            "narrowLow": 0.15229982964224875,
+            "narrowHigh": 0.17027657447517497
+          }
+        },
+        {
+          "scope": "free mixes, contested, trackers-all",
+          "tracks": 325,
+          "values": {
+            "tempogram": {
+              "value": 0.7753846153846153,
+              "low": 0.727810650887574,
+              "high": 0.8208955223880597,
+              "narrowLow": 0.7508090614886731,
+              "narrowHigh": 0.7988165680473372
+            },
+            "peaks": {
+              "value": 0.5353846153846153,
+              "low": 0.4759036144578313,
+              "high": 0.5958083832335329,
+              "narrowLow": 0.5047318611987381,
+              "narrowHigh": 0.564179104477612
+            }
+          },
+          "difference": {
+            "value": 0.24,
+            "low": 0.18823529411764706,
+            "high": 0.2937685459940652,
+            "narrowLow": 0.21283783783783783,
+            "narrowHigh": 0.26785714285714285
+          }
+        },
+        {
+          "scope": "free mixes, contested, trackers-two",
+          "tracks": 3102,
+          "values": {
+            "tempogram": {
+              "value": 0.7862669245647969,
+              "low": 0.7638842700365813,
+              "high": 0.806662312214239,
+              "narrowLow": 0.7749840865690643,
+              "narrowHigh": 0.79712
+            },
+            "peaks": {
+              "value": 0.6563507414571245,
+              "low": 0.6317491108955706,
+              "high": 0.6805006587615283,
+              "narrowLow": 0.6436744033998039,
+              "narrowHigh": 0.6685481342113515
+            }
+          },
+          "difference": {
+            "value": 0.1299161831076724,
+            "low": 0.11518661518661522,
+            "high": 0.14519685039370078,
+            "narrowLow": 0.12217194570135748,
+            "narrowHigh": 0.13738317757009344
+          }
+        },
+        {
+          "scope": "under 90 (out of range), free mixes, strict",
+          "tracks": 239,
+          "values": {
+            "tempogram": {
+              "value": 0.24267782426778242,
+              "low": 0.17063492063492064,
+              "high": 0.3147410358565737,
+              "narrowLow": 0.20361990950226244,
+              "narrowHigh": 0.2775330396475771
+            },
+            "peaks": {
+              "value": 0.07112970711297072,
+              "low": 0.03829787234042553,
+              "high": 0.10548523206751055,
+              "narrowLow": 0.05371900826446281,
+              "narrowHigh": 0.08771929824561403
+            }
+          },
+          "difference": {
+            "value": 0.17154811715481172,
+            "low": 0.10743801652892561,
+            "high": 0.23694779116465864,
+            "narrowLow": 0.13944223107569723,
+            "narrowHigh": 0.20491803278688522
+          }
+        },
+        {
+          "scope": "90-120, free mixes, strict",
+          "tracks": 722,
+          "values": {
+            "tempogram": {
+              "value": 0.8670360110803325,
+              "low": 0.8367052023121387,
+              "high": 0.8953323903818954,
+              "narrowLow": 0.8516886930983847,
+              "narrowHigh": 0.8817345597897503
+            },
+            "peaks": {
+              "value": 0.7091412742382271,
+              "low": 0.6681481481481482,
+              "high": 0.7486033519553073,
+              "narrowLow": 0.687248322147651,
+              "narrowHigh": 0.729518855656697
+            }
+          },
+          "difference": {
+            "value": 0.1578947368421053,
+            "low": 0.128552097428958,
+            "high": 0.18776077885952702,
+            "narrowLow": 0.1430575035063114,
+            "narrowHigh": 0.17307692307692302
+          }
+        },
+        {
+          "scope": "120-140, free mixes, strict",
+          "tracks": 2178,
+          "values": {
+            "tempogram": {
+              "value": 0.95821854912764,
+              "low": 0.9483227561196736,
+              "high": 0.9669133652590335,
+              "narrowLow": 0.9534883720930233,
+              "narrowHigh": 0.9627839536007733
+            },
+            "peaks": {
+              "value": 0.8526170798898072,
+              "low": 0.8334104581212401,
+              "high": 0.8698510078878177,
+              "narrowLow": 0.8431179082387765,
+              "narrowHigh": 0.8617777777777778
+            }
+          },
+          "difference": {
+            "value": 0.10560146923783287,
+            "low": 0.08909169926119076,
+            "high": 0.12259835315645007,
+            "narrowLow": 0.09680407596109308,
+            "narrowHigh": 0.11409691629955943
+          }
+        },
+        {
+          "scope": "140-150, free mixes, strict",
+          "tracks": 555,
+          "values": {
+            "tempogram": {
+              "value": 0.9423423423423424,
+              "low": 0.9191564147627417,
+              "high": 0.9623352165725048,
+              "narrowLow": 0.93125,
+              "narrowHigh": 0.9527972027972028
+            },
+            "peaks": {
+              "value": 0.7441441441441441,
+              "low": 0.699812382739212,
+              "high": 0.786096256684492,
+              "narrowLow": 0.7215909090909091,
+              "narrowHigh": 0.766
+            }
+          },
+          "difference": {
+            "value": 0.19819819819819828,
+            "low": 0.15709459459459463,
+            "high": 0.2435129740518963,
+            "narrowLow": 0.17704918032786887,
+            "narrowHigh": 0.22050290135396522
+          }
+        },
+        {
+          "scope": "150-156, free mixes, strict",
+          "tracks": 252,
+          "values": {
+            "tempogram": {
+              "value": 0.9365079365079365,
+              "low": 0.8966942148760331,
+              "high": 0.9704797047970479,
+              "narrowLow": 0.9182156133828996,
+              "narrowHigh": 0.9551020408163265
+            },
+            "peaks": {
+              "value": 0.6904761904761905,
+              "low": 0.6209677419354839,
+              "high": 0.7537878787878788,
+              "narrowLow": 0.657258064516129,
+              "narrowHigh": 0.7244094488188977
+            }
+          },
+          "difference": {
+            "value": 0.24603174603174605,
+            "low": 0.18992248062015504,
+            "high": 0.3076923076923077,
+            "narrowLow": 0.21660649819494582,
+            "narrowHigh": 0.277056277056277
+          }
+        },
+        {
+          "scope": "156-165, free mixes, strict",
+          "tracks": 233,
+          "values": {
+            "tempogram": {
+              "value": 0.8969957081545065,
+              "low": 0.8547008547008547,
+              "high": 0.9346938775510204,
+              "narrowLow": 0.876984126984127,
+              "narrowHigh": 0.9173553719008265
+            },
+            "peaks": {
+              "value": 0.6223175965665236,
+              "low": 0.5525114155251142,
+              "high": 0.690677966101695,
+              "narrowLow": 0.5872340425531914,
+              "narrowHigh": 0.6566523605150214
+            }
+          },
+          "difference": {
+            "value": 0.27467811158798283,
+            "low": 0.21074380165289253,
+            "high": 0.3443396226415094,
+            "narrowLow": 0.24215246636771293,
+            "narrowHigh": 0.30932203389830504
+          }
+        },
+        {
+          "scope": "140-165, free mixes, strict",
+          "tracks": 1040,
+          "values": {
+            "tempogram": {
+              "value": 0.9307692307692308,
+              "low": 0.9112903225806451,
+              "high": 0.948076923076923,
+              "narrowLow": 0.9217625899280576,
+              "narrowHigh": 0.9401088929219601
+            },
+            "peaks": {
+              "value": 0.7038461538461539,
+              "low": 0.6660212971926428,
+              "high": 0.7393278837420527,
+              "narrowLow": 0.6848030018761726,
+              "narrowHigh": 0.7229551451187335
+            }
+          },
+          "difference": {
+            "value": 0.2269230769230769,
+            "low": 0.19330143540669853,
+            "high": 0.2622950819672131,
+            "narrowLow": 0.20921305182341654,
+            "narrowHigh": 0.24440298507462688
+          }
+        },
+        {
+          "scope": "165-180, free mixes, strict",
+          "tracks": 204,
+          "values": {
+            "tempogram": {
+              "value": 0.8382352941176471,
+              "low": 0.7783783783783784,
+              "high": 0.8926829268292683,
+              "narrowLow": 0.8090452261306532,
+              "narrowHigh": 0.8666666666666667
+            },
+            "peaks": {
+              "value": 0.5686274509803921,
+              "low": 0.48717948717948717,
+              "high": 0.6482412060301508,
+              "narrowLow": 0.5260115606936416,
+              "narrowHigh": 0.6074766355140186
+            }
+          },
+          "difference": {
+            "value": 0.26960784313725494,
+            "low": 0.2038461538461538,
+            "high": 0.3370786516853933,
+            "narrowLow": 0.23560209424083767,
+            "narrowHigh": 0.30243902439024384
+          }
+        },
+        {
+          "scope": "over 180 (out of range), free mixes, strict",
+          "tracks": 53,
+          "values": {
+            "tempogram": {
+              "value": 0,
+              "low": 0,
+              "high": 0,
+              "narrowLow": 0,
+              "narrowHigh": 0
+            },
+            "peaks": {
+              "value": 0,
+              "low": 0,
+              "high": 0,
+              "narrowLow": 0,
+              "narrowHigh": 0
+            }
+          },
+          "difference": {
+            "value": 0,
+            "low": 0,
+            "high": 0,
+            "narrowLow": 0,
+            "narrowHigh": 0
+          }
+        },
+        {
+          "scope": "under 90 (out of range), free mixes, contested",
+          "tracks": 103,
+          "values": {
+            "tempogram": {
+              "value": 0.17475728155339806,
+              "low": 0.10416666666666667,
+              "high": 0.25806451612903225,
+              "narrowLow": 0.13675213675213677,
+              "narrowHigh": 0.21568627450980393
+            },
+            "peaks": {
+              "value": 0.05825242718446602,
+              "low": 0.018018018018018018,
+              "high": 0.10989010989010989,
+              "narrowLow": 0.03508771929824561,
+              "narrowHigh": 0.08163265306122448
+            }
+          },
+          "difference": {
+            "value": 0.11650485436893204,
+            "low": 0.05882352941176471,
+            "high": 0.18681318681318682,
+            "narrowLow": 0.08421052631578947,
+            "narrowHigh": 0.14893617021276598
+          }
+        },
+        {
+          "scope": "90-120, free mixes, contested",
+          "tracks": 486,
+          "values": {
+            "tempogram": {
+              "value": 0.9074074074074074,
+              "low": 0.88,
+              "high": 0.9327902240325866,
+              "narrowLow": 0.8936605316973415,
+              "narrowHigh": 0.921161825726141
+            },
+            "peaks": {
+              "value": 0.7469135802469136,
+              "low": 0.7006237006237006,
+              "high": 0.7915742793791575,
+              "narrowLow": 0.7248459958932238,
+              "narrowHigh": 0.7707423580786026
+            }
+          },
+          "difference": {
+            "value": 0.16049382716049387,
+            "low": 0.12025316455696211,
+            "high": 0.2055888223552894,
+            "narrowLow": 0.13877551020408163,
+            "narrowHigh": 0.18346774193548387
+          }
+        },
+        {
+          "scope": "120-140, free mixes, contested",
+          "tracks": 1296,
+          "values": {
+            "tempogram": {
+              "value": 0.9398148148148148,
+              "low": 0.9253499222395023,
+              "high": 0.9537393986121819,
+              "narrowLow": 0.9327165685449958,
+              "narrowHigh": 0.9468562874251497
+            },
+            "peaks": {
+              "value": 0.8287037037037037,
+              "low": 0.8048780487804879,
+              "high": 0.8511301636788776,
+              "narrowLow": 0.8169781931464174,
+              "narrowHigh": 0.8405238828967643
+            }
+          },
+          "difference": {
+            "value": 0.11111111111111105,
+            "low": 0.09097633136094674,
+            "high": 0.13206106870229006,
+            "narrowLow": 0.10113207547169811,
+            "narrowHigh": 0.12160120845921452
+          }
+        },
+        {
+          "scope": "140-150, free mixes, contested",
+          "tracks": 568,
+          "values": {
+            "tempogram": {
+              "value": 0.9348591549295775,
+              "low": 0.9123809523809524,
+              "high": 0.9556737588652482,
+              "narrowLow": 0.9237749546279492,
+              "narrowHigh": 0.9458987783595113
+            },
+            "peaks": {
+              "value": 0.7535211267605634,
+              "low": 0.7153024911032029,
+              "high": 0.7907742998352554,
+              "narrowLow": 0.7345132743362832,
+              "narrowHigh": 0.7722419928825622
+            }
+          },
+          "difference": {
+            "value": 0.18133802816901412,
+            "low": 0.14711359404096824,
+            "high": 0.216796875,
+            "narrowLow": 0.16433566433566438,
+            "narrowHigh": 0.1986301369863014
+          }
+        },
+        {
+          "scope": "150-156, free mixes, contested",
+          "tracks": 153,
+          "values": {
+            "tempogram": {
+              "value": 0.8169934640522876,
+              "low": 0.75,
+              "high": 0.8789808917197452,
+              "narrowLow": 0.7847222222222222,
+              "narrowHigh": 0.8516129032258064
+            },
+            "peaks": {
+              "value": 0.477124183006536,
+              "low": 0.38922155688622756,
+              "high": 0.5625,
+              "narrowLow": 0.43333333333333335,
+              "narrowHigh": 0.5208333333333334
+            }
+          },
+          "difference": {
+            "value": 0.3398692810457516,
+            "low": 0.2635135135135135,
+            "high": 0.4172185430463576,
+            "narrowLow": 0.30177514792899407,
+            "narrowHigh": 0.37888198757763975
+          }
+        },
+        {
+          "scope": "156-165, free mixes, contested",
+          "tracks": 216,
+          "values": {
+            "tempogram": {
+              "value": 0.8425925925925926,
+              "low": 0.7876106194690266,
+              "high": 0.8952380952380953,
+              "narrowLow": 0.8169014084507042,
+              "narrowHigh": 0.8697674418604651
+            },
+            "peaks": {
+              "value": 0.6203703703703703,
+              "low": 0.5518867924528302,
+              "high": 0.6877828054298643,
+              "narrowLow": 0.5865384615384616,
+              "narrowHigh": 0.6547085201793722
+            }
+          },
+          "difference": {
+            "value": 0.2222222222222222,
+            "low": 0.15929203539823011,
+            "high": 0.28837209302325584,
+            "narrowLow": 0.19004524886877827,
+            "narrowHigh": 0.255
+          }
+        },
+        {
+          "scope": "140-165, free mixes, contested",
+          "tracks": 937,
+          "values": {
+            "tempogram": {
+              "value": 0.8943436499466382,
+              "low": 0.8700623700623701,
+              "high": 0.9163987138263665,
+              "narrowLow": 0.8827956989247312,
+              "narrowHigh": 0.905982905982906
+            },
+            "peaks": {
+              "value": 0.6776947705442903,
+              "low": 0.6420704845814978,
+              "high": 0.7109458023379384,
+              "narrowLow": 0.6593279258400927,
+              "narrowHigh": 0.6952479338842975
+            }
+          },
+          "difference": {
+            "value": 0.2166488794023479,
+            "low": 0.18837459634015064,
+            "high": 0.2463917525773196,
+            "narrowLow": 0.20165460186142703,
+            "narrowHigh": 0.2320855614973263
+          }
+        },
+        {
+          "scope": "165-180, free mixes, contested",
+          "tracks": 210,
+          "values": {
+            "tempogram": {
+              "value": 0.8142857142857143,
+              "low": 0.7538461538461538,
+              "high": 0.8703703703703703,
+              "narrowLow": 0.7836538461538461,
+              "narrowHigh": 0.8443396226415094
+            },
+            "peaks": {
+              "value": 0.5904761904761905,
+              "low": 0.5114155251141552,
+              "high": 0.6682027649769585,
+              "narrowLow": 0.5492957746478874,
+              "narrowHigh": 0.6310679611650486
+            }
+          },
+          "difference": {
+            "value": 0.2238095238095238,
+            "low": 0.15048543689320382,
+            "high": 0.30396475770925113,
+            "narrowLow": 0.18518518518518523,
+            "narrowHigh": 0.2628865979381444
+          }
+        },
+        {
+          "scope": "over 180 (out of range), free mixes, contested",
+          "tracks": 395,
+          "values": {
+            "tempogram": {
+              "value": 0.012658227848101266,
+              "low": 0.0025906735751295338,
+              "high": 0.02531645569620253,
+              "narrowLow": 0.007407407407407408,
+              "narrowHigh": 0.018229166666666668
+            },
+            "peaks": {
+              "value": 0.020253164556962026,
+              "low": 0.007832898172323759,
+              "high": 0.03529411764705882,
+              "narrowLow": 0.013157894736842105,
+              "narrowHigh": 0.02696078431372549
+            }
+          },
+          "difference": {
+            "value": -0.00759493670886076,
+            "low": -0.024038461538461536,
+            "high": 0.009501187648456057,
+            "narrowLow": -0.015544041450777202,
+            "narrowHigh": 0
+          }
+        }
+      ]
+    },
+    {
+      "metric": "acc2",
+      "title": "Acc2",
+      "rows": [
+        {
+          "scope": "free mixes, strict",
+          "tracks": 4436,
+          "values": {
+            "tempogram": {
+              "value": 0.9269612263300271,
+              "low": 0.9174681279355849,
+              "high": 0.9358945722582086,
+              "narrowLow": 0.9221543335596288,
+              "narrowHigh": 0.9315836698070884
+            },
+            "peaks": {
+              "value": 0.7669071235347159,
+              "low": 0.7493949394939494,
+              "high": 0.7843450479233227,
+              "narrowLow": 0.7577477084242689,
+              "narrowHigh": 0.775573880098061
+            }
+          },
+          "difference": {
+            "value": 0.16005410279531118,
+            "low": 0.1451831750339213,
+            "high": 0.17496129174961295,
+            "narrowLow": 0.15249266862170086,
+            "narrowHigh": 0.16796267496111972
+          }
+        },
+        {
+          "scope": "free mixes, strict, labelled 90 to 180",
+          "tracks": 4144,
+          "values": {
+            "tempogram": {
+              "value": 0.9341216216216216,
+              "low": 0.9246098439375751,
+              "high": 0.9430722183015761,
+              "narrowLow": 0.9293081761006289,
+              "narrowHigh": 0.9388657009575252
+            },
+            "peaks": {
+              "value": 0.7782335907335908,
+              "low": 0.7604293730178092,
+              "high": 0.7958900946663588,
+              "narrowLow": 0.7692122958693564,
+              "narrowHigh": 0.7872843299456393
+            }
+          },
+          "difference": {
+            "value": 0.15588803088803083,
+            "low": 0.14081325301204828,
+            "high": 0.17237280076081785,
+            "narrowLow": 0.14783683559950567,
+            "narrowHigh": 0.16397454723445914
+          }
+        },
+        {
+          "scope": "free mixes, strict, trackers-all",
+          "tracks": 3543,
+          "values": {
+            "tempogram": {
+              "value": 0.956534010725374,
+              "low": 0.9486007995431183,
+              "high": 0.9642163661581137,
+              "narrowLow": 0.9526406429391504,
+              "narrowHigh": 0.9604266067920292
+            },
+            "peaks": {
+              "value": 0.7888794806661021,
+              "low": 0.7704964539007092,
+              "high": 0.8065673289183223,
+              "narrowLow": 0.7796127562642369,
+              "narrowHigh": 0.7979714912280702
+            }
+          },
+          "difference": {
+            "value": 0.1676545300592719,
+            "low": 0.150540469285526,
+            "high": 0.18547729127005708,
+            "narrowLow": 0.15894736842105261,
+            "narrowHigh": 0.17692307692307696
+          }
+        },
+        {
+          "scope": "free mixes, strict, trackers-two",
+          "tracks": 893,
+          "values": {
+            "tempogram": {
+              "value": 0.8096304591265397,
+              "low": 0.7795193312434692,
+              "high": 0.8393258426966292,
+              "narrowLow": 0.7952755905511811,
+              "narrowHigh": 0.8245989304812834
+            },
+            "peaks": {
+              "value": 0.6797312430011199,
+              "low": 0.6437429537767756,
+              "high": 0.7157079646017699,
+              "narrowLow": 0.6614173228346457,
+              "narrowHigh": 0.6984866123399301
+            }
+          },
+          "difference": {
+            "value": 0.12989921612541988,
+            "low": 0.10264900662251653,
+            "high": 0.1581342434584755,
+            "narrowLow": 0.1157775255391601,
+            "narrowHigh": 0.14413407821229052
+          }
+        },
+        {
+          "scope": "free mixes, contested",
+          "tracks": 3427,
+          "values": {
+            "tempogram": {
+              "value": 0.9002042602859645,
+              "low": 0.8864512303587311,
+              "high": 0.9130044843049328,
+              "narrowLow": 0.8933215130023641,
+              "narrowHigh": 0.9069111424541608
+            },
+            "peaks": {
+              "value": 0.7268748176247447,
+              "low": 0.7051395007342144,
+              "high": 0.7477797513321492,
+              "narrowLow": 0.7157316367842683,
+              "narrowHigh": 0.7375886524822695
+            }
+          },
+          "difference": {
+            "value": 0.17332944266121975,
+            "low": 0.1564132327336042,
+            "high": 0.19175317185697804,
+            "narrowLow": 0.16442665141549906,
+            "narrowHigh": 0.1821355833575793
+          }
+        },
+        {
+          "scope": "free mixes, contested, labelled 90 to 180",
+          "tracks": 2929,
+          "values": {
+            "tempogram": {
+              "value": 0.9129395698190509,
+              "low": 0.9005128205128206,
+              "high": 0.925305410122164,
+              "narrowLow": 0.9066339066339066,
+              "narrowHigh": 0.9194435457780653
+            },
+            "peaks": {
+              "value": 0.7511095937179925,
+              "low": 0.7301866854526242,
+              "high": 0.7716378162450066,
+              "narrowLow": 0.74,
+              "narrowHigh": 0.7616361071932299
+            }
+          },
+          "difference": {
+            "value": 0.16182997610105843,
+            "low": 0.14486145212206247,
+            "high": 0.17941680960548878,
+            "narrowLow": 0.15293696275071633,
+            "narrowHigh": 0.17053157331430613
+          }
+        },
+        {
+          "scope": "free mixes, contested, trackers-all",
+          "tracks": 325,
+          "values": {
+            "tempogram": {
+              "value": 0.8430769230769231,
+              "low": 0.8,
+              "high": 0.8853503184713376,
+              "narrowLow": 0.8214285714285714,
+              "narrowHigh": 0.8646153846153846
+            },
+            "peaks": {
+              "value": 0.5846153846153846,
+              "low": 0.525679758308157,
+              "high": 0.6407766990291263,
+              "narrowLow": 0.5545454545454546,
+              "narrowHigh": 0.6138613861386139
+            }
+          },
+          "difference": {
+            "value": 0.2584615384615384,
+            "low": 0.2068965517241379,
+            "high": 0.3126760563380282,
+            "narrowLow": 0.23124999999999996,
+            "narrowHigh": 0.28616352201257866
+          }
+        },
+        {
+          "scope": "free mixes, contested, trackers-two",
+          "tracks": 3102,
+          "values": {
+            "tempogram": {
+              "value": 0.9061895551257253,
+              "low": 0.8919085855466338,
+              "high": 0.9192345118391178,
+              "narrowLow": 0.8993245416532647,
+              "narrowHigh": 0.912987012987013
+            },
+            "peaks": {
+              "value": 0.741779497098646,
+              "low": 0.719635297948551,
+              "high": 0.76213282247765,
+              "narrowLow": 0.7306532663316583,
+              "narrowHigh": 0.7525575447570333
+            }
+          },
+          "difference": {
+            "value": 0.1644100580270793,
+            "low": 0.14671163575042157,
+            "high": 0.18244644091223217,
+            "narrowLow": 0.15543412264723733,
+            "narrowHigh": 0.17339082229750535
+          }
+        },
+        {
+          "scope": "under 90 (out of range), free mixes, strict",
+          "tracks": 239,
+          "values": {
+            "tempogram": {
+              "value": 0.8451882845188284,
+              "low": 0.7903225806451613,
+              "high": 0.8931623931623932,
+              "narrowLow": 0.8190045248868778,
+              "narrowHigh": 0.8714285714285714
+            },
+            "peaks": {
+              "value": 0.6485355648535565,
+              "low": 0.5847457627118644,
+              "high": 0.7112068965517241,
+              "narrowLow": 0.6176470588235294,
+              "narrowHigh": 0.68
+            }
+          },
+          "difference": {
+            "value": 0.19665271966527198,
+            "low": 0.12,
+            "high": 0.2731092436974789,
+            "narrowLow": 0.1578947368421053,
+            "narrowHigh": 0.23643410852713187
+          }
+        },
+        {
+          "scope": "90-120, free mixes, strict",
+          "tracks": 722,
+          "values": {
+            "tempogram": {
+              "value": 0.8670360110803325,
+              "low": 0.8367626886145405,
+              "high": 0.8951841359773371,
+              "narrowLow": 0.8516405135520685,
+              "narrowHigh": 0.8820224719101124
+            },
+            "peaks": {
+              "value": 0.7132963988919667,
+              "low": 0.6711711711711712,
+              "high": 0.7521865889212828,
+              "narrowLow": 0.6920821114369502,
+              "narrowHigh": 0.7337031900138696
+            }
+          },
+          "difference": {
+            "value": 0.15373961218836574,
+            "low": 0.12467191601049865,
+            "high": 0.1842105263157895,
+            "narrowLow": 0.13850063532401524,
+            "narrowHigh": 0.16858789625360227
+          }
+        },
+        {
+          "scope": "120-140, free mixes, strict",
+          "tracks": 2178,
+          "values": {
+            "tempogram": {
+              "value": 0.95821854912764,
+              "low": 0.948582412301778,
+              "high": 0.9669573198715007,
+              "narrowLow": 0.9533954727030626,
+              "narrowHigh": 0.9629127091813658
+            },
+            "peaks": {
+              "value": 0.8526170798898072,
+              "low": 0.8340173278613771,
+              "high": 0.8706041478809738,
+              "narrowLow": 0.8431281813975011,
+              "narrowHigh": 0.8620055197792088
+            }
+          },
+          "difference": {
+            "value": 0.10560146923783287,
+            "low": 0.08907254361799821,
+            "high": 0.12298387096774188,
+            "narrowLow": 0.09734093067426397,
+            "narrowHigh": 0.11418853255587946
+          }
+        },
+        {
+          "scope": "140-150, free mixes, strict",
+          "tracks": 555,
+          "values": {
+            "tempogram": {
+              "value": 0.9423423423423424,
+              "low": 0.92,
+              "high": 0.9616087751371115,
+              "narrowLow": 0.9313543599257885,
+              "narrowHigh": 0.953125
+            },
+            "peaks": {
+              "value": 0.7441441441441441,
+              "low": 0.6990291262135923,
+              "high": 0.7880910683012259,
+              "narrowLow": 0.7221135029354208,
+              "narrowHigh": 0.7665441176470589
+            }
+          },
+          "difference": {
+            "value": 0.19819819819819828,
+            "low": 0.1563981042654029,
+            "high": 0.2425925925925927,
+            "narrowLow": 0.17636022514071292,
+            "narrowHigh": 0.22033898305084754
+          }
+        },
+        {
+          "scope": "150-156, free mixes, strict",
+          "tracks": 252,
+          "values": {
+            "tempogram": {
+              "value": 0.9365079365079365,
+              "low": 0.8975409836065574,
+              "high": 0.9695817490494296,
+              "narrowLow": 0.9169960474308301,
+              "narrowHigh": 0.9545454545454546
+            },
+            "peaks": {
+              "value": 0.6904761904761905,
+              "low": 0.6190476190476191,
+              "high": 0.7543103448275862,
+              "narrowLow": 0.6557377049180327,
+              "narrowHigh": 0.7228915662650602
+            }
+          },
+          "difference": {
+            "value": 0.24603174603174605,
+            "low": 0.18846153846153846,
+            "high": 0.3076923076923077,
+            "narrowLow": 0.21509433962264157,
+            "narrowHigh": 0.27519379844961245
+          }
+        },
+        {
+          "scope": "156-165, free mixes, strict",
+          "tracks": 233,
+          "values": {
+            "tempogram": {
+              "value": 0.8969957081545065,
+              "low": 0.852017937219731,
+              "high": 0.9367088607594937,
+              "narrowLow": 0.8765957446808511,
+              "narrowHigh": 0.9170305676855895
+            },
+            "peaks": {
+              "value": 0.6223175965665236,
+              "low": 0.5530973451327433,
+              "high": 0.6929824561403509,
+              "narrowLow": 0.5877192982456141,
+              "narrowHigh": 0.6589861751152074
+            }
+          },
+          "difference": {
+            "value": 0.27467811158798283,
+            "low": 0.2081632653061225,
+            "high": 0.3390557939914164,
+            "narrowLow": 0.2406639004149378,
+            "narrowHigh": 0.3091787439613526
+          }
+        },
+        {
+          "scope": "140-165, free mixes, strict",
+          "tracks": 1040,
+          "values": {
+            "tempogram": {
+              "value": 0.9307692307692308,
+              "low": 0.9118483412322275,
+              "high": 0.9478672985781991,
+              "narrowLow": 0.9213806327900288,
+              "narrowHigh": 0.939484126984127
+            },
+            "peaks": {
+              "value": 0.7038461538461539,
+              "low": 0.6669980119284294,
+              "high": 0.7394957983193278,
+              "narrowLow": 0.6854508196721312,
+              "narrowHigh": 0.7225929456625357
+            }
+          },
+          "difference": {
+            "value": 0.2269230769230769,
+            "low": 0.19216417910447758,
+            "high": 0.26190476190476186,
+            "narrowLow": 0.20967741935483863,
+            "narrowHigh": 0.24493731918997108
+          }
+        },
+        {
+          "scope": "165-180, free mixes, strict",
+          "tracks": 204,
+          "values": {
+            "tempogram": {
+              "value": 0.9313725490196079,
+              "low": 0.8952879581151832,
+              "high": 0.9623655913978495,
+              "narrowLow": 0.9134615384615384,
+              "narrowHigh": 0.949238578680203
+            },
+            "peaks": {
+              "value": 0.5931372549019608,
+              "low": 0.5126903553299492,
+              "high": 0.6680327868852459,
+              "narrowLow": 0.5522388059701493,
+              "narrowHigh": 0.631578947368421
+            }
+          },
+          "difference": {
+            "value": 0.3382352941176471,
+            "low": 0.2678571428571428,
+            "high": 0.4145077720207254,
+            "narrowLow": 0.3028846153846154,
+            "narrowHigh": 0.37688442211055284
+          }
+        },
+        {
+          "scope": "over 180 (out of range), free mixes, strict",
+          "tracks": 53,
+          "values": {
+            "tempogram": {
+              "value": 0.7358490566037735,
+              "low": 0.6037735849056604,
+              "high": 0.8490566037735849,
+              "narrowLow": 0.6785714285714286,
+              "narrowHigh": 0.8
+            },
+            "peaks": {
+              "value": 0.41509433962264153,
+              "low": 0.28,
+              "high": 0.5471698113207547,
+              "narrowLow": 0.34,
+              "narrowHigh": 0.48214285714285715
+            }
+          },
+          "difference": {
+            "value": 0.320754716981132,
+            "low": 0.16981132075471694,
+            "high": 0.4799999999999999,
+            "narrowLow": 0.24000000000000005,
+            "narrowHigh": 0.3962264150943397
+          }
+        },
+        {
+          "scope": "under 90 (out of range), free mixes, contested",
+          "tracks": 103,
+          "values": {
+            "tempogram": {
+              "value": 0.7669902912621359,
+              "low": 0.6632653061224489,
+              "high": 0.8521739130434782,
+              "narrowLow": 0.7166666666666667,
+              "narrowHigh": 0.8135593220338984
+            },
+            "peaks": {
+              "value": 0.6407766990291263,
+              "low": 0.5168539325842697,
+              "high": 0.7457627118644068,
+              "narrowLow": 0.5773195876288659,
+              "narrowHigh": 0.6964285714285714
+            }
+          },
+          "difference": {
+            "value": 0.12621359223300965,
+            "low": 0.0357142857142857,
+            "high": 0.22807017543859642,
+            "narrowLow": 0.08333333333333326,
+            "narrowHigh": 0.17647058823529416
+          }
+        },
+        {
+          "scope": "90-120, free mixes, contested",
+          "tracks": 486,
+          "values": {
+            "tempogram": {
+              "value": 0.9074074074074074,
+              "low": 0.8797327394209354,
+              "high": 0.9337474120082816,
+              "narrowLow": 0.893574297188755,
+              "narrowHigh": 0.9211045364891519
+            },
+            "peaks": {
+              "value": 0.7489711934156379,
+              "low": 0.7043650793650794,
+              "high": 0.7941176470588235,
+              "narrowLow": 0.7267441860465116,
+              "narrowHigh": 0.7722342733188721
+            }
+          },
+          "difference": {
+            "value": 0.15843621399176955,
+            "low": 0.11547344110854507,
+            "high": 0.20454545454545459,
+            "narrowLow": 0.13682092555331993,
+            "narrowHigh": 0.18029350104821806
+          }
+        },
+        {
+          "scope": "120-140, free mixes, contested",
+          "tracks": 1296,
+          "values": {
+            "tempogram": {
+              "value": 0.9398148148148148,
+              "low": 0.9253731343283582,
+              "high": 0.9532208588957055,
+              "narrowLow": 0.9330254041570438,
+              "narrowHigh": 0.9470355731225296
+            },
+            "peaks": {
+              "value": 0.8287037037037037,
+              "low": 0.8057054741711642,
+              "high": 0.8510479041916168,
+              "narrowLow": 0.8173773129525342,
+              "narrowHigh": 0.8400918133129304
+            }
+          },
+          "difference": {
+            "value": 0.11111111111111105,
+            "low": 0.090978013646702,
+            "high": 0.13312693498452022,
+            "narrowLow": 0.10113207547169811,
+            "narrowHigh": 0.12187736563209683
+          }
+        },
+        {
+          "scope": "140-150, free mixes, contested",
+          "tracks": 568,
+          "values": {
+            "tempogram": {
+              "value": 0.9348591549295775,
+              "low": 0.911660777385159,
+              "high": 0.9549393414211439,
+              "narrowLow": 0.9236234458259325,
+              "narrowHigh": 0.9453978159126365
+            },
+            "peaks": {
+              "value": 0.7535211267605634,
+              "low": 0.7134935304990758,
+              "high": 0.7902946273830156,
+              "narrowLow": 0.7336860670194003,
+              "narrowHigh": 0.7728085867620751
+            }
+          },
+          "difference": {
+            "value": 0.18133802816901412,
+            "low": 0.1480206540447505,
+            "high": 0.21641791044776126,
+            "narrowLow": 0.16425992779783394,
+            "narrowHigh": 0.19870759289176088
+          }
+        },
+        {
+          "scope": "150-156, free mixes, contested",
+          "tracks": 153,
+          "values": {
+            "tempogram": {
+              "value": 0.8169934640522876,
+              "low": 0.75,
+              "high": 0.8789808917197452,
+              "narrowLow": 0.7828947368421053,
+              "narrowHigh": 0.85
+            },
+            "peaks": {
+              "value": 0.477124183006536,
+              "low": 0.39156626506024095,
+              "high": 0.5620915032679739,
+              "narrowLow": 0.432258064516129,
+              "narrowHigh": 0.5197368421052632
+            }
+          },
+          "difference": {
+            "value": 0.3398692810457516,
+            "low": 0.2621951219512195,
+            "high": 0.4171779141104295,
+            "narrowLow": 0.2987012987012987,
+            "narrowHigh": 0.3776223776223776
+          }
+        },
+        {
+          "scope": "156-165, free mixes, contested",
+          "tracks": 216,
+          "values": {
+            "tempogram": {
+              "value": 0.8425925925925926,
+              "low": 0.7901785714285714,
+              "high": 0.8925233644859814,
+              "narrowLow": 0.8165137614678899,
+              "narrowHigh": 0.8682926829268293
+            },
+            "peaks": {
+              "value": 0.6203703703703703,
+              "low": 0.553921568627451,
+              "high": 0.6904761904761905,
+              "narrowLow": 0.5879629629629629,
+              "narrowHigh": 0.6555023923444976
+            }
+          },
+          "difference": {
+            "value": 0.2222222222222222,
+            "low": 0.15962441314554,
+            "high": 0.28837209302325584,
+            "narrowLow": 0.18918918918918926,
+            "narrowHigh": 0.2555066079295154
+          }
+        },
+        {
+          "scope": "140-165, free mixes, contested",
+          "tracks": 937,
+          "values": {
+            "tempogram": {
+              "value": 0.8943436499466382,
+              "low": 0.8701149425287357,
+              "high": 0.9174406604747162,
+              "narrowLow": 0.8824163969795038,
+              "narrowHigh": 0.9060832443970117
+            },
+            "peaks": {
+              "value": 0.6776947705442903,
+              "low": 0.6430131004366813,
+              "high": 0.7105263157894737,
+              "narrowLow": 0.6592827004219409,
+              "narrowHigh": 0.6945652173913044
+            }
+          },
+          "difference": {
+            "value": 0.2166488794023479,
+            "low": 0.1863041289023163,
+            "high": 0.24767801857585137,
+            "narrowLow": 0.20189274447949523,
+            "narrowHigh": 0.23245614035087714
+          }
+        },
+        {
+          "scope": "165-180, free mixes, contested",
+          "tracks": 210,
+          "values": {
+            "tempogram": {
+              "value": 0.8428571428571429,
+              "low": 0.784688995215311,
+              "high": 0.8962264150943396,
+              "narrowLow": 0.8142857142857143,
+              "narrowHigh": 0.8719211822660099
+            },
+            "peaks": {
+              "value": 0.6047619047619047,
+              "low": 0.5248868778280543,
+              "high": 0.6847290640394089,
+              "narrowLow": 0.5641025641025641,
+              "narrowHigh": 0.6467889908256881
+            }
+          },
+          "difference": {
+            "value": 0.23809523809523814,
+            "low": 0.16019417475728148,
+            "high": 0.3168316831683168,
+            "narrowLow": 0.1981566820276498,
+            "narrowHigh": 0.27751196172248804
+          }
+        },
+        {
+          "scope": "over 180 (out of range), free mixes, contested",
+          "tracks": 395,
+          "values": {
+            "tempogram": {
+              "value": 0.8405063291139241,
+              "low": 0.7968337730870713,
+              "high": 0.8815489749430524,
+              "narrowLow": 0.8186157517899761,
+              "narrowHigh": 0.862533692722372
+            },
+            "peaks": {
+              "value": 0.569620253164557,
+              "low": 0.5108108108108108,
+              "high": 0.6256684491978609,
+              "narrowLow": 0.5394088669950738,
+              "narrowHigh": 0.5968992248062015
+            }
+          },
+          "difference": {
+            "value": 0.2708860759493671,
+            "low": 0.2172774869109948,
+            "high": 0.32745591939546603,
+            "narrowLow": 0.2440191387559808,
+            "narrowHigh": 0.30000000000000004
+          }
+        }
+      ]
+    },
+    {
+      "metric": "falseStable",
+      "title": "False-stable",
+      "rows": [
+        {
+          "scope": "free mixes, strict",
+          "tracks": 4436,
+          "values": {
+            "tempogram": {
+              "value": 0.1070908207867897,
+              "low": 0.09534671532846715,
+              "high": 0.11885633270321361,
+              "narrowLow": 0.10107879924953096,
+              "narrowHigh": 0.11334120425029516
+            },
+            "peaks": {
+              "value": 0.3328229339458126,
+              "low": 0.3150159744408946,
+              "high": 0.35085491789402407,
+              "narrowLow": 0.324255702526721,
+              "narrowHigh": 0.34187557291459086
+            }
+          },
+          "difference": {
+            "value": -0.22573211315902286,
+            "low": -0.24138522147209962,
+            "high": -0.2102925289967431,
+            "narrowLow": -0.23397049985675253,
+            "narrowHigh": -0.21799626537868416
+          }
+        },
+        {
+          "scope": "free mixes, strict, labelled 90 to 180",
+          "tracks": 4144,
+          "values": {
+            "tempogram": {
+              "value": 0.06359875904860393,
+              "low": 0.054324894514767935,
+              "high": 0.07337931034482759,
+              "narrowLow": 0.058734939759036146,
+              "narrowHigh": 0.06836288871755333
+            },
+            "peaks": {
+              "value": 0.2863640540292199,
+              "low": 0.26948284690220176,
+              "high": 0.30309164519690834,
+              "narrowLow": 0.2783644615116076,
+              "narrowHigh": 0.2948954926773781
+            }
+          },
+          "difference": {
+            "value": -0.22276529498061595,
+            "low": -0.2392247009954253,
+            "high": -0.20649998634189676,
+            "narrowLow": -0.23093038009700678,
+            "narrowHigh": -0.21467327839086472
+          }
+        },
+        {
+          "scope": "free mixes, strict, trackers-all",
+          "tracks": 3543,
+          "values": {
+            "tempogram": {
+              "value": 0.08432304038004751,
+              "low": 0.07351258581235698,
+              "high": 0.09560867148415786,
+              "narrowLow": 0.07886435331230283,
+              "narrowHigh": 0.0898910411622276
+            },
+            "peaks": {
+              "value": 0.31820361195461083,
+              "low": 0.3000702361013561,
+              "high": 0.33743480682566207,
+              "narrowLow": 0.309219049593201,
+              "narrowHigh": 0.3279661923611854
+            }
+          },
+          "difference": {
+            "value": -0.23388057157456332,
+            "low": -0.2509057371362355,
+            "high": -0.21760183698737884,
+            "narrowLow": -0.24269659133833305,
+            "narrowHigh": -0.22508539476523998
+          }
+        },
+        {
+          "scope": "free mixes, strict, trackers-two",
+          "tracks": 893,
+          "values": {
+            "tempogram": {
+              "value": 0.20933333333333334,
+              "low": 0.1763157894736842,
+              "high": 0.24320827943078913,
+              "narrowLow": 0.19205298013245034,
+              "narrowHigh": 0.2273972602739726
+            },
+            "peaks": {
+              "value": 0.39071729957805906,
+              "low": 0.35474549899977775,
+              "high": 0.42711582449573715,
+              "narrowLow": 0.372210953346856,
+              "narrowHigh": 0.40891897272546285
+            }
+          },
+          "difference": {
+            "value": -0.18138396624472572,
+            "low": -0.21503736500033455,
+            "high": -0.14790010216677354,
+            "narrowLow": -0.1984650455927052,
+            "narrowHigh": -0.16493521625787588
+          }
+        },
+        {
+          "scope": "free mixes, contested",
+          "tracks": 3427,
+          "values": {
+            "tempogram": {
+              "value": 0.19928940568475453,
+              "low": 0.17974421016246112,
+              "high": 0.21924959216965742,
+              "narrowLow": 0.18902038132807364,
+              "narrowHigh": 0.20941915227629512
+            },
+            "peaks": {
+              "value": 0.39865414880338634,
+              "low": 0.3765879265091864,
+              "high": 0.4203425298749931,
+              "narrowLow": 0.3874980066974964,
+              "narrowHigh": 0.4097877358490566
+            }
+          },
+          "difference": {
+            "value": -0.1993647431186318,
+            "low": -0.21764688877391067,
+            "high": -0.1817567448932022,
+            "narrowLow": -0.20889655579156322,
+            "narrowHigh": -0.19059795111546723
+          }
+        },
+        {
+          "scope": "free mixes, contested, labelled 90 to 180",
+          "tracks": 2929,
+          "values": {
+            "tempogram": {
+              "value": 0.07692307692307693,
+              "low": 0.0649598777225831,
+              "high": 0.08955223880597014,
+              "narrowLow": 0.07055781307720724,
+              "narrowHigh": 0.08333333333333333
+            },
+            "peaks": {
+              "value": 0.30090741798337456,
+              "low": 0.2822935955558393,
+              "high": 0.3197201017811705,
+              "narrowLow": 0.29138131541542833,
+              "narrowHigh": 0.3104523188497996
+            }
+          },
+          "difference": {
+            "value": -0.22398434106029763,
+            "low": -0.2434577823166223,
+            "high": -0.20403503852635962,
+            "narrowLow": -0.23392266482358565,
+            "narrowHigh": -0.2138523743325293
+          }
+        },
+        {
+          "scope": "free mixes, contested, trackers-all",
+          "tracks": 325,
+          "values": {
+            "tempogram": {
+              "value": 0.25,
+              "low": 0.1903114186851211,
+              "high": 0.30864197530864196,
+              "narrowLow": 0.2198581560283688,
+              "narrowHigh": 0.2793103448275862
+            },
+            "peaks": {
+              "value": 0.49299207800121875,
+              "low": 0.4405997693194925,
+              "high": 0.5441696113074205,
+              "narrowLow": 0.46610677864427114,
+              "narrowHigh": 0.5197328476017
+            }
+          },
+          "difference": {
+            "value": -0.24299207800121875,
+            "low": -0.30318216787059515,
+            "high": -0.18030661209512386,
+            "narrowLow": -0.2738466438677664,
+            "narrowHigh": -0.21201429918143716
+          }
+        },
+        {
+          "scope": "free mixes, contested, trackers-two",
+          "tracks": 3102,
+          "values": {
+            "tempogram": {
+              "value": 0.19400855920114124,
+              "low": 0.1735335195530726,
+              "high": 0.215039128955427,
+              "narrowLow": 0.18313850513637975,
+              "narrowHigh": 0.20433664094083057
+            },
+            "peaks": {
+              "value": 0.389431669248183,
+              "low": 0.36639329753967786,
+              "high": 0.41323983836463035,
+              "narrowLow": 0.37768266964396474,
+              "narrowHigh": 0.4014899713467049
+            }
+          },
+          "difference": {
+            "value": -0.19542311004704177,
+            "low": -0.21339520836466305,
+            "high": -0.17768592442505152,
+            "narrowLow": -0.20446269303072154,
+            "narrowHigh": -0.18634291289637658
+          }
+        },
+        {
+          "scope": "under 90 (out of range), free mixes, strict",
+          "tracks": 239,
+          "values": {
+            "tempogram": {
+              "value": 0.7330097087378641,
+              "low": 0.65625,
+              "high": 0.8111111111111111,
+              "narrowLow": 0.6956521739130435,
+              "narrowHigh": 0.7738693467336684
+            },
+            "peaks": {
+              "value": 0.8984806629834254,
+              "low": 0.8501547987616099,
+              "high": 0.9429175475687104,
+              "narrowLow": 0.8751472320376914,
+              "narrowHigh": 0.9223021582733812
+            }
+          },
+          "difference": {
+            "value": -0.16547095424556135,
+            "low": -0.2167824935881525,
+            "high": -0.11388997421270619,
+            "narrowLow": -0.19108246374317495,
+            "narrowHigh": -0.13725490196078427
+          }
+        },
+        {
+          "scope": "90-120, free mixes, strict",
+          "tracks": 722,
+          "values": {
+            "tempogram": {
+              "value": 0.09923664122137404,
+              "low": 0.07373271889400922,
+              "high": 0.1263823064770932,
+              "narrowLow": 0.08575581395348837,
+              "narrowHigh": 0.11196319018404909
+            },
+            "peaks": {
+              "value": 0.31988838153221716,
+              "low": 0.28160919540229884,
+              "high": 0.36168998001712815,
+              "narrowLow": 0.30002542588354947,
+              "narrowHigh": 0.3410794602698651
+            }
+          },
+          "difference": {
+            "value": -0.22065174031084311,
+            "low": -0.2563678191726972,
+            "high": -0.18606438407232556,
+            "narrowLow": -0.23761440257913052,
+            "narrowHigh": -0.2035654651993302
+          }
+        },
+        {
+          "scope": "120-140, free mixes, strict",
+          "tracks": 2178,
+          "values": {
+            "tempogram": {
+              "value": 0.04775687409551375,
+              "low": 0.0379746835443038,
+              "high": 0.05826126536185708,
+              "narrowLow": 0.04274307186472522,
+              "narrowHigh": 0.05299653293709757
+            },
+            "peaks": {
+              "value": 0.1865107913669065,
+              "low": 0.17080186983099604,
+              "high": 0.20352794554692744,
+              "narrowLow": 0.17841699567587893,
+              "narrowHigh": 0.195239500344251
+            }
+          },
+          "difference": {
+            "value": -0.13875391727139275,
+            "low": -0.1563560942334665,
+            "high": -0.12155492414928126,
+            "narrowLow": -0.14781156905940812,
+            "narrowHigh": -0.130216730289889
+          }
+        },
+        {
+          "scope": "140-150, free mixes, strict",
+          "tracks": 555,
+          "values": {
+            "tempogram": {
+              "value": 0.05927342256214149,
+              "low": 0.04007633587786259,
+              "high": 0.07874015748031496,
+              "narrowLow": 0.04897959183673469,
+              "narrowHigh": 0.06976744186046512
+            },
+            "peaks": {
+              "value": 0.4002770083102493,
+              "low": 0.3624113475177305,
+              "high": 0.43890020366598775,
+              "narrowLow": 0.3812664907651715,
+              "narrowHigh": 0.4195756331279945
+            }
+          },
+          "difference": {
+            "value": -0.34100358574810785,
+            "low": -0.38004290004290003,
+            "high": -0.3035736773985991,
+            "narrowLow": -0.3606268333784093,
+            "narrowHigh": -0.32163489965712067
+          }
+        },
+        {
+          "scope": "150-156, free mixes, strict",
+          "tracks": 252,
+          "values": {
+            "tempogram": {
+              "value": 0.04035874439461883,
+              "low": 0.013043478260869565,
+              "high": 0.075,
+              "narrowLow": 0.02358490566037736,
+              "narrowHigh": 0.05737704918032787
+            },
+            "peaks": {
+              "value": 0.4467609828741623,
+              "low": 0.3985663082437276,
+              "high": 0.49900464499004643,
+              "narrowLow": 0.4214417744916821,
+              "narrowHigh": 0.4738605898123324
+            }
+          },
+          "difference": {
+            "value": -0.4064022384795435,
+            "low": -0.46833107108542144,
+            "high": -0.34764801938474504,
+            "narrowLow": -0.4381509213039995,
+            "narrowHigh": -0.37751200323942846
+          }
+        },
+        {
+          "scope": "156-165, free mixes, strict",
+          "tracks": 233,
+          "values": {
+            "tempogram": {
+              "value": 0.061611374407582936,
+              "low": 0.0319634703196347,
+              "high": 0.0963302752293578,
+              "narrowLow": 0.04608294930875576,
+              "narrowHigh": 0.07792207792207792
+            },
+            "peaks": {
+              "value": 0.47103658536585363,
+              "low": 0.4156769596199525,
+              "high": 0.5296875,
+              "narrowLow": 0.44155844155844154,
+              "narrowHigh": 0.4991735537190083
+            }
+          },
+          "difference": {
+            "value": -0.40942521095827067,
+            "low": -0.4737586375588577,
+            "high": -0.34528924351695567,
+            "narrowLow": -0.44167124793842766,
+            "narrowHigh": -0.3768260575540513
+          }
+        },
+        {
+          "scope": "140-165, free mixes, strict",
+          "tracks": 1040,
+          "values": {
+            "tempogram": {
+              "value": 0.055381400208986416,
+              "low": 0.04029692470837752,
+              "high": 0.07106598984771574,
+              "narrowLow": 0.04742268041237113,
+              "narrowHigh": 0.06327900287631831
+            },
+            "peaks": {
+              "value": 0.42828793072343496,
+              "low": 0.3988805970149254,
+              "high": 0.4581752186107903,
+              "narrowLow": 0.41363913131723157,
+              "narrowHigh": 0.4427390791027155
+            }
+          },
+          "difference": {
+            "value": -0.37290653051444855,
+            "low": -0.403318423100527,
+            "high": -0.3440262722304054,
+            "narrowLow": -0.38785935904201607,
+            "narrowHigh": -0.3583243570518372
+          }
+        },
+        {
+          "scope": "165-180, free mixes, strict",
+          "tracks": 204,
+          "values": {
+            "tempogram": {
+              "value": 0.15846994535519127,
+              "low": 0.10377358490566038,
+              "high": 0.22527472527472528,
+              "narrowLow": 0.12921348314606743,
+              "narrowHigh": 0.1896551724137931
+            },
+            "peaks": {
+              "value": 0.45133505598621876,
+              "low": 0.38803263825929285,
+              "high": 0.5178127589063795,
+              "narrowLow": 0.41927512355848434,
+              "narrowHigh": 0.486284289276808
+            }
+          },
+          "difference": {
+            "value": -0.2928651106310275,
+            "low": -0.3596375354966338,
+            "high": -0.22421215848651269,
+            "narrowLow": -0.3261045371308527,
+            "narrowHigh": -0.2570480928689884
+          }
+        },
+        {
+          "scope": "over 180 (out of range), free mixes, strict",
+          "tracks": 53,
+          "values": {
+            "tempogram": {
+              "value": 1,
+              "low": 1,
+              "high": 1,
+              "narrowLow": 1,
+              "narrowHigh": 1
+            },
+            "peaks": {
+              "value": 0.9797979797979798,
+              "low": 0.95703125,
+              "high": 0.996742671009772,
+              "narrowLow": 0.9698275862068966,
+              "narrowHigh": 0.9898305084745763
+            }
+          },
+          "difference": {
+            "value": 0.02020202020202022,
+            "low": 0.0032573289902280145,
+            "high": 0.04290429042904287,
+            "narrowLow": 0.010362694300518172,
+            "narrowHigh": 0.030487804878048808
+          }
+        },
+        {
+          "scope": "under 90 (out of range), free mixes, contested",
+          "tracks": 103,
+          "values": {
+            "tempogram": {
+              "value": 0.7951807228915663,
+              "low": 0.6888888888888889,
+              "high": 0.8842105263157894,
+              "narrowLow": 0.7425742574257426,
+              "narrowHigh": 0.8415841584158416
+            },
+            "peaks": {
+              "value": 0.9424460431654677,
+              "low": 0.9004329004329005,
+              "high": 0.9769736842105263,
+              "narrowLow": 0.9222011385199241,
+              "narrowHigh": 0.9616613418530351
+            }
+          },
+          "difference": {
+            "value": -0.14726532027390138,
+            "low": -0.23053603417390112,
+            "high": -0.0760226577332852,
+            "narrowLow": -0.18982798320465943,
+            "narrowHigh": -0.1102143218328211
+          }
+        },
+        {
+          "scope": "90-120, free mixes, contested",
+          "tracks": 486,
+          "values": {
+            "tempogram": {
+              "value": 0.06621004566210045,
+              "low": 0.04195804195804196,
+              "high": 0.09438202247191012,
+              "narrowLow": 0.053452115812917596,
+              "narrowHigh": 0.0798004987531172
+            },
+            "peaks": {
+              "value": 0.2571878692398582,
+              "low": 0.2208989627353054,
+              "high": 0.29418789808917195,
+              "narrowLow": 0.23852813852813853,
+              "narrowHigh": 0.27685774946921443
+            }
+          },
+          "difference": {
+            "value": -0.19097782357775775,
+            "low": -0.22769232456902147,
+            "high": -0.15336917562724012,
+            "narrowLow": -0.20933022139981217,
+            "narrowHigh": -0.1713504019455516
+          }
+        },
+        {
+          "scope": "120-140, free mixes, contested",
+          "tracks": 1296,
+          "values": {
+            "tempogram": {
+              "value": 0.056338028169014086,
+              "low": 0.04207920792079208,
+              "high": 0.0718954248366013,
+              "narrowLow": 0.04864864864864865,
+              "narrowHigh": 0.06373815676141258
+            },
+            "peaks": {
+              "value": 0.22392638036809817,
+              "low": 0.20175569111739325,
+              "high": 0.24549140220886342,
+              "narrowLow": 0.2124159633814905,
+              "narrowHigh": 0.2352092352092352
+            }
+          },
+          "difference": {
+            "value": -0.16758835219908408,
+            "low": -0.19177864333046687,
+            "high": -0.14415140296406403,
+            "narrowLow": -0.17972111220822795,
+            "narrowHigh": -0.15519237882277778
+          }
+        },
+        {
+          "scope": "140-150, free mixes, contested",
+          "tracks": 568,
+          "values": {
+            "tempogram": {
+              "value": 0.06095238095238095,
+              "low": 0.04048582995951417,
+              "high": 0.08348134991119005,
+              "narrowLow": 0.04980842911877394,
+              "narrowHigh": 0.07214428857715431
+            },
+            "peaks": {
+              "value": 0.3263775676556896,
+              "low": 0.29172056921086675,
+              "high": 0.3611898016997167,
+              "narrowLow": 0.30829914799621333,
+              "narrowHigh": 0.344572896596018
+            }
+          },
+          "difference": {
+            "value": -0.2654251867033086,
+            "low": -0.30359957051071124,
+            "high": -0.22763565726960683,
+            "narrowLow": -0.28449853378759754,
+            "narrowHigh": -0.24549079612370753
+          }
+        },
+        {
+          "scope": "150-156, free mixes, contested",
+          "tracks": 153,
+          "values": {
+            "tempogram": {
+              "value": 0.20454545454545456,
+              "low": 0.12598425196850394,
+              "high": 0.2923076923076923,
+              "narrowLow": 0.16129032258064516,
+              "narrowHigh": 0.25
+            },
+            "peaks": {
+              "value": 0.5019255455712451,
+              "low": 0.4287598944591029,
+              "high": 0.5730858468677494,
+              "narrowLow": 0.4657534246575342,
+              "narrowHigh": 0.5376661742983752
+            }
+          },
+          "difference": {
+            "value": -0.29738009102579055,
+            "low": -0.38130392071041597,
+            "high": -0.21004106700210884,
+            "narrowLow": -0.3413663150505256,
+            "narrowHigh": -0.25489051094890514
+          }
+        },
+        {
+          "scope": "156-165, free mixes, contested",
+          "tracks": 216,
+          "values": {
+            "tempogram": {
+              "value": 0.12222222222222222,
+              "low": 0.07386363636363637,
+              "high": 0.1736842105263158,
+              "narrowLow": 0.09659090909090909,
+              "narrowHigh": 0.14673913043478262
+            },
+            "peaks": {
+              "value": 0.46408393866020986,
+              "low": 0.40106141015921154,
+              "high": 0.5265998457979953,
+              "narrowLow": 0.4314194577352472,
+              "narrowHigh": 0.4962901896125309
+            }
+          },
+          "difference": {
+            "value": -0.34186171643798763,
+            "low": -0.4189160912324754,
+            "high": -0.26211980579751537,
+            "narrowLow": -0.38297491039426523,
+            "narrowHigh": -0.3021384742192509
+          }
+        },
+        {
+          "scope": "140-165, free mixes, contested",
+          "tracks": 937,
+          "values": {
+            "tempogram": {
+              "value": 0.0967741935483871,
+              "low": 0.07331042382588775,
+              "high": 0.12186379928315412,
+              "narrowLow": 0.08449074074074074,
+              "narrowHigh": 0.10902255639097744
+            },
+            "peaks": {
+              "value": 0.38682399213372665,
+              "low": 0.35507109004739335,
+              "high": 0.41859133422408856,
+              "narrowLow": 0.3706825657894737,
+              "narrowHigh": 0.4028003246753247
+            }
+          },
+          "difference": {
+            "value": -0.2900497985853395,
+            "low": -0.32484238698334844,
+            "high": -0.25497262581596125,
+            "narrowLow": -0.3082970035310595,
+            "narrowHigh": -0.2724540976867309
+          }
+        },
+        {
+          "scope": "165-180, free mixes, contested",
+          "tracks": 210,
+          "values": {
+            "tempogram": {
+              "value": 0.14754098360655737,
+              "low": 0.0962566844919786,
+              "high": 0.20454545454545456,
+              "narrowLow": 0.12,
+              "narrowHigh": 0.1746031746031746
+            },
+            "peaks": {
+              "value": 0.4569433669511249,
+              "low": 0.3942857142857143,
+              "high": 0.5229571984435798,
+              "narrowLow": 0.42594142259414225,
+              "narrowHigh": 0.49039881831610044
+            }
+          },
+          "difference": {
+            "value": -0.30940238334456754,
+            "low": -0.3807555620466384,
+            "high": -0.2398193811515492,
+            "narrowLow": -0.34573289189263134,
+            "narrowHigh": -0.2742541436464089
+          }
+        },
+        {
+          "scope": "over 180 (out of range), free mixes, contested",
+          "tracks": 395,
+          "values": {
+            "tempogram": {
+              "value": 0.9942528735632183,
+              "low": 0.9851632047477745,
+              "high": 1,
+              "narrowLow": 0.9905660377358491,
+              "narrowHigh": 0.9973333333333333
+            },
+            "peaks": {
+              "value": 0.9848484848484849,
+              "low": 0.9755888650963598,
+              "high": 0.992498827941866,
+              "narrowLow": 0.9806131650135257,
+              "narrowHigh": 0.9891402714932127
+            }
+          },
+          "difference": {
+            "value": 0.00940438871473348,
+            "low": -0.0022919089493262934,
+            "high": 0.020971867007672618,
+            "narrowLow": 0.003425033246904685,
+            "narrowHigh": 0.015177797051170838
+          }
+        }
+      ]
+    },
+    {
+      "metric": "coverage",
+      "title": "Coverage",
+      "rows": [
+        {
+          "scope": "free mixes, strict",
+          "tracks": 4436,
+          "values": {
+            "tempogram": {
+              "value": 0.8922452660054103,
+              "low": 0.8792048929663608,
+              "high": 0.9042028645221883,
+              "narrowLow": 0.8859530261969286,
+              "narrowHigh": 0.8986593955919109
+            },
+            "peaks": {
+              "value": 0.9467989179440938,
+              "low": 0.9378465804066544,
+              "high": 0.9552772808586762,
+              "narrowLow": 0.9425099322271558,
+              "narrowHigh": 0.9512522361359571
+            }
+          },
+          "difference": {
+            "value": -0.054553651938683445,
+            "low": -0.06829718504845417,
+            "high": -0.04132791327913288,
+            "narrowLow": -0.061562569957465896,
+            "narrowHigh": -0.04779080252479717
+          }
+        },
+        {
+          "scope": "free mixes, strict, labelled 90 to 180",
+          "tracks": 4144,
+          "values": {
+            "tempogram": {
+              "value": 0.897442084942085,
+              "low": 0.8839350617882239,
+              "high": 0.9096244131455399,
+              "narrowLow": 0.8908706876320113,
+              "narrowHigh": 0.903918791312559
+            },
+            "peaks": {
+              "value": 0.9473938223938224,
+              "low": 0.9380827157542434,
+              "high": 0.9559824902723736,
+              "narrowLow": 0.9426897605705553,
+              "narrowHigh": 0.9517670593465215
+            }
+          },
+          "difference": {
+            "value": -0.04995173745173742,
+            "low": -0.06402927052366791,
+            "high": -0.036395147313691534,
+            "narrowLow": -0.056900726392251855,
+            "narrowHigh": -0.04292168674698793
+          }
+        },
+        {
+          "scope": "free mixes, strict, trackers-all",
+          "tracks": 3543,
+          "values": {
+            "tempogram": {
+              "value": 0.9161727349703641,
+              "low": 0.9036246136555212,
+              "high": 0.9276103336921421,
+              "narrowLow": 0.910048391688016,
+              "narrowHigh": 0.9220466113045808
+            },
+            "peaks": {
+              "value": 0.951735817104149,
+              "low": 0.9428013392857143,
+              "high": 0.9599139090664515,
+              "narrowLow": 0.9472821633433488,
+              "narrowHigh": 0.9562130177514793
+            }
+          },
+          "difference": {
+            "value": -0.035563082133784896,
+            "low": -0.04911092294665542,
+            "high": -0.0222535211267606,
+            "narrowLow": -0.04199328107502798,
+            "narrowHigh": -0.029021558872305064
+          }
+        },
+        {
+          "scope": "free mixes, strict, trackers-two",
+          "tracks": 893,
+          "values": {
+            "tempogram": {
+              "value": 0.7973124300111982,
+              "low": 0.7664233576642335,
+              "high": 0.8271334792122538,
+              "narrowLow": 0.7819634703196348,
+              "narrowHigh": 0.8121664887940235
+            },
+            "peaks": {
+              "value": 0.9272116461366181,
+              "low": 0.9068736141906873,
+              "high": 0.9455337690631809,
+              "narrowLow": 0.9172335600907029,
+              "narrowHigh": 0.9368658399098083
+            }
+          },
+          "difference": {
+            "value": -0.12989921612541988,
+            "low": -0.15884476534296033,
+            "high": -0.102112676056338,
+            "narrowLow": -0.1444201312910285,
+            "narrowHigh": -0.11595744680851061
+          }
+        },
+        {
+          "scope": "free mixes, contested",
+          "tracks": 3427,
+          "values": {
+            "tempogram": {
+              "value": 0.8651882112634958,
+              "low": 0.8500772797527048,
+              "high": 0.8797270400909867,
+              "narrowLow": 0.8577611079053664,
+              "narrowHigh": 0.8726294933484291
+            },
+            "peaks": {
+              "value": 0.9337613072658302,
+              "low": 0.9200367647058824,
+              "high": 0.9462052922361152,
+              "narrowLow": 0.9270374449339207,
+              "narrowHigh": 0.9404086265607264
+            }
+          },
+          "difference": {
+            "value": -0.06857309600233441,
+            "low": -0.08682360134515443,
+            "high": -0.049911920140927823,
+            "narrowLow": -0.07813411078717203,
+            "narrowHigh": -0.05958702064896748
+          }
+        },
+        {
+          "scope": "free mixes, contested, labelled 90 to 180",
+          "tracks": 2929,
+          "values": {
+            "tempogram": {
+              "value": 0.8736770228747013,
+              "low": 0.8584131326949385,
+              "high": 0.8879432624113475,
+              "narrowLow": 0.8660804869800474,
+              "narrowHigh": 0.8809276566285912
+            },
+            "peaks": {
+              "value": 0.9354728576305906,
+              "low": 0.9222797927461139,
+              "high": 0.9468599033816425,
+              "narrowLow": 0.929329794293298,
+              "narrowHigh": 0.9415245388096067
+            }
+          },
+          "difference": {
+            "value": -0.061795834755889345,
+            "low": -0.07892172783371221,
+            "high": -0.04380764163372863,
+            "narrowLow": -0.07071403932390485,
+            "narrowHigh": -0.053082756346851334
+          }
+        },
+        {
+          "scope": "free mixes, contested, trackers-all",
+          "tracks": 325,
+          "values": {
+            "tempogram": {
+              "value": 0.8184615384615385,
+              "low": 0.7732558139534884,
+              "high": 0.8629283489096573,
+              "narrowLow": 0.7955974842767296,
+              "narrowHigh": 0.8422712933753943
+            },
+            "peaks": {
+              "value": 0.8984615384615384,
+              "low": 0.8576051779935275,
+              "high": 0.935064935064935,
+              "narrowLow": 0.8786885245901639,
+              "narrowHigh": 0.9186746987951807
+            }
+          },
+          "difference": {
+            "value": -0.07999999999999996,
+            "low": -0.13213213213213215,
+            "high": -0.02752293577981657,
+            "narrowLow": -0.10679611650485432,
+            "narrowHigh": -0.05294117647058827
+          }
+        },
+        {
+          "scope": "free mixes, contested, trackers-two",
+          "tracks": 3102,
+          "values": {
+            "tempogram": {
+              "value": 0.8700838168923275,
+              "low": 0.854952468567924,
+              "high": 0.8844172569220863,
+              "narrowLow": 0.862700964630225,
+              "narrowHigh": 0.8774062816616008
+            },
+            "peaks": {
+              "value": 0.9374597034171502,
+              "low": 0.9224831135413316,
+              "high": 0.9499192245557351,
+              "narrowLow": 0.9304374240583232,
+              "narrowHigh": 0.9443932411674347
+            }
+          },
+          "difference": {
+            "value": -0.06737588652482274,
+            "low": -0.08567691301504254,
+            "high": -0.04801271860095391,
+            "narrowLow": -0.07714105793450876,
+            "narrowHigh": -0.05781448538754763
+          }
+        },
+        {
+          "scope": "under 90 (out of range), free mixes, strict",
+          "tracks": 239,
+          "values": {
+            "tempogram": {
+              "value": 0.8200836820083682,
+              "low": 0.7689075630252101,
+              "high": 0.8683127572016461,
+              "narrowLow": 0.7950819672131147,
+              "narrowHigh": 0.8438818565400844
+            },
+            "peaks": {
+              "value": 0.9456066945606695,
+              "low": 0.9155555555555556,
+              "high": 0.9734513274336283,
+              "narrowLow": 0.9313304721030042,
+              "narrowHigh": 0.9604743083003953
+            }
+          },
+          "difference": {
+            "value": -0.12552301255230125,
+            "low": -0.1828358208955223,
+            "high": -0.06719367588932812,
+            "narrowLow": -0.15315315315315314,
+            "narrowHigh": -0.09523809523809523
+          }
+        },
+        {
+          "scope": "90-120, free mixes, strict",
+          "tracks": 722,
+          "values": {
+            "tempogram": {
+              "value": 0.8698060941828255,
+              "low": 0.8392603129445235,
+              "high": 0.8968668407310705,
+              "narrowLow": 0.8549019607843137,
+              "narrowHigh": 0.8836565096952909
+            },
+            "peaks": {
+              "value": 0.9113573407202216,
+              "low": 0.8852691218130312,
+              "high": 0.9352112676056338,
+              "narrowLow": 0.8987012987012987,
+              "narrowHigh": 0.924
+            }
+          },
+          "difference": {
+            "value": -0.04155124653739606,
+            "low": -0.0706806282722513,
+            "high": -0.015109890109890056,
+            "narrowLow": -0.055776892430278835,
+            "narrowHigh": -0.027259684361549574
+          }
+        },
+        {
+          "scope": "120-140, free mixes, strict",
+          "tracks": 2178,
+          "values": {
+            "tempogram": {
+              "value": 0.9150596877869606,
+              "low": 0.9008470353761834,
+              "high": 0.928736695974086,
+              "narrowLow": 0.9081225033288948,
+              "narrowHigh": 0.9221006564551423
+            },
+            "peaks": {
+              "value": 0.9545454545454546,
+              "low": 0.9431658055425082,
+              "high": 0.9646840148698885,
+              "narrowLow": 0.9491906474820144,
+              "narrowHigh": 0.959944108057755
+            }
+          },
+          "difference": {
+            "value": -0.03948576675849402,
+            "low": -0.054194156456173426,
+            "high": -0.02473168455436303,
+            "narrowLow": -0.04696394686907013,
+            "narrowHigh": -0.031881454872025095
+          }
+        },
+        {
+          "scope": "140-150, free mixes, strict",
+          "tracks": 555,
+          "values": {
+            "tempogram": {
+              "value": 0.9045045045045045,
+              "low": 0.8614864864864865,
+              "high": 0.94140625,
+              "narrowLow": 0.8835489833641405,
+              "narrowHigh": 0.9253187613843351
+            },
+            "peaks": {
+              "value": 0.9711711711711711,
+              "low": 0.9554730983302412,
+              "high": 0.9844961240310077,
+              "narrowLow": 0.9636678200692042,
+              "narrowHigh": 0.9783783783783784
+            }
+          },
+          "difference": {
+            "value": -0.06666666666666665,
+            "low": -0.11265164644714032,
+            "high": -0.02608695652173909,
+            "narrowLow": -0.08798646362098139,
+            "narrowHigh": -0.044315992292870865
+          }
+        },
+        {
+          "scope": "150-156, free mixes, strict",
+          "tracks": 252,
+          "values": {
+            "tempogram": {
+              "value": 0.8571428571428571,
+              "low": 0.8045977011494253,
+              "high": 0.9054545454545454,
+              "narrowLow": 0.8313725490196079,
+              "narrowHigh": 0.8832684824902723
+            },
+            "peaks": {
+              "value": 0.9484126984126984,
+              "low": 0.9148936170212766,
+              "high": 0.9748201438848921,
+              "narrowLow": 0.93359375,
+              "narrowHigh": 0.9634146341463414
+            }
+          },
+          "difference": {
+            "value": -0.09126984126984128,
+            "low": -0.14516129032258074,
+            "high": -0.042471042471042386,
+            "narrowLow": -0.11787072243346008,
+            "narrowHigh": -0.06437768240343356
+          }
+        },
+        {
+          "scope": "156-165, free mixes, strict",
+          "tracks": 233,
+          "values": {
+            "tempogram": {
+              "value": 0.8884120171673819,
+              "low": 0.8423423423423423,
+              "high": 0.9295154185022027,
+              "narrowLow": 0.8661087866108786,
+              "narrowHigh": 0.9098712446351931
+            },
+            "peaks": {
+              "value": 0.944206008583691,
+              "low": 0.9082969432314411,
+              "high": 0.9743589743589743,
+              "narrowLow": 0.9273504273504274,
+              "narrowHigh": 0.9612068965517241
+            }
+          },
+          "difference": {
+            "value": -0.05579399141630903,
+            "low": -0.10655737704918034,
+            "high": -0.004444444444444473,
+            "narrowLow": -0.08154506437768239,
+            "narrowHigh": -0.030701754385964897
+          }
+        },
+        {
+          "scope": "140-165, free mixes, strict",
+          "tracks": 1040,
+          "values": {
+            "tempogram": {
+              "value": 0.8894230769230769,
+              "low": 0.859402460456942,
+              "high": 0.9156883671291356,
+              "narrowLow": 0.8748858447488584,
+              "narrowHigh": 0.904147465437788
+            },
+            "peaks": {
+              "value": 0.9596153846153846,
+              "low": 0.944980694980695,
+              "high": 0.9728155339805825,
+              "narrowLow": 0.9526570048309179,
+              "narrowHigh": 0.9663551401869159
+            }
+          },
+          "difference": {
+            "value": -0.07019230769230778,
+            "low": -0.1026137463697967,
+            "high": -0.04049844236760125,
+            "narrowLow": -0.08585365853658533,
+            "narrowHigh": -0.05413687436159342
+          }
+        },
+        {
+          "scope": "165-180, free mixes, strict",
+          "tracks": 204,
+          "values": {
+            "tempogram": {
+              "value": 0.8480392156862745,
+              "low": 0.7908163265306123,
+              "high": 0.8962264150943396,
+              "narrowLow": 0.8210526315789474,
+              "narrowHigh": 0.8744769874476988
+            },
+            "peaks": {
+              "value": 0.9362745098039216,
+              "low": 0.8904761904761904,
+              "high": 0.9730941704035875,
+              "narrowLow": 0.915,
+              "narrowHigh": 0.9563106796116505
+            }
+          },
+          "difference": {
+            "value": -0.08823529411764708,
+            "low": -0.14795918367346939,
+            "high": -0.029556650246305494,
+            "narrowLow": -0.11979166666666663,
+            "narrowHigh": -0.05789473684210533
+          }
+        },
+        {
+          "scope": "over 180 (out of range), free mixes, strict",
+          "tracks": 53,
+          "values": {
+            "tempogram": {
+              "value": 0.8113207547169812,
+              "low": 0.6981132075471698,
+              "high": 0.9107142857142857,
+              "narrowLow": 0.7547169811320755,
+              "narrowHigh": 0.8679245283018868
+            },
+            "peaks": {
+              "value": 0.9056603773584906,
+              "low": 0.82,
+              "high": 0.98,
+              "narrowLow": 0.8679245283018868,
+              "narrowHigh": 0.9433962264150944
+            }
+          },
+          "difference": {
+            "value": -0.09433962264150941,
+            "low": -0.21999999999999997,
+            "high": 0.018867924528301883,
+            "narrowLow": -0.15094339622641517,
+            "narrowHigh": -0.03571428571428581
+          }
+        },
+        {
+          "scope": "under 90 (out of range), free mixes, contested",
+          "tracks": 103,
+          "values": {
+            "tempogram": {
+              "value": 0.7766990291262136,
+              "low": 0.68,
+              "high": 0.8571428571428571,
+              "narrowLow": 0.7282608695652174,
+              "narrowHigh": 0.8207547169811321
+            },
+            "peaks": {
+              "value": 0.941747572815534,
+              "low": 0.8888888888888888,
+              "high": 0.9821428571428571,
+              "narrowLow": 0.9174311926605505,
+              "narrowHigh": 0.9659090909090909
+            }
+          },
+          "difference": {
+            "value": -0.16504854368932043,
+            "low": -0.2596153846153847,
+            "high": -0.0847457627118644,
+            "narrowLow": -0.21212121212121215,
+            "narrowHigh": -0.12173913043478257
+          }
+        },
+        {
+          "scope": "90-120, free mixes, contested",
+          "tracks": 486,
+          "values": {
+            "tempogram": {
+              "value": 0.8765432098765432,
+              "low": 0.8444924406047516,
+              "high": 0.9072978303747534,
+              "narrowLow": 0.8597938144329897,
+              "narrowHigh": 0.8924949290060852
+            },
+            "peaks": {
+              "value": 0.9074074074074074,
+              "low": 0.8576923076923076,
+              "high": 0.9452631578947368,
+              "narrowLow": 0.8854166666666666,
+              "narrowHigh": 0.9305263157894736
+            }
+          },
+          "difference": {
+            "value": -0.030864197530864224,
+            "low": -0.079002079002079,
+            "high": 0.02734375,
+            "narrowLow": -0.05749486652977409,
+            "narrowHigh": -0.005813953488371992
+          }
+        },
+        {
+          "scope": "120-140, free mixes, contested",
+          "tracks": 1296,
+          "values": {
+            "tempogram": {
+              "value": 0.8919753086419753,
+              "low": 0.8734693877551021,
+              "high": 0.9097222222222222,
+              "narrowLow": 0.8824959481361426,
+              "narrowHigh": 0.9009508716323297
+            },
+            "peaks": {
+              "value": 0.9421296296296297,
+              "low": 0.9271730618637432,
+              "high": 0.955984555984556,
+              "narrowLow": 0.9347990902198635,
+              "narrowHigh": 0.9493219129193433
+            }
+          },
+          "difference": {
+            "value": -0.05015432098765438,
+            "low": -0.0707692307692308,
+            "high": -0.029390154298310045,
+            "narrowLow": -0.060447761194029836,
+            "narrowHigh": -0.03975058456742009
+          }
+        },
+        {
+          "scope": "140-150, free mixes, contested",
+          "tracks": 568,
+          "values": {
+            "tempogram": {
+              "value": 0.897887323943662,
+              "low": 0.8713450292397661,
+              "high": 0.923202614379085,
+              "narrowLow": 0.8843416370106761,
+              "narrowHigh": 0.9108061749571184
+            },
+            "peaks": {
+              "value": 0.9366197183098591,
+              "low": 0.9136690647482014,
+              "high": 0.9586206896551724,
+              "narrowLow": 0.9257142857142857,
+              "narrowHigh": 0.9483333333333334
+            }
+          },
+          "difference": {
+            "value": -0.03873239436619713,
+            "low": -0.06903353057199213,
+            "high": -0.010221465076660996,
+            "narrowLow": -0.05385996409335736,
+            "narrowHigh": -0.024347826086956514
+          }
+        },
+        {
+          "scope": "150-156, free mixes, contested",
+          "tracks": 153,
+          "values": {
+            "tempogram": {
+              "value": 0.7973856209150327,
+              "low": 0.7358490566037735,
+              "high": 0.86,
+              "narrowLow": 0.7654320987654321,
+              "narrowHigh": 0.8287671232876712
+            },
+            "peaks": {
+              "value": 0.934640522875817,
+              "low": 0.8910256410256411,
+              "high": 0.9695121951219512,
+              "narrowLow": 0.9142857142857143,
+              "narrowHigh": 0.9548387096774194
+            }
+          },
+          "difference": {
+            "value": -0.13725490196078427,
+            "low": -0.20512820512820518,
+            "high": -0.07096774193548394,
+            "narrowLow": -0.17261904761904767,
+            "narrowHigh": -0.10389610389610393
+          }
+        },
+        {
+          "scope": "156-165, free mixes, contested",
+          "tracks": 216,
+          "values": {
+            "tempogram": {
+              "value": 0.7962962962962963,
+              "low": 0.7330316742081447,
+              "high": 0.8552036199095022,
+              "narrowLow": 0.7666666666666667,
+              "narrowHigh": 0.8269230769230769
+            },
+            "peaks": {
+              "value": 0.9351851851851852,
+              "low": 0.897196261682243,
+              "high": 0.9671361502347418,
+              "narrowLow": 0.9166666666666666,
+              "narrowHigh": 0.9528301886792453
+            }
+          },
+          "difference": {
+            "value": -0.13888888888888895,
+            "low": -0.21266968325791857,
+            "high": -0.06666666666666665,
+            "narrowLow": -0.1759656652360515,
+            "narrowHigh": -0.10091743119266061
+          }
+        },
+        {
+          "scope": "140-165, free mixes, contested",
+          "tracks": 937,
+          "values": {
+            "tempogram": {
+              "value": 0.8580576307363927,
+              "low": 0.8322916666666667,
+              "high": 0.8837209302325582,
+              "narrowLow": 0.8451749734888653,
+              "narrowHigh": 0.87117903930131
+            },
+            "peaks": {
+              "value": 0.935965848452508,
+              "low": 0.9176346356916578,
+              "high": 0.9542619542619543,
+              "narrowLow": 0.927007299270073,
+              "narrowHigh": 0.9454545454545454
+            }
+          },
+          "difference": {
+            "value": -0.07790821771611522,
+            "low": -0.10778443113772462,
+            "high": -0.04829857299670692,
+            "narrowLow": -0.09287925696594423,
+            "narrowHigh": -0.06309148264984221
+          }
+        },
+        {
+          "scope": "165-180, free mixes, contested",
+          "tracks": 210,
+          "values": {
+            "tempogram": {
+              "value": 0.8238095238095238,
+              "low": 0.766497461928934,
+              "high": 0.8774509803921569,
+              "narrowLow": 0.7953488372093023,
+              "narrowHigh": 0.8527918781725888
+            },
+            "peaks": {
+              "value": 0.9571428571428572,
+              "low": 0.9244444444444444,
+              "high": 0.9852941176470589,
+              "narrowLow": 0.941747572815534,
+              "narrowHigh": 0.9719626168224299
+            }
+          },
+          "difference": {
+            "value": -0.13333333333333341,
+            "low": -0.19339622641509435,
+            "high": -0.07655502392344493,
+            "narrowLow": -0.16289592760181004,
+            "narrowHigh": -0.10396039603960394
+          }
+        },
+        {
+          "scope": "over 180 (out of range), free mixes, contested",
+          "tracks": 395,
+          "values": {
+            "tempogram": {
+              "value": 0.8253164556962025,
+              "low": 0.7810810810810811,
+              "high": 0.8653366583541147,
+              "narrowLow": 0.8043478260869565,
+              "narrowHigh": 0.8465753424657534
+            },
+            "peaks": {
+              "value": 0.9189873417721519,
+              "low": 0.8817480719794345,
+              "high": 0.9506172839506173,
+              "narrowLow": 0.9012987012987013,
+              "narrowHigh": 0.9365853658536586
+            }
+          },
+          "difference": {
+            "value": -0.09367088607594942,
+            "low": -0.14470284237726105,
+            "high": -0.04076738609112707,
+            "narrowLow": -0.11948051948051941,
+            "narrowHigh": -0.06793478260869568
+          }
+        }
+      ]
+    }
+  ]
+}

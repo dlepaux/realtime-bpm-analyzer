@@ -165,3 +165,24 @@ export function lookDetectorRefusal(pick: string | null, names: readonly string[
 
   return refused.length > 0 ? `Not for a look: ${refused.join(', ')}` : null;
 }
+
+/**
+ * RBA-51's look at RBA-59's held-out free mixes, allowed once by its DECISION of 2026-11-03. It keeps its
+ * own log, apart from the clean sets' budget above, since it reads another half of other data. One line
+ * there spends it: no commit, reason or restart buys a second.
+ * @param log The volume's free-mix held-out log, empty when there is none
+ * @param isResuming Whether this commit's look already has a progress file naming it
+ * @param reason The reason given
+ * @returns Why not, or null when it may
+ */
+export function freeLookRefusal(log: string, isResuming: boolean, reason: string): string | null {
+  if (isResuming) {
+    return null;
+  }
+
+  if (log.split('\n').some(line => line.startsWith('| '))) {
+    return 'The look at the held-out free mixes is logged on this volume already: it is spent';
+  }
+
+  return reason.trim() === '' ? 'A look needs a reason' : null;
+}

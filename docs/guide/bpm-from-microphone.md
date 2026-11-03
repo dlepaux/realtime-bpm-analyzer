@@ -195,7 +195,8 @@ Two events fire as audio flows. They mean different things:
   often noisy. Use for a live-updating UI display where users want
   immediate feedback.
 - **`bpmStable`** — fires when the detection algorithm has high
-  confidence in a value. Slower, often 5–15 seconds in. Use as
+  confidence in a value. Slower: with the default `peaks` detector, 10 seconds in
+  at the earliest. Use as
   "the answer" — pin into application state, persist, log.
 
 For a UI that shows "listening… 122… 124… 122 ✓" the pattern is:

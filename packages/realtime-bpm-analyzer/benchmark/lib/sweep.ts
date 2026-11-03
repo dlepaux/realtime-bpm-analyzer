@@ -1,6 +1,8 @@
 import type {TempogramTuning} from '../../src/core/tempogram';
 import type {TempoRange} from '../../src/core/types';
 import type {BandCount} from './metrics';
+import {isCorrect} from './metrics';
+import type {TrackResult} from './types';
 
 type Tuning = Partial<Omit<TempogramTuning, 'bands'>>;
 
@@ -24,7 +26,12 @@ export type SweepRow = {
   readonly tempoRange?: TempoRange;
   /** Tracks and hits per labelled tempo band, pooled over the sets. Absent on the first sweep */
   readonly bands?: Readonly<Record<string, BandCount>>;
+  /** One standard error of the score from resampling groups within each set. Absent before RBA-51's third sweep */
+  readonly scoreSe?: number;
 };
+
+/** Floors on Acc1 per band, and the tracks they were read on: a run on other tracks cannot pass */
+export type Guard = {readonly floors: Readonly<Record<string, number>>; readonly tracks: Readonly<Record<string, number>>};
 
 /**
  * Acc1 no pick may fall below on fast music: peaks, what the extension's users have today, on the
@@ -39,15 +46,19 @@ export const fastTempoGuard: Readonly<Record<string, number>> = {'140-165': 92 /
 /** The tracks those floors were read on. A narrowed run can clear a floor on a kinder mix, so it fails */
 const fastTempoTracks: Readonly<Record<string, number>> = {'140-165': 170, '165+': 90};
 
+/** The second sweep's guard. A plan can carry its own, read on its own tracks: see job/sweep-plan-retune2.json */
+export const secondSweepGuard: Guard = {floors: fastTempoGuard, tracks: fastTempoTracks};
+
 /**
  * @param bands Counts per band, absent when a row has none
+ * @param guard The floors, the second sweep's unless a plan names others
  * @returns The guarded bands under their floor. A band not on the guard's tracks fails: no evidence is no pass
  */
-export function guardShortfalls(bands: SweepRow['bands']): string[] {
-  return Object.entries(fastTempoGuard).filter(([band, floor]) => {
+export function guardShortfalls(bands: SweepRow['bands'], guard: Guard = secondSweepGuard): string[] {
+  return Object.entries(guard.floors).filter(([band, floor]) => {
     const count = bands?.[band];
 
-    return count === undefined || count.tracks !== fastTempoTracks[band] || count.correct / count.tracks < floor;
+    return count === undefined || count.tracks !== guard.tracks[band] || count.correct / count.tracks < floor;
   }).map(([band]) => band);
 }
 
@@ -66,8 +77,13 @@ export function guardShortfalls(bands: SweepRow['bands']): string[] {
  * @param base What the sweep started from
  * @returns The pick, or null when nothing passes the guard: then there is no look
  */
-export function pickWithGuard(rows: readonly SweepRow[], sizes: Readonly<Record<string, number>>, base: Readonly<Record<string, unknown>>): SweepRow | null {
-  const close = withinNoise(rows.filter(row => guardShortfalls(row.bands).length === 0), sizes);
+export function pickWithGuard(
+  rows: readonly SweepRow[],
+  sizes: Readonly<Record<string, number>>,
+  base: Readonly<Record<string, unknown>>,
+  guard: Guard = secondSweepGuard,
+): SweepRow | null {
+  const close = withinNoise(rows.filter(row => guardShortfalls(row.bands, guard).length === 0), sizes);
   const interior = close.filter(row => priorKnobsOnEdge(row, rows).length === 0);
 
   return simplest(interior.length > 0 ? interior : close, base);
@@ -178,8 +194,77 @@ export function simplestWithinNoise(rows: readonly SweepRow[], sizes: Readonly<R
 
 function withinNoise(rows: readonly SweepRow[], sizes: Readonly<Record<string, number>>): SweepRow[] {
   const best = bestRow(rows);
+  // A row that measured its own group-aware error uses it: the binomial estimate treats an artist's tracks as independent
+  const noise = best?.scoreSe ?? (best === null ? 0 : scoreNoise(best, sizes));
 
-  return best === null ? [] : rows.filter(row => row.score >= best.score - scoreNoise(best, sizes));
+  return best === null ? [] : rows.filter(row => row.score >= best.score - noise);
+}
+
+/** Mulberry32, seeded, so a row's noise is the same on every replay */
+function seeded(seed: number): () => number {
+  let state = seed >>> 0;
+
+  return () => {
+    state = (state + 0x6D_2B_79_F5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+type Tally = {tracks: number; correct: number; stable: number; falseStable: number; covered: number};
+
+function tallyOf(results: readonly TrackResult[]): Tally {
+  return results.reduce<Tally>((sum, {final, truth, stable}) => ({
+    tracks: sum.tracks + 1,
+    correct: sum.correct + (final !== null && isCorrect(final, truth) ? 1 : 0),
+    stable: sum.stable + stable.length,
+    falseStable: sum.falseStable + stable.filter(([, bpm]) => !isCorrect(bpm, truth)).length,
+    covered: sum.covered + (stable.length > 0 ? 1 : 0),
+  }), {tracks: 0, correct: 0, stable: 0, falseStable: 0, covered: 0});
+}
+
+/**
+ * One standard error of {@link scoreOf} by resampling whole groups within each set: an artist's tracks,
+ * a drummer's session, an uploader's loops are not independent evidence. Unpaired, so comparing two rows
+ * with it is conservative, as they share their tracks.
+ * @param results One tuning's results, each with its group
+ * @param draws Resamples
+ * @param seed Seed of the stream
+ * @returns The standard error, in score points
+ */
+export function groupScoreNoise(results: readonly TrackResult[], draws = 200, seed = 51): number {
+  const random = seeded(seed);
+  const perSet = [...new Set(results.map(({set}) => set))].map(set => {
+    const groups = new Map<string, TrackResult[]>();
+
+    for (const result of results.filter(r => r.set === set)) {
+      const key = result.group ?? result.id;
+
+      groups.set(key, [...(groups.get(key) ?? []), result]);
+    }
+
+    return [set, [...groups.values()].map(list => tallyOf(list))] as const;
+  });
+  const scores = Array.from({length: draws}, () => scoreOf(Object.fromEntries(perSet.map(([set, tallies]) => {
+    const sum: Tally = {tracks: 0, correct: 0, stable: 0, falseStable: 0, covered: 0};
+
+    for (let i = 0; i < tallies.length; i += 1) {
+      const pick = tallies[Math.floor(random() * tallies.length)];
+
+      sum.tracks += pick.tracks;
+      sum.correct += pick.correct;
+      sum.stable += pick.stable;
+      sum.falseStable += pick.falseStable;
+      sum.covered += pick.covered;
+    }
+
+    return [set, {acc1: sum.correct / sum.tracks, acc2: 0, falseStable: sum.stable === 0 ? null : sum.falseStable / sum.stable, coverage: sum.covered / sum.tracks}];
+  }))));
+  const mean = scores.reduce((a, b) => a + b, 0) / draws;
+
+  return Math.sqrt(scores.reduce((sum, score) => sum + ((score - mean) ** 2), 0) / (draws - 1));
 }
 
 function simplest(rows: readonly SweepRow[], base: Readonly<Record<string, unknown>>): SweepRow | null {
@@ -195,11 +280,12 @@ function simplest(rows: readonly SweepRow[], base: Readonly<Record<string, unkno
 /**
  * @param stage The stage
  * @param rows Rows of the stages before it
+ * @param guard The floors a base must clear
  * @returns The tunings to replay on top of the best row the guard lets through, or the best row when
  * none passes yet. Deterministic given the rows, which is what lets a sweep resume
  */
-export function stageTunings(stage: SweepStage, rows: readonly SweepRow[]): Tuning[] {
-  const base = (bestRow(rows.filter(row => guardShortfalls(row.bands).length === 0)) ?? bestRow(rows))?.tuning ?? {};
+export function stageTunings(stage: SweepStage, rows: readonly SweepRow[], guard: Guard = secondSweepGuard): Tuning[] {
+  const base = (bestRow(rows.filter(row => guardShortfalls(row.bands, guard).length === 0)) ?? bestRow(rows))?.tuning ?? {};
   const axes = Object.entries(stage.axes);
 
   if (stage.oneAtATime) {

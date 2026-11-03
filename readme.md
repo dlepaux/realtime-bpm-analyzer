@@ -117,6 +117,7 @@ See the [MCP guide](https://www.realtime-bpm-analyzer.com/guide/mcp) for Claude 
 - [Quick Start Guide](https://www.realtime-bpm-analyzer.com/guide/quick-start) - Get up and running
 - [API Reference](https://www.realtime-bpm-analyzer.com/api) - Complete API documentation
 - [Examples](https://www.realtime-bpm-analyzer.com/examples) - Live demos and code samples
+- [Migration to v6](https://www.realtime-bpm-analyzer.com/guide/migration-v6) - Upgrading from 5.x
 - [Migration to v5](https://www.realtime-bpm-analyzer.com/guide/migration-v5) - Upgrading from v4.x
 
 ## Use Cases

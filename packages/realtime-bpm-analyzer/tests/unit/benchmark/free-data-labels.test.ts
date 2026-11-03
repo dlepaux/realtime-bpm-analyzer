@@ -1,8 +1,8 @@
 import {expect} from 'chai';
 import {hintVerdict, keyConsensus, normaliseKey, pickForConfirmation, relationOf, tempoConsensus} from '../../../benchmark/free-data/consensus';
-import {artistGroups, artistKeyOf, dropDuplicates, extendFreeze, freezeByArtist, rowProblems} from '../../../benchmark/free-data/manifest';
+import {artistGroups, artistKeyOf, dropDuplicates, extendFreeze, freezeByArtist, placeRows, rowProblems} from '../../../benchmark/free-data/manifest';
 import type {ManifestRow} from '../../../benchmark/free-data/manifest';
-import {bandOf, buildReport, calibrate} from '../../../benchmark/free-data/report';
+import {bandOf, buildReport, calibrate, withoutFetchStops} from '../../../benchmark/free-data/report';
 
 const vote = (bpm: number | null, method = 'm') => ({method, bpm});
 
@@ -212,6 +212,45 @@ describe('free data: labels', () => {
 
     expect(kept.map(item => item.id)).to.deep.equal(['a', 'c']);
     expect(dropped.get('b')).to.equal('a');
+  });
+
+  // RBA-59 cap2: 196 tracks of the frozen set left because a new copy sorted first, or chained them to one
+  it('keeps the copy an earlier run placed, even when a new copy sorts first', () => {
+    const {kept, dropped} = dropDuplicates([
+      {id: 'a-new', contentKeys: ['h1', 'r2']},
+      {id: 'b-old', contentKeys: ['h3', 'r2']},
+      {id: 'c-old', contentKeys: ['h1', 'r4']},
+    ], new Set(['b-old', 'c-old']));
+
+    expect(kept.map(item => item.id)).to.deep.equal(['b-old', 'c-old']);
+    expect(dropped.get('a-new')).to.equal('c-old');
+  });
+
+  describe('placeRows', () => {
+    const groups = new Map([['a', 'a'], ['b', 'a'], ['c', 'a'], ['d', 'd']]);
+
+    // RBA-59 cap2: 317 tracks of the frozen set left because new rows linked their artists across the split
+    it('keeps a placed row on its side when new rows link its group across the split, and refuses the new ones', () => {
+      const {placed, refused} = placeRows([
+        {id: 'old-a', artistKey: 'a'},
+        {id: 'old-b', artistKey: 'b'},
+        {id: 'new-c', artistKey: 'c'},
+        {id: 'new-a', artistKey: 'a'},
+        {id: 'new-d', artistKey: 'd'},
+      ], groups, new Set(['a']), new Set(['old-a', 'old-b']));
+
+      expect(placed.map(row => row.id)).to.deep.equal(['old-a', 'old-b', 'new-d']);
+      expect(refused.map(row => row.id)).to.deep.equal(['new-c', 'new-a']);
+    });
+  });
+
+  it('forgets the stops of an earlier fetch, which a new fetch starts over, and keeps the catalogue ones', () => {
+    expect(withoutFetchStops([
+      {stop: 'internet archive, techno: stopped at the page limit, more items exist'},
+      {stop: 'internet-archive: stopped at the disk limit'},
+      {stop: 'fma: refused 5 in a row, queue stopped: HTTP 429'},
+      {stop: 'fma: stopped at the disk limit', stage: 'fetch'},
+    ])).to.deep.equal([{stop: 'internet archive, techno: stopped at the page limit, more items exist'}]);
   });
 
   describe('buildReport', () => {

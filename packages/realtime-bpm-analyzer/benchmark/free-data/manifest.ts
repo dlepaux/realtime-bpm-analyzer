@@ -243,19 +243,44 @@ export function extendFreeze(
 }
 
 /**
+ * Rows that get a side. A row an earlier run placed keeps its side even when new rows now link its
+ * group to artists on the other side: the held-out set must not change under a rerun. The new rows
+ * of such a group cannot be placed, so they are refused.
+ * @param rows Real tracks, duplicates gone
+ * @param groups Result of `artistGroups`
+ * @param conflicted Groups `extendFreeze` could not place
+ * @param placedBefore Ids an earlier run placed
+ * @returns Rows placed and rows refused, each in the order given
+ */
+export function placeRows<T extends {readonly id: string; readonly artistKey: string}>(
+  rows: readonly T[],
+  groups: ReadonlyMap<string, string>,
+  conflicted: ReadonlySet<string>,
+  placedBefore: ReadonlySet<string>,
+): {readonly placed: T[]; readonly refused: T[]} {
+  const fits = (row: T) => placedBefore.has(row.id) || !conflicted.has(groups.get(row.artistKey) ?? row.artistKey);
+
+  return {placed: rows.filter(row => fits(row)), refused: rows.filter(row => !fits(row))};
+}
+
+/**
  * Keeps one copy of each recording. Hosts overlap, netlabels above all, and a recording on both
- * sides of a split would leak. The copy kept is the first by id, which does not depend on a score.
+ * sides of a split would leak. A copy an earlier run placed comes first, so a new copy never takes a
+ * frozen track's place; then the first by id, which does not depend on a score.
  * @param rows Rows with their content identity: a hash, or a fingerprint when one exists
+ * @param placedBefore Ids an earlier run placed
  * @returns Rows kept, and for each dropped id the id it duplicates
  */
 export function dropDuplicates<T extends {readonly id: string; readonly contentKeys: readonly string[]}>(
   rows: readonly T[],
+  placedBefore: ReadonlySet<string> = new Set(),
 ): {readonly kept: T[]; readonly dropped: ReadonlyMap<string, string>} {
   const owner = new Map<string, string>();
   const dropped = new Map<string, string>();
   const kept: T[] = [];
+  const rank = (row: T) => (placedBefore.has(row.id) ? 0 : 1);
 
-  for (const row of [...rows].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+  for (const row of [...rows].sort((a, b) => rank(a) - rank(b) || (a.id < b.id ? -1 : 1))) {
     const twin = row.contentKeys.map(key => owner.get(key)).find(id => id !== undefined);
 
     if (twin === undefined) {

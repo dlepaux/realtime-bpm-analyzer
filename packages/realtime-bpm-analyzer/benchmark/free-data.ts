@@ -17,9 +17,10 @@ import {keyConsensus, normaliseKey, pickForConfirmation, tempoConsensus} from '.
 import {derivedRow, factorsTowards, ffmpegFilter} from './free-data/derive';
 import {mixLicence, planMixes, renderMix} from './free-data/loop-mix';
 import type {Loop, LoopRole} from './free-data/loop-mix';
-import {artistGroups, artistKeyOf, dropDuplicates, extendFreeze, rowProblems} from './free-data/manifest';
+import {artistGroups, artistKeyOf, dropDuplicates, extendFreeze, placeRows, rowProblems} from './free-data/manifest';
 import type {FrozenSplit, ManifestRow, TempoVote} from './free-data/manifest';
-import {bandOf, buildReport, calibrate} from './free-data/report';
+import {bandOf, buildReport, calibrate, withoutFetchStops} from './free-data/report';
+import type {Stop} from './free-data/report';
 import {classifyLicence, echonestTempos, narrow, parseCsv, parseFma, parseInternetArchive} from './free-data/sources';
 import type {Candidate, FmaRow, GenreRow, IaItem, Parsed} from './free-data/sources';
 import {defaultStructure, encodeWav, generateTrack, sampleRate, specFromSeed} from './free-data/synth';
@@ -82,9 +83,9 @@ function repairTail(path: string): void {
 }
 
 /** Why a stage ended before its work did. A short count from a stop must not read as scarcity */
-function recordStop(root: string, stop: string): void {
+function recordStop(root: string, stop: string, stage?: Stop['stage']): void {
   log(stop);
-  appendFileSync(join(root, 'stops.jsonl'), `${JSON.stringify({stop})}\n`);
+  appendFileSync(join(root, 'stops.jsonl'), `${JSON.stringify({stop, ...(stage ? {stage} : {})} satisfies Stop)}\n`);
 }
 
 function writeAtomic(path: string, content: string | Uint8Array): void {
@@ -330,7 +331,7 @@ async function fetchQueue(
 
   for (const candidate of queue) {
     if (disk.bytes > mostBytesInAll) {
-      recordStop(root, `${candidate.source}: stopped at the disk limit`);
+      recordStop(root, `${candidate.source}: stopped at the disk limit`, 'fetch');
       return;
     }
 
@@ -351,7 +352,7 @@ async function fetchQueue(
       refusals = /HTTP (403|429|503)/.test(reason) ? refusals + 1 : 0;
 
       if (refusals >= refusalsToStop) {
-        recordStop(root, `${candidate.source}: refused ${refusals} in a row, queue stopped: ${reason}`);
+        recordStop(root, `${candidate.source}: refused ${refusals} in a row, queue stopped: ${reason}`, 'fetch');
         return;
       }
     }
@@ -363,6 +364,9 @@ async function fetchQueue(
 async function fetchAudio(root: string): Promise<void> {
   repairTail(join(root, 'fetched.jsonl'));
   repairTail(join(root, 'fetch-failures.jsonl'));
+  repairTail(join(root, 'stops.jsonl'));
+  // This fetch goes over the whole queue again, so an earlier fetch's stop would be reported stale
+  writeAtomic(join(root, 'stops.jsonl'), withoutFetchStops(readJsonl<Stop>(join(root, 'stops.jsonl'))).map(row => `${JSON.stringify(row)}\n`).join(''));
 
   const fetched = readJsonl<Fetched>(join(root, 'fetched.jsonl'));
   const done = new Set(fetched.map(row => row.id));
@@ -463,7 +467,11 @@ function realRows(root: string): {readonly rows: ManifestRow[]; readonly refused
     }];
   });
   const groups = artistGroups(labelled);
-  const {kept, dropped} = dropDuplicates(labelled);
+  // What the last consolidate placed stays placed: a rerun only adds to the frozen split
+  const idsPath = join(root, 'split-ids.json');
+  const earlier = existsSync(idsPath) ? JSON.parse(readFileSync(idsPath, 'utf8')) as {dev: string[]; heldout: string[]} : {dev: [], heldout: []};
+  const placedBefore = new Set([...earlier.dev, ...earlier.heldout]);
+  const {kept, dropped} = dropDuplicates(labelled, placedBefore);
   const freezePath = join(root, 'split-frozen.json');
   const previous = existsSync(freezePath) ? JSON.parse(readFileSync(freezePath, 'utf8')) as FrozenSplit : {seed, artists: {}};
   const {frozen, conflicted} = extendFreeze(kept, groups, previous);
@@ -471,9 +479,15 @@ function realRows(root: string): {readonly rows: ManifestRow[]; readonly refused
   writeAtomic(freezePath, JSON.stringify(frozen, null, 1));
   refused.push(...Array.from({length: dropped.size}, () => 'duplicate recording'));
 
-  const placed = kept.filter(({artistKey}) => !conflicted.has(groups.get(artistKey) ?? artistKey));
+  const {placed, refused: unplaceable} = placeRows(kept, groups, conflicted, placedBefore);
 
-  refused.push(...Array.from({length: kept.length - placed.length}, () => 'artist on both sides of the frozen split'));
+  refused.push(...unplaceable.map(() => 'artist on both sides of the frozen split'));
+
+  const sideless = placed.find(({artistKey}) => frozen.artists[artistKey] === undefined);
+
+  if (sideless) {
+    throw new Error(`${sideless.id} was placed with no side for ${sideless.artistKey}`);
+  }
 
   const rows = placed.map(({candidate, file, reading, votes, duration}): ManifestRow => {
     const consensus = tempoConsensus(votes);
@@ -802,7 +816,7 @@ function report(root: string): void {
   const readings = new Map(readJsonl<Reading>(join(root, 'readings.jsonl')).map(row => [row.id, row.votes ?? []]));
   const candidates = readJsonl<Candidate>(join(root, 'catalogue/candidates.jsonl')).length;
   const fetched = readJsonl<Fetched>(join(root, 'fetched.jsonl')).length;
-  const stops = readJsonl<{stop: string}>(join(root, 'stops.jsonl')).map(row => row.stop);
+  const stops = readJsonl<Stop>(join(root, 'stops.jsonl')).map(row => row.stop);
   const body = {
     ...buildReport(rows),
     // A stop or a gap means the counts are a floor, not what free data can give

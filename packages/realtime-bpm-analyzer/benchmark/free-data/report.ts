@@ -5,6 +5,21 @@ import type {ManifestRow, TempoVote, TrackKind} from './manifest';
 /** The card's bands, and its target: at least this many real tracks per band */
 export const target = 200;
 
+export type Stop = {readonly stop: string; readonly stage?: 'fetch'};
+
+/** Lines written before stops carried their stage are known by the wording `fetchQueue` gave them */
+const fetchStopWording = /: (?:stopped at the disk limit|refused \d+ in a row, queue stopped)/;
+
+/**
+ * A fetch goes over its whole queue again, so what stopped an earlier fetch no longer holds and would
+ * read as a stop that did not happen. The catalogue's stops stay: the catalogue is frozen.
+ * @param stops Lines of stops.jsonl
+ * @returns The stops a new fetch starts from
+ */
+export function withoutFetchStops(stops: readonly Stop[]): Stop[] {
+  return stops.filter(row => row.stage !== 'fetch' && !fetchStopWording.test(row.stop));
+}
+
 export type Band = 'under-140' | '140-165' | '165+' | 'no-label';
 
 export function bandOf(bpm: number | null): Band {

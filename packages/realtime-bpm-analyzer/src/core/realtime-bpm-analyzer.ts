@@ -106,12 +106,27 @@ async function readPeaks(analyzer: RealTimeBpmAnalyzer, {
   postMessage({type: 'bpm', data});
 
   /**
-   * If the results found have a "high" threshold, the BPM is considered stable/strong
+   * A lock on a rung above the floor is stable once the warm-up has been heard. The floor waits too, so a
+   * track that locked early on the top rung is announced when the warm-up ends rather than never.
    */
-  if (analyzer.minValidThreshold < threshold) {
+  if (
+    analyzer.minValidThreshold < threshold
+    && analyzer.effectiveBufferTime / audioSampleRate >= stableWarmUpSeconds(analyzer)
+  ) {
     postMessage({type: 'bpmStable', data});
     await analyzer.clearValidPeaks(threshold);
   }
+}
+
+/**
+ * Seconds of audio the peaks detector waits for before it announces `bpmStable`
+ * @param analyzer - The analyzer
+ * @returns The warm-up, cut to the reset period in continuous analysis so stable can still come before the reset
+ */
+function stableWarmUpSeconds(analyzer: RealTimeBpmAnalyzer): number {
+  return analyzer.options.continuousAnalysis
+    ? Math.min(consts.stableWarmUpSeconds, analyzer.computedStabilizationTimeInSeconds)
+    : consts.stableWarmUpSeconds;
 }
 
 /**
@@ -370,6 +385,12 @@ export class RealTimeBpmAnalyzer {
             },
           });
         }
+      }
+
+      // Bounds memory and the per-chunk work, which re-reads every kept peak: the oldest go first
+      const kept = this.validPeaks[atThreshold];
+      if (kept.length > consts.maxKeptPeaks) {
+        kept.splice(0, kept.length - consts.maxKeptPeaks);
       }
 
       return false;

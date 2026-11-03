@@ -32,7 +32,10 @@ export type ProcessorInputMessage = {
 export type BpmAnalyzerEventMap = {
   /** Emitted continuously during BPM analysis with current tempo candidates */
   bpm: BpmCandidates;
-  /** Emitted when BPM detection has stabilized with high confidence */
+  /**
+   * Emitted when BPM detection has stabilized with high confidence. The `peaks` detector waits for 10 s of audio
+   * first, or for `stabilizationTime` with `continuousAnalysis` when that is shorter.
+   */
   bpmStable: BpmCandidates;
   /** Emitted when the analyzer state has been reset */
   analyzerReset: void;

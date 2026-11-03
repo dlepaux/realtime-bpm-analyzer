@@ -214,7 +214,8 @@ analyzer.on('bpmStable', (data) => {
 
 **Characteristics:**
 - More reliable result
-- Requires sufficient data collection
+- Requires sufficient data collection: with the default `peaks` detector, never before 10 seconds of
+  audio (or a shorter `stabilizationTime` with `continuousAnalysis`)
 - Threshold increases over time for better accuracy
 - Best for final BPM determination
 

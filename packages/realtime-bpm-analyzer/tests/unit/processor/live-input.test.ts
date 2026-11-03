@@ -349,8 +349,8 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
 
   it('peaks: starts over for a lock that went out before the loss showed, and relocks', async function () {
     this.timeout(60_000);
-    // The clock takes a window or two to see it, and peaks locks at about 6 s
-    const heard = await listen({detector: 'peaks', bpm: 150, seconds: 30, share: lossBetween(4, 9, 0.85)});
+    // The clock takes a window or two to see it, and peaks announces its lock when the 10 s warm-up ends (RBA-107)
+    const heard = await listen({detector: 'peaks', bpm: 150, seconds: 30, share: lossBetween(9.5, 14, 0.85)});
 
     expect(heard.stable[0].at).to.be.lessThan(heard.resets[0]);
     expect(heard.resets.length).to.equal(1);

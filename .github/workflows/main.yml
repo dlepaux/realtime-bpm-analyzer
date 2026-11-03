@@ -307,6 +307,11 @@ jobs:
           echo "lean chunks: $lean, pages: $pages"
           test "$pages" -gt 0 && test "$lean" -ge "$pages"
 
+      # One h1 on home, the unpublished guides noindex and unlinked, TechArticle and a
+      # server-rendered date on every guide: things only the built HTML shows.
+      - name: Check SEO output
+        run: npm run verify:seo -w docs
+
       # Checks this build against the committed EXTENSION_STORE_URL, then builds the site
       # in the other state and checks that too (RBA-58). Before and after the switch is
       # flipped, both states stay proven. The pages artifact below is this first build.

@@ -1,4 +1,6 @@
 ---
+# Unpublished until the v6 release (PR #323): kept out of the local search too.
+search: false
 title: BPM Detection from the Command Line
 description: Detect the BPM of MP3, WAV, FLAC, OGG and Opus files from a terminal with npx realtime-bpm-analyzer-cli, as text or JSON, one file or a whole folder.
 ---

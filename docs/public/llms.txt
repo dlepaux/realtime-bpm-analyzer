@@ -4,7 +4,7 @@
 
 ## Tools
 
-- [BPM Analyzer](https://www.realtime-bpm-analyzer.com/): detects the BPM of an audio file, the microphone or a live radio stream, in the browser
+- [BPM Finder](https://www.realtime-bpm-analyzer.com/): finds the BPM of a song from an audio file, the microphone or a live radio stream, in the browser
 - [Tap Tempo](https://www.realtime-bpm-analyzer.com/tap-tempo): measures a tempo from taps (least-squares fit over the last 16 taps)
 - [BPM to ms Calculator](https://www.realtime-bpm-analyzer.com/bpm-to-ms): note lengths in ms and Hz, straight, dotted and triplet; quarter note ms = 60000 / BPM
 - [Video BPM Finder](https://www.realtime-bpm-analyzer.com/video-bpm): detects the BPM of the sound track of a video file (MP4, WebM, MOV when the browser decodes it), in the browser
@@ -13,7 +13,7 @@
 
 ## Privacy
 
-- [Library Privacy](https://www.realtime-bpm-analyzer.com/privacy): the library, CLI and MCP server collect nothing and make no network call of their own
+- [Library Privacy](https://www.realtime-bpm-analyzer.com/privacy): the library collects nothing and makes no network call of its own
 - [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy): realtime-bpm-analyzer.com measures its own pages with Google Analytics through Google Tag Manager, while audio stays in the browser
 - [Extension Privacy](https://www.realtime-bpm-analyzer.com/extension/privacy): audio never leaves the device, the extension sends nothing of its own today, and the pages it opens are part of the website
 
@@ -21,10 +21,11 @@
 
 - [Getting started](https://www.realtime-bpm-analyzer.com/guide/getting-started): install `realtime-bpm-analyzer` from npm; zero dependencies, AudioWorklet-based
 - [How it works](https://www.realtime-bpm-analyzer.com/guide/how-it-works): peak detection, threshold scan and interval grouping
+- [Realtime BPM detection](https://www.realtime-bpm-analyzer.com/guide/realtime-bpm-detection): the tempo of an audio or video element, the microphone or a live stream, with an AudioWorklet
+- [BPM from the microphone](https://www.realtime-bpm-analyzer.com/guide/bpm-from-microphone): getUserMedia with voice processing off, permissions, HTTPS, iOS and cleanup
+- [React BPM hook](https://www.realtime-bpm-analyzer.com/guide/react-bpm-hook): useBpm, a typed hook for file, microphone and stream detection
 - [Beat detection with Web Audio](https://www.realtime-bpm-analyzer.com/guide/beat-detection-web-audio): onsets, tempo and beat tracking compared; the tempo of live audio and of whole files
 - [Node.js](https://www.realtime-bpm-analyzer.com/guide/node): BPM detection outside the browser
-- [Command line](https://www.realtime-bpm-analyzer.com/guide/cli): BPM detection from a terminal
-- [MCP server](https://www.realtime-bpm-analyzer.com/guide/mcp): BPM detection for AI assistants
 - [Strict CSP and browser extensions](https://www.realtime-bpm-analyzer.com/guide/strict-csp): loading the worklet from a URL
 - [API reference](https://www.realtime-bpm-analyzer.com/api/)
 - [Source code](https://github.com/dlepaux/realtime-bpm-analyzer): Apache-2.0

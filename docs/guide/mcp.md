@@ -1,4 +1,6 @@
 ---
+# Unpublished until the v6 release (PR #323): kept out of the local search too.
+search: false
 title: BPM Detection for AI Assistants (MCP Server)
 description: Let Claude Desktop, Claude Code or any MCP client detect the BPM of audio files on your disk with the local realtime-bpm-analyzer-mcp server. The audio never leaves your machine.
 ---

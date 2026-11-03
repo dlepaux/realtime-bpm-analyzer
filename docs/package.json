@@ -17,6 +17,7 @@
     "lint": "eslint .",
     "test": "node --test scripts/*.test.ts",
     "verify:extension-switch": "node scripts/verify-extension-switch.ts",
+    "verify:seo": "node scripts/verify-seo.ts",
     "lint:fix": "eslint . --fix",
     "verify": "npm run typecheck && npm run lint && npm test",
     "build": "npm run copy:markdown && npm run docs:generate && vitepress build && npm run build:examples && npm run build:redirects",

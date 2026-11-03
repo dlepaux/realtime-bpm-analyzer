@@ -1,7 +1,10 @@
 import { defineConfig } from 'vitepress'
 import { createRequire } from 'module'
+import { execFile } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 import { isUsersOnlyExtensionPage } from './tools/extension-pages'
-import { isNoindexPage, SCHEMA_WEB_APPLICATION, siteGraph, toolFaqPage } from './tools/site-schema'
+import { isGuidePage, isNoindexPage, isUnpublishedGuide, SCHEMA_WEB_APPLICATION, siteGraph, techArticle, toolFaqPage } from './tools/site-schema'
 import { STORE_URL } from './tools/extension-live'
 import { excludedSources, extensionHomeFeatures, extensionNavItems, extensionPageSchema } from './tools/extension-promo'
 
@@ -39,6 +42,21 @@ async function fetchStarCount(): Promise<number | null> {
 }
 
 const GITHUB_STAR_COUNT = await fetchStarCount()
+
+// When a page first landed in git, for a guide's datePublished. VitePress gives the last
+// change (pageData.lastUpdated, which the sitemap's lastmod uses too) but not the first.
+// Any git failure means the date is unknown, and the schema leaves it out.
+const DOCS_DIR = fileURLToPath(new URL('..', import.meta.url))
+async function firstCommitTime(file: string): Promise<number | undefined> {
+  try {
+    const { stdout } = await promisify(execFile)(
+      'git', ['log', '--diff-filter=A', '--follow', '--format=%aI', '--', file], { cwd: DOCS_DIR })
+    const first = stdout.trim().split('\n').pop()
+    return first ? Date.parse(first) : undefined
+  } catch {
+    return undefined
+  }
+}
 
 // GTM container for analytics. Change here if the container is ever rotated.
 const GTM_CONTAINER_ID = 'GTM-WF758H3P'
@@ -92,6 +110,16 @@ export default defineConfig({
     define: {
       __GITHUB_STAR_COUNT__: JSON.stringify(GITHUB_STAR_COUNT),
     },
+    resolve: {
+      alias: [
+        // VitePress fills the "Last updated" date in only after the page mounts, so the
+        // prerendered HTML has an empty <time>. Ours renders the date on the server.
+        {
+          find: /^.*\/VPDocFooterLastUpdated\.vue$/,
+          replacement: fileURLToPath(new URL('./theme/LastUpdated.vue', import.meta.url)),
+        },
+      ],
+    },
   },
 
   // Inject the GTM noscript fallback right after <body>
@@ -115,7 +143,7 @@ export default defineConfig({
   // global `head:` array — OpenGraph crawlers use the first occurrence of
   // a property, so a duplicate would pin every inner page to the home-page
   // value and defeat the per-page descriptions.
-  transformPageData(pageData) {
+  async transformPageData(pageData) {
     const slug = pageData.relativePath
       .replace(/(^|\/)index\.md$/, '$1')
       .replace(/\.md$/, '')
@@ -155,6 +183,17 @@ export default defineConfig({
     }
     if (faq?.length) graph.push(toolFaqPage(faq))
 
+    const isGuide = isGuidePage(pageData.relativePath)
+    if (isGuide) {
+      graph.push(techArticle({
+        headline: pageTitle ?? pageData.title,
+        description: ogDesc,
+        url: canonical,
+        modified: pageData.lastUpdated,
+        published: await firstCommitTime(pageData.filePath),
+      }))
+    }
+
     if (STORE_URL && pageData.relativePath === 'extension/index.md') {
       graph.push(extensionPageSchema(STORE_URL, canonical, ogDesc))
     }
@@ -166,18 +205,28 @@ export default defineConfig({
     }
 
     pageData.frontmatter.head ??= []
+    // The CLI and MCP guides stay reachable but unindexed until their packages are on npm.
+    // They return in the v6 release (PR #323): see UNPUBLISHED_GUIDES in tools/site-schema.ts.
+    if (isUnpublishedGuide(pageData.relativePath)) {
+      pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
+    }
+    // Emitted per page, not from `head:` below: crawlers use the first occurrence.
     pageData.frontmatter.head.push(
+      ['meta', { property: 'og:type', content: isGuide ? 'article' : 'website' }],
       ['link', { rel: 'canonical', href: canonical }],
       ['meta', { property: 'og:url', content: canonical }],
       ['meta', { property: 'og:title', content: ogTitle }],
       ['meta', { property: 'og:description', content: ogDesc }],
       ['meta', { name: 'twitter:title', content: ogTitle }],
       ['meta', { name: 'twitter:description', content: ogDesc }],
-      ['script', { type: 'application/ld+json' }, JSON.stringify({
+    )
+    // A page with nothing to describe gets no script, rather than an empty @graph.
+    if (graph.length) {
+      pageData.frontmatter.head.push(['script', { type: 'application/ld+json' }, JSON.stringify({
         '@context': 'https://schema.org',
         '@graph': graph,
-      })],
-    )
+      })])
+    }
   },
   
   head: [
@@ -191,7 +240,6 @@ export default defineConfig({
     // GA4 measurement ID G-S911G9WQTM must be configured as a tag inside GTM.
     ['script', {}, `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_CONTAINER_ID}');`],
     ['meta', { name: 'theme-color', content: '#646cff' }],
-    ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:locale', content: 'en_US' }],
     ['meta', { property: 'og:site_name', content: 'Realtime BPM Analyzer' }],
     // og:url, og:title, og:description, twitter:title, twitter:description
@@ -275,8 +323,8 @@ export default defineConfig({
             { text: 'Browser Compatibility', link: '/guide/browser-compatibility' },
             { text: 'Strict CSP and Browser Extensions', link: '/guide/strict-csp' },
             { text: 'BPM Detection in Node.js', link: '/guide/node' },
-            { text: 'BPM Detection from the Command Line', link: '/guide/cli' },
-            { text: 'BPM Detection for AI Assistants (MCP)', link: '/guide/mcp' },
+            // The CLI and MCP guides return here in the v6 release (PR #323), once both
+            // packages are on npm. Until then they are noindex and unlinked (RBA-122).
             { text: 'Migration Guide (v4 → v5)', link: '/guide/migration-v5' }
           ]
         }

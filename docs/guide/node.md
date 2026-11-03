@@ -1,6 +1,6 @@
 ---
-title: 'BPM Detection in Node.js: Get the Tempo of Audio Files'
-description: Get the tempo of MP3, WAV or FLAC files in Node.js, Bun or Deno with realtime-bpm-analyzer/node. Decode with ffmpeg or any decoder, analyse one file or a folder, and print the result as JSON.
+title: BPM Detection in Node.js
+description: BPM detection in Node.js, Bun or Deno with realtime-bpm-analyzer/node. Get the tempo of MP3, WAV or FLAC files, one file or a folder, as JSON.
 ---
 
 # BPM Detection in Node.js

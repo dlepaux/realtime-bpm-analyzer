@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { HOME_FAQ, SCHEMA_WEB_APPLICATION, isNoindexPage, siteGraph } from '../.vitepress/tools/site-schema.ts'
+import { HOME_FAQ, SCHEMA_WEB_APPLICATION, isGuidePage, isNoindexPage, isUnpublishedGuide, readableDate, siteGraph, techArticle } from '../.vitepress/tools/site-schema.ts'
 
 const types = (path: string) => siteGraph(path).map((node) => (node as { '@type': string })['@type'])
 
@@ -47,10 +47,47 @@ test('no accuracy figure on the tool pages or in the markup', () => {
   assert.ok(figure.test('accurate within **1–2 BPM**'), 'the check itself must catch the old claim')
 })
 
-test('isNoindexPage: only the docs readme leaves the sitemap', () => {
-  assert.ok(isNoindexPage('readme'))
-  assert.ok(isNoindexPage('/readme.html'))
-  for (const url of ['', 'guide/readme-tips', 'tap-tempo', 'extension/privacy']) assert.ok(!isNoindexPage(url), url)
+test('isNoindexPage: the docs readme and the unpublished guides leave the sitemap', () => {
+  for (const url of ['readme', '/readme.html', 'guide/cli', '/guide/mcp.html']) assert.ok(isNoindexPage(url), url)
+  for (const url of ['', 'guide/readme-tips', 'guide/node', 'guide/client', 'tap-tempo', 'extension/privacy']) {
+    assert.ok(!isNoindexPage(url), url)
+  }
+})
+
+test('isUnpublishedGuide and isGuidePage: the CLI and MCP guides are not articles until v6', () => {
+  assert.ok(isUnpublishedGuide('guide/cli.md') && isUnpublishedGuide('/guide/mcp'))
+  assert.ok(!isUnpublishedGuide('guide/node.md'))
+  assert.ok(isGuidePage('guide/node.md') && isGuidePage('guide/beat-detection-web-audio.md'))
+  for (const path of ['guide/cli.md', 'guide/mcp.md', 'index.md', 'bpm-to-frames.md', 'examples/react.md']) {
+    assert.ok(!isGuidePage(path), path)
+  }
+})
+
+test('techArticle: names the author and publisher, and dates only what git knows', () => {
+  const facts = { headline: 'BPM Detection in Node.js', description: 'd', url: 'https://www.realtime-bpm-analyzer.com/guide/node' }
+  const dated = techArticle({ ...facts, modified: Date.UTC(2026, 10, 3), published: Date.UTC(2025, 0, 2) })
+  assert.equal(dated['@type'], 'TechArticle')
+  assert.equal(dated.author.name, 'David Lepaux')
+  assert.equal(dated.publisher.name, 'David Lepaux')
+  assert.equal(dated.dateModified, '2026-11-03T00:00:00.000Z')
+  assert.equal(dated.datePublished, '2025-01-02T00:00:00.000Z')
+  // An uncommitted file has no git date: VitePress reports 0 or NaN.
+  for (const unknown of [undefined, 0, Number.NaN]) {
+    const undated = techArticle({ ...facts, modified: unknown, published: unknown })
+    assert.ok(!('dateModified' in undated) && !('datePublished' in undated), String(unknown))
+  }
+})
+
+test('readableDate: the same words on the server and in any browser time zone', () => {
+  assert.equal(readableDate(Date.UTC(2026, 10, 3, 23, 30)), 'November 3, 2026')
+  assert.equal(readableDate(0), undefined)
+  assert.equal(readableDate(Number.NaN), undefined)
+})
+
+test('WebApplication: names its author and publisher, and the video file source', () => {
+  assert.equal(SCHEMA_WEB_APPLICATION.author.name, 'David Lepaux')
+  assert.equal(SCHEMA_WEB_APPLICATION.publisher.name, 'David Lepaux')
+  assert.ok(SCHEMA_WEB_APPLICATION.featureList.some((feature) => feature.includes('the sound track of a video file')))
 })
 
 test('no unmeasured tolerance or accuracy praise in the guides', () => {

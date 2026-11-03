@@ -4,7 +4,7 @@ title: "BPM Finder: Find the BPM of Any Song"
 description: Find the BPM of any song in your browser. This free BPM detector reads a file, the microphone or a stream, and your audio never leaves your device.
 
 hero:
-  name: "Realtime BPM Analyzer"
+  # No `name`: VitePress would put it inside the h1. Layout.vue shows the brand above it.
   text: "BPM Finder: Find the BPM of Any Song"
   tagline: A free BPM detector that runs in your browser. Drop a song, use the microphone or play a stream, and your audio stays on your device. Also a zero-dependency TypeScript library for developers.
   image:
@@ -47,6 +47,12 @@ features:
     linkText: Start the metronome
 ---
 
+<script setup>
+import HomeByline from './.vitepress/components/HomeByline.vue'
+</script>
+
+<HomeByline />
+
 ## Find the BPM of a song
 
 Choose how the music reaches the tool above. It listens, finds the beats and
@@ -62,8 +68,8 @@ your browser, with no account and no upload.
   read its tempo as it plays. A YouTube or Spotify link can't play here, so on
   desktop Chrome and Edge the tool offers to share the audio of the tab that
   plays it, and elsewhere the microphone.
-- **A video.** To find the BPM of a video and get the beat in frames, use the
-  [video BPM finder](/video-bpm).
+- **A video.** To find the BPM of the sound track of a video file and get the
+  beat in frames, use the [video BPM finder](/video-bpm).
 
 Not sure of a reading? [Tap along](/tap-tempo) to check it.
 
@@ -201,6 +207,10 @@ function stop() {
   `getUserMedia`, permissions, mobile gotchas, and a working pattern.
 - [useBpm, a React Hook for Realtime BPM Detection](/guide/react-bpm-hook):
   a drop-in hook with full TypeScript types and StrictMode-safe cleanup.
+- [Beat Detection in the Browser with Web Audio](/guide/beat-detection-web-audio):
+  onsets, tempo and beat tracking told apart, and which one this library answers.
+- [BPM Detection in Node.js](/guide/node): the tempo of audio files outside
+  the browser, one file or a whole folder.
 
 See the [full developer guide](/guide/getting-started), the
 [API reference](/api/), and the [examples](/examples/basic-usage) for file

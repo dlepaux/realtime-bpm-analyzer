@@ -7,6 +7,16 @@ export const minPeaks = 15;
  */
 export const requiredPeaks = minPeaks + 1;
 export const thresholdStep = 0.05;
+/**
+ * Peaks one threshold keeps in real time, the newest ones
+ * @remarks
+ * Without `continuousAnalysis` nothing else ever drops a peak, and every chunk re-reads all of them:
+ * loud generated 240 BPM pulses kept 2400 after 10 minutes, and a chunk then took 52 ms of its 93 ms (RBA-107).
+ * 256 covers the 30 s benchmark clips whole, even at the mute window's most of 4.8 peaks a second
+ * at 48 kHz, so readings that short are unchanged. It is far above `requiredPeaks`, so which threshold
+ * locks is unchanged too. Past it, the reading follows the latest minute or more of audio.
+ */
+export const maxKeptPeaks = 256;
 export const frequencyValue = 200;
 export const qualityValue = 1;
 

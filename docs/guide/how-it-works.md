@@ -238,7 +238,8 @@ createRealtimeBpmAnalyzer(audioContext, {
 });
 ```
 
-This prevents memory leaks in long-running analysis.
+Without it, each threshold keeps only its newest 256 peaks, so memory and the work per chunk stay
+bounded on a long listen, and the reading follows the latest minute or more of audio.
 
 ### Data Buffering
 

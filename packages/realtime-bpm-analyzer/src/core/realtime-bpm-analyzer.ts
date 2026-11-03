@@ -387,6 +387,12 @@ export class RealTimeBpmAnalyzer {
         }
       }
 
+      // Bounds memory and the per-chunk work, which re-reads every kept peak: the oldest go first
+      const kept = this.validPeaks[atThreshold];
+      if (kept.length > consts.maxKeptPeaks) {
+        kept.splice(0, kept.length - consts.maxKeptPeaks);
+      }
+
       return false;
     }, this.minValidThreshold);
   }

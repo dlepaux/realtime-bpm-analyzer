@@ -4,11 +4,21 @@
  * `src/index.ts` and `src/node.ts` re-export the public part. Design note and the 5.x mapping: `./readme.md`.
  */
 
-/** Version of the worklet protocol. Bumped on any change to {@link WorkletMessage} or {@link HostMessage}. */
+/**
+ * Version of the worklet protocol, checked for strict equality on both sides.
+ *
+ * @remarks
+ * Bumped only when a message both sides already know changes shape or meaning, which only a major release does.
+ * A minor may add a message type without a bump: each side ignores the types it does not know (the processor
+ * ignores unknown {@link HostMessage}s, the main thread unknown {@link WorkletMessage}s). So a `processorUrl` copy
+ * one minor behind or ahead keeps working, without the feature it lacks: a 6.0 processor never sends the `beat`
+ * message a later 6.x main thread listens for (RBA-109). Refresh the copy on every upgrade to get every feature.
+ */
 export const PROTOCOL_VERSION = 1;
 
 /**
- * The tempo engine.
+ * The tempo engine. May grow in a minor release, like every exported union but {@link Status}: give a `switch`
+ * over it a `default` branch.
  *
  * - `peaks`: amplitude peaks after a lowpass.
  * - `tempogram`: spectral flux across several bands and a sliding autocorrelation.
@@ -74,7 +84,7 @@ export type OfflineOptions = {
 };
 
 /**
- * How a candidate's tempo relates to the reading's tempo.
+ * How a candidate's tempo relates to the reading's tempo. May grow in a minor release.
  *
  * - `top`: the reading's own tempo. Only `candidates[0]` has it.
  * - `half` / `double`: half or twice the top tempo, within {@link RELATION_TOLERANCE}.
@@ -105,6 +115,16 @@ export type Candidate = {
 export type AudioSpan = {
   readonly from: number;
   readonly to: number;
+  /**
+   * Realtime: the `AudioContext.currentTime` at which the last analysed sample, the one at `to`, reached the
+   * analyzer, stamped in the worklet. It anchors audio time to the context clock: a moment `t` of analysed audio
+   * (a beat, in 6.x) is at `contextTime - (to - t)` on the clock `AudioContext` schedules on. That holds back to
+   * the last lost live input, which audio time counts as silence. The time the sound reached the analyzer, so add
+   * `outputLatency` to line something up with what the listener hears.
+   *
+   * `null` offline, where no context clock runs.
+   */
+  readonly contextTime: number | null;
 };
 
 /**
@@ -120,6 +140,17 @@ export type Reading = {
    * fall outside the range: a `half` or `double` often does.
    */
   readonly bpm: number;
+  /**
+   * The same tempo unrounded, in BPM: the engine's own estimate before it is rounded to `bpm`. For timing, not for
+   * display. A beat grid or a marker export laid on `bpm` drifts: a real 127.6 BPM shown as 128 puts the markers
+   * about 0.56 s off after 3 minutes. Lay the grid on `60 / bpmExact` seconds instead, and keep showing `bpm`.
+   *
+   * Each engine measures it, never derives it from `bpm`: `peaks` takes the vote-weighted mean of the unrounded
+   * interval tempos within 1 BPM of `bpm`, and `tempogram` the interpolated top of its tempo curve. So it is
+   * within 1.5 BPM of `bpm`, and `Math.round(bpmExact)` can differ from `bpm` by one when the peaks votes straddle
+   * two whole numbers: `bpm` is the whole number with the most votes, not a rounding of `bpmExact`.
+   */
+  readonly bpmExact: number;
   /**
    * UNCALIBRATED, 0 to 1. For now the engine's own normalised score for the top tempo, so it means something
    * different per engine and between realtime and offline: `peaks` gives the share of interval votes within
@@ -146,7 +177,7 @@ export type Reading = {
 export type OfflineResult = Reading | null;
 
 /**
- * Error names, after the DOM's `...Error` names. Serialisable through `postMessage`: never an `Error` instance.
+ * Error names, after the DOM's `...Error` names. May grow in a minor release. Serialisable through `postMessage`: never an `Error` instance.
  * The detail is in `message`, which has no stable format.
  */
 export type AnalyzerErrorName =
@@ -166,13 +197,19 @@ export type AnalyzerError = {
   readonly message: string;
 };
 
-/** The analyzer's status, the discriminant of {@link AnalyzerState}. */
+/**
+ * The analyzer's status, the discriminant of {@link AnalyzerState}. The one closed union: a new status would
+ * change what the existing ones mean, so it waits for a major release, and an exhaustive `switch` over it is safe.
+ */
 export type Status = AnalyzerState['status'];
 
 /** Any status but `stopped`. */
 export type ActiveStatus = Exclude<Status, 'stopped'>;
 
-/** Why the analyzer is listening, so a late subscriber can tell a fresh start from a lost pulse or lost input. */
+/**
+ * Why the analyzer is listening, so a late subscriber can tell a fresh start from a lost pulse or lost input.
+ * May grow in a minor release.
+ */
 export type ListeningReason = 'started' | 'reset' | 'pulse-lost' | 'audio-lost' | 'tempo-changed';
 
 /**
@@ -203,7 +240,7 @@ export type AnalyzerState =
   | {readonly status: 'locked'; readonly epoch: number; readonly reading: Reading}
   | {readonly status: 'stopped'; readonly epoch: number; readonly error: AnalyzerError | null};
 
-/** Reasons the engine gives, inside a worklet message. */
+/** Reasons the engine gives, inside a worklet message. May grow in a minor release. */
 export type EngineReason =
   /** listening to settling: the first reading of this stretch. */
   | 'first-reading'
@@ -221,7 +258,10 @@ export type EngineReason =
 /** Reasons that come from the caller: `reset()` and `stop()`. */
 export type CallerReason = 'reset' | 'stopped';
 
-/** Every reason a `statechange` can carry. */
+/**
+ * Every reason a `statechange` can carry. May grow in a minor release: branch on `to.status`, which is closed, and
+ * treat an unknown reason as informational.
+ */
 export type StateChangeReason = EngineReason | CallerReason | 'failed';
 
 /**
@@ -243,7 +283,7 @@ export type Progress = {readonly fraction: number};
 export type DebugInfo = {readonly engine: EngineName; readonly data: unknown};
 
 /**
- * The analyzer's events.
+ * The analyzer's events. May grow in a minor release: a new event type is additive, as nobody listens to it yet.
  *
  * @remarks
  * Dispatch order, for each analysis step: `state` is updated, then `statechange` fires if the status, the
@@ -256,6 +296,10 @@ export type DebugInfo = {readonly engine: EngineName; readonly data: unknown};
  * - `progress`: on each analysis step while `listening`, and once right after `reset()`, with 0.
  * - `error`: non-fatal faults. A fatal one is a `statechange` to `stopped` with reason `failed` instead.
  * - `debug`: engine detail, only with `debug: true`.
+ *
+ * Reserved for 6.x (RBA-109): a `beat` event, on the `AudioContext` clock ({@link AudioSpan.contextTime}). It
+ * belongs to the epoch and the stretch of audio it was predicted in: `reset()` and every move to `listening`
+ * cancel every predicted beat not yet dispatched, so no beat of an older epoch or a lost pulse is ever reported.
  */
 export type AnalyzerEventMap = {
   readonly statechange: StateChange;
@@ -311,7 +355,11 @@ export type BpmAnalyzerContract = {
   stop(): void;
 };
 
-/** Worklet to main thread. Every message carries the protocol version and the epoch it was measured in. */
+/**
+ * Worklet to main thread. Every message carries the protocol version and the epoch it was measured in. The main
+ * thread validates every type it knows strictly, and ignores a type it does not know once its protocol and epoch
+ * check out, so a minor can add one (see {@link PROTOCOL_VERSION}).
+ */
 export type WorkletMessage =
   /**
    * Sent when the processor starts, with epoch 0, and again each time it adopts the epoch of a `reset`. The

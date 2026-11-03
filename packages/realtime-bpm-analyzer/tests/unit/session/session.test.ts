@@ -34,6 +34,42 @@ describe('session - what the worklet sends', () => {
     });
   }
 
+  // RBA-128. 0.1 BPM is a quarter of the 0.4 BPM that rounding 127.6 to 128 loses, so a field that only partly
+  // beats rounding fails. On these clicks the tempogram's interpolation is off by up to 0.06 BPM, peaks by under 0.01
+  for (const name of ['peaks', 'tempogram'] as const) {
+    it(`reports a whole bpm and the exact tempo it measured, for ${name}, on a 127.6 BPM click`, async function () {
+      this.timeout(20_000);
+      const session = createSession({engine: {name}, tempoRange: range, debug: false});
+      const state = reduceAll(await feedSession(session, createClickTrack(127.6, sampleRate, 25), sampleRate));
+
+      expect(state.status).to.equal('locked');
+      const reading = state.status === 'locked' ? state.reading : null;
+      expect(reading?.bpm).to.equal(128);
+      expect(reading?.bpmExact).to.be.closeTo(127.6, 0.1);
+    });
+  }
+
+  it('anchors each reading to the context time the processor gives, and to none without one', async function () {
+    this.timeout(20_000);
+    const pcm = createClickTrack(120, sampleRate, 15);
+    const contextTimes: Array<number | null> = [];
+    const anchored = createSession({engine: {name: 'peaks'}, tempoRange: range, debug: false});
+    for (let start = 0, index = 0; start + 4096 <= pcm.length; start += 4096, index += 1) {
+      for (const message of await anchored.analyze(pcm.subarray(start, start + 4096), 4096, sampleRate, 100 + index)) {
+        if (message.type === 'step' && message.status !== 'listening') {
+          // The reading's own buffer: its audio ends where that buffer's context time is
+          expect(message.reading.audio.contextTime! - 100).to.equal(Math.round(message.reading.audio.to * sampleRate / 4096) - 1);
+          contextTimes.push(message.reading.audio.contextTime);
+        }
+      }
+    }
+
+    expect(contextTimes.length).to.be.greaterThan(0);
+    const plain = createSession({engine: {name: 'peaks'}, tempoRange: range, debug: false});
+    const readings = stepsOf(await feedSession(plain, pcm, sampleRate)).flatMap(step => (step.status === 'listening' ? [] : [step.reading]));
+    expect(readings.every(reading => reading.audio.contextTime === null)).to.equal(true);
+  });
+
   it('gives readings whose audio span grows within the epoch, and candidates their relation', async () => {
     const session = createSession({engine: {name: 'peaks'}, tempoRange: range, debug: false});
     const readings = stepsOf(await feedSession(session, createClickTrack(120, sampleRate, 15), sampleRate))

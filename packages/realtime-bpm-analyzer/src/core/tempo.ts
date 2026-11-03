@@ -188,93 +188,67 @@ export function groupByTempo({
   tempoRange,
 }: AnalyzerGroupByTempoOptions): Tempo[] {
   const {min, max} = resolveTempoRange(tempoRange);
-  const tempoCounts: Tempo[] = [];
+  // Keyed by the whole BPM each vote rounds to. A Map keeps first-seen order, which breaks ties in the ranking
+  // exactly as the array this replaced did, so `tempo` and `count` are unchanged from 5.x
+  const groups = new Map<number, Votes>();
 
   for (const intervalCount of intervalCounts) {
-    /**
-     * Skip if interval is equal 0
-     */
     if (intervalCount.interval === 0) {
       continue;
     }
 
-    // Use local variable to avoid mutating input parameter
-    const absoluteInterval = Math.abs(intervalCount.interval);
+    let foldedTempo = 60 / (Math.abs(intervalCount.interval) / audioSampleRate);
 
-    /**
-     * Convert an interval to tempo
-     */
-    let theoreticalTempo = 60 / (absoluteInterval / audioSampleRate);
-
-    /**
-     * Fold the tempo by octaves into the range (90-180 BPM by default)
-     */
-    while (theoreticalTempo < min) {
-      theoreticalTempo *= 2;
+    // Fold the tempo by octaves into the range (90-180 BPM by default)
+    while (foldedTempo < min) {
+      foldedTempo *= 2;
     }
 
-    while (theoreticalTempo > max) {
-      theoreticalTempo /= 2;
+    while (foldedTempo > max) {
+      foldedTempo /= 2;
     }
 
-    /**
-     * Round to legible integer
-     */
-    theoreticalTempo = Math.round(theoreticalTempo);
-
-    /**
-     * See if another interval resolved to the same tempo
-     */
-    let foundTempo = tempoCounts.find(
-      (tempoCount: Tempo) => tempoCount.tempo === theoreticalTempo,
-    );
-
-    if (foundTempo) {
-      // Create new object with aggregated count (immutable update)
-      const index = tempoCounts.indexOf(foundTempo);
-      tempoCounts[index] = {
-        tempo: foundTempo.tempo,
-        count: foundTempo.count + intervalCount.count,
-        confidence: foundTempo.confidence,
-      };
-      foundTempo = tempoCounts[index];
-    }
-
-    /**
-     * Add a unique tempo to the collection
-     */
-    if (!foundTempo) {
-      const tempo: Tempo = {
-        tempo: theoreticalTempo,
-        count: intervalCount.count,
-        confidence: 0,
-      };
-
-      tempoCounts.push(tempo);
-    }
+    const tempo = Math.round(foldedTempo);
+    const votes = groups.get(tempo) ?? {count: 0, weightedSum: 0};
+    groups.set(tempo, {
+      count: votes.count + intervalCount.count,
+      weightedSum: votes.weightedSum + (intervalCount.count * foldedTempo),
+    });
   }
 
-  return withConfidence(tempoCounts);
+  return withConfidence(groups);
 }
 
-/**
- * Set each tempo's confidence: its ±1 BPM support over all votes (RBA-12 proposal v1).
- * Pooling neighbours absorbs rounding jitter, since a true 128 splits its votes over 127–129.
- * @param tempos - Every tempo group, so the total counts all votes
- * @returns New tempo objects in the same order
- */
-function withConfidence(tempos: Tempo[]): Tempo[] {
-  const countByTempo = new Map(tempos.map(t => [t.tempo, t.count]));
-  const totalVotes = tempos.reduce((sum, t) => sum + t.count, 0);
+/** The interval votes that rounded to one whole BPM, and the sum of their unrounded tempos weighted by count */
+type Votes = {
+  readonly count: number;
+  readonly weightedSum: number;
+};
 
-  return tempos.map(t => {
-    const support = (countByTempo.get(t.tempo - 1) ?? 0)
-      + t.count
-      + (countByTempo.get(t.tempo + 1) ?? 0);
+/**
+ * Sets each tempo's confidence and exact tempo from the same ±1 BPM window (RBA-12 proposal v1, RBA-128).
+ * Pooling neighbours absorbs rounding jitter, since a true 128 splits its votes over 127–129. The exact tempo is
+ * the vote-weighted mean of the unrounded tempos in that window: a true 127.5 splits its votes between 127 and
+ * 128, and only the window's mean comes back to 127.5, where the group's own mean would lean to its whole BPM.
+ * @param groups - Every tempo group, so the total counts all votes
+ * @returns One tempo per group, in the groups' order
+ */
+function withConfidence(groups: ReadonlyMap<number, Votes>): Tempo[] {
+  let totalVotes = 0;
+  for (const {count} of groups.values()) {
+    totalVotes += count;
+  }
+
+  return [...groups].map(([tempo, {count}]) => {
+    const window = [groups.get(tempo - 1), groups.get(tempo), groups.get(tempo + 1)];
+    const support = window.reduce((sum, votes) => sum + (votes?.count ?? 0), 0);
+    const weightedSum = window.reduce((sum, votes) => sum + (votes?.weightedSum ?? 0), 0);
 
     return {
-      tempo: t.tempo,
-      count: t.count,
+      tempo,
+      // A group of zero-count votes has no mean: its whole BPM is all there is
+      exact: support > 0 ? weightedSum / support : tempo,
+      count,
       confidence: totalVotes > 0 ? support / totalVotes : 0,
     };
   });

@@ -36,9 +36,10 @@ export type Session = {
   /**
    * Analyses one full buffer and returns the messages of this step, in order. Usually one step message, but a
    * `restartAfterSeconds` start-over posts its move to listening (`tempo-changed`) before the step's own, so one
-   * step can post two. `restartForLostAudio` posts outside any step. Both follow the table.
+   * step can post two. `restartForLostAudio` posts outside any step. Both follow the table. `contextTime` is when
+   * the buffer's last sample reached the worklet, for `AudioSpan.contextTime`: null where no context runs.
    */
-  readonly analyze: (channelData: Float32Array, bufferSize: number, sampleRate: number) => Promise<WorkletMessage[]>;
+  readonly analyze: (channelData: Float32Array, bufferSize: number, sampleRate: number, contextTime?: number | null) => Promise<WorkletMessage[]>;
   /** The caller's `reset()`: adopts its epoch, starts over, and acknowledges with `ready` */
   readonly adopt: (epoch: number) => WorkletMessage[];
   /** The `liveInput` clock found that what was heard was lost: the engine starts over */
@@ -72,7 +73,7 @@ export function createSession(options: SessionOptions, clock: () => LockClock | 
     return moved.reason === undefined ? [] : [listening(0, moved.reason)];
   }
 
-  async function analyze(channelData: Float32Array, bufferSize: number, sampleRate: number): Promise<WorkletMessage[]> {
+  async function analyze(channelData: Float32Array, bufferSize: number, sampleRate: number, contextTime: number | null = null): Promise<WorkletMessage[]> {
     const messages: WorkletMessage[] = [];
     if (restartAfterSeconds !== undefined && seconds - engineStart >= restartAfterSeconds) {
       messages.push(...restart('tempo-changed'));
@@ -113,7 +114,7 @@ export function createSession(options: SessionOptions, clock: () => LockClock | 
     }
 
     // Settling or locked: the tracker only gets there, or stays there, with a reading
-    const reading = toReading(step.candidates, {from: Math.min(seconds, engineStart + step.from), to: seconds}, engine.name);
+    const reading = toReading(step.candidates, {from: Math.min(seconds, engineStart + step.from), to: seconds, contextTime}, engine.name);
     if (reading === null) {
       return messages;
     }

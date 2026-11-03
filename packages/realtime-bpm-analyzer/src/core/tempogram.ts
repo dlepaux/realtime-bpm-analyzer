@@ -518,6 +518,7 @@ export function createTempogramDetector({
       .slice(0, maxCandidates)
       .map(i => ({
         tempo: Math.round(refinedTempo(i)),
+        exact: refinedTempo(i),
         count: Math.round(ranking[i] * 1000),
         confidence: Math.min(1, accumulated[i] / accumulatedWeight),
       }))

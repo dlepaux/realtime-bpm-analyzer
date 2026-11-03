@@ -98,6 +98,26 @@ describe('RealTimeBpmProcessor - host messages', () => {
     expect(analyzed).to.equal(false);
   });
 
+  it('hands the session the context time the full buffer ends at, read before the analysis awaits', () => {
+    const processor = makeProcessor();
+    const seen: unknown[] = [];
+    processor.session = {...processor.session, async analyze(...args: unknown[]) {
+      seen.push(args[3]);
+      return [];
+    }};
+    processor.aggregate = () => ({isBufferFull: true, buffer: new Float32Array(4096), bufferSize: 4096});
+
+    (globalThis as any).currentTime = 3;
+    try {
+      processor.process([[new Float32Array(128)]], [], {});
+    } finally {
+      (globalThis as any).currentTime = 0;
+    }
+
+    // The quantum starts at currentTime, and the buffer's last sample is the quantum's last
+    expect(seen).to.deep.equal([3 + (128 / 44_100)]);
+  });
+
   it('turns a throw while rendering into a fatal ProcessorError', () => {
     const processor = makeProcessor();
     processor.aggregate = () => {

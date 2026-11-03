@@ -24,7 +24,7 @@ export async function analyzeSamples(
   assertNoRemovedOptions(options);
   const engine = resolveOfflineEngine(options?.engine);
   const tempoRange = resolveTempoRange(options?.tempoRange);
-  const audio = {from: 0, to: channelData.length / sampleRate};
+  const audio = {from: 0, to: channelData.length / sampleRate, contextTime: null};
 
   if (engine.name === 'tempogram') {
     return toReading(detectTempogram(channelData, sampleRate, tempoRange), audio, 'tempogram');

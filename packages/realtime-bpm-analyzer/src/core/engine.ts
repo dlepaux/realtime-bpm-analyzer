@@ -223,9 +223,10 @@ export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: En
 
   return Object.freeze({
     bpm: top.tempo,
+    bpmExact: top.exact,
     confidence: Math.min(1, Math.max(0, top.confidence)),
     candidates: Object.freeze(candidates),
-    audio: Object.freeze({from: audio.from, to: audio.to}),
+    audio: Object.freeze({from: audio.from, to: audio.to, contextTime: audio.contextTime}),
     engine,
   });
 }

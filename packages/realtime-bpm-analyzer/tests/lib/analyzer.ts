@@ -66,7 +66,7 @@ describe('Analyzer - Integration tests', () => {
     const reading = await analyzeFullBuffer(audioBuffer);
     expect(reading?.bpm).to.be.equal(125);
     expect(reading?.engine).to.equal('peaks');
-    expect(reading?.audio).to.deep.equal({from: 0, to: audioBuffer.duration});
+    expect(reading?.audio).to.deep.equal({from: 0, to: audioBuffer.duration, contextTime: null});
   });
 
   it('should fold the detected BPM into a caller-supplied tempo range', async function () {

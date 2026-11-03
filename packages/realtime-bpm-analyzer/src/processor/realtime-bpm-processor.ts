@@ -246,9 +246,12 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     const session = this.session;
     // A failed step belongs to the epoch it was measured in: a reset() during it makes the fault stale, not current
     const measuredIn = session.epoch();
+    // Read now, before the analysis awaits. currentTime is the start of this render quantum: a real chunk ends one
+    // quantum later, while owed silence stands for input lost before this quantum, so it ends where the quantum begins
+    const contextTime = currentTime + (anotherFollows ? 0 : renderQuantumFrames / sampleRate);
     // The variable sampleRate is global, given by the AudioWorkletGlobalScope
     session
-      .analyze(anotherFollows ? buffer.slice() : buffer, bufferSize, sampleRate)
+      .analyze(anotherFollows ? buffer.slice() : buffer, bufferSize, sampleRate, contextTime)
       .then(messages => {
         if (!this.stopped) {
           messages.forEach(message => {

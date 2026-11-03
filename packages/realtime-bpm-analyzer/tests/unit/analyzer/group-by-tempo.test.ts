@@ -305,6 +305,34 @@ describe('analyzer - groupByTempo', () => {
       expect(result[0].confidence).to.equal(1);
     });
 
+    it('keeps the unrounded tempo as exact: the vote-weighted mean of the ±1 BPM window', () => {
+      // 127.6 BPM is 20736.68 samples a beat: peaks land on whole samples, so the votes split around it
+      const intervals: Interval[] = [
+        {interval: 20736, count: 6},
+        {interval: 20737, count: 4},
+      ];
+      const [top] = groupByTempo({audioSampleRate: sampleRate, intervalCounts: intervals});
+      const expected = ((6 * 60 * sampleRate / 20736) + (4 * 60 * sampleRate / 20737)) / 10;
+
+      expect(top.tempo).to.equal(128);
+      expect(top.exact).to.be.closeTo(expected, 1e-9);
+    });
+
+    it('brings a tempo whose votes straddle two whole numbers back to the middle', () => {
+      // Half the votes round to 127, half to 128: each group's own mean would lean to its whole number
+      const at = (bpm: number) => Math.round(60 * sampleRate / bpm);
+      const intervals: Interval[] = [
+        {interval: at(127.3), count: 5},
+        {interval: at(127.7), count: 5},
+      ];
+      const result = groupByTempo({audioSampleRate: sampleRate, intervalCounts: intervals});
+
+      expect(result.map(({tempo, count}) => ({tempo, count}))).to.deep.equal([{tempo: 127, count: 5}, {tempo: 128, count: 5}]);
+      for (const tempo of result) {
+        expect(tempo.exact).to.be.closeTo(127.5, 0.01);
+      }
+    });
+
     it('should preserve count values', () => {
       const intervals: Interval[] = [
         {interval: 22050, count: 42},

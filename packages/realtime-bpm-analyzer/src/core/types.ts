@@ -48,8 +48,13 @@ export type Group = {
  * @internal
  */
 export type Tempo = {
-  /** Detected tempo in beats per minute */
+  /** Detected tempo in beats per minute, a whole number */
   readonly tempo: number;
+  /**
+   * The engine's unrounded estimate of the same tempo, from its own measurement: the peaks engine's vote-weighted
+   * mean over the ±1 BPM window, the tempogram's interpolated peak. Within 1.5 BPM of `tempo`.
+   */
+  readonly exact: number;
   /** Number of peak intervals that voted for this tempo. Candidates are ranked by it. */
   readonly count: number;
   /**

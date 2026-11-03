@@ -83,13 +83,23 @@ describe('realtime-bpm-analyzer/node', () => {
     assert.ok(Math.abs(fast.bpm - 174) <= 3, `got ${fast.bpm}`);
   });
 
+  // RBA-128, the tolerance as in tests/unit/session/session.test.ts: a quarter of what rounding loses
+  for (const engine of ['peaks', 'tempogram']) {
+    it(`reports a whole bpm and the exact tempo it measured, for ${engine}, on a 127.6 BPM click`, async () => {
+      const reading = await analyzeChannelData(createClickTrack(127.6, 44_100, 30), 44_100, {engine});
+
+      assert.equal(reading.bpm, 128);
+      assert.ok(Math.abs(reading.bpmExact - 127.6) <= 0.1, `got ${reading.bpmExact}`);
+    });
+  }
+
   it('returns a reading: top candidate first with its relation, confidence from 0 to 1, the whole file as its audio', async () => {
     const reading = await analyzeChannelData(createClickTrack(120, 44_100, 30), 44_100);
 
     assert.deepEqual(reading.candidates[0], {bpm: reading.bpm, relation: 'top'});
     assert.ok(reading.candidates.slice(1).every(({relation}) => ['half', 'double', 'other'].includes(relation)));
     assert.ok(reading.confidence >= 0 && reading.confidence <= 1);
-    assert.deepEqual(reading.audio, {from: 0, to: 30});
+    assert.deepEqual(reading.audio, {from: 0, to: 30, contextTime: null});
     assert.equal(reading.engine, 'peaks');
     assert.ok(Object.isFrozen(reading));
   });

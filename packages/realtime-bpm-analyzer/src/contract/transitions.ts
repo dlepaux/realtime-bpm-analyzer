@@ -174,7 +174,9 @@ function reduceMessage(state: ActiveState, data: unknown): ReducerResult {
     case 'step':
       return reduceStep(state, data);
     default:
-      return protocolError(state, `unknown message type ${JSON.stringify(data.type)}`);
+      // A type a later minor added, from a newer processor copy: ignored, as the processor ignores unknown host
+      // messages. Its protocol and epoch passed, so it is no stale or foreign processor (PROTOCOL_VERSION)
+      return unchanged(state);
   }
 }
 
@@ -248,6 +250,9 @@ function readCandidate(value: unknown, index: number, top: number): Candidate | 
   return value.relation === expected && (index > 0 || value.bpm === top) ? freeze({bpm: value.bpm, relation: expected}) : null;
 }
 
+/** How far `bpmExact` may sit from `bpm`: the peaks engine's ±1 BPM window, plus half a BPM of rounding */
+const EXACT_TEMPO_SPAN = 1.5;
+
 /**
  * Checks the guarantees `Reading` documents, and rebuilds it from the known fields only, frozen: an engine
  * field added by mistake never reaches the public API.
@@ -257,23 +262,29 @@ export function readReading(value: unknown): Reading | null {
     return null;
   }
 
-  const {bpm, confidence, candidates, audio, engine} = value;
+  const {bpm, bpmExact, confidence, candidates, audio, engine} = value;
+  if (!isPositive(bpmExact) || Math.abs(bpmExact - bpm) > EXACT_TEMPO_SPAN) {
+    return null;
+  }
+
   if (!Array.isArray(candidates) || candidates.length === 0 || candidates.length > 5) {
     return null;
   }
 
   const read = candidates.map((candidate: unknown, index) => readCandidate(candidate, index, bpm));
   const audioOk = isRecord(audio) && typeof audio.from === 'number' && typeof audio.to === 'number'
-    && audio.from >= 0 && audio.from <= audio.to && Number.isFinite(audio.to);
+    && audio.from >= 0 && audio.from <= audio.to && Number.isFinite(audio.to)
+    && (audio.contextTime === null || (typeof audio.contextTime === 'number' && Number.isFinite(audio.contextTime) && audio.contextTime >= 0));
   if (read.includes(null) || !audioOk || (engine !== 'peaks' && engine !== 'tempogram')) {
     return null;
   }
 
   return freeze({
     bpm,
+    bpmExact,
     confidence,
     candidates: freeze(read as Candidate[]),
-    audio: freeze({from: audio.from as number, to: audio.to as number}),
+    audio: freeze({from: audio.from as number, to: audio.to as number, contextTime: audio.contextTime as number | null}),
     engine,
   });
 }

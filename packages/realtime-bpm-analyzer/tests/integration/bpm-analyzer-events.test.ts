@@ -24,9 +24,10 @@ describe('BpmAnalyzer - events and commands', function () {
 
   const reading = (bpm: number, to: number) => ({
     bpm,
+    bpmExact: bpm,
     confidence: 0.5,
     candidates: [{bpm, relation: 'top'}, {bpm: bpm / 2, relation: 'half'}],
-    audio: {from: 0, to},
+    audio: {from: 0, to, contextTime: to},
     engine: 'peaks',
   });
 

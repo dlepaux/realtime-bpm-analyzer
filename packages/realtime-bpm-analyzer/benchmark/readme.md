@@ -168,7 +168,7 @@ RBA-51's third sweep tunes on dev with RBA-59's licence-clean full mixes added t
 - **Licences.** The free mixes carry CC BY and CC BY-SA ports and versions (for example CC-BY-2.5-CA). `isTuningLicence` admits those with the base licences.
 - **Range.** 90 to 180 only, the extension's range.
 - **Score.** Macro Acc1 over the four tuning sets, as before.
-- **Guard.** Peaks' real-path Acc1 on 140 to 165 and on 165 and up, pooled over the four tuning sets on dev, read by `retune2.ts floors` from the dev run before the sweep. It is in the plan.
+- **Guard.** Peaks' real-path Acc1 on 140 to 165 and on 165 and up, pooled over the four tuning sets on dev, read by `retune2 floors` from the dev run before the sweep (61446af, alloc 4164a6fa): 140 to 165 at least 912 of 1338, 165 and up at least 155 of 383. It is in the plan.
 - **Noise.** Each row stores `scoreSe`, the standard deviation of its score over 200 seeded draws resampling artists (groups) within each set. Many mixes share an artist, so a track-level error would be too narrow.
 - **The rule** (`pickRetune2`). Among rows the guard lets through, take those within one `scoreSe` of the best. Of those, keep the ones with no knob at the measured minimum or maximum, where a penalty at 0 is the end of the knob rather than of the grid. Then take the fewest knobs moved from the 5.5.0 settings, and then the higher score. If no row is left, the rule refuses rather than pick an edge. 5.5.0 itself wins when it is within noise and interior.
 

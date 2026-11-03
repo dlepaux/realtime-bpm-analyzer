@@ -59,6 +59,11 @@
       "description": "Hold @types/node to the Node major CI runs (26.x in .github/workflows/main.yml). Types for a newer major describe APIs the runtime lacks, so code type-checks and then fails at run time. Raise this bound in the same commit that moves CI's node-version.",
       "matchPackageNames": ["@types/node"],
       "allowedVersions": "<27"
+    },
+    {
+      "description": "Hold TypeScript below 7 until ts-node and docs tooling support TS7 (TypeStrong/ts-node#2174, TypeStrong/typedoc#3098).",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7"
     }
   ]
 }

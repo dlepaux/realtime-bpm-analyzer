@@ -85,10 +85,11 @@ const fileBpm = ref<number | null>(null)
 const fileDuration = ref<number | null>(null)
 const fileElapsedMs = ref<number | null>(null)
 const fileError = ref<string | null>(null)
-// For the beat marker export (RBA-127): the engine's top candidate, a whole number today (so it
-// equals fileBpm), and the first channel, the one analyzeFullBuffer reads. The export measures
-// the first beat and the exact tempo in it only if it is opened, and the channel is released
-// once that has run, or when the result is cleared. An unopened result keeps it until then.
+// For the beat marker export (RBA-127): the reading's unrounded bpmExact, which seeds the
+// export's tempo fit, since a grid on the whole fileBpm drifts on long tracks (RBA-128), and the
+// first channel, the one analyzeFullBuffer reads. The export measures the first beat and refines
+// the tempo in it only if it is opened, and the channel is released once that has run, or when
+// the result is cleared. An unopened result keeps it until then.
 const fileTempo = ref<number | null>(null)
 const fileSamples = shallowRef<Float32Array | null>(null)
 const fileSampleRate = ref<number | null>(null)
@@ -235,11 +236,10 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
     stage = 'analyse'
     const reading = await analyzeFullBuffer(audioBuffer)
 
-    const top = reading?.bpm
-    if (top === undefined) throw new Error('No BPM candidate returned')
+    if (reading === null) throw new Error('No BPM candidate returned')
 
-    fileBpm.value = Math.round(top)
-    fileTempo.value = top
+    fileBpm.value = reading.bpm
+    fileTempo.value = reading.bpmExact
     fileDuration.value = audioBuffer.duration
     fileElapsedMs.value = Math.round(performance.now() - started)
     fileStatus.value = 'result'
@@ -338,7 +338,7 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
       const bpm = Math.round(to.reading.bpm)
       // The analyzer can lock again after it unlocks or loses the pulse: report a tempo
       // once per lock, and again only when it changes (RBA-5).
-      if (bpm !== micStableBpm.value) track('bpm_mic_stable', { bpm })
+      if (bpm !== micStableBpm.value) track('bpm_mic_locked', { bpm })
       micStableBpm.value = bpm
       micStatus.value = 'result'
     })
@@ -416,7 +416,7 @@ function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: StreamEvent
   analyzer.on('statechange', ({ to }) => {
     if (to.status !== 'locked') return
     const bpm = Math.round(to.reading.bpm)
-    if (bpm !== streamStableBpm.value) track('bpm_stream_stable', { bpm, ...stableParams })
+    if (bpm !== streamStableBpm.value) track('bpm_stream_locked', { bpm, ...stableParams })
     streamStableBpm.value = bpm
   })
 }

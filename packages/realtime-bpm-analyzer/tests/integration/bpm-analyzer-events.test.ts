@@ -32,7 +32,7 @@ describe('BpmAnalyzer - events and commands', function () {
 
   /** What the processor would post, delivered the way its port delivers it */
   function send(analyzer: BpmAnalyzer, data: Record<string, unknown>): void {
-    analyzer.node.port.onmessage?.(new MessageEvent('message', {data: {protocol: PROTOCOL_VERSION, ...data}}));
+    analyzer.node.port.onmessage?.(new MessageEvent('message', {data: {protocol: PROTOCOL_VERSION, at: analyzer.context.currentTime, ...data}}));
   }
 
   function record<T extends keyof AnalyzerEventMap>(analyzer: BpmAnalyzer, type: T): Array<AnalyzerEventMap[T]> {
@@ -98,6 +98,34 @@ describe('BpmAnalyzer - events and commands', function () {
 
       expect(once).to.deep.equal([0.1]);
       expect(signalled).to.deep.equal([0.1]);
+    });
+
+    it('drops its abort listener from the signal when unsubscribed or removed with off()', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const controller = new AbortController();
+      const {signal} = controller;
+      const added: unknown[] = [];
+      const removed: unknown[] = [];
+      const add = signal.addEventListener.bind(signal);
+      const remove = signal.removeEventListener.bind(signal);
+      signal.addEventListener = (type: string, callback: any, options?: any) => {
+        added.push(callback);
+        add(type, callback, options);
+      };
+
+      signal.removeEventListener = (type: string, callback: any, options?: any) => {
+        removed.push(callback);
+        remove(type, callback, options);
+      };
+
+      const listener = () => undefined;
+      const unsubscribe = analyzer.on('progress', () => undefined, {signal});
+      analyzer.on('reading', listener, {signal});
+      unsubscribe();
+      analyzer.off('reading', listener);
+
+      expect(added).to.have.length(2);
+      expect(removed).to.deep.equal(added);
     });
   });
 
@@ -248,6 +276,43 @@ describe('BpmAnalyzer - events and commands', function () {
   });
 
   describe('with audio', () => {
+    it('survives a main thread blocked past the watchdog window right after reset(), with old steps queued', async function () {
+      this.timeout(15_000);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const pcm = createClickTrack(128, audioContext.sampleRate, 8);
+      const buffer = audioContext.createBuffer(1, pcm.length, audioContext.sampleRate);
+      buffer.copyToChannel(pcm, 0);
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(analyzer.input);
+
+      const firstStep = waitForEvent(analyzer, 'progress', 5000);
+      source.start();
+      await firstStep;
+
+      // Steps keep coming while the main thread is busy: they queue in epoch 0. Then a click handler resets and
+      // runs on past the window. The audio clock moves all along, so only the send time tells them apart.
+      const busy = (ms: number) => {
+        const until = performance.now() + ms;
+        while (performance.now() < until) {
+          // Blocking on purpose: this is the blocked main thread under test
+        }
+      };
+
+      busy(300);
+      const resetAt = audioContext.currentTime;
+      analyzer.reset();
+      busy(1200);
+      // What the watchdog compared before messages carried their send time: past the window, so this run is the case
+      const blockedFor = audioContext.currentTime - resetAt;
+      await waitForEvent(analyzer, 'progress', 5000);
+      source.stop();
+
+      expect(blockedFor).to.be.greaterThan(1);
+      expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
+      analyzer.stop();
+    });
+
     it('reports listening progress from the real processor', async function () {
       this.timeout(10_000);
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);

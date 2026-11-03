@@ -15,39 +15,64 @@ function fakeNode() {
 }
 
 describe('BpmAnalyzer - epoch watchdog', () => {
-  const stale = {type: 'step', protocol: PROTOCOL_VERSION, epoch: 0, status: 'listening', progress: 0.1};
+  /** An epoch-0 step, stamped with the worklet time it was sent at */
+  const stale = (at: number) => ({type: 'step', protocol: PROTOCOL_VERSION, epoch: 0, status: 'listening', progress: 0.1, at});
 
   it('drops a backlog of old epochs that lands at once after reset(), however long', () => {
     const {node, send} = fakeNode();
     const analyzer = new BpmAnalyzer(node);
     analyzer.reset();
     for (let i = 0; i < 100; i += 1) {
-      send(stale);
+      send(stale(0));
     }
 
     expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
   });
 
-  it('fails with a ProtocolError, and stops the processor, when old epochs still come a second after reset()', () => {
+  it('survives a main thread blocked past the window, with an old step queued before the worklet adopted the reset', () => {
+    const {node, send, context} = fakeNode();
+    context.currentTime = 10;
+    const analyzer = new BpmAnalyzer(node);
+    analyzer.reset();
+    // A click handler runs on for 1.2 s after reset(): the audio clock moves, the port holds what came meanwhile
+    context.currentTime = 11.2;
+    send(stale(10.003));
+    send({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1, at: 10.004});
+
+    expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
+    expect(() => analyzer.reset()).to.not.throw();
+  });
+
+  it('fails with a ProtocolError, and stops the processor, when the processor still sends old epochs a second after reset()', () => {
     const {node, send, posted, context} = fakeNode();
     const analyzer = new BpmAnalyzer(node);
     analyzer.reset();
-    send(stale);
+    send(stale(0.5));
     context.currentTime = 1.5;
-    send(stale);
+    send(stale(1.5));
 
     const {state} = analyzer;
     expect(state.status === 'stopped' && state.error?.name).to.equal('ProtocolError');
     expect(posted.at(-1)).to.deep.equal({type: 'stop', protocol: PROTOCOL_VERSION});
   });
 
+  it('fails with a ProtocolError on an old epoch without its send time, as no v6 processor sends one', () => {
+    const {node, send} = fakeNode();
+    const analyzer = new BpmAnalyzer(node);
+    analyzer.reset();
+    send({type: 'step', protocol: PROTOCOL_VERSION, epoch: 0, status: 'listening', progress: 0.1});
+
+    const {state} = analyzer;
+    expect(state.status === 'stopped' && state.error?.name).to.equal('ProtocolError');
+  });
+
   it('trusts a processor that answered the reset, whatever comes late', () => {
     const {node, send, context} = fakeNode();
     const analyzer = new BpmAnalyzer(node);
     analyzer.reset();
-    send({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1});
+    send({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1, at: 0});
     context.currentTime = 5;
-    send(stale);
+    send(stale(5));
 
     expect(analyzer.state.status).to.equal('listening');
   });

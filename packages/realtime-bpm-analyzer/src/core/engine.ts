@@ -53,6 +53,36 @@ export type ResolvedEngine = {
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 /**
+ * The 5.x option names v6 removed, with what replaces each. v6 would otherwise ignore them without a word, and
+ * `{detector: 'tempogram'}` would quietly run peaks.
+ */
+const removedOptions: Readonly<Record<string, string>> = Object.freeze({
+  detector: "use engine: 'peaks' or 'tempogram'",
+  continuousAnalysis: "use engine: {name: 'peaks', restartAfterSeconds}",
+  stabilizationTime: "use engine: {name: 'peaks', restartAfterSeconds}",
+  muteTimeInIndexes: 'it has no replacement: remove it',
+  tempogramMode: "use engine: {name: 'tempogram', mode}",
+  frequencyValue: "use engine: {name: 'peaks', lowpass: {frequency}}",
+  qualityValue: "use engine: {name: 'peaks', lowpass: {q}}",
+});
+
+/**
+ * Refuses the option names 5.x knew and v6 removed, naming the replacement
+ * @param options The caller's options, realtime or offline
+ * @throws {TypeError} When one of them is set
+ */
+export function assertNoRemovedOptions(options: unknown): void {
+  if (!isRecord(options)) {
+    return;
+  }
+
+  const name = Object.keys(removedOptions).find(key => options[key] !== undefined);
+  if (name !== undefined) {
+    throw new TypeError(`The option ${name} was removed in v6: ${removedOptions[name]}.`);
+  }
+}
+
+/**
  * Validates the realtime `engine` and `tempoRange` options together, on the main thread: a throw inside the
  * worklet would not reach the caller.
  * @param engine The caller's option

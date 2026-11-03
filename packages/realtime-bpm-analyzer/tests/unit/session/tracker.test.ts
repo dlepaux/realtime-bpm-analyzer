@@ -122,11 +122,22 @@ describe('tracker - engine-neutral states', () => {
     expect(asked).to.equal(1);
   });
 
-  it('restarts to listening with the reason from settling or locked, and silently while listening', () => {
+  it('restarts to listening with the reason from settling or locked, and reports audio-lost once while listening', () => {
     const tracker = lockedTracker();
 
     expect(tracker.restart('tempo-changed')).to.deep.equal({status: 'listening', reason: 'tempo-changed'});
+    // The table lets audio-lost move listening to itself, once: the main thread refuses it twice in a row
+    expect(tracker.restart('audio-lost')).to.deep.equal({status: 'listening', reason: 'audio-lost'});
     expect(tracker.restart('audio-lost')).to.deep.equal({status: 'listening'});
+    expect(tracker.restart('tempo-changed')).to.deep.equal({status: 'listening'});
+  });
+
+  it('reports audio-lost while listening from the start, and again after a reset', () => {
+    const tracker = createTracker(hysteresis);
+
+    expect(tracker.restart('audio-lost')).to.deep.equal({status: 'listening', reason: 'audio-lost'});
+    tracker.reset();
+    expect(tracker.restart('audio-lost')).to.deep.equal({status: 'listening', reason: 'audio-lost'});
   });
 
   it('resets to listening silently: the main thread already moved', () => {

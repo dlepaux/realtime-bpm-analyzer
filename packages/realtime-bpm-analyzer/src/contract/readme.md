@@ -26,7 +26,8 @@ query, and `statechange` announces each change to it. Here:
 
 Splitting them this way gives four guarantees, and the tests check each one:
 
-1. **One source, one order.** The worklet sends one message per analysis step. The reducer turns it into
+1. **One source, one order.** The worklet sends one message per analysis step, and one more when the step
+   also started the engine over (`tempo-changed` with `restartAfterSeconds`). The reducer turns each into
    the next state and an ordered list of events. The state is stored first, then `statechange`
    dispatches, then `reading` or `progress`. Inside any listener, `state` is already current.
 2. **Late subscribers aren't stuck.** Events are never replayed, and a listener added late reads `state`.
@@ -35,7 +36,9 @@ Splitting them this way gives four guarantees, and the tests check each one:
    nothing measured before it is reported. The only exception is a fatal fault, which stops the analyzer
    whatever its epoch, because the processor that sent it is gone. The main thread is the only writer of
    the epoch. Engine resets (`audio-lost`, `tempo-changed`, `pulse-lost`) don't move it, because the port
-   is ordered and they race with nothing.
+   is ordered and they race with nothing. Each message also carries `at`, the worklet time it was sent: the
+   watchdog that fails a processor still sending old epochs a second after `reset()` judges by it, so a
+   blocked main thread, which receives a backlog late, never trips it.
 4. **Re-entrant listeners see one sequence.** A `reset()` or `stop()` called from a listener is queued until
    every listener has had every event of the current step, as `AudioContext` queues its `statechange`.
    The queue is bounded, so a listener that resets on every `statechange` throws instead of looping.

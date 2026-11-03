@@ -15,7 +15,7 @@ describe('RealTimeBpmProcessor - a live input\'s clock', () => {
 
   /** Renders `seconds` at `threadShare` of the input's pace, reporting it or not, and tells what reached the analyzer */
   function render(threadShare: number, seconds: number, {reported = true, connected = true} = {}) {
-    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions()});
+    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(undefined, false, true)});
     const heard = {input: 0, silence: 0};
     const input = new Float32Array(quantum).fill(0.5);
     processor.aggregate = (pcmData: Float32Array) => {
@@ -115,7 +115,7 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
    */
   async function listen({detector = 'tempogram', bpm, seconds, share = () => 1, report = onTime, during}: Listening): Promise<Heard> {
     const engine = detector === 'tempogram' ? {name: detector, mode: 'extension'} as const : detector;
-    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(engine)});
+    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(engine, false, true)});
     const audio = groove(bpm, seconds * 1.3);
     const stable: Array<{at: number; tempo: number}> = [];
     const resets: number[] = [];
@@ -362,7 +362,7 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
 
   it('a restart period: a restart it makes itself forgets the loss too', async function () {
     this.timeout(60_000);
-    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions({name: 'peaks', restartAfterSeconds: 2})});
+    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions({name: 'peaks', restartAfterSeconds: 2}, false, true)});
     const audio = groove(150, 16);
 
     let startedOver = 0;
@@ -408,7 +408,7 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
 
   describe('silence that fills the buffer', () => {
     it('hands the analysis a copy: the quantum that follows would overwrite what it is reading', () => {
-      const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions()});
+      const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(undefined, false, true)});
       const handed: Array<{data: Float32Array; asHanded: Float32Array}> = [];
 
       let quanta = 0;

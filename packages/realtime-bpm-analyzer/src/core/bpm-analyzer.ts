@@ -19,10 +19,11 @@ import {followTrackClock} from './sample-clock';
 export const readyTimeoutMs = 5000;
 
 /**
- * How long, in context time after a `reset()`, messages from older epochs may still arrive before the processor
- * is judged deaf to it. The port is FIFO, so whatever was sent before the reset lands in one burst however long
- * the main thread was blocked, at about the context time of the reset: a backlog never trips this, and a count
- * would. Context time, because a suspended context sends nothing and must not fail an analyzer that is fine.
+ * How long after a `reset()` the processor may still send messages of older epochs before it is judged deaf to it.
+ * Judged by when the processor sent each one (its `at`, the worklet's `currentTime`), not when the main thread got
+ * to it: the port is FIFO and the audio clock runs while the main thread is blocked, so a backlog sent before the
+ * worklet adopted the reset arrives late but stamped early, and a processor that keeps sending old epochs is
+ * stamped later and later. Context time, because a suspended context sends nothing and must not fail an analyzer.
  */
 export const staleAfterSeconds = 1;
 
@@ -119,6 +120,8 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
   private readonly stopFollowing: () => void;
   private readonly dispatcher: Dispatcher;
   private readonly listeners = new Map<AnalyzerEventType, Map<Listener, EventListener>>();
+  // Per wrapper, how to drop its `signal`'s abort listener, so an unsubscribed listener leaves nothing on the signal
+  private readonly abortDetach = new WeakMap<EventListener, () => void>();
   // The context time of the last reset(), while messages of older epochs are still expected
   private resetAt: number | null = null;
   private markReady: () => void = () => undefined;
@@ -219,9 +222,17 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
 
     byType.set(listener, wrapper);
     this.addEventListener(type, wrapper);
-    options?.signal?.addEventListener('abort', () => {
-      this.removeIfCurrent(type, listener, wrapper);
-    }, {once: true});
+    const signal = options?.signal;
+    if (signal !== undefined) {
+      const onAbort = () => {
+        this.removeIfCurrent(type, listener, wrapper);
+      };
+
+      signal.addEventListener('abort', onAbort, {once: true});
+      this.abortDetach.set(wrapper, () => {
+        signal.removeEventListener('abort', onAbort);
+      });
+    }
 
     return () => {
       this.removeIfCurrent(type, listener, wrapper);
@@ -247,7 +258,6 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
    */
   fault(error: AnalyzerError): void {
     this.dispatcher.apply({kind: 'fault', error: Object.freeze({...error})});
-    this.settle();
     this.settle();
   }
 
@@ -339,6 +349,8 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
 
     byType.delete(listener);
     this.removeEventListener(type, wrapper);
+    this.abortDetach.get(wrapper)?.();
+    this.abortDetach.delete(wrapper);
   }
 
   private emit(event: AnalyzerEvent): void {
@@ -351,20 +363,28 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
       return;
     }
 
-    const message = typeof data === 'object' && data !== null ? data as {type?: unknown; protocol?: unknown; epoch?: unknown} : null;
+    const message = typeof data === 'object' && data !== null ? data as {type?: unknown; protocol?: unknown; epoch?: unknown; at?: unknown} : null;
     if (message?.type === 'ready' && message.protocol === PROTOCOL_VERSION && message.epoch === 0) {
       this.markReady();
     }
 
     const epoch = this.state.epoch;
-    const stale = typeof message?.epoch === 'number' && message.epoch < epoch && message.type !== 'fault';
     if (message?.epoch === epoch) {
       this.resetAt = null;
     }
 
-    if (stale && this.resetAt !== null && this.node.context.currentTime - this.resetAt > staleAfterSeconds) {
-      this.fault({name: 'ProtocolError', message: `the processor kept sending epoch ${String(message?.epoch)} after reset() moved to ${epoch}`});
-      return;
+    const stale = typeof message?.epoch === 'number' && message.epoch < epoch && message.type !== 'fault';
+    if (stale && message !== null && this.resetAt !== null) {
+      const {at} = message;
+      if (typeof at !== 'number' || !Number.isFinite(at)) {
+        this.fault({name: 'ProtocolError', message: 'a processor message without its send time: a stale processor file?'});
+        return;
+      }
+
+      if (at - this.resetAt > staleAfterSeconds) {
+        this.fault({name: 'ProtocolError', message: `the processor kept sending epoch ${String(message.epoch)} after reset() moved to ${epoch}`});
+        return;
+      }
     }
 
     this.dispatcher.apply({kind: 'message', data});

@@ -184,6 +184,8 @@ export type ListeningReason = 'started' | 'reset' | 'pulse-lost' | 'audio-lost' 
  *   subscriber learns live input is being lost.
  * - `settling`: readings are coming but have not agreed long enough to lock.
  * - `locked`: readings agree. Leaving needs more disagreement than entering (hysteresis), so it does not flap.
+ *   The tempo can still move while locked, with no `statechange`: within the unlock band, and when peaks moves its
+ *   lock to a fuller rung. Show the latest `reading`, not only the one of the move to `locked`.
  * - `stopped`: final. `error` is null after `stop()`, set after a fatal fault.
  *
  * @remarks
@@ -314,10 +316,14 @@ export type WorkletMessage =
   /**
    * Sent when the processor starts, with epoch 0, and again each time it adopts the epoch of a `reset`. The
    * factory waits for the first, with a timeout, before it resolves, so a stale processor fails at startup: a 5.x
-   * one never sends it. The later ones end the epoch watchdog's count.
+   * one never sends it. The later ones end the epoch watchdog's wait.
    */
   | {readonly type: 'ready'; readonly protocol: number; readonly epoch: number}
-  /** One per analysis step while listening. `reason` only when this step moved the status. */
+  /**
+   * One per analysis step while listening. `reason` only when this step moved the status. A start-over
+   * (`tempo-changed` with `restartAfterSeconds`, `audio-lost` with `liveInput`) sends one of its own, so one step
+   * can send two.
+   */
   | {
     readonly type: 'step';
     readonly protocol: number;
@@ -338,6 +344,13 @@ export type WorkletMessage =
   | {readonly type: 'fault'; readonly protocol: number; readonly epoch: number; readonly fatal: boolean; readonly error: AnalyzerError}
   /** Only sent with `debug: true`: the processor filters, not the reducer. */
   | {readonly type: 'debug'; readonly protocol: number; readonly epoch: number; readonly engine: EngineName; readonly data: unknown};
+
+/**
+ * A {@link WorkletMessage} as it crosses the port: the processor stamps each one with the worklet's `currentTime`
+ * when it posts it. The epoch watchdog judges an old epoch by when it was sent, not when the main thread got to it,
+ * so a blocked main thread cannot fail a healthy analyzer.
+ */
+export type PostedWorkletMessage = WorkletMessage & {readonly at: number};
 
 /** Main thread to worklet. The processor ignores unknown types, and adopts `epoch` from `reset`. */
 export type HostMessage =

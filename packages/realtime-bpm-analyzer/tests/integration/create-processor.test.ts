@@ -67,6 +67,29 @@ describe('createRealtimeBpmAnalyzer', function () {
       }
     });
 
+    it('refuses each 5.x option name with a TypeError that names its v6 replacement', async () => {
+      const removed: Array<[Record<string, unknown>, string]> = [
+        [{detector: 'tempogram'}, 'engine'],
+        [{continuousAnalysis: true}, 'restartAfterSeconds'],
+        [{stabilizationTime: 20_000}, 'restartAfterSeconds'],
+        [{muteTimeInIndexes: 10_000}, 'no replacement'],
+        [{tempogramMode: 'extension'}, 'mode'],
+        [{frequencyValue: 200}, 'lowpass'],
+        [{qualityValue: 1}, 'lowpass'],
+      ];
+      for (const [options, replacement] of removed) {
+        let caught: unknown;
+        try {
+          await createRealtimeBpmAnalyzer(audioContext, options as Parameters<typeof createRealtimeBpmAnalyzer>[1]);
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught, JSON.stringify(options)).to.be.instanceOf(TypeError);
+        expect((caught as Error).message).to.contain(Object.keys(options)[0]).and.to.contain(replacement);
+      }
+    });
+
     it('should accept a tempo range', async () => {
       const processor = await createRealtimeBpmAnalyzer(audioContext, {
         tempoRange: {min: 70, max: 140},

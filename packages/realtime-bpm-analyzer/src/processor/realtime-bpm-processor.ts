@@ -6,13 +6,15 @@ import {createSession} from '../core/session';
 import type {ProcessorOptions, Session} from '../core/session';
 import type {AggregateData} from '../core/types';
 import {PROTOCOL_VERSION} from '../contract/types';
-import type {AnalyzerErrorName, WorkletMessage} from '../contract/types';
+import type {AnalyzerErrorName, PostedWorkletMessage, WorkletMessage} from '../contract/types';
 
 /**
  * Those declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.
  */
 /* eslint-disable no-var */
 declare var sampleRate: number;
+// The context time of the render quantum, given by the AudioWorkletGlobalScope
+declare var currentTime: number;
 
 interface AudioWorkletProcessor {
   readonly port: AuthorizedMessagePort;
@@ -20,7 +22,7 @@ interface AudioWorkletProcessor {
 
 // Define a type for a message port that only accepts specific message types
 interface AuthorizedMessagePort extends MessagePort {
-  postMessage(message: WorkletMessage): void;
+  postMessage(message: PostedWorkletMessage): void;
 }
 
 type AudioWorkletProcessorParameters = {
@@ -88,6 +90,8 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   analysisInProgress = false;
   // Made by the first report of a live input's clock: a source the audio thread pulls waits for it and loses nothing.
   sampleClock: SampleClock | null = null;
+  // Only an analyzer made with `liveInput` reports a clock: from any other, `delivered` is ignored
+  liveInput = false;
   silentQuantum = new Float32Array(renderQuantumFrames);
 
   constructor(options: AudioWorkletProcessorParameters) {
@@ -103,12 +107,14 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       return;
     }
 
+    this.liveInput = processorOptions.liveInput === true;
     this.session = createSession(processorOptions, () => this.sampleClock);
     this.post({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 0});
   }
 
+  /** Every message leaves stamped with when it was sent, for the main thread's epoch watchdog */
   post(message: WorkletMessage): void {
-    this.port.postMessage(message);
+    this.port.postMessage({...message, at: currentTime});
   }
 
   /**
@@ -171,7 +177,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       return;
     }
 
-    if (typeof data.seconds === 'number') {
+    if (this.liveInput && typeof data.seconds === 'number') {
       this.sampleClock ??= createSampleClock(sampleRate);
       this.sampleClock.observe(data.seconds);
     }
@@ -238,6 +244,8 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
     this.analysisInProgress = true;
     const session = this.session;
+    // A failed step belongs to the epoch it was measured in: a reset() during it makes the fault stale, not current
+    const measuredIn = session.epoch();
     // The variable sampleRate is global, given by the AudioWorkletGlobalScope
     session
       .analyze(anotherFollows ? buffer.slice() : buffer, bufferSize, sampleRate)
@@ -249,7 +257,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
         }
       }, (error: unknown) => {
         // One step failed: say so, and let the next one run
-        this.post({type: 'fault', protocol: PROTOCOL_VERSION, epoch: session.epoch(), fatal: false, error: {name: 'AnalysisError', message: errorMessage(error)}});
+        this.post({type: 'fault', protocol: PROTOCOL_VERSION, epoch: measuredIn, fatal: false, error: {name: 'AnalysisError', message: errorMessage(error)}});
       })
       .finally(() => {
         this.analysisInProgress = false;

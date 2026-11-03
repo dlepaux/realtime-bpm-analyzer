@@ -2,7 +2,7 @@ import {realtimeBpmProcessorName} from './core/consts';
 import realtimeBpmProcessorContent from './generated-processor';
 import {BpmAnalyzer, whenReady} from './core/bpm-analyzer';
 import {getBiquadFilter} from './core/offline-pipeline';
-import {resolveEngine} from './core/engine';
+import {assertNoRemovedOptions, resolveEngine} from './core/engine';
 import {PROTOCOL_VERSION} from './contract/types';
 import type {AnalyzerOptions} from './contract/types';
 import type {ProcessorOptions} from './core/session';
@@ -51,7 +51,7 @@ export type {BiquadFilterOptions} from './core/types';
  * for a MediaStream source, and `debug`
  * @returns The analyzer, once its processor has said it is ready
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
- * @throws {TypeError} When `processorUrl`, `liveInput` or `debug` has the wrong type
+ * @throws {TypeError} When `processorUrl`, `liveInput` or `debug` has the wrong type, or a 5.x option is set
  * @throws {Error} When the processor fails to load, or sends no `ready` in time (a stale processor file)
  *
  * @example
@@ -103,6 +103,7 @@ export async function createRealtimeBpmAnalyzer(
 ): Promise<BpmAnalyzer> {
   // processorUrl and liveInput are main-thread concerns: kept out of the worklet's options, where a URL object
   // or a track would also fail structured cloning.
+  assertNoRemovedOptions(options);
   const {processorUrl, liveInput, debug = false} = options ?? {};
   assertProcessorUrl(processorUrl);
   assertLiveInput(liveInput);
@@ -112,7 +113,7 @@ export async function createRealtimeBpmAnalyzer(
 
   // Validated here: a throw inside the worklet constructor would not reach the caller
   const {engine, tempoRange} = resolveEngine(options?.engine, options?.tempoRange);
-  const processorOptions: ProcessorOptions = {engine, tempoRange, debug, protocol: PROTOCOL_VERSION};
+  const processorOptions: ProcessorOptions = {engine, tempoRange, debug, liveInput: liveInput !== undefined, protocol: PROTOCOL_VERSION};
   const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName, processorOptions, processorUrl);
   // The peaks engine reads the bass: the lowpass sits in front of it, inside `input`
   const analyzer = engine.name === 'tempogram'

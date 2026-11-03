@@ -68,12 +68,16 @@ describe('session - what the worklet sends', () => {
     expect(stepsOf(after).every(step => step.status === 'listening' && step.progress < 1)).to.equal(true);
   });
 
-  it('sends nothing for a restart while listening, and the move to listening otherwise', async () => {
+  it('reports a lost-audio start-over while listening once, and the move to listening otherwise', async () => {
     const session = createSession({engine: {name: 'peaks'}, tempoRange: range, debug: false});
+    const lost = {type: 'step', protocol: PROTOCOL_VERSION, epoch: 0, status: 'listening', progress: 0, reason: 'audio-lost'};
 
+    expect(session.restartForLostAudio()).to.deep.equal([lost]);
     expect(session.restartForLostAudio()).to.deep.equal([]);
-    await feedSession(session, createClickTrack(120, sampleRate, 10), sampleRate);
-    expect(session.restartForLostAudio()).to.deep.equal([{type: 'step', protocol: PROTOCOL_VERSION, epoch: 0, status: 'listening', progress: 0, reason: 'audio-lost'}]);
+    const fed = await feedSession(session, createClickTrack(120, sampleRate, 10), sampleRate);
+    expect(session.restartForLostAudio()).to.deep.equal([lost]);
+    // What the main thread receives stays legal under the table
+    reduceAll([{message: lost}, ...fed, {message: lost}]);
   });
 
   it('reads on while the live input clock is losing, and withholds the lock, which arms its start-over', async () => {

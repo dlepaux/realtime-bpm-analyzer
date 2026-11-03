@@ -29,7 +29,8 @@ export type Tracker = {
   readonly step: (input: TrackerInput) => TrackerOutput;
   /**
    * The engine discarded its history (`tempo-changed`, or the `liveInput` clock's `audio-lost`). From settling or
-   * locked it is a move to listening; while listening it is silent, as nothing was reported.
+   * locked it is a move to listening. While listening, `audio-lost` is reported once, as the table allows, so a
+   * lost input is visible before the first reading; a second one, or `tempo-changed`, is silent.
    */
   readonly restart: (reason: 'tempo-changed' | 'audio-lost') => TrackerOutput;
   /** The caller's reset: back to listening, silently, since the main thread already moved */
@@ -53,9 +54,12 @@ export function createTracker(hysteresis: Hysteresis): Tracker {
   // A lock the engine offered while listening, or on the step that left it: peaks offers once per rung, and
   // after a lost pulse it may offer on its kept history before the pulse is back, so the offer would be lost
   let pendingOffer = false;
+  // Why it is listening, as the main thread's state says: `audio-lost` while listening is reported only once
+  let listeningReason: ListeningReason = 'started';
 
   const enterListening = (reason: Exclude<ListeningReason, 'started' | 'reset'>): TrackerOutput => {
     status = 'listening';
+    listeningReason = reason;
     outsideSince = null;
     pendingOffer = false;
     return {status, reason};
@@ -133,10 +137,15 @@ export function createTracker(hysteresis: Hysteresis): Tracker {
     restart(reason) {
       lastPulseAt = 0;
       pendingOffer = false;
-      return status === 'listening' ? hold() : enterListening(reason);
+      if (status !== 'listening') {
+        return enterListening(reason);
+      }
+
+      return reason === 'audio-lost' && listeningReason !== 'audio-lost' ? enterListening(reason) : hold();
     },
     reset() {
       status = 'listening';
+      listeningReason = 'reset';
       anchor = 0;
       outsideSince = null;
       lastPulseAt = 0;

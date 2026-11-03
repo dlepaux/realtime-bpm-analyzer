@@ -74,6 +74,9 @@ describe('realtime-bpm-analyzer/node', () => {
     assert.ok(Math.abs(reading.bpm - 128) <= 1, `got ${reading.bpm}`);
     assert.equal(reading.engine, 'tempogram');
     await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: 'magic'}), RangeError);
+    // A 5.x option name would otherwise be ignored: {detector: 'tempogram'} would run peaks
+    await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {detector: 'tempogram'}), {name: 'TypeError', message: /detector.*engine/});
+    await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {frequencyValue: 200}), {name: 'TypeError', message: /lowpass/});
     // The first pick, on 50 to 240, read this at half
     const fast = await analyzeChannelData(createClickTrack(174), 44_100, {engine: 'tempogram'});
 

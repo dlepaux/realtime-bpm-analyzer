@@ -23,6 +23,8 @@ export type SessionOptions = {
 export type ProcessorOptions = SessionOptions & {
   /** The main thread's protocol: a processor that speaks another refuses to start */
   readonly protocol: number;
+  /** Whether the main thread reports a live input's clock: without one, `delivered` messages are ignored */
+  readonly liveInput: boolean;
 };
 
 /**
@@ -31,7 +33,11 @@ export type ProcessorOptions = SessionOptions & {
  * measures is what callers get.
  */
 export type Session = {
-  /** Analyses one full buffer and returns the messages of this step, in order */
+  /**
+   * Analyses one full buffer and returns the messages of this step, in order. Usually one step message, but a
+   * `restartAfterSeconds` start-over posts its move to listening (`tempo-changed`) before the step's own, so one
+   * step can post two. `restartForLostAudio` posts outside any step. Both follow the table.
+   */
   readonly analyze: (channelData: Float32Array, bufferSize: number, sampleRate: number) => Promise<WorkletMessage[]>;
   /** The caller's `reset()`: adopts its epoch, starts over, and acknowledges with `ready` */
   readonly adopt: (epoch: number) => WorkletMessage[];

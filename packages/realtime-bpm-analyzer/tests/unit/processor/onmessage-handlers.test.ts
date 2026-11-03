@@ -14,7 +14,31 @@ describe('RealTimeBpmProcessor - host messages', () => {
     new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: options});
 
   it('says it is ready, in epoch 0 and in its protocol', () => {
-    expect(makeProcessor().posted).to.deep.equal([{type: 'ready', protocol: PROTOCOL_VERSION, epoch: 0}]);
+    expect(makeProcessor().posted).to.deep.equal([{type: 'ready', protocol: PROTOCOL_VERSION, epoch: 0, at: 0}]);
+  });
+
+  it('stamps every message with the worklet clock at the time it is sent, for the epoch watchdog', () => {
+    const processor = makeProcessor();
+    (globalThis as any).currentTime = 2.5;
+    try {
+      processor.onMessage(host({type: 'reset', epoch: 1}));
+    } finally {
+      (globalThis as any).currentTime = 0;
+    }
+
+    expect(processor.posted.at(-1)).to.deep.equal({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1, at: 2.5});
+  });
+
+  it('ignores the live input clock of an analyzer made without liveInput', () => {
+    const processor = makeProcessor();
+    processor.onMessage(host({type: 'delivered', seconds: 1}));
+
+    expect(processor.sampleClock).to.equal(null);
+    expect(processor.stopped).to.equal(false);
+
+    const live = makeProcessor(processorOptions(undefined, false, true));
+    live.onMessage(host({type: 'delivered', seconds: 1}));
+    expect(live.sampleClock).to.not.equal(null);
   });
 
   it('refuses options of another protocol with a fatal fault, and never processes', () => {
@@ -38,7 +62,7 @@ describe('RealTimeBpmProcessor - host messages', () => {
     processor.onMessage(host({type: 'reset', epoch: 1}));
 
     expect(adopted).to.equal(1);
-    expect(processor.posted.at(-1)).to.deep.equal({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1});
+    expect(processor.posted.at(-1)).to.deep.equal({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1, at: 0});
   });
 
   it('fails on a reset that does not move the epoch forward', () => {

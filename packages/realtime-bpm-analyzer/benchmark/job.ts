@@ -12,11 +12,11 @@ import {join} from 'node:path';
 import {parseArgs} from 'node:util';
 import {dataRoot, loaders} from './lib/datasets';
 import {freeLoaders} from './lib/free-mixes';
-import {isFreeSet} from './lib/free-mixes-rows';
+import {freeHeldoutRefusal, isFreeSet} from './lib/free-mixes-rows';
 import {rebuild, stopCommands} from './lib/fetch';
 import type {DataReport} from './lib/fetch';
 import type {SetReport} from './lib/sources';
-import {tuningSets} from './lib/licences';
+import {assertTunableSets, cleanSets} from './lib/licences';
 import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
 import {lookDetectorRefusal, lookRefusal, lookScopeRefusal} from './lib/look';
 import type {RunFailure} from './lib/look';
@@ -180,13 +180,19 @@ async function stages(summary: Summary, mode: string, wanted: readonly string[],
   summary.stage = 'data';
   save(summary);
 
-  const clean = wanted.filter(set => tuningSets.has(set));
+  const clean = wanted.filter(set => cleanSets.has(set));
+
+  // Licence-clean is not enough to tune on: contested labels are scored and never tuned to. Before the fetch
+  if (mode === 'tune') {
+    assertTunableSets(clean);
+  }
+
   const fetched = await rebuild(dataRoot, benchmarkDir, wanted.filter(set => !isFreeSet(set)));
   const data: DataReport = {...fetched, sets: {...fetched.sets, ...freeSetReports(wanted)}};
 
   summary.data = data;
 
-  const dirtyClean = data.incomplete.filter(set => tuningSets.has(set));
+  const dirtyClean = data.incomplete.filter(set => cleanSets.has(set));
 
   if (dirtyClean.length > 0 || (mode === 'heldout' && data.incomplete.length > 0)) {
     throw new Error(`Incomplete sets, see data in this file: ${data.incomplete.join(', ')}`);
@@ -256,7 +262,8 @@ async function main(): Promise<number> {
   const wanted = args?.values.sets?.split(',') ?? Object.keys(loaders);
 
   if (!args || !['tune', 'fetch', 'dev', 'heldout'].includes(mode) || !process.env.RBA_TEMPO_ROOT
-    || (mode === 'heldout' && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set) || (mode !== 'heldout' && isFreeSet(set)))) {
+    || (mode === 'heldout' && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set) || isFreeSet(set))
+    || freeHeldoutRefusal(mode, wanted) !== null) {
     console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|dev|heldout --reason <why>] [--sets a,b]');
     return 2;
   }

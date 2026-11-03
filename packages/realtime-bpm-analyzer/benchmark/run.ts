@@ -18,8 +18,8 @@ import {resolveTempoRange} from '../src/core/tempo';
 import {detectTempogram} from '../src/core/tempogram';
 import {loaders} from './lib/datasets';
 import {freeLoaders} from './lib/free-mixes';
-import {isFreeSet} from './lib/free-mixes-rows';
-import {assertTunable, tuningSets} from './lib/licences';
+import {freeHeldoutRefusal, isFreeSet} from './lib/free-mixes-rows';
+import {assertLicenceClean, cleanSets} from './lib/licences';
 import {decode, sampleRate, writeAtomic} from './lib/decode';
 import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
 import {UndecodableTrack, lookDetectorRefusal, lookHeader, lookRefusal, lookScopeRefusal, progressRows, refusalOf, resumesLook, skippedTracks} from './lib/look';
@@ -186,13 +186,15 @@ async function main(): Promise<void> {
   const split = values.split as Split;
   const names = values.detector.split(',');
   // Dev feeds tuning decisions, so it is the licence-clean sets unless a held-out run says otherwise
-  const sets = (values.sets ?? (split === 'dev' ? [...tuningSets] : Object.keys(loaders)).join(',')).split(',');
+  const sets = (values.sets ?? (split === 'dev' ? [...cleanSets] : Object.keys(loaders)).join(',')).split(',');
 
   assertArguments(names, sets, values.out, values.limit);
 
   // Before the log line, so naming one of them in a look spends nothing
-  if (split === 'heldout' && sets.some(set => isFreeSet(set))) {
-    throw new Error('RBA-59\'s sets are read on dev only until a DECISION on RBA-51 opens their look');
+  const freeRefusal = freeHeldoutRefusal(split, sets);
+
+  if (freeRefusal) {
+    throw new Error(freeRefusal);
   }
 
   if (split !== 'dev' && split !== 'heldout') {
@@ -226,8 +228,9 @@ async function main(): Promise<void> {
 
   const tracks = selectTracks(benchmarkDir, split, sets);
 
+  // Scoring on dev is not tuning: contested labels are scored there, never tuned on (tune.ts holds that)
   if (split === 'dev') {
-    assertTunable(tracks);
+    assertLicenceClean(tracks);
   }
 
   const limited = values.limit ? tracks.slice(0, Number(values.limit)) : tracks;

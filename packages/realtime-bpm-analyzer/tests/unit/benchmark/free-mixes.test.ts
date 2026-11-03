@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {devTracks, excerptSeconds, isFreeSet, tierOf} from '../../../benchmark/lib/free-mixes-rows';
+import {devTracks, excerptSeconds, freeHeldoutRefusal, isFreeSet, tierOf} from '../../../benchmark/lib/free-mixes-rows';
 
 function row(id: string, split: string, extra: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -60,5 +60,19 @@ describe('RBA-59 free mixes, dev half', () => {
   it('names only its own sets', () => {
     expect(isFreeSet('free-mixes')).to.equal(true);
     expect(isFreeSet('fsld')).to.equal(false);
+  });
+
+  // run.ts and job.ts both apply this before logging or reading anything
+  describe('the held-out refusal', () => {
+    it('refuses a held-out run naming a free set, alone or beside other sets', () => {
+      expect(freeHeldoutRefusal('heldout', ['free-mixes'])).to.include('dev only');
+      expect(freeHeldoutRefusal('heldout', ['free-mixes-contested'])).to.include('dev only');
+      expect(freeHeldoutRefusal('heldout', ['fsld', 'free-mixes'])).to.include('dev only');
+    });
+
+    it('lets dev read the free sets, and a held-out run without them start', () => {
+      expect(freeHeldoutRefusal('dev', ['free-mixes', 'free-mixes-contested'])).to.equal(null);
+      expect(freeHeldoutRefusal('heldout', ['fsld', 'groove'])).to.equal(null);
+    });
   });
 });

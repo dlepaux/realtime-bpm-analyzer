@@ -102,6 +102,19 @@ export function devTracks(splitIds: string, manifest: string): Record<FreeSet, T
 }
 
 /**
+ * The one refusal both entry points apply before anything is logged or read: run.ts before its look's
+ * log line, so naming a free set spends nothing, and job.ts as a usage error.
+ * @param split The split asked for
+ * @param sets The sets asked for
+ * @returns Why the run must not start, or null when it may
+ */
+export function freeHeldoutRefusal(split: string, sets: readonly string[]): string | null {
+  return split === 'heldout' && sets.some(set => isFreeSet(set))
+    ? 'RBA-59\'s sets are read on dev only until a DECISION on RBA-51 opens their look'
+    : null;
+}
+
+/**
  * @param set A set name
  * @returns Whether it is one of RBA-59's dev-only sets
  */

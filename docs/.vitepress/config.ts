@@ -325,6 +325,7 @@ export default defineConfig({
             { text: 'BPM Detection in Node.js', link: '/guide/node' },
             // The CLI and MCP guides return here in the v6 release (PR #323), once both
             // packages are on npm. Until then they are noindex and unlinked (RBA-122).
+            { text: 'Migration Guide (v5 → v6)', link: '/guide/migration-v6' },
             { text: 'Migration Guide (v4 → v5)', link: '/guide/migration-v5' }
           ]
         }

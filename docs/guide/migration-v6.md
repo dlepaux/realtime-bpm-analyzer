@@ -1,6 +1,6 @@
 ---
 title: 'Migration Guide: Upgrading from v5 to v6'
-description: 'Migrate realtime-bpm-analyzer from 5.x to 6: the engine option, the reading and statechange events, the analyzer state, whole-buffer results and the CLI and MCP renames, each with before-and-after code.'
+description: 'Migrate realtime-bpm-analyzer from 5.x to 6: the engine option, the reading and statechange events, the analyzer state, whole-buffer results and the removed exports, each with before-and-after code.'
 ---
 
 # Migration Guide: v5 to v6
@@ -341,17 +341,3 @@ analyzer.on('statechange', ({ reason }) => {
 ## Processor file
 
 If you serve the processor file yourself through `processorUrl`, copy the v6 file again. A 5.x file does not speak to a v6 analyzer, and `createRealtimeBpmAnalyzer` rejects when it sends no `ready` in time.
-
-## Command line and MCP
-
-In `realtime-bpm-analyzer-cli`, `--detector` is now `--engine`. In `realtime-bpm-analyzer-mcp`, the `detector` argument of `analyze_file` and `analyze_folder` is now `engine`. The old names are refused.
-
-**Before:**
-```bash
-npx realtime-bpm-analyzer-cli --detector tempogram song.mp3
-```
-
-**After:**
-```bash
-npx realtime-bpm-analyzer-cli --engine tempogram song.mp3
-```

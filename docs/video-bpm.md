@@ -14,7 +14,7 @@ faq:
   - q: How do I find the BPM of a video?
     a: Drop the video file on the tool at the top of this page, or click it to browse. Your browser decodes the sound track and the analyzer reads the tempo from it. The result shows the BPM and the length of one beat in milliseconds and in frames at 24 fps.
   - q: Is my video uploaded?
-    a: No. The file is read and analysed in your browser by the open-source library, which sends nothing anywhere, so the video stays on your device. The website uses Google Analytics to record how the tool is used: the tempo found and the file's size, type and duration. It never records the video, its sound or its name. The Website Privacy page has the details.
+    a: No. The file is read and analysed in your browser by the open-source library, which sends nothing anywhere, so the video stays on your device. The website uses Google Analytics to record how the tool is used, such as the tempo found and the file's size, type and duration. It never records the video, its sound or its name. The Website Privacy page has the details.
   - q: Which video formats work?
     a: Any file whose sound your browser can decode. MP4 with AAC sound and WebM usually work. MOV and MKV depend on the browser and on the codec inside. If a file fails, export the sound as WAV or MP3 from your editor and drop that instead.
   - q: Why is the BPM half or double what I expected?

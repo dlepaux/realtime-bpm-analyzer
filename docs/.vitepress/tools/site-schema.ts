@@ -48,7 +48,7 @@ const SCHEMA_WEB_SITE = {
 export const SCHEMA_WEB_APPLICATION = {
   '@type': 'WebApplication',
   name: 'Realtime BPM Analyzer',
-  description: 'Free online BPM analyzer: find the tempo of any song directly in your browser from a file, your microphone, or a live radio stream. Your audio never leaves your device, and no account is needed.',
+  description: 'Free online BPM finder and detector: find the tempo of any song directly in your browser from a file, your microphone, or a live radio stream. Your audio never leaves your device, and no account is needed.',
   url: SITE,
   applicationCategory: 'MultimediaApplication',
   operatingSystem: 'Web Browser',
@@ -64,14 +64,15 @@ export const SCHEMA_WEB_APPLICATION = {
     'Analyze audio files (MP3, WAV, FLAC, M4A, OGG)',
     'Detect BPM from microphone input',
     'Detect BPM from a live radio stream',
-    'Audio processed locally in the browser — never uploaded',
+    'Detect BPM from the audio of another browser tab (desktop Chrome and Edge)',
+    'Audio processed locally in the browser, never uploaded',
   ],
 }
 
 export const HOME_FAQ = [
   {
     q: 'What is BPM?',
-    a: 'BPM stands for beats per minute — the tempo of a piece of music. It is the count of the underlying beats in one minute. A typical house track runs at 120–130 BPM, drum and bass at 160–180, ambient and downtempo below 100.',
+    a: 'BPM stands for beats per minute, the tempo of a piece of music. It is the count of the underlying beats in one minute. A typical house track runs at 120 to 130 BPM, drum and bass at 160 to 180, ambient and downtempo below 100.',
   },
   {
     q: 'How does it work?',
@@ -79,7 +80,7 @@ export const HOME_FAQ = [
   },
   {
     q: 'Is my audio sent to a server?',
-    a: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends nothing anywhere. Your audio never leaves your device. The website does measure its own pages with Google Analytics, but never your audio or your file names.',
+    a: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends nothing anywhere. Your audio never leaves your device. The website uses Google Analytics to record how the tool is used, such as the tempo found and, for a file, its size, type and duration. It never records the file, its sound or its name.',
   },
   {
     q: 'Which audio formats are supported?',

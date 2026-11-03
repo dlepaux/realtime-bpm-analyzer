@@ -1,5 +1,5 @@
 ---
-title: "BPM to Frames Calculator: Frames per Beat at Any fps"
+title: "BPM to Frames (FPS) Calculator"
 description: Convert BPM to frames per beat and per bar at 23.976, 24, 25, 29.97, 30, 50, 59.94 and 60 fps, or a custom frame rate, to cut video on the beat. Shows the drift of a rounded cut.
 aside: false
 editLink: false

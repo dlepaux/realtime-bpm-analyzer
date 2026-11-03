@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RBA-59 tempo check</title>
+<style>
+  body { font: 16px/1.4 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color: #111; background: #fafafa; }
+  h1 { font-size: 1.25rem; margin: 0 0 1rem; display: flex; justify-content: space-between; }
+  audio { width: 100%; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; margin: .75rem 0; align-items: center; }
+  button { font: inherit; padding: .5rem .9rem; border: 1px solid #888; border-radius: .4rem; background: #fff; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  #tap { width: 100%; padding: 2.5rem 0; font-size: 1.5rem; background: #e8f0ff; border-color: #4a6fd1; }
+  #tap.flash { background: #b9ccff; }
+  .tempo { font-size: 2.25rem; font-variant-numeric: tabular-nums; }
+  .tempo.steady { color: #1f7a3a; }
+  #steady { font-weight: 600; min-height: 1.4em; margin: 0; }
+  .hint { color: #555; font-size: .9rem; }
+  #save { background: #1f7a3a; border-color: #1f7a3a; color: #fff; }
+  input[type=text] { font: inherit; flex: 1; min-width: 12rem; padding: .45rem; }
+  #error { color: #a00; min-height: 1.4em; }
+  #done { display: none; }
+</style>
+</head>
+<body>
+<h1><span>Track <span id="row">-</span></span><span id="counter">loading</span></h1>
+
+<main id="work">
+  <audio id="audio" controls preload="auto"></audio>
+  <div class="row">
+    <button id="back15" type="button">-15 s</button>
+    <button id="fwd15" type="button">+15 s</button>
+    <button id="at30" type="button">Go to 30%</button>
+    <button id="random" type="button">Random spot</button>
+  </div>
+
+  <button id="tap" type="button">Tap the beat (space bar)</button>
+  <div class="row">
+    <span class="tempo" id="tempo"><span id="final">--</span> BPM</span>
+    <span class="hint">taps: <span id="taps">0</span><span id="tapped"></span></span>
+    <button id="reset" type="button">Reset taps</button>
+  </div>
+
+  <p id="steady" role="status"></p>
+
+  <p>Is the tempo you feel half or double this?
+    <button id="half" type="button">x0.5</button>
+    <button id="double" type="button">x2</button>
+  </p>
+  <p class="hint">Count the pulse you would nod or dance to. For drum and bass that is about 170 to 180, not 85 to 90.</p>
+
+  <div class="row">
+    <input id="note" type="text" maxlength="500" placeholder="Note (optional)">
+  </div>
+  <div class="row">
+    <button id="save" type="button" disabled>Save and next (Enter)</button>
+    <button id="unsure" type="button">Unsure, save and next</button>
+    <button id="broken" type="button">Not music or broken</button>
+  </div>
+  <p id="error" role="alert"></p>
+</main>
+
+<p id="done">This batch is done. Thank you. You can close the tab and stop the server.</p>
+
+<script type="module" src="/page.mjs"></script>
+</body>
+</html>

@@ -217,3 +217,44 @@ CPU, on an M1 Pro in Node with synthetic input (`perf.ts`, 3 input shapes, two r
 - The first reading comes at 4 s and the earliest `bpmStable` at about 11.5 s: the warm-up, then 8 s of agreeing frames.
 - GiantSteps previews are 2 minutes and GTZAN clips 30 s, so slow settling is not penalised the way a full DJ set would.
 - The worklet reads the left channel only, so a hard-panned track is judged on that channel. This holds for both detectors.
+
+## Free data (RBA-59)
+
+`free-data.ts` gets freely licensed music, labels it with independent trackers and says with counts whether it is decent. It runs as `job/free-data.sh` in its own image (`job/data.Dockerfile`, tag `data-sha-<commit>`), writing to `free-data/` under the data root. Audio and labels stay there, and only the split's ids may enter git.
+
+| Stage | What it does | Output |
+| --- | --- | --- |
+| `catalogue` | Reads FMA's own metadata files and the Internet Archive's search and metadata APIs, rejects by named reason, caps 30 tracks per artist | `catalogue/candidates.jsonl`, `catalogue/rejections.json` |
+| `fetch` | FMA members by range request, Internet Archive files one at a time, stopping at five refusals in a row | `audio/`, `fetched.jsonl` |
+| `analyse` | `job/trackers.py`: Beat This!, Essentia, librosa with a flat prior, resumable | `readings.jsonl` |
+| `consolidate` | Tempo consensus, duplicates, split frozen by artist, confirmation list | `manifest.jsonl`, `split-frozen.json`, `split-ids.json`, `confirmation.md` |
+| `samples` | Generated, derived and loop-mix samples, tooling proof only | `not-real-*.jsonl` |
+| `report` | Every count, with the verdict against 200 real tracks per band | `report.json` |
+
+Rules the code holds, and the tests check:
+
+- A licence is an exact CC0, CC BY or CC BY-SA URL from the host. BY-SA is counted apart and never fills the target, as share-alike for weights is RBA-40's open question.
+- A hint never votes, so it can be measured against the label. A label needs two trackers in one octave. No agreement means no label, only a candidate for a person to confirm.
+- The verdict counts real, permissive tracks with no tracker an octave off. Two against one at an octave counts as `contested`, shown apart, because agreement between trackers is not truth, and only `confirmation.md`'s random sample measures how far to trust it.
+- Derived, loop-mix and generated audio is marked, names its sources, comes from the dev side only, never sits in held-out and never counts towards the target. Loops themselves stay on FSLD's own split.
+
+Limits: a recording's identity is its hash, or its artist, title and rough length. The same recording under two spellings of an artist would slip through and could land on both sides of the split, which audio fingerprints would catch. They were left out to keep the image small, and the report's numbers should be read knowing that. Stretching is FFmpeg's `atempo`, which smears transients, so a derived track is no proxy for an attack-sensitive reading.
+
+Free-mixes is opt-in: `run.ts --sets free-mixes` reads it once `split-ids.json` is copied to `splits/free-mixes.json`, and it stays out of `loaders` and `tuningSets`, so nothing tunes on it or looks at it by default.
+
+### Confirming tempos by ear
+
+`listen/listen.py` serves `confirmation.md` one row at a time to a browser through an SSH tunnel, with standard-library Python only, as the host has no Node. It binds 127.0.0.1, and the audio streams from the box and is never copied. The page is blind: it shows a row number and the audio, never the id, title, label, group or key. Only `--group` makes the server open `confirmation-key.jsonl`, and then it reads each row's `why` alone, to pick the batch. Tap tempo takes the median interval after eight taps; the x0.5 and x2 buttons settle the octave. Once the latest eight taps are steady (every interval within 10% of their median), the page says so and Enter saves: the first batch ran 40 to 64 taps a row where about a dozen would do. Each answer is one line in `confirmation-answers.jsonl`, which is also how it resumes.
+
+```sh
+# On the Mac: starts the server for rows 1 to 60, opens the tunnel, and Ctrl-C stops both
+ssh -t -L 8459:127.0.0.1:8459 srv-compute 'python3 -I ~/rba-listen/listen.py serve --rows 1-60'
+# or 30 random-sample rows not answered before, in list order
+ssh -t -L 8459:127.0.0.1:8459 srv-compute 'python3 -I ~/rba-listen/listen.py serve --group random --count 30'
+# then open http://localhost:8459
+
+# After a batch only: agreement within 4% (and 2%, to compare), octave and other errors, random rows apart from disagreements
+ssh srv-compute 'python3 -I ~/rba-listen/listen.py score'
+```
+
+`~/rba-listen` is a copy of `benchmark/listen/` on the box. The score takes the latest answer for each row, uses the label or, without one, the trackers' candidate, and leaves unsure and broken rows out of the agreement count. Agreement is 4%, for half and double too: taps carry a few percent of human error, and four of the first batch's 40 scored rows fell between 2% and 4%. A group batch tags its answers with the group, so a restart serves the same rows while rows answered in an earlier batch stay out; answers match by id, so they keep their meaning if `consolidate` rebuilds the list, though a rebuilt list draws a new random sample and new row numbers.

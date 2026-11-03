@@ -48,12 +48,19 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
     );
   });
 
-  it('asks for a library that has the tempogram', async () => {
-    // npm resolves the lowest version a range allows when that one is installed already
-    const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
-    const range = manifest.dependencies['realtime-bpm-analyzer'];
-    const [, major, minor] = /^\^(\d+)\.(\d+)\.\d+$/.exec(range) ?? [];
-    assert.ok(Number(major) === 5 && Number(minor) >= 6, `range ${range} admits a library without the detector option`);
+  it('asks for a range the workspace library\'s own version satisfies', async () => {
+    // Tested against the library it was built with: a release that moves the library to a new major and leaves
+    // this range behind would publish a CLI that resolves the old major, whose results it cannot read
+    const read = async path => JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
+    const range = (await read('../package.json')).dependencies['realtime-bpm-analyzer'];
+    const {version} = await read('../../realtime-bpm-analyzer/package.json');
+    const [, ...wanted] = /^\^(\d+)\.(\d+)\.(\d+)$/.exec(range) ?? [];
+    const [, ...have] = /^(\d+)\.(\d+)\.(\d+)$/.exec(version) ?? [];
+    assert.ok(wanted.length === 3 && have.length === 3, `range ${range} or version ${version} is not the ^x.y.z and x.y.z this check reads`);
+    const [major, ...rest] = wanted.map(Number);
+    const [haveMajor, ...haveRest] = have.map(Number);
+    const atLeast = haveRest[0] > rest[0] || (haveRest[0] === rest[0] && haveRest[1] >= rest[1]);
+    assert.ok(major > 0 && haveMajor === major && atLeast, `range ${range} does not accept the workspace library ${version}`);
     // The engine option is read, not ignored: 5.4.0 accepted any detector name
     await assert.rejects(analyzeChannelData(new Float32Array(1), 44_100, {engine: 'magic'}), /engine/);
   });

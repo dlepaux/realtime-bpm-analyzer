@@ -2,6 +2,11 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "node",
   "separate-pull-requests": true,
+  "plugins": [
+    {
+      "type": "node-workspace"
+    }
+  ],
   "packages": {
     "packages/realtime-bpm-analyzer": {
       "package-name": "realtime-bpm-analyzer",

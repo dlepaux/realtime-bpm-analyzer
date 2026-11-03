@@ -24,3 +24,6 @@ docs/node_modules
 # Product-management docs kept local only — not tracked in git.
 CLAUDE.md
 NORTH-STAR.md
+
+# Playwright MCP browser automation logs and snapshots, written by agent sessions
+.playwright-mcp/

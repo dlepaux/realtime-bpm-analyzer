@@ -152,7 +152,8 @@ test('CSV: RFC 4180 with CRLF and a header, one row per beat', () => {
     'Beat 1,0.500,13,00:00:00:13',
     'Beat 2,1.000,25,00:00:01:00',
     'Beat 3,1.500,38,00:00:01:13',
-    'Beat 4,2.000,50,00:00:02:00',
+    // 2.000 s is the audio's end, frame 50, so it sits on the last frame, 49.
+    'Beat 4,2.000,49,00:00:01:24',
     '',
   ].join('\r\n'))
 })
@@ -191,7 +192,7 @@ test('EDL: CMX 3600 events on a 01:00:00:00 timeline with Resolve marker notes',
     '001  001      V     C        01:00:00:13 01:00:00:14 01:00:00:13 01:00:00:14',
     ' |C:ResolveColorBlue |M:Beat 1 |D:1',
     '',
-    '002  001      V     C        01:00:01:00 01:00:01:01 01:00:01:00 01:00:01:01',
+    '002  001      V     C        01:00:00:24 01:00:01:00 01:00:00:24 01:00:01:00',
     ' |C:ResolveColorBlue |M:Beat 2 |D:1',
     '',
   ].join('\n'))
@@ -224,8 +225,25 @@ test('FCP7 XML: an xmeml sequence with frame-counted markers and an NTSC rate', 
   assert.match(xml, /<string>00:00:00;00<\/string><frame>0<\/frame><displayformat>DF<\/displayformat>/)
   assert.match(xml, /<duration>45<\/duration>/)
   assert.match(xml, /<marker><name>Beat 1<\/name><comment\/><in>30<\/in><out>-1<\/out><\/marker>/)
-  assert.match(xml, /<marker><name>Beat 2<\/name><comment\/><in>45<\/in><out>-1<\/out><\/marker>/)
+  assert.match(xml, /<marker><name>Beat 2<\/name><comment\/><in>44<\/in><out>-1<\/out><\/marker>/)
   assert.equal([...xml.matchAll(/<marker>/g)].length, 2)
+})
+
+test('every format keeps the last marker inside the sequence, even a beat in its last half frame', () => {
+  // 120 BPM from 0.5 s over 2 s at 25 fps: the sequence is 50 frames, and the beat at 2.0 s rounds
+  // to frame 50, where the sequence ends. It moves back to 49.
+  const exportInput = input()
+  const fcpxml = toFcpxml(exportInput)
+  const sequence = Number(/<sequence format="r1" duration="(\d+)\/25s"/.exec(fcpxml)?.[1])
+  const fcpStarts = [...fcpxml.matchAll(/<marker start="(\d+)\/25s"/g)].map(([, frame]) => Number(frame))
+  assert.equal(sequence, 50)
+  assert.deepEqual(fcpStarts, [13, 25, 38, 49])
+  const xmeml = toFcp7Xml(exportInput)
+  const length = Number(/<duration>(\d+)<\/duration>/.exec(xmeml)?.[1])
+  const ins = [...xmeml.matchAll(/<in>(\d+)<\/in>/g)].map(([, frame]) => Number(frame))
+  assert.equal(length, 50)
+  assert.ok(ins.every((frame) => frame < length), `${ins.join(',')} reach ${length}`)
+  assert.equal(ins.at(-1), 49)
 })
 
 test('FCP7 XML: whole rates are not NTSC', () => {

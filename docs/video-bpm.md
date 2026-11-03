@@ -76,8 +76,10 @@ Final Cut Pro, or open the CSV in a spreadsheet:
 - **CSV**: the time of each beat in seconds, frames and timecode.
 
 The markers are a fixed grid, so they suit songs with a steady tempo. A song
-that speeds up, slows down or changes tempo drifts away from them. Check that
-the first marker sits on the beat before you cut. The file is made in your
+that speeds up, slows down or changes tempo drifts away from them. The markers
+use the whole-number tempo, so on a long song they can slide off the beat when
+the real tempo sits between two numbers. Check that the first marker and the
+last one sit on the beat before you cut. The file is made in your
 browser, from audio that never leaves your device.
 
 ## Limits

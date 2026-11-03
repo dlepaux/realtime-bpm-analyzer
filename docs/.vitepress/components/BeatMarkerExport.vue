@@ -18,15 +18,24 @@ import { firstBeatSecondsInSlices } from '../tools/first-beat'
 const props = defineProps<{
   /** The analysed file's name: the sequence name and the download's name, never sent anywhere. */
   fileName: string
-  /** The engine's tempo, unrounded, so the grid doesn't drift by the rounding over a song. */
+  /**
+   * The tempo the grid steps at. The engine returns whole BPM only (tempo.ts and tempogram.ts
+   * round), so today this equals `bpm`, and a real tempo between two whole numbers drifts the
+   * grid over a long song. The copy says so. A fractional tempo is RBA-109 work in packages/.
+   */
   tempo: number
   /** Rounded, as the result shows it. */
   bpm: number
   duration: number
-  /** The decoded audio's first channel, read on this device only. */
-  samples: Float32Array
+  /**
+   * The decoded audio's first channel, read on this device only. The parent drops it once the
+   * search has run (`searched`), so it is null after that: the found beat is all the grid needs.
+   */
+  samples: Float32Array | null
   sampleRate: number
 }>()
+
+const emit = defineEmits<{ searched: [] }>()
 
 const { track } = useAnalytics()
 
@@ -54,14 +63,19 @@ const nextTask = () => new Promise<void>((resolve) => window.setTimeout(resolve,
 
 async function onToggle(event: Event) {
   if (!(event.target as HTMLDetailsElement).open || search.value !== 'idle') return
+  const samples = props.samples
   search.value = 'searching'
   try {
-    firstBeat.value = await firstBeatSecondsInSlices(props.samples, props.sampleRate, nextTask, () => unmounted)
+    firstBeat.value = samples === null
+      ? null
+      : await firstBeatSecondsInSlices(samples, props.sampleRate, nextTask, () => unmounted)
   } catch (error) {
     console.error('[BeatMarkerExport] first beat failed:', error)
     firstBeat.value = null
   }
   search.value = 'done'
+  // Every later export reuses firstBeat, so the audio (about 115 MB for 10 min at 48 kHz) can go.
+  if (!unmounted) emit('searched')
 }
 
 const rate = computed(() => EXPORT_RATES.find((entry) => entry.label === rateLabel.value) ?? EXPORT_RATES[1]!)
@@ -101,7 +115,9 @@ function download() {
     <summary>Export beat markers</summary>
     <p class="marker-note">
       A marker on every beat at {{ bpm }} BPM, from the first strong beat. For songs with a
-      steady tempo. Check that the first marker sits on the beat before you cut.
+      steady tempo. The markers use the whole-number tempo, so on a long song they can slide off
+      the beat when the real tempo sits between two numbers. Check that the first marker and the
+      last one sit on the beat before you cut.
     </p>
     <p
       v-if="search !== 'done'"

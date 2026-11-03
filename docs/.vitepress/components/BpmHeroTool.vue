@@ -86,10 +86,14 @@ const fileBpm = ref<number | null>(null)
 const fileDuration = ref<number | null>(null)
 const fileElapsedMs = ref<number | null>(null)
 const fileError = ref<string | null>(null)
-// For the beat marker export (RBA-127): the unrounded tempo, and the first channel, the one
-// analyzeFullBuffer reads. The export looks for the first beat in it only if it is opened.
+// For the beat marker export (RBA-127): the tempo the grid steps at, the engine's top candidate,
+// which is a whole number today (so it equals fileBpm), and the first channel, the one
+// analyzeFullBuffer reads. The export looks for the first beat in it only if it is opened, and
+// the channel is released once that search has run, or when the result is cleared. An unopened
+// result keeps it until then.
 const fileTempo = ref<number | null>(null)
-const fileSamples = shallowRef<{ samples: Float32Array; sampleRate: number } | null>(null)
+const fileSamples = shallowRef<Float32Array | null>(null)
+const fileSampleRate = ref<number | null>(null)
 
 // ─── Mic ─────────────────────────────────────────────────────────────────
 const micStatus = ref<Status>('idle')
@@ -211,6 +215,7 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
   fileBpm.value = null
   fileTempo.value = null
   fileSamples.value = null
+  fileSampleRate.value = null
   fileDuration.value = null
   fileElapsedMs.value = null
 
@@ -247,7 +252,8 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
       duration_s: Math.round(fileDuration.value),
       elapsed_ms: fileElapsedMs.value,
     })
-    fileSamples.value = { samples: audioBuffer.getChannelData(0), sampleRate: audioBuffer.sampleRate }
+    fileSamples.value = audioBuffer.getChannelData(0)
+    fileSampleRate.value = audioBuffer.sampleRate
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown'
     fileError.value = stage === 'decode'
@@ -268,6 +274,7 @@ function restartFile() {
   track('bpm_file_restart')
   fileTempo.value = null
   fileSamples.value = null
+  fileSampleRate.value = null
   fileStatus.value = 'idle'
   fileName.value = null
   fileBpm.value = null
@@ -820,13 +827,14 @@ function formatDuration(seconds: number): string {
               :video="variant === 'video'"
             />
             <BeatMarkerExport
-              v-if="fileTempo !== null && fileBpm !== null && fileDuration !== null && fileName !== null && fileSamples"
+              v-if="fileTempo !== null && fileBpm !== null && fileDuration !== null && fileName !== null && fileSampleRate !== null"
               :file-name="fileName"
               :tempo="fileTempo"
               :bpm="fileBpm"
               :duration="fileDuration"
-              :samples="fileSamples.samples"
-              :sample-rate="fileSamples.sampleRate"
+              :samples="fileSamples"
+              :sample-rate="fileSampleRate"
+              @searched="fileSamples = null"
             />
             <div class="bpm-result-actions">
               <button

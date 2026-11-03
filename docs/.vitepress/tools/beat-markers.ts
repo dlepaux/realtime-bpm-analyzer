@@ -168,9 +168,13 @@ interface Marker {
   frame: number
 }
 
+// A beat in the audio's last half frame rounds to the frame where the sequence ends, outside
+// the gap and the xmeml sequence, where an editor may drop it. It moves back onto the last
+// frame instead: under one frame early, and every format places it the same way.
 function markersOf(input: MarkerExport): Marker[] {
+  const lastFrame = durationFrames(input) - 1
   return beatTimes(input.bpm, input.firstBeat, input.duration)
-    .map((seconds, index) => ({ index: index + 1, seconds, frame: frameAt(seconds, input.rate) }))
+    .map((seconds, index) => ({ index: index + 1, seconds, frame: Math.min(frameAt(seconds, input.rate), lastFrame) }))
 }
 
 function title(input: MarkerExport): string {

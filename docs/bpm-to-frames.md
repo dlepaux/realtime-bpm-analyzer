@@ -46,14 +46,15 @@ One beat lasts 60 ÷ BPM seconds, so:
 - **Frames per beat = fps × 60 ÷ BPM**
 - **Frames per bar = frames per beat × beats per bar**
 
-At 128 BPM and 25 fps a beat is 11.72 frames and a 4/4 bar 46.875 frames.
+At 128 BPM and 25 fps a beat is 11.71875 frames and a 4/4 bar 46.875 frames.
 Cutting every 47 frames puts each bar 0.125 frames late, 5 ms, which adds up
 to a full frame after eight bars. Cutting on the frame nearest to each beat,
 counted from the first beat, keeps every cut within half a frame.
 
 ## Frames per beat chart
 
-Common tempos, in frames per beat:
+Common tempos, in frames per beat, rounded to two decimals. The calculator above
+shows the full value. On a narrow screen the chart scrolls sideways.
 
 | BPM | 23.976 | 24 | 25 | 29.97 | 30 | 50 | 59.94 | 60 |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|

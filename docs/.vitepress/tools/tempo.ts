@@ -23,6 +23,20 @@ export function parseBpmParam(raw: string | null): number | null {
   return clampBpm(Math.round(bpm * 100) / 100)
 }
 
+/**
+ * The page's query string with `bpm` set to the tempo, through parseBpmParam so the URL never
+ * holds a tempo the page would refuse on load, or without `bpm` when there is no valid tempo.
+ * Other params (a campaign tag) stay. "" when nothing is left.
+ */
+export function withBpmParam(search: string, bpm: number | null): string {
+  const params = new URLSearchParams(search)
+  const valid = bpm === null ? null : parseBpmParam(String(bpm))
+  if (valid === null) params.delete('bpm')
+  else params.set('bpm', String(valid))
+  const query = params.toString()
+  return query === '' ? '' : `?${query}`
+}
+
 /** Appends a tap, starting a new sequence after a pause and keeping the last MAX_TAPS. */
 export function pushTap(times: readonly number[], now: number): number[] {
   const last = times[times.length - 1]

@@ -63,6 +63,23 @@ export function isWholeFrames(frames: number): boolean {
   return Math.abs(frames - Math.round(frames)) < 1e-6
 }
 
+/** Decimals a frame count may show in full: 1500 / 128 = 11.71875 needs 5. */
+const FULL_DECIMALS = 6
+/** Decimals for a count that never ends, the NTSC rates and thirds. */
+const SHORT_DECIMALS = 3
+/** Below this, a difference is float noise (0.1 + 0.2), not a digit the count really has. */
+const FLOAT_NOISE = 1e-9
+
+/**
+ * A frame count as the page shows and copies it: in full when it ends within 6 decimals, so an
+ * editor gets the exact 11.71875 and not 11.719, otherwise to 3 decimals. No trailing zeros.
+ */
+export function formatFrames(frames: number): string {
+  const full = Number(frames.toFixed(FULL_DECIMALS))
+  if (Math.abs(full - frames) < FLOAT_NOISE) return String(full)
+  return String(Number(frames.toFixed(SHORT_DECIMALS)))
+}
+
 /**
  * Reads a custom frame rate typed by the user. Accepts the editors' labels, so "29.97"
  * becomes 30000/1001, and refuses anything outside MIN_FPS to MAX_FPS.

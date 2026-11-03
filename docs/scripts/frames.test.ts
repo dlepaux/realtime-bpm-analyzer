@@ -7,6 +7,7 @@ import {
   MAX_FPS,
   framesPerBeat,
   framesPerBeats,
+  formatFrames,
   isWholeFrames,
   parseFps,
   roundingDrift,
@@ -92,4 +93,19 @@ test('the chart on the BPM to frames page matches framesPerBeat', () => {
       assert.equal(cells[i], Number(framesPerBeat(bpm!, rate.fps).toFixed(2)), `${bpm} BPM at ${rate.label}`)
     })
   }
+})
+
+test('formatFrames: the whole value when it ends within 6 decimals, otherwise 3 decimals', () => {
+  assert.equal(formatFrames(framesPerBeat(128, 25)), '11.71875')
+  assert.equal(formatFrames(framesPerBeats(128, 25, 4)), '46.875')
+  assert.equal(formatFrames(framesPerBeat(120, 24)), '12')
+  assert.equal(formatFrames(0.125), '0.125')
+  assert.equal(formatFrames(framesPerBeat(100, 24)), '14.4')
+  // NTSC rates and thirds never end: 3 decimals, trailing zeros dropped.
+  assert.equal(formatFrames(framesPerBeat(120, 24_000 / 1001)), '11.988')
+  assert.equal(formatFrames(framesPerBeat(90, 25)), '16.667')
+  assert.equal(formatFrames(framesPerBeat(120, 30_000 / 1001)), '14.985')
+  assert.equal(formatFrames(0.1234567), '0.123')
+  // Float noise is no extra digit.
+  assert.equal(formatFrames(0.1 + 0.2), '0.3')
 })

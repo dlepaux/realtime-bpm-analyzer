@@ -11,6 +11,7 @@ import {
   parseBpmParam,
   pushTap,
   tempoMarking,
+  withBpmParam,
 } from '../.vitepress/tools/tempo.ts'
 
 const close = (actual: number, expected: number, epsilon = 1e-9) =>
@@ -93,4 +94,16 @@ test('clickKind accents the downbeat and marks subdivisions', () => {
     ['accent', 'sub', 'beat', 'sub', 'beat', 'sub', 'accent'],
   )
   assert.deepEqual([0, 1, 2, 3].map((tick) => clickKind(tick, 1, 1)), ['accent', 'accent', 'accent', 'accent'])
+})
+
+test('withBpmParam: the tempo in ?bpm=, within the parseBpmParam bounds, other params kept', () => {
+  assert.equal(withBpmParam('', 128), '?bpm=128')
+  assert.equal(withBpmParam('?bpm=90', 127.856), '?bpm=127.86')
+  assert.equal(withBpmParam('?utm_source=x&bpm=90', 140), '?utm_source=x&bpm=140')
+  assert.equal(withBpmParam('?bpm=90', 900), '?bpm=300')
+  assert.equal(withBpmParam('?bpm=90', 5), '?bpm=20')
+  // No valid tempo: the param goes, the rest stays.
+  assert.equal(withBpmParam('?bpm=90', null), '')
+  assert.equal(withBpmParam('?a=1&bpm=90', Number.NaN), '?a=1')
+  for (const bpm of [20, 64.5, 128, 300]) assert.equal(parseBpmParam(new URLSearchParams(withBpmParam('', bpm)).get('bpm')), bpm)
 })

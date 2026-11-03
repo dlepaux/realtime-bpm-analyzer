@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Check, Copy, Hand } from 'lucide-vue-next'
 import { useAnalytics } from '../composables/useAnalytics'
-import { MAX_BPM, MIN_BPM, clampBpm, noteMs, parseBpmParam, tempoMarking } from '../tools/tempo'
+import { MAX_BPM, MIN_BPM, clampBpm, noteMs, parseBpmParam, tempoMarking, withBpmParam } from '../tools/tempo'
 import {
   FRAME_RATES,
   MAX_BEATS_PER_BAR,
@@ -11,6 +11,7 @@ import {
   MIN_FPS,
   framesPerBeat,
   framesPerBeats,
+  formatFrames,
   isWholeFrames,
   parseFps,
   roundingDrift,
@@ -46,27 +47,32 @@ const rows = computed(() => {
   return rates.map((rate) => {
     const current = bpm.value
     // No tempo yet: empty cells, and their copy buttons are disabled.
-    if (current === null) return { ...rate, beat: '', bar: '', drift: '', isCustom: rate === custom.value }
+    if (current === null) return { ...rate, beat: '', bar: '', drift: '', driftLine: '', isCustom: rate === custom.value }
     const bar = framesPerBeats(current, rate.fps, beatsPerBar.value)
     return {
       ...rate,
-      beat: format(framesPerBeat(current, rate.fps)),
-      bar: format(bar),
+      beat: formatFrames(framesPerBeat(current, rate.fps)),
+      bar: formatFrames(bar),
       drift: driftText(bar, rate.fps),
+      driftLine: driftLine(bar, rate.fps),
       isCustom: rate === custom.value,
     }
   })
 })
 
-function format(frames: number): string {
-  return String(Number(frames.toFixed(3)))
-}
-
 function driftText(exactFrames: number, fps: number): string {
   if (isWholeFrames(exactFrames)) return 'none'
   const drift = roundingDrift(exactFrames, fps)
   const sign = drift.frames > 0 ? '+' : '−'
-  return `${drift.rounded} f: ${sign}${format(Math.abs(drift.frames))} f (${sign}${Math.abs(drift.ms).toFixed(1)} ms)`
+  return `${drift.rounded} f: ${sign}${formatFrames(Math.abs(drift.frames))} f (${sign}${Math.abs(drift.ms).toFixed(1)} ms)`
+}
+
+// The same drift on its own line under the rate, where the table is too narrow for the column.
+function driftLine(exactFrames: number, fps: number): string {
+  if (isWholeFrames(exactFrames)) return 'Rounded bar: no drift'
+  const drift = roundingDrift(exactFrames, fps)
+  const sign = drift.frames > 0 ? '+' : '−'
+  return `Rounded bar ${drift.rounded} f, drift ${sign}${formatFrames(Math.abs(drift.frames))} f (${sign}${Math.abs(drift.ms).toFixed(1)} ms)`
 }
 
 function commitBpm() {
@@ -92,6 +98,15 @@ async function copy(key: string, text: string, label: string) {
 onMounted(() => {
   const fromUrl = parseBpmParam(new URLSearchParams(window.location.search).get('bpm'))
   if (fromUrl !== null) bpmInput.value = fromUrl
+  // The address follows the typed tempo, so a copied link opens on it. replaceState, not
+  // pushState: each keystroke would otherwise be a Back step. Started after the read above,
+  // so a ?bpm= link is never overwritten by the default tempo.
+  watch(bpm, (current) => {
+    const search = withBpmParam(window.location.search, current)
+    if (search === window.location.search) return
+    const { pathname, hash } = window.location
+    window.history.replaceState(window.history.state, '', `${pathname}${search}${hash}`)
+  })
 })
 </script>
 
@@ -178,49 +193,65 @@ onMounted(() => {
             <th scope="col">
               1 bar ({{ beatsPerBar }})
             </th>
-            <th scope="col">
+            <th
+              scope="col"
+              class="drift-col"
+            >
               Rounded bar, drift
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr
+          <template
             v-for="row in rows"
             :key="row.label"
-            :class="{ 'is-custom': row.isCustom }"
           >
-            <th scope="row">
-              {{ row.label }}
-            </th>
-            <td
-              v-for="cell in (['beat', 'bar'] as const)"
-              :key="cell"
-            >
-              <button
-                type="button"
-                class="cell"
-                :class="{ 'is-copied': copied === `${row.label}-${cell}` }"
-                :disabled="row[cell] === ''"
-                :aria-label="`Copy ${row[cell]} frames per ${cell} at ${row.label} fps`"
-                @click="copy(`${row.label}-${cell}`, row[cell], `${row.label} fps ${cell}`)"
+            <tr :class="{ 'is-custom': row.isCustom }">
+              <th scope="row">
+                {{ row.label }}
+              </th>
+              <td
+                v-for="cell in (['beat', 'bar'] as const)"
+                :key="cell"
               >
-                <span>{{ row[cell] }}</span>
-                <Check
-                  v-if="copied === `${row.label}-${cell}`"
-                  :size="14"
-                  class="cell-icon"
-                />
-                <Copy
-                  v-else
-                  :size="14"
-                  class="cell-icon"
-                />
-              </button>
-            </td>
-            <td class="drift">
-              {{ row.drift }}
-            </td>
-          </tr>
+                <button
+                  type="button"
+                  class="cell"
+                  :class="{ 'is-copied': copied === `${row.label}-${cell}` }"
+                  :disabled="row[cell] === ''"
+                  :aria-label="`Copy ${row[cell]} frames per ${cell} at ${row.label} fps`"
+                  @click="copy(`${row.label}-${cell}`, row[cell], `${row.label} fps ${cell}`)"
+                >
+                  <span>{{ row[cell] }}</span>
+                  <Check
+                    v-if="copied === `${row.label}-${cell}`"
+                    :size="14"
+                    class="cell-icon"
+                  />
+                  <Copy
+                    v-else
+                    :size="14"
+                    class="cell-icon"
+                  />
+                </button>
+              </td>
+              <td class="drift drift-col">
+                {{ row.drift }}
+              </td>
+            </tr>
+            <tr
+              v-if="row.driftLine !== ''"
+              class="drift-row"
+              :class="{ 'is-custom': row.isCustom }"
+            >
+              <td
+                colspan="3"
+                class="drift-line"
+              >
+                {{ row.driftLine }}
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -281,6 +312,7 @@ onMounted(() => {
 .table-wrap {
   margin-top: 1.5rem;
   overflow-x: auto;
+  container-type: inline-size;
 }
 
 .vp-doc .tt-table {
@@ -332,6 +364,33 @@ onMounted(() => {
 .vp-doc .tt-table tr.is-custom th,
 .vp-doc .tt-table tr.is-custom td {
   background: var(--vp-c-brand-soft);
+}
+
+/*
+ * Where the four columns don't fit (a phone: 285 px of table for 430 px of columns at 375 px),
+ * the drift leaves its column for a line under its rate, so nothing is cut off. Only one of the
+ * two is displayed, so a screen reader reads the drift once. Scrolling stays as the last resort.
+ */
+.vp-doc .tt-table tr.drift-row { display: none; }
+
+.vp-doc .tt-table td.drift-line {
+  padding: 0 0.6rem 0.35rem;
+  text-align: right;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--vp-c-text-2);
+}
+
+@container (max-width: 460px) {
+  .vp-doc .tt-table .drift-col { display: none; }
+  .vp-doc .tt-table tr.drift-row { display: table-row; }
+  .vp-doc .tt-table { border-spacing: 0 2px; }
+  .cell { gap: 0.25rem; padding: 0.4rem; }
+}
+
+/* The narrowest screens drop the copy icon for room; a copied value still turns green. */
+@container (max-width: 300px) {
+  .cell:not(.is-copied) .cell-icon { display: none; }
 }
 
 .cell {

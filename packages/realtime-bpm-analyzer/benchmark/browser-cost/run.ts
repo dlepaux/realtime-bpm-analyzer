@@ -272,13 +272,16 @@ async function main(): Promise<void> {
     throw new Error('usage: run <cost|memory|bundle> [--throttle N[,N...]] [--engine E] [--seconds N] --out file.json');
   }
 
+  // Resolved before the chdir below, so a relative --out lands where the caller asked
+  const out = resolve(args.out);
+
   // esbuild's metafile names inputs from here, and the bundles resolve the library's sources from here
   process.chdir(pkg);
 
   if (suite === 'bundle') {
     const result = {suite, machine: machine(), with: await sizes(true), without: await sizes(false)};
 
-    writeFileSync(args.out, `${JSON.stringify([result], null, 2)}\n`);
+    writeFileSync(out, `${JSON.stringify([result], null, 2)}\n`);
 
     return;
   }
@@ -292,7 +295,7 @@ async function main(): Promise<void> {
       results.push(await measure(browser, origin, suite, throttle, seconds));
     }
 
-    writeFileSync(args.out, `${JSON.stringify(results, null, 2)}\n`);
+    writeFileSync(out, `${JSON.stringify(results, null, 2)}\n`);
   } finally {
     await browser.close();
     server.close();

@@ -113,6 +113,7 @@ jobs:
           path: results
       - name: Tables
         run: |
+          set -o pipefail
           $HARNESS report results/*.json | tee report.md
           cat report.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7

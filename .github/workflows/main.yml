@@ -135,6 +135,16 @@ jobs:
         working-directory: packages/realtime-bpm-analyzer
         run: npx puppeteer browsers install firefox
 
+      # The runner has no sound card. Chromium fakes one, while Firefox needs a sound server to start an audio graph,
+      # and the tests that run a worklet wait for it. A null sink gives it one that plays to nothing.
+      - name: Start a silent sound server
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=silent
+          pactl set-default-sink silent
+
       - name: Test in Firefox
         run: npm run test:firefox -w realtime-bpm-analyzer
 

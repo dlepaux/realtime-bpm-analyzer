@@ -79,7 +79,8 @@
     "test:integration": "web-test-runner --files 'tests/integration/**/*.test.ts'",
     "test:lib": "web-test-runner --files 'tests/lib/**/*.ts'",
     "test:node": "node --test 'tests/node/**/*.test.mjs'",
-    "test:coverage": "web-test-runner --coverage"
+    "test:coverage": "web-test-runner --coverage",
+    "test:firefox": "web-test-runner --config web-test-runner.firefox.config.mjs"
   },
   "homepage": "https://www.realtime-bpm-analyzer.com",
   "repository": {

@@ -2,6 +2,7 @@ import {expect} from 'chai';
 import {createRealtimeBpmAnalyzer} from '../../src/index';
 import type {AnalyzerEventMap, BpmAnalyzer, StateChange} from '../../src/index';
 import {PROTOCOL} from '../../src/contract/types';
+import {contextNow} from '../../src/core/context-now';
 import {createClickTrack} from '../fixtures/click-track';
 import {createTestAudioContext, closeAudioContext, waitForEvent} from '../setup';
 
@@ -301,15 +302,50 @@ describe('BpmAnalyzer - events and commands', function () {
       };
 
       busy(300);
-      const resetAt = audioContext.currentTime;
+      // The live clock: Firefox's currentTime would read the block as no time at all
+      const resetAt = contextNow(audioContext);
       analyzer.reset();
       busy(1200);
       // What the watchdog compared before messages carried their send time: past the window, so this run is the case
-      const blockedFor = audioContext.currentTime - resetAt;
+      const blockedFor = contextNow(audioContext) - resetAt;
       await waitForEvent(analyzer, 'progress', 5000);
       source.stop();
 
       expect(blockedFor).to.be.greaterThan(1);
+      expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
+      analyzer.stop();
+    });
+
+    it('survives a main thread blocked past the watchdog window right before reset(), as a slow click handler is', async function () {
+      this.timeout(15_000);
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const pcm = createClickTrack(128, audioContext.sampleRate, 8);
+      const buffer = audioContext.createBuffer(1, pcm.length, audioContext.sampleRate);
+      buffer.copyToChannel(pcm, 0);
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(analyzer.input);
+
+      const firstStep = waitForEvent(analyzer, 'progress', 5000);
+      source.start();
+      await firstStep;
+
+      // The handler works 1.2 s, then resets: epoch-0 steps sent meanwhile are stamped up to 1.2 s after the
+      // block began. Where currentTime froze during the block (Firefox), a reset anchored on it would see them
+      // as sent more than the window after reset(), and fail a healthy analyzer
+      const before = {current: audioContext.currentTime, live: contextNow(audioContext)};
+      const until = performance.now() + 1200;
+      while (performance.now() < until) {
+        // Blocking on purpose: this is the blocked main thread under test
+      }
+
+      const moved = {current: audioContext.currentTime - before.current, live: contextNow(audioContext) - before.live};
+      console.info(`during a 1.2 s block, currentTime moved ${moved.current.toFixed(3)} s, the live clock ${moved.live.toFixed(3)} s`);
+      analyzer.reset();
+      await waitForEvent(analyzer, 'progress', 5000);
+      source.stop();
+
+      expect(moved.live).to.be.greaterThan(1);
       expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
       analyzer.stop();
     });

@@ -97,6 +97,37 @@ jobs:
           path: packages/mcp/dist/
           retention-days: 1
 
+  # The library's browser tests again in Firefox. Gecko reads the audio clock differently from Chromium (the main
+  # thread's currentTime freezes during a long task), and the epoch watchdog's reset anchor depends on it. Kept out
+  # of the release's needs: it is evidence on every PR, and a Gecko-only flake must not hold a release.
+  firefox:
+    name: Test (Firefox)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The tests import the generated processor, which the build writes
+      - name: Build the library
+        run: npm run build -w realtime-bpm-analyzer
+
+      - name: Install Firefox for puppeteer
+        working-directory: packages/realtime-bpm-analyzer
+        run: npx puppeteer browsers install firefox@stable
+
+      - name: Test in Firefox
+        run: npm run test:firefox -w realtime-bpm-analyzer
+
   # Release to GitHub and npm. release-please keeps one release PR open per package
   # (version bump + changelog, from the conventional commits under that package's path).
   # Merging it lands here: release-please tags the release (vX.Y.Z for the library,

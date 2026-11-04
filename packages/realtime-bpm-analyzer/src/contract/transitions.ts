@@ -4,7 +4,7 @@
  * Design note: `./readme.md`.
  */
 import {
-  PROTOCOL_VERSION,
+  PROTOCOL,
   RELATION_TOLERANCE,
   type ActiveStatus,
   type AnalyzerError,
@@ -19,6 +19,7 @@ import {
   type StateChangeReason,
   type Status,
 } from './types';
+import {compatibleProtocol, describeProtocol, mayAddTypes} from './protocol';
 
 /** Who may ask for a transition: the engine in a worklet message, the caller, or a fatal fault. */
 export type TransitionSource = 'engine' | 'caller' | 'fault';
@@ -94,7 +95,7 @@ function fail(state: AnalyzerState, error: AnalyzerError): ReducerResult {
   // The processor is told too: a failure seen on the main thread (no ready, a protocol violation, the watchdog)
   // would otherwise leave it analysing for an analyzer that reports nothing more. A processor that failed
   // itself has stopped already, and ignores it.
-  return {state: to, events: [transition(state, to, 'failed')], post: [{type: 'stop', protocol: PROTOCOL_VERSION}], refused: null};
+  return {state: to, events: [transition(state, to, 'failed')], post: [{type: 'stop', protocol: PROTOCOL}], refused: null};
 }
 
 const protocolError = (state: AnalyzerState, message: string) => fail(state, freeze({name: 'ProtocolError', message}));
@@ -120,13 +121,13 @@ export function reduce(state: AnalyzerState, input: ReducerInput): ReducerResult
       return {
         state: to,
         events: [transition(state, to, 'reset'), {type: 'progress', detail: {fraction: 0}}],
-        post: [{type: 'reset', protocol: PROTOCOL_VERSION, epoch: to.epoch}],
+        post: [{type: 'reset', protocol: PROTOCOL, epoch: to.epoch}],
         refused: null,
       };
     }
     case 'stop': {
       const to: AnalyzerState = {status: 'stopped', epoch: state.epoch, error: null};
-      return {state: to, events: [transition(state, to, 'stopped')], post: [{type: 'stop', protocol: PROTOCOL_VERSION}], refused: null};
+      return {state: to, events: [transition(state, to, 'stopped')], post: [{type: 'stop', protocol: PROTOCOL}], refused: null};
     }
     case 'fault':
       return fail(state, input.error);
@@ -138,8 +139,10 @@ export function reduce(state: AnalyzerState, input: ReducerInput): ReducerResult
 }
 
 function reduceMessage(state: ActiveState, data: unknown): ReducerResult {
-  if (!isRecord(data) || data.protocol !== PROTOCOL_VERSION) {
-    return protocolError(state, `processor protocol is not ${PROTOCOL_VERSION}: a stale processor file?`);
+  const protocol = isRecord(data) ? compatibleProtocol(data.protocol) : null;
+  if (!isRecord(data) || protocol === null) {
+    const theirs = describeProtocol(isRecord(data) ? data.protocol : undefined);
+    return protocolError(state, `processor protocol ${theirs} is not ${PROTOCOL.major}.x: a stale processor file?`);
   }
 
   // A fatal fault ends the processor whatever epoch it was sent in: dropping it as stale would leave the
@@ -174,9 +177,11 @@ function reduceMessage(state: ActiveState, data: unknown): ReducerResult {
     case 'step':
       return reduceStep(state, data);
     default:
-      // A type a later minor added, from a newer processor copy: ignored, as the processor ignores unknown host
-      // messages. Its protocol and epoch passed, so it is no stale or foreign processor (PROTOCOL_VERSION)
-      return unchanged(state);
+      // Only a later minor may have added a type: from a newer processor copy it is a feature this side lacks,
+      // from the same or an older one a bug or a typo (ProtocolVersion)
+      return mayAddTypes(protocol)
+        ? unchanged(state)
+        : protocolError(state, `unknown message type ${JSON.stringify(data.type)} from protocol ${describeProtocol(protocol)}`);
   }
 }
 

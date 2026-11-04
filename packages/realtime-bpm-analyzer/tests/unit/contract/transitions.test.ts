@@ -12,7 +12,7 @@ import {
 } from '../../../src/contract/transitions';
 import {
   HYSTERESIS,
-  PROTOCOL_VERSION,
+  PROTOCOL,
   type ActiveStatus,
   type AnalyzerEvent,
   type AnalyzerState,
@@ -21,7 +21,7 @@ import {
   type Status,
 } from '../../../src/contract/types';
 
-const protocol = PROTOCOL_VERSION;
+const protocol = PROTOCOL;
 const active: ActiveStatus[] = ['listening', 'settling', 'locked'];
 const statuses: Status[] = [...active, 'stopped'];
 const engineReasons: EngineReason[] = ['first-reading', 'locked', 'unlocked', 'pulse-lost', 'audio-lost', 'tempo-changed'];
@@ -278,9 +278,10 @@ describe('v6 reducer: epochs and protocol', () => {
     }
   });
 
-  it('fails loudly on a processor of another protocol version, a 5.x one included', () => {
+  it('fails loudly on a processor of another protocol major, a 5.x one and a bare number included', () => {
     const fiveX = {type: 'bpmStable', data: {bpm: [{tempo: 128, count: 40, confidence: 0.3}], threshold: 0.6}};
-    for (const data of [fiveX, {type: 'ready', protocol: protocol + 1, epoch: 0}, 'ready', null]) {
+    const otherMajor = {major: protocol.major + 1, minor: protocol.minor};
+    for (const data of [fiveX, {type: 'ready', protocol: otherMajor, epoch: 0}, {type: 'ready', protocol: 1, epoch: 0}, 'ready', null]) {
       const result = reduce(stateOf('listening'), message(data));
       expect(result.state.status).to.equal('stopped');
       expect(result.state.status === 'stopped' && result.state.error?.name).to.equal('ProtocolError');
@@ -288,19 +289,40 @@ describe('v6 reducer: epochs and protocol', () => {
     }
   });
 
-  it('ignores a message type it does not know, so a minor can add one, but not one of a future epoch', () => {
+  it('accepts a known message from a later minor: a newer processor copy still talks', () => {
+    const state = stateOf('listening');
+    const newer = {major: protocol.major, minor: protocol.minor + 1};
+    const result = reduce(state, message({type: 'step', protocol: newer, epoch: 0, status: 'listening', progress: 0.25}));
+    expect(types(result.events)).to.deep.equal(['progress']);
+  });
+
+  it('passes a message type it does not know from a later minor, which may have added it', () => {
+    const newer = {major: protocol.major, minor: protocol.minor + 1};
     for (const status of active) {
       const state = stateOf(status);
-      const result = reduce(state, message({type: 'beat', protocol, epoch: 0, time: 1.5}));
+      const result = reduce(state, message({type: 'beat', protocol: newer, epoch: 0, time: 1.5}));
       expect(result.state, status).to.equal(state);
       expect(result.events, status).to.deep.equal([]);
     }
-
-    expectProtocolError(stateOf('listening'), reduce(stateOf('listening'), message({type: 'beat', protocol, epoch: 1})), 'future epoch');
-    expectProtocolError(stateOf('listening'), reduce(stateOf('listening'), message({type: 'beat', protocol: protocol + 1, epoch: 0})), 'other protocol');
   });
 
-  it('fails on malformed messages of the right protocol', () => {
+  it('fails on a message type it does not know from its own minor: a bug or a typo, not a feature', () => {
+    for (const type of ['beat', 'stpe']) {
+      expectProtocolError(stateOf('listening'), reduce(stateOf('listening'), message({type, protocol, epoch: 0})), type);
+    }
+  });
+
+  it('fails on a message type it does not know from another major', () => {
+    const otherMajor = {major: protocol.major + 1, minor: protocol.minor + 1};
+    expectProtocolError(stateOf('listening'), reduce(stateOf('listening'), message({type: 'beat', protocol: otherMajor, epoch: 0})));
+  });
+
+  it('fails on a message type it does not know from a later minor, when it claims a future epoch', () => {
+    const newer = {major: protocol.major, minor: protocol.minor + 1};
+    expectProtocolError(stateOf('listening'), reduce(stateOf('listening'), message({type: 'beat', protocol: newer, epoch: 1})));
+  });
+
+  it('fails on malformed known messages, from a later minor too', () => {
     const bad = [
       {type: 'step', protocol, epoch: 0, status: 'drifting'},
       {type: 'step', protocol, epoch: 0, status: 'listening', progress: 2},
@@ -311,8 +333,10 @@ describe('v6 reducer: epochs and protocol', () => {
       {type: 'debug', protocol, epoch: 0, data: 1},
     ];
     const state = stateOf('listening');
+    const newer = {major: protocol.major, minor: protocol.minor + 1};
     for (const data of bad) {
       expectProtocolError(state, reduce(state, message(data)), JSON.stringify(data));
+      expectProtocolError(state, reduce(state, message({...data, protocol: newer})), `newer ${JSON.stringify(data)}`);
     }
   });
 });

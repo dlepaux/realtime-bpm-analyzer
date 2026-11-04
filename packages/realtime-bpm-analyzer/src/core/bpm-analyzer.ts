@@ -1,6 +1,7 @@
 import {createDispatcher} from '../contract/transitions';
 import type {Dispatcher} from '../contract/transitions';
-import {PROTOCOL_VERSION} from '../contract/types';
+import {compatibleProtocol} from '../contract/protocol';
+import {PROTOCOL, type ProtocolVersion} from '../contract/types';
 import type {
   AnalyzerError,
   AnalyzerEvent,
@@ -31,6 +32,17 @@ type Listener = (detail: never) => void;
 
 /** What the factory needs to wait on, kept off the public class */
 const readiness = new WeakMap<BpmAnalyzer, Promise<void>>();
+
+/** The processor's protocol from its first `ready`, kept off the public class */
+const processorProtocols = new WeakMap<BpmAnalyzer, ProtocolVersion>();
+
+/**
+ * The protocol the processor said it speaks in its first `ready`
+ * @param analyzer The analyzer
+ * @returns Its version, or `null` before `ready`. A feature that needs a later minor (beats, RBA-109) checks it,
+ * and fails at once when the processor copy is out of date.
+ */
+export const processorProtocol = (analyzer: BpmAnalyzer): ProtocolVersion | null => processorProtocols.get(analyzer) ?? null;
 
 /**
  * Waits for the processor's first `ready`
@@ -151,7 +163,7 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
     this.stopFollowing = liveInput
       ? followTrackClock(liveInput, seconds => {
         if (this.state.status !== 'stopped') {
-          this.node.port.postMessage({type: 'delivered', protocol: PROTOCOL_VERSION, seconds});
+          this.node.port.postMessage({type: 'delivered', protocol: PROTOCOL, seconds});
         }
       })
       : () => undefined;
@@ -364,7 +376,9 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
     }
 
     const message = typeof data === 'object' && data !== null ? data as {type?: unknown; protocol?: unknown; epoch?: unknown; at?: unknown} : null;
-    if (message?.type === 'ready' && message.protocol === PROTOCOL_VERSION && message.epoch === 0) {
+    const protocol = message?.type === 'ready' && message.epoch === 0 ? compatibleProtocol(message.protocol) : null;
+    if (protocol !== null) {
+      processorProtocols.set(this, protocol);
       this.markReady();
     }
 

@@ -1,7 +1,7 @@
 import {expect} from 'chai';
 import {createRealtimeBpmAnalyzer} from '../../src/index';
 import type {AnalyzerEventMap, BpmAnalyzer, StateChange} from '../../src/index';
-import {PROTOCOL_VERSION} from '../../src/contract/types';
+import {PROTOCOL} from '../../src/contract/types';
 import {createClickTrack} from '../fixtures/click-track';
 import {createTestAudioContext, closeAudioContext, waitForEvent} from '../setup';
 
@@ -33,7 +33,7 @@ describe('BpmAnalyzer - events and commands', function () {
 
   /** What the processor would post, delivered the way its port delivers it */
   function send(analyzer: BpmAnalyzer, data: Record<string, unknown>): void {
-    analyzer.node.port.onmessage?.(new MessageEvent('message', {data: {protocol: PROTOCOL_VERSION, at: analyzer.context.currentTime, ...data}}));
+    analyzer.node.port.onmessage?.(new MessageEvent('message', {data: {protocol: PROTOCOL, at: analyzer.context.currentTime, ...data}}));
   }
 
   function record<T extends keyof AnalyzerEventMap>(analyzer: BpmAnalyzer, type: T): Array<AnalyzerEventMap[T]> {

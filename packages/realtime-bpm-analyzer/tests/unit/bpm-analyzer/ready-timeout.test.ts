@@ -1,6 +1,6 @@
 import {expect} from 'chai';
-import {BpmAnalyzer, whenReady} from '../../../src/core/bpm-analyzer';
-import {PROTOCOL_VERSION} from '../../../src/contract/types';
+import {BpmAnalyzer, processorProtocol, whenReady} from '../../../src/core/bpm-analyzer';
+import {PROTOCOL} from '../../../src/contract/types';
 
 /** Enough of an AudioWorkletNode for the analyzer: a port the test plays the processor's side of */
 function fakeNode() {
@@ -16,7 +16,7 @@ function fakeNode() {
 
 describe('BpmAnalyzer - epoch watchdog', () => {
   /** An epoch-0 step, stamped with the worklet time it was sent at */
-  const stale = (at: number) => ({type: 'step', protocol: PROTOCOL_VERSION, epoch: 0, status: 'listening', progress: 0.1, at});
+  const stale = (at: number) => ({type: 'step', protocol: PROTOCOL, epoch: 0, status: 'listening', progress: 0.1, at});
 
   it('drops a backlog of old epochs that lands at once after reset(), however long', () => {
     const {node, send} = fakeNode();
@@ -37,7 +37,7 @@ describe('BpmAnalyzer - epoch watchdog', () => {
     // A click handler runs on for 1.2 s after reset(): the audio clock moves, the port holds what came meanwhile
     context.currentTime = 11.2;
     send(stale(10.003));
-    send({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1, at: 10.004});
+    send({type: 'ready', protocol: PROTOCOL, epoch: 1, at: 10.004});
 
     expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
     expect(() => analyzer.reset()).to.not.throw();
@@ -53,14 +53,14 @@ describe('BpmAnalyzer - epoch watchdog', () => {
 
     const {state} = analyzer;
     expect(state.status === 'stopped' && state.error?.name).to.equal('ProtocolError');
-    expect(posted.at(-1)).to.deep.equal({type: 'stop', protocol: PROTOCOL_VERSION});
+    expect(posted.at(-1)).to.deep.equal({type: 'stop', protocol: PROTOCOL});
   });
 
   it('fails with a ProtocolError on an old epoch without its send time, as no v6 processor sends one', () => {
     const {node, send} = fakeNode();
     const analyzer = new BpmAnalyzer(node);
     analyzer.reset();
-    send({type: 'step', protocol: PROTOCOL_VERSION, epoch: 0, status: 'listening', progress: 0.1});
+    send({type: 'step', protocol: PROTOCOL, epoch: 0, status: 'listening', progress: 0.1});
 
     const {state} = analyzer;
     expect(state.status === 'stopped' && state.error?.name).to.equal('ProtocolError');
@@ -70,7 +70,7 @@ describe('BpmAnalyzer - epoch watchdog', () => {
     const {node, send, context} = fakeNode();
     const analyzer = new BpmAnalyzer(node);
     analyzer.reset();
-    send({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1, at: 0});
+    send({type: 'ready', protocol: PROTOCOL, epoch: 1, at: 0});
     context.currentTime = 5;
     send(stale(5));
 
@@ -83,10 +83,33 @@ describe('BpmAnalyzer - startup', () => {
     const {node, send} = fakeNode();
     const analyzer = new BpmAnalyzer(node);
     const ready = whenReady(analyzer, 1000);
-    send({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 0});
+    send({type: 'ready', protocol: PROTOCOL, epoch: 0});
 
     await ready;
     expect(analyzer.state).to.deep.include({status: 'listening', reason: 'started'});
+  });
+
+  it('resolves on a ready from a later minor, and keeps that minor for features that need it', async () => {
+    const {node, send} = fakeNode();
+    const analyzer = new BpmAnalyzer(node);
+    const ready = whenReady(analyzer, 1000);
+    const newer = {major: PROTOCOL.major, minor: PROTOCOL.minor + 1};
+    send({type: 'ready', protocol: newer, epoch: 0, at: 0});
+
+    await ready;
+    expect(analyzer.state.status).to.equal('listening');
+    expect(processorProtocol(analyzer)).to.deep.equal(newer);
+  });
+
+  it('knows no processor protocol before ready, and refuses a ready of another major', () => {
+    const {node, send} = fakeNode();
+    const analyzer = new BpmAnalyzer(node);
+    expect(processorProtocol(analyzer)).to.equal(null);
+
+    send({type: 'ready', protocol: {major: PROTOCOL.major + 1, minor: 0}, epoch: 0, at: 0});
+    const {state} = analyzer;
+    expect(state.status === 'stopped' && state.error?.name).to.equal('ProtocolError');
+    expect(processorProtocol(analyzer)).to.equal(null);
   });
 
   it('fails with a ProtocolError when no ready comes in time, as a 5.x processor file never sends one', async () => {
@@ -101,14 +124,14 @@ describe('BpmAnalyzer - startup', () => {
 
     expect(caught).to.be.instanceOf(Error).with.property('name', 'ProtocolError');
     expect(analyzer.state.status).to.equal('stopped');
-    expect(posted).to.deep.include({type: 'stop', protocol: PROTOCOL_VERSION});
+    expect(posted).to.deep.include({type: 'stop', protocol: PROTOCOL});
   });
 
   it('fails at once on a fatal fault before ready, with the error of the processor', async () => {
     const {node, send} = fakeNode();
     const analyzer = new BpmAnalyzer(node);
     const ready = whenReady(analyzer, 1000);
-    send({type: 'fault', protocol: PROTOCOL_VERSION, epoch: 0, fatal: true, error: {name: 'ProtocolError', message: 'stale'}});
+    send({type: 'fault', protocol: PROTOCOL, epoch: 0, fatal: true, error: {name: 'ProtocolError', message: 'stale'}});
 
     let caught: unknown;
     try {

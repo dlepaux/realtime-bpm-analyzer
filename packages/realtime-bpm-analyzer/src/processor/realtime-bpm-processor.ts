@@ -5,7 +5,8 @@ import type {SampleClock} from '../core/sample-clock';
 import {createSession} from '../core/session';
 import type {ProcessorOptions, Session} from '../core/session';
 import type {AggregateData} from '../core/types';
-import {PROTOCOL_VERSION} from '../contract/types';
+import {compatibleProtocol, describeProtocol, mayAddTypes, ownProtocol} from '../contract/protocol';
+import {PROTOCOL} from '../contract/types';
 import type {AnalyzerErrorName, PostedWorkletMessage, WorkletMessage} from '../contract/types';
 
 /**
@@ -102,14 +103,15 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     this.port.start();
 
     const processorOptions = options.processorOptions;
-    if (processorOptions?.protocol !== PROTOCOL_VERSION) {
-      this.fail('ProtocolError', `the analyzer speaks protocol ${String(processorOptions?.protocol)}, this processor ${PROTOCOL_VERSION}: a stale processor file?`);
+    // The major only: an analyzer one minor apart still talks, and the unknown-type rule covers what it adds
+    if (compatibleProtocol(processorOptions?.protocol) === null) {
+      this.fail('ProtocolError', `the analyzer speaks protocol ${describeProtocol(processorOptions?.protocol)}, this processor ${ownProtocol}: a stale processor file?`);
       return;
     }
 
     this.liveInput = processorOptions.liveInput === true;
     this.session = createSession(processorOptions, () => this.sampleClock);
-    this.post({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 0});
+    this.post({type: 'ready', protocol: PROTOCOL, epoch: 0});
   }
 
   /** Every message leaves stamped with when it was sent, for the main thread's epoch watchdog */
@@ -128,7 +130,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     }
 
     this.stopped = true;
-    this.post({type: 'fault', protocol: PROTOCOL_VERSION, epoch: this.session?.epoch() ?? 0, fatal: true, error: {name, message}});
+    this.post({type: 'fault', protocol: PROTOCOL, epoch: this.session?.epoch() ?? 0, fatal: true, error: {name, message}});
   }
 
   /**
@@ -149,13 +151,20 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   }
 
   handle(data: {type: unknown; protocol?: unknown; epoch?: unknown; seconds?: unknown}): void {
-    const known = data.type === 'reset' || data.type === 'stop' || data.type === 'delivered';
-    if (!known) {
-      return; // Unknown types are ignored, so newer main-thread code cannot crash an older processor
+    const protocol = compatibleProtocol(data.protocol);
+    if (protocol === null) {
+      this.fail('ProtocolError', `host message of protocol ${describeProtocol(data.protocol)}, this processor speaks ${ownProtocol}`);
+      return;
     }
 
-    if (data.protocol !== PROTOCOL_VERSION) {
-      this.fail('ProtocolError', `host message of protocol ${String(data.protocol)}, this processor speaks ${PROTOCOL_VERSION}`);
+    // The main thread's rule, mirrored: only a later minor may have added a type, which an older processor copy
+    // skips. From the same or an older minor an unknown type is a bug or a typo (ProtocolVersion)
+    const known = data.type === 'reset' || data.type === 'stop' || data.type === 'delivered';
+    if (!known) {
+      if (!mayAddTypes(protocol)) {
+        this.fail('ProtocolError', `unknown host message type ${JSON.stringify(data.type)} from protocol ${describeProtocol(protocol)}`);
+      }
+
       return;
     }
 
@@ -260,7 +269,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
         }
       }, (error: unknown) => {
         // One step failed: say so, and let the next one run
-        this.post({type: 'fault', protocol: PROTOCOL_VERSION, epoch: measuredIn, fatal: false, error: {name: 'AnalysisError', message: errorMessage(error)}});
+        this.post({type: 'fault', protocol: PROTOCOL, epoch: measuredIn, fatal: false, error: {name: 'AnalysisError', message: errorMessage(error)}});
       })
       .finally(() => {
         this.analysisInProgress = false;

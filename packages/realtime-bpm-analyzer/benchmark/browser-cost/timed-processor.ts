@@ -1,5 +1,5 @@
 import type {RealTimeBpmProcessor} from '../../src/processor/realtime-bpm-processor';
-import {PROTOCOL_VERSION} from '../../src/contract/types';
+import {PROTOCOL} from '../../src/contract/types';
 import type {EngineName, PostedWorkletMessage} from '../../src/contract/types';
 import {resolveEngine} from '../../src/core/engine';
 import type {ProcessorOptions} from '../../src/core/session';
@@ -42,7 +42,7 @@ type HarnessMessage = {data?: {type?: string}};
  * @returns The validated options
  */
 export function harnessOptions(engine: EngineName): ProcessorOptions {
-  return {...resolveEngine(engine, undefined), debug: false, liveInput: false, protocol: PROTOCOL_VERSION};
+  return {...resolveEngine(engine, undefined), debug: false, liveInput: false, protocol: PROTOCOL};
 }
 
 /**

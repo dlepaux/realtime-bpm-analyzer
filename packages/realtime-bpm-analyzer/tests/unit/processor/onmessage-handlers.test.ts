@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {PROTOCOL_VERSION} from '../../../src/contract/types';
+import {PROTOCOL} from '../../../src/contract/types';
 import {host, loadProcessorModule, processorOptions} from './worklet-stub';
 
 /** What the processor does with each host message, and with a main thread it cannot talk to */
@@ -14,7 +14,7 @@ describe('RealTimeBpmProcessor - host messages', () => {
     new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: options});
 
   it('says it is ready, in epoch 0 and in its protocol', () => {
-    expect(makeProcessor().posted).to.deep.equal([{type: 'ready', protocol: PROTOCOL_VERSION, epoch: 0, at: 0}]);
+    expect(makeProcessor().posted).to.deep.equal([{type: 'ready', protocol: PROTOCOL, epoch: 0, at: 0}]);
   });
 
   it('stamps every message with the worklet clock at the time it is sent, for the epoch watchdog', () => {
@@ -26,7 +26,7 @@ describe('RealTimeBpmProcessor - host messages', () => {
       (globalThis as any).currentTime = 0;
     }
 
-    expect(processor.posted.at(-1)).to.deep.equal({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1, at: 2.5});
+    expect(processor.posted.at(-1)).to.deep.equal({type: 'ready', protocol: PROTOCOL, epoch: 1, at: 2.5});
   });
 
   it('ignores the live input clock of an analyzer made without liveInput', () => {
@@ -41,13 +41,22 @@ describe('RealTimeBpmProcessor - host messages', () => {
     expect(live.sampleClock).to.not.equal(null);
   });
 
-  it('refuses options of another protocol with a fatal fault, and never processes', () => {
-    const processor = makeProcessor({...processorOptions(), protocol: 0});
+  it('refuses options of another protocol major, or a bare number, with a fatal fault, and never processes', () => {
+    for (const protocol of [{major: PROTOCOL.major + 1, minor: PROTOCOL.minor}, 1, undefined]) {
+      const processor = makeProcessor({...processorOptions(), protocol});
 
-    expect(processor.posted).to.have.length(1);
-    expect(processor.posted[0]).to.deep.include({type: 'fault', fatal: true});
-    expect(processor.posted[0].error.name).to.equal('ProtocolError');
-    expect(processor.process([[new Float32Array(128)]], [], {})).to.equal(false);
+      expect(processor.posted, JSON.stringify(protocol)).to.have.length(1);
+      expect(processor.posted[0]).to.deep.include({type: 'fault', fatal: true});
+      expect(processor.posted[0].error.name).to.equal('ProtocolError');
+      expect(processor.process([[new Float32Array(128)]], [], {})).to.equal(false);
+    }
+  });
+
+  it('starts for an analyzer of another minor, older or newer, and says ready in its own', () => {
+    for (const minor of [PROTOCOL.minor + 1, PROTOCOL.minor + 3]) {
+      const processor = makeProcessor({...processorOptions(), protocol: {major: PROTOCOL.major, minor}});
+      expect(processor.posted).to.deep.equal([{type: 'ready', protocol: PROTOCOL, epoch: 0, at: 0}]);
+    }
   });
 
   it('adopts the epoch of a reset, starts over and says ready in it', () => {
@@ -62,7 +71,7 @@ describe('RealTimeBpmProcessor - host messages', () => {
     processor.onMessage(host({type: 'reset', epoch: 1}));
 
     expect(adopted).to.equal(1);
-    expect(processor.posted.at(-1)).to.deep.equal({type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1, at: 0});
+    expect(processor.posted.at(-1)).to.deep.equal({type: 'ready', protocol: PROTOCOL, epoch: 1, at: 0});
   });
 
   it('fails on a reset that does not move the epoch forward', () => {
@@ -74,12 +83,26 @@ describe('RealTimeBpmProcessor - host messages', () => {
     expect(processor.stopped).to.equal(true);
   });
 
-  it('fails on a host message of another protocol', () => {
-    const processor = makeProcessor();
-    processor.onMessage({data: {type: 'reset', epoch: 1}});
+  const expectFailed = (processor: any, label: string) => {
+    expect(processor.posted.at(-1), label).to.deep.include({type: 'fault', fatal: true});
+    expect(processor.posted.at(-1).error.name, label).to.equal('ProtocolError');
+    expect(processor.stopped, label).to.equal(true);
+  };
 
-    expect(processor.posted.at(-1)).to.deep.include({type: 'fault', fatal: true});
-    expect(processor.posted.at(-1).error.name).to.equal('ProtocolError');
+  it('fails on a host message of another major, or of no protocol, whatever its type', () => {
+    const otherMajor = {major: PROTOCOL.major + 1, minor: PROTOCOL.minor + 1};
+    for (const data of [{type: 'reset', epoch: 1}, {type: 'reset', epoch: 1, protocol: otherMajor}, {type: 'beat', protocol: otherMajor}]) {
+      const processor = makeProcessor();
+      processor.onMessage({data});
+      expectFailed(processor, JSON.stringify(data));
+    }
+  });
+
+  it('takes a known host message from a later minor', () => {
+    const processor = makeProcessor();
+    processor.onMessage({data: {type: 'reset', epoch: 1, protocol: {major: PROTOCOL.major, minor: PROTOCOL.minor + 1}}});
+
+    expect(processor.posted.at(-1)).to.deep.include({type: 'ready', epoch: 1});
   });
 
   it('stops on stop: process() returns false, so the browser may drop it, and analyses nothing more', () => {
@@ -129,11 +152,26 @@ describe('RealTimeBpmProcessor - host messages', () => {
     expect(processor.posted.at(-1).error).to.deep.equal({name: 'ProcessorError', message: 'broken'});
   });
 
-  it('ignores unknown message types, so a newer main thread cannot crash it, and malformed ones', () => {
+  it('ignores a host message type it does not know from a later minor, which may have added it', () => {
+    const processor = makeProcessor();
+    processor.onMessage({data: {type: 'future-message-type', protocol: {major: PROTOCOL.major, minor: PROTOCOL.minor + 1}}});
+
+    expect(processor.stopped).to.equal(false);
+    expect(processor.posted).to.have.length(1);
+  });
+
+  it('fails on a host message type it does not know from its own minor: a bug or a typo', () => {
+    for (const type of ['future-message-type', 'rest']) {
+      const processor = makeProcessor();
+      processor.onMessage(host({type, epoch: 1}));
+      expectFailed(processor, type);
+    }
+  });
+
+  it('ignores port events that carry no message at all', () => {
     const processor = makeProcessor();
 
     expect(() => {
-      processor.onMessage(host({type: 'future-message-type'}));
       processor.onMessage({});
       processor.onMessage({data: null});
     }).to.not.throw();

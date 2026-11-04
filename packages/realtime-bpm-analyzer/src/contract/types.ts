@@ -5,16 +5,24 @@
  */
 
 /**
- * Version of the worklet protocol, checked for strict equality on both sides.
+ * A worklet protocol version, carried by every message between the analyzer and its processor.
  *
  * @remarks
- * Bumped only when a message both sides already know changes shape or meaning, which only a major release does.
- * A minor may add a message type without a bump: each side ignores the types it does not know (the processor
- * ignores unknown {@link HostMessage}s, the main thread unknown {@link WorkletMessage}s). So a `processorUrl` copy
- * one minor behind or ahead keeps working, without the feature it lacks: a 6.0 processor never sends the `beat`
- * message a later 6.x main thread listens for (RBA-109). Refresh the copy on every upgrade to get every feature.
+ * Semver rules, because a `processorUrl` copy of the processor can drift from the library that loads it.
+ * - `major` is checked strictly: a known message changed shape or meaning, which only a major release does. A
+ *   processor of another major (a 5.x file included) fails at once with a `ProtocolError`.
+ * - `minor` is checked tolerantly: a minor release may add message types, and bumps it when it does. A message type
+ *   a side does not know passes only when it comes from a later minor than its own, so it is a feature a newer
+ *   copy has. From the same or an older minor it is a bug, a typo included, and fatal. A known message that is
+ *   malformed is fatal whatever the minor.
+ *
+ * The main thread keeps the processor's minor from its `ready`, so a feature that needs a newer processor (beats,
+ * RBA-109) can fail at once with an error saying the processor copy is out of date, instead of going silent.
  */
-export const PROTOCOL_VERSION = 1;
+export type ProtocolVersion = {readonly major: number; readonly minor: number};
+
+/** The protocol this build speaks: see {@link ProtocolVersion} */
+export const PROTOCOL: ProtocolVersion = Object.freeze({major: 1, minor: 0});
 
 /**
  * The tempo engine. May grow in a minor release, like every exported union but {@link Status}: give a `switch`
@@ -47,7 +55,7 @@ export type EngineOption =
     readonly mode?: 'extension';
   };
 
-/** The offline engine option. Realtime callers place their own filter, so only offline takes a lowpass. */
+/** The offline engine option. Realtime `peaks` has a fixed lowpass inside `analyzer.input`, so only offline takes lowpass settings. */
 export type OfflineEngineOption =
   | EngineName
   | {readonly name: 'peaks'; readonly lowpass?: {readonly frequency?: number; readonly q?: number}};
@@ -356,9 +364,9 @@ export type BpmAnalyzerContract = {
 };
 
 /**
- * Worklet to main thread. Every message carries the protocol version and the epoch it was measured in. The main
- * thread validates every type it knows strictly, and ignores a type it does not know once its protocol and epoch
- * check out, so a minor can add one (see {@link PROTOCOL_VERSION}).
+ * Worklet to main thread. Every message carries the processor's protocol version and the epoch it was measured in.
+ * The main thread validates every type it knows strictly, and passes a type it does not know only when it comes from
+ * a later protocol minor than its own (see {@link ProtocolVersion}).
  */
 export type WorkletMessage =
   /**
@@ -366,7 +374,7 @@ export type WorkletMessage =
    * factory waits for the first, with a timeout, before it resolves, so a stale processor fails at startup: a 5.x
    * one never sends it. The later ones end the epoch watchdog's wait.
    */
-  | {readonly type: 'ready'; readonly protocol: number; readonly epoch: number}
+  | {readonly type: 'ready'; readonly protocol: ProtocolVersion; readonly epoch: number}
   /**
    * One per analysis step while listening. `reason` only when this step moved the status. A start-over
    * (`tempo-changed` with `restartAfterSeconds`, `audio-lost` with `liveInput`) sends one of its own, so one step
@@ -374,7 +382,7 @@ export type WorkletMessage =
    */
   | {
     readonly type: 'step';
-    readonly protocol: number;
+    readonly protocol: ProtocolVersion;
     readonly epoch: number;
     readonly status: 'listening';
     readonly progress: number;
@@ -383,15 +391,15 @@ export type WorkletMessage =
   /** One per analysis step with a reading. `reason` only when this step moved the status. */
   | {
     readonly type: 'step';
-    readonly protocol: number;
+    readonly protocol: ProtocolVersion;
     readonly epoch: number;
     readonly status: 'settling' | 'locked';
     readonly reading: Reading;
     readonly reason?: EngineReason;
   }
-  | {readonly type: 'fault'; readonly protocol: number; readonly epoch: number; readonly fatal: boolean; readonly error: AnalyzerError}
+  | {readonly type: 'fault'; readonly protocol: ProtocolVersion; readonly epoch: number; readonly fatal: boolean; readonly error: AnalyzerError}
   /** Only sent with `debug: true`: the processor filters, not the reducer. */
-  | {readonly type: 'debug'; readonly protocol: number; readonly epoch: number; readonly engine: EngineName; readonly data: unknown};
+  | {readonly type: 'debug'; readonly protocol: ProtocolVersion; readonly epoch: number; readonly engine: EngineName; readonly data: unknown};
 
 /**
  * A {@link WorkletMessage} as it crosses the port: the processor stamps each one with the worklet's `currentTime`
@@ -400,12 +408,15 @@ export type WorkletMessage =
  */
 export type PostedWorkletMessage = WorkletMessage & {readonly at: number};
 
-/** Main thread to worklet. The processor ignores unknown types, and adopts `epoch` from `reset`. */
+/**
+ * Main thread to worklet. The processor applies the main thread's rule to the types it does not know (see
+ * {@link ProtocolVersion}), and adopts `epoch` from `reset`.
+ */
 export type HostMessage =
-  | {readonly type: 'reset'; readonly protocol: number; readonly epoch: number}
-  | {readonly type: 'stop'; readonly protocol: number}
+  | {readonly type: 'reset'; readonly protocol: ProtocolVersion; readonly epoch: number}
+  | {readonly type: 'stop'; readonly protocol: ProtocolVersion}
   /** Seconds the live input has delivered, for the `liveInput` clock. */
-  | {readonly type: 'delivered'; readonly protocol: number; readonly seconds: number};
+  | {readonly type: 'delivered'; readonly protocol: ProtocolVersion; readonly seconds: number};
 
 /**
  * Hysteresis between locking and unlocking, and before a lost pulse, engine-neutral: it reads only `bpm`, the pulse and audio time.

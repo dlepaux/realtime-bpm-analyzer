@@ -1,7 +1,7 @@
 import {expect} from 'chai';
 import {createSession} from '../../../src/core/session';
 import type {LockClock} from '../../../src/core/session';
-import {PROTOCOL_VERSION} from '../../../src/contract/types';
+import {PROTOCOL} from '../../../src/contract/types';
 import {reduce, initialState} from '../../../src/contract/transitions';
 import type {AnalyzerState} from '../../../src/contract/types';
 import {createClickTrack} from '../../fixtures/click-track';
@@ -27,7 +27,7 @@ describe('session - what the worklet sends', () => {
       const messages = await feedSession(session, createClickTrack(128, sampleRate, 20), sampleRate);
       const state = reduceAll(messages);
 
-      expect(messages.every(({message}) => message.protocol === PROTOCOL_VERSION && message.epoch === 0)).to.equal(true);
+      expect(messages.every(({message}) => message.protocol === PROTOCOL && message.epoch === 0)).to.equal(true);
       expect(state.status).to.equal('locked');
       expect(state.status === 'locked' && Math.round(state.reading.bpm)).to.equal(128);
       expect(state.status === 'locked' && state.reading.engine).to.equal(name);
@@ -95,7 +95,7 @@ describe('session - what the worklet sends', () => {
 
     // A reset that lands while a buffer is being analysed
     const inFlight = session.analyze(pcm.subarray(0, 4096), 4096, sampleRate);
-    expect(session.adopt(1)).to.deep.equal([{type: 'ready', protocol: PROTOCOL_VERSION, epoch: 1}]);
+    expect(session.adopt(1)).to.deep.equal([{type: 'ready', protocol: PROTOCOL, epoch: 1}]);
     expect(await inFlight).to.deep.equal([]);
     expect(session.epoch()).to.equal(1);
 
@@ -106,7 +106,7 @@ describe('session - what the worklet sends', () => {
 
   it('reports a lost-audio start-over while listening once, and the move to listening otherwise', async () => {
     const session = createSession({engine: {name: 'peaks'}, tempoRange: range, debug: false});
-    const lost = {type: 'step', protocol: PROTOCOL_VERSION, epoch: 0, status: 'listening', progress: 0, reason: 'audio-lost'};
+    const lost = {type: 'step', protocol: PROTOCOL, epoch: 0, status: 'listening', progress: 0, reason: 'audio-lost'};
 
     expect(session.restartForLostAudio()).to.deep.equal([lost]);
     expect(session.restartForLostAudio()).to.deep.equal([]);

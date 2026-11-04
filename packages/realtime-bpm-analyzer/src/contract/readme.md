@@ -49,8 +49,9 @@ Two smaller choices sit alongside these:
   copied into an extension build) fails loudly with `ProtocolError` instead of misbehaving: the factory waits for its `ready` message with a timeout, and a 5.x processor never sends one.
 - Any protocol violation is fatal (`stopped`, reason `failed`, a `ProtocolError` in `state.error`). That
   covers an illegal transition, a malformed message of a known type, a future epoch and audio time going back.
-  A message type the main thread doesn't know is not a violation once its protocol and epoch check out: it is
-  ignored, as the processor ignores unknown host messages. That is how a minor adds a message (see below). Dropping
+  A message type the main thread doesn't know passes only when it comes from a later protocol minor, which may
+  have added it; from the same or an older minor it is a violation, so a typo fails loudly. The processor
+  applies the same rule to host messages. That is how a minor adds a message (see below). Dropping
   the message instead would leave the processor believing in a state the main thread refused, and every
   step after it would be refused too.
 - `listening` carries its reason (`started`, `reset`, `pulse-lost`, `audio-lost`, `tempo-changed`), so a
@@ -68,10 +69,13 @@ and pulse values. The lock follows each engine's own rule: the tempogram's stabl
 
 These rules are fixed now so that beats land in a minor release, without a break:
 
-1. **Protocol.** `PROTOCOL_VERSION` moves only when a known message changes, which only a major does. A
-   minor adds a message type, such as `beat`, without a bump, and both sides ignore types they don't know.
-   A `processorUrl` copy one minor behind keeps working, without the new feature; the docs tell people to
-   refresh it on every upgrade.
+1. **Protocol.** `PROTOCOL` is a semver pair (`ProtocolVersion`). The major moves only when a known message
+   changes, which only a major release does, and is checked strictly. A minor release that adds a message
+   type, such as `beat`, bumps the minor, which is checked tolerantly: each side passes an unknown type only
+   from a later minor than its own, and fails on one from the same or an older minor. A malformed known
+   message is fatal whatever the minor. The analyzer keeps the processor's minor from `ready`, so a
+   `processorUrl` copy one minor behind keeps working, and a feature it lacks (beats) throws at once that the
+   processor copy is out of date instead of going silent. Every 6.x processor sends its minor, from 6.1.0.
 2. **Clock.** `AudioSpan.contextTime` is the `AudioContext` time at which the sample at `audio.to` reached
    the worklet, stamped there before the analysis awaits. A moment `t` of analysed audio is at
    `contextTime - (audio.to - t)` on the clock `AudioContext` schedules on. Offline it is `null`.

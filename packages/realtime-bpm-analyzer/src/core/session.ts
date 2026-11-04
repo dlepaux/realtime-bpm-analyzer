@@ -1,4 +1,4 @@
-import {HYSTERESIS, PROTOCOL_VERSION} from '../contract/types';
+import {HYSTERESIS, PROTOCOL, type ProtocolVersion} from '../contract/types';
 import type {EngineReason, Hysteresis, TempoRange, WorkletMessage} from '../contract/types';
 import {createEngine, toReading} from './engine';
 import type {ResolvedEngine} from './engine';
@@ -22,7 +22,7 @@ export type SessionOptions = {
 /** What the main thread hands the processor: validated there, so nothing in the worklet can throw at the caller */
 export type ProcessorOptions = SessionOptions & {
   /** The main thread's protocol: a processor that speaks another refuses to start */
-  readonly protocol: number;
+  readonly protocol: ProtocolVersion;
   /** Whether the main thread reports a live input's clock: without one, `delivered` messages are ignored */
   readonly liveInput: boolean;
 };
@@ -62,7 +62,7 @@ export function createSession(options: SessionOptions, clock: () => LockClock | 
   let engineStart = 0;
 
   const listening = (progress: number, reason?: EngineReason): WorkletMessage => ({
-    type: 'step', protocol: PROTOCOL_VERSION, epoch, status: 'listening', progress, reason,
+    type: 'step', protocol: PROTOCOL, epoch, status: 'listening', progress, reason,
   });
 
   function restart(reason: 'tempo-changed' | 'audio-lost'): WorkletMessage[] {
@@ -87,7 +87,7 @@ export function createSession(options: SessionOptions, clock: () => LockClock | 
 
     seconds += bufferSize / sampleRate;
     if (step.debug !== undefined) {
-      messages.push({type: 'debug', protocol: PROTOCOL_VERSION, epoch, engine: engine.name, data: step.debug});
+      messages.push({type: 'debug', protocol: PROTOCOL, epoch, engine: engine.name, data: step.debug});
     }
 
     const progress = Math.min(1, Math.max(0, step.progress));
@@ -119,7 +119,7 @@ export function createSession(options: SessionOptions, clock: () => LockClock | 
       return messages;
     }
 
-    return [...messages, {type: 'step', protocol: PROTOCOL_VERSION, epoch, status: moved.status, reading, reason: moved.reason}];
+    return [...messages, {type: 'step', protocol: PROTOCOL, epoch, status: moved.status, reading, reason: moved.reason}];
   }
 
   return {
@@ -131,7 +131,7 @@ export function createSession(options: SessionOptions, clock: () => LockClock | 
       engine.restart();
       clock()?.forget();
       tracker.reset();
-      return [{type: 'ready', protocol: PROTOCOL_VERSION, epoch}];
+      return [{type: 'ready', protocol: PROTOCOL, epoch}];
     },
     restartForLostAudio: () => restart('audio-lost'),
     epoch: () => epoch,

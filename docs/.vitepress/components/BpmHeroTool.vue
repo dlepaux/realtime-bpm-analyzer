@@ -336,8 +336,9 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
     localAnalyzer.on('statechange', ({ to }) => {
       if (to.status !== 'locked') return
       const bpm = Math.round(to.reading.bpm)
-      // The analyzer can lock again after it unlocks or loses the pulse: report a tempo
-      // once per lock, and again only when it changes (RBA-5).
+      // The analyzer can lock again after it unlocks or loses the pulse: report a tempo only
+      // when it differs from the locked tempo last shown, which readings keep current while locked,
+      // so a relock on the same tempo sends nothing (RBA-5).
       if (bpm !== micStableBpm.value) track('bpm_mic_locked', { bpm })
       micStableBpm.value = bpm
       micStatus.value = 'result'

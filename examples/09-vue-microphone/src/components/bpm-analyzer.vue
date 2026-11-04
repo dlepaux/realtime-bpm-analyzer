@@ -23,6 +23,8 @@ const disconnect = async () => {
     return;
   }
 
+  // stop() is final: it ends the analysis, and the next start creates a new analyzer.
+  bpmAnalyzer.stop();
   await audioContext.suspend();
 
   source.disconnect();

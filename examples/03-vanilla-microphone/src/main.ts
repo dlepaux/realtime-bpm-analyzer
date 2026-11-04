@@ -127,6 +127,8 @@ async function disconnect(): Promise<void> {
     return;
   }
 
+  // stop() is final: it ends the analysis, and the next start creates a new analyzer.
+  bpmAnalyzer.stop();
   await audioContext.suspend();
 
   // Disconnect everything
@@ -159,6 +161,7 @@ function cleanup() {
   }
 
   if (bpmAnalyzer) {
+    bpmAnalyzer.stop();
     bpmAnalyzer.disconnect();
     bpmAnalyzer = null;
   }

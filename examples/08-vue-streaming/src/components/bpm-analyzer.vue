@@ -32,6 +32,8 @@ const cleanup = () => {
   }
 
   if (bpmAnalyzer) {
+    // stop() is final: it ends the analysis, and the next start creates a new analyzer.
+    bpmAnalyzer.stop();
     bpmAnalyzer.disconnect();
     bpmAnalyzer = null;
   }

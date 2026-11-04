@@ -33,6 +33,8 @@ function BpmAnalyzer() {
       return;
     }
 
+    // stop() is final: it ends the analysis, and the next start creates a new analyzer.
+    bpmAnalyzerRef.current.stop();
     await audioContextRef.current.suspend();
 
     sourceRef.current.disconnect();

@@ -41,6 +41,8 @@ function BpmAnalyzer() {
 
 
     if (bpmAnalyzerRef.current) {
+      // stop() is final: it ends the analysis, and the next start creates a new analyzer.
+      bpmAnalyzerRef.current.stop();
       bpmAnalyzerRef.current.disconnect();
       bpmAnalyzerRef.current = null;
     }

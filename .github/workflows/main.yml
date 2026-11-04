@@ -70,6 +70,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # After the build: the tests import the processor the build generates. Includes tests/types, which are
+      # checked here and never run
+      - name: Typecheck the library and its tests
+        run: npm run typecheck -w realtime-bpm-analyzer
+
       - name: Test
         run: npm test
 

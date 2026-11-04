@@ -71,6 +71,7 @@
     "postpack": "rm -f readme.md license.md",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
     "testing": "web-dev-server",
     "test": "web-test-runner",

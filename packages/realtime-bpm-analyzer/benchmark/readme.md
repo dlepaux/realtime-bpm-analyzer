@@ -248,3 +248,7 @@ CPU, on an M1 Pro in Node with synthetic input (`perf.ts`, 3 input shapes, two r
 - The first reading comes at 4 s and the earliest `bpmStable` at about 11.5 s: the warm-up, then 8 s of agreeing frames.
 - GiantSteps previews are 2 minutes and GTZAN clips 30 s, so slow settling is not penalised the way a full DJ set would.
 - The worklet reads the left channel only, so a hard-panned track is judged on that channel. This holds for both detectors.
+
+## Beats (RBA-109 phase 0, dev only)
+
+Where the beats fall, scored on licence-clean click-track truth: Groove (MIDI grid), GuitarSet (JAMS beats) and FSLD loops (whole-beat loops only). The split is [`splits/beats.json`](splits/beats.json), by drummer, player and uploader, inside the tempo halves, with its held-out half sealed by hash and unread. The scripts are `beats_*.py`, standard library only, and run where the data lives. Tests: `python3 -I benchmark/beats_test.py`. Results, the data audit and the go or no-go: [`results/rba-109-beats-dev.md`](results/rba-109-beats-dev.md).

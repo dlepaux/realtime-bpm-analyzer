@@ -16,6 +16,8 @@ import {
   markerFile,
   rationalTime,
   timecode,
+  timecodeChoice,
+  timecodesFor,
   toCsv,
   toEdl,
   toFcp7Xml,
@@ -167,7 +169,7 @@ test('CSV: drop-frame timecode at 29.97', () => {
 
 test('FCPXML: a gap in a project holding one marker per beat, every time on a frame boundary', () => {
   const xml = toFcpxml(input({ rate: rate('23.976'), duration: 10, firstBeat: 0.37 }))
-  assert.match(xml, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<!DOCTYPE fcpxml>\n<fcpxml version="1\.8">/)
+  assert.match(xml, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<!DOCTYPE fcpxml>\n<fcpxml version="1\.10">/)
   assert.match(xml, /<format id="r1" name="FFVideoFormat1080p2398" frameDuration="1001\/24000s"/)
   assert.match(xml, /tcFormat="NDF"/)
   const starts = [...xml.matchAll(/<marker start="(\d+)\/24000s" duration="1001\/24000s" value="Beat (\d+)"\/>/g)]
@@ -185,10 +187,9 @@ test('FCPXML: drop-frame display at 29.97, and the file name escaped in every na
   assert.ok(!xml.includes('"live"'))
 })
 
-test('EDL: CMX 3600 events on a 01:00:00:00 timeline with Resolve marker notes', () => {
+test('EDL: CMX 3600 events on a 01:00:00:00 timeline with Resolve marker notes, CR/LF, no FCM at 25 fps', () => {
   assert.equal(toEdl(input({ firstBeat: 0.5, duration: 1 })), [
-    'TITLE: song.mp3 beat markers',
-    'FCM: NON-DROP FRAME',
+    'TITLE: SONG MP3 BEAT MARKERS',
     '',
     '001  001      V     C        01:00:00:13 01:00:00:14 01:00:00:13 01:00:00:14',
     ' |C:ResolveColorBlue |M:Beat 1 |D:1',
@@ -196,24 +197,50 @@ test('EDL: CMX 3600 events on a 01:00:00:00 timeline with Resolve marker notes',
     '002  001      V     C        01:00:00:24 01:00:01:00 01:00:00:24 01:00:01:00',
     ' |C:ResolveColorBlue |M:Beat 2 |D:1',
     '',
-  ].join('\n'))
+  ].map((line) => `${line}\r\n`).join(''))
 })
 
-test('EDL: drop-frame at 29.97 and 59.94 says so and writes ; timecode', () => {
+test('EDL: an FCM line everywhere but the PAL rates, 25 and 50 fps', () => {
+  for (const entry of EXPORT_TIMECODES) {
+    const fcm = /^FCM: (.*)\r$/m.exec(toEdl(input({ rate: entry.rate, dropFrame: entry.dropFrame })))?.[1]
+    const expected = ['25', '50'].includes(entry.rate.label) ? undefined : entry.dropFrame ? 'DROP FRAME' : 'NON-DROP FRAME'
+    assert.equal(fcm, expected, entry.label)
+  }
+})
+
+test('EDL: only CMX 3600 characters outside the Resolve notes, and every line ends CR/LF', () => {
+  for (const entry of EXPORT_TIMECODES) {
+    const edl = toEdl(input({ name: 'Café – mix (v2).wav', duration: 30, rate: entry.rate, dropFrame: entry.dropFrame }))
+    assert.ok(edl.endsWith('\r\n'), entry.label)
+    const lines = edl.slice(0, -2).split('\r\n')
+    for (const line of lines) {
+      assert.doesNotMatch(line, /[\r\n]/, entry.label)
+      // Outside the set: the hyphen of NON-DROP FRAME, as the spec writes it (p. 16), and the ; of
+      // drop-frame timecode (see beat-markers.ts).
+      const allowed = entry.dropFrame ? /^[A-Z0-9:; /]*$/ : /^[A-Z0-9: /]*$/
+      if (!line.startsWith(' |C:') && line !== 'FCM: NON-DROP FRAME') assert.match(line, allowed, `${entry.label}: ${line}`)
+    }
+  }
+})
+
+test('EDL: drop-frame at 29.97 and 59.94 says so in the FCM line, and with ; in the timecode for readers that skip FCM', () => {
   for (const label of ['29.97', '59.94']) {
     const edl = toEdl(input({ firstBeat: 600, duration: 600.4, rate: rate(label), dropFrame: true }))
-    assert.match(edl, /^FCM: DROP FRAME$/m)
-    assert.match(edl, /^001 {2}001 {6}V {5}C {8}01:10:00;00 01:10:00;01 01:10:00;00 01:10:00;01$/m, label)
+    assert.match(edl, /^FCM: DROP FRAME\r$/m)
+    assert.match(edl, /^001 {2}001 {6}V {5}C {8}01:10:00;00 01:10:00;01 01:10:00;00 01:10:00;01\r$/m, label)
   }
   // Non-drop at 29.97 runs 18 frames behind the clock after ten minutes.
   const ndf = toEdl(input({ firstBeat: 600, duration: 600.4, rate: rate('29.97'), dropFrame: false }))
-  assert.match(ndf, /^FCM: NON-DROP FRAME$/m)
+  assert.match(ndf, /^FCM: NON-DROP FRAME\r$/m)
   assert.match(ndf, / 01:09:59:12 /)
 })
 
-test('EDL: the title is one line, and event numbers widen past 999', () => {
+test('EDL: the title is one line of capitals, digits and spaces, at most 70, and event numbers widen past 999', () => {
   const edl = toEdl(input({ name: 'two\nlines\r.wav', bpm: 600, firstBeat: 0, duration: 120 }))
-  assert.match(edl, /^TITLE: two lines \.wav beat markers$/m)
+  assert.match(edl, /^TITLE: TWO LINES WAV BEAT MARKERS\r$/m)
+  assert.match(toEdl(input({ name: 'Café – mix (v2).wav' })), /^TITLE: CAFE MIX V2 WAV BEAT MARKERS\r$/m)
+  assert.match(toEdl(input({ name: '日本.wav' })), /^TITLE: WAV BEAT MARKERS\r$/m)
+  assert.match(toEdl(input({ name: 'x'.repeat(100) })), new RegExp(`^TITLE: ${'X'.repeat(70)}\r$`, 'm'))
   assert.match(edl, /^0001 {2}001 /m)
   assert.match(edl, /^1201 {2}001 /m)
 })
@@ -245,6 +272,23 @@ test('every format keeps the last marker inside the sequence, even a beat in its
   assert.equal(length, 50)
   assert.ok(ins.every((frame) => frame < length), `${ins.join(',')} reach ${length}`)
   assert.equal(ins.at(-1), 49)
+})
+
+test('FCP7 XML: drop-frame only at a 30 timebase, as the xmeml reference allows, so 59.94 DF is refused', () => {
+  assert.throws(() => toFcp7Xml(input({ rate: rate('59.94'), dropFrame: true })), RangeError)
+  assert.match(toFcp7Xml(input({ rate: rate('59.94'), dropFrame: false })), /<timebase>60<\/timebase><ntsc>TRUE<\/ntsc>/)
+  assert.deepEqual(
+    EXPORT_TIMECODES.filter((entry) => !timecodesFor('fcp7xml').includes(entry)).map((entry) => entry.id),
+    ['59.94 DF'],
+  )
+  for (const format of ['csv', 'edl', 'fcpxml'] as const) assert.deepEqual(timecodesFor(format), EXPORT_TIMECODES)
+})
+
+test('timecodeChoice: the chosen timecode, its non-drop twin where the format has no drop-frame, else 24 fps', () => {
+  assert.equal(timecodeChoice('edl', '59.94 DF').id, '59.94 DF')
+  assert.equal(timecodeChoice('fcp7xml', '59.94 DF').id, '59.94 NDF')
+  assert.equal(timecodeChoice('fcp7xml', '29.97 DF').id, '29.97 DF')
+  assert.equal(timecodeChoice('csv', 'nope').id, '24')
 })
 
 test('FCP7 XML: whole rates are not NTSC', () => {
@@ -279,24 +323,25 @@ test('drop-frame and non-drop are each written as chosen in all four formats', (
       const atMinute = markerFile('csv', marks).content.split('\r\n').find((line) => line.startsWith('Beat 61,'))
       const edl = toEdl(marks)
       const fcpxml = toFcpxml(marks)
-      const xmeml = toFcp7Xml(marks)
+      if (!choice.dropFrame) assert.doesNotMatch(edl, /;/, choice.label)
       assert.ok(atMinute, `${choice.label}: no marker at one minute`)
       if (choice.dropFrame) {
         assert.match(atMinute, /,00:00:59;\d\d$/, choice.label)
         assert.equal(timecode(minuteFrame, choice.rate, true), `00:01:00;${dropped}`)
-        assert.match(edl, /^FCM: DROP FRAME$/m)
+        assert.match(edl, /^FCM: DROP FRAME\r$/m)
         assert.match(edl, /01:00:00;00 01:00:00;01/)
         assert.match(fcpxml, /tcFormat="DF"/)
-        assert.match(xmeml, /<string>00:00:00;00<\/string><frame>0<\/frame><displayformat>DF<\/displayformat>/)
+        if (label === '29.97') {
+          assert.match(toFcp7Xml(marks), /<string>00:00:00;00<\/string><frame>0<\/frame><displayformat>DF<\/displayformat>/)
+        }
       } else {
         assert.match(atMinute, /,00:00:59:\d\d$/, choice.label)
         assert.doesNotMatch(markerFile('csv', marks).content, /;/, choice.label)
         assert.equal(timecode(minuteFrame, choice.rate, false), '00:01:00:00')
-        assert.match(edl, /^FCM: NON-DROP FRAME$/m)
-        assert.doesNotMatch(edl, /\d;\d/)
+        assert.match(edl, /^FCM: NON-DROP FRAME\r$/m)
         assert.match(edl, /01:00:00:00 01:00:00:01/)
         assert.match(fcpxml, /tcFormat="NDF"/)
-        assert.match(xmeml, /<string>00:00:00:00<\/string><frame>0<\/frame><displayformat>NDF<\/displayformat>/)
+        assert.match(toFcp7Xml(marks), /<string>00:00:00:00<\/string><frame>0<\/frame><displayformat>NDF<\/displayformat>/)
       }
     }
   }

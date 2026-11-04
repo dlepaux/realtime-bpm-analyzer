@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useAnalytics } from '../composables/useAnalytics'
 import {
-  EXPORT_TIMECODES,
   MARKER_FORMATS,
   beatTimes,
   markerFile,
+  timecodeChoice,
+  timecodesFor,
   type MarkerFormat,
 } from '../tools/beat-markers'
-import { firstBeatSecondsInSlices } from '../tools/first-beat'
+import { firstBeatOf, fitTempo, onsetCurveInSlices, type GridTempo } from '../tools/first-beat'
 
-// The "Export beat markers" step on a file result (RBA-127): a fixed grid at the detected tempo
+// The "Export beat markers" step on a file result (RBA-127): a fixed grid at the exact tempo
 // from the first strong onset, so it only suits steady tempos, and the copy says so. It is also
 // the RBA-109 demand test: `bpm_markers_exported` fires once per result, on the first download,
 // so exports divided by `bpm_file_result` reads the share of results that exported. The parent
@@ -19,9 +20,8 @@ const props = defineProps<{
   /** The analysed file's name: the sequence name and the download's name, never sent anywhere. */
   fileName: string
   /**
-   * The tempo the grid steps at. The engine returns whole BPM only (tempo.ts and tempogram.ts
-   * round), so today this equals `bpm`, and a real tempo between two whole numbers drifts the
-   * grid over a long song. The copy says so. A fractional tempo is RBA-109 work in packages/.
+   * The library's tempo. In 5.x both engines round it (tempo.ts and tempogram.ts), so the grid
+   * steps at fitTempo's exact tempo, measured from the audio here, and never shown (RBA-128).
    */
   tempo: number
   /** Rounded, as the result shows it. */
@@ -50,11 +50,11 @@ const format = ref<MarkerFormat>('fcp7xml')
 const timecodeId = ref('24')
 let reported = false
 
-// The first beat is looked for only when the step is opened, a slice at a time: most results
-// are never exported, and a long song would otherwise hold up the page.
+// The grid is measured only when the step is opened, a slice at a time: most results are never
+// exported, and a long song would otherwise hold up the page.
 type Search = 'idle' | 'searching' | 'done'
 const search = ref<Search>('idle')
-const firstBeat = ref<number | null>(null)
+const grid = ref<{ firstBeat: number; tempo: GridTempo } | null>(null)
 let unmounted = false
 onBeforeUnmount(() => { unmounted = true })
 
@@ -65,28 +65,35 @@ async function onToggle(event: Event) {
   const samples = props.samples
   search.value = 'searching'
   try {
-    firstBeat.value = samples === null
-      ? null
-      : await firstBeatSecondsInSlices(samples, props.sampleRate, props.tempo, nextTask, () => unmounted)
+    const curve = samples === null ? null : await onsetCurveInSlices(samples, props.sampleRate, nextTask, () => unmounted)
+    if (curve !== null) {
+      // v6 reports the exact tempo itself (Reading.bpmExact): this line becomes { bpm, fitted: true }.
+      const tempo = fitTempo(curve, props.tempo)
+      const firstBeat = firstBeatOf(curve, tempo.bpm)
+      grid.value = firstBeat === null ? null : { firstBeat, tempo }
+    }
   } catch (error) {
-    console.error('[BeatMarkerExport] first beat failed:', error)
-    firstBeat.value = null
+    console.error('[BeatMarkerExport] beat grid failed:', error)
+    grid.value = null
   }
   search.value = 'done'
-  // Every later export reuses firstBeat, so the audio (about 115 MB for 10 min at 48 kHz) can go.
+  // Every later export reuses the grid, so the audio (about 115 MB for 10 min at 48 kHz) can go.
   if (!unmounted) emit('searched')
 }
 
-const choice = computed(() => EXPORT_TIMECODES.find((entry) => entry.id === timecodeId.value) ?? EXPORT_TIMECODES[1]!)
+const timecodes = computed(() => timecodesFor(format.value))
+const choice = computed(() => timecodeChoice(format.value, timecodeId.value))
+// The Premiere XML has no 59.94 DF: switching to it moves that choice to 59.94 NDF.
+watch(format, () => { timecodeId.value = choice.value.id })
 const markerCount = computed(() =>
-  firstBeat.value === null ? 0 : beatTimes(props.tempo, firstBeat.value, props.duration).length)
+  grid.value === null ? 0 : beatTimes(grid.value.tempo.bpm, grid.value.firstBeat, props.duration).length)
 
 function download() {
-  if (firstBeat.value === null || markerCount.value === 0) return
+  if (grid.value === null || markerCount.value === 0) return
   const file = markerFile(format.value, {
     name: props.fileName,
-    bpm: props.tempo,
-    firstBeat: firstBeat.value,
+    bpm: grid.value.tempo.bpm,
+    firstBeat: grid.value.firstBeat,
     duration: props.duration,
     rate: choice.value.rate,
     dropFrame: choice.value.dropFrame,
@@ -113,19 +120,18 @@ function download() {
   >
     <summary>Export beat markers</summary>
     <p class="marker-note">
-      A marker on every beat at {{ bpm }} BPM, from the first strong beat. For songs with a
-      steady tempo. The markers use the whole-number tempo, so on a long song they can slide off
-      the beat when the real tempo sits between two numbers. Check that the first marker and the
+      A marker on every beat, from the first strong beat, at the tempo measured from the file
+      to a fraction of a BPM. For songs with a steady tempo. Check that the first marker and the
       last one sit on the beat before you cut.
     </p>
     <p
       v-if="search !== 'done'"
       class="marker-note"
     >
-      Finding the first beat…
+      Measuring the beat…
     </p>
     <p
-      v-else-if="firstBeat === null || markerCount === 0"
+      v-else-if="grid === null || markerCount === 0"
       class="marker-note"
     >
       No clear first beat in this file, so there are no markers to export.
@@ -146,7 +152,7 @@ function download() {
           <span>Frame rate</span>
           <select v-model="timecodeId">
             <option
-              v-for="entry in EXPORT_TIMECODES"
+              v-for="entry in timecodes"
               :key="entry.id"
               :value="entry.id"
             >{{ entry.label }}</option>
@@ -163,8 +169,15 @@ function download() {
       >
         Download {{ markerCount }} markers
       </button>
+      <p
+        v-if="!grid.tempo.fitted"
+        class="marker-note"
+      >
+        The exact tempo could not be measured from this file, so the markers step at {{ bpm }} BPM
+        and can slide off the beat on a long song.
+      </p>
       <p class="marker-note">
-        First marker at {{ firstBeat.toFixed(2) }} s. The file is made on this device.
+        First marker at {{ grid.firstBeat.toFixed(2) }} s. The file is made on this device.
       </p>
     </template>
   </details>

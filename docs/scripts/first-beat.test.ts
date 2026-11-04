@@ -3,10 +3,12 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   firstBeatSeconds,
-  firstBeatSecondsInSlices,
+  firstBeatOf,
+  fitTempo,
   firstStrongFrame,
   frameTime,
   onsetCurve,
+  onsetCurveInSlices,
 } from '../.vitepress/tools/first-beat.ts'
 
 const SAMPLE_RATE = 44_100
@@ -69,13 +71,13 @@ test('firstBeatSeconds: null for silence', () => {
   assert.equal(firstBeatSeconds(new Float32Array(SAMPLE_RATE * 3), SAMPLE_RATE, 120), null)
 })
 
-test('firstBeatSecondsInSlices: the same answer, pausing between slices, and stops when cancelled', async () => {
+test('onsetCurveInSlices: the same curve, pausing between slices, and stops when cancelled', async () => {
   const samples = clicks(Array.from({ length: 20 }, (_, index) => 2.2 + index * 0.4), 12)
   let pauses = 0
   const pause = async () => { pauses += 1 }
-  assert.equal(await firstBeatSecondsInSlices(samples, SAMPLE_RATE, 150, pause), firstBeatSeconds(samples, SAMPLE_RATE, 150))
+  assert.deepEqual(await onsetCurveInSlices(samples, SAMPLE_RATE, pause), onsetCurve(samples, SAMPLE_RATE))
   assert.ok(pauses >= 5, `${pauses} pauses`)
-  assert.equal(await firstBeatSecondsInSlices(samples, SAMPLE_RATE, 150, pause, () => true), null)
+  assert.equal(await onsetCurveInSlices(samples, SAMPLE_RATE, pause, () => true), null)
 })
 
 /** The QA's kick: a decaying 60 Hz thump under a short 1 kHz click, cut off at 120 ms. */
@@ -109,4 +111,100 @@ test('firstBeatSeconds: audio that starts mid-sound off the grid does not start 
   for (let i = 0; i < samples.length; i += 1) samples[i] = samples[i]! + 0.5 * Math.sin((2 * Math.PI * 440 * i) / SAMPLE_RATE)
   const first = firstBeatSeconds(samples, SAMPLE_RATE, 120)
   assert.ok(first !== null && Math.abs(first - 0.23) < 0.015, `first beat at ${first}`)
+})
+
+/** Seeded white noise at an RMS level in dBFS, from `start` seconds to the end. */
+function hiss(samples: Float32Array, dbfs: number, start = 0, sampleRate = SAMPLE_RATE): Float32Array {
+  const out = Float32Array.from(samples)
+  const rms = 10 ** (dbfs / 20)
+  let seed = 7
+  for (let i = Math.round(start * sampleRate); i < out.length; i += 1) {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648
+    out[i] = out[i]! + rms * Math.sqrt(3) * (seed / 1_073_741_824 - 1)
+  }
+  return out
+}
+
+test('firstBeatSeconds: a faint blip before the beats is not the first beat', () => {
+  for (const amplitude of [1e-3, 1e-7]) {
+    const samples = kicks(2, 0.5, 12)
+    const blip = Math.round(1 * SAMPLE_RATE)
+    for (let i = 0; i < 40; i += 1) samples[blip + i] = amplitude * Math.sin(i)
+    const first = firstBeatSeconds(samples, SAMPLE_RATE, 120)
+    assert.ok(first !== null && Math.abs(first - 2) < 1 / 30, `blip at ${amplitude}: first beat at ${first}`)
+  }
+})
+
+test('firstBeatSeconds: steady hiss from the first sample, beats from 2 s', () => {
+  for (const dbfs of [-100, -70]) {
+    const first = firstBeatSeconds(hiss(kicks(2, 0.5, 12), dbfs), SAMPLE_RATE, 120)
+    assert.ok(first !== null && Math.abs(first - 2) < 1 / 30, `hiss at ${dbfs} dBFS: first beat at ${first}`)
+  }
+})
+
+test('firstBeatSeconds: the grid check holds the start at 0 only for a tempo within a frame of the beats', () => {
+  const samples = kicks(0, 0.5, 20)
+  // 120.4 BPM drifts 7 ms over the four checked beats: still on the beats.
+  assert.ok(firstBeatSeconds(samples, SAMPLE_RATE, 120.4)! < 1 / 60)
+  // Half tempo lands on every other beat, so a beat at 0 is still a beat of that grid.
+  assert.ok(firstBeatSeconds(samples, SAMPLE_RATE, 60)! < 1 / 60)
+  // 2% off misses the fourth beat by 40 ms, double tempo finds nothing between the beats.
+  for (const bpm of [117.6, 122.4, 240]) {
+    assert.notEqual(firstBeatSeconds(samples, SAMPLE_RATE, bpm), 0, `${bpm} BPM`)
+  }
+})
+
+/** Kicks at an exact tempo, with quieter hi-hats on the off-beats when `hats` is set. */
+function track(bpm: number, offset: number, seconds: number, sampleRate: number, hats: boolean): Float32Array {
+  const period = 60 / bpm
+  const samples = kicks(offset, period, seconds, sampleRate)
+  if (!hats) return samples
+  const hat = clicks(Array.from({ length: Math.floor(seconds / period) }, (_, index) => offset + (index + 0.5) * period), seconds, sampleRate)
+  for (let i = 0; i < samples.length; i += 1) samples[i] = samples[i]! + 0.15 * hat[i]!
+  return samples
+}
+
+/** How far the grid's beat nearest `at` seconds sits from the track's own beat there. */
+function driftAt(at: number, grid: { firstBeat: number; bpm: number }, truth: { offset: number; bpm: number }): number {
+  const beat = Math.round(((at - grid.firstBeat) * grid.bpm) / 60)
+  return grid.firstBeat + (beat * 60) / grid.bpm - (truth.offset + (beat * 60) / truth.bpm)
+}
+
+test('fitTempo: the exact tempo of a 127.6 BPM track read as 128 keeps the grid within a frame at 30 fps after 3 minutes', () => {
+  const truth = { offset: 0.31, bpm: 127.6 }
+  const curve = onsetCurve(track(truth.bpm, truth.offset, 190, 48_000, true), 48_000)
+  const tempo = fitTempo(curve, 128)
+  assert.equal(tempo.fitted, true)
+  const firstBeat = firstBeatOf(curve, tempo.bpm)
+  assert.ok(firstBeat !== null)
+  const drift = driftAt(180, { firstBeat, bpm: tempo.bpm }, truth)
+  assert.ok(Math.abs(drift) < 1 / 30, `${tempo.bpm} BPM drifts ${drift} s`)
+  // The whole number drifts about half a second over the same 3 minutes.
+  assert.ok(Math.abs(driftAt(180, { firstBeat, bpm: 128 }, truth)) > 0.4)
+})
+
+test('fitTempo: the same for 119.8 BPM read as 120, a tempo just under the whole number', () => {
+  const truth = { offset: 1.07, bpm: 119.8 }
+  const curve = onsetCurve(track(truth.bpm, truth.offset, 190, SAMPLE_RATE, false), SAMPLE_RATE)
+  const tempo = fitTempo(curve, 120)
+  assert.equal(tempo.fitted, true)
+  const firstBeat = firstBeatOf(curve, tempo.bpm)!
+  const drift = driftAt(180, { firstBeat, bpm: tempo.bpm }, truth)
+  assert.ok(Math.abs(drift) < 1 / 30, `${tempo.bpm} BPM drifts ${drift} s`)
+})
+
+test('fitTempo: falls back to the whole number when the onsets keep no steady beat near it', () => {
+  // Onsets at random times: nothing to fit.
+  let seed = 3
+  const random = () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648
+    return seed / 2_147_483_648
+  }
+  const times = Array.from({ length: 60 }, () => random() * 40).sort((a, b) => a - b)
+  assert.deepEqual(fitTempo(onsetCurve(clicks(times, 40), SAMPLE_RATE), 120), { bpm: 120, fitted: false })
+  // A steady beat more than 1 BPM away from the reading is not this reading's tempo.
+  assert.deepEqual(fitTempo(onsetCurve(track(125, 0.5, 40, SAMPLE_RATE, false), SAMPLE_RATE), 128), { bpm: 128, fitted: false })
+  // Silence, and too short a file to fit.
+  assert.deepEqual(fitTempo(onsetCurve(new Float32Array(SAMPLE_RATE * 5), SAMPLE_RATE), 100), { bpm: 100, fitted: false })
+  assert.deepEqual(fitTempo(onsetCurve(track(120, 0.5, 3, SAMPLE_RATE, false), SAMPLE_RATE), 120), { bpm: 120, fitted: false })
 })

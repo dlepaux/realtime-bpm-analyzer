@@ -84,10 +84,13 @@ download:
   `seconds` from the start of the file, `frame` from the first frame, and
   `timecode` from 00:00:00:00.
 
-In the editor files every marker sits on a whole frame. Each file follows the
-format's published specification, and an automated test builds it at every
-frame rate and checks every marker's frame: the EDL and the Premiere XML read
-back with OpenTimelineIO, the FCPXML validated against Apple's FCPXML 1.10 DTD.
+In the editor files every marker sits on a whole frame. Each file is built from
+its format's published specification, and the EDL keeps the conventions Resolve
+and other readers expect: ";" before the frames in drop-frame timecode, and
+event numbers past 999 on long songs. An automated test builds every file at
+every frame rate and checks every marker's frame: the EDL and the Premiere XML
+read back with OpenTimelineIO, the FCPXML validated against Apple's FCPXML 1.10
+DTD.
 The files haven't been tested by importing them into each editor yet, so check
 that the first marker and the last one sit on the beat before you cut.
 

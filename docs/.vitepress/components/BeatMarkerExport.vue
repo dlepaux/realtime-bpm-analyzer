@@ -67,9 +67,10 @@ async function onToggle(event: Event) {
   try {
     const curve = samples === null ? null : await onsetCurveInSlices(samples, props.sampleRate, nextTask, () => unmounted)
     if (curve !== null) {
-      // v6 reports the exact tempo itself (Reading.bpmExact): this line becomes { bpm, fitted: true }.
+      // With v6, fitTempo refines Reading.bpmExact instead of the whole number, and keeps its
+      // job: the grid's phase for the first beat, and the fit to the last beat of a long song.
       const tempo = fitTempo(curve, props.tempo)
-      const firstBeat = firstBeatOf(curve, tempo.bpm)
+      const firstBeat = firstBeatOf(curve, tempo)
       grid.value = firstBeat === null ? null : { firstBeat, tempo }
     }
   } catch (error) {
@@ -81,6 +82,11 @@ async function onToggle(event: Event) {
   if (!unmounted) emit('searched')
 }
 
+// Only a fitted grid is "measured to a fraction of a BPM": a weak fit steps at the reading, which
+// the note under the download button says, so this line mustn't claim otherwise.
+const intro = computed(() => (grid.value?.tempo.fitted
+  ? 'A marker on every beat, from the first strong beat, at the tempo measured from the file to a fraction of a BPM.'
+  : 'A marker on every beat, from the first strong beat.'))
 const timecodes = computed(() => timecodesFor(format.value))
 const choice = computed(() => timecodeChoice(format.value, timecodeId.value))
 // The Premiere XML has no 59.94 DF: switching to it moves that choice to 59.94 NDF.
@@ -120,9 +126,8 @@ function download() {
   >
     <summary>Export beat markers</summary>
     <p class="marker-note">
-      A marker on every beat, from the first strong beat, at the tempo measured from the file
-      to a fraction of a BPM. For songs with a steady tempo. Check that the first marker and the
-      last one sit on the beat before you cut.
+      {{ intro }} For songs with a steady tempo. Check that the first marker and the last one sit
+      on the beat before you cut.
     </p>
     <p
       v-if="search !== 'done'"

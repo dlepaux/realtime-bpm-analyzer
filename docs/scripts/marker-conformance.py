@@ -7,7 +7,7 @@ reader that isn't ours:
 
 - EDL: OpenTimelineIO's CMX 3600 adapter (otio-cmx3600-adapter).
 - FCP7 XML (Premiere Pro): OpenTimelineIO's FCP 7 XML adapter (otio-fcp-adapter).
-- FCPXML: validated against Apple's FCPXML 1.10 DTD with xmllint, then every marker read as an
+- FCPXML: validated against Apple's FCPXML 1.10 DTD with lxml, then every marker read as an
   exact fraction. OpenTimelineIO's FCPXML adapter (otio-fcpx-xml-adapter) must read the file
   without error, but it can't check the markers: it builds only video, audio, ref-clip and
   asset-clip elements (COMPOSABLE_ELEMENTS in fcpx_xml.py), and the markers sit on a gap.
@@ -20,15 +20,20 @@ Usage: python3 -I marker-conformance.py <fixtures directory> <FCPXML 1.10 DTD>
 import csv
 import json
 import math
-import subprocess
 import sys
 # The standard parser, not defusedxml: the only XML read here is what marker-fixtures.ts wrote in
-# the same CI job, never outside input, and expat resolves no external entities (Python >= 3.7.1).
+# the same CI job, never outside input, and ElementTree fetches no external entities or DTDs (the
+# "XML vulnerabilities" table in Python's xml module docs).
 import xml.etree.ElementTree as ElementTree
 from fractions import Fraction
 from pathlib import Path
 
 import opentimelineio as otio
+from lxml import etree
+
+# lxml for the DTD check only, on the same files: no entity expansion and no network, so the
+# document can't pull in anything but the DTD given here.
+SAFE_PARSER = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
 
 MAX_MARKERS = 20_000
 
@@ -111,9 +116,9 @@ def check_fcp7(path, entry, frames):
 
 
 def check_fcpxml(path, entry, frames, dtd):
-    result = subprocess.run(["xmllint", "--noout", "--dtdvalid", str(dtd), str(path)], capture_output=True, text=True)
-    if result.returncode != 0:
-        raise AssertionError(f"{path.name}: not valid against the FCPXML 1.10 DTD\n{result.stderr[:2000]}")
+    if not dtd.validate(etree.parse(str(path), SAFE_PARSER)):
+        errors = "\n".join(str(error) for error in dtd.error_log.filter_from_errors()[:20])
+        raise AssertionError(f"{path.name}: not valid against the FCPXML 1.10 DTD\n{errors}")
     otio.adapters.read_from_file(str(path), adapter_name="fcpx_xml")
 
     root = ElementTree.parse(path).getroot()
@@ -148,7 +153,11 @@ def check_csv(path, entry, frames):
             raise AssertionError(f"{path.name}: row {index + 1} timecode {rows[index + 1][3]}")
 
 
-def main(fixtures, dtd):
+def main(fixtures, dtd_path):
+    dtd = etree.DTD(str(dtd_path))
+    # The check must be able to fail: an element the DTD doesn't define is refused.
+    if dtd.validate(etree.fromstring(b'<fcpxml version="1.10"><beat/></fcpxml>', SAFE_PARSER)):
+        raise AssertionError("the FCPXML DTD accepted an element it doesn't define")
     manifest = json.loads((fixtures / "manifest.json").read_text(encoding="utf-8"))
     if len(manifest) != 39:
         raise AssertionError(f"{len(manifest)} files, expected 39: 4 formats at 10 timecodes, less FCP7 XML at 59.94 DF")

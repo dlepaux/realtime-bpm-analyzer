@@ -333,6 +333,10 @@ jobs:
   markers:
     name: Marker files (OpenTimelineIO, FCPXML DTD)
     runs-on: ubuntu-latest
+    # It runs code downloaded from PyPI and reads a file fetched from Apple: read access only,
+    # not the workflow's pages and id-token writes.
+    permissions:
+      contents: read
     env:
       FCPXML_DTD_SHA256: 6044527401b6cc92a9d86383437794d8de801c1904b6d08409ce81720fd23f33
 
@@ -357,7 +361,10 @@ jobs:
 
       # Apple publishes the DTD on its developer documentation, not as a file it licenses for
       # copying, so it is fetched here and never committed. The hash pins the exact text: a
-      # change on Apple's side fails this step rather than validating against something else.
+      # change on Apple's side fails the check below rather than validating against something
+      # else. The page shows the DTD of "the latest" FCPXML (1.10 as of 2026-11-04) and points to
+      # a versioned download on support.apple.com/final-cut-pro, but that page no longer lists
+      # the DTDs, so there is no versioned file to fetch instead. The cache keeps the pinned copy.
       - name: Cache the FCPXML 1.10 DTD
         id: dtd-cache
         uses: actions/cache@v6
@@ -368,17 +375,16 @@ jobs:
       - name: Fetch the FCPXML 1.10 DTD from Apple
         if: steps.dtd-cache.outputs.cache-hit != 'true'
         run: |
+          set -o pipefail
           curl -fsSL --retry 3 https://developer.apple.com/documentation/professional-video-applications/document-type-definition.md \
             | sed -n '/^```swift/,/^```/p' | sed '1d;$d' > "$RUNNER_TEMP/fcpxml-1.10.dtd"
 
-      # xmllint isn't on the runner image; Ubuntu's own package, pinned by the image's release.
-      - name: Install xmllint
-        run: sudo apt-get install --yes --no-install-recommends libxml2-utils
-
-      - name: Check the DTD's hash and xmllint
+      - name: Check the DTD's hash
         run: |
-          echo "$FCPXML_DTD_SHA256  $RUNNER_TEMP/fcpxml-1.10.dtd" | sha256sum --check
-          xmllint --version
+          if ! echo "$FCPXML_DTD_SHA256  $RUNNER_TEMP/fcpxml-1.10.dtd" | sha256sum --check; then
+            echo "::error::Apple's DTD page no longer holds the pinned FCPXML 1.10 DTD. Check which version it shows now."
+            exit 1
+          fi
 
       - name: Write every marker file
         run: node docs/scripts/marker-fixtures.ts "$RUNNER_TEMP/marker-files"
@@ -388,7 +394,8 @@ jobs:
 
   docs-deploy:
     name: Deploy Documentation
-    needs: docs
+    # A red marker check holds the deploy: branch protection requires no status checks.
+    needs: [docs, markers]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:

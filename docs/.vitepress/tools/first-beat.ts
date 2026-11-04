@@ -421,16 +421,15 @@ export function fitTempo(curve: OnsetCurve, wholeBpm: number): GridTempo {
   // Fit over a horizon that doubles each pass: the line from the shorter span predicts the
   // beats of the longer one well within the match window, so no beat is matched to its neighbour.
   let horizon = COARSE_SECONDS
-  let points: { beat: number; time: number }[] = []
   for (let pass = 0; pass < MAX_FIT_PASSES; pass += 1) {
-    points = matches(onsets, grid, Math.min(end, grid.start + horizon))
+    const points = matches(onsets, grid, Math.min(end, grid.start + horizon))
     const line = lineThrough(points)
     if (line === null) return fallback
     grid = line
     if (grid.start + horizon >= end) break
     horizon *= 2
   }
-  points = matches(onsets, grid, end)
+  const points = matches(onsets, grid, end)
   const predicted = Math.floor((end - grid.start) / grid.period) + 1
   const bpm = 60 / grid.period
   const steady = points.length >= MIN_FIT_BEATS && points.length >= MIN_FIT_SHARE * predicted

@@ -22,6 +22,8 @@ import json
 import math
 import subprocess
 import sys
+# The standard parser, not defusedxml: the only XML read here is what marker-fixtures.ts wrote in
+# the same CI job, never outside input, and expat resolves no external entities (Python >= 3.7.1).
 import xml.etree.ElementTree as ElementTree
 from fractions import Fraction
 from pathlib import Path

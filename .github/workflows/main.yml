@@ -371,6 +371,10 @@ jobs:
           curl -fsSL --retry 3 https://developer.apple.com/documentation/professional-video-applications/document-type-definition.md \
             | sed -n '/^```swift/,/^```/p' | sed '1d;$d' > "$RUNNER_TEMP/fcpxml-1.10.dtd"
 
+      # xmllint isn't on the runner image; Ubuntu's own package, pinned by the image's release.
+      - name: Install xmllint
+        run: sudo apt-get install --yes --no-install-recommends libxml2-utils
+
       - name: Check the DTD's hash and xmllint
         run: |
           echo "$FCPXML_DTD_SHA256  $RUNNER_TEMP/fcpxml-1.10.dtd" | sha256sum --check

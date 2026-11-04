@@ -76,6 +76,11 @@ These rules are fixed now so that beats land in a minor release, without a break
    message is fatal whatever the minor. The analyzer keeps the processor's minor from `ready`, so a
    `processorUrl` copy one minor behind keeps working, and a feature it lacks (beats) throws at once that the
    processor copy is out of date instead of going silent. Every 6.x processor sends its minor, from 6.1.0.
+   The other way round, the processor keeps the main thread's minor from `processorOptions.protocol` and emits
+   only the union values that minor knows (`EngineName`, `CandidateRelation`, `EngineReason`,
+   `AnalyzerErrorName`), mapping a value a later minor added to one it knows. Without that, a newer processor
+   copy would send an older main thread a value it rejects as a malformed known message, which is fatal. Every
+   later minor keeps to this rule; at minor 0 there is nothing to map.
 2. **Clock.** `AudioSpan.contextTime` is the `AudioContext` time at which the sample at `audio.to` reached
    the worklet, stamped there before the analysis awaits. A moment `t` of analysed audio is at
    `contextTime - (audio.to - t)` on the clock `AudioContext` schedules on. Offline it is `null`.

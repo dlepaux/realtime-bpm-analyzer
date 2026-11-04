@@ -104,26 +104,29 @@ npm install realtime-bpm-analyzer
 ```typescript
 import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
-const audioContext = new AudioContext();
-const audioElement = document.querySelector('audio')!;
-const source = audioContext.createMediaElementSource(audioElement);
+// Browsers start audio only after a user gesture, so set up on a click.
+button.addEventListener('click', async () => {
+  const audioContext = new AudioContext();
+  const audioElement = document.querySelector('audio')!;
+  const source = audioContext.createMediaElementSource(audioElement);
 
-const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+  const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-// .input adds the lowpass the default engine expects.
-source.connect(analyzer.input);
-source.connect(audioContext.destination);
+  // .input adds the lowpass the default engine expects.
+  source.connect(analyzer.input);
+  source.connect(audioContext.destination);
 
-analyzer.on('reading', ({ bpm }) => {
-  console.log('tempo:', bpm, 'BPM');
-});
-analyzer.on('statechange', ({ to }) => {
-  if (to.status === 'locked') {
-    console.log('locked:', to.reading.bpm, 'BPM');
-  }
-});
+  analyzer.on('reading', ({ bpm }) => {
+    console.log('tempo:', bpm, 'BPM');
+  });
+  analyzer.on('statechange', ({ to }) => {
+    if (to.status === 'locked') {
+      console.log('locked:', to.reading.bpm, 'BPM');
+    }
+  });
 
-audioElement.addEventListener('play', () => audioContext.resume(), { once: true });
+  await audioElement.play();
+}, { once: true });
 ```
 
 `reading` events arrive as the analysis goes. Each carries one tempo, `bpm`,

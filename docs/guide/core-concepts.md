@@ -207,7 +207,7 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
 - `max` must be at least twice `min`; a narrower range throws a `RangeError`
 - Keep the expected tempo away from the bounds: a tempo right on an edge jitters across it and its votes split between the two octaves
 - `analyzeFullBuffer(buffer, { tempoRange })` takes the same option
-- Applies to the default `peaks` engine. The `tempogram` engine searches the range but folds nothing into it
+- Both engines take it: `peaks` folds every tempo into it, the `tempogram` engine searches it and folds nothing
 
 ### debug
 - `false` (default): No debug events
@@ -258,7 +258,7 @@ analyzer.on('progress', ({ fraction }) => {
 });
 ```
 
-The step that would reach 1 moves to `settling` and sends the first `reading` instead. Progress starts again from `0` each time the analyzer goes back to `listening`, and `analyzer.state.progress` holds the same value while listening. It is always on, unlike the `debug` events.
+The step that would reach 1 moves to `settling` and sends the first `reading` instead. Progress starts again from `0` after `reset()` and after a start-over (reason `tempo-changed` or `audio-lost`). After `pulse-lost` the analyzer keeps what it has read, so progress stays at `1` while it listens for the beat again. `analyzer.state.progress` holds the same value while listening. It is always on, unlike the `debug` events.
 
 ### `error`
 Emitted when one analysis step fails; the next step runs. A fatal fault is a `statechange` to `stopped` with reason `failed` instead.

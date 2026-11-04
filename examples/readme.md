@@ -35,7 +35,7 @@ The examples are organized by framework and use case:
 **Key Features:**
 - Fast offline analysis
 - No playback needed
-- Returns array of BPM candidates
+- Returns one reading, or `null` when there is no clear beat
 - Best for local files
 
 ### 2. Streaming Audio (`createRealtimeBpmAnalyzer` + MediaElementSource)
@@ -102,7 +102,7 @@ All examples follow these best practices from the allegro-project reference impl
    - Show `reading.bpm`; `reading.candidates` lists up to five tempos with their `relation` to it
 
 3. **Resource Management**
-   - Call `suspend()` before `disconnect()`
+   - Call `analyzer.stop()` when done: `disconnect()` alone leaves the analysis running, and `stop()` is final
    - Stop media streams when done
    - Clean up all audio nodes
    - Properly handle component unmounting

@@ -163,8 +163,9 @@ export function useBpm(source: Source | null): UseBpmReturn {
         // The tempo can still move a little while locked: follow it.
         if (analyzer.state.status === 'locked') setLockedBpm(bpm);
       });
+      // Clear it when the lock is lost: the value no longer holds.
       analyzer.on('statechange', ({ to }) => {
-        if (to.status === 'locked') setLockedBpm(to.reading.bpm);
+        setLockedBpm(to.status === 'locked' ? to.reading.bpm : null);
       });
 
       setState('listening');

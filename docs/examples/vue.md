@@ -150,11 +150,13 @@ export function useBpmAnalyzer() {
   const isAnalyzing = ref(false);
 
   let analyzer: BpmAnalyzer | null = null;
+  let wired: AudioNode | null = null;
 
   // The source must belong to the same audio context: the caller owns both.
   const start = async (audioContext: AudioContext, source: AudioNode) => {
     analyzer = await createRealtimeBpmAnalyzer(audioContext);
     source.connect(analyzer.input);
+    wired = source;
 
     analyzer.on('reading', ({ bpm: value }) => {
       bpm.value = value;
@@ -165,8 +167,12 @@ export function useBpmAnalyzer() {
 
   // stop() is final: the next start creates a new analyzer.
   const stop = () => {
-    analyzer?.stop();
+    if (analyzer) {
+      wired?.disconnect(analyzer.input);
+      analyzer.stop();
+    }
     analyzer = null;
+    wired = null;
     isAnalyzing.value = false;
   };
 

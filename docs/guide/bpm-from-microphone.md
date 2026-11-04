@@ -256,19 +256,24 @@ const showError = (message: string) => {
   document.getElementById('error')!.textContent = message;
 };
 
-try {
-  const mediaStream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false,
-    },
-  });
-} catch (err) {
-  if (err instanceof DOMException && err.name === 'NotAllowedError') {
-    showError('Microphone access denied. Click the lock icon in the URL bar.');
-  } else {
-    showError(`Microphone unavailable: ${err}`);
+// Resolves to the stream, or to null after showing why there is none.
+// The caller keeps the stream and stops its tracks when done.
+async function requestMicrophone(): Promise<MediaStream | null> {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      },
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'NotAllowedError') {
+      showError('Microphone access denied. Click the lock icon in the URL bar.');
+    } else {
+      showError(`Microphone unavailable: ${err}`);
+    }
+    return null;
   }
 }
 ```

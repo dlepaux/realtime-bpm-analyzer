@@ -57,6 +57,7 @@ Create an audio element:
 </head>
 <body>
   <audio id="track" src="your-audio-file.mp3" controls></audio>
+  <button id="start">Start</button>
   <div id="bpm">BPM: --</div>
   
   <script type="module" src="./app.js"></script>
@@ -100,7 +101,7 @@ async function setupBPMAnalyzer() {
     }
   });
 
-  // Start playback when user clicks play
+  // Start playback: allowed, since this runs from a click
   audioElement.play();
 }
 
@@ -110,8 +111,8 @@ function updateDisplay(bpm, isLocked = false) {
   bpmDisplay.style.color = isLocked ? 'green' : 'orange';
 }
 
-// Initialize when page loads
-setupBPMAnalyzer();
+// Browsers start audio only after a user gesture, so set up on a click
+document.getElementById('start').addEventListener('click', setupBPMAnalyzer, { once: true });
 ```
 
 ## TypeScript Example

@@ -1,5 +1,5 @@
-// Run with `npm test`. Type-checks every TypeScript, TSX and JavaScript block of the
-// guides, the examples and the home page against the library's built types, so a page
+// Run with `npm test`. Type-checks every TypeScript, TSX and JavaScript block, and the
+// `<script lang="ts">` of every Vue block, of the guides, the examples and the home page against the library's built types, so a page
 // cannot show an API the library no longer has. CI downloads the library's dist before
 // the docs tests; locally, build the library first.
 //
@@ -58,6 +58,19 @@ const LANGUAGES: Record<string, '.ts' | '.tsx' | '.js'> = {
 
 const SKIP = /^<!-- typecheck: skip, .+ -->$/
 
+/**
+ * The TypeScript of a Vue single-file component: the `<script lang="ts">` body, with every
+ * other line blanked so diagnostics keep their line. Null when it has no such script.
+ */
+function vueScript(lines: string[]): string[] | null {
+  const start = lines.findIndex((line) => /^<script\b[^>]*\blang="ts"[^>]*>$/.test(line.trim()))
+  const end = lines.findIndex((line, at) => at > start && line.trim() === '</script>')
+  if (start < 0 || end < 0) {
+    return null
+  }
+  return lines.map((line, at) => (at > start && at < end ? line : ''))
+}
+
 type Block = { file: string; page: string; line: number; code: string }
 
 /** The checkable blocks of one page, each with the line its fence opens on */
@@ -74,16 +87,19 @@ function extractBlocks(page: string): Block[] {
 
     const close = lines.findIndex((line, at) => at > index && line.trim().startsWith('```'))
     assert.ok(close > index, `${page}:${index + 1}: unclosed fence`)
-    const extension = LANGUAGES[open[2] ?? '']
     // A fence inside a list item is indented: its lines carry the same indent
     const indent = open[1]?.length ?? 0
+    const body = lines.slice(index + 1, close).map((line) => line.slice(indent))
+    const isVue = open[2] === 'vue'
+    const extension = isVue ? '.ts' : LANGUAGES[open[2] ?? '']
+    const code = isVue ? vueScript(body) : body
     const before = lines.slice(0, index).reverse().find((line) => line.trim() !== '')
-    if (extension !== undefined && !SKIP.test(before?.trim() ?? '')) {
+    if (extension !== undefined && code !== null && !SKIP.test(before?.trim() ?? '')) {
       blocks.push({
         file: path.join(docsDir, `__block-${name}-${index + 1}${extension}`),
         page,
         line: index + 1,
-        code: `${lines.slice(index + 1, close).map((line) => line.slice(indent)).join('\n')}\nexport {}\n`,
+        code: `${code.join('\n')}\nexport {}\n`,
       })
     }
     index = close

@@ -46,8 +46,8 @@ Your audio never leaves your device.
 
 The extension listens to the tab you choose, only after you click, and works out
 the tempo on your computer. To notice a new track it reads what the page says is
-playing, also on your computer. It sends nothing anywhere: no analytics, no install
-ID, not a single network request. It stores only whether it is listening and the id
+playing, also on your computer. It sends nothing of its own: no analytics, no
+install ID. It stores only whether it is listening and the id
 of the tab it is listening to, plus, in memory until listening stops, what it needs
 to recognise a track. All of that goes when listening stops or the browser closes.
 

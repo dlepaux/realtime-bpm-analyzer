@@ -71,6 +71,8 @@ A new package (the CLI or the MCP server, for example) gets its own folder under
 
 npm's [trusted publishing](https://docs.npmjs.com/trusted-publishers) lets the pipeline publish without a token, but it can only be configured on a package that already exists on the registry. A new trusted-publisher configuration also expires unless a publish through it succeeds within 2 days. So the first publish is manual, and the first release through the pipeline follows it within 2 days. Two packages need it: `realtime-bpm-analyzer-cli` and `realtime-bpm-analyzer-mcp`. The MCP server needs the CLI's programmatic entry, so bootstrap and release the CLI first.
 
+Bootstrap-publish the CLI and the MCP server only from the 6.1.0 release commit, never between the v6 merge and the 6.1.0 release. Until that release the CLI on `main` calls the v6 API but still declares `realtime-bpm-analyzer` `^5.6.0`, so a CLI published in between would be broken on every install, and the MCP server with it.
+
 For each package, `<package>` being its name:
 
 1. Merge the pull request that adds the package. release-please opens the package's release PR (`0.1.0`); leave it open. Until step 2, the pipeline logs that the package is not on npm yet and skips its publish.

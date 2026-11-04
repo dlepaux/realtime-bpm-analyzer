@@ -225,13 +225,15 @@ analyzer.once('bpmStable', handler);
 analyzer.on('statechange', handler, { once: true });
 ```
 
-### `on()` returns its unsubscribe function, and `off()` is back
+### `on()` returns its unsubscribe function, and `off()` is new
 
 **Before (5.x):**
 ```typescript
 analyzer.on('bpm', handler);
 analyzer.removeEventListener('bpm', handler);
 ```
+
+That 5.x sample never removed anything: `on()` registered a wrapper around `handler`, so `removeEventListener` with `handler` found no match. In v6 both ways below remove the listener.
 
 **After (v6):**
 ```typescript

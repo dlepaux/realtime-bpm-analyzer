@@ -7,7 +7,7 @@ import type {ProcessorOptions, Session} from '../core/session';
 import type {AggregateData} from '../core/types';
 import {compatibleProtocol, describeProtocol, mayAddTypes, ownProtocol} from '../contract/protocol';
 import {PROTOCOL} from '../contract/types';
-import type {AnalyzerErrorName, PostedWorkletMessage, ProtocolVersion, WorkletMessage} from '../contract/types';
+import type {AnalyzerErrorName, PostedWorkletMessage, WorkletMessage} from '../contract/types';
 
 /**
  * Those declaration are from the package @types/audioworklet. But it is not compatible with the lib 'dom'.
@@ -93,9 +93,6 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   sampleClock: SampleClock | null = null;
   // Only an analyzer made with `liveInput` reports a clock: from any other, `delivered` is ignored
   liveInput = false;
-  // The main thread's protocol. A later minor that adds a union value maps it here to one this minor knows, so an
-  // older main thread never receives a value it rejects as malformed (ProtocolVersion). Nothing to map at minor 0.
-  hostProtocol: ProtocolVersion | null = null;
   silentQuantum = new Float32Array(renderQuantumFrames);
 
   constructor(options: AudioWorkletProcessorParameters) {
@@ -107,13 +104,11 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
 
     const processorOptions = options.processorOptions;
     // The major only: an analyzer one minor apart still talks, and the unknown-type rule covers what it adds
-    const hostProtocol = compatibleProtocol(processorOptions?.protocol);
-    if (hostProtocol === null) {
+    if (compatibleProtocol(processorOptions?.protocol) === null) {
       this.fail('ProtocolError', `the analyzer speaks protocol ${describeProtocol(processorOptions?.protocol)}, this processor ${ownProtocol}: a stale processor file?`);
       return;
     }
 
-    this.hostProtocol = hostProtocol;
     this.liveInput = processorOptions.liveInput === true;
     this.session = createSession(processorOptions, () => this.sampleClock);
     this.post({type: 'ready', protocol: PROTOCOL, epoch: 0});
@@ -195,7 +190,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       return;
     }
 
-    // The main thread sends only finite counts (followTrackClock), so anything else is a malformed known message
+    // The main thread forwards only finite counts, so any other value is a malformed message
     const {seconds} = data;
     if (typeof seconds !== 'number' || !Number.isFinite(seconds)) {
       this.fail('ProtocolError', `delivered ${String(seconds)} seconds, which is not a finite number`);

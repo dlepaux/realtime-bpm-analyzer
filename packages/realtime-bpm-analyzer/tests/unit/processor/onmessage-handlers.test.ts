@@ -59,6 +59,13 @@ describe('RealTimeBpmProcessor - host messages', () => {
     }
   });
 
+  it('keeps the main thread\'s minor, older or newer, where a later minor maps what it emits (ProtocolVersion)', () => {
+    for (const minor of [PROTOCOL.minor, PROTOCOL.minor + 1, PROTOCOL.minor + 3]) {
+      const processor = makeProcessor({...processorOptions(), protocol: {major: PROTOCOL.major, minor}});
+      expect(processor.hostProtocol).to.deep.equal({major: PROTOCOL.major, minor});
+    }
+  });
+
   it('adopts the epoch of a reset, starts over and says ready in it', () => {
     const processor = makeProcessor();
     let adopted: number | undefined;
@@ -95,6 +102,15 @@ describe('RealTimeBpmProcessor - host messages', () => {
       const processor = makeProcessor();
       processor.onMessage({data});
       expectFailed(processor, JSON.stringify(data));
+    }
+  });
+
+  it('fails on a live input clock that is not a finite number, as on a malformed reset', () => {
+    for (const seconds of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, '1', undefined]) {
+      const processor = makeProcessor(processorOptions(undefined, false, true));
+      processor.onMessage(host({type: 'delivered', seconds}));
+      expectFailed(processor, String(seconds));
+      expect(processor.sampleClock, String(seconds)).to.equal(null);
     }
   });
 

@@ -492,6 +492,19 @@ describe('followTrackClock', () => {
     expect(tick).to.equal(null);
   });
 
+  it('reports only finite counts: what a browser gets wrong never reaches the processor, where it is a protocol error', () => {
+    const reports: number[] = [];
+    const stats = {totalFramesDuration: Number.NaN};
+    followTrackClock({readyState: 'live', stats} as unknown as MediaStreamTrack, s => reports.push(s));
+
+    for (const duration of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 2000]) {
+      stats.totalFramesDuration = duration;
+      tick!();
+    }
+
+    expect(reports).to.deep.equal([2]);
+  });
+
   it('stops by itself when the track ends', () => {
     const reports: number[] = [];
     const track = {readyState: 'ended', stats: {totalFramesDuration: 1500}} as unknown as MediaStreamTrack;

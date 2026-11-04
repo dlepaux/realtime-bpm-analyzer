@@ -48,7 +48,8 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 // Connect your audio source to its input, which holds the filter the engine needs
 audioSource.connect(analyzer.input);
 
-// A reading on each analysis step, about twice a second
+// A reading on each analysis step outside listening: about ten times a second with the
+// default engine, twice a second with the tempogram
 analyzer.on('reading', (reading) => {
   console.log('BPM:', reading.bpm, 'state:', analyzer.state.status);
 });

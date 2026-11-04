@@ -300,7 +300,9 @@ export type DebugInfo = {readonly engine: EngineName; readonly data: unknown};
  * every listener has had every event of the current step, so all listeners see the same sequence.
  *
  * - `statechange`: on every transition, and only then.
- * - `reading`: on each analysis step outside `listening`, about twice a second. A measurement, not a state.
+ * - `reading`: on each analysis step outside `listening` that measured something new. A measurement, not a state.
+ *   The rate is the engine's: `peaks` measures every 4096-sample buffer, about 11 times a second at 44.1 or
+ *   48 kHz, and `tempogram` on each tempogram update, about twice a second.
  * - `progress`: on each analysis step while `listening`, and once right after `reset()`, with 0.
  * - `error`: non-fatal faults. A fatal one is a `statechange` to `stopped` with reason `failed` instead.
  * - `debug`: engine detail, only with `debug: true`.

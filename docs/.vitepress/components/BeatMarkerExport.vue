@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useAnalytics } from '../composables/useAnalytics'
 import {
-  EXPORT_RATES,
+  EXPORT_TIMECODES,
   MARKER_FORMATS,
   beatTimes,
   markerFile,
@@ -47,8 +47,7 @@ const IMPORT_STEPS: Record<MarkerFormat, string> = {
 }
 
 const format = ref<MarkerFormat>('fcp7xml')
-const rateLabel = ref('24')
-const dropFrame = ref(true)
+const timecodeId = ref('24')
 let reported = false
 
 // The first beat is looked for only when the step is opened, a slice at a time: most results
@@ -68,7 +67,7 @@ async function onToggle(event: Event) {
   try {
     firstBeat.value = samples === null
       ? null
-      : await firstBeatSecondsInSlices(samples, props.sampleRate, nextTask, () => unmounted)
+      : await firstBeatSecondsInSlices(samples, props.sampleRate, props.tempo, nextTask, () => unmounted)
   } catch (error) {
     console.error('[BeatMarkerExport] first beat failed:', error)
     firstBeat.value = null
@@ -78,7 +77,7 @@ async function onToggle(event: Event) {
   if (!unmounted) emit('searched')
 }
 
-const rate = computed(() => EXPORT_RATES.find((entry) => entry.label === rateLabel.value) ?? EXPORT_RATES[1]!)
+const choice = computed(() => EXPORT_TIMECODES.find((entry) => entry.id === timecodeId.value) ?? EXPORT_TIMECODES[1]!)
 const markerCount = computed(() =>
   firstBeat.value === null ? 0 : beatTimes(props.tempo, firstBeat.value, props.duration).length)
 
@@ -89,8 +88,8 @@ function download() {
     bpm: props.tempo,
     firstBeat: firstBeat.value,
     duration: props.duration,
-    rate: rate.value,
-    dropFrame: dropFrame.value,
+    rate: choice.value.rate,
+    dropFrame: choice.value.dropFrame,
   })
   const url = URL.createObjectURL(new Blob([file.content], { type: file.mime }))
   const link = document.createElement('a')
@@ -102,7 +101,7 @@ function download() {
 
   if (!reported) {
     reported = true
-    track('bpm_markers_exported', { format: format.value, frame_rate: rate.value.label })
+    track('bpm_markers_exported', { format: format.value, frame_rate: choice.value.id })
   }
 }
 </script>
@@ -145,23 +144,13 @@ function download() {
         </label>
         <label>
           <span>Frame rate</span>
-          <select v-model="rateLabel">
+          <select v-model="timecodeId">
             <option
-              v-for="entry in EXPORT_RATES"
-              :key="entry.label"
-              :value="entry.label"
-            >{{ entry.label }} fps</option>
+              v-for="entry in EXPORT_TIMECODES"
+              :key="entry.id"
+              :value="entry.id"
+            >{{ entry.label }}</option>
           </select>
-        </label>
-        <label
-          v-if="rate.canDropFrame"
-          class="marker-check"
-        >
-          <input
-            v-model="dropFrame"
-            type="checkbox"
-          />
-          <span>Drop-frame timecode</span>
         </label>
       </div>
       <p class="marker-note">
@@ -221,12 +210,6 @@ function download() {
   flex-direction: column;
   gap: 0.2rem;
   color: var(--vp-c-text-2);
-}
-
-.marker-fields .marker-check {
-  flex-direction: row;
-  align-items: center;
-  align-self: flex-end;
 }
 
 .marker-fields select {

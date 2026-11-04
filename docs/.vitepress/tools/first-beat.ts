@@ -21,6 +21,11 @@ const STRONG_QUANTILE = 0.9
 export interface OnsetCurve {
   /** Onset strength per frame. Frame i is computed once (i + 1) hops of audio are in. */
   strength: Float32Array
+  /**
+   * What frame 0 would read if it counted: the rise from the silence before the file. The curve
+   * holds 0 there, as the library's does, because a clip cut mid-song rises from nothing too.
+   */
+  startStrength: number
   hop: number
   fftSize: number
   sampleRate: number
@@ -86,6 +91,7 @@ export function onsetStepper(samples: Float32Array, sampleRate: number): { curve
   const strength = new Float32Array(Math.floor(samples.length / hop))
   let loudness = MINIMUM_LOUDNESS
   let frame = 0
+  const curve: OnsetCurve = { strength, startStrength: 0, hop, fftSize, sampleRate }
 
   function computeFrame(): void {
     // The window is the fftSize samples that end after (frame + 1) hops, zeros before the start.
@@ -122,7 +128,9 @@ export function onsetStepper(samples: Float32Array, sampleRate: number): { curve
       const novelty = flux - localMeans[band]!
       if (novelty > 0) total += novelty
     }
-    // The first frame rises from silence, which is no onset.
+    // The first frame rises from silence, which is no onset on its own: kept aside for
+    // startsOnTheGrid, which tells a beat on the first sample from a clip cut mid-sound.
+    if (frame === 0) curve.startStrength = total
     strength[frame] = frame === 0 ? 0 : total
   }
 
@@ -133,7 +141,7 @@ export function onsetStepper(samples: Float32Array, sampleRate: number): { curve
     return frame >= strength.length
   }
 
-  return { curve: { strength, hop, fftSize, sampleRate }, step }
+  return { curve, step }
 }
 
 /** The whole onset curve in one go. */
@@ -158,20 +166,62 @@ export function frameTime(curve: OnsetCurve, frame: number): number {
  */
 export function firstStrongFrame(strength: Float32Array): number | null {
   if (strength.length === 0) return null
-  const sorted = Float32Array.from(strength).sort()
-  const threshold = sorted[Math.floor(STRONG_QUANTILE * (sorted.length - 1))]!
-  const index = strength.findIndex((value) => value >= threshold && value > 0)
+  const threshold = strongThreshold(strength)
+  const index = strength.findIndex((value) => isStrong(value, threshold))
   return index === -1 ? null : index
 }
 
-function firstBeatOf(curve: OnsetCurve): number | null {
+function strongThreshold(strength: Float32Array): number {
+  const sorted = Float32Array.from(strength).sort()
+  return sorted[Math.floor(STRONG_QUANTILE * (sorted.length - 1))]!
+}
+
+function isStrong(value: number, threshold: number): boolean {
+  return value >= threshold && value > 0
+}
+
+/** Beats after the start that must land on strong onsets to call the first sample a beat. */
+const START_CHECK_BEATS = 2
+/** How far, in curve frames (10 ms), such an onset may sit from the grid. */
+const START_CHECK_FRAMES = 2
+
+/**
+ * Whether the file opens on a beat. Frame 0 always reads 0 (see startStrength), so a beat on the
+ * first sample is invisible and the grid used to start on whatever came next: on a sparse track,
+ * the tail of that very kick, 120 ms in. The start counts as a beat when it rises strongly and
+ * the next beats at this tempo land on strong onsets. A clip cut mid-song rises strongly too,
+ * but its beats then sit off that grid, unless they happen to fall on it, where starting at 0
+ * gives the same markers plus one earlier marker on the beat.
+ */
+function startsOnTheGrid(curve: OnsetCurve, bpm: number, threshold: number): boolean {
+  if (!isStrong(curve.startStrength, threshold)) return false
+  const framesPerSecond = curve.sampleRate / curve.hop
+  // Frame i covers frameTime(i), so a time t falls on frame t * rate + fftSize / 2 / hop - 1.
+  const lag = curve.fftSize / 2 / curve.hop - 1
+  for (let beat = 1; beat <= START_CHECK_BEATS; beat += 1) {
+    const centre = Math.round(beat * (60 / bpm) * framesPerSecond + lag)
+    let found = false
+    for (let frame = centre - START_CHECK_FRAMES; frame <= centre + START_CHECK_FRAMES; frame += 1) {
+      if (frame > 0 && frame < curve.strength.length && isStrong(curve.strength[frame]!, threshold)) found = true
+    }
+    if (!found) return false
+  }
+  return true
+}
+
+function firstBeatOf(curve: OnsetCurve, bpm: number): number | null {
+  if (curve.strength.length === 0) return null
+  if (bpm > 0 && startsOnTheGrid(curve, bpm, strongThreshold(curve.strength))) return 0
   const frame = firstStrongFrame(curve.strength)
   return frame === null ? null : Math.max(0, frameTime(curve, frame))
 }
 
-/** Time of the first strong onset in seconds, never before 0, or null when the audio has none. */
-export function firstBeatSeconds(samples: Float32Array, sampleRate: number): number | null {
-  return firstBeatOf(onsetCurve(samples, sampleRate))
+/**
+ * Time of the first beat in seconds, never before 0, or null when the audio has none: the first
+ * strong onset, or 0 when the file opens on a beat of the grid at `bpm`.
+ */
+export function firstBeatSeconds(samples: Float32Array, sampleRate: number, bpm: number): number | null {
+  return firstBeatOf(onsetCurve(samples, sampleRate), bpm)
 }
 
 /** Frames per slice: about 2 s of audio, a few tens of milliseconds of work on a phone. */
@@ -184,6 +234,7 @@ const SLICE_FRAMES = 200
 export async function firstBeatSecondsInSlices(
   samples: Float32Array,
   sampleRate: number,
+  bpm: number,
   pause: () => Promise<void>,
   isCancelled: () => boolean = () => false,
 ): Promise<number | null> {
@@ -192,5 +243,5 @@ export async function firstBeatSecondsInSlices(
     await pause()
     if (isCancelled()) return null
   }
-  return firstBeatOf(curve)
+  return firstBeatOf(curve, bpm)
 }

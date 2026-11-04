@@ -23,6 +23,44 @@ export function parseBpmParam(raw: string | null): number | null {
   return clampBpm(Math.round(bpm * 100) / 100)
 }
 
+/**
+ * The page's query string with `bpm` set to the tempo, through parseBpmParam so the URL never
+ * holds a tempo the page would refuse on load, or without `bpm` when there is no valid tempo.
+ * Other params (a campaign tag) stay. "" when nothing is left.
+ */
+export function withBpmParam(search: string, bpm: number | null): string {
+  const params = new URLSearchParams(search)
+  const valid = bpm === null ? null : parseBpmParam(String(bpm))
+  if (valid === null) params.delete('bpm')
+  else params.set('bpm', String(valid))
+  const query = params.toString()
+  return query === '' ? '' : `?${query}`
+}
+
+/** The parts of `window` writeBpmToUrl touches, so a test can hand it a fake. */
+export interface UrlWindow {
+  location: { pathname: string, search: string, hash: string }
+  history: { state: unknown, replaceState: (state: unknown, unused: string, url: string) => void }
+}
+
+/**
+ * Puts the tempo in the address with replaceState, so a copied link opens on it and no Back
+ * step is added. Call it once the tempo settles, not on every input: Safari throws past about
+ * 100 calls per 30 s. Returns false when the browser refused, which leaves the page working and
+ * the link behind until the next change.
+ */
+export function writeBpmToUrl(win: UrlWindow, bpm: number | null): boolean {
+  const search = withBpmParam(win.location.search, bpm)
+  if (search === win.location.search) return true
+  const { pathname, hash } = win.location
+  try {
+    win.history.replaceState(win.history.state, '', `${pathname}${search}${hash}`)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Appends a tap, starting a new sequence after a pause and keeping the last MAX_TAPS. */
 export function pushTap(times: readonly number[], now: number): number[] {
   const last = times[times.length - 1]

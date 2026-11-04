@@ -66,6 +66,25 @@ describe('BpmAnalyzer - epoch watchdog', () => {
     expect(state.status === 'stopped' && state.error?.name).to.equal('ProtocolError');
   });
 
+  it('anchors reset() on the output clock when currentTime froze during a long task, as Firefox does', () => {
+    const {node, send} = fakeNode();
+    // A click handler worked 1.2 s, then reset(): currentTime still reads 10, the audio ran on to 11.2
+    const frozenAt = performance.now() - 1200;
+    Object.assign(node.context, {
+      currentTime: 10,
+      state: 'running',
+      outputLatency: 0,
+      getOutputTimestamp: () => ({contextTime: 10, performanceTime: frozenAt}),
+    });
+    const analyzer = new BpmAnalyzer(node);
+    analyzer.reset();
+    // The epoch-0 backlog sent during the block, before the worklet adopted the reset
+    send(stale(11.19));
+    send({type: 'ready', protocol: PROTOCOL, epoch: 1, at: 11.2});
+
+    expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
+  });
+
   it('trusts a processor that answered the reset, whatever comes late', () => {
     const {node, send, context} = fakeNode();
     const analyzer = new BpmAnalyzer(node);

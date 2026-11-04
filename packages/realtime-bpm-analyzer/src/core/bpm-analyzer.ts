@@ -11,6 +11,7 @@ import type {
   BpmAnalyzerContract,
   ListenOptions,
 } from '../contract/types';
+import {contextNow} from './context-now';
 import {followTrackClock} from './sample-clock';
 
 /**
@@ -184,7 +185,7 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
    * @throws {DOMException} `InvalidStateError` once stopped
    */
   reset(): void {
-    this.resetAt = this.node.context.currentTime;
+    this.resetAt = contextNow(this.node.context);
     const refused = this.dispatcher.apply({kind: 'reset'});
     // A listener of the reset may have stopped the analyzer
     this.settle();

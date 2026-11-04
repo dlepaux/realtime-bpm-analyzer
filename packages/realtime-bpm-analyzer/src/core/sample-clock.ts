@@ -293,7 +293,8 @@ export function followTrackClock(track: MediaStreamTrack, report: (deliveredSeco
 
     const duration = (track as TrackWithStats).stats?.totalFramesDuration;
 
-    if (typeof duration === 'number') {
+    // What a browser gets wrong stays here: the processor fails on a count that is not finite (ProtocolVersion)
+    if (typeof duration === 'number' && Number.isFinite(duration)) {
       report(duration / 1000);
     }
   }, reportEveryMs);

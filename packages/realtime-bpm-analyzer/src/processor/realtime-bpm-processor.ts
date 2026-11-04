@@ -191,10 +191,19 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       return;
     }
 
-    if (this.liveInput && typeof data.seconds === 'number') {
-      this.sampleClock ??= createSampleClock(sampleRate);
-      this.sampleClock.observe(data.seconds);
+    if (!this.liveInput) {
+      return;
     }
+
+    // The main thread sends only finite counts (followTrackClock), so anything else is a malformed known message
+    const {seconds} = data;
+    if (typeof seconds !== 'number' || !Number.isFinite(seconds)) {
+      this.fail('ProtocolError', `delivered ${String(seconds)} seconds, which is not a finite number`);
+      return;
+    }
+
+    this.sampleClock ??= createSampleClock(sampleRate);
+    this.sampleClock.observe(seconds);
   }
 
   /**

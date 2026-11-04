@@ -325,7 +325,8 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
         }
       });
 
-      for (const garbage of [Number.NaN, Number.POSITIVE_INFINITY, 1e300]) {
+      // A count that is not finite is a protocol error, not garbage the clock survives (host messages test)
+      for (const garbage of [-1, 1e300]) {
         it(`does not mark 90% stable after a report of ${garbage}`, async function () {
           this.timeout(60_000);
           const heard = await listen({detector, bpm: 150, seconds: 30, share: () => 0.9, report: t => (t < 0.2 ? garbage : t)});

@@ -326,9 +326,76 @@ jobs:
         with:
           path: docs/.vitepress/dist
 
+  # The beat marker files (RBA-127), every format at every frame rate, read back by readers that
+  # aren't ours: OpenTimelineIO's CMX 3600 and FCP 7 XML adapters, and Apple's FCPXML 1.10 DTD
+  # (docs/scripts/marker-conformance.py says what each check covers). It needs no npm install: the
+  # fixture script runs the export's pure functions in plain Node. CI only, never a local suite.
+  markers:
+    name: Marker files (OpenTimelineIO, FCPXML DTD)
+    runs-on: ubuntu-latest
+    # It runs code downloaded from PyPI and reads a file fetched from Apple: read access only,
+    # not the workflow's pages and id-token writes.
+    permissions:
+      contents: read
+    env:
+      FCPXML_DTD_SHA256: 6044527401b6cc92a9d86383437794d8de801c1904b6d08409ce81720fd23f33
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: docs/scripts/marker-conformance-requirements.txt
+
+      - name: Install OpenTimelineIO and its adapters (pinned, hashed)
+        run: python -m pip install --require-hashes -r docs/scripts/marker-conformance-requirements.txt
+
+      # Apple publishes the DTD on its developer documentation, not as a file it licenses for
+      # copying, so it is fetched here and never committed. The hash pins the exact text: a
+      # change on Apple's side fails the check below rather than validating against something
+      # else. The page shows the DTD of "the latest" FCPXML (1.10 as of 2026-11-04) and points to
+      # a versioned download on support.apple.com/final-cut-pro, but that page no longer lists
+      # the DTDs, so there is no versioned file to fetch instead. The cache keeps the pinned copy.
+      - name: Cache the FCPXML 1.10 DTD
+        id: dtd-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/fcpxml-1.10.dtd
+          key: fcpxml-dtd-1.10-${{ env.FCPXML_DTD_SHA256 }}
+
+      - name: Fetch the FCPXML 1.10 DTD from Apple
+        if: steps.dtd-cache.outputs.cache-hit != 'true'
+        run: |
+          set -o pipefail
+          curl -fsSL --retry 3 https://developer.apple.com/documentation/professional-video-applications/document-type-definition.md \
+            | sed -n '/^```swift/,/^```/p' | sed '1d;$d' > "$RUNNER_TEMP/fcpxml-1.10.dtd"
+
+      - name: Check the DTD's hash
+        run: |
+          if ! echo "$FCPXML_DTD_SHA256  $RUNNER_TEMP/fcpxml-1.10.dtd" | sha256sum --check; then
+            echo "::error::Apple's DTD page no longer holds the pinned FCPXML 1.10 DTD. Check which version it shows now."
+            exit 1
+          fi
+
+      - name: Write every marker file
+        run: node docs/scripts/marker-fixtures.ts "$RUNNER_TEMP/marker-files"
+
+      - name: Read them back
+        run: python -I docs/scripts/marker-conformance.py "$RUNNER_TEMP/marker-files" "$RUNNER_TEMP/fcpxml-1.10.dtd"
+
   docs-deploy:
     name: Deploy Documentation
-    needs: docs
+    # A red marker check holds the deploy: branch protection requires no status checks.
+    needs: [docs, markers]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:

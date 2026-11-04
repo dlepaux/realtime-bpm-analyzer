@@ -86,11 +86,10 @@ const fileBpm = ref<number | null>(null)
 const fileDuration = ref<number | null>(null)
 const fileElapsedMs = ref<number | null>(null)
 const fileError = ref<string | null>(null)
-// For the beat marker export (RBA-127): the tempo the grid steps at, the engine's top candidate,
-// which is a whole number today (so it equals fileBpm), and the first channel, the one
-// analyzeFullBuffer reads. The export looks for the first beat in it only if it is opened, and
-// the channel is released once that search has run, or when the result is cleared. An unopened
-// result keeps it until then.
+// For the beat marker export (RBA-127): the engine's top candidate, a whole number today (so it
+// equals fileBpm), and the first channel, the one analyzeFullBuffer reads. The export measures
+// the first beat and the exact tempo in it only if it is opened, and the channel is released
+// once that has run, or when the result is cleared. An unopened result keeps it until then.
 const fileTempo = ref<number | null>(null)
 const fileSamples = shallowRef<Float32Array | null>(null)
 const fileSampleRate = ref<number | null>(null)

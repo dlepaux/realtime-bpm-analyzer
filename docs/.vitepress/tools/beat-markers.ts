@@ -4,20 +4,44 @@
 //
 // Pure and import-free so `npm test` runs it with plain `node --test` (scripts/beat-markers.test.ts).
 //
-// Specs:
-// - FCPXML: https://developer.apple.com/documentation/professional-video-applications/fcpxml-reference
+// Specs. CI reads every format at every rate with OpenTimelineIO and validates the FCPXML against
+// Apple's DTD (scripts/marker-conformance.py); no editor import has been checked yet.
+// - FCPXML 1.10: https://developer.apple.com/documentation/professional-video-applications/fcpxml-reference
+//   and its DTD, https://developer.apple.com/documentation/professional-video-applications/document-type-definition
 //   Times are rational seconds ("1001/24000s"), and every time must fall on a frame boundary of the
-//   sequence's frameDuration, so markers are written as whole frames times frameDuration.
-// - Final Cut Pro 7 XML (xmeml), which Premiere Pro imports:
+//   sequence's frameDuration, so markers are written as whole frames times frameDuration. The DTD
+//   fixes the version attribute to "1.10", and allows marker in gap and tcFormat DF or NDF on a
+//   sequence. Final Cut Pro rejects a file that doesn't match the DTD.
+// - Final Cut Pro 7 XML (xmeml), which Premiere Pro imports (Adobe keeps sequence markers, settings
+//   and timecode start: https://helpx.adobe.com/premiere-pro/using/importing-xml-project-files-final.html):
 //   https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/FinalCutPro_XML/
 //   A <rate> is a whole <timebase> plus <ntsc>TRUE</ntsc> for the 1000/1001 rates; marker <in> and
-//   <out> count frames, and <out>-1</out> means no duration.
-// - CMX 3600 EDL: https://xmil.biz/EDL-X/CMX3600.pdf . Resolve reads a marker from the note line
-//   under each event (" |C:<color> |M:<name> |D:<frames>"), the form it writes when it exports
-//   timeline markers to an EDL (DaVinci Resolve manual, "Exporting and importing timeline markers").
+//   <out> count frames, and <out>-1</out> means no duration. <displayformat> DF "is valid only for
+//   a timecode with a rate of 30 frames per second" (Elements, displayformat), so 59.94 is NDF only.
+// - CMX 3600 EDL: https://xmil.biz/EDL-X/CMX3600.pdf (CMX 907567). Statements end with CR/LF and
+//   hold only capitals, digits, colon, space and slash (pp. 11, 12, 15); the title only capitals,
+//   digits and spaces, up to 70 (p. 11); the FCM line declares drop-frame or non-drop (p. 16), and
+//   FCM statements "do not appear in PAL systems" (pp. 11, 16), so 25 and 50 fps have none. The spec spells the mode "NON DROP FRAME"
+//   on p. 11 and "NON-DROP FRAME" on p. 16; the hyphen is what Resolve writes (its manual's EDL
+//   example, "FCM: NON-DROP FRAME"), so it stays. Departures from the spec, for today's readers:
+//   - Drop-frame timecode is written "01:00:00;00". The spec splits every field with a colon
+//     (p. 14) and leaves the mode to the FCM line, but readers ignore FCM: OpenTimelineIO's CMX
+//     reader skips it ("meant for tape timecode") and reads drop-frame only from the ";", so a
+//     colon-only file lands 18 frames late by the tenth minute at 29.97.
+//   - The event number widens past 999, where the spec stops (p. 12), and frames run past 29 at
+//     50 and 60 fps, rates the spec predates.
+// - DaVinci Resolve marker EDL: one event per marker, reel 001, a cut of one frame at the marker
+//   (DaVinci Resolve 20 Reference Manual, "Exporting Timeline Markers to EDL", ch. 190,
+//   https://documents.blackmagicdesign.com/UserManuals/DaVinci_Resolve_20_Reference_Manual.pdf ).
+//   The manual doesn't document the note line under each event that names and colours a marker
+//   (" |C:<color> |M:<name> |D:<frames>"): it is the form Resolve's own marker exports write, kept
+//   exactly, outside CMX 3600's character set, which treats it as a user note (p. 15).
 // - Drop-frame timecode: SMPTE ST 12-1. At 29.97 the frame numbers 00 and 01 are skipped at the
 //   start of every minute except each tenth; at 59.94 the numbers 00 to 03.
-// - CSV: RFC 4180, https://www.rfc-editor.org/rfc/rfc4180 (CRLF line ends, header row).
+// - CSV: RFC 4180, https://www.rfc-editor.org/rfc/rfc4180 (CRLF line ends, header row). Columns:
+//   marker (Beat 1, Beat 2...), seconds (the beat's time in the audio, 3 decimals, before rounding
+//   to a frame), frame (the frame it falls on at the chosen rate, 0 at the start of the audio) and
+//   timecode (that frame from 00:00:00:00, with ";" before the frames in drop-frame).
 // - XML text and attribute escaping: https://www.w3.org/TR/xml/#syntax , characters allowed in
 //   XML 1.0: https://www.w3.org/TR/xml/#charsets
 
@@ -80,6 +104,28 @@ export const MARKER_FORMATS: readonly { id: MarkerFormat; label: string; extensi
   { id: 'fcpxml', label: 'FCPXML for Final Cut Pro', extension: 'fcpxml', mime: 'application/xml' },
   { id: 'csv', label: 'CSV for a spreadsheet', extension: 'csv', mime: 'text/csv' },
 ]
+
+/**
+ * The timecodes a format can write: every one, but the FCP7 XML has drop-frame only at a 30
+ * timebase (see displayformat above), so it has no 59.94 DF.
+ */
+export function timecodesFor(format: MarkerFormat): readonly ExportTimecode[] {
+  return format === 'fcp7xml'
+    ? EXPORT_TIMECODES.filter((entry) => !entry.dropFrame || entry.rate.timebase === 30)
+    : EXPORT_TIMECODES
+}
+
+/**
+ * The timecode `id` names, for a format: its non-drop twin where the format has no drop-frame at
+ * that rate, and 24 fps for an unknown id.
+ */
+export function timecodeChoice(format: MarkerFormat, id: string): ExportTimecode {
+  const offered = timecodesFor(format)
+  const chosen = EXPORT_TIMECODES.find((entry) => entry.id === id)
+  if (chosen === undefined) return offered.find((entry) => entry.id === '24')!
+  return offered.find((entry) => entry === chosen)
+    ?? offered.find((entry) => entry.rate === chosen.rate && !entry.dropFrame)!
+}
 
 /** No marker file grows past this: 4 beats a second for an hour and a half. */
 export const MAX_MARKERS = 20_000
@@ -229,7 +275,7 @@ export function toFcpxml(input: MarkerExport): string {
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<!DOCTYPE fcpxml>',
-    '<fcpxml version="1.8">',
+    '<fcpxml version="1.10">',
     '  <resources>',
     `    <format id="r1" name="${rate.fcpFormatName}" frameDuration="${oneFrame}" width="1920" height="1080"/>`,
     '  </resources>',
@@ -251,9 +297,18 @@ export function toFcpxml(input: MarkerExport): string {
   ].join('\n')
 }
 
-/** EDL titles are one plain line: no control characters, at most 70 characters. */
+/**
+ * An EDL title: capitals, digits and single spaces, at most 70 characters (CMX 3600 p. 11).
+ * Accents come off their letters; anything else becomes a space.
+ */
 function edlTitle(text: string): string {
-  return mapCodePoints(text, (character, codePoint) => (isControl(codePoint) ? ' ' : character)).slice(0, 70)
+  return text.normalize('NFKD').replace(/\p{M}/gu, '').toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ').trim().slice(0, 70).trimEnd()
+}
+
+/** The PAL rates, where CMX 3600 has no FCM statement. */
+function isPal(rate: ExportRate): boolean {
+  return rate.timebase === 25 || rate.timebase === 50
 }
 
 /**
@@ -276,17 +331,17 @@ export function toEdl(input: MarkerExport): string {
       '',
     ]
   })
-  return [
-    `TITLE: ${edlTitle(title(input))}`,
-    `FCM: ${isDrop ? 'DROP FRAME' : 'NON-DROP FRAME'}`,
-    '',
-    ...events,
-  ].join('\n')
+  const fcm = isPal(rate) ? [] : [`FCM: ${isDrop ? 'DROP FRAME' : 'NON-DROP FRAME'}`]
+  return [`TITLE: ${edlTitle(title(input))}`, ...fcm, '', ...events]
+    .map((line) => `${line}\r\n`).join('')
 }
 
 /** A Final Cut Pro 7 XML sequence holding the markers, with empty video and audio tracks. */
 export function toFcp7Xml(input: MarkerExport): string {
   const { rate } = input
+  if (input.dropFrame && rate.canDropFrame && rate.timebase !== 30) {
+    throw new RangeError(`FCP7 XML has no drop-frame timecode at ${rate.label} fps`)
+  }
   const name = escapeXml(title(input))
   const ntsc = rate.denominator === 1001 ? 'TRUE' : 'FALSE'
   const rateXml = `<rate><timebase>${rate.timebase}</timebase><ntsc>${ntsc}</ntsc></rate>`

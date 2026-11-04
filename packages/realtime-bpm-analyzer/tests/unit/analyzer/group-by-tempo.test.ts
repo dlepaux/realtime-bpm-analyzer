@@ -318,6 +318,48 @@ describe('analyzer - groupByTempo', () => {
       expect(top.exact).to.be.closeTo(expected, 1e-9);
     });
 
+    // A true tempo at an edge of the range splits its votes across the fold: under 90 they double to about 180,
+    // over 180 they halve to about 90. The window follows them across the octave, or the mean sees one side only
+    const jittered = (bpm: number) => [-1, -0.5, 0, 0.5, 1].map((offset, i) => ({
+      interval: Math.round(60 * sampleRate / (bpm + offset)),
+      count: [1, 2, 4, 2, 1][i],
+    }));
+    const unfoldedMean = (intervals: Interval[]) => intervals
+      .reduce((sum, {interval, count}) => sum + (count * 60 * sampleRate / interval), 0) / 10;
+
+    it('keeps exact true at the bottom edge, with jittered votes folded up from under 90', () => {
+      const intervals = jittered(90);
+      const top = groupByTempo({audioSampleRate: sampleRate, intervalCounts: intervals}).sort((a, b) => b.count - a.count)[0];
+
+      expect(top.tempo).to.equal(90);
+      expect(top.exact).to.be.closeTo(unfoldedMean(intervals), 1e-6);
+      expect(top.exact).to.be.closeTo(90, 0.01);
+    });
+
+    it('keeps exact true at the top edge, with jittered votes folded down from over 180', () => {
+      const intervals = jittered(180);
+      const top = groupByTempo({audioSampleRate: sampleRate, intervalCounts: intervals}).sort((a, b) => b.count - a.count)[0];
+
+      expect(top.tempo).to.equal(180);
+      expect(top.exact).to.be.closeTo(unfoldedMean(intervals), 1e-6);
+      expect(top.exact).to.be.closeTo(180, 0.01);
+    });
+
+    it('folds the window only across the range edge: a wide range keeps 60 and 120 apart', () => {
+      const at = (bpm: number) => Math.round(60 * sampleRate / bpm);
+      const intervals: Interval[] = [{interval: at(120), count: 5}, {interval: at(60.4), count: 5}];
+      const result = groupByTempo({audioSampleRate: sampleRate, intervalCounts: intervals, tempoRange: {min: 50, max: 200}});
+
+      expect(result.find(({tempo}) => tempo === 120)?.exact).to.be.closeTo(120, 1e-3);
+      expect(result.find(({tempo}) => tempo === 60)?.exact).to.be.closeTo(60.4, 1e-3);
+    });
+
+    it('leaves confidence on the unfolded window, as calibrated', () => {
+      const result = groupByTempo({audioSampleRate: sampleRate, intervalCounts: jittered(90)});
+
+      expect(result.find(({tempo}) => tempo === 90)?.confidence).to.be.closeTo(7 / 10, 1e-9);
+    });
+
     it('brings a tempo whose votes straddle two whole numbers back to the middle', () => {
       // Half the votes round to 127, half to 128: each group's own mean would lean to its whole number
       const at = (bpm: number) => Math.round(60 * sampleRate / bpm);

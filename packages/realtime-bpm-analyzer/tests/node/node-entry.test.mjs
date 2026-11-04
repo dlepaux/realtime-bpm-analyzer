@@ -93,6 +93,22 @@ describe('realtime-bpm-analyzer/node', () => {
     });
   }
 
+  // At an edge of the range a jittered tempo splits its votes across the fold: under 90 they read about 180, over
+  // 180 about 90. ±1 ms on each click moves each interval by up to ±0.3 BPM at 90 and ±1.1 at 180. Before peaks
+  // folded its window across the octave it read 90.044 and 90.088 here, so 0.03 BPM tells the two apart. The
+  // reading may come at either octave of the edge, so exact is judged at the octave it reports.
+  for (const engine of ['peaks', 'tempogram']) {
+    for (const bpm of [90, 180]) {
+      it(`keeps the exact tempo true at the range edge, for ${engine}, on a jittered ${bpm} BPM click`, async () => {
+        const reading = await analyzeChannelData(createClickTrack(bpm, 44_100, 40, 0.001), 44_100, {engine});
+        const octave = reading.bpm / bpm;
+
+        assert.ok([0.5, 1, 2].includes(octave), `got bpm ${reading.bpm}`);
+        assert.ok(Math.abs(reading.bpmExact - (bpm * octave)) <= 0.03, `got ${reading.bpmExact} at bpm ${reading.bpm}`);
+      });
+    }
+  }
+
   it('returns a reading: top candidate first with its relation, confidence from 0 to 1, the whole file as its audio', async () => {
     const reading = await analyzeChannelData(createClickTrack(120, 44_100, 30), 44_100);
 

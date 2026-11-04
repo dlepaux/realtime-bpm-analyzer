@@ -191,6 +191,8 @@ export function groupByTempo({
   // Keyed by the whole BPM each vote rounds to. A Map keeps first-seen order, which breaks ties in the ranking
   // exactly as the array this replaced did, so `tempo` and `count` are unchanged from 5.x
   const groups = new Map<number, Votes>();
+  // The same votes seen from across the range's edge, for the exact tempo only (see withConfidence)
+  const acrossEdge = new Map<number, Votes>();
 
   for (const intervalCount of intervalCounts) {
     if (intervalCount.interval === 0) {
@@ -208,15 +210,25 @@ export function groupByTempo({
       foldedTempo /= 2;
     }
 
-    const tempo = Math.round(foldedTempo);
-    const votes = groups.get(tempo) ?? {count: 0, weightedSum: 0};
-    groups.set(tempo, {
-      count: votes.count + intervalCount.count,
-      weightedSum: votes.weightedSum + (intervalCount.count * foldedTempo),
-    });
+    addVote(groups, foldedTempo, intervalCount.count);
+    // An octave image the fold could have come from: a vote over max would fold to half, one under min to double
+    if (foldedTempo * 2 > max) {
+      addVote(acrossEdge, foldedTempo * 2, intervalCount.count);
+    }
+
+    if (foldedTempo / 2 < min) {
+      addVote(acrossEdge, foldedTempo / 2, intervalCount.count);
+    }
   }
 
-  return withConfidence(groups);
+  return withConfidence(groups, acrossEdge);
+}
+
+/** Adds `count` votes at an unrounded tempo to the group of the whole BPM it rounds to */
+function addVote(groups: Map<number, Votes>, tempo: number, count: number): void {
+  const key = Math.round(tempo);
+  const votes = groups.get(key) ?? {count: 0, weightedSum: 0};
+  groups.set(key, {count: votes.count + count, weightedSum: votes.weightedSum + (count * tempo)});
 }
 
 /** The interval votes that rounded to one whole BPM, and the sum of their unrounded tempos weighted by count */
@@ -230,24 +242,32 @@ type Votes = {
  * Pooling neighbours absorbs rounding jitter, since a true 128 splits its votes over 127–129. The exact tempo is
  * the vote-weighted mean of the unrounded tempos in that window: a true 127.5 splits its votes between 127 and
  * 128, and only the window's mean comes back to 127.5, where the group's own mean would lean to its whole BPM.
+ *
+ * At an edge of the range the window also takes the votes folded across it: a true 90 with jitter puts its votes
+ * under 90 at about 180, so the mean at 90 would see only the high side and read high. Confidence keeps the
+ * window unfolded, as RBA-106 calibrates it.
  * @param groups - Every tempo group, so the total counts all votes
+ * @param acrossEdge - The octave images of votes the fold may have moved across the range's edge
  * @returns One tempo per group, in the groups' order
  */
-function withConfidence(groups: ReadonlyMap<number, Votes>): Tempo[] {
+function withConfidence(groups: ReadonlyMap<number, Votes>, acrossEdge: ReadonlyMap<number, Votes>): Tempo[] {
   let totalVotes = 0;
   for (const {count} of groups.values()) {
     totalVotes += count;
   }
 
   return [...groups].map(([tempo, {count}]) => {
-    const window = [groups.get(tempo - 1), groups.get(tempo), groups.get(tempo + 1)];
+    const keys = [tempo - 1, tempo, tempo + 1];
+    const window = keys.map(key => groups.get(key));
     const support = window.reduce((sum, votes) => sum + (votes?.count ?? 0), 0);
-    const weightedSum = window.reduce((sum, votes) => sum + (votes?.weightedSum ?? 0), 0);
+    const folded = [...window, ...keys.map(key => acrossEdge.get(key))];
+    const foldedSupport = folded.reduce((sum, votes) => sum + (votes?.count ?? 0), 0);
+    const weightedSum = folded.reduce((sum, votes) => sum + (votes?.weightedSum ?? 0), 0);
 
     return {
       tempo,
       // A group of zero-count votes has no mean: its whole BPM is all there is
-      exact: support > 0 ? weightedSum / support : tempo,
+      exact: foldedSupport > 0 ? weightedSum / foldedSupport : tempo,
       count,
       confidence: totalVotes > 0 ? support / totalVotes : 0,
     };

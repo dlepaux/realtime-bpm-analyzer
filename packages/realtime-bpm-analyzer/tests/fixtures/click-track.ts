@@ -13,15 +13,23 @@ export const clickTrackTempos = [90, 100, 120, 128, 140, 174];
  * @param bpm Tempo of the clicks
  * @param sampleRate Sample rate in Hz
  * @param seconds Duration of the track
+ * @param jitterSeconds Each click moves by up to this much either way, as a human player's would
  * @returns Mono PCM samples
  */
-export function createClickTrack(bpm: number, sampleRate = 44_100, seconds = 30): Float32Array<ArrayBuffer> {
+export function createClickTrack(bpm: number, sampleRate = 44_100, seconds = 30, jitterSeconds = 0): Float32Array<ArrayBuffer> {
   const samples = new Float32Array(Math.round(seconds * sampleRate));
   const samplesPerBeat = (60 / bpm) * sampleRate;
   const clickLength = Math.round(0.08 * sampleRate);
+  const jitter = createNoise(Math.ceil(samples.length / samplesPerBeat) + 1, 7);
 
   for (let beat = 0; beat * samplesPerBeat < samples.length; beat += 1) {
-    const start = Math.round(beat * samplesPerBeat);
+    // Noise is in [-0.5, 0.5]: twice it spans the whole jitter both ways
+    const offset = 2 * jitter[beat] * jitterSeconds * sampleRate;
+    const start = Math.max(0, Math.round((beat * samplesPerBeat) + offset));
+    if (start >= samples.length) {
+      break;
+    }
+
     const end = Math.min(start + clickLength, samples.length);
 
     for (let i = start; i < end; i += 1) {

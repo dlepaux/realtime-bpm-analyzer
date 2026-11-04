@@ -11,7 +11,7 @@ import type {
   BpmAnalyzerContract,
   ListenOptions,
 } from '../contract/types';
-import {contextNow} from './context-now';
+import {contextNow, type Heard} from './context-now';
 import {followTrackClock} from './sample-clock';
 
 /**
@@ -137,6 +137,8 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
   private readonly abortDetach = new WeakMap<EventListener, () => void>();
   // The context time of the last reset(), while messages of older epochs are still expected
   private resetAt: number | null = null;
+  // The last processor message's send time, for a clock that runs on where currentTime freezes (see contextNow)
+  private heard: Heard | null = null;
   private markReady: () => void = () => undefined;
   private markFailed: () => void = () => undefined;
 
@@ -185,7 +187,7 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
    * @throws {DOMException} `InvalidStateError` once stopped
    */
   reset(): void {
-    this.resetAt = contextNow(this.node.context);
+    this.resetAt = contextNow(this.node.context, this.heard);
     const refused = this.dispatcher.apply({kind: 'reset'});
     // A listener of the reset may have stopped the analyzer
     this.settle();
@@ -381,6 +383,10 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
     if (protocol !== null) {
       processorProtocols.set(this, protocol);
       this.markReady();
+    }
+
+    if (typeof message?.at === 'number' && Number.isFinite(message.at)) {
+      this.heard = {at: message.at, wall: performance.now()};
     }
 
     const epoch = this.state.epoch;

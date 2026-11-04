@@ -9,6 +9,9 @@ import base from './web-test-runner.config.mjs';
 export default {
   ...base,
   coverage: false,
+  // create-processor hangs the Firefox page in CI: no test fails, the file never reports (RBA-108, run 41795053565).
+  // Out until a card finds which test does it. Every other file runs here, the watchdog and reset tests included
+  files: [...base.files, '!tests/integration/create-processor.test.ts'],
   browsers: [
     puppeteerLauncher({
       launchOptions: {

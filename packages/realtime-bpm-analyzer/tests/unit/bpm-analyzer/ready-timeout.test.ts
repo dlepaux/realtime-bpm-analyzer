@@ -85,6 +85,32 @@ describe('BpmAnalyzer - epoch watchdog', () => {
     expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
   });
 
+  it('anchors reset() on the last message heard when currentTime and the output timestamp both froze, as Firefox did in CI', () => {
+    const {node, send} = fakeNode();
+    Object.assign(node.context, {currentTime: 10, state: 'running'});
+    const analyzer = new BpmAnalyzer(node);
+    send({type: 'ready', protocol: PROTOCOL, epoch: 0, at: 10});
+    // A click handler works 1.2 s, then resets: currentTime still reads 10, the worklet ran on to 11.2
+    const wall = performance.now() + 1200;
+    const realNow = Object.getOwnPropertyDescriptor(performance, 'now');
+    Object.defineProperty(performance, 'now', {configurable: true, value: () => wall});
+    try {
+      analyzer.reset();
+    } finally {
+      if (realNow) {
+        Object.defineProperty(performance, 'now', realNow);
+      } else {
+        delete (performance as {now?: unknown}).now;
+      }
+    }
+
+    // The epoch-0 backlog sent during the block, before the worklet adopted the reset
+    send(stale(11.19));
+    send({type: 'ready', protocol: PROTOCOL, epoch: 1, at: 11.2});
+
+    expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
+  });
+
   it('trusts a processor that answered the reset, whatever comes late', () => {
     const {node, send, context} = fakeNode();
     const analyzer = new BpmAnalyzer(node);

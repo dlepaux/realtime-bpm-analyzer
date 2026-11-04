@@ -302,12 +302,12 @@ describe('BpmAnalyzer - events and commands', function () {
       };
 
       busy(300);
-      // The live clock: Firefox's currentTime would read the block as no time at all
-      const resetAt = contextNow(audioContext);
+      // Wall time: Firefox's currentTime, and its output timestamp, read the block as no time at all
+      const resetAt = performance.now();
       analyzer.reset();
       busy(1200);
       // What the watchdog compared before messages carried their send time: past the window, so this run is the case
-      const blockedFor = contextNow(audioContext) - resetAt;
+      const blockedFor = (performance.now() - resetAt) / 1000;
       await waitForEvent(analyzer, 'progress', 5000);
       source.stop();
 
@@ -333,19 +333,22 @@ describe('BpmAnalyzer - events and commands', function () {
       // The handler works 1.2 s, then resets: epoch-0 steps sent meanwhile are stamped up to 1.2 s after the
       // block began. Where currentTime froze during the block (Firefox), a reset anchored on it would see them
       // as sent more than the window after reset(), and fail a healthy analyzer
-      const before = {current: audioContext.currentTime, live: contextNow(audioContext)};
+      const clocks = () => ({wall: performance.now() / 1000, current: audioContext.currentTime, output: contextNow(audioContext)});
+      const before = clocks();
       const until = performance.now() + 1200;
       while (performance.now() < until) {
         // Blocking on purpose: this is the blocked main thread under test
       }
 
-      const moved = {current: audioContext.currentTime - before.current, live: contextNow(audioContext) - before.live};
-      console.info(`during a 1.2 s block, currentTime moved ${moved.current.toFixed(3)} s, the live clock ${moved.live.toFixed(3)} s`);
+      const after = clocks();
+      const moved = (clock: keyof typeof before) => (after[clock] - before[clock]).toFixed(3);
+      // The evidence of what the reset is up against in this browser
+      console.info(`during a 1.2 s block: wall ${moved('wall')} s, currentTime ${moved('current')} s, output timestamp ${moved('output')} s`);
       analyzer.reset();
       await waitForEvent(analyzer, 'progress', 5000);
       source.stop();
 
-      expect(moved.live).to.be.greaterThan(1);
+      expect(after.wall - before.wall).to.be.greaterThan(1);
       expect(analyzer.state).to.deep.include({status: 'listening', epoch: 1});
       analyzer.stop();
     });

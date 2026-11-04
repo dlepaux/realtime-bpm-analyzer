@@ -90,6 +90,22 @@ test('tool FAQs: the privacy answer says what Google Analytics records, and the 
   }
 })
 
+// From 1.0.1 the settings page keeps its choice in storage.local until the extension is removed
+// (RBA-99), so neither page may say the extension stores only session data any more.
+test('extension pages: the stored settings choice is named, and nothing claims session-only storage', () => {
+  const flat = (path: string) => read(path).replace(/\s+/g, ' ')
+  assert.ok(
+    flat('../extension/privacy.md').includes(
+      "**Your choice on the settings page** (the widget's progress style), kept in the browser's local storage on your device until you remove the extension. It is never sent.",
+    ),
+    'extension/privacy.md must list the settings choice kept in local storage',
+  )
+  assert.match(flat('../extension/welcome.md'), /settings page \(the widget's progress style\) stays in the browser's local storage on your device until you remove the extension, and is never sent/)
+  for (const path of ['../extension/privacy.md', '../extension/welcome.md']) {
+    assert.doesNotMatch(flat(path), /\bstores only\b/i, path)
+  }
+})
+
 // These are published on the website too, where a reader takes "no tracking" for the site's own.
 test('library documents: each one points at the website privacy page', () => {
   for (const path of ['../../readme.md', '../../privacy.md', '../../security.md']) {

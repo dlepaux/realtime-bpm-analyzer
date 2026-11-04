@@ -47,9 +47,12 @@ Your audio never leaves your device.
 The extension listens to the tab you choose, only after you click, and works out
 the tempo on your computer. To notice a new track it reads what the page says is
 playing, also on your computer. It sends nothing of its own: no analytics, no
-install ID. It stores only whether it is listening and the id
+install ID. While listening, it keeps only whether it is listening and the id
 of the tab it is listening to, plus, in memory until listening stops, what it needs
 to recognise a track. All of that goes when listening stops or the browser closes.
+Your choice on its settings page (the widget's progress style) stays in the
+browser's local storage on your device until you remove the extension, and is
+never sent.
 
 </div>
 

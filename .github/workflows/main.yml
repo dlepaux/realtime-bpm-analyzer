@@ -121,9 +121,10 @@ jobs:
       - name: Build the library
         run: npm run build -w realtime-bpm-analyzer
 
+      # The Firefox this puppeteer pins: a newer stable is not where its launcher looks
       - name: Install Firefox for puppeteer
         working-directory: packages/realtime-bpm-analyzer
-        run: npx puppeteer browsers install firefox@stable
+        run: npx puppeteer browsers install firefox
 
       - name: Test in Firefox
         run: npm run test:firefox -w realtime-bpm-analyzer

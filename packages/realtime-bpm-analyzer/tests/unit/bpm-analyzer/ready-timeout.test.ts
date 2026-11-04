@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {BpmAnalyzer, processorProtocol, whenReady} from '../../../src/core/bpm-analyzer';
+import {constructAnalyzer, processorProtocol, whenReady} from '../../../src/core/bpm-analyzer';
 import {PROTOCOL} from '../../../src/contract/types';
 
 /** Enough of an AudioWorkletNode for the analyzer: a port the test plays the processor's side of */
@@ -20,7 +20,7 @@ describe('BpmAnalyzer - epoch watchdog', () => {
 
   it('drops a backlog of old epochs that lands at once after reset(), however long', () => {
     const {node, send} = fakeNode();
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     analyzer.reset();
     for (let i = 0; i < 100; i += 1) {
       send(stale(0));
@@ -32,7 +32,7 @@ describe('BpmAnalyzer - epoch watchdog', () => {
   it('survives a main thread blocked past the window, with an old step queued before the worklet adopted the reset', () => {
     const {node, send, context} = fakeNode();
     context.currentTime = 10;
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     analyzer.reset();
     // A click handler runs on for 1.2 s after reset(): the audio clock moves, the port holds what came meanwhile
     context.currentTime = 11.2;
@@ -45,7 +45,7 @@ describe('BpmAnalyzer - epoch watchdog', () => {
 
   it('fails with a ProtocolError, and stops the processor, when the processor still sends old epochs a second after reset()', () => {
     const {node, send, posted, context} = fakeNode();
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     analyzer.reset();
     send(stale(0.5));
     context.currentTime = 1.5;
@@ -58,7 +58,7 @@ describe('BpmAnalyzer - epoch watchdog', () => {
 
   it('fails with a ProtocolError on an old epoch without its send time, as no v6 processor sends one', () => {
     const {node, send} = fakeNode();
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     analyzer.reset();
     send({type: 'step', protocol: PROTOCOL, epoch: 0, status: 'listening', progress: 0.1});
 
@@ -76,7 +76,7 @@ describe('BpmAnalyzer - epoch watchdog', () => {
       outputLatency: 0,
       getOutputTimestamp: () => ({contextTime: 11.2, performanceTime: performance.now()}),
     });
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     analyzer.reset();
     // The epoch-0 backlog sent during the block, before the worklet adopted the reset
     send(stale(11.19));
@@ -88,7 +88,7 @@ describe('BpmAnalyzer - epoch watchdog', () => {
   it('anchors reset() on the last message heard when currentTime and the output timestamp both froze, as Firefox did in CI', () => {
     const {node, send} = fakeNode();
     Object.assign(node.context, {currentTime: 10, state: 'running'});
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     send({type: 'ready', protocol: PROTOCOL, epoch: 0, at: 10});
     // A click handler works 1.2 s, then resets: currentTime still reads 10, the worklet ran on to 11.2
     const wall = performance.now() + 1200;
@@ -113,7 +113,7 @@ describe('BpmAnalyzer - epoch watchdog', () => {
 
   it('trusts a processor that answered the reset, whatever comes late', () => {
     const {node, send, context} = fakeNode();
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     analyzer.reset();
     send({type: 'ready', protocol: PROTOCOL, epoch: 1, at: 0});
     context.currentTime = 5;
@@ -126,7 +126,7 @@ describe('BpmAnalyzer - epoch watchdog', () => {
 describe('BpmAnalyzer - startup', () => {
   it('resolves once the processor says ready in epoch 0', async () => {
     const {node, send} = fakeNode();
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     const ready = whenReady(analyzer, 1000);
     send({type: 'ready', protocol: PROTOCOL, epoch: 0});
 
@@ -136,7 +136,7 @@ describe('BpmAnalyzer - startup', () => {
 
   it('resolves on a ready from a later minor, and keeps that minor for features that need it', async () => {
     const {node, send} = fakeNode();
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     const ready = whenReady(analyzer, 1000);
     const newer = {major: PROTOCOL.major, minor: PROTOCOL.minor + 1};
     send({type: 'ready', protocol: newer, epoch: 0, at: 0});
@@ -148,7 +148,7 @@ describe('BpmAnalyzer - startup', () => {
 
   it('knows no processor protocol before ready, and refuses a ready of another major', () => {
     const {node, send} = fakeNode();
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     expect(processorProtocol(analyzer)).to.equal(null);
 
     send({type: 'ready', protocol: {major: PROTOCOL.major + 1, minor: 0}, epoch: 0, at: 0});
@@ -159,7 +159,7 @@ describe('BpmAnalyzer - startup', () => {
 
   it('fails with a ProtocolError when no ready comes in time, as a 5.x processor file never sends one', async () => {
     const {node, posted} = fakeNode();
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     let caught: unknown;
     try {
       await whenReady(analyzer, 20);
@@ -174,7 +174,7 @@ describe('BpmAnalyzer - startup', () => {
 
   it('fails at once on a fatal fault before ready, with the error of the processor', async () => {
     const {node, send} = fakeNode();
-    const analyzer = new BpmAnalyzer(node);
+    const analyzer = constructAnalyzer(node);
     const ready = whenReady(analyzer, 1000);
     send({type: 'fault', protocol: PROTOCOL, epoch: 0, fatal: true, error: {name: 'ProtocolError', message: 'stale'}});
 

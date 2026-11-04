@@ -37,6 +37,35 @@ const readiness = new WeakMap<BpmAnalyzer, Promise<void>>();
 /** The processor's protocol from its first `ready`, kept off the public class */
 const processorProtocols = new WeakMap<BpmAnalyzer, ProtocolVersion>();
 
+/** How to fail each analyzer, kept off the public class: no caller may fail one */
+const faults = new WeakMap<BpmAnalyzer, (error: AnalyzerError) => void>();
+
+/** Proves a construction comes from this module: `new BpmAnalyzer()` from outside throws */
+const constructionKey = Symbol('BpmAnalyzer construction');
+
+/**
+ * Fails the analyzer: `stopped` with reason `failed`
+ * @param analyzer The analyzer
+ * @param error What failed
+ */
+export function failAnalyzer(analyzer: BpmAnalyzer, error: AnalyzerError): void {
+  faults.get(analyzer)?.(error);
+}
+
+/**
+ * Builds an analyzer, the factory's only way to: the class keeps its constructor private
+ * @param workletNode The AudioWorkletNode running the processor
+ * @param createInput Builds the node sources connect to, when it is not the worklet itself
+ * @param liveInput The track of a MediaStream source, whose clock keeps the analyzer's time true
+ * @returns The analyzer
+ */
+export function constructAnalyzer(workletNode: AudioWorkletNode, createInput?: () => AudioNode, liveInput?: MediaStreamTrack): BpmAnalyzer {
+  return construct(workletNode, createInput, liveInput);
+}
+
+// Assigned by the class's static block, the one place allowed to call its private constructor
+let construct: typeof constructAnalyzer;
+
 /**
  * The protocol the processor said it speaks in its first `ready`
  * @param analyzer The analyzer
@@ -55,7 +84,7 @@ export async function whenReady(analyzer: BpmAnalyzer, timeoutMs = readyTimeoutM
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      analyzer.fault({name: 'ProtocolError', message: `the processor sent no ready within ${timeoutMs} ms: a stale processor file?`});
+      failAnalyzer(analyzer, {name: 'ProtocolError', message: `the processor sent no ready within ${timeoutMs} ms: a stale processor file?`});
       reject(new Error('unreachable'));
     }, timeoutMs);
   });
@@ -142,13 +171,20 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
   private markReady: () => void = () => undefined;
   private markFailed: () => void = () => undefined;
 
+  static {
+    construct = (workletNode, createInput, liveInput) => new BpmAnalyzer(constructionKey, workletNode, createInput, liveInput);
+  }
+
   /**
-   * @param workletNode - The AudioWorkletNode running the processor
-   * @param createInput - Builds the node sources connect to, when it is not the worklet itself
-   * @param liveInput - The track of a MediaStream source, whose clock keeps the analyzer's time true
+   * Private: `createRealtimeBpmAnalyzer` is the only way in. The key refuses a JavaScript caller the type
+   * would not stop.
    * @hidden
    */
-  constructor(workletNode: AudioWorkletNode, createInput: () => AudioNode = () => workletNode, liveInput?: MediaStreamTrack) {
+  private constructor(key: typeof constructionKey, workletNode: AudioWorkletNode, createInput: () => AudioNode = () => workletNode, liveInput?: MediaStreamTrack) {
+    if (key !== constructionKey) {
+      throw new TypeError('BpmAnalyzer cannot be built with new: call createRealtimeBpmAnalyzer()');
+    }
+
     super();
     this.node = workletNode;
     this.createInput = createInput;
@@ -158,6 +194,10 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
     }));
     // Nobody may wait on it: a rejection nobody reads must not be reported as unhandled
     readiness.get(this)?.catch(() => undefined);
+    faults.set(this, error => {
+      this.dispatcher.apply({kind: 'fault', error: Object.freeze({...error})});
+      this.settle();
+    });
     this.dispatcher = createDispatcher(event => {
       this.emit(event);
     }, message => {
@@ -174,10 +214,10 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
       this.receive(event.data);
     };
     this.node.port.onmessageerror = () => {
-      this.fault({name: 'ProcessorError', message: 'a processor message could not be deserialised'});
+      failAnalyzer(this, {name: 'ProcessorError', message: 'a processor message could not be deserialised'});
     };
     this.node.onprocessorerror = () => {
-      this.fault({name: 'ProcessorError', message: 'the processor threw (processorerror)'});
+      failAnalyzer(this, {name: 'ProcessorError', message: 'the processor threw (processorerror)'});
     };
   }
 
@@ -264,16 +304,6 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
     if (wrapper !== undefined) {
       this.removeIfCurrent(type, listener, wrapper);
     }
-  }
-
-  /**
-   * Fails the analyzer: `stopped` with reason `failed`
-   * @param error - What failed
-   * @hidden
-   */
-  fault(error: AnalyzerError): void {
-    this.dispatcher.apply({kind: 'fault', error: Object.freeze({...error})});
-    this.settle();
   }
 
   /**
@@ -398,12 +428,12 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
     if (stale && message !== null && this.resetAt !== null) {
       const {at} = message;
       if (typeof at !== 'number' || !Number.isFinite(at)) {
-        this.fault({name: 'ProtocolError', message: 'a processor message without its send time: a stale processor file?'});
+        failAnalyzer(this, {name: 'ProtocolError', message: 'a processor message without its send time: a stale processor file?'});
         return;
       }
 
       if (at - this.resetAt > staleAfterSeconds) {
-        this.fault({name: 'ProtocolError', message: `the processor kept sending epoch ${String(message.epoch)} after reset() moved to ${epoch}`});
+        failAnalyzer(this, {name: 'ProtocolError', message: `the processor kept sending epoch ${String(message.epoch)} after reset() moved to ${epoch}`});
         return;
       }
     }

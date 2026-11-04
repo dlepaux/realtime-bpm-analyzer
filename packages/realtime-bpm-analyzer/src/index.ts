@@ -1,6 +1,7 @@
 import {realtimeBpmProcessorName} from './core/consts';
 import realtimeBpmProcessorContent from './generated-processor';
-import {BpmAnalyzer, whenReady} from './core/bpm-analyzer';
+import {constructAnalyzer, whenReady} from './core/bpm-analyzer';
+import type {BpmAnalyzer} from './core/bpm-analyzer';
 import {getBiquadFilter} from './core/offline-pipeline';
 import {assertNoRemovedOptions, resolveEngine} from './core/engine';
 import {PROTOCOL} from './contract/types';
@@ -117,8 +118,8 @@ export async function createRealtimeBpmAnalyzer(
   const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName, processorOptions, processorUrl);
   // The peaks engine reads the bass: the lowpass sits in front of it, inside `input`
   const analyzer = engine.name === 'tempogram'
-    ? new BpmAnalyzer(processorNode, undefined, liveInput)
-    : new BpmAnalyzer(processorNode, () => {
+    ? constructAnalyzer(processorNode, undefined, liveInput)
+    : constructAnalyzer(processorNode, () => {
       const lowpass = getBiquadFilter(audioContext);
       lowpass.connect(processorNode);
       return lowpass;

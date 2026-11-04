@@ -62,25 +62,38 @@ common frame rate, and how far a rounded cut drifts each bar.
 ## Export beat markers
 
 After a file result, **Export beat markers** writes a marker on every beat, from
-the first strong beat at the detected tempo. Pick the format and the frame rate
-of your timeline, then download. Import into Premiere Pro, DaVinci Resolve or
-Final Cut Pro, or open the CSV in a spreadsheet:
+the first strong beat. The tool measures the tempo from the file to a fraction
+of a BPM, so the markers follow the song, not the whole number shown above.
+When the file doesn't give a clear enough beat to measure, the markers step at
+the whole number instead and the tool says so: on a long song they can then
+slide off the beat. Pick the format and the frame rate of your timeline, then
+download:
 
-- **Premiere Pro**: an XML sequence. File > Import adds a sequence with the
-  markers.
-- **DaVinci Resolve**: an EDL. Right-click your timeline in the Media Pool, then
-  Timelines > Import > Timeline Markers from EDL. The markers assume the timeline
-  starts at 01:00:00:00.
-- **Final Cut Pro**: an FCPXML file. File > Import > XML adds a project with the
-  markers.
-- **CSV**: the time of each beat in seconds, frames and timecode.
+- **Premiere Pro**: an XML sequence (Final Cut Pro 7 XML) with one sequence
+  marker per beat. File > Import adds the sequence. 59.94 fps drop-frame isn't
+  offered, because that XML format only defines drop-frame at 29.97 fps: pick
+  59.94 non-drop.
+- **DaVinci Resolve**: a CMX 3600 EDL with one event per beat, starting at
+  01:00:00:00. Right-click your timeline in the Media Pool, then Timelines >
+  Import > Timeline Markers from EDL. The markers assume the timeline starts at
+  01:00:00:00.
+- **Final Cut Pro**: an FCPXML 1.10 file with a project holding one marker per
+  beat. File > Import > XML adds the project. It needs Final Cut Pro 10.6.1 or
+  later.
+- **CSV**: one row per beat with four columns: `marker` (Beat 1, Beat 2...),
+  `seconds` from the start of the file, `frame` from the first frame, and
+  `timecode` from 00:00:00:00.
+
+In the editor files every marker sits on a whole frame. Each file follows the
+format's published specification, and an automated test builds it at every
+frame rate and checks every marker's frame: the EDL and the Premiere XML read
+back with OpenTimelineIO, the FCPXML validated against Apple's FCPXML 1.10 DTD.
+The files haven't been tested by importing them into each editor yet, so check
+that the first marker and the last one sit on the beat before you cut.
 
 The markers are a fixed grid, so they suit songs with a steady tempo. A song
-that speeds up, slows down or changes tempo drifts away from them. The markers
-use the whole-number tempo, so on a long song they can slide off the beat when
-the real tempo sits between two numbers. Check that the first marker and the
-last one sit on the beat before you cut. The file is made in your
-browser, from audio that never leaves your device.
+that speeds up, slows down or changes tempo drifts away from them. The file is
+made in your browser, from audio that never leaves your device.
 
 ## Limits
 

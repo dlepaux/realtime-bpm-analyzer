@@ -307,8 +307,10 @@ jobs:
           echo "lean chunks: $lean, pages: $pages"
           test "$pages" -gt 0 && test "$lean" -ge "$pages"
 
-      # One h1 on home, the unpublished guides noindex and unlinked, TechArticle and a
-      # server-rendered date on every guide: things only the built HTML shows.
+      # One h1 on home, the unpublished guides noindex and unlinked, TechArticle, both
+      # dates and a server-rendered date on every guide, and the sitemap both ways: what
+      # it lists is indexable with its own canonical, and every indexable page is in it
+      # apart from NOT_IN_SITEMAP. Things only the built HTML shows.
       - name: Check SEO output
         run: npm run verify:seo -w docs
 

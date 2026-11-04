@@ -28,7 +28,8 @@ const engines = ['peaks', 'tempogram'] as const;
 const rates = [44_100, 48_000];
 const browserTarget = 'es2020';
 
-async function bundle(entry: string, extra: esbuild.BuildOptions = {}): Promise<esbuild.BuildResult & {metafile: esbuild.Metafile}> {
+// Without metafile in `extra`, the `metafile: true` below types the result's metafile as always there
+async function bundle(entry: string, extra: Omit<esbuild.BuildOptions, 'metafile'> = {}): Promise<esbuild.BuildResult & {metafile: esbuild.Metafile}> {
   return esbuild.build({
     entryPoints: [entry], bundle: true, write: false, format: 'esm', target: browserTarget, metafile: true, logLevel: 'warning', ...extra,
   });

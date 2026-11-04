@@ -2,7 +2,7 @@ import {resolveEngine} from '../../src/core/engine';
 import {createSession} from '../../src/core/session';
 import type {TempogramTuning} from '../../src/core/tempogram';
 import {chunkAggregator} from '../../src/core/utils';
-import type {WorkletMessage} from '../../src/contract/types';
+import type {CandidateRelation, WorkletMessage} from '../../src/contract/types';
 import type {BenchmarkOptions} from './detectors';
 import {isCorrect} from './metrics';
 import type {Track, TrackResult} from './types';
@@ -65,7 +65,7 @@ export async function streamPcm(
 
 export type Reading = readonly [heard: number, tempo: number, confidence: number];
 
-/** Candidates kept from the last `bpm` event: enough to see the other metrical level, not the tail */
+/** Candidates kept from the last reading: enough to see the other metrical level, not the tail */
 const keptCandidates = 5;
 
 /**
@@ -97,7 +97,8 @@ export async function listen(
   let final: number | null = null;
   let firstReadingAt: number | null = null;
   let firstCorrectAt: number | null = null;
-  let candidates: ReadonlyArray<readonly [number, number]> = [];
+  let candidates: ReadonlyArray<readonly [number, CandidateRelation]> = [];
+  let confidence: number | null = null;
   let readings: readonly Reading[] = [];
   const stable: Array<readonly [number, number]> = [];
 
@@ -106,15 +107,17 @@ export async function listen(
       return;
     }
 
-    const top = message.reading.bpm;
+    const {reading} = message;
+    const top = reading.bpm;
     if (message.status === 'locked' && message.reason === 'locked') {
       stable.push([heard, top]);
     }
 
     final = top;
     firstReadingAt ??= heard;
-    candidates = event.data.bpm.slice(0, keptCandidates).map(({tempo, confidence}) => [tempo, confidence] as const);
-    readings = withReading(readings, [heard, top, event.data.bpm[0].confidence]);
+    candidates = reading.candidates.slice(0, keptCandidates).map(({bpm, relation}) => [bpm, relation] as const);
+    confidence = reading.confidence;
+    readings = withReading(readings, [heard, top, reading.confidence]);
 
     if (firstCorrectAt === null && isCorrect(top, track.bpm)) {
       firstCorrectAt = heard;
@@ -134,6 +137,7 @@ export async function listen(
     firstCorrectAt,
     stable,
     candidates,
+    confidence,
     readings,
   };
 }

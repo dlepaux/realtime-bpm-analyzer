@@ -8,7 +8,7 @@
  * @param bpm - Tempo
  * @returns Mono samples in [-1, 1]
  */
-export function drumMix(sampleRate: number, seconds: number, bpm = 128): Float32Array {
+export function drumMix(sampleRate: number, seconds: number, bpm = 128): Float32Array<ArrayBuffer> {
   const out = new Float32Array(Math.round(seconds * sampleRate));
   const beat = (60 / bpm) * sampleRate;
   let seed = 0x2545_f491;

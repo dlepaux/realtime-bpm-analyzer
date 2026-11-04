@@ -231,8 +231,7 @@ def confirmed_peaks_lock(row_t, row_p):
 
 
 def confidence_of(row):
-    candidates = row.get('candidates')
-    return candidates[0][1] if candidates else None
+    return row.get('confidence')
 
 
 def bin_of(value, cut):

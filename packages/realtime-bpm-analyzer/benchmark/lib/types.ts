@@ -1,3 +1,5 @@
+import type {CandidateRelation} from '../../src/contract/types';
+
 /**
  * One labelled recording of an evaluation set
  */
@@ -45,8 +47,10 @@ export type TrackResult = {
   readonly stable: ReadonlyArray<readonly [number, number]>;
   /** Top candidate of the offline path, on detectors that have one */
   readonly offline?: number | null;
-  /** The last `bpm` event's candidates as [tempo, confidence], best first. Absent before RBA-106's ensemble run */
-  readonly candidates?: ReadonlyArray<readonly [number, number]>;
+  /** The last reading's candidates as [bpm, relation to the top], top first. Absent before RBA-106's ensemble run */
+  readonly candidates?: ReadonlyArray<readonly [number, CandidateRelation]>;
+  /** The last reading's confidence, null when the detector never gave a reading */
+  readonly confidence?: number | null;
   /** Each change of the top candidate as [seconds of audio, tempo, its confidence]. Absent before RBA-106's ensemble run */
   readonly readings?: ReadonlyArray<readonly [number, number, number]>;
 };

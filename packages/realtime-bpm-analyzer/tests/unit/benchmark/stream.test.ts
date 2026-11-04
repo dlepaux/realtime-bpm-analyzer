@@ -1,5 +1,7 @@
 import {expect} from 'chai';
-import {repeatTo, streamPcm} from '../../../benchmark/lib/stream';
+import {listen, repeatTo, streamPcm} from '../../../benchmark/lib/stream';
+import type {Track} from '../../../benchmark/lib/types';
+import {createClickTrack} from '../../fixtures/click-track';
 
 describe('repeatTo', () => {
   it('repeats whole passes, so a loop never ends on a cut beat', () => {
@@ -44,5 +46,19 @@ describe('streamPcm', () => {
   it('searches the range in the options when a tuning is given too', async () => {
     expect(await lastTempo({min: 90, max: 180})).to.be.within(90, 180);
     expect(await lastTempo({min: 50, max: 240})).to.be.below(90);
+  });
+});
+
+describe('listen', () => {
+  const track: Track = {set: 'clicks', id: '120', genre: 'click', bpm: 120, group: 'clicks', audioPath: '', licence: 'CC0-1.0'};
+
+  it('keeps the last reading\'s candidates, top first, and its confidence', async function () {
+    this.timeout(30_000);
+    const result = await listen(track, createClickTrack(120, 44_100, 20), 44_100, {engine: 'tempogram'});
+
+    expect(result.final).to.equal(120);
+    expect(result.candidates?.[0]).to.deep.equal([120, 'top']);
+    expect(result.confidence).to.be.a('number').within(0, 1);
+    expect(result.readings?.at(-1)?.[1]).to.equal(120);
   });
 });

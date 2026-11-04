@@ -68,13 +68,13 @@ describe('BpmAnalyzer - epoch watchdog', () => {
 
   it('anchors reset() on the output clock when currentTime froze during a long task, as Firefox does', () => {
     const {node, send} = fakeNode();
-    // A click handler worked 1.2 s, then reset(): currentTime still reads 10, the audio ran on to 11.2
-    const frozenAt = performance.now() - 1200;
+    // A click handler worked 1.2 s, then reset(): currentTime still reads 10, the audio ran on to 11.2, and the
+    // output timestamp says so (its extrapolation is tested in context-now.test.ts)
     Object.assign(node.context, {
       currentTime: 10,
       state: 'running',
       outputLatency: 0,
-      getOutputTimestamp: () => ({contextTime: 10, performanceTime: frozenAt}),
+      getOutputTimestamp: () => ({contextTime: 11.2, performanceTime: performance.now()}),
     });
     const analyzer = new BpmAnalyzer(node);
     analyzer.reset();

@@ -8,9 +8,10 @@
  * clock by the output latency, so that is added back. Never earlier than `currentTime`, and `currentTime` alone
  * while the context does not run: a suspended clock stands still, and extrapolating it would run it on.
  * @param context The analyzer's context
+ * @param now The `performance.now()` to extrapolate to, in milliseconds
  * @returns Seconds on the context clock
  */
-export function contextNow(context: BaseAudioContext): number {
+export function contextNow(context: BaseAudioContext, now = performance.now()): number {
   const {currentTime} = context;
   const output = context as Partial<Pick<AudioContext, 'getOutputTimestamp' | 'outputLatency'>>;
   if (context.state !== 'running' || typeof output.getOutputTimestamp !== 'function') {
@@ -18,10 +19,11 @@ export function contextNow(context: BaseAudioContext): number {
   }
 
   const {contextTime, performanceTime} = output.getOutputTimestamp.call(context);
-  if (typeof contextTime !== 'number' || typeof performanceTime !== 'number') {
+  // Zero until the output has rendered: extrapolating from it would run the clock on by the page's whole age
+  if (typeof contextTime !== 'number' || typeof performanceTime !== 'number' || performanceTime <= 0) {
     return currentTime;
   }
 
   const latency = typeof output.outputLatency === 'number' ? output.outputLatency : 0;
-  return Math.max(currentTime, contextTime + latency + ((performance.now() - performanceTime) / 1000));
+  return Math.max(currentTime, contextTime + latency + ((now - performanceTime) / 1000));
 }

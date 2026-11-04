@@ -441,7 +441,8 @@ function coarseGrid(onsets: Onset[], wholeBpm: number): Grid | null {
 export function fitTempo(curve: OnsetCurve, wholeBpm: number): GridTempo {
   const fallback: GridTempo = { bpm: wholeBpm, fitted: false }
   if (!(wholeBpm > FIT_RANGE_BPM)) return fallback
-  const onsets = strongOnsets(curve)
+  const threshold = strongThreshold(curve.strength)
+  const onsets = strongOnsets(curve, threshold)
   const end = frameTime(curve, curve.strength.length - 1)
   let grid = coarseGrid(onsets, wholeBpm)
   if (grid === null) return fallback
@@ -459,7 +460,25 @@ export function fitTempo(curve: OnsetCurve, wholeBpm: number): GridTempo {
   const whole = fromTheStart(grid)
   const bpm = 60 / grid.period
   if (!isSteady(onsets, whole, end) || Math.abs(bpm - wholeBpm) > FIT_RANGE_BPM) return fallback
-  return { bpm, fitted: true, phase: whole.start }
+  const opensOnOnset = isStrong(curve.startStrength, threshold)
+  return { bpm, fitted: true, phase: onTheBeat(onsets, whole, end, opensOnOnset).start }
+}
+
+/**
+ * The grid of beats, of `grid` and the one half a beat away, when both are steady: kicks with
+ * off-beat hats as loud (open hats in house music) land as many beats either way, and the fit
+ * keeps whichever its strongest anchor was on. The beats are the train that starts first, as a
+ * song almost always opens on a beat; a file that rises strongly from its first sample starts a
+ * train at 0. A song that opens on an off-beat pickup puts its markers half a beat out.
+ */
+function onTheBeat(onsets: Onset[], grid: Grid, end: number, opensOnOnset: boolean): Grid {
+  const shifted = fromTheStart({ start: grid.start + grid.period / 2, period: grid.period })
+  if (!isSteady(onsets, shifted, end)) return grid
+  const startOf = (train: Grid) => {
+    const nearZero = train.start <= MATCH_SECONDS || train.period - train.start <= MATCH_SECONDS
+    return opensOnOnset && nearZero ? 0 : (matches(onsets, train, end)[0]?.time ?? Infinity)
+  }
+  return startOf(shifted) < startOf(grid) ? shifted : grid
 }
 
 /** The same grid from its first beat at or after 0 s, so a share counts over the whole file. */

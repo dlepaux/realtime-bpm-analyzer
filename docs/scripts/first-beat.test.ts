@@ -317,6 +317,27 @@ test('firstBeatOf: a clip cut mid-sound off the fitted grid does not start at 0'
   assert.ok(first !== null && Math.abs(first - 0.23) < 1 / 30, `marker 1 at ${first}`)
 })
 
+test('firstBeatOf: loud open hats on the off-beats do not move the grid half a beat late', () => {
+  // Kicks on every beat of 124 and 127.6 BPM from 0.5 s, open hats (150 ms bursts) as loud as
+  // the kicks halfway between. Both grids land on every beat and the strongest onsets are hats:
+  // the beats are the train whose first onset comes first.
+  for (const bpm of [124, 127.6]) {
+    const period = 60 / bpm
+    const count = Math.floor((60 - 0.5) / period)
+    const samples = smoothKicks(Array.from({ length: count }, (_, index) => 0.5 + index * period), 60)
+    let seed = 5
+    for (let beat = 0; beat < count; beat += 1) {
+      const start = Math.round((0.5 + (beat + 0.5) * period) * SAMPLE_RATE)
+      for (let i = 0; i < 0.15 * SAMPLE_RATE && start + i < samples.length; i += 1) {
+        seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648
+        samples[start + i] = samples[start + i]! + 0.8 * (seed / 1_073_741_824 - 1) * Math.exp(-i / (0.04 * SAMPLE_RATE))
+      }
+    }
+    const first = markerOne(samples, Math.round(bpm))
+    assert.ok(first !== null && Math.abs(first - 0.5) < 1 / 30, `${bpm} BPM: marker 1 at ${first}`)
+  }
+})
+
 test('fitTempo: the share of beats on onsets counts over the whole file, not from the grid\'s anchor', () => {
   // Kicks to 20 s with a clap on them from 12 s, silence, then two beats: 42 of the file's 80
   // beats land on onsets, a steady half, but from the claps the fit anchors on it is 18 of 56.

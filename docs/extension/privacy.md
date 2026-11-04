@@ -24,6 +24,8 @@ once that page has loaded. Clicking the button on a different tab moves listenin
 - **The capture state and the id of that tab**, kept in the browser's session storage so the extension
   can keep track of the capture. The id is removed when listening stops, and the browser clears the
   rest when it closes.
+- **Your choice on the settings page** (the widget's progress style), kept in the browser's local storage
+  on your device until you remove the extension. It is never sent.
 - **The page's hostname, its media player and what it says is playing**, read on your device to place the
   overlay, show the playback speed and notice when the track changes. What it says is playing means the
   site's own id for the video, the title, artist and album the page gives the browser's media controls,
@@ -63,4 +65,4 @@ the change applies.
 The extension is made by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 1 November 2026._
+_Last updated: 4 November 2026._

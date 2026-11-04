@@ -71,7 +71,7 @@ jobs:
         run: npm run lint
 
       # After the build: the tests import the processor the build generates. Includes tests/types, which are
-      # checked here and never run
+      # checked here and never run. Types only: the build emits and checks the declarations, for src alone
       - name: Typecheck the library and its tests
         run: npm run typecheck -w realtime-bpm-analyzer
 

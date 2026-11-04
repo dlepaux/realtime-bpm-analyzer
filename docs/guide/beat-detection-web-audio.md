@@ -108,36 +108,39 @@ const audioContext = new AudioContext();
 const audioElement = document.querySelector('audio')!;
 const source = audioContext.createMediaElementSource(audioElement);
 
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-// .input adds the lowpass the default detector expects.
-source.connect(bpmAnalyzer.input);
+// .input adds the lowpass the default engine expects.
+source.connect(analyzer.input);
 source.connect(audioContext.destination);
 
-bpmAnalyzer.on('bpm', ({ bpm }) => {
-  console.log('candidate:', bpm[0]?.tempo);
+analyzer.on('reading', ({ bpm }) => {
+  console.log('tempo:', bpm, 'BPM');
 });
-bpmAnalyzer.on('bpmStable', ({ bpm }) => {
-  console.log('stable:', bpm[0]?.tempo, 'BPM');
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') {
+    console.log('locked:', to.reading.bpm, 'BPM');
+  }
 });
 
 audioElement.addEventListener('play', () => audioContext.resume(), { once: true });
 ```
 
-`bpm` events arrive as the analysis goes, with up to five ranked candidates.
-`bpmStable` arrives once the estimate has settled. Each candidate has a
-`tempo`, a `count` and a `confidence`; compare confidences with each other
-rather than against a fixed cut-off.
+`reading` events arrive as the analysis goes. Each carries one tempo, `bpm`,
+and up to five ranked `candidates`, each with a `bpm` and its `relation` to the
+reading's tempo (`top`, `half`, `double` or `other`). The `statechange` to
+`locked` comes once the estimate has settled, and `analyzer.state` tells where
+the analysis is at any time.
 
-The second detector, `tempogram`, reads spectral flux across several bands
+The second engine, `tempogram`, reads spectral flux across several bands
 rather than amplitude peaks in the bass. Connect the source to `.input` with
-either detector:
+either engine:
 
 ```typescript
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
-  detector: 'tempogram',
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  engine: 'tempogram',
 });
-source.connect(bpmAnalyzer.input);
+source.connect(analyzer.input);
 ```
 
 For the microphone, a stream and the events in detail, see
@@ -162,14 +165,14 @@ input.addEventListener('change', async () => {
   const audioBuffer = await audioContext.decodeAudioData(await file.arrayBuffer());
   await audioContext.close();
 
-  const tempos = await analyzeFullBuffer(audioBuffer);
-  console.log(tempos[0] ? `${tempos[0].tempo} BPM` : 'no clear beat');
+  const reading = await analyzeFullBuffer(audioBuffer);
+  console.log(reading ? `${reading.bpm} BPM` : 'no clear beat');
 });
 ```
 
-It resolves to up to five candidates, the most voted first, and to an empty
-array for silence or audio without a clear pulse. It takes the same `detector`
-and `tempoRange` options as the live analyzer. Outside the browser, the
+It resolves to one reading, the same shape the live analyzer sends, and to
+`null` for silence or audio without a clear pulse. It takes the same `engine`
+names and `tempoRange` option as the live analyzer. Outside the browser, the
 [Node.js entry point](/guide/node) does the same from decoded samples.
 
 ## From a tempo to a beat grid
@@ -184,16 +187,16 @@ onset you trust, such as the first kick.
 
 - **Tempo, not beat times.** The library reports how fast, not where each beat
   falls.
-- **Octaves.** A detector cannot always tell a tempo from its double or half.
+- **Octaves.** An engine cannot always tell a tempo from its double or half.
   Every tempo is folded into a range, 90 to 180 BPM by default, so an 85 BPM
   track reads 170. Pass `tempoRange: { min: 70, max: 140 }` to read it as 85.
 - **One tempo per analysis.** A song that speeds up or changes tempo reports
   candidates for each part; the live analyzer catches up after a while, and
-  `bpmAnalyzer.reset()` starts it over.
-- **Time to settle.** The default detector waits for 10 seconds of audio
-  before `bpmStable`. Very short clips may give no result or a rough one.
+  `analyzer.reset()` starts it over.
+- **Time to settle.** The default engine waits for 10 seconds of audio
+  before it locks. Very short clips may give no result or a rough one.
 - **Rhythm it can hear.** Ambient music, free tempo, rubato and irregular
-  meters give low confidence or no result.
+  meters give no lock or no result.
 - **Browser rules.** An `AudioContext` starts only after a user gesture, and
   the live analyzer needs AudioWorklet (see
   [browser compatibility](/guide/browser-compatibility)).
@@ -203,7 +206,7 @@ The analysis runs on the device: the library sends no audio anywhere.
 ## Next
 
 - [How it works](/guide/how-it-works): the peak detection and interval
-  grouping behind the default detector.
+  grouping behind the default engine.
 - [Getting started](/guide/getting-started): installation and the first
   analyzer.
 - [API reference](/api/): every option and event.

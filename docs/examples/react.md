@@ -49,83 +49,83 @@ npm install realtime-bpm-analyzer
 
 ## Key Concepts for React
 
-### 1. Use State for Audio Context
+### 1. Keep the Audio Context in a Ref {#_1-use-state-for-audio-context}
 
-Create and store the audio context in component state to reuse it:
+The audio context and the analyzer are resources, not something to render.
+Keep them in refs, so the cleanup sees the current ones:
 
+<!-- typecheck: skip, a fragment of the pattern below -->
 ```typescript
-const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
-const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer | null>(null);
+const audioContextRef = useRef<AudioContext | null>(null);
+const analyzerRef = useRef<BpmAnalyzer | null>(null);
 ```
 
 ### 2. Cleanup in useEffect
 
-Always cleanup audio nodes when component unmounts:
+Always release the analyzer and the audio context when the component unmounts.
+`stop()` is final, so the next start creates a new analyzer:
 
+<!-- typecheck: skip, a fragment of the pattern below -->
 ```typescript
 useEffect(() => {
   return () => {
-    bpmAnalyzer?.disconnect();
-    audioContext?.close();
+    analyzerRef.current?.stop();
+    audioContextRef.current?.close();
   };
 }, []); // Empty deps - cleanup only on unmount
 ```
 
 ### 3. Handle Events with State Updates
 
-Convert BPM events to React state updates:
+Convert analyzer events to React state updates:
 
+<!-- typecheck: skip, a fragment of the pattern below -->
 ```typescript
-bpmAnalyzer.on('bpmStable', (data) => {
-  if (data.bpm.length > 0) {
-    setCurrentBpm(data.bpm[0].tempo);
-  }
-});
+analyzer.on('reading', ({ bpm }) => setBpm(bpm));
+analyzer.on('statechange', ({ to }) => setLocked(to.status === 'locked'));
 ```
 
 ## Basic Pattern
 
 Here's the essential pattern for any React integration:
 
-```typescript
-import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
-import { useState, useEffect } from 'react';
+```tsx
+import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
+import { useState, useEffect, useRef } from 'react';
 
 function BPMAnalyzer() {
   const [bpm, setBpm] = useState<number | null>(null);
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
-  const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer | null>(null);
+  const [locked, setLocked] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyzerRef = useRef<BpmAnalyzer | null>(null);
 
   const startAnalysis = async () => {
     // Create audio context
-    const ctx = new AudioContext();
-    setAudioContext(ctx);
+    const audioContext = new AudioContext();
+    audioContextRef.current = audioContext;
 
     // Create analyzer
-    const analyzer = await createRealtimeBpmAnalyzer(ctx);
-    setBpmAnalyzer(analyzer);
+    const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+    analyzerRef.current = analyzer;
 
     // Listen for BPM
-    analyzer.on('bpmStable', (data) => {
-      if (data.bpm.length > 0) {
-        setBpm(data.bpm[0].tempo);
-      }
-    });
+    analyzer.on('reading', ({ bpm }) => setBpm(bpm));
+    analyzer.on('statechange', ({ to }) => setLocked(to.status === 'locked'));
 
-    // Connect your audio source here...
+    // Connect your audio source to analyzer.input here...
   };
 
   useEffect(() => {
     return () => {
-      bpmAnalyzer?.disconnect();
-      audioContext?.close();
+      analyzerRef.current?.stop();
+      audioContextRef.current?.close();
     };
   }, []); // Cleanup only on unmount
 
   return (
     <div>
       <button onClick={startAnalysis}>Start Analysis</button>
-      {bpm && <div>BPM: {bpm}</div>}
+      {bpm !== null && <div>BPM: {bpm}{locked ? ' (locked)' : ''}</div>}
     </div>
   );
 }
@@ -136,7 +136,7 @@ function BPMAnalyzer() {
 The library is fully typed. Import types as needed:
 
 ```typescript
-import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer, Reading, AnalyzerState } from 'realtime-bpm-analyzer';
 ```
 
 ## Next Steps

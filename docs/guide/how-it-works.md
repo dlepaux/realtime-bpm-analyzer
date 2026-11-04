@@ -35,14 +35,17 @@ BPM Candidates
 2. **Peak Detection**: Identifies rhythmic patterns in the audio signal
 3. **Threshold Analysis**: Tests multiple sensitivity levels to find optimal peaks
 4. **Interval Grouping**: Groups similar intervals to identify tempo patterns
-5. **Candidate Ranking**: Ranks BPM candidates by vote count and scores their confidence
+5. **Candidate Ranking**: Ranks BPM candidates by vote count, and reports the top one as the reading
 
 ## The Algorithm
+
+This is the default `peaks` engine. The code below sketches each step; it is not the library's API.
 
 ### Step 1: Audio Capture
 
 The library receives audio data in real-time through the Web Audio API:
 
+<!-- typecheck: skip, a sketch of the engine's internals, not the library's API -->
 ```typescript
 // Data arrives in chunks via AudioWorkletProcessor
 process(inputs: Float32Array[][], outputs: Float32Array[][]) {
@@ -55,6 +58,7 @@ process(inputs: Float32Array[][], outputs: Float32Array[][]) {
 
 The algorithm scans the audio signal looking for peaks - points where the signal strength exceeds a threshold:
 
+<!-- typecheck: skip, a sketch of the engine's internals, not the library's API -->
 ```typescript
 function findPeaksAtThreshold(data, threshold) {
   const peaks = [];
@@ -77,9 +81,10 @@ function findPeaksAtThreshold(data, threshold) {
 
 The algorithm tests multiple threshold levels (from high to low sensitivity) to find the optimal detection level:
 
+<!-- typecheck: skip, a sketch of the engine's internals, not the library's API -->
 ```typescript
-// The descending scan checks thresholds from 0.90 down to 0.20 in 0.05 steps
-for (let threshold = 0.9; threshold >= 0.2; threshold -= 0.05) {
+// The descending scan checks thresholds from 0.95 down to 0.20 in 0.05 steps
+for (let threshold = 0.95; threshold >= 0.2; threshold -= 0.05) {
   const peaks = findPeaksAtThreshold(data, threshold);
   
   if (peaks.length > minPeaks) {
@@ -98,6 +103,7 @@ This ensures the algorithm works with:
 
 Once peaks are identified, the algorithm calculates the time intervals between consecutive peaks:
 
+<!-- typecheck: skip, a sketch of the engine's internals, not the library's API -->
 ```typescript
 function computeIntervals(peaks, sampleRate) {
   const intervals = [];
@@ -115,6 +121,7 @@ function computeIntervals(peaks, sampleRate) {
 
 The analyzer compares each detected peak with up to the next nine peaks. It converts each sample interval to BPM, folds it into the tempo range (90 to 180 by default, set with the `tempoRange` option) by doubling or halving, rounds it to an integer, and groups intervals with the same rounded BPM. It does not merge tempos using a percentage tolerance.
 
+<!-- typecheck: skip, a sketch of the engine's internals, not the library's API -->
 ```typescript
 function groupByTempo(intervalCounts, sampleRate, {min, max} = {min: 90, max: 180}) {
   const groups = new Map();
@@ -136,8 +143,9 @@ function groupByTempo(intervalCounts, sampleRate, {min, max} = {min: 90, max: 18
 
 ### Step 6: Candidate Ranking
 
-BPM candidates are sorted by **count** (how many interval comparisons resolve to that rounded tempo), and the top 5 are returned. Each one also gets a `confidence`: the share of all votes, across every tempo group, that land within ±1 BPM of it. Pooling the neighbours absorbs rounding jitter, since a true 128 BPM splits its votes over 127 to 129.
+BPM candidates are sorted by **count** (how many interval comparisons resolve to that rounded tempo), and the top 5 are kept. The first is the reading's `bpm`. The reading also gets a `confidence`: the share of all votes, across every tempo group, that land within ±1 BPM of its tempo. Pooling the neighbours absorbs rounding jitter, since a true 128 BPM splits its votes over 127 to 129.
 
+<!-- typecheck: skip, a sketch of the engine's internals, not the library's API -->
 ```typescript
 function getBPMCandidates(groups) {
   const totalVotes = [...groups.values()].reduce((sum, count) => sum + count, 0);
@@ -152,19 +160,19 @@ function getBPMCandidates(groups) {
 }
 ```
 
-A perfect click track scores about **0.46**, not 1: each peak is paired with the next nine, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. Randomly spaced peaks score below 0.1. No absolute cut-off has been calibrated on real music yet, so compare values rather than test them against a fixed number.
+A perfect click track scores about **0.46**, not 1: each peak is paired with the next nine, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. Randomly spaced peaks score below 0.1. In plain words: the score says how much the peaks agree on one tempo, and even a perfect beat agrees only about halfway. It is not calibrated on real music yet, and the `tempogram` engine scores differently, so compare values from one engine only rather than test them against a fixed number.
 
 ## Signal Processing Features
 
 ### Low-Pass Filtering
 
-With the default `peaks` detector, `bpmAnalyzer.input` puts a low-pass filter in front of the analyzer, the same one `getBiquadFilter()` builds. It:
+With the default `peaks` engine, `analyzer.input` puts a low-pass filter in front of the analyzer, the same one `getBiquadFilter()` builds. It:
 - Removes high frequencies (treble)
 - Emphasizes bass frequencies (where beats typically occur)
 - Improves detection accuracy
 
 **Frequency Response:**
-- **Frequency**: 200 Hz cutoff by default (configurable)
+- **Frequency**: 200 Hz cutoff (whole-file analysis can set its own: `engine: { name: 'peaks', lowpass: { frequency, q } }`)
 - **Q Factor**: 1 (mild slope)
 - **Type**: Lowpass
 
@@ -184,40 +192,41 @@ Filtering out higher frequencies reduces false positives from:
 
 ## Event System
 
-### `bpm` Event
+The analyzer reports through a state, `analyzer.state`, and events. Its `status` moves from `listening` to `settling` at the first reading, and to `locked` once the readings agree.
 
-Emitted continuously during analysis:
+### `reading` Event {#bpm-event}
+
+Emitted on every analysis step outside `listening`:
 ```typescript
-analyzer.on('bpm', (data) => {
-  // data.bpm: Array of tempo candidates
-  // data.threshold: Detection threshold used
-  console.log('Current BPM:', data.bpm[0].tempo);
-  console.log('Count:', data.bpm[0].count);
+analyzer.on('reading', (reading) => {
+  console.log('Current BPM:', reading.bpm);
+  console.log('Candidates:', reading.candidates.map(({ bpm, relation }) => `${bpm} (${relation})`));
 });
 ```
 
 **Characteristics:**
-- Updates frequently (every ~1-2 seconds)
+- Updates frequently (about ten times a second with the default engine, every half second with the `tempogram`)
 - May fluctuate as more data arrives
 - Useful for progressive display
 
-### `bpmStable` Event
+### `statechange` to `locked` {#bpmstable-event}
 
-Emitted when confident detection is achieved:
+Emitted when the readings agree:
 ```typescript
-analyzer.on('bpmStable', (data) => {
-  // More reliable, higher confidence result
-  console.log('Stable BPM:', data.bpm[0].tempo);
-  console.log('Votes:', data.bpm[0].count, 'Confidence:', data.bpm[0].confidence);
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') {
+    console.log('Locked BPM:', to.reading.bpm);
+  }
 });
 ```
 
 **Characteristics:**
 - More reliable result
-- Requires sufficient data collection: with the default `peaks` detector, never before 10 seconds of
-  audio (or a shorter `stabilizationTime` with `continuousAnalysis`)
-- Threshold increases over time for better accuracy
+- Requires sufficient data collection: with the default `peaks` engine, never before 10 seconds of
+  audio (or a shorter `restartAfterSeconds`)
+- Each lock raises the minimum threshold, so later locks rest on stronger peaks
 - Best for final BPM determination
+- The tempo can still move a little while locked, so keep showing the latest reading
 
 ## Performance Optimizations
 
@@ -233,8 +242,7 @@ AudioWorklet runs on a separate audio rendering thread:
 For continuous analysis (streams):
 ```typescript
 createRealtimeBpmAnalyzer(audioContext, {
-  continuousAnalysis: true,
-  stabilizationTime: 20000 // Clear data every 20 seconds
+  engine: { name: 'peaks', restartAfterSeconds: 20 }, // Clear data every 20 seconds of audio
 });
 ```
 
@@ -267,7 +275,7 @@ The algorithm works best with:
 
 - **Clear recordings**: Best results
 - **Compressed/loud**: Works well
-- **Very quiet**: May need lower threshold
+- **Very quiet**: Lower thresholds still find the peaks, down to 0.20
 - **Heavy noise**: Use low-pass filter
 
 ## Further Reading

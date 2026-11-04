@@ -41,7 +41,7 @@ The library analyzes audio data in real-time using the Web Audio API's `AudioWor
 3. **Peak Detection** → Identifies peaks in the audio signal at various threshold levels
 4. **Interval Analysis** → Calculates time intervals between peaks
 5. **BPM Calculation** → Converts intervals to BPM and groups similar tempos
-6. **Result Output** → Emits BPM candidates with vote counts and a confidence share
+6. **Result Output** → Emits a reading: the tempo, and up to five candidates with their relation to it
 
 ## Use Cases
 

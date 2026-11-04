@@ -7,15 +7,15 @@ description: BPM detection in Node.js, Bun or Deno with realtime-bpm-analyzer/no
 
 `realtime-bpm-analyzer/node` runs the offline analysis outside the browser, in
 Node.js, Bun or Deno. It needs no Web Audio API and adds no dependency: you
-pass decoded samples and get tempo candidates back.
+pass decoded samples and get a reading back, the same shape the browser gives.
 
 ```typescript
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 
 // channelData: a Float32Array of samples in [-1, 1], from any decoder
-const tempos = await analyzeChannelData(channelData, 44100);
+const reading = await analyzeChannelData(channelData, 44100);
 
-console.log('Detected BPM:', tempos[0]?.tempo);
+console.log('Detected BPM:', reading?.bpm);
 ```
 
 CommonJS works too: `const {analyzeChannelData} = require('realtime-bpm-analyzer/node')`.
@@ -39,7 +39,8 @@ The test suite checks this on every change:
   `1e-5` per sample (measured at most `1.4e-6`), and its magnitude response matches
   `getFrequencyResponse`
 - on the test fixture and on click tracks from 90 to 174 BPM, both functions
-  return identical candidates: same tempos, counts and confidences
+  return the same reading: same `bpm` and candidates, and the same
+  `bpmExact` and `confidence` within `1e-9`
 
 Pass channel 0 to match `analyzeFullBuffer`, which reads the first channel, or
 a mono downmix of your own.
@@ -78,12 +79,13 @@ export async function decode(path) {
 
 Then, with the library installed (`npm install realtime-bpm-analyzer`), `bpm.mjs`:
 
+<!-- typecheck: skip, imports decode.mjs from the block above -->
 ```javascript
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import {decode, SAMPLE_RATE} from './decode.mjs';
 
-const tempos = await analyzeChannelData(await decode(process.argv[2]), SAMPLE_RATE);
-console.log(tempos[0] ? `${tempos[0].tempo} BPM` : 'no clear beat');
+const reading = await analyzeChannelData(await decode(process.argv[2]), SAMPLE_RATE);
+console.log(reading ? `${reading.bpm} BPM` : 'no clear beat');
 ```
 
 ```bash
@@ -100,6 +102,7 @@ The same decoder over every audio file in a folder, one level deep, printed as o
 JSON array. A file ffmpeg can't read is listed with its error, and the others carry
 on. Save it as `bpm-folder.mjs`:
 
+<!-- typecheck: skip, imports decode.mjs from the block above -->
 ```javascript
 import {readdir} from 'node:fs/promises';
 import {extname, join} from 'node:path';
@@ -113,8 +116,8 @@ const names = (await readdir(folder)).filter((name) => AUDIO.has(extname(name).t
 const results = [];
 for (const name of names) {
   try {
-    const tempos = await analyzeChannelData(await decode(join(folder, name)), SAMPLE_RATE);
-    results.push({file: name, bpm: tempos[0]?.tempo ?? null, candidates: tempos});
+    const reading = await analyzeChannelData(await decode(join(folder, name)), SAMPLE_RATE);
+    results.push({file: name, bpm: reading?.bpm ?? null, candidates: reading?.candidates ?? []});
   } catch (error) {
     results.push({file: name, error: String(error)});
   }
@@ -134,26 +137,29 @@ Files are analysed one after another, so memory holds one decoded file at a time
 
 The third argument takes the same options as `analyzeFullBuffer`:
 
-| Option           | Default         | Meaning                                                   |
-| ---------------- | --------------- | --------------------------------------------------------- |
-| `frequencyValue` | `200`           | Lowpass cutoff in Hz                                      |
-| `qualityValue`   | `1`             | Lowpass Q, in dB as Web Audio reads it                    |
-| `tempoRange`     | `{90, 180}`     | Range the tempos fold into; `max` must be at least 2 × `min` |
-| `detector`       | `'peaks'`       | `'tempogram'` reads spectral flux across bands, with no lowpass |
+| Option       | Default     | Meaning                                                   |
+| ------------ | ----------- | --------------------------------------------------------- |
+| `engine`     | `'peaks'`   | `'tempogram'` reads spectral flux across bands, with no lowpass. `{name: 'peaks', lowpass: {frequency, q}}` sets the lowpass, by default 200 Hz and Q 1 (in dB, as Web Audio reads it) |
+| `tempoRange` | `{90, 180}` | Range the tempos fold into; `max` must be at least 2 × `min` |
 
 ```typescript
-const tempos = await analyzeChannelData(channelData, sampleRate, {
+import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
+
+const reading = await analyzeChannelData(channelData, sampleRate, {
   tempoRange: {min: 70, max: 140}, // report 87 rather than 174
 });
 ```
 
-It resolves to up to 5 candidates sorted by `count`, each with `tempo`,
-`count` and `confidence` (the `Tempo` type in the [API reference](/api/)). Silence or
-audio without a clear beat resolves to an empty array.
+It resolves to one reading (the `Reading` type in the [API reference](/api/)):
+the tempo to show, `bpm`, its unrounded value, `bpmExact`, and up to 5
+`candidates`, each with a `bpm` and its `relation` to that tempo. Silence or
+audio without a clear beat resolves to `null`.
 
 It throws when `channelData` is not a non-empty `Float32Array`, and throws a
-`RangeError` for a sample rate that is not positive, a filter option that is not
-a finite number, an invalid `tempoRange` or an unknown `detector`.
+`RangeError` for a sample rate that is not positive, a lowpass setting that is not
+a finite number, an invalid `tempoRange` or an unknown `engine`. A 5.x option
+(`detector`, `frequencyValue`, `qualityValue`) throws a `TypeError` that names its
+replacement.
 
 ## The filter on its own
 

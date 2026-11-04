@@ -32,11 +32,10 @@ const arrayBuffer = await file.arrayBuffer();
 const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
 // 3. Analyze the buffer
-const tempos = await analyzeFullBuffer(audioBuffer);
+const reading = await analyzeFullBuffer(audioBuffer);
 
-// 4. Get the detected BPM
-const bpm = tempos[0].tempo;
-console.log(`Detected BPM: ${bpm}`);
+// 4. Get the detected BPM: null for silence or audio without a clear beat
+console.log(reading ? `Detected BPM: ${reading.bpm}` : 'No clear beat');
 ```
 
 This approach analyzes the **complete audio file** at once, making it perfect for:

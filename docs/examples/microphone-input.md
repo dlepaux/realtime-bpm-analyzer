@@ -37,22 +37,33 @@ const stream = await navigator.mediaDevices.getUserMedia({
   },
 });
 
-// 2. Create audio context and analyzer
+// 2. Create audio context and analyzer. `liveInput` lets the analyzer
+//    follow the track's clock, so audio the browser drops doesn't speed
+//    the tempo up.
+const [track] = stream.getAudioTracks();
 const audioContext = new AudioContext();
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, { liveInput: track });
 
-// 3. Connect microphone to analyzer
+// 3. Connect the microphone to the analyzer's input, which holds the
+//    low-pass filter the default engine expects. Not to the speakers:
+//    that would make a feedback loop.
 const source = audioContext.createMediaStreamSource(stream);
-source.connect(bpmAnalyzer.node);
+source.connect(analyzer.input);
 
 // 4. Listen for BPM updates
-bpmAnalyzer.on('bpm', (data) => {
-  console.log('Current BPM:', data.bpm[0].tempo);
+analyzer.on('reading', ({ bpm }) => {
+  console.log('Current BPM:', bpm);
 });
 
-bpmAnalyzer.on('bpmStable', (data) => {
-  console.log('Stable BPM detected:', data.bpm[0].tempo);
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') {
+    console.log('Locked BPM:', to.reading.bpm);
+  }
 });
+
+// 5. When done: stop() is final, and the tracks release the microphone
+// analyzer.stop();
+// stream.getTracks().forEach((t) => t.stop());
 ```
 
 ## Use Cases
@@ -67,18 +78,17 @@ This approach is ideal for:
 ## Key Features
 
 - ✅ Real-time microphone analysis
-- ✅ Low latency detection (< 100ms typical)
-- ✅ Continuous BPM updates
+- ✅ Continuous BPM updates, about ten a second once the first reading is in
 - ✅ Works with any audio source (music, instruments, etc.)
 - ✅ No recording or storage
-- ✅ Event-based API for stable BPM detection
+- ✅ A `statechange` event when the tempo locks
 
 ## Privacy & Security
 
 The microphone analysis:
 - **Does not record** audio - only processes it in real-time
 - **Does not store** any audio data
-- **Runs entirely in the browser** - no audio sent to servers
+- **Runs entirely in the browser**: the library sends no audio anywhere
 - Requires explicit user permission via browser prompt
 
 That covers the analysis. The page around this demo is part of the website, which measures its own pages as [Website Privacy](/website-privacy) describes.

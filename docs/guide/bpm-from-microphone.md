@@ -11,7 +11,8 @@ head:
 
 To detect BPM from the microphone, open it with `getUserMedia` and its voice
 processing turned off, connect it to `realtime-bpm-analyzer`'s AudioWorklet
-node, and read the tempo from the `bpmStable` event. The microphone picks up
+node, and read the tempo from its `reading` events, and once it is sure, from
+its `statechange` to `locked`. The microphone picks up
 more noise than a file or a stream: room reverb, background noise, a keyboard
 or a laptop fan all reach the signal. It is also the source a live
 performance tool, a music game or a fitness app needs.
@@ -34,7 +35,7 @@ A web page that:
 - Asks the user for microphone permission via `getUserMedia`.
 - Routes the microphone signal through a low-pass filter into a BPM
   analyzer running on the audio thread.
-- Emits a stable BPM value once detection settles: after 10 seconds of
+- Locks on a BPM value once detection settles: after 10 seconds of
   audio at the earliest, longer when the rhythm is faint.
 - Releases the microphone cleanly when the user stops.
 
@@ -70,7 +71,7 @@ import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyz
 
 let audioContext: AudioContext | null = null;
 let mediaStream: MediaStream | null = null;
-let bpmAnalyzer: BpmAnalyzer | null = null;
+let analyzer: BpmAnalyzer | null = null;
 
 async function startListening(onBpm: (bpm: number) => void) {
   // 1. Build the audio context inside the user gesture.
@@ -89,24 +90,28 @@ async function startListening(onBpm: (bpm: number) => void) {
   });
 
   // 3. Build the audio graph: mic -> analyzer. `.input` holds the
-  //    lowpass filter the default detector expects.
+  //    lowpass filter the default engine expects. `liveInput` lets the
+  //    analyzer follow the track's clock, so audio the browser drops
+  //    doesn't speed the tempo up.
+  const [track] = mediaStream.getAudioTracks();
   const source = audioContext.createMediaStreamSource(mediaStream);
-  bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+  analyzer = await createRealtimeBpmAnalyzer(audioContext, { liveInput: track });
 
-  source.connect(bpmAnalyzer.input);
+  source.connect(analyzer.input);
   // Note: do NOT connect to audioContext.destination. Feedback loop.
 
-  // 4. Surface stable detections to the application.
-  bpmAnalyzer.on('bpmStable', ({ bpm }) => {
-    if (bpm.length > 0) {
-      onBpm(bpm[0].tempo);
+  // 4. Surface locked detections to the application.
+  analyzer.on('statechange', ({ to }) => {
+    if (to.status === 'locked') {
+      onBpm(to.reading.bpm);
     }
   });
 }
 
 async function stopListening() {
-  bpmAnalyzer?.stop();
-  bpmAnalyzer = null;
+  // stop() is final: the next start creates a new analyzer.
+  analyzer?.stop();
+  analyzer = null;
 
   // Stop every track on the MediaStream. Without this the browser
   // keeps the microphone open and the recording indicator on.
@@ -145,6 +150,7 @@ beat detection depends on.
 Set all three to `false` for music analysis, so the analyzer gets the
 raw signal.
 
+<!-- typecheck: skip, a fragment of the getUserMedia call above -->
 ```typescript
 audio: {
   echoCancellation: false,
@@ -174,7 +180,7 @@ recording indicator (red dot, orange dot, depending on OS) lit until
 **every track on the stream** has been explicitly stopped.
 
 ```typescript
-mediaStream.getTracks().forEach((track) => track.stop());
+stream.getTracks().forEach((track) => track.stop());
 ```
 
 Without it, the browser keeps showing that the site is recording.
@@ -186,40 +192,41 @@ call `track.stop()` separately. Both, every time.
 
 ## Reading the events
 
-Two events fire as audio flows. They mean different things:
+The analyzer has a state, `analyzer.state`, and events that report each
+change. They mean different things:
 
-- **`bpm`** fires on every analysed chunk, about ten times a second
-  with the default detector, every half second with the tempogram after
-  its first 4 s of warm-up. It arrives early and is often noisy. Use it
-  for a live display where users want immediate feedback.
-- **`bpmStable`** fires when the detector trusts a value: with the
-  default `peaks` detector, 10 seconds in at the earliest, and about 11.5
-  seconds with the tempogram. Use it as "the answer": keep it in
-  application state, persist it, log it.
+- **`reading`** fires on every analysis step once the first reading
+  is in, about ten times a second with the default engine, every half
+  second with the tempogram after its first 4 s of warm-up. It arrives
+  early and is often noisy. Use it for a live display where users want
+  immediate feedback.
+- **`statechange`** fires when the status changes. The move to `locked`
+  comes when the engine trusts a value: with the default `peaks` engine,
+  10 seconds in at the earliest, and about 11.5 seconds with the
+  tempogram. Use it as "the answer": keep it in application state,
+  persist it, log it.
 
 For a UI that shows "listening, 122, 124, 122, locked", the pattern is:
 
 ```typescript
-bpmAnalyzer.on('bpm', ({ bpm }) => {
-  if (bpm.length > 0) {
-    setDisplayBpm(bpm[0].tempo); // live
-  }
+const statusDisplay = document.getElementById('status')!;
+
+analyzer.on('reading', ({ bpm }) => {
+  bpmDisplay.textContent = `${bpm} BPM`; // live
 });
 
-bpmAnalyzer.on('bpmStable', ({ bpm }) => {
-  if (bpm.length > 0) {
-    setStableBpm(bpm[0].tempo); // confident
-    setDisplayState('locked');
-  }
+analyzer.on('statechange', ({ to }) => {
+  // 'listening', 'settling', 'locked' or 'stopped'
+  statusDisplay.textContent = to.status;
 });
 ```
 
-`bpm` is sorted by `count`, the number of peak intervals that voted for
-each tempo. `bpm[0]` is the top candidate, and `bpm[0].confidence` is the
-share of all votes within ±1 BPM of it (0 to 1). Every tempo is folded
-into the default range of 90 to 180 BPM, so half-time and double-time readings
-usually land on the same value; pass `tempoRange: { min: 70, max: 140 }`
-for slower music so an 85 BPM track reads 85 rather than 170.
+A reading carries the tempo to show, `bpm`, and up to five `candidates`,
+the top one first, each with its `relation` to that tempo: `top`, `half`,
+`double` or `other`. Every tempo is folded into the default range of 90
+to 180 BPM, so half-time and double-time readings usually land on the
+same value; pass `tempoRange: { min: 70, max: 140 }` for slower music so
+an 85 BPM track reads 85 rather than 170.
 
 ## Mobile browsers {#mobile-gotchas}
 
@@ -231,7 +238,7 @@ inside a user gesture handler. The microphone permission prompt is
 also gated on a user gesture. Both must happen synchronously inside
 the same click: `await` between them is fine, but the click handler
 must start the chain. Background tabs suspend the audio context within
-about 30 seconds, and the `bpm` event then stops firing.
+about 30 seconds, and `reading` events then stop.
 
 **Android Chrome.** Less strict than iOS but still wants the
 permission prompt inside a user gesture. The "noise suppression" mode
@@ -245,8 +252,12 @@ the OS level, or for this site specifically. Show a useful error and
 a deep link to browser settings.
 
 ```typescript
+const showError = (message: string) => {
+  document.getElementById('error')!.textContent = message;
+};
+
 try {
-  mediaStream = await navigator.mediaDevices.getUserMedia({
+  const mediaStream = await navigator.mediaDevices.getUserMedia({
     audio: {
       echoCancellation: false,
       noiseSuppression: false,
@@ -273,7 +284,7 @@ low-frequency signal once it's reflected off walls and mixed with
 ventilation rumble.
 
 Two settings help. Both replace the filter that `.input` provides, so
-connect your own chain to `bpmAnalyzer.node`, the analyzer with nothing
+connect your own chain to `analyzer.node`, the analyzer with nothing
 in front of it:
 
 1. **Move the lowpass cutoff up.** A cutoff of 400 to 500 Hz catches
@@ -285,17 +296,18 @@ in front of it:
    filter.type = 'lowpass';
    filter.frequency.value = 400;
    filter.Q.value = 1;
-   source.connect(filter).connect(bpmAnalyzer.node);
+   source.connect(filter).connect(analyzer.node);
    ```
 
 2. **Insert a high-pass filter below 60 Hz** to strip room rumble:
 
+   <!-- typecheck: skip, continues the block above -->
    ```typescript
    const highpass = audioContext.createBiquadFilter();
    highpass.type = 'highpass';
    highpass.frequency.value = 60;
 
-   source.connect(highpass).connect(filter).connect(bpmAnalyzer.node);
+   source.connect(highpass).connect(filter).connect(analyzer.node);
    ```
 
 For a tap-tempo or beat-along game, where the user taps the
@@ -332,8 +344,7 @@ and Vue equivalents:
 - The [React useBpm hook](/guide/react-bpm-hook) wraps the pattern
   above in idiomatic React with StrictMode-safe cleanup.
 - The [How It Works guide](/guide/how-it-works) explains why the
-  algorithm sometimes lands on half-time or double-time aliases and
-  what the confidence values mean.
+  algorithm sometimes lands on half-time or double-time aliases.
 
 If this library is part of a project you ship, a star on
 [GitHub](https://github.com/dlepaux/realtime-bpm-analyzer) helps other

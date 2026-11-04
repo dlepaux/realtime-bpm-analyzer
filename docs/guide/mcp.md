@@ -61,12 +61,13 @@ tracks in ~/Music/house slower than 124 BPM."
   "file": "/Users/me/Music/song.mp3",
   "bpm": 128,
   "confidence": 0.459,
-  "candidates": [{"tempo": 128, "count": 157, "confidence": 0.459}]
+  "candidates": [{"bpm": 128, "relation": "top"}, {"bpm": 171, "relation": "other"}]
 }
 ```
 
-`bpm` and `confidence` come from the top candidate and are `null` when no beat was
-found. A file that cannot be analysed returns a tool error with a one-line reason.
+`bpm` and `confidence` come from the reading and are `null` when no beat was
+found. Each candidate is a `bpm` and its `relation` to that tempo (`top`, `half`,
+`double` or `other`). A file that cannot be analysed returns a tool error with a one-line reason.
 
 ### `analyze_folder`
 
@@ -81,7 +82,7 @@ found. A file that cannot be analysed returns a tool error with a one-line reaso
 {
   "directory": "/Users/me/Music",
   "results": [
-    {"file": "/Users/me/Music/a.mp3", "ok": true, "bpm": 128, "confidence": 0.459, "candidates": []},
+    {"file": "/Users/me/Music/a.mp3", "ok": true, "bpm": 128, "confidence": 0.459, "candidates": [{"bpm": 128, "relation": "top"}]},
     {"file": "/Users/me/Music/b.mp3", "ok": false, "error": "No audio samples decoded (mp3)."}
   ],
   "total": 2,

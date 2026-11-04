@@ -20,7 +20,7 @@ npx realtime-bpm-analyzer-cli song.mp3
 
 ```text
 song.mp3: 128 BPM (confidence 0.46)
-  candidates: 128 (count 157, confidence 0.46), 171 (count 77, confidence 0.23), ...
+  candidates: 128, 171, 96
 ```
 
 Installed globally (`npm install -g realtime-bpm-analyzer-cli`), the command is also
@@ -56,15 +56,16 @@ and `2` for a usage error, such as an unknown option or an invalid tempo range.
       "ok": true,
       "bpm": 128,
       "confidence": 0.459,
-      "candidates": [{"tempo": 128, "count": 157, "confidence": 0.459}]
+      "candidates": [{"bpm": 128, "relation": "top"}, {"bpm": 171, "relation": "other"}]
     },
     {"file": "music/broken.mp3", "ok": false, "error": "No audio samples decoded (mp3)."}
   ]
 }
 ```
 
-`bpm` and `confidence` come from the top candidate and are `null` when no beat
-was found. `candidates` has the shape `analyzeChannelData` returns.
+`bpm` and `confidence` come from the reading and are `null` when no beat
+was found. `candidates` are the reading's candidates, each a `bpm` and its
+`relation` to the reading's tempo (`top`, `half`, `double` or `other`).
 
 ## Formats and decoders
 

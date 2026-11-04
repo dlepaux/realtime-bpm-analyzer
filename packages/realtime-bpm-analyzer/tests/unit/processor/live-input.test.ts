@@ -325,7 +325,7 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
         }
       });
 
-      // A count that is not finite is a protocol error, not garbage the clock survives (host messages test)
+      // Only finite garbage: a count that is not finite fails the processor instead
       for (const garbage of [-1, 1e300]) {
         it(`does not mark 90% stable after a report of ${garbage}`, async function () {
           this.timeout(60_000);

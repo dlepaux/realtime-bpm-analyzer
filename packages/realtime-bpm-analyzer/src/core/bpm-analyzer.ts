@@ -37,10 +37,10 @@ const readiness = new WeakMap<BpmAnalyzer, Promise<void>>();
 /** The processor's protocol from its first `ready`, kept off the public class */
 const processorProtocols = new WeakMap<BpmAnalyzer, ProtocolVersion>();
 
-/** How to fail each analyzer, kept off the public class: no caller may fail one */
+/** How to fail each analyzer, kept off the public class so that no caller can fail one */
 const faults = new WeakMap<BpmAnalyzer, (error: AnalyzerError) => void>();
 
-/** Proves a construction comes from this module: `new BpmAnalyzer()` from outside throws */
+/** Passed by the class's static block: the constructor throws without it */
 const constructionKey = Symbol('BpmAnalyzer construction');
 
 /**
@@ -53,7 +53,7 @@ export function failAnalyzer(analyzer: BpmAnalyzer, error: AnalyzerError): void 
 }
 
 /**
- * Builds an analyzer, the factory's only way to: the class keeps its constructor private
+ * Builds an analyzer for the factory, as the class's constructor is private
  * @param workletNode The AudioWorkletNode running the processor
  * @param createInput Builds the node sources connect to, when it is not the worklet itself
  * @param liveInput The track of a MediaStream source, whose clock keeps the analyzer's time true
@@ -63,7 +63,10 @@ export function constructAnalyzer(workletNode: AudioWorkletNode, createInput?: (
   return construct(workletNode, createInput, liveInput);
 }
 
-// Assigned by the class's static block, the one place allowed to call its private constructor
+// Three parts build an analyzer. Only the class body may call the private constructor, so the class's static block
+// fills `construct`, which is a `let` because a const can't be filled after its declaration. `constructAnalyzer`
+// exports it as a function, not as a binding the module could reassign. `constructionKey` stops JavaScript callers,
+// which the private type can't.
 let construct: typeof constructAnalyzer;
 
 /**
@@ -176,8 +179,7 @@ export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
   }
 
   /**
-   * Private: `createRealtimeBpmAnalyzer` is the only way in. The key refuses a JavaScript caller the type
-   * would not stop.
+   * Private: build an analyzer with `createRealtimeBpmAnalyzer`
    * @hidden
    */
   private constructor(key: typeof constructionKey, workletNode: AudioWorkletNode, createInput: () => AudioNode = () => workletNode, liveInput?: MediaStreamTrack) {

@@ -492,7 +492,7 @@ describe('followTrackClock', () => {
     expect(tick).to.equal(null);
   });
 
-  it('reports only finite counts: what a browser gets wrong never reaches the processor, where it is a protocol error', () => {
+  it('reports only finite counts', () => {
     const reports: number[] = [];
     const stats = {totalFramesDuration: Number.NaN};
     followTrackClock({readyState: 'live', stats} as unknown as MediaStreamTrack, s => reports.push(s));

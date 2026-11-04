@@ -84,7 +84,7 @@ createRealtimeBpmAnalyzer(audioContext);
 
 ### `frequencyValue` and `qualityValue` moved into `engine`
 
-Only whole-buffer analysis takes a lowpass, because realtime callers place their own filter.
+Only whole-buffer analysis takes lowpass settings. Realtime `peaks` already has a fixed lowpass inside `analyzer.input`, so connect your source there and add no filter of your own.
 
 **Before (5.x):**
 ```typescript
@@ -303,18 +303,41 @@ import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 ```
 
+### Removed types
+
+TypeScript code that imports one of these no longer compiles. Each 5.x type and what to use in v6:
+
+| 5.x type | v6 |
+| --- | --- |
+| `Tempo` | `Candidate` for one tempo of a reading, `Reading` for the reading itself |
+| `BpmCandidates` | `Reading`: its `candidates` are a `Candidate[]` |
+| `BpmProgress` | `Progress` |
+| `BpmAnalyzerEventMap` | `AnalyzerEventMap` |
+| `CreateRealtimeBpmAnalyzerOptions` | `AnalyzerOptions` |
+| `RealTimeBpmAnalyzerParameters` | `AnalyzerOptions` |
+| `AnalyzeFullBufferOptions` | `OfflineOptions` |
+| `Detector` | `EngineName` |
+| `TempogramMode` | `EngineOption`: `{ name: 'tempogram', mode: 'extension' }` |
+| `Threshold` | None: the peaks engine's threshold is internal. `debug: true` shows it in `DebugInfo` |
+| `Peaks` | None: internal to the peaks engine. `debug: true` shows the peaks in `DebugInfo` |
+| `ProcessorInputEvent` | None: the worklet's messages are internal |
+| `ProcessorOutputEvent` | None: read `AnalyzerEventMap` instead |
+
 ## New in a reading
 
 - `candidates`: each has a `bpm` and a `relation` to the reading's tempo: `top`, `half`, `double` or `other`.
-- `bpmExact`: the tempo before rounding, for placing beats over a long stretch. Show `bpm`.
+- `bpmExact`: the tempo before rounding, for spacing markers over a long stretch once you know where one beat falls. Show `bpm`.
 - `audio`: the stretch the reading was measured on, `from` and `to` in seconds since the analyzer started or was reset. Realtime, `contextTime` is the `AudioContext.currentTime` at which the sample at `to` reached the analyzer. Whole-buffer readings have `contextTime: null`.
 - `engine`: the engine that measured it.
 
+A reading has a tempo, not a beat phase: nothing in it says where a beat falls, so don't start a beat grid at `contextTime`. Beat positions are planned for a later 6.x minor. What `contextTime` gives you is the mapping of analysed audio onto the clock `AudioContext` schedules on: a moment `t` of the stretch played at `contextTime - (audio.to - t)`.
+
 ```typescript
-analyzer.on('reading', ({ bpmExact, audio }) => {
+analyzer.on('reading', ({ bpm, audio }) => {
   if (audio.contextTime !== null) {
-    const beat = 60 / bpmExact;
-    scheduleGrid(audio.contextTime, beat);
+    // When the measured stretch played, on the AudioContext clock
+    const startedAt = audio.contextTime - (audio.to - audio.from);
+    highlightMeasured(startedAt, audio.contextTime, bpm);
   }
 });
 ```
@@ -340,4 +363,4 @@ analyzer.on('statechange', ({ reason }) => {
 
 ## Processor file
 
-If you serve the processor file yourself through `processorUrl`, copy the v6 file again. A 5.x file does not speak to a v6 analyzer, and `createRealtimeBpmAnalyzer` rejects when it sends no `ready` in time.
+If you serve the processor file yourself through `processorUrl`, copy the v6 file again. A 5.x file does not speak to a v6 analyzer, and `createRealtimeBpmAnalyzer` rejects when it sends no `ready` in time. Within 6.x, a copy one minor behind still works, and a feature it lacks throws an error saying the processor copy is out of date. Copy the file again on every upgrade to get every feature.

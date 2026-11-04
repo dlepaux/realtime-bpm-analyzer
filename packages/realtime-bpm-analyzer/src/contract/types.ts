@@ -19,11 +19,8 @@
  * The main thread keeps the processor's minor from its `ready`, so a feature that needs a newer processor (beats,
  * RBA-109) can fail at once with an error saying the processor copy is out of date, instead of going silent.
  *
- * The other way round, a value added in a minor to a union a known message carries (`EngineName`,
- * `CandidateRelation`, `EngineReason`, `AnalyzerErrorName`) would reach an older main thread as a malformed known
- * message, which is fatal. So the processor keeps the main thread's minor from `processorOptions.protocol`, and
- * emits only the union values that minor knows, mapping a newer value to one it knows. Every later minor keeps to
- * this rule. At minor 0 there is nothing to map.
+ * A minor that adds a value to a union the processor sends must keep that value from an older main thread, as
+ * rule 1 of `./readme.md` (Room for 6.x) sets out.
  */
 export type ProtocolVersion = {readonly major: number; readonly minor: number};
 

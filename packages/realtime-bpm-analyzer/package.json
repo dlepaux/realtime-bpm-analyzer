@@ -101,7 +101,7 @@
     "music-metadata": "^12.3.2",
     "puppeteer": "^25.16.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1"
   }
 }

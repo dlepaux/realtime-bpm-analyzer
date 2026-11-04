@@ -342,8 +342,8 @@ describe('BpmAnalyzer - events and commands', function () {
 
       const after = clocks();
       const moved = (clock: keyof typeof before) => (after[clock] - before[clock]).toFixed(3);
-      // The evidence of what the reset is up against in this browser
-      console.info(`during a 1.2 s block: wall ${moved('wall')} s, currentTime ${moved('current')} s, output timestamp ${moved('output')} s`);
+      // The evidence of what the reset is up against in this browser. log, as the test runner drops console.info
+      console.log(`during a 1.2 s block: wall ${moved('wall')} s, currentTime ${moved('current')} s, output timestamp ${moved('output')} s`);
       analyzer.reset();
       await waitForEvent(analyzer, 'progress', 5000);
       source.stop();

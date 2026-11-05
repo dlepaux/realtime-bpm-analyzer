@@ -167,13 +167,13 @@ export type Reading = {
    */
   readonly bpmExact: number;
   /**
-   * UNCALIBRATED, 0 to 1. For now the engine's own normalised score for the top tempo, so it means something
-   * different per engine and between realtime and offline: `peaks` gives the share of interval votes within
-   * ±1 BPM (about 0.46 on a perfect click), `tempogram` its accumulated salience. Compare values from one engine
-   * only, and set no absolute cut-off on it.
+   * The chance, 0 to 1, that `bpm` is within 4% of the true tempo right now: 0.8 is right about 80% of the time.
+   * Each engine's raw score (`peaks` the share of interval votes within ±1 BPM, `tempogram` its accumulated
+   * salience) goes through that engine's table in `core/calibration.ts`, so values from either engine, realtime or
+   * offline, mean the same thing. A reading at half or double the tempo counts as wrong.
    *
-   * The aim (RBA-106) is a calibrated probability that `bpm` is within 4% of the true tempo, so that 0.8 is right
-   * about 80% of the time on held-out data. If calibration shows it adds nothing, it is removed from the API.
+   * Calibrated on the benchmark's dev half (RBA-106, benchmark/results/rba-106-calibration-dev.md). It is not yet
+   * checked on held-out data, so treat its exact values as an estimate for music like the benchmark's.
    */
   readonly confidence: number;
   /**
@@ -448,8 +448,11 @@ export type Hysteresis = {
  * The hysteresis both engines report with. The one place these numbers live: the tempogram's stable rule reads
  * `lockBand` and `lockAfterSeconds` from here.
  *
- * TO TUNE on the benchmark's dev half (RBA-51, RBA-106), then check once on held-out data. Until then each is
- * today's behaviour, or the nearest thing to it:
+ * Swept on the benchmark's dev half and kept (RBA-106, benchmark/results/rba-v6-hysteresis-dev.md). The pick rule
+ * runs per engine, and these numbers are shared. The tempogram's pick (the default engine) moves only
+ * `pulseLostAfterSeconds`, to 3, which changes none of its measures. Peaks' pick, `pulseLostAfterSeconds` 1, sits at
+ * the edge of its grid and drops to listening almost four times as often. Not checked on held-out data. Where each
+ * value comes from:
  * - `lockBand` 0.02 and `lockAfterSeconds` 8: the tempogram's 5.x stable rule (`stableTolerance`, `stableSeconds`:
  *   80% of the frames of the last 8 s agree within 2%, besides its lead and salience, which stay engine detail).
  *   The 2% is also the band rba-pro copied by hand to tell stable from settling (`reading.ts`, `STABLE_TOLERANCE`).

@@ -8,6 +8,7 @@ import type {
   TempoRange,
 } from '../contract/types';
 import {relationTo} from '../contract/transitions';
+import {calibrate} from './calibration';
 import {resolveTempoRange} from './tempo';
 import {createTempogramDetector, defaultTempogramRange} from './tempogram';
 import type {TempogramTuning} from './tempogram';
@@ -231,7 +232,8 @@ export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: En
   return Object.freeze({
     bpm: top.tempo,
     bpmExact: top.exact,
-    confidence: Math.min(1, Math.max(0, top.confidence)),
+    // The engine's raw score, mapped to the chance this reading is right (RBA-106)
+    confidence: calibrate(engine, top.confidence, top.tempo),
     candidates: Object.freeze(candidates),
     audio: Object.freeze({from: audio.from, to: audio.to, contextTime: audio.contextTime}),
     engine,

@@ -127,9 +127,10 @@ describe('engine option', () => {
     expect(resolveEngine({name: 'peaks'}, undefined).engine).to.deep.equal({name: 'peaks'});
     expect(resolveOfflineEngine('peaks')).to.deep.equal({name: 'peaks', lowpass: {}});
     expect((await analyzeChannelData(createClickTrack(128, sampleRate, 20), sampleRate, {engine: 'peaks'}))?.engine).to.equal('peaks');
-    const steps = (await stream('peaks', createClickTrack(128, sampleRate, 20))).filter(message => message.type === 'step' && message.status !== 'listening');
-    expect(steps.length).to.be.greaterThan(0);
-    expect(steps.every(message => message.type === 'step' && message.status !== 'listening' && message.reading.engine === 'peaks')).to.equal(true);
+    const engines = (await stream('peaks', createClickTrack(128, sampleRate, 20)))
+      .flatMap(message => (message.type === 'step' && message.status !== 'listening' ? [message.reading.engine] : []));
+    expect(engines.length).to.be.greaterThan(0);
+    expect(new Set(engines)).to.deep.equal(new Set(['peaks']));
   });
 
   it('refuses an unknown engine, and a restart period that is not a positive number', () => {

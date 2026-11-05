@@ -1,22 +1,35 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { useAnalytics } from '../composables/useAnalytics'
-import { INSTALL_TARGETS } from '../tools/extension-live'
-import { SEND_LINK_MAILTO, installRequirement, sharePageLink, type InstallTarget } from '../tools/extension-promo'
+import { EDGE_URL, STORE_URL } from '../tools/extension-live'
+import { SEND_LINK_MAILTO, installRequirement, installTargets, sharePageLink, type StoreId } from '../tools/extension-promo'
+import { TOUCH_QUERY, detectBrowser, installOffer, readSignals, type VisitorBrowser } from '../tools/extension-browser'
 
-// The install action. Renders from the list of available stores, so it can't show a
-// button without a listing behind it. The first browser is the primary action; any
-// later one joins beside it as a secondary button, with no redesign.
+// The install action. It renders from the store listings, so it can't show a button without a
+// listing behind it. A phone can't install it, so on a touch device CSS swaps in a way to send the
+// page to a computer, with the store links kept for touchscreen laptops.
 //
-// A phone can't install it, so on a touch device the filled button sends the page on
-// instead. CSS picks between the two, on the pointer rather than the width: a narrow
-// desktop window can install, and nothing changes after hydration. The store link stays
-// there too, because a touchscreen Chromebook counts as a touch device and can install.
-withDefaults(defineProps<{ promptLink?: boolean }>(), { promptLink: false })
+// The server knows no browser, so it renders the neutral offer, Chrome then Edge, which crawlers
+// and visitors without JavaScript keep. Once mounted, the visitor's browser picks which store
+// leads and the words. Each button keeps its box (fixed width, two lines), so that swap moves
+// nothing on the page.
+const props = withDefaults(defineProps<{
+  placement: 'extension_hero' | 'extension_closing'
+  promptLink?: boolean
+}>(), { promptLink: false })
+
+const targets = installTargets(STORE_URL, EDGE_URL, props.placement)
+const touchTargets = installTargets(STORE_URL, EDGE_URL, 'extension_touch')
+const browser = ref<VisitorBrowser>('unknown')
+const offer = computed(() => installOffer(targets, browser.value))
+
+onMounted(() => {
+  browser.value = detectBrowser(readSignals(navigator, window.matchMedia(TOUCH_QUERY).matches))
+})
 
 const { track } = useAnalytics()
-// Which store, so Chrome and Edge clicks can be told apart: a browser name, nothing about the visitor.
-const trackStoreClick = (target: InstallTarget) =>
-  track('extension_link_clicked', { placement: 'extension_page', target: 'store', store: target.browser.toLowerCase() })
+const trackStore = (placement: string, store: StoreId) =>
+  track('extension_link_clicked', { placement, target: 'store', store })
 
 function sendLink(event: MouseEvent) {
   const share = typeof navigator.share === 'function' ? navigator.share.bind(navigator) : undefined
@@ -26,22 +39,29 @@ function sendLink(event: MouseEvent) {
 
 <template>
   <div
-    v-if="INSTALL_TARGETS.length"
+    v-if="targets.length"
     class="ext-install"
   >
     <div class="ext-install-pointer">
       <div class="ext-install-actions">
+        <!-- Keyed by slot, not by store, so a swap rewrites the two boxes in place. -->
         <a
-          v-for="(target, index) in INSTALL_TARGETS"
-          :key="target.browser"
-          class="tt-btn ext-install-btn"
-          :class="{ 'tt-btn-primary': index === 0 }"
-          :href="target.href"
-          @click="trackStoreClick(target)"
-        >{{ target.label }}</a>
+          v-for="(button, slot) in offer.buttons"
+          :key="slot"
+          class="ext-install-btn"
+          :class="{ 'is-primary': button.primary }"
+          :href="button.href"
+          @click="trackStore(placement, button.id)"
+        >
+          <span class="ext-install-title">{{ button.title }}</span>
+          <span class="ext-install-sub">{{ button.subtitle }}</span>
+        </a>
       </div>
       <p class="ext-install-note">
-        {{ installRequirement(INSTALL_TARGETS) }}
+        {{ installRequirement(targets) }}
+      </p>
+      <p class="ext-install-context">
+        {{ offer.context }}
       </p>
       <p
         v-if="promptLink"
@@ -51,23 +71,26 @@ function sendLink(event: MouseEvent) {
       </p>
     </div>
     <div class="ext-install-touch">
-      <p class="ext-install-note ext-install-note-first">
+      <p class="ext-install-note">
         It installs on a computer, not a phone.
       </p>
       <a
-        class="tt-btn tt-btn-primary ext-send-btn"
+        class="ext-cta"
         :href="SEND_LINK_MAILTO"
         @click="sendLink"
       >Send the link to yourself</a>
-      <div class="ext-install-links">
-        <a href="/">Find a tempo on this phone with the BPM Analyzer</a>
-        <a
-          v-for="target in INSTALL_TARGETS"
-          :key="target.browser"
-          :href="target.href"
-          @click="trackStoreClick(target)"
-        >See it on {{ target.store }}</a>
-      </div>
+      <ul class="ext-install-links">
+        <li><a href="/">Find a tempo on this phone with the BPM Analyzer</a></li>
+        <li
+          v-for="target in touchTargets"
+          :key="target.id"
+        >
+          <a
+            :href="target.href"
+            @click="trackStore('extension_touch', target.id)"
+          >See it on the {{ target.store }}</a>
+        </li>
+      </ul>
     </div>
   </div>
 </template>

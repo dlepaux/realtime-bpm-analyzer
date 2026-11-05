@@ -96,28 +96,29 @@ test('the committed values are off or real listings', () => {
 })
 
 test('switch off: nothing to render, and the page is left out of the build', () => {
-  assert.deepEqual(installTargets(null), [])
-  assert.deepEqual(installTargets(null, EDGE_LISTING), [], 'Edge alone has no page to sit on')
+  assert.deepEqual(installTargets(null, null, 'extension_hero'), [])
+  assert.deepEqual(installTargets(null, EDGE_LISTING, 'extension_hero'), [], 'Edge alone has no page to sit on')
   assert.deepEqual(listingUrls(null, EDGE_LISTING), [])
   assert.deepEqual(extensionNavItems(null), [])
   assert.deepEqual(excludedSources(null), ['extension/index.md'])
 })
 
 test('switch on: every install link is the listing, and the page is built', () => {
-  const targets = installTargets(LISTING)
+  const targets = installTargets(LISTING, null, 'extension_hero')
   assert.ok(targets.length > 0)
-  for (const target of targets) assert.equal(target.href, storeLink(LISTING, 'extension_page'))
+  for (const target of targets) assert.equal(target.href, storeLink(LISTING, 'extension_hero'))
   assert.deepEqual(excludedSources(LISTING), [])
   assert.deepEqual(extensionNavItems(LISTING).map((item) => item.link), ['/extension/'])
 })
 
 test('Edge joins as a second target, after Chrome, with its own tagged listing link', () => {
-  assert.deepEqual(installTargets(LISTING).map((target) => target.browser), ['Chrome'])
-  const targets = installTargets(LISTING, EDGE_LISTING)
+  assert.deepEqual(installTargets(LISTING, null, 'extension_hero').map((target) => target.browser), ['Chrome'])
+  const targets = installTargets(LISTING, EDGE_LISTING, 'extension_hero')
+  assert.deepEqual(targets.map((target) => target.id), ['chrome', 'edge'])
   assert.deepEqual(targets.map((target) => target.browser), ['Chrome', 'Edge'])
   assert.deepEqual(targets.map((target) => target.label), ['Add to Chrome', 'Add to Edge'])
   assert.deepEqual(targets.map((target) => target.store), ['Chrome Web Store', 'Edge Add-ons'])
-  assert.equal(targets[1]?.href, storeLink(EDGE_LISTING, 'extension_page'))
+  assert.equal(targets[1]?.href, storeLink(EDGE_LISTING, 'extension_hero'))
   assert.deepEqual(listingUrls(LISTING, EDGE_LISTING), [LISTING, EDGE_LISTING])
 })
 
@@ -127,8 +128,8 @@ test('installTargets tags every store link with the place it sits, so goodbye re
 })
 
 test('installRequirement: one line naming every browser and the extension\'s minimum', () => {
-  assert.equal(installRequirement(installTargets(LISTING)), 'Free. For Chrome 150 or later, on a computer.')
-  assert.equal(installRequirement(installTargets(LISTING, EDGE_LISTING)), 'Free. For Chrome or Edge 150 or later, on a computer.')
+  assert.equal(installRequirement(installTargets(LISTING, null, 'goodbye')), 'Free. For Chrome 150 or later, on a computer.')
+  assert.equal(installRequirement(installTargets(LISTING, EDGE_LISTING, 'goodbye')), 'Free. For Chrome or Edge 150 or later, on a computer.')
 })
 
 test('structured data: names the listing and says it is free, with no rating or review', () => {
@@ -136,10 +137,10 @@ test('structured data: names the listing and says it is free, with no rating or 
   assert.equal(schema.installUrl, LISTING)
   assert.equal(schema.offers.price, '0')
   for (const key of ['aggregateRating', 'review', 'browserRequirements']) assert.ok(!(key in schema), key)
-  assert.equal(schema.operatingSystem, 'Chrome')
+  // Operating systems, not browsers: the browsers are in softwareRequirements.
+  assert.equal(schema.operatingSystem, 'Windows, macOS, Linux, ChromeOS')
   const both = extensionPageSchema(LISTING, 'https://x/extension/', 'Description', EDGE_LISTING)
   assert.deepEqual(both.installUrl, [LISTING, EDGE_LISTING])
-  assert.equal(both.operatingSystem, 'Chrome, Microsoft Edge')
   assert.equal(both.softwareRequirements, 'Chrome or Microsoft Edge 150 or later, on a computer')
 })
 

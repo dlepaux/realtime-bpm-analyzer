@@ -35,7 +35,7 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
   </h1>
   <div class="ext-hero-stage"><ExtensionScenes /></div>
   <div class="ext-hero-action">
-    <ExtensionInstall prompt-link />
+    <ExtensionInstall placement="extension_hero" prompt-link />
   </div>
   <p class="ext-lede">Live BPM Detector is a free extension for Chrome and Edge that shows the live tempo of the music playing in the current tab. Click its button and the number appears on the page.</p>
   <p class="ext-support">It also works on YouTube Music, Twitch, Bandcamp and Mixcloud. Your audio never leaves your device.</p>
@@ -219,7 +219,7 @@ Read the full [extension privacy policy](/extension/privacy).
 <section class="ext-sec ext-closing">
 <div class="ext-wrap">
   <h2>Try it on the next track you play</h2>
-  <ExtensionInstall />
+  <ExtensionInstall placement="extension_closing" />
   <p class="ext-small ext-library">Building something of your own? The <a href="/guide/getting-started">open-source library</a> is on this site too.</p>
 </div>
 </section>

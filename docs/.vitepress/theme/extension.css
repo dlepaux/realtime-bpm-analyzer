@@ -140,9 +140,11 @@
 
 .vp-doc .ext-step h3 { margin: 1rem 0 0.35rem; font-size: 1.05rem; }
 
-/* The order matters, so the step number leads the heading. */
-.vp-doc .ext-step h3::before {
-  content: counter(ext-step);
+/* The order matters, so the step number leads the heading: the welcome's steps and the page's how-to. */
+.vp-doc .ext-step h3::before { content: counter(ext-step); }
+.vp-doc .ext-howto h3::before { content: counter(ext-howto); }
+
+.vp-doc :is(.ext-step, .ext-howto li) h3::before {
   display: inline-grid;
   place-items: center;
   width: 1.5rem;
@@ -259,8 +261,7 @@
 /* ── What's new ───────────────────────────────────────────────────────────── */
 
 .vp-doc .ext-whats-new-intro { color: var(--vp-c-text-2); }
-.vp-doc .ext-release h2 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.6rem; }
-.vp-doc .ext-release h3 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.6rem; }
+.vp-doc .ext-release :is(h2, h3) { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.6rem; }
 
 .ext-release-version {
   padding: 0.1rem 0.55rem;
@@ -315,42 +316,66 @@
   --ext-cta-hover: #3a5ccc;
 }
 
-/* ── The filled action ────────────────────────────────────────────────────── */
+/* ── The actions ──────────────────────────────────────────────────────────── */
 
-.ext-cta,
-.vp-doc a.ext-install-btn.tt-btn-primary,
-.vp-doc a.ext-send-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 48px;
-  padding: 0.65rem 1.75rem;
-  border-color: var(--ext-cta);
-  border-radius: 999px;
-  background: var(--ext-cta);
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 600;
+/* Two shapes for two jobs (Similarity): a pill goes to a page, a two-line store button installs,
+   read like the stores' own badges (Jakob's Law) but with no logo. One filled action per block
+   (Von Restorff). Scoped under their blocks so the doc theme's link underline can't reach them. */
+:is(.ext-band, .ext-install) a.ext-cta,
+.ext-install a.ext-install-btn {
+  border: 1.5px solid var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
   text-decoration: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-.ext-cta:hover,
-.vp-doc a.ext-install-btn.tt-btn-primary:hover,
-.vp-doc a.ext-send-btn:hover {
+:is(.ext-band, .ext-install) a.ext-cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0.6rem 1.6rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+:is(.ext-band, .ext-install) a.ext-cta,
+.ext-install a.ext-install-btn.is-primary {
+  border-color: var(--ext-cta);
+  background: var(--ext-cta);
+  color: #fff;
+}
+
+:is(.ext-band, .ext-install) a.ext-cta:hover,
+.ext-install a.ext-install-btn.is-primary:hover {
   border-color: var(--ext-cta-hover);
   background: var(--ext-cta-hover);
   color: #fff;
 }
 
-.dark .ext-cta:hover,
-.dark .vp-doc a.ext-install-btn.tt-btn-primary:hover,
-.dark .vp-doc a.ext-send-btn:hover { color: #fff; }
+/* A fixed box: the visitor's browser changes the words and which one is filled, never the size. */
+.ext-install a.ext-install-btn {
+  display: inline-grid;
+  align-content: center;
+  gap: 1px;
+  width: 13.5rem;
+  max-width: 100%;
+  min-height: 60px;
+  padding: 0.5rem 1.15rem;
+  border-radius: 14px;
+  white-space: nowrap;
+}
 
-.ext-cta:focus-visible,
-.vp-doc a.ext-install-btn:focus-visible,
-.vp-doc a.ext-send-btn:focus-visible {
+.ext-install a.ext-install-btn:hover { border-color: var(--vp-c-brand-1); background: var(--vp-c-brand-soft); }
+.ext-install-title { font-size: 1.0625rem; font-weight: 650; line-height: 1.25; letter-spacing: -0.01em; }
+.ext-install-sub { color: var(--vp-c-text-2); font-size: 0.75rem; font-weight: 500; line-height: 1.3; }
+.ext-install-btn.is-primary .ext-install-sub { color: #fff; }
+
+:is(.ext-band, .ext-install) a:is(.ext-cta, .ext-install-btn):focus-visible {
   outline: 2px solid var(--vp-c-brand-1);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 /* ── Home: the section under the hero ─────────────────────────────────────── */
@@ -384,8 +409,10 @@
 /* A phone can't install the extension, and half of search visits come from phones (RBA-58):
    there the band is a heading, a line and a link to the page, and the drawn demo stays on
    /extension/, so the band adds only a few lines under the tool. */
-@media (max-width: 719px) {
+@media (pointer: coarse) {
   .ext-band .ext-scenes { display: none; }
+  /* Nothing to install here, so the door is a plain link and the tool keeps the only filled action. */
+  .ext-band a.ext-cta { display: inline; min-height: 0; padding: 0; border: 0; background: none; color: var(--vp-c-brand-1); text-decoration: underline; text-underline-offset: 3px; }
 }
 
 .ext-home .VPHero .image-container { width: 100%; height: auto; max-width: none; transform: none; }
@@ -411,15 +438,13 @@
   .ext-home .VPHero .image { order: 2; margin-top: 28px; }
   .ext-doors { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: start; }
   /* On a short laptop screen the button stays in the fold. */
-  .ext-door .ext-stage-figure { max-width: calc(46svh * 1.516); }
+  .ext-door .ext-scenes { max-width: calc(46svh * 1.516); }
 }
 
 /* The doors read from the left, so the phone's headline does too. */
 @media (max-width: 959px) {
-  .ext-home .bpm-mobile-hero-head { text-align: left; }
-  .ext-home .bpm-mobile-hero-name { font-size: 1rem; line-height: 1.5; letter-spacing: 0; }
-  .ext-home .bpm-mobile-hero-text { font-size: 2rem; line-height: 1.15; }
-  .ext-home .VPHero .main { margin-top: 32px; }
+  .ext-home .VPHero .container { text-align: left; }
+  .ext-home .VPHero .bpm-hero-brand { margin-inline: 0; }
 }
 
 
@@ -481,17 +506,35 @@
 
 .ext-headline {
   display: block;
-  font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 2.875rem);
   font-weight: 700;
   line-height: 1.1;
   text-wrap: balance;
 }
 
-.ext-hero-stage { min-width: 0; width: min(100%, calc(62svh * 1.6)); justify-self: center; }
+/* The demo sits on its own lit surface, so it reads as the product shot and not as another
+   block of page. The scenes keep their own frame and caption inside it. */
+.ext-hero-stage {
+  min-width: 0;
+  width: min(100%, calc(62svh * 1.6));
+  justify-self: center;
+  padding: clamp(12px, 2.4vw, 32px) clamp(12px, 2.4vw, 32px) clamp(6px, 1.2vw, 16px);
+  border-radius: 24px;
+  background:
+    radial-gradient(80% 70% at 85% 0%, color-mix(in srgb, var(--vp-c-brand-1) 16%, transparent), transparent 70%),
+    radial-gradient(60% 60% at 0% 100%, color-mix(in srgb, #f43f5e 8%, transparent), transparent 70%),
+    var(--vp-c-bg-soft);
+}
 
-.ext-stage-figure { margin: 0; min-width: 0; }
-.ext-stage-figure figcaption,
-.vp-doc .ext-stage-figure figcaption { margin-top: 0.5rem; color: var(--vp-c-text-2); font-size: 0.8125rem; line-height: 1.45; }
+.dark .ext-hero-stage {
+  background:
+    radial-gradient(80% 70% at 85% 0%, color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent), transparent 70%),
+    radial-gradient(60% 60% at 0% 100%, color-mix(in srgb, #f43f5e 10%, transparent), transparent 70%),
+    var(--vp-c-bg-soft);
+}
+
+.ext-scenes { min-width: 0; }
+.ext-scenes figcaption { margin-top: 0.6rem; color: var(--vp-c-text-2); font-size: 0.8125rem; line-height: 1.45; }
 
 .vp-doc .ext-lede { margin: 0; max-width: 36rem; color: var(--vp-c-text-1); font-size: 1.0625rem; line-height: 1.55; }
 .vp-doc .ext-support { margin: 0; max-width: 36rem; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.55; }
@@ -500,10 +543,11 @@
 @media (min-width: 960px) {
   .vp-doc .ext-hero {
     max-width: 1320px;
-    grid-template-columns: minmax(22rem, 1fr) minmax(0, 760px);
+    grid-template-columns: minmax(28rem, 1fr) minmax(0, 660px);
     grid-template-rows: auto auto auto 1fr;
-    column-gap: 56px;
-    row-gap: 18px;
+    column-gap: 64px;
+    row-gap: 20px;
+    align-items: start;
     padding-block: 64px 88px;
   }
 
@@ -521,21 +565,26 @@
   .ext-headline { font-size: 2.125rem; line-height: 1.15; }
 }
 
-/* A store's action or the way to get it to a computer, picked on the pointer. */
+/* A store's action, or on a touch device the way to get it to a computer. */
 .ext-install-touch { display: none; }
 
-@media (hover: none) and (pointer: coarse) {
+@media (pointer: coarse) {
   .ext-install-pointer { display: none; }
-  .ext-install-touch { display: block; }
+  .ext-install-touch { display: grid; justify-items: start; gap: 0.85rem; }
 }
 
 .ext-install-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 
-.vp-doc .ext-install-note { margin: 0.6rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; }
-.vp-doc .ext-install-note-first { margin: 0 0 0.6rem; }
+.vp-doc .ext-install-note { margin: 0.75rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; line-height: 1.5; }
+.vp-doc .ext-install-touch .ext-install-note { margin: 0; }
+.vp-doc .ext-install-context + .ext-install-note { margin-top: 0.4rem; }
 
-.vp-doc .ext-install-links { display: flex; flex-direction: column; align-items: flex-start; margin-top: 0.4rem; }
-.vp-doc .ext-install-links a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 500; }
+/* Held open for the browser's own line, so that line appears without moving what follows. */
+.vp-doc .ext-install-context { min-height: 1.5em; margin: 0.1rem 0 0; color: var(--vp-c-text-1); font-size: 0.875rem; font-weight: 500; line-height: 1.5; }
+
+.vp-doc .ext-install-links { margin: 0; padding: 0; list-style: none; }
+.vp-doc .ext-install-links li { margin: 0; }
+.vp-doc .ext-install-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--vp-c-text-2); font-size: 0.9375rem; text-decoration-color: var(--vp-c-divider); }
 
 .vp-doc .ext-small { margin: 1.5rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; }
 
@@ -554,20 +603,6 @@
 }
 
 .vp-doc .ext-howto li { margin: 0; counter-increment: ext-howto; }
-
-.vp-doc .ext-howto h3::before {
-  content: counter(ext-howto);
-  display: inline-grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  margin-right: 0.5rem;
-  border-radius: 50%;
-  background: var(--vp-c-brand-soft);
-  color: var(--vp-c-brand-1);
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-}
 
 .vp-doc .ext-howto p { margin: 0; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.6; }
 
@@ -638,6 +673,6 @@
 }
 
 /* After a result, on a computer only: it can't be installed from a touch device. */
-.ext-result-prompt { display: none; margin: 14px 0 0; font-size: 13px; color: var(--vp-c-text-2); }
+.ext-result-prompt { margin: 14px 0 0; font-size: 13px; color: var(--vp-c-text-2); }
 .ext-result-prompt a { color: var(--vp-c-brand-1); text-decoration: underline; }
-@media (pointer: fine) { .ext-result-prompt { display: block; } }
+@media (pointer: coarse) { .ext-result-prompt { display: none; } }

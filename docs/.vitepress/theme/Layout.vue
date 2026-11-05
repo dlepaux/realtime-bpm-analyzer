@@ -3,14 +3,14 @@ import DefaultTheme from 'vitepress/theme'
 import { useData } from 'vitepress'
 import BpmHeroTool from '../components/BpmHeroTool.vue'
 import ExtensionHomeBand from '../components/ExtensionHomeBand.vue'
-import { INSTALL_TARGETS } from '../tools/extension-live'
+import { STORE_URL } from '../tools/extension-live'
 
 const { Layout } = DefaultTheme
 const { site } = useData()
 </script>
 
 <template>
-  <Layout :class="{ 'ext-home': INSTALL_TARGETS.length }">
+  <Layout :class="{ 'ext-home': STORE_URL }">
     <!-- The brand sits above the page's only h1, not inside it: the h1 holds the hero's
          `text` alone, at every width (RBA-129). Below 960px custom.css reorders the
          hero so the brand and the h1 come before the tool, as one headline. -->
@@ -21,7 +21,7 @@ const { site } = useData()
     </template>
     <template #home-hero-image>
       <div
-        v-if="INSTALL_TARGETS.length"
+        v-if="STORE_URL"
         class="ext-doors"
       >
         <section class="ext-door">

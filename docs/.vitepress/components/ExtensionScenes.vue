@@ -152,7 +152,7 @@ onBeforeUnmount(() => {
 
 <template>
   <figure
-    class="ext-stage-figure ext-scenes"
+    class="ext-scenes"
     :data-status="status"
   >
     <div class="ext-scenes-box">

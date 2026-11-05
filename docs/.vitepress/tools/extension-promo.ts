@@ -40,7 +40,9 @@ export function resolveEdgeUrl(raw: string | null): string | null {
 /** Where on the site a link to the extension sits. Sent with clicks and on store links. */
 export type ExtensionPlacement =
   | 'home_door'
-  | 'extension_page'
+  | 'extension_hero'
+  | 'extension_closing'
+  | 'extension_touch'
   | 'goodbye'
   | 'stream_hint'
   | 'result_mic'
@@ -64,12 +66,21 @@ export function storeLink(storeUrl: string, placement: ExtensionPlacement): stri
   return `${storeUrl}?${label.toString()}`
 }
 
+export type StoreId = 'chrome' | 'edge'
+
 export type InstallTarget = {
+  readonly id: StoreId
   readonly browser: 'Chrome' | 'Edge'
   /** The store's own name, for links that go to the listing rather than install. */
   readonly store: string
   readonly label: string
   readonly href: string
+}
+
+// The one place the stores are named: buttons, links, the requirement line and click events read it.
+const STORES: Record<StoreId, Omit<InstallTarget, 'href'>> = {
+  chrome: { id: 'chrome', browser: 'Chrome', store: 'Chrome Web Store', label: 'Add to Chrome' },
+  edge: { id: 'edge', browser: 'Edge', store: 'Edge Add-ons', label: 'Add to Edge' },
 }
 
 // The extension's `minimum_chrome_version` (rba-pro extension/wxt.config.ts). Edge reads
@@ -85,23 +96,12 @@ export const MINIMUM_BROWSER_VERSION = 150
  */
 export function installTargets(
   storeUrl: string | null,
-  edgeUrl: string | null = null,
-  placement: ExtensionPlacement = 'extension_page',
+  edgeUrl: string | null,
+  placement: ExtensionPlacement,
 ): readonly InstallTarget[] {
   if (storeUrl === null) return []
-  const chrome: InstallTarget = {
-    browser: 'Chrome',
-    store: 'Chrome Web Store',
-    label: 'Add to Chrome',
-    href: storeLink(storeUrl, placement),
-  }
-  if (edgeUrl === null) return [chrome]
-  return [chrome, {
-    browser: 'Edge',
-    store: 'Edge Add-ons',
-    label: 'Add to Edge',
-    href: storeLink(edgeUrl, placement),
-  }]
+  const listings: readonly (readonly [StoreId, string | null])[] = [['chrome', storeUrl], ['edge', edgeUrl]]
+  return listings.flatMap(([id, url]) => (url === null ? [] : [{ ...STORES[id], href: storeLink(url, placement) }]))
 }
 
 /** What the browser must be to install, one line under the buttons for every target. */
@@ -203,13 +203,14 @@ export function llmsWithExtension(llms: string): string {
  */
 export function extensionPageSchema(storeUrl: string, canonical: string, description: string, edgeUrl: string | null = null) {
   const browsers = edgeUrl === null ? 'Chrome' : 'Chrome or Microsoft Edge'
+  // schema.org's operatingSystem is the system, not the browser: desktop Chrome and Edge run on these.
   return {
     '@type': 'SoftwareApplication',
     name: 'Live BPM Detector',
     description,
     url: canonical,
     applicationCategory: 'MultimediaApplication',
-    operatingSystem: edgeUrl === null ? 'Chrome' : 'Chrome, Microsoft Edge',
+    operatingSystem: 'Windows, macOS, Linux, ChromeOS',
     softwareRequirements: `${browsers} ${MINIMUM_BROWSER_VERSION} or later, on a computer`,
     installUrl: edgeUrl === null ? storeUrl : [storeUrl, edgeUrl],
     inLanguage: 'en',

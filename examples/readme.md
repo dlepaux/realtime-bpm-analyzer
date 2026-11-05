@@ -46,7 +46,7 @@ The examples are organized by framework and use case:
 
 **Key Features:**
 - Real-time analysis during playback
-- Connection: `source → analyzer.input` (which holds the low-pass filter) and `source → destination`
+- Connection: `source → analyzer.input` (which holds what the engine needs in front of it) and `source → destination`
 - Listens for `reading` events and shows the BPM once `analyzer.state.status` is `locked`
 
 ### 3. Microphone Input (`createRealtimeBpmAnalyzer` + MediaStreamSource)

@@ -155,7 +155,7 @@ export function useBpm(source: Source | null): UseBpmReturn {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext, { liveInput });
       analyzerRef.current = analyzer;
 
-      // `.input` holds the lowpass filter the default engine expects.
+      // `.input` holds what the engine needs in front of it.
       sourceNode.connect(analyzer.input);
 
       analyzer.on('reading', ({ bpm }) => {
@@ -343,13 +343,12 @@ This hook is intentionally small. Things you might add for production:
   parallel for a four-deck DJ practice tool.
 - **Tap-tempo fallback**: when `state === 'error'` or the analyzer never
   locks, fall back to a manual tap input.
-- **Confidence threshold**: only update `lockedBpm` when
-  `reading.confidence` clears a cut-off you measured on your own
-  material. With the default engine, `confidence` is the share of interval
-  votes within ±1 BPM of the tempo: a perfect click track scores about 0.46
-  and random peaks below 0.1. No cut-off has been calibrated on real music
-  yet. In plain words: confidence never reaches 1, even on a perfect beat,
-  so compare values on your own music rather than expecting a high score.
+- **Confidence display**: show `reading.confidence` next to the tempo.
+  It is uncalibrated for now: each engine scores it its own way, so it is
+  not a probability, and a fixed cut-off would mean different things per
+  engine. Compare values from one engine on your own music, and let the
+  move to `locked` decide when a tempo is the answer.
+  <!-- RBA-106: calibration gives confidence its meaning, or removes it. Update this bullet then. -->
 
 Each of these takes a few lines. Keep the hook itself focused; let
 the consuming component compose.

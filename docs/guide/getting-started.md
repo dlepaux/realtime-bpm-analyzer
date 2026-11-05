@@ -83,8 +83,8 @@ async function setupBPMAnalyzer() {
   // Create media source from audio element
   const source = audioContext.createMediaElementSource(audioElement);
 
-  // Connect the source to the analyzer's input, which holds the low-pass
-  // filter the default engine expects (it isolates bass frequencies)
+  // Connect the source to the analyzer's input, which holds what the engine
+  // needs in front of it: nothing for the default tempogram, a low-pass for peaks
   source.connect(analyzer.input);
   source.connect(audioContext.destination);
 
@@ -164,7 +164,7 @@ The analyzer has a state you can read at any time, `analyzer.state`. Its `status
 
 ### `statechange` Event {#bpmstable-event}
 - Emitted on every change of status, with `from`, `to` and a `reason`
-- `to.status === 'locked'` means the readings agree: with the default engine, no sooner than 10 seconds of audio
+- `to.status === 'locked'` means the readings agree: with the default engine, no sooner than about 11.5 seconds of audio
 - More reliable for final BPM determination
 - The tempo can still move a little while locked, so keep showing the latest reading
 

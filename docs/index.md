@@ -113,9 +113,9 @@ Producers check BPM to build remixes. Dancers count BPM to choose routines.
 ### How does it work?
 
 The analyzer uses the **Web Audio API** to decode audio directly in your browser,
-applies a low-pass filter to isolate the low-frequency transients that usually
-carry the beat, and counts the intervals between detected peaks. The most frequent
-interval gives the BPM. The analysis happens on your device.
+and measures how the sound changes from moment to moment across several frequency
+bands. The tempo is the spacing that repeats most in those changes. The analysis
+happens on your device.
 
 ### Is my audio sent to a server?
 
@@ -157,8 +157,9 @@ Works with vanilla JS, React, Vue, or any modern framework.
 
 - **Real time or whole file.** Follow a playing track, a microphone or a stream
   as it plays, or analyse a whole file at once.
-- **Peak and interval analysis.** Low-pass filtered peaks, grouped by the
-  intervals between them, give the tempo candidates.
+- **Two engines, one reading.** The default `tempogram` engine reads the tempo
+  from changes across several frequency bands; `engine: 'peaks'` groups the
+  intervals between low-passed peaks instead. Both report the same fields.
 - **Configurable.** Pick the engine, the tempo range and how often the
   analysis starts over, to suit your use case.
 
@@ -183,7 +184,7 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 const track = document.getElementById('audio') as HTMLAudioElement;
 const source = audioContext.createMediaElementSource(track);
 
-// Connect nodes: the analyzer's input holds the low-pass filter it needs
+// Connect nodes: the analyzer's input holds whatever its engine needs in front of it
 source.connect(analyzer.input);
 source.connect(audioContext.destination);
 

@@ -90,7 +90,7 @@ function BpmAnalyzer() {
       const source = audioContext.createMediaElementSource(audioElement);
       mediaSourceRef.current = source;
 
-      // The analyzer's input holds the lowpass
+      // The analyzer's input holds what the engine needs in front of it
       source.connect(analyzer.input);
       source.connect(audioContext.destination);
 

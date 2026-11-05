@@ -57,7 +57,7 @@ loadBtn.addEventListener('click', async () => {
     // Create media source and connect the audio graph
     mediaSource = audioContext.createMediaElementSource(audioElement);
     
-    // Connect: source → analyzer (its input holds the lowpass) and source → destination
+    // Connect: source → analyzer (its input holds what the engine needs) and source → destination
     mediaSource.connect(bpmAnalyzer.input);
     mediaSource.connect(audioContext.destination);
 

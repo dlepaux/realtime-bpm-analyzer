@@ -79,7 +79,7 @@ const handleLoad = async () => {
     const source = audioContext.createMediaElementSource(audioElement);
     mediaSource = source;
 
-    // The analyzer's input holds the lowpass
+    // The analyzer's input holds what the engine needs in front of it
     source.connect(analyzer.input);
     source.connect(audioContext.destination);
 

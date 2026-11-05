@@ -44,9 +44,9 @@ const [track] = stream.getAudioTracks();
 const audioContext = new AudioContext();
 const analyzer = await createRealtimeBpmAnalyzer(audioContext, { liveInput: track });
 
-// 3. Connect the microphone to the analyzer's input, which holds the
-//    low-pass filter the default engine expects. Not to the speakers:
-//    that would make a feedback loop.
+// 3. Connect the microphone to the analyzer's input, which holds what
+//    the engine needs in front of it. Not to the speakers: that would
+//    make a feedback loop.
 const source = audioContext.createMediaStreamSource(stream);
 source.connect(analyzer.input);
 

@@ -23,7 +23,7 @@ No configuration needed - this is handled automatically by `createRealtimeBpmAna
 
 ### 2. Apply Low-Pass Filtering
 
-Connect the source to `analyzer.input`. With the default `peaks` engine it holds the 200 Hz low-pass filter (the one `getBiquadFilter` builds); with `tempogram` it holds nothing, since that engine needs the full band:
+Connect the source to `analyzer.input`. With the default `tempogram` engine it holds nothing, since that engine needs the full band; with `peaks` it holds the 200 Hz low-pass filter (the one `getBiquadFilter` builds):
 
 ```typescript
 import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
@@ -105,7 +105,7 @@ The `tempogram` engine has no restart option: its memory of past tempos fades wi
 | Jazz/Complex | 30 s | Variable rhythms |
 | Classical | 40 s | Tempo changes |
 
-A restart period under 10 s also brings the earliest lock forward to fit before it, as the default engine otherwise waits 10 s of audio before it locks.
+A restart period under 10 s also brings the earliest lock forward to fit before it, as `peaks` otherwise waits 10 s of audio before it locks.
 
 **Memory Impact:**
 - Lower = less memory, less audio to settle on, follows tempo changes sooner
@@ -308,7 +308,7 @@ async function analyzeLargeFile(file: File) {
 ## Window Length Trade-offs {#accuracy-vs-speed-trade-offs}
 
 In continuous analysis, `restartAfterSeconds` sets how much audio the
-default engine keeps before it starts over.
+`peaks` engine keeps before it starts over.
 
 ### Shorter Window
 

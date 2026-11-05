@@ -39,7 +39,7 @@ BPM Candidates
 
 ## The Algorithm
 
-This is the default `peaks` engine. The code below sketches each step; it is not the library's API.
+This is the `peaks` engine, the 5.x default, which `engine: 'peaks'` selects. The default `tempogram` engine reads the tempo from an onset tempogram instead: see [the tempogram engine](/guide/realtime-bpm-detection#the-tempogram-detector). The code below sketches each step; it is not the library's API.
 
 ### Step 1: Audio Capture
 
@@ -162,11 +162,13 @@ function getBPMCandidates(groups) {
 
 A perfect click track scores about **0.46**, not 1: each peak is paired with the next nine, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. Randomly spaced peaks score below 0.1. In plain words: the score says how much the peaks agree on one tempo, and even a perfect beat agrees only about halfway. It is not calibrated on real music yet, and the `tempogram` engine scores differently, so compare values from one engine only rather than test them against a fixed number.
 
+<!-- RBA-106: calibration gives confidence its meaning, or removes it. Update this paragraph then. -->
+
 ## Signal Processing Features
 
 ### Low-Pass Filtering
 
-With the default `peaks` engine, `analyzer.input` puts a low-pass filter in front of the analyzer, the same one `getBiquadFilter()` builds. It:
+With the `peaks` engine, `analyzer.input` puts a low-pass filter in front of the analyzer, the same one `getBiquadFilter()` builds. The default `tempogram` engine needs the full band, so there `.input` holds nothing. The filter:
 - Removes high frequencies (treble)
 - Emphasizes bass frequencies (where beats typically occur)
 - Improves detection accuracy
@@ -205,7 +207,7 @@ analyzer.on('reading', (reading) => {
 ```
 
 **Characteristics:**
-- Updates frequently (about ten times a second with the default engine, every half second with the `tempogram`)
+- Updates frequently (every half second with the default `tempogram` engine, about ten times a second with `peaks`)
 - May fluctuate as more data arrives
 - Useful for progressive display
 
@@ -222,9 +224,9 @@ analyzer.on('statechange', ({ to }) => {
 
 **Characteristics:**
 - More reliable result
-- Requires sufficient data collection: with the default `peaks` engine, never before 10 seconds of
-  audio (or a shorter `restartAfterSeconds`)
-- Each lock raises the minimum threshold, so later locks rest on stronger peaks
+- Requires sufficient data collection: never before about 11.5 seconds of audio with the default
+  `tempogram` engine, or 10 seconds with `peaks` (or a shorter `restartAfterSeconds`)
+- With `peaks`, each lock raises the minimum threshold, so later locks rest on stronger peaks
 - Best for final BPM determination
 - The tempo can still move a little while locked, so keep showing the latest reading
 

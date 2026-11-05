@@ -134,7 +134,7 @@ test('switchProblems on: store links may carry the site\'s label, and nothing el
 test('switchProblems on with Edge: its button must be there and point at its listing', () => {
   // The real Edge build: installUrl becomes an array, and goodbye links to both stores.
   const page = (ON['extension/index.html'] ?? '').replace(`"installUrl":"${STORE}"`, `"installUrl":["${STORE}","${EDGE}"]`)
-  const goodbye = `<p>Reinstall the extension any time from the <a href="${STORE}">Chrome Web Store</a> or the <a href="${EDGE}">Edge Add-ons</a>.</p>`
+  const goodbye = `<p>Reinstall the extension any time from <a href="${STORE}">the Chrome Web Store</a> or <a href="${EDGE}">Edge Add-ons</a>.</p>`
   const withEdge = { ...ON, 'extension/index.html': `${page} ${EDGE_BUTTON}`, 'extension/goodbye.html': goodbye }
   assert.deepEqual(switchProblems(site(withEdge), STORE, EDGE), [])
   assert.notDeepEqual(switchProblems(site({ ...withEdge, 'extension/index.html': `${ON['extension/index.html'] ?? ''} ${EDGE_BUTTON}` }), STORE, EDGE), [], 'schema without Edge')

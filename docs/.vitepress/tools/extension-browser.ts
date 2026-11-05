@@ -66,6 +66,10 @@ export type InstallOffer = {
 // Which store leads. The rest keep the order of the targets, Chrome first.
 const LEAD: Partial<Record<VisitorBrowser, StoreId>> = { edge: 'edge' }
 
+// Browsers that install from neither store. A filled button there would point at the one thing
+// the visitor can't do in it, so every button stays outlined and the words carry the offer.
+const NOTHING_FILLED: ReadonlySet<VisitorBrowser> = new Set(['firefox', 'safari'])
+
 const CONTEXT: Partial<Record<VisitorBrowser, string>> = {
   firefox: 'A Firefox version is on its way.',
 }
@@ -78,7 +82,7 @@ function button(target: InstallTarget, primary: boolean, browser: VisitorBrowser
     ...target,
     primary,
     title: unnamed ? 'Install it free' : target.label,
-    subtitle: unnamed ? `from the ${target.store}` : target.store,
+    subtitle: unnamed ? `from ${target.storeInText}` : target.store,
   }
 }
 
@@ -86,8 +90,9 @@ function button(target: InstallTarget, primary: boolean, browser: VisitorBrowser
 export function installOffer(targets: readonly InstallTarget[], browser: VisitorBrowser): InstallOffer {
   const lead = LEAD[browser]
   const ordered = [...targets].sort((a, b) => Number(b.id === lead) - Number(a.id === lead))
+  const filled = !NOTHING_FILLED.has(browser)
   return {
-    buttons: ordered.map((target, index) => button(target, index === 0, browser)),
+    buttons: ordered.map((target, index) => button(target, filled && index === 0, browser)),
     context: CONTEXT[browser] ?? null,
   }
 }

@@ -60,7 +60,14 @@ test('installOffer: the neutral offer is Chrome then Edge, the order the server 
     ['edge', false, 'Add to Edge', 'Edge Add-ons'],
   ])
   assert.equal(neutral.context, null)
-  for (const browser of ['chrome', 'touch', 'safari'] as const) assert.deepEqual(view(browser), neutral, browser)
+  for (const browser of ['chrome', 'touch'] as const) assert.deepEqual(view(browser), neutral, browser)
+})
+
+test('installOffer: where neither store installs, no button is filled, so none looks like the way in', () => {
+  for (const browser of ['firefox', 'safari'] as const) {
+    assert.deepEqual(view(browser).buttons, view('unknown').buttons.map(([id, , title, subtitle]) => [id, false, title, subtitle]), browser)
+  }
+  assert.equal(view('safari').context, null, 'the requirement line already says Chrome or Edge, on a computer')
 })
 
 test('installOffer: Edge leads in Edge, with Chrome second', () => {
@@ -79,7 +86,6 @@ test('installOffer: another Chromium browser gets the Chrome Web Store, without 
 
 test('installOffer: Firefox keeps both stores and gets one honest line, with no date', () => {
   const offer = view('firefox')
-  assert.deepEqual(offer.buttons, view('unknown').buttons)
   assert.equal(offer.context, 'A Firefox version is on its way.')
   assert.doesNotMatch(offer.context ?? '', /\d/)
 })
@@ -87,13 +93,14 @@ test('installOffer: Firefox keeps both stores and gets one honest line, with no 
 test('installOffer keeps every link and its label: only the order, the emphasis and the words change', () => {
   for (const browser of ['chrome', 'edge', 'firefox', 'other-chromium', 'safari', 'touch', 'unknown'] as const) {
     const offer = installOffer(both, browser)
-    assert.equal(offer.buttons.filter((b) => b.primary).length, 1, browser)
+    const filled = browser === 'firefox' || browser === 'safari' ? 0 : 1
+    assert.equal(offer.buttons.filter((b) => b.primary).length, filled, browser)
     assert.deepEqual(offer.buttons.map((b) => b.href).sort(), [storeLink(EDGE_LISTING, 'extension_hero'), storeLink(LISTING, 'extension_hero')].sort(), browser)
   }
 })
 
 test('installOffer without an Edge listing offers Chrome to everyone, Edge included', () => {
-  const chromeOnly = installTargets(LISTING, null)
+  const chromeOnly = installTargets(LISTING, null, 'extension_hero')
   assert.deepEqual(installOffer(chromeOnly, 'edge').buttons.map((b) => [b.id, b.primary]), [['chrome', true]])
   assert.deepEqual(installOffer([], 'chrome').buttons, [])
 })

@@ -80,7 +80,7 @@ function sendLink(event: MouseEvent) {
         @click="sendLink"
       >Send the link to yourself</a>
       <ul class="ext-install-links">
-        <li><a href="/">Find a tempo on this phone with the BPM Analyzer</a></li>
+        <li><a href="/">Find a tempo on this phone</a></li>
         <li
           v-for="target in touchTargets"
           :key="target.id"
@@ -88,7 +88,7 @@ function sendLink(event: MouseEvent) {
           <a
             :href="target.href"
             @click="trackStore('extension_touch', target.id)"
-          >See it on the {{ target.store }}</a>
+          >See it on {{ target.storeInText }}</a>
         </li>
       </ul>
     </div>

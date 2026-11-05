@@ -121,7 +121,7 @@
   inset: auto 6% 12% 6%;
   height: 3px;
   border-radius: 2px;
-  background: linear-gradient(90deg, #f43f5e 0 38%, rgb(255 255 255 / 0.25) 38%);
+  background: linear-gradient(90deg, var(--ext-rose) 0 38%, rgb(255 255 255 / 0.25) 38%);
 }
 
 /* ── Welcome: the three steps ─────────────────────────────────────────────── */
@@ -211,7 +211,7 @@
 .ext-player-play { display: grid; color: #f9fafb; }
 .ext-player-play svg { fill: currentColor; }
 .ext-player-wave { display: flex; flex: 1; align-items: center; gap: 3px; height: 28px; }
-.ext-player-wave span { flex: 1; border-radius: 2px; background: #f43f5e; opacity: 0.85; }
+.ext-player-wave span { flex: 1; border-radius: 2px; background: var(--ext-rose); opacity: 0.85; }
 
 .ext-click { display: flex; align-items: center; gap: 12px; }
 .ext-click-cursor { position: absolute; right: -10px; bottom: -12px; color: var(--vp-c-text-1); }
@@ -309,6 +309,8 @@
   --ext-cta: #3a5ccc;
   --ext-cta-hover: var(--vp-c-brand-1);
   --ext-ink: #0f1220;
+  /* The scenes' players' accent, and the warm side of the demo's stage. */
+  --ext-rose: #f43f5e;
 }
 
 .dark {
@@ -515,23 +517,21 @@
 /* The demo sits on its own lit surface, so it reads as the product shot and not as another
    block of page. The scenes keep their own frame and caption inside it. */
 .ext-hero-stage {
+  --ext-glow-brand: 16%;
+  --ext-glow-rose: 8%;
   min-width: 0;
   width: min(100%, calc(62svh * 1.6));
   justify-self: center;
   padding: clamp(12px, 2.4vw, 32px) clamp(12px, 2.4vw, 32px) clamp(6px, 1.2vw, 16px);
   border-radius: 24px;
   background:
-    radial-gradient(80% 70% at 85% 0%, color-mix(in srgb, var(--vp-c-brand-1) 16%, transparent), transparent 70%),
-    radial-gradient(60% 60% at 0% 100%, color-mix(in srgb, #f43f5e 8%, transparent), transparent 70%),
+    radial-gradient(80% 70% at 85% 0%, color-mix(in srgb, var(--vp-c-brand-1) var(--ext-glow-brand), transparent), transparent 70%),
+    radial-gradient(60% 60% at 0% 100%, color-mix(in srgb, var(--ext-rose) var(--ext-glow-rose), transparent), transparent 70%),
     var(--vp-c-bg-soft);
 }
 
-.dark .ext-hero-stage {
-  background:
-    radial-gradient(80% 70% at 85% 0%, color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent), transparent 70%),
-    radial-gradient(60% 60% at 0% 100%, color-mix(in srgb, #f43f5e 10%, transparent), transparent 70%),
-    var(--vp-c-bg-soft);
-}
+/* On dark the brand light carries further and the warm one turns muddy, so it stays faint. */
+.dark .ext-hero-stage { --ext-glow-brand: 22%; --ext-glow-rose: 4%; }
 
 .ext-scenes { min-width: 0; }
 .ext-scenes figcaption { margin-top: 0.6rem; color: var(--vp-c-text-2); font-size: 0.8125rem; line-height: 1.45; }
@@ -577,14 +577,16 @@
 
 .vp-doc .ext-install-note { margin: 0.75rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; line-height: 1.5; }
 .vp-doc .ext-install-touch .ext-install-note { margin: 0; }
-.vp-doc .ext-install-context + .ext-install-note { margin-top: 0.4rem; }
+.vp-doc .ext-install-context + .ext-install-note { margin-top: 0.4rem; } /* the prompt link */
 
-/* Held open for the browser's own line, so that line appears without moving what follows. */
-.vp-doc .ext-install-context { min-height: 1.5em; margin: 0.1rem 0 0; color: var(--vp-c-text-1); font-size: 0.875rem; font-weight: 500; line-height: 1.5; }
+/* Held open for a line about the visitor's own browser (Firefox's, today), so it appears after
+   hydration without moving what follows. Empty for most visitors: that space is the price. */
+.vp-doc .ext-install-context { min-height: 1.5em; margin: 0.1rem 0 0; color: var(--vp-c-brand-1); font-size: 0.875rem; font-weight: 600; line-height: 1.5; }
 
 .vp-doc .ext-install-links { margin: 0; padding: 0; list-style: none; }
 .vp-doc .ext-install-links li { margin: 0; }
 .vp-doc .ext-install-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--vp-c-text-2); font-size: 0.9375rem; text-decoration-color: var(--vp-c-divider); }
+.vp-doc .ext-install-links a:hover { color: var(--vp-c-brand-1); }
 
 .vp-doc .ext-small { margin: 1.5rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; }
 
@@ -652,7 +654,6 @@
 
 .vp-doc .ext-ink-details p { margin: 0; font-size: 0.95rem; line-height: 1.6; }
 
-.vp-doc .ext-closing { padding-top: 0; }
 .vp-doc.ext-landing .ext-closing h2 { margin-bottom: 1.25rem; }
 .vp-doc .ext-library { margin-top: 2rem; }
 

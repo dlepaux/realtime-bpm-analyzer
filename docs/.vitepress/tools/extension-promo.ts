@@ -73,14 +73,16 @@ export type InstallTarget = {
   readonly browser: 'Chrome' | 'Edge'
   /** The store's own name, for links that go to the listing rather than install. */
   readonly store: string
+  /** The store's name as a sentence says it: "on the Chrome Web Store", but "on Edge Add-ons". */
+  readonly storeInText: string
   readonly label: string
   readonly href: string
 }
 
 // The one place the stores are named: buttons, links, the requirement line and click events read it.
 const STORES: Record<StoreId, Omit<InstallTarget, 'href'>> = {
-  chrome: { id: 'chrome', browser: 'Chrome', store: 'Chrome Web Store', label: 'Add to Chrome' },
-  edge: { id: 'edge', browser: 'Edge', store: 'Edge Add-ons', label: 'Add to Edge' },
+  chrome: { id: 'chrome', browser: 'Chrome', store: 'Chrome Web Store', storeInText: 'the Chrome Web Store', label: 'Add to Chrome' },
+  edge: { id: 'edge', browser: 'Edge', store: 'Edge Add-ons', storeInText: 'Edge Add-ons', label: 'Add to Edge' },
 }
 
 // The extension's `minimum_chrome_version` (rba-pro extension/wxt.config.ts). Edge reads

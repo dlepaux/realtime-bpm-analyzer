@@ -216,7 +216,7 @@ Read the full [extension privacy policy](/extension/privacy).
 </div>
 </section>
 
-<section class="ext-sec ext-closing">
+<section class="ext-sec ext-soft ext-closing">
 <div class="ext-wrap">
   <h2>Try it on the next track you play</h2>
   <ExtensionInstall placement="extension_closing" />

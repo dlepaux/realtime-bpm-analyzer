@@ -118,6 +118,7 @@ test('Edge joins as a second target, after Chrome, with its own tagged listing l
   assert.deepEqual(targets.map((target) => target.browser), ['Chrome', 'Edge'])
   assert.deepEqual(targets.map((target) => target.label), ['Add to Chrome', 'Add to Edge'])
   assert.deepEqual(targets.map((target) => target.store), ['Chrome Web Store', 'Edge Add-ons'])
+  assert.deepEqual(targets.map((target) => target.storeInText), ['the Chrome Web Store', 'Edge Add-ons'], 'the article goes where a sentence names the store')
   assert.equal(targets[1]?.href, storeLink(EDGE_LISTING, 'extension_hero'))
   assert.deepEqual(listingUrls(LISTING, EDGE_LISTING), [LISTING, EDGE_LISTING])
 })

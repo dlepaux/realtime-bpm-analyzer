@@ -36,11 +36,11 @@ of your visit to this site. [Extension privacy](/extension/privacy) has the deta
 
 ## Changed your mind?
 
-<p v-if="reinstallTargets.length">Reinstall the extension any time from the
-<template v-for="(target, index) in reinstallTargets" :key="target.browser"><template v-if="index > 0"> or the </template><a
+<p v-if="reinstallTargets.length">Reinstall the extension any time from
+<template v-for="(target, index) in reinstallTargets" :key="target.browser"><template v-if="index > 0"> or </template><a
   :href="target.href"
   @click="track('extension_link_clicked', { placement: 'goodbye', target: 'store', store: target.id })"
->{{ target.store }}</a></template>.</p>
+>{{ target.storeInText }}</a></template>.</p>
 
 If something broke, [report it on GitHub](https://github.com/dlepaux/realtime-bpm-analyzer/issues/new)
 with the site and what you expected. Bugs reported there get fixed.

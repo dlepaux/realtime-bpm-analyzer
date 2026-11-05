@@ -63,7 +63,7 @@ Hysteresis belongs to the engine. Locking and unlocking use different bands and 
 so the state can't flap, and `pulseLostAfterSeconds` keeps a short break from bouncing settling and
 listening. The reducer enforces only the table. The worklet's tracker (`core/tracker.ts`) applies the unlock
 and pulse values. The lock follows each engine's own rule: the tempogram's stable rule reads `lockBand` and
-`lockAfterSeconds`, and peaks locks on a fuller peak rung after its 10 s warm-up, with no band of its own. They map today's behaviour and are marked for tuning on the benchmark (see `HYSTERESIS`).
+`lockAfterSeconds`, and peaks locks on a fuller peak rung after its 10 s warm-up, with no band of its own. They map today's behaviour, and a sweep on the benchmark's dev half kept them (see `HYSTERESIS`).
 
 ## Room for 6.x (beat events, RBA-109)
 
@@ -145,7 +145,7 @@ The migration guide builds on this table.
 | `once()` | `on(type, listener, {once: true})` |
 | `Tempo.tempo` | `Reading.bpm`, `Candidate.bpm` |
 | `Tempo.count` | removed |
-| `Tempo.confidence` (per engine) | `Reading.confidence`, calibrated (RBA-106) or removed |
+| `Tempo.confidence` (per engine) | `Reading.confidence`, calibrated on dev (RBA-106): the chance the reading is right |
 | `BpmCandidates.threshold`, `Threshold`, `Peaks` | removed |
 | (none) | `Candidate.relation`: `top`, `half`, `double`, `other` |
 | (none) | `Reading.audio {from, to, contextTime}`, in seconds since the epoch began, anchored to the context clock |

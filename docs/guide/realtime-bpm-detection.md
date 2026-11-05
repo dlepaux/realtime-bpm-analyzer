@@ -93,8 +93,8 @@ analyzer.on('statechange', ({ to }) => {
 ```
 
 `analyzer.input` is the node a source connects to. It holds what the
-engine needs in front of it: the 200 Hz lowpass filter for the default
-`peaks` engine, and nothing for `tempogram`. So the wiring stays the same
+engine needs in front of it: nothing for the default `tempogram` engine,
+and the 200 Hz lowpass filter for `peaks`. So the wiring stays the same
 whichever engine you choose.
 
 The only thing that changes between use cases is **how you build the
@@ -237,8 +237,8 @@ analyzer.on('statechange', ({ from, to, reason }) => {
 });
 
 analyzer.on('reading', (reading) => {
-  // Fires on every analysis step outside listening: about ten times a
-  // second with the default engine, every half second with the tempogram.
+  // Fires on every analysis step outside listening: every half second
+  // with the default tempogram engine, about ten times a second with peaks.
   // Use it for a live display.
   bpmDisplay.textContent = `${reading.bpm} BPM`;
 });
@@ -253,8 +253,8 @@ When things happen, in seconds of audio:
 
 | Engine | First reading | Earliest lock |
 | --- | --- | --- |
-| `peaks` (default) | Once it has 16 peaks at one level: about 8 s on a steady kick at 120 BPM | 10 s |
-| `tempogram` | 4 s, after its warm-up | About 11.5 s |
+| `tempogram` (default) | 4 s, after its warm-up | About 11.5 s |
+| `peaks` | Once it has 16 peaks at one level: about 8 s on a steady kick at 120 BPM | 10 s |
 
 In plain words: you get a running tempo within seconds, and the analyzer
 locks no sooner than about ten seconds in, once it is willing to stand
@@ -267,11 +267,13 @@ to five `candidates`, the top one first. Each candidate has a `bpm` and its
 `bpmExact` is the same tempo before rounding, for timing work such as
 spacing beat markers. Keep showing `bpm`.
 
-The library folds every tempo into the **90 to 180 BPM** range by halving
-or doubling it. This is the convention for dance and pop music, but it
-reads an 85 BPM hip-hop track as 170. A tempo and its double usually fold
-onto the same value, so you cannot pick the octave from the candidates.
-Pick it with the `tempoRange` option instead:
+The library reports every tempo in the **90 to 180 BPM** range: the
+`tempogram` engine searches it, and `peaks` folds into it by halving or
+doubling. This is the convention for dance and pop music, but it reads an
+85 BPM hip-hop track as 170. A tempo and its double usually land on the
+same value, so you cannot pick the octave from the candidates. Pick it with
+the `tempoRange` option instead (the tempogram has its limits here, see
+[the tempogram engine](#the-tempogram-detector)):
 
 ```typescript
 const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
@@ -289,13 +291,13 @@ range whose middle is where your music usually sits. See
 
 ## The tempogram engine {#the-tempogram-detector}
 
-An experimental engine reads the tempo from an onset tempogram rather
-than from peaks in low-passed audio. It weighs tempos with a prior instead
-of folding them, and it only locks once the tempo agreed over several
-seconds and clearly leads its rivals. Opt in with the `engine` option, and
-connect the source to `analyzer.input`, as for the default engine. For the
-tempogram, `.input` adds no filter, because it needs the full frequency
-band. Don't put `getBiquadFilter` in front of it.
+The default engine reads the tempo from an onset tempogram rather than
+from peaks in low-passed audio. It weighs tempos with a prior instead of
+folding them, and it only locks once the tempo agreed over several seconds
+and clearly leads its rivals. Connect the source to `analyzer.input`: for
+the tempogram, `.input` adds no filter, because it needs the full frequency
+band. Don't put `getBiquadFilter` in front of it. Naming it, as below, keeps
+it whatever a later default becomes.
 
 ```typescript
 const source = audioContext.createMediaElementSource(audioElement);
@@ -306,8 +308,8 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
 source.connect(analyzer.input);
 ```
 
-`analyzeFullBuffer(buffer, { engine: 'tempogram' })` and `analyzeChannelData`
-in Node run it on whole files. The default stays `'peaks'`.
+`analyzeFullBuffer` and `analyzeChannelData` in Node run it on whole files
+too. `engine: 'peaks'` selects the 5.x engine, in realtime and offline.
 
 It searches 90 to 180 BPM, and a tempo outside that reads at the octave
 inside: over about 179 BPM reads half, so a 200 BPM track reads 100, and a
@@ -428,7 +430,7 @@ and lose nothing.
 
 ## The lowpass filter: why it's there {#the-lowpass-filter-—-why-it-s-there}
 
-With the default `peaks` engine, `analyzer.input` puts a 200 Hz
+With the `peaks` engine, `analyzer.input` puts a 200 Hz
 low-pass filter with `Q = 1` between the source and the analyzer. It is
 the same filter `getBiquadFilter(audioContext)` builds.
 
@@ -483,8 +485,9 @@ seconds of audio. For short samples, treat the reading as approximate.
 from 120 to 140 BPM mid-song will show both tempos among the reading's
 candidates, and the lock follows later. For DJ tools that need to follow
 the tempo through a transition, call `analyzer.reset()` at the transition.
-With the default engine, `engine: { name: 'peaks', restartAfterSeconds: 20 }`
-starts over every 20 seconds of audio instead.
+With the `peaks` engine, `engine: { name: 'peaks', restartAfterSeconds: 20 }`
+starts over every 20 seconds of audio instead. The default `tempogram` engine
+follows a change on its own, as its memory of past tempos fades.
 
 **Meters other than 4/4.** Irregular meters (jazz, some classical music,
 hip-hop with off-beats) give more competing candidates, and the analyzer

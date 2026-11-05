@@ -6,7 +6,7 @@ Demonstrates real-time BPM analysis from streaming audio sources (URLs).
 
 - Load audio from remote URLs
 - Real-time BPM detection during playback
-- Continuous analysis with confidence scores
+- A live reading, and the tempo once the analyzer locks
 - Play/pause/stop controls
 
 ## Run Locally

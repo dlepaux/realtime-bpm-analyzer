@@ -33,10 +33,10 @@ left open.
 A web page that:
 
 - Asks the user for microphone permission via `getUserMedia`.
-- Routes the microphone signal through a low-pass filter into a BPM
-  analyzer running on the audio thread.
-- Locks on a BPM value once detection settles: after 10 seconds of
-  audio at the earliest, longer when the rhythm is faint.
+- Routes the microphone signal into a BPM analyzer running on the audio
+  thread.
+- Locks on a BPM value once detection settles: after about 11.5 seconds
+  of audio at the earliest, longer when the rhythm is faint.
 - Releases the microphone cleanly when the user stops.
 
 It does **not** play the microphone back through the speakers, which
@@ -89,8 +89,8 @@ async function startListening(onBpm: (bpm: number) => void) {
     },
   });
 
-  // 3. Build the audio graph: mic -> analyzer. `.input` holds the
-  //    lowpass filter the default engine expects. `liveInput` lets the
+  // 3. Build the audio graph: mic -> analyzer. `.input` holds what the
+  //    engine needs in front of it. `liveInput` lets the
   //    analyzer follow the track's clock, so audio the browser drops
   //    doesn't speed the tempo up.
   const [track] = mediaStream.getAudioTracks();
@@ -196,14 +196,13 @@ The analyzer has a state, `analyzer.state`, and events that report each
 change. They mean different things:
 
 - **`reading`** fires on every analysis step once the first reading
-  is in, about ten times a second with the default engine, every half
-  second with the tempogram after its first 4 s of warm-up. It arrives
+  is in: every half second with the default tempogram engine, after its
+  first 4 s of warm-up, and about ten times a second with `peaks`. It arrives
   early and is often noisy. Use it for a live display where users want
   immediate feedback.
 - **`statechange`** fires when the status changes. The move to `locked`
-  comes when the engine trusts a value: with the default `peaks` engine,
-  10 seconds in at the earliest, and about 11.5 seconds with the
-  tempogram. Use it as "the answer": keep it in application state,
+  comes when the engine trusts a value: with the default tempogram engine,
+  about 11.5 seconds in at the earliest, and 10 seconds with `peaks`. Use it as "the answer": keep it in application state,
   persist it, log it.
 
 For a UI that shows "listening, 122, 124, 122, locked", the pattern is:
@@ -280,7 +279,7 @@ async function requestMicrophone(): Promise<MediaStream | null> {
 
 ## Tuning for ambient detection
 
-The default lowpass filter (200 Hz, `Q = 1`) is set for a microphone
+With `engine: 'peaks'`, the lowpass filter `.input` holds (200 Hz, `Q = 1`) is set for a microphone
 held close to a speaker or for an instrumental signal in a fairly quiet
 room. If your application listens to music in a room (a coffee shop,
 a gym, a laptop microphone three meters from the speaker), readings get

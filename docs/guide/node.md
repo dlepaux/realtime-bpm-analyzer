@@ -139,8 +139,8 @@ The third argument takes the same options as `analyzeFullBuffer`:
 
 | Option       | Default     | Meaning                                                   |
 | ------------ | ----------- | --------------------------------------------------------- |
-| `engine`     | `'peaks'`   | `'tempogram'` reads spectral flux across bands, with no lowpass. `{name: 'peaks', lowpass: {frequency, q}}` sets the lowpass, by default 200 Hz and Q 1 (in dB, as Web Audio reads it) |
-| `tempoRange` | `{90, 180}` | Range the tempos fold into; `max` must be at least 2 × `min` |
+| `engine`     | `'tempogram'` | `'tempogram'` reads spectral flux across bands, with no lowpass. `'peaks'` reads amplitude peaks after a lowpass, and `{name: 'peaks', lowpass: {frequency, q}}` sets it, by default 200 Hz and Q 1 (in dB, as Web Audio reads it) |
+| `tempoRange` | `{90, 180}` | Range the tempos are reported in: `peaks` folds into it, `tempogram` searches it; `max` must be at least 2 × `min` |
 
 ```typescript
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';

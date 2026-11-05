@@ -112,7 +112,7 @@ button.addEventListener('click', async () => {
 
   const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-  // .input adds the lowpass the default engine expects.
+  // .input holds what the engine needs in front of it.
   source.connect(analyzer.input);
   source.connect(audioContext.destination);
 
@@ -196,8 +196,8 @@ onset you trust, such as the first kick.
 - **One tempo per analysis.** A song that speeds up or changes tempo reports
   candidates for each part; the live analyzer catches up after a while, and
   `analyzer.reset()` starts it over.
-- **Time to settle.** The default engine waits for 10 seconds of audio
-  before it locks. Very short clips may give no result or a rough one.
+- **Time to settle.** The default engine waits for about 11.5 seconds of
+  audio before it locks. Very short clips may give no result or a rough one.
 - **Rhythm it can hear.** Ambient music, free tempo, rubato and irregular
   meters give no lock or no result.
 - **Browser rules.** An `AudioContext` starts only after a user gesture, and
@@ -209,7 +209,7 @@ The analysis runs on the device: the library sends no audio anywhere.
 ## Next
 
 - [How it works](/guide/how-it-works): the peak detection and interval
-  grouping behind the default engine.
+  grouping behind the `peaks` engine.
 - [Getting started](/guide/getting-started): installation and the first
   analyzer.
 - [API reference](/api/): every option and event.

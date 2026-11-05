@@ -141,7 +141,8 @@ describe('realtime-bpm-analyzer CLI', () => {
   });
 
   it('finds the bass-test fixture tempo the browser finds', async () => {
-    const {code, results: [result]} = await runJson([bassTest]);
+    // The pinned value is peaks' reading, so name peaks: the default engine reads this fixture differently
+    const {code, results: [result]} = await runJson(['--engine', 'peaks', bassTest]);
     assert.equal(code, 0);
     assert.equal(result.bpm, bassTestExpected.tempo);
   });
@@ -149,7 +150,9 @@ describe('realtime-bpm-analyzer CLI', () => {
   for (const [name, bpm] of [['bass-test.wav', bassTestExpected.tempo], ['click-128.mp3', 128], ['click-100.flac', 100], ['click-140.ogg', 140], ['click-140.opus', 140]]) {
     it(`decodes ${name} with the bundled decoder`, async () => {
       // An unusable FFMPEG_PATH proves no ffmpeg was involved
-      const {code, results: [result]} = await runJson([name === 'bass-test.wav' ? bassTest : fixture(name)], {FFMPEG_PATH: '/nonexistent/ffmpeg'});
+      // bass-test's pinned value is peaks' reading; the click tracks read the same on the default engine
+      const args = name === 'bass-test.wav' ? ['--engine', 'peaks', bassTest] : [fixture(name)];
+      const {code, results: [result]} = await runJson(args, {FFMPEG_PATH: '/nonexistent/ffmpeg'});
       assert.equal(code, 0);
       assert.equal(result.bpm, bpm);
     });

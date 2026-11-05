@@ -133,9 +133,22 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     const output = result.structuredContent;
     assert.equal(output.file, fixture('click-128.mp3'));
     near(output.bpm, 128);
+    assert.deepEqual(Object.keys(output), ['file', 'bpm', 'bpm_exact', 'confidence', 'candidates', 'engine']);
+    assert.ok(Math.abs(output.bpm_exact - output.bpm) <= 1.5, `got ${output.bpm_exact} for ${output.bpm}`);
     assert.ok(output.confidence > 0 && output.confidence <= 1, `got ${output.confidence}`);
     assert.deepEqual(output.candidates[0], {bpm: output.bpm, relation: 'top'});
     assert.deepEqual(JSON.parse(text(result)), output);
+  });
+
+  it('runs the library\'s default engine when none is named', async () => {
+    const path = fixture('click-128.mp3');
+    const {structuredContent: output} = await client.callTool({name: 'analyze_file', arguments: {path}});
+    const {channelData, sampleRate} = await decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
+    const reading = await analyzeChannelData(channelData, sampleRate);
+    assert.deepEqual(
+      {bpm: output.bpm, bpm_exact: output.bpm_exact, confidence: output.confidence, candidates: output.candidates, engine: output.engine},
+      {bpm: reading.bpm, bpm_exact: reading.bpmExact, confidence: reading.confidence, candidates: reading.candidates, engine: reading.engine},
+    );
   });
 
   it('expands ~ to the home folder', async () => {
@@ -153,21 +166,26 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     const call = (name, args) => client.callTool({name, arguments: args}).then(result => result.structuredContent);
     const path = fixture('click-128.mp3');
     const tempogram = await call('analyze_file', {path, engine: 'tempogram'});
-    const peaks = await call('analyze_file', {path});
+    const peaks = await call('analyze_file', {path, engine: 'peaks'});
 
+    assert.equal(tempogram.engine, 'tempogram');
+    assert.equal(peaks.engine, 'peaks');
     near(tempogram.bpm, 128);
-    // Both read 128: only the candidates show which engine ran. On 5.4.0 the library ignored
-    // the option and ran peaks, so check them against its tempogram on the same samples.
+    // Both read 128, and `engine` only echoes the label. On 5.4.0 the library ignored the option and
+    // ran peaks, so check the numbers against its tempogram on the same samples.
     assert.notDeepEqual({confidence: tempogram.confidence, candidates: tempogram.candidates}, {confidence: peaks.confidence, candidates: peaks.candidates});
     const {channelData, sampleRate} = await decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
     const reading = await analyzeChannelData(channelData, sampleRate, {engine: 'tempogram'});
-    assert.deepEqual({confidence: tempogram.confidence, candidates: tempogram.candidates}, {confidence: reading.confidence, candidates: reading.candidates});
+    assert.deepEqual(
+      {bpm_exact: tempogram.bpm_exact, confidence: tempogram.confidence, candidates: tempogram.candidates},
+      {bpm_exact: reading.bpmExact, confidence: reading.confidence, candidates: reading.candidates},
+    );
 
     const directory = dirname(path);
     const folder = await call('analyze_folder', {directory, engine: 'tempogram'});
     const inFolder = folder.results.find(result => result.file === path);
 
-    assert.deepEqual(inFolder.candidates, tempogram.candidates);
+    assert.deepEqual(inFolder, {...tempogram, ok: true});
   });
 
   it('answers while a long file is analysed, and stops it when the client cancels', async () => {

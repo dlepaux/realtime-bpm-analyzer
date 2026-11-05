@@ -19,8 +19,8 @@ npx realtime-bpm-analyzer-cli song.mp3
 ```
 
 ```text
-song.mp3: 128 BPM (confidence 0.46)
-  candidates: 128, 171, 96
+song.mp3: 128 BPM (tempogram, confidence 0.46)
+  candidates: 128, 64 (half), 171
 ```
 
 Installed globally (`npm install -g realtime-bpm-analyzer-cli`), the command is also
@@ -39,7 +39,7 @@ contents sorted by path. A file that fails is reported and the batch goes on.
 | `-r, --recursive` | Walk sub-folders                                               |
 | `--min-bpm <bpm>` | Lowest tempo reported (default 90)                             |
 | `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`) |
-| `--engine <name>` | `peaks` (default) or `tempogram`, which searches `--min-bpm`..`--max-bpm` instead of folding into it: from about twice `--min-bpm` a tempo can read half, as over about 179 BPM does by default |
+| `--engine <name>` | `tempogram` (default) or `peaks`. The tempogram searches `--min-bpm`..`--max-bpm` instead of folding into it: from about twice `--min-bpm` a tempo can read half, as over about 179 BPM does by default |
 | `-h, --help`      | Show the help                                                  |
 | `-v, --version`   | Show the version                                               |
 
@@ -55,17 +55,30 @@ and `2` for a usage error, such as an unknown option or an invalid tempo range.
       "file": "music/song.mp3",
       "ok": true,
       "bpm": 128,
+      "bpmExact": 127.96,
       "confidence": 0.459,
-      "candidates": [{"bpm": 128, "relation": "top"}, {"bpm": 171, "relation": "other"}]
+      "candidates": [{"bpm": 128, "relation": "top"}, {"bpm": 171, "relation": "other"}],
+      "engine": "tempogram"
     },
     {"file": "music/broken.mp3", "ok": false, "error": "No audio samples decoded (mp3)."}
   ]
 }
 ```
 
-`bpm` and `confidence` come from the reading and are `null` when no beat
-was found. `candidates` are the reading's candidates, each a `bpm` and its
-`relation` to the reading's tempo (`top`, `half`, `double` or `other`).
+Each result carries the fields of the library's [reading](./core-concepts#bpm-candidates), and they
+mean the same thing:
+
+- `bpm`: the tempo, a whole number. `null` when no beat was found, as are the fields below.
+- `bpmExact`: the same tempo unrounded, for timing (a beat grid, markers). Show `bpm`.
+- `confidence`: from 0 to 1, uncalibrated for now. Each engine scores it its own way, so
+  compare values from one engine only, set no fixed cut-off and don't read it as a probability.
+- `candidates`: each a `bpm` and its `relation` to the reading's tempo (`top`, `half`,
+  `double` or `other`). Empty when no beat was found.
+- `engine`: the engine that measured it.
+
+A file has no analyzer state, so there is no `status`: the result is a reading or nothing.
+
+<!-- RBA-106: calibration gives confidence its meaning, or removes it. Update the confidence line then. -->
 
 ## Formats and decoders
 

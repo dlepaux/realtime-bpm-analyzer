@@ -54,20 +54,32 @@ tracks in ~/Music/house slower than 124 BPM."
 | `path`    | The audio file. Absolute, or starting with `~` for the home folder |
 | `min_bpm` | Lowest tempo reported (default 90)                                |
 | `max_bpm` | Highest tempo reported (default 180, at least 2 × `min_bpm`)      |
-| `engine` | `peaks` (default) or `tempogram`, which searches `min_bpm`..`max_bpm` instead of folding into it: from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default |
+| `engine` | `tempogram` (default) or `peaks`. The tempogram searches `min_bpm`..`max_bpm` instead of folding into it: from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default |
 
 ```json
 {
   "file": "/Users/me/Music/song.mp3",
   "bpm": 128,
+  "bpm_exact": 127.96,
   "confidence": 0.459,
-  "candidates": [{"bpm": 128, "relation": "top"}, {"bpm": 171, "relation": "other"}]
+  "candidates": [{"bpm": 128, "relation": "top"}, {"bpm": 171, "relation": "other"}],
+  "engine": "tempogram"
 }
 ```
 
-`bpm` and `confidence` come from the reading and are `null` when no beat was
-found. Each candidate is a `bpm` and its `relation` to that tempo (`top`, `half`,
-`double` or `other`). A file that cannot be analysed returns a tool error with a one-line reason.
+The fields are the library's [reading](./core-concepts#bpm-candidates), named in snake_case:
+
+- `bpm`: the tempo, a whole number. `null` when no beat was found, as are the fields below.
+- `bpm_exact`: the same tempo unrounded, for timing (a beat grid, markers).
+- `confidence`: from 0 to 1, uncalibrated for now. Each engine scores it its own way, so
+  compare values from one engine only, set no fixed cut-off and don't read it as a probability.
+- `candidates`: each a `bpm` and its `relation` to that tempo (`top`, `half`, `double` or
+  `other`). Empty when no beat was found.
+- `engine`: the engine that measured it.
+
+A file that cannot be analysed returns a tool error with a one-line reason.
+
+<!-- RBA-106: calibration gives confidence its meaning, or removes it. Update the confidence line then. -->
 
 ### `analyze_folder`
 
@@ -82,7 +94,7 @@ found. Each candidate is a `bpm` and its `relation` to that tempo (`top`, `half`
 {
   "directory": "/Users/me/Music",
   "results": [
-    {"file": "/Users/me/Music/a.mp3", "ok": true, "bpm": 128, "confidence": 0.459, "candidates": [{"bpm": 128, "relation": "top"}]},
+    {"file": "/Users/me/Music/a.mp3", "ok": true, "bpm": 128, "bpm_exact": 127.96, "confidence": 0.459, "candidates": [{"bpm": 128, "relation": "top"}], "engine": "tempogram"},
     {"file": "/Users/me/Music/b.mp3", "ok": false, "error": "No audio samples decoded (mp3)."}
   ],
   "total": 2,

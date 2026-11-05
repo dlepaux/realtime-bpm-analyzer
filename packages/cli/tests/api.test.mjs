@@ -3,16 +3,24 @@
 import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync, spawnSync} from 'node:child_process';
-import {copyFile, mkdtemp, readFile, rm} from 'node:fs/promises';
+import {copyFile, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import {analyzeFile, audioExtensions, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
 // Built for the tests and not published
 import {decodeFile} from '../dist/decode.mjs';
+import {clickWav} from './click-wav.mjs';
 
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 const packageDir = fileURLToPath(new URL('..', import.meta.url));
+
+/**
+ * @param result A CLI result or a library reading
+ * @returns The fields the two share, so a test compares them one for one
+ */
+const readingFields = ({bpm, bpmExact, confidence, candidates, engine}) => ({bpm, bpmExact, confidence, candidates, engine});
 
 describe('realtime-bpm-analyzer-cli programmatic API', () => {
   it('analyses a file into the result the CLI prints', async () => {
@@ -38,7 +46,8 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
       const {channelData, sampleRate} = await decode();
       const result = await analyzeFile(path, {engine});
       const reading = await analyzeChannelData(channelData, sampleRate, {engine});
-      assert.deepEqual({bpm: result.bpm, confidence: result.confidence, candidates: result.candidates}, {bpm: reading.bpm, confidence: reading.confidence, candidates: reading.candidates}, engine);
+      assert.deepEqual(readingFields(result), readingFields(reading), engine);
+      assert.equal(result.engine, engine);
     }
 
     const {channelData, sampleRate} = await decode();
@@ -46,6 +55,25 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
       await analyzeChannelData(channelData, sampleRate, {engine: 'tempogram'}),
       await analyzeChannelData(channelData, sampleRate, {engine: 'peaks'}),
     );
+  });
+
+  it('runs the library\'s default engine when none is named', async () => {
+    // The CLI names no engine of its own, so it follows the library when its default changes
+    const path = fixture('click-128.mp3');
+    const {channelData, sampleRate} = await decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
+    assert.deepEqual(readingFields(await analyzeFile(path)), readingFields(await analyzeChannelData(channelData, sampleRate)));
+  });
+
+  it('reports no beat as null fields and no candidates', async () => {
+    const path = join(await mkdtemp(join(tmpdir(), 'rba-cli-silence-')), 'silence.wav');
+    try {
+      // 8-bit PCM is silent at 128: the click file's header over flat samples
+      await writeFile(path, clickWav(44_100, 5 * 44_100).fill(128, 44));
+      const result = await analyzeFile(path, {engine: 'peaks'});
+      assert.deepEqual(result, {file: path, ok: true, bpm: null, bpmExact: null, confidence: null, candidates: [], engine: null});
+    } finally {
+      await rm(join(path, '..'), {recursive: true, force: true});
+    }
   });
 
   it('asks for a range the workspace library\'s own version satisfies', async () => {

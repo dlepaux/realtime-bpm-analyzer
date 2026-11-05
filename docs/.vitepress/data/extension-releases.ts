@@ -6,6 +6,15 @@ import type { ExtensionRelease } from '../tools/extension-pages'
 // listener, in their words, not how it was built.
 export const extensionReleases: readonly ExtensionRelease[] = [
   {
+    version: '1.1.0',
+    title: 'A settings page, and a pill that fills with colour',
+    notes: [
+      'The extension has a settings page. To open it, right-click the toolbar button and choose Options (Extension options in Edge). There you choose how the pill shows its progress: the whole pill filling with colour, or a thin line along its bottom edge. Your choice applies right away, even to a pill already on screen, and it stays in this browser, on this device.',
+      'By default the whole pill now fills as it listens: grey while it waits for a first tempo, amber while the tempo settles, green once it is stable. If you liked the thin line, it is one choice away on the settings page.',
+      'When the computer is too busy to keep up and some of the sound gets lost, the tempo now stays settling instead of being marked stable, because the number may be off. The caption under the tempo is easier to read, the dots of the move handle are no longer cut off, and stopping now always ends the analysis, even when the browser is slow to answer.',
+    ],
+  },
+  {
     version: '1.0.0',
     title: 'The live BPM, on the player',
     notes: [

@@ -14,25 +14,35 @@ import {errorMessage} from './errors';
 export type {Candidate, CandidateRelation, EngineName, TempoRange} from 'realtime-bpm-analyzer/node';
 
 export type FileResult =
-  | {
-    readonly file: string;
-    readonly ok: true;
-    /** The reading's tempo, a whole number of BPM, or null when no beat was found */
-    readonly bpm: number | null;
-    /** The same tempo unrounded, for timing (a beat grid, markers), or null when no beat was found */
-    readonly bpmExact: number | null;
-    /**
-     * From 0 to 1, or null when no beat was found. Uncalibrated for now: each engine's own score, so compare
-     * values from one engine only and set no absolute cut-off. Not a probability.
-     */
-    // RBA-106: calibration gives this its meaning, or removes it. Keep this doc in step with Reading.confidence.
-    readonly confidence: number | null;
-    /** At most 5, best first, each with its relation to the top one; empty when no beat was found */
-    readonly candidates: readonly Candidate[];
-    /** The engine that measured the reading, or null when no beat was found */
-    readonly engine: EngineName | null;
-  }
+  | ({readonly file: string; readonly ok: true} & (FoundReading | NoReading))
   | {readonly file: string; readonly ok: false; readonly error: string};
+
+/** A file where a beat was found: every field of the reading is set */
+export type FoundReading = {
+  /** The reading's tempo, a whole number of BPM */
+  readonly bpm: number;
+  /** The same tempo unrounded, for timing (a beat grid, markers) */
+  readonly bpmExact: number;
+  /**
+   * From 0 to 1. Uncalibrated for now: each engine's own score, so compare
+   * values from one engine only and set no absolute cut-off. Not a probability.
+   */
+  // RBA-106: calibration gives this its meaning, or removes it. Keep this doc in step with Reading.confidence.
+  readonly confidence: number;
+  /** At most 5, best first, each with its relation to the top one */
+  readonly candidates: readonly Candidate[];
+  /** The engine that measured the reading */
+  readonly engine: EngineName;
+};
+
+/** A file where no beat was found: the reading's fields are all null and there are no candidates */
+export type NoReading = {
+  readonly bpm: null;
+  readonly bpmExact: null;
+  readonly confidence: null;
+  readonly candidates: readonly [];
+  readonly engine: null;
+};
 
 export type AnalyzeOptions = {
   /** Tempo range to fold candidates into, or to search with the tempogram; the library's default when omitted */
@@ -80,15 +90,12 @@ function successResult(file: string, reading: OfflineResult): FileResult {
   // The reading's fields, flat, so a script reads `bpm` whether or not a beat was found. Two are left
   // out: a file has no analyzer state (the offline result is a reading or null), and `audio` would
   // only repeat the file's length, with a context time that is always null offline.
-  return {
-    file,
-    ok: true,
-    bpm: reading?.bpm ?? null,
-    bpmExact: reading?.bpmExact ?? null,
-    confidence: reading?.confidence ?? null,
-    candidates: reading?.candidates ?? [],
-    engine: reading?.engine ?? null,
-  };
+  if (reading === null) {
+    return {file, ok: true, bpm: null, bpmExact: null, confidence: null, candidates: [], engine: null};
+  }
+
+  const {bpm, bpmExact, confidence, candidates, engine} = reading;
+  return {file, ok: true, bpm, bpmExact, confidence, candidates, engine};
 }
 
 /**

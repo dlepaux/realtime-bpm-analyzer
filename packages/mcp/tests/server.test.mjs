@@ -151,6 +151,18 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     );
   });
 
+  it('reports no beat as null fields that pass the declared output schema', async () => {
+    // The SDK checks structuredContent against the tool's outputSchema, so a schema that refused these nulls fails the call
+    const path = join(scratch, 'silence.wav');
+    // 8-bit PCM is silent at 128: the click file's header over flat samples
+    await writeFile(path, clickWav(44_100, 5 * 44_100).fill(128, 44));
+    for (const engine of ['peaks', 'tempogram', undefined]) {
+      const result = await client.callTool({name: 'analyze_file', arguments: engine === undefined ? {path} : {path, engine}});
+      assert.equal(result.isError, undefined, text(result));
+      assert.deepEqual(result.structuredContent, {file: path, bpm: null, bpm_exact: null, confidence: null, candidates: [], engine: null}, String(engine));
+    }
+  });
+
   it('expands ~ to the home folder', async () => {
     const homeClient = await connect(scratch, fixtures);
     try {

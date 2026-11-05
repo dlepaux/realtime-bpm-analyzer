@@ -247,6 +247,8 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
     track('bpm_file_result', {
       input_method: inputMethod,
       bpm: fileBpm.value,
+      // Which engine read it: the v6 default moved to the tempogram, and the series splits on this (RBA-108)
+      engine: reading.engine,
       duration_s: Math.round(fileDuration.value),
       elapsed_ms: fileElapsedMs.value,
     })
@@ -339,7 +341,7 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
       // The analyzer can lock again after it unlocks or loses the pulse: report a tempo only
       // when it differs from the locked tempo last shown, which readings keep current while locked,
       // so a relock on the same tempo sends nothing (RBA-5).
-      if (bpm !== micStableBpm.value) track('bpm_mic_locked', { bpm })
+      if (bpm !== micStableBpm.value) track('bpm_mic_locked', { bpm, engine: to.reading.engine })
       micStableBpm.value = bpm
       micStatus.value = 'result'
     })
@@ -417,7 +419,7 @@ function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: StreamEvent
   analyzer.on('statechange', ({ to }) => {
     if (to.status !== 'locked') return
     const bpm = Math.round(to.reading.bpm)
-    if (bpm !== streamStableBpm.value) track('bpm_stream_locked', { bpm, ...stableParams })
+    if (bpm !== streamStableBpm.value) track('bpm_stream_locked', { bpm, engine: to.reading.engine, ...stableParams })
     streamStableBpm.value = bpm
   })
 }

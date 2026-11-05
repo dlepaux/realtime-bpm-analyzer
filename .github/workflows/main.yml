@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - main
+  # Every base, so a PR stacked on a long-lived branch (v6 work stacks on #323) gets the same checks.
+  # Release and Deploy run only for main and never for a pull_request event, so no PR publishes or deploys.
   pull_request:
-    branches:
-      - main
   # Manual retry when a release fails after its commit landed (e.g. npm's provenance step).
   workflow_dispatch:
 
@@ -453,7 +453,8 @@ jobs:
     name: Deploy Documentation
     # A red marker check holds the deploy: branch protection requires no status checks.
     needs: [docs, markers]
-    if: github.event_name != 'pull_request'
+    # main only, as Release: a dispatch on another branch would otherwise publish that branch's site
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

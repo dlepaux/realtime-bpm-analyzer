@@ -193,6 +193,63 @@ describe('Calibration', () => {
     expect(calibrate('peaks', -0.2, 120)).to.equal(calibrate('peaks', 0, 120));
   });
 
+  it('ships exactly the tables the benchmark committed, in results/rba-106-calibration-dev.json', async () => {
+    const response = await fetch(new URL('../../../benchmark/results/rba-106-calibration-dev.json', import.meta.url));
+    type Committed = {readonly all: unknown; readonly bands: Readonly<Record<string, unknown>>};
+    const {engines} = await response.json() as {engines: Record<EngineName, {tables: {realtime: Committed}}>};
+    // The results file names bands by their range; the library by where they start
+    const bandName: Readonly<Record<string, string>> = {'90-140': 'from90', '140-165': 'from140', '165 and over': 'from165'};
+    for (const engine of ['tempogram', 'peaks'] as const) {
+      const {all, bands} = engines[engine].tables.realtime;
+      const committedBands = Object.fromEntries(Object.entries(bands).map(([range, table]) => [bandName[range], table]));
+      expect(CALIBRATION[engine].all, engine).to.deep.equal(all);
+      expect(CALIBRATION[engine].bands, engine).to.deep.equal(committedBands);
+    }
+  });
+
+  it('starts each band at its lower edge, as calibration.py does', () => {
+    const {tempogram, peaks} = CALIBRATION;
+    const table = (points: ReadonlyArray<readonly [number, number]> | undefined, name: string) => {
+      if (points === undefined) {
+        throw new Error(`no ${name} table`);
+      }
+
+      return points;
+    };
+
+    // [engine, edge, the table just under it, the table from it]: a raw score on a table point reads that point exactly
+    const edges = [
+      ['peaks', 90, peaks.all, table(peaks.bands.from90, 'peaks from90')],
+      ['peaks', 140, table(peaks.bands.from90, 'peaks from90'), table(peaks.bands.from140, 'peaks from140')],
+      ['peaks', 165, table(peaks.bands.from140, 'peaks from140'), table(peaks.bands.from165, 'peaks from165')],
+      ['tempogram', 140, tempogram.all, table(tempogram.bands.from140, 'tempogram from140')],
+      ['tempogram', 165, table(tempogram.bands.from140, 'tempogram from140'), table(tempogram.bands.from165, 'tempogram from165')],
+    ] as const;
+    for (const [engine, edge, below, from] of edges) {
+      for (const [raw, chance] of [below[4], below[12]]) {
+        expect(calibrate(engine, raw, edge - 1), `${engine} ${raw} at ${edge - 1} BPM`).to.equal(chance);
+      }
+
+      for (const [raw, chance] of [from[4], from[12]]) {
+        expect(calibrate(engine, raw, edge), `${engine} ${raw} at ${edge} BPM`).to.equal(chance);
+      }
+    }
+  });
+
+  it('reads a raw score that is not a number as the bottom of the table, never the top', () => {
+    for (const engine of ['tempogram', 'peaks'] as const) {
+      expect(calibrate(engine, Number.NaN, 120), engine).to.equal(calibrate(engine, 0, 120));
+    }
+  });
+
+  it('picks the band from the reading\'s whole tempo, not the unrounded one', () => {
+    // bpm 140 and bpmExact 139.6 straddle the edge: the band is from140, as the fit used `bpm`
+    const tempo = {tempo: 140, exact: 139.6, count: 40, confidence: 0.3};
+    const audio = {from: 0, to: 10, contextTime: 10};
+    expect(toReading([tempo], audio, 'tempogram')?.confidence).to.equal(calibrate('tempogram', 0.3, 140));
+    expect(calibrate('tempogram', 0.3, 140)).to.not.equal(calibrate('tempogram', 0.3, 139));
+  });
+
   it('is what a reading carries as its confidence', () => {
     const tempo = {tempo: 150, exact: 150.2, count: 40, confidence: 0.3};
     const audio = {from: 0, to: 10, contextTime: 10};

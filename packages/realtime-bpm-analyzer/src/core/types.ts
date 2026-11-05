@@ -66,8 +66,8 @@ export type Tempo = {
    *
    * @remarks
    * A perfect click train scores about 0.46, not 1: each peak is paired with the next
-   * 9 peaks, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. Compare values against each other; no absolute
-   * cut-off has been calibrated on real music yet.
+   * 9 peaks, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. This is the raw score:
+   * a reading reports it mapped through `core/calibration.ts`, as the chance the reading is right.
    */
   readonly confidence: number;
 };

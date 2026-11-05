@@ -2,16 +2,20 @@ import type {EngineName} from '../contract/types';
 
 /**
  * RBA-106: maps each engine's raw score to the chance its reading is right (within 4% of the true tempo), so a
- * `Reading.confidence` of 0.8 is right about 80% of the time. Fitted on the benchmark's dev half only, under the
- * shipped HYSTERESIS: readings sampled at 10, 15, 20, 30 and 45 s and at the end of each track, so long tracks do
- * not weigh more. Results, method and ranges: benchmark/results/rba-106-calibration-dev.md. Not yet checked on
+ * `Reading.confidence` of 0.8 is right about 80% of the time. Fitted on the benchmark's dev half only, on the
+ * default 90 to 180 range, so dev had no reading under 90 BPM and none far over 180: a reading there gets the
+ * nearest table, unmeasured. Readings sampled at 10, 15, 20, 30 and 45 s and at the end of each track, so long
+ * tracks do not weigh more; peaks under the shipped HYSTERESIS, the tempogram with `pulseLostAfterSeconds` 3 (the
+ * readings are the same, only which were shown differs: see the results file). Results, method and ranges: benchmark/results/rba-106-calibration-dev.md. Not yet checked on
  * held-out data: that one check waits for a DECISION on RBA-106.
  *
  * Each table is [raw, calibrated] points with raw increasing and calibrated non-decreasing: read by linear
  * interpolation, flat past either end. A tempo band has its own table only where dev showed the shared one off
  * beyond the noise (benchmark/calibration.py fixed that rule before the data existed). Realtime and offline
  * readings share the tables: dev showed no gain from an offline one. These tables are data from the benchmark,
- * mirrored by benchmark/calibration.py's `apply_mapping`; regenerate them rather than edit them.
+ * mirrored by benchmark/calibration.py's `apply_mapping`; regenerate them rather than edit them. The fit takes the
+ * raw score, and `Reading.confidence` is now mapped: regenerating needs the raw top score recorded, not the
+ * reading's confidence, or the new tables would map calibrated values.
  */
 
 /** [raw, calibrated] */
@@ -127,5 +131,7 @@ function read(table: readonly Point[], raw: number): number {
  */
 export function calibrate(engine: EngineName, raw: number, bpm: number): number {
   const mapping = CALIBRATION[engine];
-  return read(mapping.bands[bandOf(bpm)] ?? mapping.all, Math.min(1, Math.max(0, raw)));
+  // A score that is not a number reads as no evidence, not as the top of the table, where every comparison failing would put it
+  const score = Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0;
+  return read(mapping.bands[bandOf(bpm)] ?? mapping.all, score);
 }

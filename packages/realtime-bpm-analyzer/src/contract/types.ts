@@ -173,7 +173,9 @@ export type Reading = {
    * offline, mean the same thing. A reading at half or double the tempo counts as wrong.
    *
    * Calibrated on the benchmark's dev half (RBA-106, benchmark/results/rba-106-calibration-dev.md). It is not yet
-   * checked on held-out data, so treat its exact values as an estimate for music like the benchmark's.
+   * checked on held-out data, so treat its exact values as an estimate for music like the benchmark's. Dev read on
+   * the default 90 to 180 range: a reading under 90 BPM, or far over 180 with a custom `tempoRange`, gets the nearest
+   * table, which no reading there measured.
    */
   readonly confidence: number;
   /**
@@ -451,8 +453,9 @@ export type Hysteresis = {
  * Swept on the benchmark's dev half and kept (RBA-106, benchmark/results/rba-v6-hysteresis-dev.md). The pick rule
  * runs per engine, and these numbers are shared. The tempogram's pick (the default engine) moves only
  * `pulseLostAfterSeconds`, to 3, which changes none of its measures. Peaks' pick, `pulseLostAfterSeconds` 1, sits at
- * the edge of its grid and drops to listening almost four times as often. Not checked on held-out data. Where each
- * value comes from:
+ * the edge of its grid and drops to listening almost four times as often. Neither pick is taken: one set of values
+ * serves both engines, the tempogram's pick changes nothing measured, and peaks' trades locks for its edge. Not
+ * checked on held-out data. Where each value comes from:
  * - `lockBand` 0.02 and `lockAfterSeconds` 8: the tempogram's 5.x stable rule (`stableTolerance`, `stableSeconds`:
  *   80% of the frames of the last 8 s agree within 2%, besides its lead and salience, which stay engine detail).
  *   The 2% is also the band rba-pro copied by hand to tell stable from settling (`reading.ts`, `STABLE_TOLERANCE`).

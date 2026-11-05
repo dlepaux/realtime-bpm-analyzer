@@ -1,4 +1,5 @@
 import type {CandidateRelation} from '../../src/contract/types';
+import type {HysteresisRecord} from './hysteresis';
 
 /**
  * One labelled recording of an evaluation set
@@ -53,6 +54,8 @@ export type TrackResult = {
   readonly confidence?: number | null;
   /** Each change of the top candidate as [seconds of audio, tempo, its confidence]. Absent before RBA-106's ensemble run */
   readonly readings?: ReadonlyArray<readonly [number, number, number]>;
+  /** RBA-106's hysteresis sweep, on its own detectors only */
+  readonly hysteresis?: HysteresisRecord;
 };
 
 export type Summary = {

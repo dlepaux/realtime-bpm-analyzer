@@ -25,6 +25,7 @@ import {decode, sampleRate, writeAtomic} from './lib/decode';
 import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
 import {UndecodableTrack, freeLookRefusal, lookDetectorRefusal, lookHeader, lookRefusal, lookScopeRefusal, progressRows, refusalOf, resumesLook, skippedTracks} from './lib/look';
 import type {RunFailure} from './lib/look';
+import {sweepTrack} from './lib/hysteresis';
 import {listen} from './lib/stream';
 import {workerCount} from './lib/workers';
 import type {TempogramTuning} from '../src/core/tempogram';
@@ -35,6 +36,10 @@ type Job = {readonly detector: string; readonly track: Track; readonly tuning?: 
 async function runJob({detector, track, tuning}: Job): Promise<TrackResult> {
   const config = detectors[detector];
   const raw = decode(track);
+  if (config.sweep !== undefined) {
+    return sweepTrack(track, raw, sampleRate, config.sweep);
+  }
+
   const pcm = config.lowpass ? applyLowpass(raw, sampleRate) : raw;
   const result = await listen(track, pcm, sampleRate, config.options, tuning ?? config.tuning);
 

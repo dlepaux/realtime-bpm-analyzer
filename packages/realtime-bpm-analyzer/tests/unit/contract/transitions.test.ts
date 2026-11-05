@@ -9,28 +9,29 @@ import {
   relationTo,
   type ReducerInput,
   type ReducerResult,
-} from '../../../src/v6/transitions';
+} from '../../../src/contract/transitions';
 import {
-  HYSTERESIS_PLACEHOLDER,
-  PROTOCOL_VERSION,
+  HYSTERESIS,
+  PROTOCOL,
   type ActiveStatus,
   type AnalyzerEvent,
   type AnalyzerState,
   type EngineReason,
   type Reading,
   type Status,
-} from '../../../src/v6/types';
+} from '../../../src/contract/types';
 
-const protocol = PROTOCOL_VERSION;
+const protocol = PROTOCOL;
 const active: ActiveStatus[] = ['listening', 'settling', 'locked'];
 const statuses: Status[] = [...active, 'stopped'];
 const engineReasons: EngineReason[] = ['first-reading', 'locked', 'unlocked', 'pulse-lost', 'audio-lost', 'tempo-changed'];
 
 const reading = (bpm = 128, to = 10): Reading => ({
   bpm,
+  bpmExact: bpm - 0.4,
   confidence: 0.8,
   candidates: [{bpm, relation: 'top'}, {bpm: bpm / 2, relation: 'half'}],
-  audio: {from: Math.max(0, to - 8), to},
+  audio: {from: Math.max(0, to - 8), to, contextTime: to + 3},
   engine: 'tempogram',
 });
 
@@ -93,7 +94,7 @@ describe('v6 transition table', () => {
   });
 
   it('keeps the unlock band wider than the lock band, whatever phase 3 sets', () => {
-    expect(HYSTERESIS_PLACEHOLDER.unlockBand).to.be.greaterThan(HYSTERESIS_PLACEHOLDER.lockBand);
+    expect(HYSTERESIS.unlockBand).to.be.greaterThan(HYSTERESIS.lockBand);
   });
 });
 
@@ -209,6 +210,7 @@ describe('v6 reducer: caller commands and faults', () => {
 
       expect(result.state).to.deep.equal({status: 'stopped', epoch: 0, error});
       expect(result.events[0].type === 'statechange' && result.events[0].detail.reason).to.equal('failed');
+      expect(result.post).to.deep.equal([{type: 'stop', protocol}]);
     });
   }
 
@@ -276,9 +278,10 @@ describe('v6 reducer: epochs and protocol', () => {
     }
   });
 
-  it('fails loudly on a processor of another protocol version, a 5.x one included', () => {
+  it('fails loudly on a processor of another protocol major, a 5.x one and a bare number included', () => {
     const fiveX = {type: 'bpmStable', data: {bpm: [{tempo: 128, count: 40, confidence: 0.3}], threshold: 0.6}};
-    for (const data of [fiveX, {type: 'ready', protocol: protocol + 1, epoch: 0}, 'ready', null]) {
+    const otherMajor = {major: protocol.major + 1, minor: protocol.minor};
+    for (const data of [fiveX, {type: 'ready', protocol: otherMajor, epoch: 0}, {type: 'ready', protocol: 1, epoch: 0}, 'ready', null]) {
       const result = reduce(stateOf('listening'), message(data));
       expect(result.state.status).to.equal('stopped');
       expect(result.state.status === 'stopped' && result.state.error?.name).to.equal('ProtocolError');
@@ -286,9 +289,41 @@ describe('v6 reducer: epochs and protocol', () => {
     }
   });
 
-  it('fails on malformed messages of the right protocol', () => {
+  it('accepts a known message from a later minor: a newer processor copy still talks', () => {
+    const state = stateOf('listening');
+    const newer = {major: protocol.major, minor: protocol.minor + 1};
+    const result = reduce(state, message({type: 'step', protocol: newer, epoch: 0, status: 'listening', progress: 0.25}));
+    expect(types(result.events)).to.deep.equal(['progress']);
+  });
+
+  it('passes a message type it does not know from a later minor, which may have added it', () => {
+    const newer = {major: protocol.major, minor: protocol.minor + 1};
+    for (const status of active) {
+      const state = stateOf(status);
+      const result = reduce(state, message({type: 'beat', protocol: newer, epoch: 0, time: 1.5}));
+      expect(result.state, status).to.equal(state);
+      expect(result.events, status).to.deep.equal([]);
+    }
+  });
+
+  it('fails on a message type it does not know from its own minor: a bug or a typo, not a feature', () => {
+    for (const type of ['beat', 'stpe']) {
+      expectProtocolError(stateOf('listening'), reduce(stateOf('listening'), message({type, protocol, epoch: 0})), type);
+    }
+  });
+
+  it('fails on a message type it does not know from another major', () => {
+    const otherMajor = {major: protocol.major + 1, minor: protocol.minor + 1};
+    expectProtocolError(stateOf('listening'), reduce(stateOf('listening'), message({type: 'beat', protocol: otherMajor, epoch: 0})));
+  });
+
+  it('fails on a message type it does not know from a later minor, when it claims a future epoch', () => {
+    const newer = {major: protocol.major, minor: protocol.minor + 1};
+    expectProtocolError(stateOf('listening'), reduce(stateOf('listening'), message({type: 'beat', protocol: newer, epoch: 1})));
+  });
+
+  it('fails on malformed known messages, from a later minor too', () => {
     const bad = [
-      {type: 'unknown', protocol, epoch: 0},
       {type: 'step', protocol, epoch: 0, status: 'drifting'},
       {type: 'step', protocol, epoch: 0, status: 'listening', progress: 2},
       {type: 'step', protocol, epoch: 0, status: 'listening', progress: 0.1, reason: 'bored'},
@@ -298,8 +333,10 @@ describe('v6 reducer: epochs and protocol', () => {
       {type: 'debug', protocol, epoch: 0, data: 1},
     ];
     const state = stateOf('listening');
+    const newer = {major: protocol.major, minor: protocol.minor + 1};
     for (const data of bad) {
       expectProtocolError(state, reduce(state, message(data)), JSON.stringify(data));
+      expectProtocolError(state, reduce(state, message({...data, protocol: newer})), `newer ${JSON.stringify(data)}`);
     }
   });
 });
@@ -309,7 +346,7 @@ describe('v6 reading validation and relations', () => {
     const leaky = {...reading(), threshold: 0.6, candidates: [{bpm: 128, relation: 'top', count: 40}]};
     const read = readReading(leaky);
 
-    expect(read).to.deep.equal({bpm: 128, confidence: 0.8, candidates: [{bpm: 128, relation: 'top'}], audio: {from: 2, to: 10}, engine: 'tempogram'});
+    expect(read).to.deep.equal({bpm: 128, bpmExact: 127.6, confidence: 0.8, candidates: [{bpm: 128, relation: 'top'}], audio: {from: 2, to: 10, contextTime: 13}, engine: 'tempogram'});
     expect(Object.isFrozen(read) && Object.isFrozen(read?.candidates) && Object.isFrozen(read?.candidates[0]) && Object.isFrozen(read?.audio)).to.equal(true);
   });
 
@@ -317,17 +354,37 @@ describe('v6 reading validation and relations', () => {
     expect(readReading(reading())).to.deep.equal(reading());
     const invalid = [
       {...reading(), confidence: 1.2},
+      {...reading(), bpmExact: undefined},
+      {...reading(), bpmExact: Number.NaN},
+      {...reading(), bpmExact: 0},
+      {...reading(), bpmExact: 129.6},
+      {...reading(), bpmExact: 126.4},
       {...reading(), candidates: []},
       {...reading(), candidates: [{bpm: 128, relation: 'half'}]},
       {...reading(), candidates: [{bpm: 128, relation: 'top'}, {bpm: 64, relation: 'top'}]},
       {...reading(), candidates: Array.from({length: 6}, (_, i) => ({bpm: 128, relation: i === 0 ? 'top' : 'other'}))},
-      {...reading(), audio: {from: 5, to: 4}},
+      {...reading(), audio: {from: 5, to: 4, contextTime: null}},
+      {...reading(), audio: {from: 2, to: 10}},
+      {...reading(), audio: {from: 2, to: 10, contextTime: -1}},
+      {...reading(), audio: {from: 2, to: 10, contextTime: Number.POSITIVE_INFINITY}},
+      {...reading(), audio: {from: 2, to: 10, contextTime: '13'}},
       {...reading(), engine: 'magic'},
       {...reading(), candidates: [{bpm: 128, relation: 'top'}, {bpm: 90, relation: 'half'}]},
       {...reading(), candidates: [{bpm: 128, relation: 'top'}, {bpm: 64, relation: 'other'}]},
     ];
     for (const value of invalid) {
       expect(readReading(value), JSON.stringify(value)).to.equal(null);
+    }
+  });
+
+  it('takes a reading with no context clock, as offline gives it', () => {
+    const offline = {...reading(), audio: {from: 0, to: 30, contextTime: null}};
+    expect(readReading(offline)?.audio).to.deep.equal({from: 0, to: 30, contextTime: null});
+  });
+
+  it('takes an exact tempo up to 1.5 BPM from the whole one: the peaks window plus its rounding', () => {
+    for (const bpmExact of [126.5, 127.6, 128, 129.5]) {
+      expect(readReading({...reading(), bpmExact})?.bpmExact, String(bpmExact)).to.equal(bpmExact);
     }
   });
 
@@ -413,6 +470,22 @@ describe('v6 dispatch: order, late subscribers and re-entrancy', () => {
     expect(seen).to.deep.equal(['statechange', 'progress', 'statechange']);
     expect(analyzer.state().status).to.equal('stopped');
     expect(refusal).to.deep.include({name: 'InvalidStateError'});
+  });
+
+  it('refuses at once a reset() a listener queues behind its own stop()', () => {
+    const analyzer = harness();
+    let refusal: unknown = 'not called';
+    analyzer.listen(event => {
+      if (event.type === 'statechange' && event.detail.reason === 'first-reading') {
+        analyzer.apply({kind: 'stop'});
+        refusal = analyzer.apply({kind: 'reset'});
+      }
+    });
+    analyzer.apply(step('settling', 'first-reading'));
+
+    expect(refusal).to.deep.include({name: 'InvalidStateError'});
+    expect(analyzer.state().status).to.equal('stopped');
+    expect(analyzer.posted).to.deep.equal([{type: 'stop', protocol}]);
   });
 
   it('throws instead of looping when a listener resets on every statechange', () => {

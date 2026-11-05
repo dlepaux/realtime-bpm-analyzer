@@ -1,8 +1,6 @@
-import type {Tempo, AnalyzeFullBufferOptions} from './core/types';
-import {resolveDetector, resolveTempoRange} from './core/tempo';
+import type {OfflineOptions, OfflineResult} from './contract/types';
 import {applyLowpass} from './core/lowpass';
-import {detectTempo} from './core/detect-tempo';
-import {detectTempogram} from './core/tempogram';
+import {analyzeSamples} from './core/offline';
 
 // Entry point for runtimes without Web Audio (Node, Bun, Deno), published as
 // `realtime-bpm-analyzer/node`. It imports nothing that touches Web Audio or the DOM:
@@ -11,36 +9,42 @@ import {detectTempogram} from './core/tempogram';
 // with the caller, so this entry adds no runtime dependency.
 
 export {applyLowpass} from './core/lowpass';
+export {RELATION_TOLERANCE} from './contract/types';
 export type {
-  Tempo,
+  OfflineOptions,
+  OfflineEngineOption,
+  OfflineResult,
+  EngineName,
   TempoRange,
-  BiquadFilterOptions,
-  AnalyzeFullBufferOptions,
-  Detector,
-} from './core/types';
+  Reading,
+  Candidate,
+  CandidateRelation,
+  AudioSpan,
+} from './contract/types';
+export type {BiquadFilterOptions} from './core/types';
 
 /**
  * Detects the tempo of decoded PCM samples, without Web Audio.
  *
- * The Node counterpart of `analyzeFullBuffer`: it runs the same lowpass, peak detection and
- * tempo grouping, so it returns the same candidates for the same samples (see the parity
- * tests). `analyzeFullBuffer` analyses channel 0, so pass channel 0 to reproduce it, or a
- * mono downmix of your own.
+ * The Node counterpart of `analyzeFullBuffer`: the same lowpass coefficients, peak detection, tempogram and
+ * reading, so it returns the same reading for the same samples (see the parity tests). `analyzeFullBuffer`
+ * analyses channel 0, so pass channel 0 to reproduce it, or a mono downmix of your own.
  *
  * @param channelData - Decoded PCM samples of one channel, in [-1, 1]
  * @param sampleRate - Sample rate of `channelData` in Hz
- * @param options - Optional filter configuration, tempo range and detector, as for `analyzeFullBuffer`
- * @returns A promise that resolves to up to 5 tempo candidates, sorted by `count`
+ * @param options - The engine (default `tempogram`; lowpass settings for `peaks`) and the tempo range, as for
+ * `analyzeFullBuffer`
+ * @returns The reading, or null when no tempo was found
  * @throws {Error} When `channelData` is empty or not a Float32Array
- * @throws {RangeError} When the sample rate, filter options, `options.tempoRange` or `options.detector` are invalid
+ * @throws {RangeError} When the sample rate, `engine` or `tempoRange` is invalid
  *
  * @example
  * ```typescript
  * import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
  *
  * // channelData: Float32Array from any decoder (ffmpeg, a WAV reader, ...)
- * const tempos = await analyzeChannelData(channelData, 44100);
- * console.log('Detected BPM:', tempos[0]?.tempo);
+ * const reading = await analyzeChannelData(channelData, 44100);
+ * console.log('Detected BPM:', reading?.bpm);
  * ```
  *
  * @group Functions
@@ -48,19 +52,11 @@ export type {
 export async function analyzeChannelData(
   channelData: Float32Array,
   sampleRate: number,
-  options?: AnalyzeFullBufferOptions,
-): Promise<Tempo[]> {
+  options?: OfflineOptions,
+): Promise<OfflineResult> {
   if (!(channelData instanceof Float32Array) || channelData.length === 0) {
     throw new Error('Invalid channel data: expected a non-empty Float32Array.');
   }
 
-  if (resolveDetector(options?.detector) === 'tempogram') {
-    return detectTempogram(channelData, sampleRate, options?.tempoRange);
-  }
-
-  // Validate before filtering, so a bad range fails fast on long files
-  const tempoRange = resolveTempoRange(options?.tempoRange);
-  const filtered = applyLowpass(channelData, sampleRate, options);
-
-  return detectTempo(filtered, sampleRate, tempoRange);
+  return analyzeSamples(channelData, sampleRate, options, async lowpass => applyLowpass(channelData, sampleRate, lowpass));
 }

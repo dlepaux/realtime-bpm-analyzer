@@ -1,6 +1,6 @@
 ---
 title: What is Realtime BPM Analyzer?
-description: A zero-dependency TypeScript library for detecting tempo (BPM) in the browser from files, microphone, and live streams. AudioWorklet-native, < 5 KB gzipped, framework-agnostic.
+description: A zero-dependency TypeScript library for detecting tempo (BPM) in the browser from files, microphone, and live streams. AudioWorklet-native, framework-agnostic.
 ---
 
 # What is Realtime BPM Analyzer?
@@ -13,13 +13,13 @@ Realtime BPM Analyzer is a dependency-free TypeScript/JavaScript library that en
 Analyze BPM while audio or video is playing. Get instant feedback with both continuous updates and stable BPM detection events.
 
 ### ⚡ Zero Dependencies
-Built entirely on the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) with no external dependencies. This keeps the library lightweight (< 5KB gzipped) and ensures compatibility across modern browsers.
+Built entirely on the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) with no external dependencies, so it runs in modern browsers with nothing else to install.
 
-### 🎯 Accurate Detection
-Uses an advanced algorithm based on:
-- **Amplitude threshold scanning** - Detects peaks in the audio signal
-- **Interval analysis** - Identifies patterns in peak timing
-- **Tempo grouping** - Groups similar tempos and selects the best candidates
+### 🎯 Two Engines
+- **`tempogram`** (default) - Reads the tempo from an onset tempogram: spectral flux across several bands, and a sliding autocorrelation
+- **`peaks`** - Scans the low-passed signal for amplitude peaks, and groups the intervals between them into tempo candidates
+
+Both report the same reading, so switching is one option: `engine: 'peaks'`.
 
 ### 🎬 Multiple Input Sources
 Works with various audio sources:
@@ -34,14 +34,16 @@ Written in TypeScript with complete type definitions, so your editor autocomplet
 
 ## How It Works
 
-The library analyzes audio data in real-time using the Web Audio API's `AudioWorkletProcessor`. Here's a simplified flow:
+The library analyzes audio data in real-time using the Web Audio API's `AudioWorkletProcessor`. Here's a simplified flow, with the `peaks` engine:
 
 1. **Audio Input** → Audio is captured from your source
-2. **Filtering** → Optional low-pass filter to isolate bass frequencies
+2. **Filtering** → A low-pass filter isolates bass frequencies (the `tempogram` engine keeps the full band)
 3. **Peak Detection** → Identifies peaks in the audio signal at various threshold levels
 4. **Interval Analysis** → Calculates time intervals between peaks
 5. **BPM Calculation** → Converts intervals to BPM and groups similar tempos
-6. **Result Output** → Emits BPM candidates with vote counts and a confidence share
+6. **Result Output** → Emits a reading: the tempo, and up to five candidates with their relation to it
+
+The default `tempogram` engine replaces steps 2 to 5: it measures how the spectrum changes from frame to frame across several bands, and finds the tempo that repeats in it. Both engines end at the same reading.
 
 ## Use Cases
 

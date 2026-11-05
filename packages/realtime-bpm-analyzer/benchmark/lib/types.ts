@@ -1,3 +1,6 @@
+import type {CandidateRelation} from '../../src/contract/types';
+import type {HysteresisRecord} from './hysteresis';
+
 /**
  * One labelled recording of an evaluation set
  */
@@ -41,14 +44,18 @@ export type TrackResult = {
   readonly firstReadingAt: number | null;
   /** Seconds of audio heard before the first reading within ±4% */
   readonly firstCorrectAt: number | null;
-  /** Each `bpmStable` reading as [seconds of audio, top candidate] */
+  /** Each move to `locked` as [seconds of audio, its bpm] (5.x: each `bpmStable`) */
   readonly stable: ReadonlyArray<readonly [number, number]>;
   /** Top candidate of the offline path, on detectors that have one */
   readonly offline?: number | null;
-  /** The last `bpm` event's candidates as [tempo, confidence], best first. Absent before RBA-106's ensemble run */
-  readonly candidates?: ReadonlyArray<readonly [number, number]>;
+  /** The last reading's candidates as [bpm, relation to the top], top first. Absent before RBA-106's ensemble run */
+  readonly candidates?: ReadonlyArray<readonly [number, CandidateRelation]>;
+  /** The last reading's confidence, null when the detector never gave a reading */
+  readonly confidence?: number | null;
   /** Each change of the top candidate as [seconds of audio, tempo, its confidence]. Absent before RBA-106's ensemble run */
   readonly readings?: ReadonlyArray<readonly [number, number, number]>;
+  /** RBA-106's hysteresis sweep, on its own detectors only */
+  readonly hysteresis?: HysteresisRecord;
 };
 
 export type Summary = {
@@ -59,11 +66,11 @@ export type Summary = {
   readonly medianFirstCorrect: number | null;
   /** Share of tracks read correctly at some point */
   readonly everCorrect: number;
-  /** Share of all `bpmStable` readings outside ±4% */
+  /** Share of all locks (5.x: `bpmStable`) outside ±4% */
   readonly falseStable: number | null;
-  /** Same, keeping only the first `bpmStable` of each track, so chatty tracks do not dominate */
+  /** Same, keeping only the first lock of each track, so chatty tracks do not dominate */
   readonly falseFirstStable: number | null;
-  /** Share of tracks with at least one `bpmStable`: a detector that never says stable has no false stables */
+  /** Share of tracks with at least one lock: a detector that never locks has no false stables */
   readonly stableCoverage: number;
   readonly stableReadings: number;
   /** Offline path accuracy, when the detector has one */

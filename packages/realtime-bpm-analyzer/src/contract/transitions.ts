@@ -4,7 +4,7 @@
  * Design note: `./readme.md`.
  */
 import {
-  PROTOCOL_VERSION,
+  PROTOCOL,
   RELATION_TOLERANCE,
   type ActiveStatus,
   type AnalyzerError,
@@ -19,6 +19,7 @@ import {
   type StateChangeReason,
   type Status,
 } from './types';
+import {compatibleProtocol, describeProtocol, mayAddTypes} from './protocol';
 
 /** Who may ask for a transition: the engine in a worklet message, the caller, or a fatal fault. */
 export type TransitionSource = 'engine' | 'caller' | 'fault';
@@ -81,6 +82,8 @@ export function initialState(): AnalyzerState {
   return {status: 'listening', epoch: 0, progress: 0, reason: 'started'};
 }
 
+const resetAfterStop: Refusal = {name: 'InvalidStateError', message: 'reset() after stop()'};
+
 const unchanged = (state: AnalyzerState): ReducerResult => ({state, events: [], post: [], refused: null});
 
 function transition(from: AnalyzerState, to: AnalyzerState, reason: StateChangeReason): AnalyzerEvent {
@@ -89,7 +92,10 @@ function transition(from: AnalyzerState, to: AnalyzerState, reason: StateChangeR
 
 function fail(state: AnalyzerState, error: AnalyzerError): ReducerResult {
   const to: AnalyzerState = {status: 'stopped', epoch: state.epoch, error};
-  return {state: to, events: [transition(state, to, 'failed')], post: [], refused: null};
+  // The processor is told too: a failure seen on the main thread (no ready, a protocol violation, the watchdog)
+  // would otherwise leave it analysing for an analyzer that reports nothing more. A processor that failed
+  // itself has stopped already, and ignores it.
+  return {state: to, events: [transition(state, to, 'failed')], post: [{type: 'stop', protocol: PROTOCOL}], refused: null};
 }
 
 const protocolError = (state: AnalyzerState, message: string) => fail(state, freeze({name: 'ProtocolError', message}));
@@ -105,7 +111,7 @@ function assertNever(value: never): never {
 export function reduce(state: AnalyzerState, input: ReducerInput): ReducerResult {
   if (state.status === 'stopped') {
     return input.kind === 'reset'
-      ? {...unchanged(state), refused: {name: 'InvalidStateError', message: 'reset() after stop()'}}
+      ? {...unchanged(state), refused: resetAfterStop}
       : unchanged(state);
   }
 
@@ -115,13 +121,13 @@ export function reduce(state: AnalyzerState, input: ReducerInput): ReducerResult
       return {
         state: to,
         events: [transition(state, to, 'reset'), {type: 'progress', detail: {fraction: 0}}],
-        post: [{type: 'reset', protocol: PROTOCOL_VERSION, epoch: to.epoch}],
+        post: [{type: 'reset', protocol: PROTOCOL, epoch: to.epoch}],
         refused: null,
       };
     }
     case 'stop': {
       const to: AnalyzerState = {status: 'stopped', epoch: state.epoch, error: null};
-      return {state: to, events: [transition(state, to, 'stopped')], post: [{type: 'stop', protocol: PROTOCOL_VERSION}], refused: null};
+      return {state: to, events: [transition(state, to, 'stopped')], post: [{type: 'stop', protocol: PROTOCOL}], refused: null};
     }
     case 'fault':
       return fail(state, input.error);
@@ -133,8 +139,10 @@ export function reduce(state: AnalyzerState, input: ReducerInput): ReducerResult
 }
 
 function reduceMessage(state: ActiveState, data: unknown): ReducerResult {
-  if (!isRecord(data) || data.protocol !== PROTOCOL_VERSION) {
-    return protocolError(state, `processor protocol is not ${PROTOCOL_VERSION}: a stale processor file?`);
+  const protocol = isRecord(data) ? compatibleProtocol(data.protocol) : null;
+  if (!isRecord(data) || protocol === null) {
+    const theirs = describeProtocol(isRecord(data) ? data.protocol : undefined);
+    return protocolError(state, `processor protocol ${theirs} is not ${PROTOCOL.major}.x: a stale processor file?`);
   }
 
   // A fatal fault ends the processor whatever epoch it was sent in: dropping it as stale would leave the
@@ -169,7 +177,11 @@ function reduceMessage(state: ActiveState, data: unknown): ReducerResult {
     case 'step':
       return reduceStep(state, data);
     default:
-      return protocolError(state, `unknown message type ${JSON.stringify(data.type)}`);
+      // Only a later minor may have added a type: from a newer processor copy it is a feature this side lacks,
+      // from the same or an older one a bug or a typo (ProtocolVersion)
+      return mayAddTypes(protocol)
+        ? unchanged(state)
+        : protocolError(state, `unknown message type ${JSON.stringify(data.type)} from protocol ${describeProtocol(protocol)}`);
   }
 }
 
@@ -243,6 +255,9 @@ function readCandidate(value: unknown, index: number, top: number): Candidate | 
   return value.relation === expected && (index > 0 || value.bpm === top) ? freeze({bpm: value.bpm, relation: expected}) : null;
 }
 
+/** How far `bpmExact` may sit from `bpm`: the peaks engine's ±1 BPM window, plus half a BPM of rounding */
+const EXACT_TEMPO_SPAN = 1.5;
+
 /**
  * Checks the guarantees `Reading` documents, and rebuilds it from the known fields only, frozen: an engine
  * field added by mistake never reaches the public API.
@@ -252,23 +267,29 @@ export function readReading(value: unknown): Reading | null {
     return null;
   }
 
-  const {bpm, confidence, candidates, audio, engine} = value;
+  const {bpm, bpmExact, confidence, candidates, audio, engine} = value;
+  if (!isPositive(bpmExact) || Math.abs(bpmExact - bpm) > EXACT_TEMPO_SPAN) {
+    return null;
+  }
+
   if (!Array.isArray(candidates) || candidates.length === 0 || candidates.length > 5) {
     return null;
   }
 
   const read = candidates.map((candidate: unknown, index) => readCandidate(candidate, index, bpm));
   const audioOk = isRecord(audio) && typeof audio.from === 'number' && typeof audio.to === 'number'
-    && audio.from >= 0 && audio.from <= audio.to && Number.isFinite(audio.to);
+    && audio.from >= 0 && audio.from <= audio.to && Number.isFinite(audio.to)
+    && (audio.contextTime === null || (typeof audio.contextTime === 'number' && Number.isFinite(audio.contextTime) && audio.contextTime >= 0));
   if (read.includes(null) || !audioOk || (engine !== 'peaks' && engine !== 'tempogram')) {
     return null;
   }
 
   return freeze({
     bpm,
+    bpmExact,
     confidence,
     candidates: freeze(read as Candidate[]),
-    audio: freeze({from: audio.from as number, to: audio.to as number}),
+    audio: freeze({from: audio.from as number, to: audio.to as number, contextTime: audio.contextTime as number | null}),
     engine,
   });
 }
@@ -316,8 +337,10 @@ export function createDispatcher(
 
   const apply = (input: ReducerInput): Refusal | null => {
     if (dispatching) {
-      if (input.kind === 'reset' && state.status === 'stopped') {
-        return reduce(state, input).refused;
+      // A stop or a fault queued ahead ends the dispatch stopped: the reset after it must throw now, as it
+      // would once stopped, rather than be refused in the loop where nobody reads the refusal
+      if (input.kind === 'reset' && (state.status === 'stopped' || queue.some(({kind}) => kind === 'stop' || kind === 'fault'))) {
+        return resetAfterStop;
       }
 
       if (queue.length >= MAX_QUEUED_COMMANDS) {

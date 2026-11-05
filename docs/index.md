@@ -113,14 +113,14 @@ Producers check BPM to build remixes. Dancers count BPM to choose routines.
 ### How does it work?
 
 The analyzer uses the **Web Audio API** to decode audio directly in your browser,
-applies a low-pass filter to isolate the low-frequency transients that usually
-carry the beat, and counts the intervals between detected peaks. The most frequent
-interval gives the BPM. The analysis happens on your device.
+and measures how the sound changes from moment to moment across several frequency
+bands. The tempo is the spacing that repeats most in those changes. The analysis
+happens on your device.
 
 ### Is my audio sent to a server?
 
 **No.** Files you drop, microphone input and stream audio are all analysed in
-your browser by the open-source library, which sends nothing anywhere. Your audio
+your browser by the open-source library, which sends no audio anywhere. Your audio
 never leaves your device. The website uses Google Analytics to record how the
 tool is used, such as the tempo found and, for a file, its size, type and duration. It
 never records the file, its sound or its name. [Website Privacy](/website-privacy)
@@ -157,10 +157,11 @@ Works with vanilla JS, React, Vue, or any modern framework.
 
 - **Real time or whole file.** Follow a playing track, a microphone or a stream
   as it plays, or analyse a whole file at once.
-- **Peak and interval analysis.** Low-pass filtered peaks, grouped by the
-  intervals between them, give the tempo candidates.
-- **Configurable.** Tune the thresholds, the stabilisation time and the
-  analysis parameters to your use case.
+- **Two engines, one reading.** The default `tempogram` engine reads the tempo
+  from changes across several frequency bands; `engine: 'peaks'` groups the
+  intervals between low-passed peaks instead. Both report the same fields.
+- **Configurable.** Pick the engine, the tempo range and how often the
+  analysis starts over, to suit your use case.
 
 ### Install
 
@@ -176,25 +177,27 @@ import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 // Create audio context
 const audioContext = new AudioContext();
 
-// Create the BPM analyzer processor
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+// Create the BPM analyzer
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
 // Set up audio source
 const track = document.getElementById('audio') as HTMLAudioElement;
 const source = audioContext.createMediaElementSource(track);
 
-// Connect nodes: the analyzer's input holds the low-pass filter it needs
-source.connect(bpmAnalyzer.input);
+// Connect nodes: the analyzer's input holds whatever its engine needs in front of it
+source.connect(analyzer.input);
 source.connect(audioContext.destination);
 
-// Listen for BPM events
-bpmAnalyzer.on('bpm', (data) => console.log('Current BPM:', data.bpm));
-bpmAnalyzer.on('bpmStable', (data) => console.log('Stable BPM detected:', data.bpm));
+// Listen for readings, and for the lock once the readings agree
+analyzer.on('reading', ({ bpm }) => console.log('Current BPM:', bpm));
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') console.log('Locked BPM:', to.reading.bpm);
+});
 
-// Call this when you're done listening: stop() ends the analysis,
+// Call this when you're done listening: stop() ends the analysis for good,
 // disconnect() alone would leave it running
 function stop() {
-  bpmAnalyzer.stop();
+  analyzer.stop();
   source.disconnect();
 }
 ```

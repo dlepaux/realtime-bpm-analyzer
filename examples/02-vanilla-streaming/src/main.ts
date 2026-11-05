@@ -1,4 +1,4 @@
-import { createRealtimeBpmAnalyzer, getBiquadFilter, type BpmAnalyzer, type BpmCandidates } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
 
 // Get DOM elements
 const audioUrlInput = document.getElementById('audioUrl') as HTMLInputElement;
@@ -17,7 +17,6 @@ const audioContext = new AudioContext();
 let audioElement: HTMLAudioElement | null = null;
 let mediaSource: MediaElementAudioSourceNode | null = null;
 let bpmAnalyzer: BpmAnalyzer | null = null;
-let biquadFilter: BiquadFilterNode | null = null;
 
 // Load audio from URL
 loadBtn.addEventListener('click', async () => {
@@ -43,26 +42,23 @@ loadBtn.addEventListener('click', async () => {
     audioElement.crossOrigin = 'anonymous';
 
     // Create BPM analyzer
-    bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+    const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+    bpmAnalyzer = analyzer;
 
-    // Create biquad filter for better audio processing
-    biquadFilter = getBiquadFilter(audioContext);
-
-    // Listen for BPM stable events
-    bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
-      if (data.bpm.length > 0) {
-        const primaryBpm = data.bpm[0].tempo;
-        displayBpm(primaryBpm);
-        showStatus(`Stable BPM detected: ${Math.round(primaryBpm)}`, 'playing');
+    // The state is current inside a reading listener. A lock can move without a statechange (peaks relocks
+    // on a fuller rung), so the locked BPM is read from every reading, not only from the move to locked.
+    analyzer.on('reading', reading => {
+      if (analyzer.state.status === 'locked') {
+        displayBpm(reading.bpm);
+        showStatus(`Stable BPM detected: ${Math.round(reading.bpm)}`, 'playing');
       }
     });
 
     // Create media source and connect the audio graph
     mediaSource = audioContext.createMediaElementSource(audioElement);
     
-    // Connect: source → filter → analyzer → destination
-    mediaSource.connect(biquadFilter);
-    biquadFilter.connect(bpmAnalyzer.node);
+    // Connect: source → analyzer (its input holds what the engine needs) and source → destination
+    mediaSource.connect(bpmAnalyzer.input);
     mediaSource.connect(audioContext.destination);
 
     // Wait for audio to be ready
@@ -156,12 +152,9 @@ function cleanup() {
     mediaSource = null;
   }
 
-  if (biquadFilter) {
-    biquadFilter.disconnect();
-    biquadFilter = null;
-  }
-
   if (bpmAnalyzer) {
+    // stop() is final: it ends the analysis, and the next start creates a new analyzer.
+    bpmAnalyzer.stop();
     bpmAnalyzer.disconnect();
     bpmAnalyzer = null;
   }

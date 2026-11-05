@@ -71,6 +71,7 @@
     "postpack": "rm -f readme.md license.md",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit --declaration false -p tsconfig.json",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
     "testing": "web-dev-server",
     "test": "web-test-runner",
@@ -79,7 +80,8 @@
     "test:integration": "web-test-runner --files 'tests/integration/**/*.test.ts'",
     "test:lib": "web-test-runner --files 'tests/lib/**/*.ts'",
     "test:node": "node --test 'tests/node/**/*.test.mjs'",
-    "test:coverage": "web-test-runner --coverage"
+    "test:coverage": "web-test-runner --coverage",
+    "test:firefox": "web-test-runner --config web-test-runner.firefox.config.mjs"
   },
   "homepage": "https://www.realtime-bpm-analyzer.com",
   "repository": {

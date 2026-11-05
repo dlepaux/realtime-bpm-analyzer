@@ -3,16 +3,24 @@
 import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync, spawnSync} from 'node:child_process';
-import {copyFile, mkdtemp, readFile, rm} from 'node:fs/promises';
+import {copyFile, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import {analyzeFile, audioExtensions, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
 // Built for the tests and not published
 import {decodeFile} from '../dist/decode.mjs';
+import {clickWav} from './click-wav.mjs';
 
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 const packageDir = fileURLToPath(new URL('..', import.meta.url));
+
+/**
+ * @param result A CLI result or a library reading
+ * @returns The fields the two share, so a test compares them one for one
+ */
+const readingFields = ({bpm, bpmExact, confidence, candidates, engine}) => ({bpm, bpmExact, confidence, candidates, engine});
 
 describe('realtime-bpm-analyzer-cli programmatic API', () => {
   it('analyses a file into the result the CLI prints', async () => {
@@ -20,7 +28,8 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
     assert.equal(result.ok, true);
     assert.equal(result.file, fixture('click-128.mp3'));
     assert.ok(Math.abs(result.bpm - 128) <= 1, `got ${result.bpm}`);
-    assert.equal(result.confidence, result.candidates[0].confidence);
+    assert.ok(result.confidence > 0 && result.confidence <= 1, `got ${result.confidence}`);
+    assert.deepEqual(result.candidates[0], {bpm: result.bpm, relation: 'top'});
   });
 
   it('folds candidates into the tempo range it is given', async () => {
@@ -28,32 +37,63 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
     assert.ok(Math.abs(result.bpm - 64) <= 1, `got ${result.bpm}`);
   });
 
-  it('runs the detector it is asked for, not peaks', async () => {
-    // 5.4.0 ignored an unknown option, so --detector tempogram silently ran peaks. The answer
+  it('runs the engine it is asked for, not peaks', async () => {
+    // 5.4.0 ignored an unknown option, so asking for the tempogram silently ran peaks. The answer
     // must be the library's tempogram on the same samples, and must differ from its peaks.
     const path = fixture('click-128.mp3');
     const decode = async () => decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
-    for (const detector of ['tempogram', 'peaks']) {
+    for (const engine of ['tempogram', 'peaks']) {
       const {channelData, sampleRate} = await decode();
-      const result = await analyzeFile(path, {detector});
-      assert.deepEqual(result.candidates, await analyzeChannelData(channelData, sampleRate, {detector}), detector);
+      const result = await analyzeFile(path, {engine});
+      const reading = await analyzeChannelData(channelData, sampleRate, {engine});
+      assert.deepEqual(readingFields(result), readingFields(reading), engine);
+      assert.equal(result.engine, engine);
     }
 
     const {channelData, sampleRate} = await decode();
     assert.notDeepEqual(
-      await analyzeChannelData(channelData, sampleRate, {detector: 'tempogram'}),
-      await analyzeChannelData(channelData, sampleRate, {detector: 'peaks'}),
+      await analyzeChannelData(channelData, sampleRate, {engine: 'tempogram'}),
+      await analyzeChannelData(channelData, sampleRate, {engine: 'peaks'}),
     );
   });
 
-  it('asks for a library that has the tempogram', async () => {
-    // npm resolves the lowest version a range allows when that one is installed already
-    const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
-    const range = manifest.dependencies['realtime-bpm-analyzer'];
-    const [, major, minor] = /^\^(\d+)\.(\d+)\.\d+$/.exec(range) ?? [];
-    assert.ok(Number(major) === 5 && Number(minor) >= 6, `range ${range} admits a library without the detector option`);
-    // The detector option is read, not ignored: 5.4.0 accepted any name
-    await assert.rejects(analyzeChannelData(new Float32Array(1), 44_100, {detector: 'magic'}), /detector/);
+  it('runs the library\'s default engine when none is named', async () => {
+    // The CLI names no engine of its own, so it follows the library when its default changes
+    const path = fixture('click-128.mp3');
+    const {channelData, sampleRate} = await decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
+    assert.deepEqual(readingFields(await analyzeFile(path)), readingFields(await analyzeChannelData(channelData, sampleRate)));
+  });
+
+  it('reports no beat as null fields and no candidates, whichever engine runs', async () => {
+    const path = join(await mkdtemp(join(tmpdir(), 'rba-cli-silence-')), 'silence.wav');
+    try {
+      // 8-bit PCM is silent at 128: the click file's header over flat samples
+      await writeFile(path, clickWav(44_100, 5 * 44_100).fill(128, 44));
+      // Each engine finds no beat its own way, and undefined is the library's default
+      for (const engine of ['peaks', 'tempogram', undefined]) {
+        const result = await analyzeFile(path, {engine});
+        assert.deepEqual(result, {file: path, ok: true, bpm: null, bpmExact: null, confidence: null, candidates: [], engine: null}, String(engine));
+      }
+    } finally {
+      await rm(join(path, '..'), {recursive: true, force: true});
+    }
+  });
+
+  it('asks for a range the workspace library\'s own version satisfies', async () => {
+    // Tested against the library it was built with: a release that moves the library to a new major and leaves
+    // this range behind would publish a CLI that resolves the old major, whose results it cannot read
+    const read = async path => JSON.parse(await readFile(new URL(path, import.meta.url), 'utf8'));
+    const range = (await read('../package.json')).dependencies['realtime-bpm-analyzer'];
+    const {version} = await read('../../realtime-bpm-analyzer/package.json');
+    const [, ...wanted] = /^\^(\d+)\.(\d+)\.(\d+)$/.exec(range) ?? [];
+    const [, ...have] = /^(\d+)\.(\d+)\.(\d+)$/.exec(version) ?? [];
+    assert.ok(wanted.length === 3 && have.length === 3, `range ${range} or version ${version} is not the ^x.y.z and x.y.z this check reads`);
+    const [major, ...rest] = wanted.map(Number);
+    const [haveMajor, ...haveRest] = have.map(Number);
+    const atLeast = haveRest[0] > rest[0] || (haveRest[0] === rest[0] && haveRest[1] >= rest[1]);
+    assert.ok(major > 0 && haveMajor === major && atLeast, `range ${range} does not accept the workspace library ${version}`);
+    // The engine option is read, not ignored: 5.4.0 accepted any engine name
+    await assert.rejects(analyzeChannelData(new Float32Array(1), 44_100, {engine: 'magic'}), /engine/);
   });
 
   it('returns a failure instead of throwing', async () => {

@@ -2,8 +2,7 @@
 import { ref, onUnmounted } from 'vue';
 import { 
   createRealtimeBpmAnalyzer, 
-  type BpmAnalyzer, 
-  type BpmCandidates 
+  type BpmAnalyzer
 } from 'realtime-bpm-analyzer';
 
 const bpm = ref<number>();
@@ -24,6 +23,8 @@ const disconnect = async () => {
     return;
   }
 
+  // stop() is final: it ends the analysis, and the next start creates a new analyzer.
+  bpmAnalyzer.stop();
   await audioContext.suspend();
 
   source.disconnect();
@@ -57,12 +58,13 @@ const handleStream = async (audioCtx: AudioContext, stream: MediaStream) => {
 
   // Connect everything together
   mediaStreamSource.connect(analyserNode);
-  mediaStreamSource.connect(analyzer.node);
+  mediaStreamSource.connect(analyzer.input);
 
-  // Setup event listeners
-  analyzer.on('bpmStable', (data: BpmCandidates) => {
-    if (data.bpm.length > 0) {
-      bpm.value = data.bpm[0].tempo;
+  // The state is current inside a reading listener. A lock can move without a statechange (peaks relocks
+  // on a fuller rung), so the locked BPM is read from every reading, not only from the move to locked.
+  analyzer.on('reading', reading => {
+    if (analyzer.state.status === 'locked') {
+      bpm.value = reading.bpm;
     }
   });
 };

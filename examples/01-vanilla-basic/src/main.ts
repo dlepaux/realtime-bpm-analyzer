@@ -30,14 +30,14 @@ audioFileInput.addEventListener('change', async (event) => {
     // Decode audio data
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-    // Analyze the full buffer to get BPM candidates
-    const tempos = await analyzeFullBuffer(audioBuffer);
+    // Analyze the full buffer: a reading, or null when no beat was found
+    const reading = await analyzeFullBuffer(audioBuffer);
 
-    // Get the top BPM candidate
-    const topTempo = tempos[0];
+    // The reading's tempo
+    const topTempo = reading?.bpm;
 
-    if (topTempo) {
-      displayBpm(topTempo.tempo);
+    if (topTempo !== undefined) {
+      displayBpm(topTempo);
       showStatus('Analysis complete!', 'success');
     } else {
       showStatus('Could not detect BPM', 'error');

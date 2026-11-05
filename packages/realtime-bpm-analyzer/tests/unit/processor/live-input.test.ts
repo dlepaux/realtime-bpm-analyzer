@@ -1,27 +1,6 @@
 import {expect} from 'chai';
-
-async function loadProcessorModule(): Promise<any> {
-  (globalThis as any).sampleRate = 48_000;
-  (globalThis as any).AudioWorkletProcessor = class {
-    port = {
-      postMessage() {
-        // No-op stub
-      },
-      addEventListener() {
-        // No-op stub
-      },
-      start() {
-        // No-op stub
-      },
-    };
-  };
-
-  (globalThis as any).registerProcessor = () => {
-    // No-op stub
-  };
-
-  return import('../../../src/processor/realtime-bpm-processor');
-}
+import type {WorkletMessage} from '../../../src/contract/types';
+import {host, loadProcessorModule, processorOptions} from './worklet-stub';
 
 const quantum = 128;
 const sampleRate = 48_000;
@@ -30,13 +9,13 @@ describe('RealTimeBpmProcessor - a live input\'s clock', () => {
   let RealTimeBpmProcessor: any;
 
   before(async () => {
-    const mod = await loadProcessorModule();
+    const mod = await loadProcessorModule(sampleRate);
     RealTimeBpmProcessor = mod.RealTimeBpmProcessor;
   });
 
   /** Renders `seconds` at `threadShare` of the input's pace, reporting it or not, and tells what reached the analyzer */
   function render(threadShare: number, seconds: number, {reported = true, connected = true} = {}) {
-    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: {}});
+    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(undefined, false, true)});
     const heard = {input: 0, silence: 0};
     const input = new Float32Array(quantum).fill(0.5);
     processor.aggregate = (pcmData: Float32Array) => {
@@ -48,7 +27,7 @@ describe('RealTimeBpmProcessor - a live input\'s clock', () => {
     const reportEvery = Math.round((0.25 * threadShare * sampleRate) / quantum);
     for (let i = 0; i < quanta; i++) {
       if (reported && i % reportEvery === 0) {
-        processor.onMessage({data: {type: 'delivered', seconds: (i * quantum) / sampleRate / threadShare}});
+        processor.onMessage(host({type: 'delivered', seconds: (i * quantum) / sampleRate / threadShare}));
       }
 
       expect(processor.process(connected ? [[input]] : [[]], [[]], {})).to.equal(true);
@@ -98,11 +77,12 @@ function groove(bpm: number, seconds: number): Float32Array {
 type Detector = 'tempogram' | 'peaks';
 
 type Heard = {
-  /** What the main thread was told, with the time it was told */
+  /** The locks the main thread was told of, with the time it was told */
   readonly stable: ReadonlyArray<{at: number; tempo: number}>;
+  /** When the engine started over for lost audio */
   readonly resets: readonly number[];
-  readonly messages: readonly string[];
-  /** The last `bpm` reading */
+  readonly messages: readonly WorkletMessage[];
+  /** The last reading */
   readonly top: number | undefined;
   readonly silent: number;
 };
@@ -126,7 +106,7 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
   let RealTimeBpmProcessor: any;
 
   before(async () => {
-    RealTimeBpmProcessor = (await loadProcessorModule()).RealTimeBpmProcessor;
+    RealTimeBpmProcessor = (await loadProcessorModule(sampleRate)).RealTimeBpmProcessor;
   });
 
   /**
@@ -134,12 +114,12 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
    * of the input go missing as the thread falls behind, and the track's clock reports every 250 ms in steps of 10 ms.
    */
   async function listen({detector = 'tempogram', bpm, seconds, share = () => 1, report = onTime, during}: Listening): Promise<Heard> {
-    const options = detector === 'tempogram' ? {detector, tempogramMode: 'extension'} : {detector};
-    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: options});
+    const engine = detector === 'tempogram' ? {name: detector, mode: 'extension'} as const : detector;
+    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(engine, false, true)});
     const audio = groove(bpm, seconds * 1.3);
     const stable: Array<{at: number; tempo: number}> = [];
     const resets: number[] = [];
-    const messages: string[] = [];
+    const messages: WorkletMessage[] = [];
     let top: number | undefined;
     let real = 0;
     let at = 0;
@@ -147,21 +127,24 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
     let nextReport = 0;
     let silent = 0;
 
-    processor.port.postMessage = (message: any) => {
-      messages.push(message.type);
+    processor.port.postMessage = (message: WorkletMessage) => {
+      messages.push(message);
 
-      if (message.type === 'bpm' && message.data.bpm[0]) {
-        top = message.data.bpm[0].tempo;
-      }
+      if (message.type === 'step' && message.status !== 'listening') {
+        top = message.reading.bpm;
 
-      if (message.type === 'bpmStable') {
-        stable.push({at: real, tempo: message.data.bpm[0].tempo});
-      }
-
-      if (message.type === 'analyzerReset') {
-        resets.push(real);
+        if (message.reason === 'locked') {
+          stable.push({at: real, tempo: message.reading.bpm});
+        }
       }
     };
+
+    // The start-over is the engine's, and the main thread hears of it only when it moves the status
+    const {restartForLostAudio} = processor.session;
+    processor.session = {...processor.session, restartForLostAudio() {
+      resets.push(real);
+      return restartForLostAudio();
+    }};
 
     const aggregate = processor.aggregate;
 
@@ -187,7 +170,7 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
         const seconds = report(real);
 
         if (seconds !== undefined) {
-          processor.onMessage({data: {type: 'delivered', seconds: Math.floor(seconds * 100) / 100}});
+          processor.onMessage(host({type: 'delivered', seconds: Math.floor(seconds * 100) / 100}));
         }
       }
 
@@ -227,7 +210,7 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
       });
 
       for (const [bpm, share] of [[150, 0.9], [120, 0.9], [120, 0.85]] as const) {
-        it(`withholds bpmStable through a loss that doesn't end, and reads ${bpm}: ${share * 100}% render`, async function () {
+        it(`withholds the lock through a loss that doesn't end, and reads ${bpm}: ${share * 100}% render`, async function () {
           this.timeout(60_000);
           const heard = await listen({detector, bpm, seconds: 35, share: () => share});
 
@@ -277,21 +260,27 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
         expect(heard.stable[0].tempo).to.be.closeTo(150, 1);
       });
 
-      it('tells the main thread it started over, and progress falls with it', async function () {
+      it('tells the main thread audio was lost, and listens with its progress', async function () {
         this.timeout(60_000);
-        const {messages} = await listen({detector, bpm: 150, seconds: 15, share: lossBetween(0, 6, 0.85)});
-        const reset = messages.indexOf('analyzerReset');
+        const {messages, resets} = await listen({detector, bpm: 150, seconds: 15, share: lossBetween(0, 6, 0.85)});
+        const steps = messages.flatMap(message => (message.type === 'step' ? [message] : []));
+        const lost = steps.findIndex(step => step.reason === 'audio-lost');
 
-        expect(reset).to.be.greaterThan(-1);
-        expect(messages[reset + 1]).to.equal('progress');
+        expect(lost).to.be.greaterThan(-1);
+        expect(steps[lost]).to.deep.include({status: 'listening'});
+        expect(resets).to.have.length(1);
+        expect(steps.filter(step => step.reason === 'audio-lost')).to.have.length(1);
       });
 
       it('leaves a lock from before the loss alone: nothing to start over for', async function () {
         this.timeout(60_000);
         const heard = await listen({detector, bpm: 150, seconds: 40, share: lossBetween(16, 26, 0.9)});
 
+        const reasons = heard.messages.flatMap(message => (message.type === 'step' && message.reason ? [message.reason] : []));
+
         expect(heard.stable[0].at).to.be.lessThan(16);
         expect(heard.resets).to.deep.equal([]);
+        expect(reasons).to.not.include('audio-lost');
       });
 
       it('starts nothing over for a small drop before the first lock: it reads right', async function () {
@@ -318,7 +307,7 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
           during(processor, t) {
             if (t > 6 && !resetSent) {
               resetSent = true;
-              processor.onMessage({data: {type: 'reset'}});
+              processor.onMessage(host({type: 'reset', epoch: 1}));
             }
           },
         });
@@ -336,7 +325,8 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
         }
       });
 
-      for (const garbage of [Number.NaN, Number.POSITIVE_INFINITY, 1e300]) {
+      // Only finite garbage: a count that is not finite fails the processor instead
+      for (const garbage of [-1, 1e300]) {
         it(`does not mark 90% stable after a report of ${garbage}`, async function () {
           this.timeout(60_000);
           const heard = await listen({detector, bpm: 150, seconds: 30, share: () => 0.9, report: t => (t < 0.2 ? garbage : t)});
@@ -371,27 +361,31 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
     expect(heard.stable[0].tempo).to.be.closeTo(150, 1);
   });
 
-  it('continuous analysis: a reset it makes itself forgets the loss too', async function () {
+  it('a restart period: a restart it makes itself forgets the loss too', async function () {
     this.timeout(60_000);
-    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: {continuousAnalysis: true, stabilizationTime: 2000}});
+    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions({name: 'peaks', restartAfterSeconds: 2}, false, true)});
     const audio = groove(150, 16);
-    const types: string[] = [];
 
     let startedOver = 0;
-
-    processor.port.postMessage = (message: any) => types.push(message.type);
+    let forgotten = 0;
 
     // 85% for 5 s and then on time: the analyzer's own resets go by every 2 s, and the last of them outlives the loss.
     for (let i = 0, t = 0; i * quantum + quantum < audio.length; i += 1) {
       t += quantum / sampleRate / (t < 5 ? 0.85 : 1);
 
       if (i % 94 === 0) {
-        processor.onMessage({data: {type: 'delivered', seconds: t}});
+        processor.onMessage(host({type: 'delivered', seconds: t}));
       }
 
       if (i === 0) {
         const clock = processor.sampleClock;
         const take = clock.takeStartOver;
+        const forget = clock.forget;
+
+        clock.forget = () => {
+          forgotten += 1;
+          forget();
+        };
 
         clock.takeStartOver = () => {
           const yes = take();
@@ -409,13 +403,13 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
       }
     }
 
-    expect(types.filter(type => type === 'analyzerReset').length).to.be.greaterThan(2);
+    expect(forgotten, 'restarts every 2 s').to.be.greaterThan(2);
     expect(startedOver).to.equal(0);
   });
 
   describe('silence that fills the buffer', () => {
     it('hands the analysis a copy: the quantum that follows would overwrite what it is reading', () => {
-      const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: {}});
+      const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(undefined, false, true)});
       const handed: Array<{data: Float32Array; asHanded: Float32Array}> = [];
 
       let quanta = 0;
@@ -424,12 +418,14 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
       processor.sampleClock = {
         advance: () => (quanta++ > 0),
         takeStartOver: () => false,
+        isLosing: () => false,
         offerLock: () => true,
         forget: () => undefined,
       };
-      processor.realTimeBpmAnalyzer.analyzeChunk = async ({channelData}: {channelData: Float32Array}) => {
+      processor.session = {...processor.session, async analyze(channelData: Float32Array) {
         handed.push({data: channelData, asHanded: channelData.slice()});
-      };
+        return [];
+      }};
 
       const quantaInBuffer = 4096 / quantum;
 

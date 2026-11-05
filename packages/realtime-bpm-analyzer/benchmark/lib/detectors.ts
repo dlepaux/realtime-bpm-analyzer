@@ -1,8 +1,16 @@
 import type {TempogramTuning} from '../../src/core/tempogram';
-import type {RealTimeBpmAnalyzerParameters} from '../../src/core/types';
+import type {EngineName, EngineOption, TempoRange} from '../../src/contract/types';
+
+/** A row's options: the public ones, and the restart the 5.x rows measured, now internal for the tempogram */
+export type BenchmarkOptions = {
+  readonly engine?: EngineOption;
+  readonly tempoRange?: TempoRange;
+  /** The analyzer starts over every so often, as the extension's timer and 5.x's continuousAnalysis did */
+  readonly restartAfterSeconds?: number;
+};
 
 export type DetectorConfig = {
-  readonly options: RealTimeBpmAnalyzerParameters;
+  readonly options: BenchmarkOptions;
   /** Whether the audio goes through `getBiquadFilter` first, as the realtime guides wire the analyzer */
   readonly lowpass: boolean;
   /** Also run the offline path */
@@ -11,6 +19,8 @@ export type DetectorConfig = {
   readonly tuning?: Partial<TempogramTuning>;
   /** For dev only, unless it is the pick */
   readonly candidate?: true;
+  /** RBA-106's hysteresis sweep of this engine (lib/hysteresis.ts), dev only: it runs every row on each track */
+  readonly sweep?: EngineName;
 };
 
 /** The extension's TEMPO_RANGE, rba-pro/extension/src/lib/reading.ts. Also what peaks folds into by default */
@@ -26,14 +36,16 @@ const tuningFirst = {priorBpm: 110, priorOctaves: 0.7, halfBeatPenalty: 0, third
 const ridge50 = {priorBpm: 50, priorOctaves: 2.4, halfBeatPenalty: 0, thirdBeatPenalty: 0.3};
 const ridge80 = {priorBpm: 80, priorOctaves: 1.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.3};
 const ridge100 = {priorBpm: 100, priorOctaves: 1.3, halfBeatPenalty: 0, thirdBeatPenalty: 0.2};
-const tempogram = {detector: 'tempogram'} as const;
+const tempogram = {engine: 'tempogram'} as const;
+// Named, not left to the default: since v6 the default is the tempogram, and these rows are the looks' peaks reference
+const peaks = {engine: 'peaks'} as const;
 
 // Rows with no `tuning` read what the library holds now. In result files from before 2026-11-01, `tempogram`,
 // `tempogram-90-180` and `tempogram-90-180-resetting` are the first pick, `tempogram` on 50 to 240.
 // Rows with a past tuning state the range they were measured on, as the library's default moved to 90 to 180.
 export const detectors: Record<string, DetectorConfig> = {
-  peaks: {options: {}, lowpass: true, offline: true},
-  'peaks-50-240': {options: {tempoRange: wideRange}, lowpass: true, offline: false},
+  peaks: {options: peaks, lowpass: true, offline: true},
+  'peaks-50-240': {options: {...peaks, tempoRange: wideRange}, lowpass: true, offline: false},
   tempogram: {options: tempogram, lowpass: false, offline: true},
   'tempogram-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false},
   'tempogram-285': {options: {...tempogram, tempoRange: wideRange}, lowpass: false, offline: false, tuning: tuning285},
@@ -44,17 +56,20 @@ export const detectors: Record<string, DetectorConfig> = {
   'tempogram-ridge-80-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge80, candidate: true},
   'tempogram-ridge-100-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false, tuning: ridge100, candidate: true},
   'tempogram-ridge-80-90-180-resetting': {
-    options: {...tempogram, tempoRange: extensionRange, continuousAnalysis: true, stabilizationTime: 10_000},
+    options: {...tempogram, tempoRange: extensionRange, restartAfterSeconds: 10},
     lowpass: false,
     offline: false,
     tuning: ridge80,
     candidate: true,
   },
   // The candidate as a caller gets it: through the option, with no override, so a look scores the shipped path
-  'tempogram-extension': {options: {...tempogram, tempogramMode: 'extension'}, lowpass: false, offline: false},
+  'tempogram-extension': {options: {engine: {name: 'tempogram', mode: 'extension'}}, lowpass: false, offline: false},
+  // RBA-106's sweeps: the engine's own path per row, lowpass included for peaks, and the offline reading
+  'tempogram-hysteresis': {options: tempogram, lowpass: false, offline: false, sweep: 'tempogram', candidate: true},
+  'peaks-hysteresis': {options: {engine: 'peaks'}, lowpass: false, offline: false, sweep: 'peaks', candidate: true},
   // The extension's options as they are today, offscreen/main.ts: its timer resets the analyzer every 10 s
   'tempogram-90-180-resetting': {
-    options: {...tempogram, tempoRange: extensionRange, continuousAnalysis: true, stabilizationTime: 10_000},
+    options: {...tempogram, tempoRange: extensionRange, restartAfterSeconds: 10},
     lowpass: false,
     offline: false,
   },

@@ -26,6 +26,7 @@
 
 - **Zero dependencies** - Uses native Web Audio API
 - **Real-time analysis** - Analyze audio/video as it plays
+- **Two engines, one reading** - The tempogram by default, `engine: 'peaks'` for the 5.x engine
 - **Multiple sources** - Works with files, streams, microphone, or any audio/video node
 - **Typed events** - Full TypeScript support with autocomplete
 - **Runs locally** - The library analyses audio on the device, makes no network call of its own and collects nothing
@@ -42,17 +43,27 @@ npm install realtime-bpm-analyzer
 ```typescript
 import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
-// Create analyzer
+// Create the analyzer
 const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-// Connect your audio source
-audioSource.connect(analyzer.node);
+// Connect your audio source to its input, which holds the filter the engine needs
+audioSource.connect(analyzer.input);
 
-// Listen for BPM detection
-analyzer.on('bpm', (data) => {
-  console.log('BPM detected:', data.bpm[0].tempo);
+// A reading on each analysis step outside listening: twice a second with the default
+// tempogram engine, about ten times a second with peaks
+analyzer.on('reading', (reading) => {
+  console.log('BPM:', reading.bpm, 'state:', analyzer.state.status);
+});
+
+// The state moves through listening, settling, locked and stopped
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') {
+    console.log('Locked on', to.reading.bpm);
+  }
 });
 ```
+
+While locked, keep showing the latest `reading`: the tempo can still move without a `statechange`.
 
 ### Strict CSP and browser extensions
 
@@ -68,13 +79,13 @@ See the [strict CSP guide](https://www.realtime-bpm-analyzer.com/guide/strict-cs
 
 ### Node.js
 
-`realtime-bpm-analyzer/node` analyses decoded PCM samples without Web Audio, in Node.js, Bun or Deno, with no added dependency. It returns the same candidates as `analyzeFullBuffer` for the same samples. Decoding is up to you (a WAV reader, ffmpeg, ...):
+`realtime-bpm-analyzer/node` analyses decoded PCM samples without Web Audio, in Node.js, Bun or Deno, with no added dependency. It returns the same reading as `analyzeFullBuffer` for the same samples, or `null` when it finds no tempo. Decoding is up to you (a WAV reader, ffmpeg, ...):
 
 ```typescript
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 
-const tempos = await analyzeChannelData(channelData, 44100); // Float32Array of one channel
-console.log(tempos[0]?.tempo);
+const reading = await analyzeChannelData(channelData, 44100); // Float32Array of one channel
+console.log(reading?.bpm, reading?.candidates);
 ```
 
 See the [Node.js guide](https://www.realtime-bpm-analyzer.com/guide/node).
@@ -84,7 +95,7 @@ See the [Node.js guide](https://www.realtime-bpm-analyzer.com/guide/node).
 A separate package, [`realtime-bpm-analyzer-cli`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/packages/cli#readme), detects the BPM of audio files from a terminal, so this library stays dependency-free:
 
 ```bash
-npx realtime-bpm-analyzer-cli song.mp3        # 128 BPM (confidence 0.46) and the top candidates
+npx realtime-bpm-analyzer-cli song.mp3        # 128 BPM, the engine, its confidence and the top candidates
 npx realtime-bpm-analyzer-cli --json ./music  # every audio file of a folder, as JSON
 ```
 
@@ -105,9 +116,10 @@ See the [MCP guide](https://www.realtime-bpm-analyzer.com/guide/mcp) for Claude 
 **📖 [Full Documentation](https://www.realtime-bpm-analyzer.com)** - Complete guides, API reference, and tutorials
 
 **Key sections:**
-- [Quick Start Guide](https://www.realtime-bpm-analyzer.com/guide/quick-start) - Get up and running
+- [Getting Started](https://www.realtime-bpm-analyzer.com/guide/getting-started) - Get up and running
 - [API Reference](https://www.realtime-bpm-analyzer.com/api) - Complete API documentation
 - [Examples](https://www.realtime-bpm-analyzer.com/examples) - Live demos and code samples
+- [Migration to v6](https://www.realtime-bpm-analyzer.com/guide/migration-v6) - Upgrading from 5.x
 - [Migration to v5](https://www.realtime-bpm-analyzer.com/guide/migration-v5) - Upgrading from v4.x
 
 ## Use Cases

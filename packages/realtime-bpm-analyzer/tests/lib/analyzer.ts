@@ -63,18 +63,19 @@ describe('Analyzer - Integration tests', () => {
   it('should be able to detect the BPM from an AudioBuffer', async function () {
     this.timeout(30 * 1000);
     const audioBuffer = await loadTestAudio(audioContext);
-    const tempos = await analyzeFullBuffer(audioBuffer);
-    const tempo = getTopCandidate(tempos);
-    expect(tempo).to.be.equal(125);
+    const reading = await analyzeFullBuffer(audioBuffer, {engine: 'peaks'});
+    expect(reading?.bpm).to.be.equal(125);
+    expect(reading?.engine).to.equal('peaks');
+    expect(reading?.audio).to.deep.equal({from: 0, to: audioBuffer.duration, contextTime: null});
   });
 
   it('should fold the detected BPM into a caller-supplied tempo range', async function () {
     this.timeout(30 * 1000);
     const audioBuffer = await loadTestAudio(audioContext);
-    const tempos = await analyzeFullBuffer(audioBuffer, {tempoRange: {min: 50, max: 100}});
+    const reading = await analyzeFullBuffer(audioBuffer, {engine: 'peaks', tempoRange: {min: 50, max: 100}});
     // 125 BPM halved is 62.5; rounding after folding lands on either neighbour
-    expect(getTopCandidate(tempos)).to.be.within(62, 63);
-    expect(tempos[0].confidence).to.be.greaterThan(0);
+    expect(reading?.bpm).to.be.within(62, 63);
+    expect(reading?.confidence).to.be.greaterThan(0);
   });
 
   it('should reject an invalid tempo range before analysing', async () => {

@@ -1,12 +1,8 @@
 import {descendingOverThresholds} from './utils';
 import type {
-  Peaks,
-  BpmCandidates,
-  BpmProgress,
+  RungTempos,
   Interval,
-  Detector,
   Tempo,
-  Threshold,
   TempoRange,
   AnalyzerGroupByTempoOptions,
   AnalyzerComputeBpmOptions,
@@ -26,14 +22,14 @@ export async function computeBpm({
   audioSampleRate,
   data,
   tempoRange,
-}: AnalyzerComputeBpmOptions): Promise<BpmCandidates> {
+}: AnalyzerComputeBpmOptions): Promise<RungTempos> {
   /**
    * Flag to fix Object.keys looping
    */
   let hasPeaks = false;
   let foundThreshold = consts.minValidThreshold;
 
-  await descendingOverThresholds(async (threshold: Threshold) => {
+  await descendingOverThresholds(async (threshold: number) => {
     if (hasPeaks) {
       return true;
     }
@@ -51,12 +47,7 @@ export async function computeBpm({
     const tempos = groupByTempo({audioSampleRate, intervalCounts: intervals, tempoRange});
     const candidates = getTopCandidates(tempos);
 
-    const bpmCandidates: BpmCandidates = {
-      bpm: candidates,
-      threshold: foundThreshold,
-    };
-
-    return bpmCandidates;
+    return {bpm: candidates, threshold: foundThreshold};
   }
 
   return {
@@ -68,16 +59,13 @@ export async function computeBpm({
 /**
  * Measure how close the valid peaks are to a first BPM result
  * @param data - Valid peaks by threshold
- * @returns The best-filled threshold's peak count, capped at the count `computeBpm` needs
+ * @returns From 0 to 1: the best-filled threshold's share of the peaks `computeBpm` needs
  */
-export function computeProgress(data: ValidPeaks): BpmProgress {
+export function computeProgress(data: ValidPeaks): number {
   // computeBpm succeeds as soon as any threshold is full, so the fullest one is the progress
   const mostPeaks = Math.max(0, ...Object.values(data).map(peaks => peaks.length));
 
-  return {
-    peaks: Math.min(mostPeaks, consts.requiredPeaks),
-    requiredPeaks: consts.requiredPeaks,
-  };
+  return Math.min(mostPeaks, consts.requiredPeaks) / consts.requiredPeaks;
 }
 
 /**
@@ -114,7 +102,7 @@ export function getTopCandidate(candidates: Tempo[]): number {
  * @param peaks - Array of qualified bass peaks
  * @returns Return a collection of intervals between peaks
  */
-export function identifyIntervals(peaks: Peaks): Interval[] {
+export function identifyIntervals(peaks: readonly number[]): Interval[] {
   const intervals: Interval[] = [];
 
   for (let n = 0; n < peaks.length; n++) {
@@ -187,20 +175,6 @@ export function resolveTempoRange(tempoRange?: TempoRange): TempoRange {
 }
 
 /**
- * Validate a caller-supplied detector, or return the default
- * @param detector - Detector from the caller's options
- * @returns A known detector
- * @throws {RangeError} When the detector is unknown
- */
-export function resolveDetector(detector?: Detector): Detector {
-  if (detector === undefined || detector === 'peaks' || detector === 'tempogram') {
-    return detector ?? 'peaks';
-  }
-
-  throw new RangeError(`Invalid detector: ${String(detector)}. Use 'peaks' or 'tempogram'.`);
-}
-
-/**
  * Figure out best possible tempo candidates
  * @param options - AnalyzerGroupByTempoOptions
  * @param options.audioSampleRate - Audio sample rate
@@ -214,93 +188,87 @@ export function groupByTempo({
   tempoRange,
 }: AnalyzerGroupByTempoOptions): Tempo[] {
   const {min, max} = resolveTempoRange(tempoRange);
-  const tempoCounts: Tempo[] = [];
+  // Keyed by the whole BPM each vote rounds to. A Map keeps first-seen order, which breaks ties in the ranking
+  // exactly as the array this replaced did, so `tempo` and `count` are unchanged from 5.x
+  const groups = new Map<number, Votes>();
+  // The same votes seen from across the range's edge, for the exact tempo only (see withConfidence)
+  const acrossEdge = new Map<number, Votes>();
 
   for (const intervalCount of intervalCounts) {
-    /**
-     * Skip if interval is equal 0
-     */
     if (intervalCount.interval === 0) {
       continue;
     }
 
-    // Use local variable to avoid mutating input parameter
-    const absoluteInterval = Math.abs(intervalCount.interval);
+    let foldedTempo = 60 / (Math.abs(intervalCount.interval) / audioSampleRate);
 
-    /**
-     * Convert an interval to tempo
-     */
-    let theoreticalTempo = 60 / (absoluteInterval / audioSampleRate);
-
-    /**
-     * Fold the tempo by octaves into the range (90-180 BPM by default)
-     */
-    while (theoreticalTempo < min) {
-      theoreticalTempo *= 2;
+    // Fold the tempo by octaves into the range (90-180 BPM by default)
+    while (foldedTempo < min) {
+      foldedTempo *= 2;
     }
 
-    while (theoreticalTempo > max) {
-      theoreticalTempo /= 2;
+    while (foldedTempo > max) {
+      foldedTempo /= 2;
     }
 
-    /**
-     * Round to legible integer
-     */
-    theoreticalTempo = Math.round(theoreticalTempo);
-
-    /**
-     * See if another interval resolved to the same tempo
-     */
-    let foundTempo = tempoCounts.find(
-      (tempoCount: Tempo) => tempoCount.tempo === theoreticalTempo,
-    );
-
-    if (foundTempo) {
-      // Create new object with aggregated count (immutable update)
-      const index = tempoCounts.indexOf(foundTempo);
-      tempoCounts[index] = {
-        tempo: foundTempo.tempo,
-        count: foundTempo.count + intervalCount.count,
-        confidence: foundTempo.confidence,
-      };
-      foundTempo = tempoCounts[index];
+    addVote(groups, foldedTempo, intervalCount.count);
+    // An octave image the fold could have come from: a vote over max would fold to half, one under min to double
+    if (foldedTempo * 2 > max) {
+      addVote(acrossEdge, foldedTempo * 2, intervalCount.count);
     }
 
-    /**
-     * Add a unique tempo to the collection
-     */
-    if (!foundTempo) {
-      const tempo: Tempo = {
-        tempo: theoreticalTempo,
-        count: intervalCount.count,
-        confidence: 0,
-      };
-
-      tempoCounts.push(tempo);
+    if (foldedTempo / 2 < min) {
+      addVote(acrossEdge, foldedTempo / 2, intervalCount.count);
     }
   }
 
-  return withConfidence(tempoCounts);
+  return withConfidence(groups, acrossEdge);
 }
 
-/**
- * Set each tempo's confidence: its ±1 BPM support over all votes (RBA-12 proposal v1).
- * Pooling neighbours absorbs rounding jitter, since a true 128 splits its votes over 127–129.
- * @param tempos - Every tempo group, so the total counts all votes
- * @returns New tempo objects in the same order
- */
-function withConfidence(tempos: Tempo[]): Tempo[] {
-  const countByTempo = new Map(tempos.map(t => [t.tempo, t.count]));
-  const totalVotes = tempos.reduce((sum, t) => sum + t.count, 0);
+/** Adds `count` votes at an unrounded tempo to the group of the whole BPM it rounds to */
+function addVote(groups: Map<number, Votes>, tempo: number, count: number): void {
+  const key = Math.round(tempo);
+  const votes = groups.get(key) ?? {count: 0, weightedSum: 0};
+  groups.set(key, {count: votes.count + count, weightedSum: votes.weightedSum + (count * tempo)});
+}
 
-  return tempos.map(t => {
-    const support = (countByTempo.get(t.tempo - 1) ?? 0)
-      + t.count
-      + (countByTempo.get(t.tempo + 1) ?? 0);
+/** The interval votes that rounded to one whole BPM, and the sum of their unrounded tempos weighted by count */
+type Votes = {
+  readonly count: number;
+  readonly weightedSum: number;
+};
+
+/**
+ * Sets each tempo's confidence and exact tempo from the same ±1 BPM window (RBA-12 proposal v1, RBA-128).
+ * Pooling neighbours absorbs rounding jitter, since a true 128 splits its votes over 127–129. The exact tempo is
+ * the vote-weighted mean of the unrounded tempos in that window: a true 127.5 splits its votes between 127 and
+ * 128, and only the window's mean comes back to 127.5, where the group's own mean would lean to its whole BPM.
+ *
+ * At an edge of the range the window also takes the votes folded across it: a true 90 with jitter puts its votes
+ * under 90 at about 180, so the mean at 90 would see only the high side and read high. Confidence keeps the
+ * window unfolded, as RBA-106 calibrates it.
+ * @param groups - Every tempo group, so the total counts all votes
+ * @param acrossEdge - The octave images of votes the fold may have moved across the range's edge
+ * @returns One tempo per group, in the groups' order
+ */
+function withConfidence(groups: ReadonlyMap<number, Votes>, acrossEdge: ReadonlyMap<number, Votes>): Tempo[] {
+  let totalVotes = 0;
+  for (const {count} of groups.values()) {
+    totalVotes += count;
+  }
+
+  return [...groups].map(([tempo, {count}]) => {
+    const keys = [tempo - 1, tempo, tempo + 1];
+    const window = keys.map(key => groups.get(key));
+    const support = window.reduce((sum, votes) => sum + (votes?.count ?? 0), 0);
+    const folded = [...window, ...keys.map(key => acrossEdge.get(key))];
+    const foldedSupport = folded.reduce((sum, votes) => sum + (votes?.count ?? 0), 0);
+    const weightedSum = folded.reduce((sum, votes) => sum + (votes?.weightedSum ?? 0), 0);
 
     return {
-      tempo: t.tempo,
-      count: t.count,
+      tempo,
+      // A group of zero-count votes has no mean: its whole BPM is all there is
+      exact: foldedSupport > 0 ? weightedSum / foldedSupport : tempo,
+      count,
       confidence: totalVotes > 0 ? support / totalVotes : 0,
     };
   });

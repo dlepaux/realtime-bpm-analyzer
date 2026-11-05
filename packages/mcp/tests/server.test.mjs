@@ -11,7 +11,7 @@ import {fileURLToPath} from 'node:url';
 import {Client} from '@modelcontextprotocol/client';
 import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
 // The library the CLI resolves through the workspace, and the CLI's own decoder, to check
-// which detector ran against the library itself
+// which engine ran against the library itself
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import {decodeFile} from '../../cli/dist/decode.mjs';
 import {clickWav} from '../../cli/tests/click-wav.mjs';
@@ -91,9 +91,9 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     assert.deepEqual(tools.map(tool => tool.name).sort(), ['analyze_file', 'analyze_folder']);
 
     const byName = Object.fromEntries(tools.map(tool => [tool.name, tool]));
-    assert.deepEqual(Object.keys(byName.analyze_file.inputSchema.properties).sort(), ['detector', 'max_bpm', 'min_bpm', 'path']);
+    assert.deepEqual(Object.keys(byName.analyze_file.inputSchema.properties).sort(), ['engine', 'max_bpm', 'min_bpm', 'path']);
     assert.deepEqual(byName.analyze_file.inputSchema.required, ['path']);
-    assert.deepEqual(Object.keys(byName.analyze_folder.inputSchema.properties).sort(), ['detector', 'directory', 'max_bpm', 'min_bpm', 'offset', 'recursive']);
+    assert.deepEqual(Object.keys(byName.analyze_folder.inputSchema.properties).sort(), ['directory', 'engine', 'max_bpm', 'min_bpm', 'offset', 'recursive']);
     assert.deepEqual(byName.analyze_folder.inputSchema.required, ['directory']);
 
     for (const tool of tools) {
@@ -110,7 +110,9 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
   });
 
   for (const [label, args, pattern] of [
-    ['an unknown detector', {path: fixture('click-128.mp3'), detector: 'magic'}, /detector/],
+    ['an unknown engine', {path: fixture('click-128.mp3'), engine: 'magic'}, /engine/],
+    // Renamed engine before the first publish, like the library's option: the old name is refused, not ignored
+    ['the old detector argument', {path: fixture('click-128.mp3'), detector: 'tempogram'}, /detector|unrecognized/i],
     ['a missing path', {}, /path/],
     ['an unknown argument', {path: 'click-128.mp3', file: 'x'}, /file|unrecognized/i],
     ['a negative tempo', {path: 'click-128.mp3', min_bpm: -5}, /min_bpm/],
@@ -131,9 +133,34 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     const output = result.structuredContent;
     assert.equal(output.file, fixture('click-128.mp3'));
     near(output.bpm, 128);
-    assert.equal(output.confidence, output.candidates[0].confidence);
-    assert.deepEqual(Object.keys(output.candidates[0]).sort(), ['confidence', 'count', 'tempo']);
+    assert.deepEqual(Object.keys(output), ['file', 'bpm', 'bpm_exact', 'confidence', 'candidates', 'engine']);
+    assert.ok(Math.abs(output.bpm_exact - output.bpm) <= 1.5, `got ${output.bpm_exact} for ${output.bpm}`);
+    assert.ok(output.confidence > 0 && output.confidence <= 1, `got ${output.confidence}`);
+    assert.deepEqual(output.candidates[0], {bpm: output.bpm, relation: 'top'});
     assert.deepEqual(JSON.parse(text(result)), output);
+  });
+
+  it('runs the library\'s default engine when none is named', async () => {
+    const path = fixture('click-128.mp3');
+    const {structuredContent: output} = await client.callTool({name: 'analyze_file', arguments: {path}});
+    const {channelData, sampleRate} = await decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
+    const reading = await analyzeChannelData(channelData, sampleRate);
+    assert.deepEqual(
+      {bpm: output.bpm, bpm_exact: output.bpm_exact, confidence: output.confidence, candidates: output.candidates, engine: output.engine},
+      {bpm: reading.bpm, bpm_exact: reading.bpmExact, confidence: reading.confidence, candidates: reading.candidates, engine: reading.engine},
+    );
+  });
+
+  it('reports no beat as null fields that pass the declared output schema', async () => {
+    // The SDK checks structuredContent against the tool's outputSchema, so a schema that refused these nulls fails the call
+    const path = join(scratch, 'silence.wav');
+    // 8-bit PCM is silent at 128: the click file's header over flat samples
+    await writeFile(path, clickWav(44_100, 5 * 44_100).fill(128, 44));
+    for (const engine of ['peaks', 'tempogram', undefined]) {
+      const result = await client.callTool({name: 'analyze_file', arguments: engine === undefined ? {path} : {path, engine}});
+      assert.equal(result.isError, undefined, text(result));
+      assert.deepEqual(result.structuredContent, {file: path, bpm: null, bpm_exact: null, confidence: null, candidates: [], engine: null}, String(engine));
+    }
   });
 
   it('expands ~ to the home folder', async () => {
@@ -147,24 +174,30 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     }
   });
 
-  it('runs the tempogram detector when asked', async () => {
+  it('runs the tempogram engine when asked', async () => {
     const call = (name, args) => client.callTool({name, arguments: args}).then(result => result.structuredContent);
     const path = fixture('click-128.mp3');
-    const tempogram = await call('analyze_file', {path, detector: 'tempogram'});
-    const peaks = await call('analyze_file', {path});
+    const tempogram = await call('analyze_file', {path, engine: 'tempogram'});
+    const peaks = await call('analyze_file', {path, engine: 'peaks'});
 
+    assert.equal(tempogram.engine, 'tempogram');
+    assert.equal(peaks.engine, 'peaks');
     near(tempogram.bpm, 128);
-    // Both read 128: only the candidates show which detector ran. On 5.4.0 the library ignored
-    // the option and ran peaks, so check them against its tempogram on the same samples.
-    assert.notDeepEqual(tempogram.candidates, peaks.candidates);
+    // Both read 128, and `engine` only echoes the label. On 5.4.0 the library ignored the option and
+    // ran peaks, so check the numbers against its tempogram on the same samples.
+    assert.notDeepEqual({confidence: tempogram.confidence, candidates: tempogram.candidates}, {confidence: peaks.confidence, candidates: peaks.candidates});
     const {channelData, sampleRate} = await decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
-    assert.deepEqual(tempogram.candidates, await analyzeChannelData(channelData, sampleRate, {detector: 'tempogram'}));
+    const reading = await analyzeChannelData(channelData, sampleRate, {engine: 'tempogram'});
+    assert.deepEqual(
+      {bpm_exact: tempogram.bpm_exact, confidence: tempogram.confidence, candidates: tempogram.candidates},
+      {bpm_exact: reading.bpmExact, confidence: reading.confidence, candidates: reading.candidates},
+    );
 
     const directory = dirname(path);
-    const folder = await call('analyze_folder', {directory, detector: 'tempogram'});
+    const folder = await call('analyze_folder', {directory, engine: 'tempogram'});
     const inFolder = folder.results.find(result => result.file === path);
 
-    assert.deepEqual(inFolder.candidates, tempogram.candidates);
+    assert.deepEqual(inFolder, {...tempogram, ok: true});
   });
 
   it('answers while a long file is analysed, and stops it when the client cancels', async () => {
@@ -172,7 +205,7 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     const path = join(scratch, 'long-8k.wav');
     await writeFile(path, clickWav(8000, 40_000_000));
     const cancel = new AbortController();
-    const long = client.callTool({name: 'analyze_file', arguments: {path, detector: 'tempogram'}}, {signal: cancel.signal});
+    const long = client.callTool({name: 'analyze_file', arguments: {path, engine: 'tempogram'}}, {signal: cancel.signal});
     long.catch(() => {});
     await new Promise(resolve => {
       setTimeout(resolve, 1000);
@@ -212,7 +245,7 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
       finished.push(label);
       return result;
     });
-    const long = call('long', {path, detector: 'tempogram'});
+    const long = call('long', {path, engine: 'tempogram'});
     // Long enough for the first call to take the only slot
     await new Promise(resolve => {
       setTimeout(resolve, 300);

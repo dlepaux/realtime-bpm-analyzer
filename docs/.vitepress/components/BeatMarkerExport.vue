@@ -9,7 +9,7 @@ import {
   timecodesFor,
   type MarkerFormat,
 } from '../tools/beat-markers'
-import { firstBeatOf, fitTempo, onsetCurveInSlices, type GridTempo } from '../tools/first-beat'
+import { fallbackNote, firstBeatOf, fitTempo, onsetCurveInSlices, type GridTempo } from '../tools/first-beat'
 
 // The "Export beat markers" step on a file result (RBA-127): a fixed grid at the exact tempo
 // from the first strong onset, so it only suits steady tempos, and the copy says so. It is also
@@ -20,11 +20,11 @@ const props = defineProps<{
   /** The analysed file's name: the sequence name and the download's name, never sent anywhere. */
   fileName: string
   /**
-   * The library's tempo. In 5.x both engines round it (tempo.ts and tempogram.ts), so the grid
-   * steps at fitTempo's exact tempo, measured from the audio here, and never shown (RBA-128).
+   * The library's unrounded tempo, Reading.bpmExact. It seeds fitTempo, which refines it from
+   * the audio here, and is never shown (RBA-128).
    */
   tempo: number
-  /** Rounded, as the result shows it. */
+  /** Reading.bpm, the whole number the result shows. */
   bpm: number
   duration: number
   /**
@@ -67,8 +67,8 @@ async function onToggle(event: Event) {
   try {
     const curve = samples === null ? null : await onsetCurveInSlices(samples, props.sampleRate, nextTask, () => unmounted)
     if (curve !== null) {
-      // With v6, fitTempo refines Reading.bpmExact instead of the whole number, and keeps its
-      // job: the grid's phase for the first beat, and the fit to the last beat of a long song.
+      // fitTempo refines the exact reading: the grid's phase for the first beat, and the fit to
+      // the last beat of a long song. A weak fit keeps the exact reading.
       const tempo = fitTempo(curve, props.tempo)
       const firstBeat = firstBeatOf(curve, tempo)
       grid.value = firstBeat === null ? null : { firstBeat, tempo }
@@ -82,11 +82,12 @@ async function onToggle(event: Event) {
   if (!unmounted) emit('searched')
 }
 
-// Only a fitted grid is "measured to a fraction of a BPM": a weak fit steps at the reading, which
-// the note under the download button says, so this line mustn't claim otherwise.
+// Only a fitted grid is "measured from the file": a weak fit steps at the analyzer's estimate,
+// which the note under the download button says, so this line mustn't claim otherwise.
 const intro = computed(() => (grid.value?.tempo.fitted
   ? 'A marker on every beat, from the first strong beat, at the tempo measured from the file to a fraction of a BPM.'
   : 'A marker on every beat, from the first strong beat.'))
+const note = computed(() => (grid.value === null ? null : fallbackNote(grid.value.tempo, props.bpm)))
 const timecodes = computed(() => timecodesFor(format.value))
 const choice = computed(() => timecodeChoice(format.value, timecodeId.value))
 // The Premiere XML has no 59.94 DF: switching to it moves that choice to 59.94 NDF.
@@ -175,11 +176,10 @@ function download() {
         Download {{ markerCount }} markers
       </button>
       <p
-        v-if="!grid.tempo.fitted"
+        v-if="note !== null"
         class="marker-note"
       >
-        The exact tempo could not be measured from this file, so the markers step at {{ bpm }} BPM
-        and can slide off the beat on a long song.
+        {{ note }}
       </p>
       <p class="marker-note">
         First marker at {{ grid.firstBeat.toFixed(2) }} s. The file is made on this device.

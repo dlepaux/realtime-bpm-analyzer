@@ -15,28 +15,31 @@ The library supports different usage patterns depending on your needs:
 Analyze audio while it's playing:
 
 - Accumulates data throughout playback
-- Provides increasingly accurate results  
+- Provides increasingly accurate results
 - No automatic reset
 - Best for: Music players, video players, defined-length audio
 
 ```typescript
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
-// Analyzes continuously, accumulates confidence
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+// Analyzes continuously, and locks once the readings agree
 ```
 
 ### Continuous Analysis (Auto-Reset)
 For long-running or infinite streams:
 
-- Automatically resets after stabilization period
+- Automatically starts over after a set stretch of audio
 - Prevents memory buildup in 24/7 scenarios
+- Follows a change of tempo
 - Best for: Radio streams, live broadcasts, streaming services
 
 ```typescript
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
-  continuousAnalysis: true,
-  stabilizationTime: 20000 // Reset every 20 seconds
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  // Start over every 20 seconds of audio
+  engine: { name: 'peaks', restartAfterSeconds: 20 },
 });
 ```
+
+Each restart after a reading is a `statechange` to `listening` with reason `tempo-changed`. Only the `peaks` engine takes this option: the default `tempogram` engine's memory of past tempos fades with a 16-second half-life, so it follows a change on its own.
 
 ### Offline/Buffer Analysis
 Analyze complete audio files without real-time constraints:
@@ -48,9 +51,10 @@ Analyze complete audio files without real-time constraints:
 ```typescript
 import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
 
+const arrayBuffer = await (await fetch('/song.mp3')).arrayBuffer();
 const buffer = await audioContext.decodeAudioData(arrayBuffer);
-const tempos = await analyzeFullBuffer(buffer);
-console.log('BPM:', tempos[0].tempo);
+const reading = await analyzeFullBuffer(buffer);
+console.log('BPM:', reading?.bpm ?? 'no tempo found');
 ```
 
 ## Audio Graph Architecture
@@ -64,7 +68,7 @@ The library uses the Web Audio API's node-based architecture:
        │
        ▼
 ┌─────────────┐
-│  Low-Pass   │ (optional filter - isolates bass)
+│  Low-Pass   │ (peaks engine only - isolates bass)
 │   Filter    │
 └──────┬──────┘
        │
@@ -82,17 +86,19 @@ The library uses the Web Audio API's node-based architecture:
 
 ### Why the Low-Pass Filter?
 
-Connecting the source to `bpmAnalyzer.input` puts a low-pass filter in front of the default `peaks` detector (the same filter `getBiquadFilter()` builds). It:
+With the `peaks` engine, connecting the source to `analyzer.input` puts a low-pass filter in front of it (the same filter `getBiquadFilter()` builds). It:
 - Isolates bass frequencies (typically where the beat is strongest)
 - Reduces noise from high-frequency content
 - Improves peak detection accuracy
 
-To skip it or use your own filter, connect to `bpmAnalyzer.node` instead, the analyzer with nothing in front of it. The `tempogram` detector needs the full band, so its `.input` adds no filter.
+To skip it or use your own filter, connect to `analyzer.node` instead, the analyzer with nothing in front of it. The default `tempogram` engine needs the full band, so its `.input` adds no filter. Connect to `analyzer.input` either way, and each engine gets what it needs.
 
 ## How BPM Detection Works
 
+This is the `peaks` engine, the 5.x default and still available with `engine: 'peaks'`. The default `tempogram` engine reads the tempo from an onset tempogram instead: see [the tempogram engine](/guide/realtime-bpm-detection#the-tempogram-detector).
+
 ### 1. Peak Detection
-The analyzer scans the audio signal at multiple amplitude **thresholds** (0.90, 0.85, 0.80... down to 0.20):
+The analyzer scans the audio signal at multiple amplitude **thresholds** (0.95, 0.90, 0.85... down to 0.20):
 
 ```
 Amplitude
@@ -131,34 +137,41 @@ The algorithm then:
 - Folds each BPM into the tempo range (90-180 BPM by default) by doubling or halving
 - Groups intervals that round to the same tempo
 - Counts occurrences (votes)
-- Returns the top 5 candidates sorted by count, each with a confidence share
+- Reports the tempo with the most votes, with up to 4 runners-up
 
 ## BPM Candidates
 
-Results are returned as an array of candidates:
+Each result is a reading: one tempo, and the candidates behind it.
 
 ```typescript
-[
-  { tempo: 128, count: 45, confidence: 0.41 },
-  { tempo: 171, count: 23, confidence: 0.17 },
-  { tempo: 96,  count: 12, confidence: 0.09 }
-]
+const reading = {
+  bpm: 128,
+  bpmExact: 128.04,
+  confidence: 0.87,
+  candidates: [
+    { bpm: 128, relation: 'top' },
+    { bpm: 171, relation: 'other' },
+    { bpm: 96, relation: 'other' },
+  ],
+  // ...and the audio it was measured on, and the engine
+};
 ```
 
-- **tempo**: Detected BPM value, inside the tempo range
-- **count**: Number of matching intervals; candidates are ranked by it
-- **confidence**: Share of all interval votes within ±1 BPM of `tempo`, from 0 to 1. A perfect click track scores about 0.46; no cut-off is calibrated on real music yet
+- **bpm**: The tempo to show, a whole number inside the tempo range. Always the first candidate's
+- **bpmExact**: The same tempo before rounding, for timing work such as spacing beat markers
+- **confidence**: From 0 to 1, the estimated chance the reading is right: within 4% of the true tempo, where half or double the tempo counts as wrong. Each engine's raw score is calibrated on licence-clean dev data, so the value means the same whichever engine measured it, realtime or offline. It was calibrated on the default tempo range: with a custom `tempoRange`, a reading outside 90 to 180 BPM is less certain to mean that
+- **candidates**: Up to 5, the reading's own tempo first, the others in the engine's rank order. Each has a **relation** to the reading's tempo: `top`, `half`, `double` or `other`
 
-The **first candidate** (highest count) is usually the most accurate.
+The reading's `bpm` is usually the right one. A `half` or `double` candidate is the same beat at another octave.
 
 ## Threshold System
 
-The library uses a **progressive threshold** system:
+The `peaks` engine uses a **progressive threshold** system:
 
 1. Starts at high threshold (0.95) - only strong peaks
 2. If enough peaks found, calculates BPM
-3. If successful, **raises minimum threshold**
-4. This makes future detection more selective and accurate
+3. Each time it locks, it **raises the minimum threshold**
+4. This makes future detection more selective
 
 Benefits:
 - Early results from strong beats
@@ -167,111 +180,110 @@ Benefits:
 
 ## Configuration Options
 
-When creating the processor, you can customize behavior:
+When creating the analyzer, you can customize behavior:
 
 ```typescript
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
-  // Enable continuous analysis with auto-reset
-  continuousAnalysis: false,
-  
-  // Time before auto-reset (only if continuousAnalysis = true)
-  stabilizationTime: 20000, // 20 seconds
-  
-  // Minimum time between peaks at same threshold (prevents double-detection)
-  muteTimeInIndexes: 10000,
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  // The engine, with the settings only it understands
+  engine: { name: 'peaks', restartAfterSeconds: 20 },
 
-  // BPM range every tempo is folded into
+  // BPM range every tempo is reported in
   tempoRange: { min: 90, max: 180 },
-  
+
   // Enable debug events
-  debug: false
+  debug: false,
 });
 ```
 
-### continuousAnalysis
-- `false` (default): Accumulate data indefinitely
-- `true`: Reset after `stabilizationTime` to prevent memory growth
+### engine {#continuousanalysis}
+- `'tempogram'` (default): spectral flux across several bands; see [the tempogram engine](/guide/realtime-bpm-detection#the-tempogram-detector)
+- `'peaks'`: amplitude peaks after a low-pass filter, the 5.x default
+- `{ name: 'peaks', restartAfterSeconds }`: start over every this many seconds of audio. Absent: never restarts
+- `{ name: 'tempogram', mode: 'extension' }`: pins the measured settings, for tab capture
 
-### stabilizationTime
-- Default: `20000` ms (20 seconds)
-- Only used when `continuousAnalysis: true`
-- Time until analyzer resets and starts fresh
-
-### muteTimeInIndexes
-- Default: `10000` samples
-- Prevents detecting the same beat twice
-- Adjust based on expected BPM range
+<a id="stabilizationtime"></a><a id="mutetimeinindexes"></a>
 
 ### tempoRange
 - Default: `{ min: 90, max: 180 }`
-- Every tempo is doubled or halved until it lands inside the range, so this picks the octave: the default reads an 85 BPM hip-hop track as 170, `{ min: 70, max: 140 }` reads it as 85
+- It picks the octave: the default reads an 85 BPM hip-hop track as 170, `{ min: 70, max: 140 }` reads it as 85
 - `max` must be at least twice `min`; a narrower range throws a `RangeError`
 - Keep the expected tempo away from the bounds: a tempo right on an edge jitters across it and its votes split between the two octaves
 - `analyzeFullBuffer(buffer, { tempoRange })` takes the same option
+- Both engines take it: `peaks` folds every tempo into it, the `tempogram` engine searches it and folds nothing
 
 ### debug
 - `false` (default): No debug events
-- `true`: Emits additional events for debugging
+- `true`: Emits `debug` events, with engine detail whose shape changes with any release
 
 ## Events Reference
 
-### `bpm`
-Emitted continuously during analysis:
+Besides its events, the analyzer has a state you can read at any time: `analyzer.state`. Its `status` is `listening`, `settling`, `locked` or `stopped`. Inside any listener, `state` is already current.
+
+### `statechange`
+Emitted on every change of status, and only then:
 
 ```typescript
-analyzer.on('bpm', (data) => {
-  // data.bpm: Array of tempo candidates
-  // data.threshold: Current detection threshold
-  console.log('BPM:', data.bpm[0].tempo);
-  console.log('Threshold:', data.threshold);
+analyzer.on('statechange', ({ from, to, reason }) => {
+  console.log(`${from.status} to ${to.status} (${reason})`);
+  if (to.status === 'locked') {
+    console.log('Locked BPM:', to.reading.bpm);
+  }
 });
 ```
 
-### `bpmStable`
-Emitted when stable BPM detected:
+- `listening` to `settling`, reason `first-reading`: the first reading.
+- `settling` to `locked`, reason `locked`: the readings agreed long enough. No sooner than about 11.5 seconds of audio with the default `tempogram` engine, 10 seconds with `peaks`.
+- `locked` to `settling`, reason `unlocked`: the readings moved away.
+- Back to `listening`: reason `pulse-lost` when no beat was heard for 2 seconds, `tempo-changed` when `restartAfterSeconds` started it over, `audio-lost` when a [`liveInput`](./realtime-bpm-detection.md#liveinput-for-a-mediastream) analyzer started over after losing audio, and `reset` after `reset()`. Anything it had locked on may no longer hold.
+
+### `reading` {#bpm}
+Emitted on every analysis step outside `listening`:
 
 ```typescript
-analyzer.on('bpmStable', (data) => {
-  // More confident detection
-  console.log('Stable BPM:', data.bpm[0].tempo);
-  console.log('Confidence:', data.bpm[0].confidence);
-  console.log('Threshold:', data.threshold);
+analyzer.on('reading', (reading) => {
+  console.log('BPM:', reading.bpm);
+  console.log('Candidates:', reading.candidates.map(({ bpm, relation }) => `${bpm} (${relation})`));
 });
 ```
 
-### `analyzerReset`
-Emitted when continuous analysis resets, and when a `liveInput` analyzer starts over after losing audio ([`liveInput`](./realtime-bpm-detection.md#liveinput-for-a-mediastream)). Anything it had called stable may no longer hold:
-
-```typescript
-analyzer.on('analyzerReset', () => {
-  console.log('Analyzer reset - starting fresh analysis');
-});
-```
+<a id="bpmstable"></a><a id="analyzerreset"></a>
 
 ### `progress`
-Emitted once per analysed chunk (about every 93 ms at 44.1 kHz) with how close the analyzer is to its first BPM. A tempo needs `requiredPeaks` peaks (16) at one threshold, so quiet intros or tracks without kicks can take a while:
+Emitted on each analysed chunk while `listening` (about every 93 ms at 44.1 kHz), with how close the analyzer is to its first reading. The default `tempogram` engine fills it over a 4-second warm-up. The `peaks` engine needs 16 peaks at one threshold, so with it quiet intros or tracks without kicks can take a while:
 
 ```typescript
-analyzer.on('progress', ({ peaks, requiredPeaks }) => {
-  // peaks is capped at requiredPeaks, so this is a fraction from 0 to 1
-  progressBar.value = peaks / requiredPeaks;
+const progressBar = document.querySelector('progress')!;
+
+analyzer.on('progress', ({ fraction }) => {
+  // A fraction from 0 to 1
+  progressBar.value = fraction;
 });
 ```
 
-It reaches `peaks === requiredPeaks` in the same chunk as the first `bpm` event with candidates, and drops back to `0` right after `analyzerReset`. It is always on, unlike the `debug` events.
+The step that would reach 1 moves to `settling` and sends the first `reading` instead. Progress starts again from `0` after `reset()` and after a start-over (reason `tempo-changed` or `audio-lost`). After `pulse-lost` the analyzer keeps what it has read, so progress stays at `1` while it listens for the beat again. `analyzer.state.progress` holds the same value while listening. It is always on, unlike the `debug` events.
+
+### `error`
+Emitted when one analysis step fails; the next step runs. A fatal fault is a `statechange` to `stopped` with reason `failed` instead.
+
+```typescript
+analyzer.on('error', ({ name, message }) => {
+  console.error(name, message);
+});
+```
 
 ## Best Practices
 
 ### ✅ Do
-- Use low-pass filter for music with prominent bass
-- Wait for `bpmStable` event before displaying final result
+- Connect the source to `analyzer.input`, which gives each engine what it needs (the low-pass filter for `peaks`, the full band for `tempogram`)
+- Wait for the `statechange` to `locked` before displaying a final result
 - Handle multiple candidates (show top 3-5)
 - Create `AudioContext` on user interaction
+- Call `stop()` when you are done: it is final, so create a new analyzer to listen again
 
 ### ❌ Don't
 - Create `AudioContext` immediately on page load (autoplay restrictions)
-- Assume first BPM event is accurate (wait for stability)
-- Ignore `count` and `confidence` (they tell a clear winner from a toss-up)
+- Assume the first reading is accurate (wait for the lock)
+- Ignore the candidates' `relation` (a `half` or `double` is the same beat at another octave)
 - Use continuous analysis for short audio clips
 
 ## Next Steps

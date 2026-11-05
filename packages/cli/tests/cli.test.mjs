@@ -9,6 +9,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
+// Built for the tests and not published
+import {decodeFile} from '../dist/decode.mjs';
 // The library's own fixtures, so the pinned bass-test values have a single source
 import {bassTestExpected} from '../../realtime-bpm-analyzer/tests/fixtures/bass-test-expected.ts';
 import {createClickTrack} from '../../realtime-bpm-analyzer/tests/fixtures/click-track.ts';
@@ -106,59 +108,81 @@ describe('realtime-bpm-analyzer CLI', () => {
     }
   });
 
-  it('runs the detector named by --detector, on the same default range as peaks', async () => {
-    const {results: [peaks]} = await runJson([fixture('click-140.ogg')]);
-    const {results: [tempogram]} = await runJson(['--detector', 'tempogram', fixture('click-140.ogg')]);
+  it('runs the engine named by --engine, on the same default range as peaks', async () => {
+    const {results: [peaks]} = await runJson(['--engine', 'peaks', fixture('click-140.ogg')]);
+    const {results: [tempogram]} = await runJson(['--engine', 'tempogram', fixture('click-140.ogg')]);
 
+    assert.equal(peaks.engine, 'peaks');
+    assert.equal(tempogram.engine, 'tempogram');
     assert.ok(Math.abs(tempogram.bpm - 140) <= 2, `got ${tempogram.bpm}`);
-    assert.notDeepEqual(tempogram.candidates, peaks.candidates);
+    assert.notDeepEqual({confidence: tempogram.confidence, candidates: tempogram.candidates}, {confidence: peaks.confidence, candidates: peaks.candidates});
     // A lone --min-bpm is measured against 180: the first pick's 240 would let this through
-    assert.match((await run(['--detector', 'tempogram', '--min-bpm', '91', bassTest])).stderr, /max \(180\) must be at least twice min \(91\)/);
+    assert.match((await run(['--engine', 'tempogram', '--min-bpm', '91', bassTest])).stderr, /max \(180\) must be at least twice min \(91\)/);
   });
 
-  it('refuses an unknown detector', async () => {
-    const {code, stderr} = await run(['--detector', 'magic', bassTest]);
+  it('refuses the old --detector flag rather than run peaks without a word', async () => {
+    const {code, stderr} = await run(['--detector', 'tempogram', bassTest]);
 
     assert.equal(code, 2);
-    assert.match(stderr, /Invalid detector: magic/);
+    assert.match(stderr, /--detector/);
   });
 
-  it('prints the BPM, confidence and candidates as text by default', async () => {
-    const {code, stdout} = await run([clickMp3]);
+  it('refuses an unknown engine', async () => {
+    const {code, stderr} = await run(['--engine', 'magic', bassTest]);
+
+    assert.equal(code, 2);
+    assert.match(stderr, /Invalid engine: magic/);
+  });
+
+  it('prints the BPM, engine, confidence and candidates as text by default', async () => {
+    const {code, stdout} = await run(['--engine', 'peaks', clickMp3]);
     assert.equal(code, 0);
-    assert.match(stdout, /click-128\.mp3: 128 BPM \(confidence 0\.\d\d\)\n {2}candidates: 128 \(count \d+, confidence 0\.\d\d\), /);
+    assert.match(stdout, /click-128\.mp3: 128 BPM \(peaks, confidence 0\.\d\d\)\n {2}candidates: 128(, |$)/m);
   });
 
   it('finds the bass-test fixture tempo the browser finds', async () => {
-    const {code, results: [result]} = await runJson([bassTest]);
+    // The pinned value is peaks' reading, so name peaks: the default engine reads this fixture differently
+    const {code, results: [result]} = await runJson(['--engine', 'peaks', bassTest]);
     assert.equal(code, 0);
     assert.equal(result.bpm, bassTestExpected.tempo);
-    assert.equal(result.candidates[0].count, bassTestExpected.count);
   });
 
   for (const [name, bpm] of [['bass-test.wav', bassTestExpected.tempo], ['click-128.mp3', 128], ['click-100.flac', 100], ['click-140.ogg', 140], ['click-140.opus', 140]]) {
     it(`decodes ${name} with the bundled decoder`, async () => {
       // An unusable FFMPEG_PATH proves no ffmpeg was involved
-      const {code, results: [result]} = await runJson([name === 'bass-test.wav' ? bassTest : fixture(name)], {FFMPEG_PATH: '/nonexistent/ffmpeg'});
+      // bass-test's pinned value is peaks' reading; the click tracks read the same on the default engine
+      const args = name === 'bass-test.wav' ? ['--engine', 'peaks', bassTest] : [fixture(name)];
+      const {code, results: [result]} = await runJson(args, {FFMPEG_PATH: '/nonexistent/ffmpeg'});
       assert.equal(code, 0);
       assert.equal(result.bpm, bpm);
     });
   }
 
+  it('runs the library\'s default engine when --engine is not given', async () => {
+    // Through the bin, so a default pinned in the argument parser fails here: analyzeFile alone never sees it
+    const {code, results: [result]} = await runJson([clickMp3]);
+    assert.equal(code, 0);
+    const {channelData, sampleRate} = await decodeFile(clickMp3, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
+    const reading = await analyzeChannelData(channelData, sampleRate);
+    const fields = ({bpm, bpmExact, confidence, candidates, engine}) => ({bpm, bpmExact, confidence, candidates, engine});
+    assert.deepEqual(fields(result), fields(reading));
+  });
+
   it('prints a stable JSON shape', async () => {
     const {results: [result]} = await runJson([clickFlac]);
-    assert.deepEqual(Object.keys(result), ['file', 'ok', 'bpm', 'confidence', 'candidates']);
+    assert.deepEqual(Object.keys(result), ['file', 'ok', 'bpm', 'bpmExact', 'confidence', 'candidates', 'engine']);
     assert.equal(result.file, clickFlac);
     assert.equal(result.ok, true);
-    assert.equal(result.confidence, result.candidates[0].confidence);
+    assert.ok(Math.abs(result.bpmExact - result.bpm) <= 1.5, `got ${result.bpmExact} for ${result.bpm}`);
+    assert.ok(['peaks', 'tempogram'].includes(result.engine), result.engine);
+    assert.ok(result.confidence > 0 && result.confidence <= 1, `got ${result.confidence}`);
     assert.ok(result.candidates.length > 0 && result.candidates.length <= 5);
+    assert.deepEqual(result.candidates[0], {bpm: result.bpm, relation: 'top'});
 
     for (const candidate of result.candidates) {
-      assert.deepEqual(Object.keys(candidate), ['tempo', 'count', 'confidence']);
+      assert.deepEqual(Object.keys(candidate), ['bpm', 'relation']);
+      assert.ok(['top', 'half', 'double', 'other'].includes(candidate.relation), candidate.relation);
     }
-
-    const counts = result.candidates.map(candidate => candidate.count);
-    assert.deepEqual(counts, [...counts].sort((a, b) => b - a));
   });
 
   it('folds tempos into --min-bpm/--max-bpm', async () => {

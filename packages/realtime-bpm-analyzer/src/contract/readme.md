@@ -1,10 +1,9 @@
 # v6 reporting contract
 
 This folder holds the contract for what realtime-bpm-analyzer 6.x reports. It covers the public types
-(`types.ts`), and the transition table plus the pure reducer that enforces it (`transitions.ts`). Nothing
-imports this folder yet, so the 5.x bundles, declarations and API docs are unchanged. Phase 3 of RBA-108
-wires it into the analyzer and removes the 5.x surface. The plan is `plan/rba-v6-reporting.md` in the
-workspace.
+(`types.ts`), and the transition table plus the pure reducer that enforces it (`transitions.ts`). The
+analyzer runs on it: the worklet's session (`core/session.ts`) sends `WorkletMessage`s, and `BpmAnalyzer`
+reduces them. The plan is `plan/rba-v6-reporting.md` in the workspace.
 
 This note sits beside the code rather than in `docs/`, because VitePress would publish it as a page for an
 API that hasn't shipped yet. The migration guide (phase 6) moves the mapping table below into `docs/`.
@@ -27,7 +26,8 @@ query, and `statechange` announces each change to it. Here:
 
 Splitting them this way gives four guarantees, and the tests check each one:
 
-1. **One source, one order.** The worklet sends one message per analysis step. The reducer turns it into
+1. **One source, one order.** The worklet sends one message per analysis step, and one more when the step
+   also started the engine over (`tempo-changed` with `restartAfterSeconds`). The reducer turns each into
    the next state and an ordered list of events. The state is stored first, then `statechange`
    dispatches, then `reading` or `progress`. Inside any listener, `state` is already current.
 2. **Late subscribers aren't stuck.** Events are never replayed, and a listener added late reads `state`.
@@ -36,7 +36,9 @@ Splitting them this way gives four guarantees, and the tests check each one:
    nothing measured before it is reported. The only exception is a fatal fault, which stops the analyzer
    whatever its epoch, because the processor that sent it is gone. The main thread is the only writer of
    the epoch. Engine resets (`audio-lost`, `tempo-changed`, `pulse-lost`) don't move it, because the port
-   is ordered and they race with nothing.
+   is ordered and they race with nothing. Each message also carries `at`, the worklet time it was sent: the
+   watchdog that fails a processor still sending old epochs a second after `reset()` judges by it, so a
+   blocked main thread, which receives a backlog late, never trips it.
 4. **Re-entrant listeners see one sequence.** A `reset()` or `stop()` called from a listener is queued until
    every listener has had every event of the current step, as `AudioContext` queues its `statechange`.
    The queue is bounded, so a listener that resets on every `statechange` throws instead of looping.
@@ -44,9 +46,12 @@ Splitting them this way gives four guarantees, and the tests check each one:
 Two smaller choices sit alongside these:
 
 - Every message carries a protocol version. A stale processor (an old `processorUrl` copy, or a 5.x file
-  copied into an extension build) fails loudly with `ProtocolError` instead of misbehaving: the factory waits for its `ready` message with a timeout (phase 3), and a 5.x processor never sends one.
+  copied into an extension build) fails loudly with `ProtocolError` instead of misbehaving: the factory waits for its `ready` message with a timeout, and a 5.x processor never sends one.
 - Any protocol violation is fatal (`stopped`, reason `failed`, a `ProtocolError` in `state.error`). That
-  covers an illegal transition, a malformed message, a future epoch and audio time going back. Dropping
+  covers an illegal transition, a malformed message of a known type, a future epoch and audio time going back.
+  A message type the main thread doesn't know passes only when it comes from a later protocol minor, which may
+  have added it; from the same or an older minor it is a violation, so a typo fails loudly. The processor
+  applies the same rule to host messages. That is how a minor adds a message (see below). Dropping
   the message instead would leave the processor believing in a state the main thread refused, and every
   step after it would be refused too.
 - `listening` carries its reason (`started`, `reset`, `pulse-lost`, `audio-lost`, `tempo-changed`), so a
@@ -56,8 +61,50 @@ Two smaller choices sit alongside these:
 
 Hysteresis belongs to the engine. Locking and unlocking use different bands and dwell times (`Hysteresis`),
 so the state can't flap, and `pulseLostAfterSeconds` keeps a short break from bouncing settling and
-listening. The reducer enforces only the table. The values are placeholders until phase 3 measures them on
-the benchmark.
+listening. The reducer enforces only the table. The worklet's tracker (`core/tracker.ts`) applies the unlock
+and pulse values. The lock follows each engine's own rule: the tempogram's stable rule reads `lockBand` and
+`lockAfterSeconds`, and peaks locks on a fuller peak rung after its 10 s warm-up, with no band of its own. They map today's behaviour, and a sweep on the benchmark's dev half kept them (see `HYSTERESIS`).
+
+## Room for 6.x (beat events, RBA-109)
+
+These rules are fixed now so that beats land in a minor release, without a break:
+
+1. **Protocol.** `PROTOCOL` is a semver pair (`ProtocolVersion`). The major moves only when a known message
+   changes, which only a major release does, and is checked strictly. A minor release that adds a message
+   type, such as `beat`, bumps the minor, which is checked tolerantly: each side passes an unknown type only
+   from a later minor than its own, and fails on one from the same or an older minor. A malformed known
+   message is fatal whatever the minor. The analyzer keeps the processor's minor from `ready`, so a
+   `processorUrl` copy one minor behind keeps working, and a feature it lacks (beats) throws at once that the
+   processor copy is out of date instead of going silent. Every 6.x processor sends its minor, from 6.1.0.
+   The other way round, an older main thread rejects a value it does not know in `EngineName`,
+   `CandidateRelation`, `EngineReason` or `AnalyzerErrorName` as a malformed known message, which is fatal. So
+   a minor that adds a value to one of these unions must also make the processor keep the main thread's minor
+   from `processorOptions.protocol`, and send that main thread a value its minor knows instead. Minor 0 adds
+   none, so today the processor checks only the main thread's major.
+2. **Clock.** `AudioSpan.contextTime` is the `AudioContext` time at which the sample at `audio.to` reached
+   the worklet, stamped there before the analysis awaits. A moment `t` of analysed audio is at
+   `contextTime - (audio.to - t)` on the clock `AudioContext` schedules on. Offline it is `null`.
+3. **Resets.** A predicted beat belongs to its epoch and its stretch of audio. `reset()` and every move to
+   `listening` cancel every predicted beat not yet dispatched, so no beat of an older epoch or of a lost
+   pulse is ever reported. The epoch check that drops stale steps drops stale beats the same way.
+4. **Open unions.** `EngineName`, `CandidateRelation`, `AnalyzerErrorName`, `ListeningReason`,
+   `EngineReason`, `StateChangeReason` and `AnalyzerEventType` (with `AnalyzerEventMap` and `AnalyzerEvent`)
+   may grow in a minor. `Status` is the one closed union: a new status would change the meaning of the
+   others, so it waits for a major. A TypeScript `switch` that ends in an `assertNever` then fails to
+   compile on the upgrade, which is loud, not silent; the docs ask for a `default` branch elsewhere.
+5. **Offline beats.** `OfflineResult` stays `Reading | null`. Beats come from a separate `analyzeBeats()`
+   with its own result type, so the tempo result never grows a field that only some callers asked for.
+   `analyzeFullBuffer` and `analyzeChannelData` keep their shape.
+
+## Exact tempo (RBA-128)
+
+`Reading.bpm` stays a whole number, the tempo people read. `Reading.bpmExact` is the same tempo unrounded,
+for timing: a beat grid on 128 for a real 127.6 BPM drifts about 0.56 s in 3 minutes. Each engine measures
+it from its own estimate rather than by un-rounding `bpm`. Peaks takes the vote-weighted mean of the
+unrounded interval tempos within 1 BPM of its top tempo, the same window its confidence pools. The
+tempogram uses the parabolic peak it already rounded. So `bpmExact` is within 1.5 BPM of `bpm`, and the
+reducer refuses anything further. It is a flat number in BPM, next to `bpm`, because that is the unit callers
+already hold and convert from (`60 / bpmExact` seconds a beat). Candidates stay whole: nothing times on them.
 
 ## Transition table
 
@@ -98,10 +145,11 @@ The migration guide builds on this table.
 | `once()` | `on(type, listener, {once: true})` |
 | `Tempo.tempo` | `Reading.bpm`, `Candidate.bpm` |
 | `Tempo.count` | removed |
-| `Tempo.confidence` (per engine) | `Reading.confidence`, calibrated (RBA-106) or removed |
+| `Tempo.confidence` (per engine) | `Reading.confidence`, calibrated on dev (RBA-106): the chance the reading is right |
 | `BpmCandidates.threshold`, `Threshold`, `Peaks` | removed |
 | (none) | `Candidate.relation`: `top`, `half`, `double`, `other` |
-| (none) | `Reading.audio {from, to}`, in seconds since the epoch began |
+| (none) | `Reading.audio {from, to, contextTime}`, in seconds since the epoch began, anchored to the context clock |
+| (none) | `Reading.bpmExact`, the unrounded tempo |
 | `analyzeFullBuffer` / `analyzeChannelData` return `Tempo[]` | `Reading \| null` |
 | `RealTimeBpmAnalyzer`, `createRealTimeBpmProcessor` | removed |
 | `ProcessorInputEvent`, `ProcessorOutputEvent` | internal `HostMessage`, `WorkletMessage`, versioned |

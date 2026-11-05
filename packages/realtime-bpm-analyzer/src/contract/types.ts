@@ -1,16 +1,35 @@
 /**
  * The v6 public types: what the analyzer reports, engine-neutral.
  *
- * Not exported yet. Nothing in `src/index.ts` or `src/node.ts` imports this folder, so the 5.x bundles and
- * declarations are unchanged. Phase 3 of RBA-108 wires it in and removes the 5.x surface.
- * Design note and the 5.x mapping: `./readme.md`.
+ * `src/index.ts` and `src/node.ts` re-export the public part. Design note and the 5.x mapping: `./readme.md`.
  */
 
-/** Version of the worklet protocol. Bumped on any change to {@link WorkletMessage} or {@link HostMessage}. */
-export const PROTOCOL_VERSION = 1;
+/**
+ * A worklet protocol version, carried by every message between the analyzer and its processor.
+ *
+ * @remarks
+ * Semver rules, because a `processorUrl` copy of the processor can drift from the library that loads it.
+ * - `major` is checked strictly: a known message changed shape or meaning, which only a major release does. A
+ *   processor of another major (a 5.x file included) fails at once with a `ProtocolError`.
+ * - `minor` is checked tolerantly: a minor release may add message types, and bumps it when it does. A message type
+ *   a side does not know passes only when it comes from a later minor than its own, so it is a feature a newer
+ *   copy has. From the same or an older minor it is a bug, a typo included, and fatal. A known message that is
+ *   malformed is fatal whatever the minor.
+ *
+ * The main thread keeps the processor's minor from its `ready`, so a feature that needs a newer processor (beats,
+ * RBA-109) can fail at once with an error saying the processor copy is out of date, instead of going silent.
+ *
+ * A minor that adds a value to a union the processor sends must keep that value from an older main thread, as
+ * rule 1 of `./readme.md` (Room for 6.x) sets out.
+ */
+export type ProtocolVersion = {readonly major: number; readonly minor: number};
+
+/** The protocol this build speaks: see {@link ProtocolVersion} */
+export const PROTOCOL: ProtocolVersion = Object.freeze({major: 1, minor: 0});
 
 /**
- * The tempo engine.
+ * The tempo engine. May grow in a minor release, like every exported union but {@link Status}: give a `switch`
+ * over it a `default` branch.
  *
  * - `peaks`: amplitude peaks after a lowpass.
  * - `tempogram`: spectral flux across several bands and a sliding autocorrelation.
@@ -39,7 +58,7 @@ export type EngineOption =
     readonly mode?: 'extension';
   };
 
-/** The offline engine option. Realtime callers place their own filter, so only offline takes a lowpass. */
+/** The offline engine option. Realtime `peaks` has a fixed lowpass inside `analyzer.input`, so only offline takes lowpass settings. */
 export type OfflineEngineOption =
   | EngineName
   | {readonly name: 'peaks'; readonly lowpass?: {readonly frequency?: number; readonly q?: number}};
@@ -55,7 +74,10 @@ export type TempoRange = {
 
 /** Options for the realtime analyzer. Invalid values throw a `RangeError` or `TypeError` synchronously. */
 export type AnalyzerOptions = {
-  /** Default decided in RBA-51. */
+  /**
+   * Default `tempogram`, as decided in RBA-51. `peaks` puts a fixed lowpass inside `analyzer.input`; the
+   * tempogram takes the full band.
+   */
   readonly engine?: EngineOption;
   readonly tempoRange?: TempoRange;
   /** URL of the processor file, for pages and extensions whose CSP refuses `blob:`. Default: an inlined `blob:`. */
@@ -71,12 +93,13 @@ export type AnalyzerOptions = {
 
 /** Options for whole-buffer analysis, in the browser and in Node. */
 export type OfflineOptions = {
+  /** Default `tempogram`, as for the realtime analyzer. Only `peaks` takes lowpass settings. */
   readonly engine?: OfflineEngineOption;
   readonly tempoRange?: TempoRange;
 };
 
 /**
- * How a candidate's tempo relates to the reading's tempo.
+ * How a candidate's tempo relates to the reading's tempo. May grow in a minor release.
  *
  * - `top`: the reading's own tempo. Only `candidates[0]` has it.
  * - `half` / `double`: half or twice the top tempo, within {@link RELATION_TOLERANCE}.
@@ -107,6 +130,16 @@ export type Candidate = {
 export type AudioSpan = {
   readonly from: number;
   readonly to: number;
+  /**
+   * Realtime: the `AudioContext.currentTime` at which the last analysed sample, the one at `to`, reached the
+   * analyzer, stamped in the worklet. It anchors audio time to the context clock: a moment `t` of analysed audio
+   * (a beat, in 6.x) is at `contextTime - (to - t)` on the clock `AudioContext` schedules on. That holds back to
+   * the last lost live input, which audio time counts as silence. The time the sound reached the analyzer, so add
+   * `outputLatency` to line something up with what the listener hears.
+   *
+   * `null` offline, where no context clock runs.
+   */
+  readonly contextTime: number | null;
 };
 
 /**
@@ -123,8 +156,26 @@ export type Reading = {
    */
   readonly bpm: number;
   /**
-   * Calibrated probability, 0 to 1, that `bpm` is within 4% of the true tempo: 0.8 is right about 80% of the
-   * time on the held-out set. Removed from the API if RBA-106 shows it adds nothing.
+   * The same tempo unrounded, in BPM: the engine's own estimate before it is rounded to `bpm`. For timing, not for
+   * display. A beat grid or a marker export laid on `bpm` drifts: a real 127.6 BPM shown as 128 puts the markers
+   * about 0.56 s off after 3 minutes. Lay the grid on `60 / bpmExact` seconds instead, and keep showing `bpm`.
+   *
+   * Each engine measures it, never derives it from `bpm`: `peaks` takes the vote-weighted mean of the unrounded
+   * interval tempos within 1 BPM of `bpm`, and `tempogram` the interpolated top of its tempo curve. So it is
+   * within 1.5 BPM of `bpm`, and `Math.round(bpmExact)` can differ from `bpm` by one when the peaks votes straddle
+   * two whole numbers: `bpm` is the whole number with the most votes, not a rounding of `bpmExact`.
+   */
+  readonly bpmExact: number;
+  /**
+   * The chance, 0 to 1, that `bpm` is within 4% of the true tempo right now: 0.8 is right about 80% of the time.
+   * Each engine's raw score (`peaks` the share of interval votes within ±1 BPM, `tempogram` its accumulated
+   * salience) goes through that engine's table in `core/calibration.ts`, so values from either engine, realtime or
+   * offline, mean the same thing. A reading at half or double the tempo counts as wrong.
+   *
+   * Calibrated on the benchmark's dev half (RBA-106, benchmark/results/rba-106-calibration-dev.md). It is not yet
+   * checked on held-out data, so treat its exact values as an estimate for music like the benchmark's. Dev read on
+   * the default 90 to 180 range: a reading under 90 BPM, or far over 180 with a custom `tempoRange`, gets the nearest
+   * table, which no reading there measured.
    */
   readonly confidence: number;
   /**
@@ -143,7 +194,7 @@ export type Reading = {
 export type OfflineResult = Reading | null;
 
 /**
- * Error names, after the DOM's `...Error` names. Serialisable through `postMessage`: never an `Error` instance.
+ * Error names, after the DOM's `...Error` names. May grow in a minor release. Serialisable through `postMessage`: never an `Error` instance.
  * The detail is in `message`, which has no stable format.
  */
 export type AnalyzerErrorName =
@@ -163,13 +214,19 @@ export type AnalyzerError = {
   readonly message: string;
 };
 
-/** The analyzer's status, the discriminant of {@link AnalyzerState}. */
+/**
+ * The analyzer's status, the discriminant of {@link AnalyzerState}. The one closed union: a new status would
+ * change what the existing ones mean, so it waits for a major release, and an exhaustive `switch` over it is safe.
+ */
 export type Status = AnalyzerState['status'];
 
 /** Any status but `stopped`. */
 export type ActiveStatus = Exclude<Status, 'stopped'>;
 
-/** Why the analyzer is listening, so a late subscriber can tell a fresh start from a lost pulse or lost input. */
+/**
+ * Why the analyzer is listening, so a late subscriber can tell a fresh start from a lost pulse or lost input.
+ * May grow in a minor release.
+ */
 export type ListeningReason = 'started' | 'reset' | 'pulse-lost' | 'audio-lost' | 'tempo-changed';
 
 /**
@@ -181,6 +238,8 @@ export type ListeningReason = 'started' | 'reset' | 'pulse-lost' | 'audio-lost' 
  *   subscriber learns live input is being lost.
  * - `settling`: readings are coming but have not agreed long enough to lock.
  * - `locked`: readings agree. Leaving needs more disagreement than entering (hysteresis), so it does not flap.
+ *   The tempo can still move while locked, with no `statechange`: within the unlock band, and when peaks moves its
+ *   lock to a fuller rung. Show the latest `reading`, not only the one of the move to `locked`.
  * - `stopped`: final. `error` is null after `stop()`, set after a fatal fault.
  *
  * @remarks
@@ -198,7 +257,7 @@ export type AnalyzerState =
   | {readonly status: 'locked'; readonly epoch: number; readonly reading: Reading}
   | {readonly status: 'stopped'; readonly epoch: number; readonly error: AnalyzerError | null};
 
-/** Reasons the engine gives, inside a worklet message. */
+/** Reasons the engine gives, inside a worklet message. May grow in a minor release. */
 export type EngineReason =
   /** listening to settling: the first reading of this stretch. */
   | 'first-reading'
@@ -216,7 +275,10 @@ export type EngineReason =
 /** Reasons that come from the caller: `reset()` and `stop()`. */
 export type CallerReason = 'reset' | 'stopped';
 
-/** Every reason a `statechange` can carry. */
+/**
+ * Every reason a `statechange` can carry. May grow in a minor release: branch on `to.status`, which is closed, and
+ * treat an unknown reason as informational.
+ */
 export type StateChangeReason = EngineReason | CallerReason | 'failed';
 
 /**
@@ -238,7 +300,7 @@ export type Progress = {readonly fraction: number};
 export type DebugInfo = {readonly engine: EngineName; readonly data: unknown};
 
 /**
- * The analyzer's events.
+ * The analyzer's events. May grow in a minor release: a new event type is additive, as nobody listens to it yet.
  *
  * @remarks
  * Dispatch order, for each analysis step: `state` is updated, then `statechange` fires if the status, the
@@ -247,10 +309,16 @@ export type DebugInfo = {readonly engine: EngineName; readonly data: unknown};
  * every listener has had every event of the current step, so all listeners see the same sequence.
  *
  * - `statechange`: on every transition, and only then.
- * - `reading`: on each analysis step outside `listening`, about twice a second. A measurement, not a state.
+ * - `reading`: on each analysis step outside `listening` that measured something new. A measurement, not a state.
+ *   The rate is the engine's: `peaks` measures every 4096-sample buffer, about 11 times a second at 44.1 or
+ *   48 kHz, and `tempogram` on each tempogram update, about twice a second.
  * - `progress`: on each analysis step while `listening`, and once right after `reset()`, with 0.
  * - `error`: non-fatal faults. A fatal one is a `statechange` to `stopped` with reason `failed` instead.
  * - `debug`: engine detail, only with `debug: true`.
+ *
+ * Reserved for 6.x (RBA-109): a `beat` event, on the `AudioContext` clock ({@link AudioSpan.contextTime}). It
+ * belongs to the epoch and the stretch of audio it was predicted in: `reset()` and every move to `listening`
+ * cancel every predicted beat not yet dispatched, so no beat of an older epoch or a lost pulse is ever reported.
  */
 export type AnalyzerEventMap = {
   readonly statechange: StateChange;
@@ -306,17 +374,26 @@ export type BpmAnalyzerContract = {
   stop(): void;
 };
 
-/** Worklet to main thread. Every message carries the protocol version and the epoch it was measured in. */
+/**
+ * Worklet to main thread. Every message carries the processor's protocol version and the epoch it was measured in.
+ * The main thread validates every type it knows strictly, and passes a type it does not know only when it comes from
+ * a later protocol minor than its own (see {@link ProtocolVersion}).
+ */
 export type WorkletMessage =
   /**
-   * Sent once when the processor starts. The analyzer's factory waits for it, with a timeout, before it
-   * resolves (phase 3), so a stale processor fails at startup: a 5.x one never sends it.
+   * Sent when the processor starts, with epoch 0, and again each time it adopts the epoch of a `reset`. The
+   * factory waits for the first, with a timeout, before it resolves, so a stale processor fails at startup: a 5.x
+   * one never sends it. The later ones end the epoch watchdog's wait.
    */
-  | {readonly type: 'ready'; readonly protocol: number; readonly epoch: number}
-  /** One per analysis step while listening. `reason` only when this step moved the status. */
+  | {readonly type: 'ready'; readonly protocol: ProtocolVersion; readonly epoch: number}
+  /**
+   * One per analysis step while listening. `reason` only when this step moved the status. A start-over
+   * (`tempo-changed` with `restartAfterSeconds`, `audio-lost` with `liveInput`) sends one of its own, so one step
+   * can send two.
+   */
   | {
     readonly type: 'step';
-    readonly protocol: number;
+    readonly protocol: ProtocolVersion;
     readonly epoch: number;
     readonly status: 'listening';
     readonly progress: number;
@@ -325,22 +402,32 @@ export type WorkletMessage =
   /** One per analysis step with a reading. `reason` only when this step moved the status. */
   | {
     readonly type: 'step';
-    readonly protocol: number;
+    readonly protocol: ProtocolVersion;
     readonly epoch: number;
     readonly status: 'settling' | 'locked';
     readonly reading: Reading;
     readonly reason?: EngineReason;
   }
-  | {readonly type: 'fault'; readonly protocol: number; readonly epoch: number; readonly fatal: boolean; readonly error: AnalyzerError}
+  | {readonly type: 'fault'; readonly protocol: ProtocolVersion; readonly epoch: number; readonly fatal: boolean; readonly error: AnalyzerError}
   /** Only sent with `debug: true`: the processor filters, not the reducer. */
-  | {readonly type: 'debug'; readonly protocol: number; readonly epoch: number; readonly engine: EngineName; readonly data: unknown};
+  | {readonly type: 'debug'; readonly protocol: ProtocolVersion; readonly epoch: number; readonly engine: EngineName; readonly data: unknown};
 
-/** Main thread to worklet. The processor ignores unknown types, and adopts `epoch` from `reset`. */
+/**
+ * A {@link WorkletMessage} as it crosses the port: the processor stamps each one with the worklet's `currentTime`
+ * when it posts it. The epoch watchdog judges an old epoch by when it was sent, not when the main thread got to it,
+ * so a blocked main thread cannot fail a healthy analyzer.
+ */
+export type PostedWorkletMessage = WorkletMessage & {readonly at: number};
+
+/**
+ * Main thread to worklet. The processor applies the main thread's rule to the types it does not know (see
+ * {@link ProtocolVersion}), and adopts `epoch` from `reset`.
+ */
 export type HostMessage =
-  | {readonly type: 'reset'; readonly protocol: number; readonly epoch: number}
-  | {readonly type: 'stop'; readonly protocol: number}
+  | {readonly type: 'reset'; readonly protocol: ProtocolVersion; readonly epoch: number}
+  | {readonly type: 'stop'; readonly protocol: ProtocolVersion}
   /** Seconds the live input has delivered, for the `liveInput` clock. */
-  | {readonly type: 'delivered'; readonly protocol: number; readonly seconds: number};
+  | {readonly type: 'delivered'; readonly protocol: ProtocolVersion; readonly seconds: number};
 
 /**
  * Hysteresis between locking and unlocking, and before a lost pulse, engine-neutral: it reads only `bpm`, the pulse and audio time.
@@ -360,13 +447,29 @@ export type Hysteresis = {
 };
 
 /**
- * PLACEHOLDER values, to be set in phase 3 from the benchmark (RBA-51 dev half). Only the shape and the
- * invariant `unlockBand > lockBand` are part of this contract.
+ * The hysteresis both engines report with. The one place these numbers live: the tempogram's stable rule reads
+ * `lockBand` and `lockAfterSeconds` from here.
+ *
+ * Swept on the benchmark's dev half and kept (RBA-106, benchmark/results/rba-v6-hysteresis-dev.md). The pick rule
+ * runs per engine, and these numbers are shared. The tempogram's pick (the default engine) moves only
+ * `pulseLostAfterSeconds`, to 3, which changes none of its measures. Peaks' pick, `pulseLostAfterSeconds` 1, sits at
+ * the edge of its grid and drops to listening almost four times as often. Neither pick is taken: one set of values
+ * serves both engines, the tempogram's pick changes nothing measured, and peaks' trades locks for its edge. Not
+ * checked on held-out data. Where each value comes from:
+ * - `lockBand` 0.02 and `lockAfterSeconds` 8: the tempogram's 5.x stable rule (`stableTolerance`, `stableSeconds`:
+ *   80% of the frames of the last 8 s agree within 2%, besides its lead and salience, which stay engine detail).
+ *   The 2% is also the band rba-pro copied by hand to tell stable from settling (`reading.ts`, `STABLE_TOLERANCE`).
+ *   The peaks engine keeps its own lock rule (10 s of audio, then a fuller threshold rung, RBA-107): its readings
+ *   jump by whole BPM, so a band on them was never measured.
+ * - `unlockBand` 0.04: the benchmark's ±4% for a correct reading. Leaving a lock while the reading is still within
+ *   it would be noise, and twice the lock band keeps the two apart.
+ * - `unlockAfterSeconds` 2 and `pulseLostAfterSeconds` 2: new. 5.x dropped a tempogram lock on the first frame
+ *   without a pulse, and rba-pro on the first reading outside 2%, so both flapped. Four tempogram frames.
  */
-export const HYSTERESIS_PLACEHOLDER: Hysteresis = {
+export const HYSTERESIS: Hysteresis = Object.freeze({
   lockBand: 0.02,
   lockAfterSeconds: 8,
   unlockBand: 0.04,
   unlockAfterSeconds: 2,
   pulseLostAfterSeconds: 2,
-};
+});

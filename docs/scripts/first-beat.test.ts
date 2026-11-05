@@ -7,6 +7,7 @@ import {
   firstBeatSeconds,
   firstBeatOf,
   fitTempo,
+  fallbackNote,
   firstStrongFrame,
   frameTime,
   onsetCurve,
@@ -218,6 +219,36 @@ test('fitTempo: a fitted grid carries its phase, a beat of the grid in seconds',
   const period = 60 / tempo.bpm
   const off = (((tempo.phase - truth.offset) % period) + 1.5 * period) % period - period / 2
   assert.ok(Math.abs(off) < 0.015, `phase ${tempo.phase} sits ${off} s off the beats`)
+})
+
+// v6 seeds the fit with Reading.bpmExact (RBA-128): the fit refines the exact reading within
+// FIT_RANGE_BPM of it, and a weak fit keeps the exact reading, never its rounded value.
+test('fitTempo: seeded with the exact reading 127.6, it refines it and its range is centred on it', () => {
+  const truth = { offset: 0.31, bpm: 127.6 }
+  const curve = onsetCurve(track(truth.bpm, truth.offset, 190, 48_000, true), 48_000)
+  const tempo = fitTempo(curve, 127.6)
+  assert.equal(tempo.fitted, true)
+  const firstBeat = firstBeatOf(curve, tempo)!
+  const drift = driftAt(180, { firstBeat, bpm: tempo.bpm }, truth)
+  assert.ok(Math.abs(drift) < 1 / 30, `${tempo.bpm} BPM drifts ${drift} s`)
+  // 126.8 BPM is within 1 BPM of 127.6 but not of 128: the range follows the seed.
+  const slower = onsetCurve(track(126.8, 0.5, 60, SAMPLE_RATE, false), SAMPLE_RATE)
+  assert.ok(fitTempo(slower, 127.6).fitted)
+  assert.equal(fitTempo(slower, 128).fitted, false)
+})
+
+test('fitTempo: a weak fit seeded with 127.6 falls back to 127.6, not 128', () => {
+  const silence = onsetCurve(new Float32Array(SAMPLE_RATE * 5), SAMPLE_RATE)
+  assert.deepEqual(fitTempo(silence, 127.6), { bpm: 127.6, fitted: false })
+})
+
+test('fallbackNote: a weak fit names the shown whole number as the reading, not as the grid\'s step', () => {
+  assert.equal(fallbackNote({ bpm: 127.6, fitted: true, phase: 0 }, 128), null)
+  const note = fallbackNote({ bpm: 127.6, fitted: false }, 128)
+  assert.ok(note !== null)
+  assert.match(note, /128 BPM/)
+  assert.doesNotMatch(note, /127\.6/, 'the exact tempo is never shown')
+  assert.doesNotMatch(note, /step at 128/)
 })
 
 /** A kick with a smooth tail, so the end of the sound is no onset of its own (the review's trap). */

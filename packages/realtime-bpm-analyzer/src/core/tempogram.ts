@@ -1,5 +1,6 @@
 import {resolveTempoRange} from './tempo';
-import type {RealTimeBpmAnalyzerParameters, Tempo, TempoRange} from './types';
+import type {Tempo, TempoRange} from './types';
+import {HYSTERESIS} from '../contract/types';
 
 /**
  * Knobs of the tempogram detector. Values are tuned on the benchmark's dev split only, see
@@ -79,9 +80,10 @@ export const defaultTempogramTuning: TempogramTuning = {
   thirdBeatPenalty: 0.3,
   priorBpm: 80,
   priorOctaves: 1.7,
-  stableSeconds: 8,
+  // The contract's lock band and dwell time: the tempogram's stable rule is what they were taken from
+  stableSeconds: HYSTERESIS.lockAfterSeconds,
   stableAgreement: 0.8,
-  stableTolerance: 0.02,
+  stableTolerance: HYSTERESIS.lockBand,
   stableSalience: 0.15,
   stableMargin: 1.25,
   readingSalience: 0.02,
@@ -94,36 +96,6 @@ export const defaultTempogramTuning: TempogramTuning = {
  * under the top of the range, so 179 and 180 already read half.
  */
 export const defaultTempogramRange: TempoRange = {min: 90, max: 180};
-
-/**
- * Refuses a named mode whose guarantee the other options would break. The mode changes no setting, it only
- * holds the caller to the settings that were measured, which include the range and the absence of a reset.
- * @param options The analyzer's options
- * @throws {RangeError} When the mode is unknown, or the options contradict it
- */
-export function assertTempogramMode({tempogramMode, detector, tempoRange, continuousAnalysis}: RealTimeBpmAnalyzerParameters): void {
-  if (tempogramMode === undefined) {
-    return;
-  }
-
-  if (tempogramMode !== 'extension') {
-    throw new RangeError(`Invalid tempogramMode: ${String(tempogramMode)}. Use 'extension'.`);
-  }
-
-  const {min, max} = defaultTempogramRange;
-
-  if (detector !== 'tempogram') {
-    throw new RangeError('tempogramMode needs detector: \'tempogram\'.');
-  }
-
-  if (tempoRange !== undefined && (tempoRange.min !== min || tempoRange.max !== max)) {
-    throw new RangeError(`tempogramMode 'extension' searches ${min} to ${max} BPM, and tempoRange asks for another range.`);
-  }
-
-  if (continuousAnalysis) {
-    throw new RangeError('tempogramMode \'extension\' was measured without continuousAnalysis, whose reset can keep the tempogram from ever reaching stable.');
-  }
-}
 
 /** Tempo grid resolution: tempo ratio between neighbours, finer than the ±4% that counts as correct */
 const gridRatio = 1.01;
@@ -146,8 +118,14 @@ const maxCandidates = 5;
 export type TempogramReading = {
   /** Candidates, best first. Empty when no pulse stands out. */
   readonly candidates: readonly Tempo[];
+  /** The stable rule holds on this frame: salience, lead, and agreement over `stableSeconds` */
+  readonly isStable: boolean;
   /** The reading has just become stable, or the stable tempo has just changed */
   readonly isNewlyStable: boolean;
+  /** This frame's own best tempo, from its salience alone, 0 when none stands out: what the stable rule's agreement counts */
+  readonly frameTempo: number;
+  /** The top candidate is salient enough and leads its rival: the stable rule less its agreement over time */
+  readonly leads: boolean;
 };
 
 export type TempogramDetector = {
@@ -544,6 +522,7 @@ export function createTempogramDetector({
       .slice(0, maxCandidates)
       .map(i => ({
         tempo: Math.round(refinedTempo(i)),
+        exact: refinedTempo(i),
         count: Math.round(ranking[i] * 1000),
         confidence: Math.min(1, accumulated[i] / accumulatedWeight),
       }))
@@ -571,22 +550,23 @@ export function createTempogramDetector({
       tempogramFrames += 1;
       stableTempo = 0;
 
-      return {candidates: [], isNewlyStable: false};
+      return {candidates: [], isStable: false, isNewlyStable: false, frameTempo: 0, leads: false};
     }
 
     const frameBest = bestOf(salience);
 
-    frameTempos[tempogramFrames % agreementFrames] = frameBest < 0 ? 0 : grid.tempos[frameBest];
+    const frameTempo = frameBest < 0 ? 0 : grid.tempos[frameBest];
+    frameTempos[tempogramFrames % agreementFrames] = frameTempo;
     tempogramFrames += 1;
     accumulate();
 
     const candidates = collectCandidates();
     const top = candidates[0];
     const rival = candidates[1];
-    const isStable = top !== undefined
+    const leads = top !== undefined
       && top.confidence >= tuning.stableSalience
-      && (rival === undefined || top.count >= tuning.stableMargin * rival.count)
-      && agreesOverTime(top.tempo);
+      && (rival === undefined || top.count >= tuning.stableMargin * rival.count);
+    const isStable = leads && agreesOverTime(top.tempo);
     const isSameTempo = isStable && Math.abs(top.tempo - stableTempo) <= tuning.stableTolerance * top.tempo;
     const isNewlyStable = isStable && !isSameTempo;
 
@@ -594,7 +574,7 @@ export function createTempogramDetector({
       stableTempo = top.tempo;
     }
 
-    return {candidates, isNewlyStable};
+    return {candidates, isStable, isNewlyStable, frameTempo, leads};
   }
 
   function process(samples: Float32Array): TempogramReading | null {

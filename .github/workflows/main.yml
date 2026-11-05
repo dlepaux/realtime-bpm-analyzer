@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - main
+  # Every base, so a PR stacked on a long-lived branch (v6 work stacks on #323) gets the same checks.
+  # Release and Deploy run only for main and never for a pull_request event, so no PR publishes or deploys.
   pull_request:
-    branches:
-      - main
   # Manual retry when a release fails after its commit landed (e.g. npm's provenance step).
   workflow_dispatch:
 
@@ -53,6 +53,15 @@ jobs:
           node bin/audit-gate.mjs --self-test
           (npm audit --json || true) | node bin/audit-gate.mjs
 
+      # A release-as left after its release would pin every later release PR to a version npm already has.
+      # Pull requests only, and not release-please's own: its PR is the one that brings the manifest to the
+      # release-as version, and on main a red build would hold the very release that just merged
+      - name: Check release-as is still pending
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')
+        run: |
+          node bin/release-as-gate.mjs --self-test
+          node bin/release-as-gate.mjs
+
       - name: Build
         run: npm run build
 
@@ -60,6 +69,11 @@ jobs:
       # dist/*.d.ts, through the workspace link, the way a published install would
       - name: Lint
         run: npm run lint
+
+      # After the build: the tests import the processor the build generates. Includes tests/types, which are
+      # checked here and never run. Types only: the build emits and checks the declarations, for src alone
+      - name: Typecheck the library and its tests
+        run: npm run typecheck -w realtime-bpm-analyzer
 
       - name: Test
         run: npm test
@@ -97,8 +111,51 @@ jobs:
           path: packages/mcp/dist/
           retention-days: 1
 
-  # Release to GitHub and npm. release-please keeps one release PR open per package
-  # (version bump + changelog, from the conventional commits under that package's path).
+  # The library's browser tests again in Firefox. Gecko reads the audio clock differently from Chromium (the main
+  # thread's currentTime freezes during a long task), and the epoch watchdog's reset anchor depends on it. Kept out
+  # of the release's needs: it is evidence on every PR, and a Gecko-only flake must not hold a release.
+  firefox:
+    name: Test (Firefox)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The tests import the generated processor, which the build writes
+      - name: Build the library
+        run: npm run build -w realtime-bpm-analyzer
+
+      # The Firefox this puppeteer pins: a newer stable is not where its launcher looks
+      - name: Install Firefox for puppeteer
+        working-directory: packages/realtime-bpm-analyzer
+        run: npx puppeteer browsers install firefox
+
+      # The runner has no sound card. Chromium fakes one, while Firefox needs a sound server to start an audio graph,
+      # and the tests that run a worklet wait for it. A null sink gives it one that plays to nothing.
+      - name: Start a silent sound server
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=silent
+          pactl set-default-sink silent
+
+      - name: Test in Firefox
+        run: npm run test:firefox -w realtime-bpm-analyzer
+
+  # Release to GitHub and npm. release-please keeps one release PR open for all three packages
+  # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
+  # commits under its path, and node-workspace moving the ranges between them.
   # Merging it lands here: release-please tags the release (vX.Y.Z for the library,
   # cli-vX.Y.Z for the CLI, mcp-vX.Y.Z for the MCP server) and writes the GitHub release, then each publish step ships
   # whatever version its package.json names that npm does not have yet. Keying on the registry, not on the action's output, makes a
@@ -396,7 +453,8 @@ jobs:
     name: Deploy Documentation
     # A red marker check holds the deploy: branch protection requires no status checks.
     needs: [docs, markers]
-    if: github.event_name != 'pull_request'
+    # main only, as Release: a dispatch on another branch would otherwise publish that branch's site
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

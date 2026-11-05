@@ -22,5 +22,8 @@ export function installWorkletShim(): void {
     AudioWorkletProcessor: ShimProcessor,
     registerProcessor: () => undefined,
     sampleRate: 44_100,
+    // The processor stamps its messages and readings with the context clock. Nothing here schedules on it,
+    // so a clock that stays at 0 serves, and keeps the timed work the same as in a worklet
+    currentTime: 0,
   });
 }

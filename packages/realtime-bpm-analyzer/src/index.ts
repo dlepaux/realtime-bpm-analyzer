@@ -1,218 +1,135 @@
 import {realtimeBpmProcessorName} from './core/consts';
 import realtimeBpmProcessorContent from './generated-processor';
-import {type RealTimeBpmAnalyzerParameters, type CreateRealtimeBpmAnalyzerOptions} from './core/types';
-import {BpmAnalyzer} from './core/bpm-analyzer';
+import {constructAnalyzer, whenReady} from './core/bpm-analyzer';
+import type {BpmAnalyzer} from './core/bpm-analyzer';
 import {getBiquadFilter} from './core/offline-pipeline';
-import {resolveDetector, resolveTempoRange} from './core/tempo';
-import {assertTempogramMode} from './core/tempogram';
+import {assertNoRemovedOptions, resolveEngine} from './core/engine';
+import {PROTOCOL} from './contract/types';
+import type {AnalyzerOptions} from './contract/types';
+import type {ProcessorOptions} from './core/session';
 
-// Public API surface — explicit named re-exports only.
-// Internal types stay in core/types.ts and are emitted into dist/core/types.d.ts
-// but unreachable for consumers because package.json `exports` only publishes
-// the `.`, `./processor` and `./node` entry points. Consumers cannot deep-import.
-// See plan/active/library-quality-audit-01/02-public-types-surface-cleanup.md
+// Public API surface: explicit named re-exports only. The contract (src/contract) is the public shape; internal
+// types stay in core/types.ts, unreachable because package.json `exports` publishes only `.`, `./processor` and
+// `./node`.
 
 export {BpmAnalyzer} from './core/bpm-analyzer';
 export {analyzeFullBuffer, getBiquadFilter} from './core/offline-pipeline';
-export {RealTimeBpmAnalyzer} from './core/realtime-bpm-analyzer';
+export {RELATION_TOLERANCE} from './contract/types';
 export type {
-  BpmCandidates,
-  BpmProgress,
-  Tempo,
-  Threshold,
-  Peaks,
-  ProcessorOutputEvent,
-  ProcessorInputEvent,
-  BpmAnalyzerEventMap,
-  RealTimeBpmAnalyzerParameters,
-  CreateRealtimeBpmAnalyzerOptions,
-  Detector,
-  TempogramMode,
-  BiquadFilterOptions,
+  AnalyzerOptions,
+  OfflineOptions,
+  EngineOption,
+  OfflineEngineOption,
+  EngineName,
   TempoRange,
-  AnalyzeFullBufferOptions,
-} from './core/types';
+  Reading,
+  OfflineResult,
+  Candidate,
+  CandidateRelation,
+  AudioSpan,
+  AnalyzerState,
+  Status,
+  ListeningReason,
+  StateChange,
+  StateChangeReason,
+  EngineReason,
+  CallerReason,
+  Progress,
+  DebugInfo,
+  AnalyzerEventMap,
+  AnalyzerEventType,
+  AnalyzerError,
+  AnalyzerErrorName,
+  ListenOptions,
+} from './contract/types';
+export type {BiquadFilterOptions} from './core/types';
 
 /**
- * Creates a real-time BPM analyzer for live audio streams.
+ * Creates a real-time BPM analyzer for live audio.
  *
- * This function sets up a BPM analyzer that processes audio in real-time
- * to detect the beats-per-minute (tempo) of streaming audio sources like
- * microphones, audio elements, or live streams.
- *
- * @param audioContext - The Web Audio API AudioContext to use for processing
- * @param processorOptions - Optional configuration parameters for the analyzer, and `processorUrl` to load the worklet from a URL instead of a `blob:` URL
- * @returns A promise that resolves to a BpmAnalyzer instance (event emitter wrapping AudioWorkletNode)
- * @throws {RangeError} When `processorOptions.tempoRange` is invalid (see {@link TempoRange})
- * @throws {TypeError} When `processorOptions.processorUrl` is set but is neither a non-empty string nor a URL
- *
- * @remarks
- * The returned `BpmAnalyzer` is an event emitter that wraps an AudioWorkletNode.
- * - Use the analyzer directly for event listening: `analyzer.on('bpm', ...)`
- * - Use `.node` property for Web Audio API connections: `source.connect(analyzer.node)`
- * - Or connect the source to `.input`, the wiring that suits every detector: `source.connect(analyzer.input)`
+ * @param audioContext - The AudioContext to run in
+ * @param options - The engine (default `tempogram`), the tempo range, `processorUrl` for pages whose CSP refuses `blob:`, `liveInput`
+ * for a MediaStream source, and `debug`
+ * @returns The analyzer, once its processor has said it is ready
+ * @throws {RangeError} When `engine` or `tempoRange` is invalid
+ * @throws {TypeError} When `processorUrl`, `liveInput` or `debug` has the wrong type, or a 5.x option is set
+ * @throws {Error} When the processor fails to load, or sends no `ready` in time (a stale processor file)
  *
  * @example
- * **Basic Usage with Audio Element**
  * ```typescript
  * const audioContext = new AudioContext();
- * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
- *
- * // Connect audio graph - use .node for AudioWorkletNode connections
- * const audioElement = document.querySelector('audio');
+ * // The tempogram by default; {engine: 'peaks'} for the peaks engine
+ * const analyzer = await createRealtimeBpmAnalyzer(audioContext);
  * const source = audioContext.createMediaElementSource(audioElement);
- * source.connect(bpmAnalyzer.node);
- * bpmAnalyzer.node.connect(audioContext.destination);
+ * source.connect(analyzer.input);
+ * source.connect(audioContext.destination);
  *
- * // Listen for BPM events with full type safety
- * bpmAnalyzer.on('bpm', (data) => {
- *   console.log('Current BPM:', data.bpm[0].tempo);
- *   console.log('Confidence:', data.bpm[0].confidence);
+ * analyzer.on('statechange', ({to}) => {
+ *   if (to.status === 'locked') {
+ *     console.log('Locked on', to.reading.bpm);
+ *   }
  * });
- *
- * bpmAnalyzer.on('bpmStable', (data) => {
- *   console.log('Stable BPM detected:', data.bpm[0].tempo);
+ * analyzer.on('reading', reading => {
+ *   console.log(reading.bpm, reading.candidates.map(({bpm, relation}) => `${bpm} (${relation})`));
  * });
  * ```
  *
  * @example
- * **With Custom Configuration**
+ * **Microphone**
  * ```typescript
- * const audioContext = new AudioContext();
- * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
- *   continuousAnalysis: true,    // Keep analyzing after stable BPM found
- *   stabilizationTime: 20_000,   // ms — matches defaultStabilizationTime, see consts.ts
- *   muteTimeInIndexes: 10_000,   // sample indexes — matches defaultMuteTimeInIndexes, see consts.ts
- *   tempoRange: {min: 70, max: 140}, // BPM; default 90-180, max must be at least 2 × min
- *   debug: false                 // Enable debug logging
+ * const stream = await navigator.mediaDevices.getUserMedia({
+ *   audio: {echoCancellation: false, noiseSuppression: false, autoGainControl: false},
  * });
+ * const [track] = stream.getAudioTracks();
+ * const analyzer = await createRealtimeBpmAnalyzer(audioContext, {liveInput: track});
+ * audioContext.createMediaStreamSource(stream).connect(analyzer.input);
  * ```
  *
  * @example
  * **Strict CSP or browser extension (no `blob:` scripts)**
  * ```typescript
  * // Serve dist/realtime-bpm-processor.js (the `realtime-bpm-analyzer/processor` export) yourself
- * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext, {
+ * const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
  *   processorUrl: '/realtime-bpm-processor.js',
- *   // In an MV3 extension: chrome.runtime.getURL('realtime-bpm-processor.js')
  * });
  * ```
  *
- * @example
- * **With Microphone**
- * ```typescript
- * const audioContext = new AudioContext();
- * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
- *
- * // Connect microphone - use .node for audio connections
- * const stream = await navigator.mediaDevices.getUserMedia({
- *   audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
- * });
- * const source = audioContext.createMediaStreamSource(stream);
- * source.connect(bpmAnalyzer.node);
- * // Note: Don't connect to destination to avoid feedback
- *
- * // Handle different event types
- * bpmAnalyzer.on('bpm', (data) => {
- *   console.log('Analyzing:', data.bpm[0].tempo);
- * });
- *
- * bpmAnalyzer.on('bpmStable', (data) => {
- *   console.log('Stable BPM:', data.bpm[0].tempo);
- *   console.log('Confidence:', data.bpm[0].confidence);
- * });
- *
- * // One-time listener
- * bpmAnalyzer.once('bpmStable', (data) => {
- *   console.log('First stable detection!');
- * });
- * ```
- *
- * @example
- * **Controlling the Analyzer**
- * ```typescript
- * // Reset the analyzer state
- * bpmAnalyzer.reset();
- *
- * // Listen for reset events
- * bpmAnalyzer.on('analyzerReset', () => {
- *   console.log('Analyzer was reset');
- * });
- *
- * // Stop the analyzer
- * bpmAnalyzer.stop();
- *
- * // Remove listeners with native API
- * const handler = (event) => console.log(event.detail);
- * bpmAnalyzer.addEventListener('bpm', handler);
- * bpmAnalyzer.removeEventListener('bpm', handler);
- *
- * // Or use once() for automatic cleanup
- * bpmAnalyzer.once('bpmStable', (data) => console.log('First detection'));
- *
- * // Disconnect and cleanup
- * bpmAnalyzer.disconnect();
- * ```
- *
- * @remarks
- * - The analyzer uses AudioWorklet technology for efficient real-time processing
- * - Returns a BpmAnalyzer (event emitter) that wraps an AudioWorkletNode
- * - Use `.node` property to connect in Web Audio API graphs: `source.connect(analyzer.node)`
- * - Events are emitted via typed EventEmitter with full autocomplete support
- * - Event types: 'bpm' (continuous), 'bpmStable' (when stabilized), 'analyzerReset'
- * - For offline/synchronous analysis of audio files, use {@link analyzeFullBuffer} instead
- *
- * @see {@link BpmAnalyzer} for the analyzer class API
- * @see {@link analyzeFullBuffer} for offline audio file analysis
- * @see {@link CreateRealtimeBpmAnalyzerOptions} for configuration options
- * @see {@link BpmCandidates} for the structure of BPM results
+ * @see {@link BpmAnalyzer} for the analyzer's state, events and commands
+ * @see {@link analyzeFullBuffer} for a whole file at once
  *
  * @group Functions
  */
 export async function createRealtimeBpmAnalyzer(
   audioContext: AudioContext,
-  processorOptions?: CreateRealtimeBpmAnalyzerOptions,
+  options?: AnalyzerOptions,
 ): Promise<BpmAnalyzer> {
   // processorUrl and liveInput are main-thread concerns: kept out of the worklet's options, where a URL object
   // or a track would also fail structured cloning.
-  const {processorUrl, liveInput, ...analyzerOptions} = processorOptions ?? {};
+  assertNoRemovedOptions(options);
+  const {processorUrl, liveInput, debug = false} = options ?? {};
   assertProcessorUrl(processorUrl);
   assertLiveInput(liveInput);
-  // A refusal here reaches the caller, for the same reason as the comment below
-  assertTempogramMode(analyzerOptions);
-  // Validate on the main thread: a throw inside the worklet constructor would not reach the caller.
-  // The worklet receives the validated plain object, so structured cloning cannot alter it.
-  const options: RealTimeBpmAnalyzerParameters = {
-    ...analyzerOptions,
-    tempoRange: resolveTempoRange(analyzerOptions.tempoRange),
-    detector: resolveDetector(analyzerOptions.detector),
-  };
-  const processorNode = await setupAudioWorkletNode(
-    audioContext,
-    realtimeBpmProcessorName,
-    options,
-    processorUrl,
-  );
-  await audioContext.resume();
-
-  if (options.detector === 'tempogram') {
-    return new BpmAnalyzer(processorNode, undefined, liveInput);
+  if (typeof debug !== 'boolean') {
+    throw new TypeError('debug must be a boolean');
   }
 
-  return new BpmAnalyzer(processorNode, () => {
-    const lowpass = getBiquadFilter(audioContext);
+  // Validated here: a throw inside the worklet constructor would not reach the caller
+  const {engine, tempoRange} = resolveEngine(options?.engine, options?.tempoRange);
+  const processorOptions: ProcessorOptions = {engine, tempoRange, debug, liveInput: liveInput !== undefined, protocol: PROTOCOL};
+  const processorNode = await setupAudioWorkletNode(audioContext, realtimeBpmProcessorName, processorOptions, processorUrl);
+  // The peaks engine reads the bass: the lowpass sits in front of it, inside `input`
+  const analyzer = engine.name === 'tempogram'
+    ? constructAnalyzer(processorNode, undefined, liveInput)
+    : constructAnalyzer(processorNode, () => {
+      const lowpass = getBiquadFilter(audioContext);
+      lowpass.connect(processorNode);
+      return lowpass;
+    }, liveInput);
+  await audioContext.resume();
+  await whenReady(analyzer);
 
-    lowpass.connect(processorNode);
-
-    return lowpass;
-  }, liveInput);
+  return analyzer;
 }
-
-/**
- * @deprecated Use {@link createRealtimeBpmAnalyzer} instead, will be removed in next major release
- * @hidden
- */
-export const createRealTimeBpmProcessor = createRealtimeBpmAnalyzer;
 
 /**
  * Rejects a processorUrl that addModule would only refuse later with a less useful error.
@@ -247,14 +164,14 @@ function assertLiveInput(liveInput: unknown): asserts liveInput is MediaStreamTr
  * Creates AudioWorkletNode for the Processor
  * @param audioContext AudioContext instance
  * @param processorName Name of the audio processor, without the extension
- * @param processorOptions RealTimeBpmAnalyzerParameters
+ * @param processorOptions The validated settings the worklet receives
  * @param processorUrl Where to load the processor from; an inlined blob: URL when omitted
  * @returns Recording node related components for the app.
  */
 async function setupAudioWorkletNode(
   audioContext: AudioContext,
   processorName: string,
-  processorOptions?: RealTimeBpmAnalyzerParameters,
+  processorOptions: ProcessorOptions,
   processorUrl?: string | URL,
 ): Promise<AudioWorkletNode> {
   // Only a URL created here is ours to revoke; a caller's URL is left untouched.

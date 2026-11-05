@@ -61,24 +61,15 @@ export const maxIntervalComparisons = 10;
 export const defaultBufferSize = 4096;
 
 /**
- * Default stabilization window for continuous-analysis mode
- * @remarks
- * After this many milliseconds without a change in the dominant BPM,
- * the analyzer considers the tempo stable and resets the buffer.
- * Unit: milliseconds.
- */
-export const defaultStabilizationTime = 20_000;
-
-/**
- * Audio the peaks detector must have heard before it announces `bpmStable`
+ * Audio the peaks detector must have heard before it offers a lock
  * @remarks
  * Without it every first lock above the lowest rung was announced stable at once, a median 5.9 s in,
  * and 40% of those were right on the RBA-51 dev half. Replaying the recorded locks with stable and the
  * floor raise both held until 10 s gives at least 53% (the reading at 10 s is not recorded, so a track
  * that locked earlier is scored on that earlier lock), and as many tracks still get one (79%).
  * 10 s is the `computeBpmDelay` default the stable signal had until it was removed in 2023, not a value
- * tuned on that data. In `continuousAnalysis`, a `stabilizationTime` shorter than this takes its place,
- * or the reset would come before stable could.
+ * tuned on that data. An `engine.restartAfterSeconds` shorter than this takes its place, or the restart
+ * would come before a lock could.
  * Unit: seconds.
  */
 export const stableWarmUpSeconds = 10;

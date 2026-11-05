@@ -14,7 +14,7 @@ faq:
   - q: How do I find the BPM of a video?
     a: Drop the video file on the tool at the top of this page, or click it to browse. Your browser decodes the sound track and the analyzer reads the tempo from it. The result shows the BPM and the length of one beat in milliseconds and in frames at 24 fps.
   - q: Is my video uploaded?
-    a: No. The file is read and analysed in your browser by the open-source library, which sends nothing anywhere, so the video stays on your device. The website uses Google Analytics to record how the tool is used, such as the tempo found and the file's size, type and duration. It never records the video, its sound or its name. The Website Privacy page has the details.
+    a: No. The file is read and analysed in your browser by the open-source library, which sends no audio anywhere, so the video stays on your device. The website uses Google Analytics to record how the tool is used, such as the tempo found and the file's size, type and duration. It never records the video, its sound or its name. The Website Privacy page has the details.
   - q: Which video formats work?
     a: Any file whose sound your browser can decode. MP4 with AAC sound and WebM usually work. MOV and MKV depend on the browser and on the codec inside. If a file fails, export the sound as WAV or MP3 from your editor and drop that instead.
   - q: Why is the BPM half or double what I expected?
@@ -63,10 +63,10 @@ common frame rate, and how far a rounded cut drifts each bar.
 
 After a file result, **Export beat markers** writes a marker on every beat, from
 the first strong beat. The tool measures the tempo from the file to a fraction
-of a BPM, so the markers follow the song, not the whole number shown above.
-When the file doesn't give a clear enough beat to measure, the markers step at
-the whole number instead and the tool says so: on a long song they can then
-slide off the beat. Pick the format and the frame rate of your timeline, then
+of a BPM, so the markers follow the song, not the whole number shown above: it
+starts from the analyzer's own unrounded estimate and refines it on the file's
+beats. When the beat isn't clear enough to refine it, the markers step at that
+estimate and the tool says so: on a long song they can then slide off the beat. Pick the format and the frame rate of your timeline, then
 download:
 
 - **Premiere Pro**: an XML sequence (Final Cut Pro 7 XML) with one sequence

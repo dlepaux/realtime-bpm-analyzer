@@ -8,7 +8,7 @@ function calculateMae(audioFiles: AudioFile[]): number {
   let totalError = 0;
 
   for (const file of audioFiles) {
-    const errors = file.tempos.map(candidate => Math.abs(file.bpm - candidate.tempo));
+    const errors = file.tempos.map(candidate => Math.abs(file.bpm - candidate.bpm));
     totalError += Math.min(...errors); // Consider the minimum error among candidates
   }
 
@@ -23,7 +23,7 @@ function calculateRmse(audioFiles: AudioFile[]): number {
   let totalSquaredError = 0;
 
   for (const file of audioFiles) {
-    const squaredErrors = file.tempos.map(candidate => (file.bpm - candidate.tempo) ** 2);
+    const squaredErrors = file.tempos.map(candidate => (file.bpm - candidate.bpm) ** 2);
     const minSquaredError = Math.min(...squaredErrors); // Consider the minimum squared error
     totalSquaredError += minSquaredError;
   }
@@ -42,7 +42,7 @@ function calculateAccuracy(audioFiles: AudioFile[], tolerance: number): number {
   let accurateCount = 0;
 
   for (const file of audioFiles) {
-    const accurates = file.tempos.filter(candidate => Math.abs(file.bpm - candidate.tempo) <= tolerance);
+    const accurates = file.tempos.filter(candidate => Math.abs(file.bpm - candidate.bpm) <= tolerance);
     if (accurates.length > 0) {
       accurateCount++;
     }

@@ -35,7 +35,7 @@ The examples are organized by framework and use case:
 **Key Features:**
 - Fast offline analysis
 - No playback needed
-- Returns array of BPM candidates
+- Returns one reading, or `null` when there is no clear beat
 - Best for local files
 
 ### 2. Streaming Audio (`createRealtimeBpmAnalyzer` + MediaElementSource)
@@ -46,9 +46,8 @@ The examples are organized by framework and use case:
 
 **Key Features:**
 - Real-time analysis during playback
-- Uses `getBiquadFilter()` for audio processing
-- Connection: `source → filter → analyzer.node → destination`
-- Listens for `bpmStable` event
+- Connection: `source → analyzer.input` (which holds what the engine needs in front of it) and `source → destination`
+- Listens for `reading` events and shows the BPM once `analyzer.state.status` is `locked`
 
 ### 3. Microphone Input (`createRealtimeBpmAnalyzer` + MediaStreamSource)
 
@@ -59,7 +58,7 @@ The examples are organized by framework and use case:
 **Key Features:**
 - Real-time analysis from live input
 - Requires microphone permissions
-- Connection: `source → analyser` and `source → analyzer.node`
+- Connection: `source → analyser` and `source → analyzer.input`
 - Proper cleanup with `suspend()` and `disconnect()`
 
 ## Running Examples
@@ -99,12 +98,11 @@ All examples follow these best practices from the allegro-project reference impl
    - Include AnalyserNode for potential visualizations
 
 2. **Event Handling**
-   - Listen for `bpmStable` event for stable BPM detection
-   - Use `BpmCandidates` type with array of tempo values
-   - Handle multiple BPM candidates when needed
+   - Listen for `reading` events, and read `analyzer.state` (or listen for `statechange`) to know when the tempo locked
+   - Show `reading.bpm`; `reading.candidates` lists up to five tempos with their `relation` to it
 
 3. **Resource Management**
-   - Call `suspend()` before `disconnect()`
+   - Call `analyzer.stop()` when done: `disconnect()` alone leaves the analysis running, and `stop()` is final
    - Stop media streams when done
    - Clean up all audio nodes
    - Properly handle component unmounting

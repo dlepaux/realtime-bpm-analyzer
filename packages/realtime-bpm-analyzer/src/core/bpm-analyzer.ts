@@ -1,107 +1,153 @@
+import {createDispatcher} from '../contract/transitions';
+import type {Dispatcher} from '../contract/transitions';
+import {compatibleProtocol} from '../contract/protocol';
+import {PROTOCOL, type ProtocolVersion} from '../contract/types';
 import type {
-  BpmAnalyzerEventMap,
-  ProcessorOutputEvent,
-  ProcessorInputEvent,
-} from './types';
+  AnalyzerError,
+  AnalyzerEvent,
+  AnalyzerEventMap,
+  AnalyzerEventType,
+  AnalyzerState,
+  BpmAnalyzerContract,
+  ListenOptions,
+} from '../contract/types';
+import {contextNow, type Heard} from './context-now';
 import {followTrackClock} from './sample-clock';
 
 /**
- * Custom event class for BPM analyzer events with typed data.
- * Local-only, not exported.
+ * How long the factory waits for the processor's `ready`. A 5.x processor (a stale `processorUrl` copy) never
+ * sends one, so this is how it fails loudly at startup. The context is already running when the wait starts.
  */
-class BpmAnalyzerEvent<T> extends CustomEvent<T> {
-  constructor(type: string, data: T) {
-    super(type, {detail: data});
+export const readyTimeoutMs = 5000;
+
+/**
+ * How long after a `reset()` the processor may still send messages of older epochs before it is judged deaf to it.
+ * Judged by when the processor sent each one (its `at`, the worklet's `currentTime`), not when the main thread got
+ * to it: the port is FIFO and the audio clock runs while the main thread is blocked, so a backlog sent before the
+ * worklet adopted the reset arrives late but stamped early, and a processor that keeps sending old epochs is
+ * stamped later and later. Context time, because a suspended context sends nothing and must not fail an analyzer.
+ */
+export const staleAfterSeconds = 1;
+
+type Listener = (detail: never) => void;
+
+/** What the factory needs to wait on, kept off the public class */
+const readiness = new WeakMap<BpmAnalyzer, Promise<void>>();
+
+/** The processor's protocol from its first `ready`, kept off the public class */
+const processorProtocols = new WeakMap<BpmAnalyzer, ProtocolVersion>();
+
+/** How to fail each analyzer, kept off the public class so that no caller can fail one */
+const faults = new WeakMap<BpmAnalyzer, (error: AnalyzerError) => void>();
+
+/** Passed by the class's static block: the constructor throws without it */
+const constructionKey = Symbol('BpmAnalyzer construction');
+
+/**
+ * Fails the analyzer: `stopped` with reason `failed`
+ * @param analyzer The analyzer
+ * @param error What failed
+ */
+export function failAnalyzer(analyzer: BpmAnalyzer, error: AnalyzerError): void {
+  faults.get(analyzer)?.(error);
+}
+
+/**
+ * Builds an analyzer for the factory, as the class's constructor is private
+ * @param workletNode The AudioWorkletNode running the processor
+ * @param createInput Builds the node sources connect to, when it is not the worklet itself
+ * @param liveInput The track of a MediaStream source, whose clock keeps the analyzer's time true
+ * @returns The analyzer
+ */
+export function constructAnalyzer(workletNode: AudioWorkletNode, createInput?: () => AudioNode, liveInput?: MediaStreamTrack): BpmAnalyzer {
+  return construct(workletNode, createInput, liveInput);
+}
+
+// Three parts build an analyzer. Only the class body may call the private constructor, so the class's static block
+// fills `construct`, which is a `let` because a const can't be filled after its declaration. `constructAnalyzer`
+// exports it as a function, not as a binding the module could reassign. `constructionKey` stops JavaScript callers,
+// which the private type can't.
+let construct: typeof constructAnalyzer;
+
+/**
+ * The protocol the processor said it speaks in its first `ready`
+ * @param analyzer The analyzer
+ * @returns Its version, or `null` before `ready`. A feature that needs a later minor (beats, RBA-109) checks it,
+ * and fails at once when the processor copy is out of date.
+ */
+export const processorProtocol = (analyzer: BpmAnalyzer): ProtocolVersion | null => processorProtocols.get(analyzer) ?? null;
+
+/**
+ * Waits for the processor's first `ready`
+ * @param analyzer The analyzer
+ * @param timeoutMs How long to wait
+ * @returns Resolves on `ready`, and rejects when the analyzer fails or the time runs out, which fails it
+ */
+export async function whenReady(analyzer: BpmAnalyzer, timeoutMs = readyTimeoutMs): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      failAnalyzer(analyzer, {name: 'ProtocolError', message: `the processor sent no ready within ${timeoutMs} ms: a stale processor file?`});
+      reject(new Error('unreachable'));
+    }, timeoutMs);
+  });
+
+  try {
+    await Promise.race([readiness.get(analyzer), timeout]);
+  } catch {
+    const {state} = analyzer;
+    const error = state.status === 'stopped' ? state.error : null;
+    const failure = new Error(`realtime-bpm-analyzer processor failed to start: ${error?.message ?? 'unknown error'}`);
+    failure.name = error?.name ?? 'ProcessorError';
+    throw failure;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 /**
- * Real-time BPM analyzer with typed event listeners.
- *
- * This class wraps an AudioWorkletNode and provides a clean, type-safe API
- * for analyzing beats per minute in real-time audio streams.
+ * Real-time BPM analyzer: the `AudioNode`-like `EventTarget` that `createRealtimeBpmAnalyzer` returns.
  *
  * @remarks
- * This class extends native EventTarget to provide typed event listeners
- * with full TypeScript autocomplete support. It implements the AudioNode
- * interface for seamless integration into Web Audio API graphs.
+ * `state` says what it is doing (`listening`, `settling`, `locked`, `stopped`), and events announce changes and
+ * measurements: `statechange`, `reading`, `progress`, `error`, and `debug` with `debug: true`. Each analysis
+ * step updates `state` first, then dispatches `statechange` if the status moved, then `reading` or `progress`.
+ * A listener added late reads `state`: events are never replayed.
  *
  * @example
- * **Basic Usage**
  * ```typescript
- * const audioContext = new AudioContext();
- * const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+ * const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+ * source.connect(analyzer.input);
  *
- * // Listen for BPM events with full type safety
- * bpmAnalyzer.on('bpm', (data) => {
- *   console.log('Current BPM:', data.bpm[0].tempo);
+ * analyzer.on('statechange', ({to}) => {
+ *   if (to.status === 'locked') {
+ *     console.log('Locked on', to.reading.bpm);
+ *   }
+ * });
+ * const unsubscribe = analyzer.on('reading', reading => {
+ *   console.log(reading.bpm, reading.candidates);
  * });
  *
- * bpmAnalyzer.on('bpmStable', (data) => {
- *   console.log('Stable BPM:', data.bpm[0].tempo);
- *   console.log('Confidence:', data.bpm[0].count);
- * });
- *
- * // Connect to audio source - use .node for audio connections
- * const source = audioContext.createMediaElementSource(audioElement);
- * source.connect(bpmAnalyzer.node);
- * bpmAnalyzer.node.connect(audioContext.destination);
- * ```
- *
- * @example
- * **One-time Listeners**
- * ```typescript
- * analyzer.once('bpmStable', (data) => {
- *   console.log('First stable detection:', data.bpm[0].tempo);
- *   // This listener will be automatically removed after firing
- * });
- * ```
- *
- * @example
- * **Removing Listeners**
- * ```typescript
- * // Store handler reference for cleanup
- * const handleBPM = (event) => {
- *   console.log('BPM:', event.detail.bpm);
- * };
- *
- * // Add listener using native EventTarget API
- * analyzer.addEventListener('bpm', handleBPM);
- *
- * // Remove with same reference
- * analyzer.removeEventListener('bpm', handleBPM);
- * ```
- *
- * @example
- * **Controlling the Analyzer**
- * ```typescript
- * // Reset the analyzer state
- * analyzer.reset();
- *
- * // Stop analysis
- * analyzer.stop();
- *
- * // Disconnect from audio graph
- * analyzer.disconnect();
+ * analyzer.reset(); // new track: listening again, nothing measured before is reported
+ * unsubscribe();
+ * analyzer.stop();  // final
  * ```
  *
  * @group Classes
  */
-export class BpmAnalyzer extends EventTarget {
+export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
   /**
    * The underlying AudioWorkletNode
    * @remarks
-   * Exposed for advanced use cases. Most users should interact with the
-   * BpmAnalyzer API instead of directly accessing the worklet node.
+   * Exposed for advanced use cases. Most users should interact with the BpmAnalyzer API instead.
    */
   readonly node: AudioWorkletNode;
 
   /**
    * Where to connect the audio source: `source.connect(analyzer.input)`
    * @remarks
-   * Holds what the detector needs in front of it, the lowpass for `peaks` and nothing for
-   * `tempogram`, so changing detector never changes the graph. Built on first use: a caller wiring `.node`
-   * keeps the graph 5.4 gave it, with no idle node feeding the worklet.
+   * Holds what the engine needs in front of it, the lowpass for `peaks` and nothing for `tempogram`, so changing
+   * engine never changes the graph. Built on first use.
    */
   get input(): AudioNode {
     this.inputNode ??= this.createInput();
@@ -109,110 +155,157 @@ export class BpmAnalyzer extends EventTarget {
     return this.inputNode;
   }
 
+  /** The current snapshot: see `AnalyzerState` for its guarantees */
+  get state(): AnalyzerState {
+    return this.dispatcher.state();
+  }
+
   private inputNode?: AudioNode;
   private readonly createInput: () => AudioNode;
   private readonly stopFollowing: () => void;
+  private readonly dispatcher: Dispatcher;
+  private readonly listeners = new Map<AnalyzerEventType, Map<Listener, EventListener>>();
+  // Per wrapper, how to drop its `signal`'s abort listener, so an unsubscribed listener leaves nothing on the signal
+  private readonly abortDetach = new WeakMap<EventListener, () => void>();
+  // The context time of the last reset(), while messages of older epochs are still expected
+  private resetAt: number | null = null;
+  // The last processor message's send time, for a clock that runs on where currentTime freezes (see contextNow)
+  private heard: Heard | null = null;
+  private markReady: () => void = () => undefined;
+  private markFailed: () => void = () => undefined;
+
+  static {
+    construct = (workletNode, createInput, liveInput) => new BpmAnalyzer(constructionKey, workletNode, createInput, liveInput);
+  }
 
   /**
-   * Creates a new BpmAnalyzer instance
-   * @param workletNode - The AudioWorkletNode to wrap
-   * @param createInput - Builds the node sources connect to, when it is not the worklet itself
-   * @param liveInput - The track of a MediaStream source, whose clock keeps the analyzer's time true
+   * Private: build an analyzer with `createRealtimeBpmAnalyzer`
+   * @hidden
    */
-  constructor(workletNode: AudioWorkletNode, createInput: () => AudioNode = () => workletNode, liveInput?: MediaStreamTrack) {
+  private constructor(key: typeof constructionKey, workletNode: AudioWorkletNode, createInput: () => AudioNode = () => workletNode, liveInput?: MediaStreamTrack) {
+    if (key !== constructionKey) {
+      throw new TypeError('BpmAnalyzer cannot be built with new: call createRealtimeBpmAnalyzer()');
+    }
+
     super();
     this.node = workletNode;
     this.createInput = createInput;
+    readiness.set(this, new Promise<void>((resolve, reject) => {
+      this.markReady = resolve;
+      this.markFailed = reject;
+    }));
+    // Nobody may wait on it: a rejection nobody reads must not be reported as unhandled
+    readiness.get(this)?.catch(() => undefined);
+    faults.set(this, error => {
+      this.dispatcher.apply({kind: 'fault', error: Object.freeze({...error})});
+      this.settle();
+    });
+    this.dispatcher = createDispatcher(event => {
+      this.emit(event);
+    }, message => {
+      this.node.port.postMessage(message);
+    });
     this.stopFollowing = liveInput
       ? followTrackClock(liveInput, seconds => {
-        this.sendControlMessage({type: 'delivered', seconds});
+        if (this.state.status !== 'stopped') {
+          this.node.port.postMessage({type: 'delivered', protocol: PROTOCOL, seconds});
+        }
       })
       : () => undefined;
-    this.setupMessageHandler();
+    this.node.port.onmessage = (event: MessageEvent<unknown>) => {
+      this.receive(event.data);
+    };
+    this.node.port.onmessageerror = () => {
+      failAnalyzer(this, {name: 'ProcessorError', message: 'a processor message could not be deserialised'});
+    };
+    this.node.onprocessorerror = () => {
+      failAnalyzer(this, {name: 'ProcessorError', message: 'the processor threw (processorerror)'});
+    };
   }
 
   /**
-   * Reset the analyzer state to start fresh analysis
-   *
-   * @remarks
-   * This clears all internal state including detected peaks and intervals,
-   * allowing the analyzer to start analyzing as if it were newly created.
-   *
-   * @example
-   * ```typescript
-   * // When switching to a different audio source
-   * audioElement.src = 'new-song.mp3';
-   * analyzer.reset();
-   * ```
+   * Starts over: `listening` with the next epoch, then `statechange` (reason `reset`) and `progress` 0.
+   * Nothing measured before the call is reported after it.
+   * @throws {DOMException} `InvalidStateError` once stopped
    */
   reset(): void {
-    this.sendControlMessage({type: 'reset'});
+    this.resetAt = contextNow(this.node.context, this.heard);
+    const refused = this.dispatcher.apply({kind: 'reset'});
+    // A listener of the reset may have stopped the analyzer
+    this.settle();
+    if (refused !== null) {
+      throw new DOMException(refused.message, refused.name);
+    }
   }
 
-  /**
-   * Stop the analyzer
-   *
-   * @remarks
-   * This stops the analysis and resets the internal state. The analyzer
-   * will no longer emit events until analysis is restarted.
-   *
-   * @example
-   * ```typescript
-   * analyzer.stop();
-   * ```
-   */
+  /** Final: moves to `stopped` and stops the processor. A second call does nothing. */
   stop(): void {
-    this.stopFollowing();
-    this.sendControlMessage({type: 'stop'});
+    this.dispatcher.apply({kind: 'stop'});
+    this.settle();
   }
 
   /**
-   * Add an event listener for a specific event type
-   *
-   * @param event - The event name to listen for
-   * @param listener - The callback function to invoke when the event is emitted
-   *
-   * @example
-   * ```typescript
-   * analyzer.on('bpm', (data) => {
-   *   console.log('Current BPM:', data.bpm[0].tempo);
-   * });
-   * ```
+   * Adds a listener for an event's payload
+   * @param type - The event
+   * @param listener - Called with the payload
+   * @param options - `once`, and a `signal` that removes the listener when it aborts
+   * @returns The function that removes the listener
    */
-  on<K extends keyof BpmAnalyzerEventMap>(
-    event: K,
-    listener: (data: BpmAnalyzerEventMap[K]) => void,
-  ): void {
-    this.addEventListener(event, ((
-      event_: BpmAnalyzerEvent<BpmAnalyzerEventMap[K]>,
-    ) => {
-      listener(event_.detail);
-    }) as EventListener);
-  }
+  on<K extends AnalyzerEventType>(
+    type: K,
+    listener: (detail: AnalyzerEventMap[K]) => void,
+    options?: ListenOptions,
+  ): () => void {
+    const byType = this.listeners.get(type) ?? new Map<Listener, EventListener>();
+    this.listeners.set(type, byType);
+    const existing = byType.get(listener);
+    if (existing !== undefined) {
+      return () => {
+        this.removeIfCurrent(type, listener, existing);
+      };
+    }
 
-  /**
-   * Add a one-time event listener that will be removed after being called once
-   *
-   * @param event - The event name to listen for
-   * @param listener - The callback function to invoke when the event is emitted
-   *
-   * @example
-   * ```typescript
-   * analyzer.once('bpmStable', (data) => {
-   *   console.log('First stable BPM detected:', data.bpm[0].tempo);
-   * });
-   * ```
-   */
-  once<K extends keyof BpmAnalyzerEventMap>(
-    event: K,
-    listener: (data: BpmAnalyzerEventMap[K]) => void,
-  ): void {
-    const onceWrapper = (event_: BpmAnalyzerEvent<BpmAnalyzerEventMap[K]>) => {
-      listener(event_.detail);
-      this.removeEventListener(event, onceWrapper as EventListener);
+    if (options?.signal?.aborted) {
+      return () => undefined;
+    }
+
+    const wrapper: EventListener = event => {
+      if (options?.once) {
+        this.removeIfCurrent(type, listener, wrapper);
+      }
+
+      listener((event as CustomEvent<AnalyzerEventMap[K]>).detail);
     };
 
-    this.addEventListener(event, onceWrapper as EventListener);
+    byType.set(listener, wrapper);
+    this.addEventListener(type, wrapper);
+    const signal = options?.signal;
+    if (signal !== undefined) {
+      const onAbort = () => {
+        this.removeIfCurrent(type, listener, wrapper);
+      };
+
+      signal.addEventListener('abort', onAbort, {once: true});
+      this.abortDetach.set(wrapper, () => {
+        signal.removeEventListener('abort', onAbort);
+      });
+    }
+
+    return () => {
+      this.removeIfCurrent(type, listener, wrapper);
+    };
+  }
+
+  /**
+   * Removes a listener added with `on()`. Unknown listeners are ignored.
+   * @param type - The event
+   * @param listener - The listener given to `on()`
+   */
+  off<K extends AnalyzerEventType>(type: K, listener: (detail: AnalyzerEventMap[K]) => void): void {
+    const wrapper = this.listeners.get(type)?.get(listener);
+    if (wrapper !== undefined) {
+      this.removeIfCurrent(type, listener, wrapper);
+    }
   }
 
   /**
@@ -294,70 +387,69 @@ export class BpmAnalyzer extends EventTarget {
     }
   }
 
-  /**
-   * Emit an event to all registered listeners
-   */
-  private emit<K extends keyof BpmAnalyzerEventMap>(
-    event: K,
-    data: BpmAnalyzerEventMap[K],
-  ): void {
-    this.dispatchEvent(new BpmAnalyzerEvent(event as string, data));
+  /** Removes a listener only if `on()` still holds this wrapper for it, so a stale unsubscribe is harmless */
+  private removeIfCurrent(type: AnalyzerEventType, listener: Listener, wrapper: EventListener): void {
+    const byType = this.listeners.get(type);
+    if (byType?.get(listener) !== wrapper) {
+      return;
+    }
+
+    byType.delete(listener);
+    this.removeEventListener(type, wrapper);
+    this.abortDetach.get(wrapper)?.();
+    this.abortDetach.delete(wrapper);
   }
 
-  /**
-   * Set up the message handler to convert MessagePort events to typed events
-   */
-  private setupMessageHandler(): void {
-    // Using onmessage is the standard pattern for MessagePort
-    this.node.port.onmessage = (event: MessageEvent<ProcessorOutputEvent>) => {
-      const eventData = event.data;
+  private emit(event: AnalyzerEvent): void {
+    this.dispatchEvent(new CustomEvent(event.type, {detail: event.detail}));
+  }
 
-      // Map processor event types to emitter event names
-       
-      switch (eventData.type) {
-        case 'bpm': {
-          this.emit('bpm', eventData.data);
-          break;
-        }
+  /** Every port message goes through the reducer; `ready` and the epoch watchdog are read on the way */
+  private receive(data: unknown): void {
+    if (this.state.status === 'stopped') {
+      return;
+    }
 
-        case 'bpmStable': {
-          this.emit('bpmStable', eventData.data);
-          break;
-        }
+    const message = typeof data === 'object' && data !== null ? data as {type?: unknown; protocol?: unknown; epoch?: unknown; at?: unknown} : null;
+    const protocol = message?.type === 'ready' && message.epoch === 0 ? compatibleProtocol(message.protocol) : null;
+    if (protocol !== null) {
+      processorProtocols.set(this, protocol);
+      this.markReady();
+    }
 
-        case 'analyzerReset': {
-          this.emit('analyzerReset', undefined as void);
-          break;
-        }
+    if (typeof message?.at === 'number' && Number.isFinite(message.at)) {
+      this.heard = {at: message.at, wall: performance.now()};
+    }
 
-        case 'progress': {
-          this.emit('progress', eventData.data);
-          break;
-        }
+    const epoch = this.state.epoch;
+    if (message?.epoch === epoch) {
+      this.resetAt = null;
+    }
 
-        case 'analyzeChunk': {
-          this.emit('analyzeChunk', eventData.data);
-          break;
-        }
-
-        case 'validPeak': {
-          this.emit('validPeak', eventData.data);
-          break;
-        }
-
-        case 'error': {
-          this.emit('error', eventData.data);
-          break;
-        }
+    const stale = typeof message?.epoch === 'number' && message.epoch < epoch && message.type !== 'fault';
+    if (stale && message !== null && this.resetAt !== null) {
+      const {at} = message;
+      if (typeof at !== 'number' || !Number.isFinite(at)) {
+        failAnalyzer(this, {name: 'ProtocolError', message: 'a processor message without its send time: a stale processor file?'});
+        return;
       }
-    };
+
+      if (at - this.resetAt > staleAfterSeconds) {
+        failAnalyzer(this, {name: 'ProtocolError', message: `the processor kept sending epoch ${String(message.epoch)} after reset() moved to ${epoch}`});
+        return;
+      }
+    }
+
+    this.dispatcher.apply({kind: 'message', data});
+    this.settle();
   }
 
-  /**
-   * Send a control message to the processor
-   */
-  private sendControlMessage(message: ProcessorInputEvent): void {
-    this.node.port.postMessage(message);
+  /** Once stopped, for any reason: the track clock stops, and a factory still waiting is told */
+  private settle(): void {
+    if (this.state.status === 'stopped') {
+      this.stopFollowing();
+      this.markFailed();
+    }
   }
 
   /**

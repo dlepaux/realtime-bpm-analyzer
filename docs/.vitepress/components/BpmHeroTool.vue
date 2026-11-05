@@ -13,7 +13,6 @@ import {
   analyzeFullBuffer,
   createRealtimeBpmAnalyzer,
   type BpmAnalyzer,
-  type BpmCandidates,
 } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
 import { fileExtensionParam } from '../tools/analytics-params'
@@ -42,7 +41,7 @@ type Mode = 'file' | 'mic' | 'stream'
 type Status = 'idle' | 'analysing' | 'result' | 'error'
 
 // Magic numbers — named for grep-ability.
-const STREAM_STABILIZATION_MS = 20_000
+const STREAM_RESTART_SECONDS = 20
 const GAIN_UNMUTED = 1
 const GAIN_MUTED = 0
 
@@ -86,10 +85,11 @@ const fileBpm = ref<number | null>(null)
 const fileDuration = ref<number | null>(null)
 const fileElapsedMs = ref<number | null>(null)
 const fileError = ref<string | null>(null)
-// For the beat marker export (RBA-127): the engine's top candidate, a whole number today (so it
-// equals fileBpm), and the first channel, the one analyzeFullBuffer reads. The export measures
-// the first beat and the exact tempo in it only if it is opened, and the channel is released
-// once that has run, or when the result is cleared. An unopened result keeps it until then.
+// For the beat marker export (RBA-127): the reading's unrounded bpmExact, which seeds the
+// export's tempo fit, since a grid on the whole fileBpm drifts on long tracks (RBA-128), and the
+// first channel, the one analyzeFullBuffer reads. The export measures the first beat and refines
+// the tempo in it only if it is opened, and the channel is released once that has run, or when
+// the result is cleared. An unopened result keeps it until then.
 const fileTempo = ref<number | null>(null)
 const fileSamples = shallowRef<Float32Array | null>(null)
 const fileSampleRate = ref<number | null>(null)
@@ -234,13 +234,12 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
     const arrayBuffer = await file.arrayBuffer()
     const audioBuffer = await decodeAndClose(new AudioContext(), arrayBuffer)
     stage = 'analyse'
-    const candidates = await analyzeFullBuffer(audioBuffer)
+    const reading = await analyzeFullBuffer(audioBuffer)
 
-    const top = candidates?.[0]?.tempo
-    if (top === undefined) throw new Error('No BPM candidate returned')
+    if (reading === null) throw new Error('No BPM candidate returned')
 
-    fileBpm.value = Math.round(top)
-    fileTempo.value = top
+    fileBpm.value = reading.bpm
+    fileTempo.value = reading.bpmExact
     fileDuration.value = audioBuffer.duration
     fileElapsedMs.value = Math.round(performance.now() - started)
     fileStatus.value = 'result'
@@ -248,6 +247,8 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
     track('bpm_file_result', {
       input_method: inputMethod,
       bpm: fileBpm.value,
+      // Which engine read it: the v6 default moved to the tempogram, and the series splits on this (RBA-108)
+      engine: reading.engine,
       duration_s: Math.round(fileDuration.value),
       elapsed_ms: fileElapsedMs.value,
     })
@@ -324,22 +325,23 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
     micAnalyzer.value = localAnalyzer
 
     const source = localContext.createMediaStreamSource(localStream)
-    source.connect(localAnalyzer.node)
+    source.connect(localAnalyzer.input)
     // Intentionally do NOT connect to destination — avoids mic feedback.
 
-    localAnalyzer.on('bpm', (data: BpmCandidates) => {
-      const top = data.bpm?.[0]?.tempo
-      if (top === undefined) return
-      micLiveBpm.value = Math.round(top)
+    // The state is current inside a reading listener. A lock can move without a
+    // statechange (peaks relocks on a fuller rung), so the locked BPM follows every reading.
+    localAnalyzer.on('reading', reading => {
+      micLiveBpm.value = Math.round(reading.bpm)
+      if (localAnalyzer.state.status === 'locked') micStableBpm.value = micLiveBpm.value
     })
 
-    localAnalyzer.on('bpmStable', (data: BpmCandidates) => {
-      const top = data.bpm?.[0]?.tempo
-      if (top === undefined) return
-      const bpm = Math.round(top)
-      // bpmStable repeats on every qualifying chunk (~1/s): report a tempo once, and
-      // again only when it changes (RBA-5).
-      if (bpm !== micStableBpm.value) track('bpm_mic_stable', { bpm })
+    localAnalyzer.on('statechange', ({ to }) => {
+      if (to.status !== 'locked') return
+      const bpm = Math.round(to.reading.bpm)
+      // The analyzer can lock again after it unlocks or loses the pulse: report a tempo only
+      // when it differs from the locked tempo last shown, which readings keep current while locked,
+      // so a relock on the same tempo sends nothing (RBA-5).
+      if (bpm !== micStableBpm.value) track('bpm_mic_locked', { bpm, engine: to.reading.engine })
       micStableBpm.value = bpm
       micStatus.value = 'result'
     })
@@ -394,8 +396,8 @@ function stopMic() {
 }
 
 // ─── Stream flow ─────────────────────────────────────────────────────────
-// Note: with `continuousAnalysis: true` the analyzer keeps running after the
-// first stable detection — a live radio stream has no natural "end". We
+// Note: with a restart period the analyzer keeps running after the
+// first lock: a live radio stream has no natural "end". We
 // therefore stay in the `'analysing'` status and surface the stable reading
 // as a prominent pill inside the same panel, rather than transitioning to
 // `'result'` (which would imply the session is finished).
@@ -407,17 +409,17 @@ function resetStreamReadings() {
 }
 
 function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: StreamEventParams | { input_method: 'tab' }) {
-  analyzer.on('bpm', (data: BpmCandidates) => {
-    const top = data.bpm?.[0]?.tempo
-    if (top === undefined) return
-    streamLiveBpm.value = Math.round(top)
+  // The state is current inside a reading listener. A lock can move without a
+  // statechange (peaks relocks on a fuller rung), so the locked BPM follows every reading.
+  analyzer.on('reading', reading => {
+    streamLiveBpm.value = Math.round(reading.bpm)
+    if (analyzer.state.status === 'locked') streamStableBpm.value = streamLiveBpm.value
   })
 
-  analyzer.on('bpmStable', (data: BpmCandidates) => {
-    const top = data.bpm?.[0]?.tempo
-    if (top === undefined) return
-    const bpm = Math.round(top)
-    if (bpm !== streamStableBpm.value) track('bpm_stream_stable', { bpm, ...stableParams })
+  analyzer.on('statechange', ({ to }) => {
+    if (to.status !== 'locked') return
+    const bpm = Math.round(to.reading.bpm)
+    if (bpm !== streamStableBpm.value) track('bpm_stream_locked', { bpm, engine: to.reading.engine, ...stableParams })
     streamStableBpm.value = bpm
   })
 }
@@ -469,8 +471,7 @@ async function startStream() {
     const { context: localContext, analyzer: localAnalyzer } = await openAnalysis(
       () => new AudioContext(),
       context => createRealtimeBpmAnalyzer(context, {
-        continuousAnalysis: true,
-        stabilizationTime: STREAM_STABILIZATION_MS,
+        engine: { name: 'peaks', restartAfterSeconds: STREAM_RESTART_SECONDS },
       }),
       () => disposeLocalStream(localAudioEl, null, null, null),
     )
@@ -485,9 +486,9 @@ async function startStream() {
     // Analyzer is a sink — it consumes audio for BPM detection and produces no
     // output. Branch two parallel chains from the source so audio still reaches
     // the speakers while we analyse:
-    //   source → analyzer.node                    (analysis path)
+    //   source → analyzer.input                   (analysis path)
     //   source → gainNode → destination           (audio playback, mutable)
-    source.connect(localAnalyzer.node)
+    source.connect(localAnalyzer.input)
     const localGain = localContext.createGain()
     localGain.gain.value = streamMuted.value ? GAIN_MUTED : GAIN_UNMUTED
     source.connect(localGain)
@@ -578,13 +579,12 @@ async function startTabCapture() {
     localContext = new AudioContext()
     await localContext.resume()
     localAnalyzer = await createRealtimeBpmAnalyzer(localContext, {
-      continuousAnalysis: true,
-      stabilizationTime: STREAM_STABILIZATION_MS,
+      engine: { name: 'peaks', restartAfterSeconds: STREAM_RESTART_SECONDS },
     })
     if (gen !== generation) throw new Error('superseded')
 
     // Analysis only, never to the speakers: the shared tab already plays its own sound.
-    localContext.createMediaStreamSource(captured).connect(localAnalyzer.node)
+    localContext.createMediaStreamSource(captured).connect(localAnalyzer.input)
     streamTabCapture.value = captured
     streamContext.value = localContext
     streamAnalyzer.value = localAnalyzer
@@ -1487,7 +1487,7 @@ function formatDuration(seconds: number): string {
 }
 
 /* Stable pill shown inside stream analysing panel — signals the analyser has
-   stabilised while the stream continues playing (continuousAnalysis=true). */
+   locked while the stream continues playing (a restart period). */
 .bpm-stable-pill {
   display: inline-flex;
   align-items: center;

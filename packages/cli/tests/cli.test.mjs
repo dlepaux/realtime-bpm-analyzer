@@ -9,6 +9,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
+// Built for the tests and not published
+import {decodeFile} from '../dist/decode.mjs';
 // The library's own fixtures, so the pinned bass-test values have a single source
 import {bassTestExpected} from '../../realtime-bpm-analyzer/tests/fixtures/bass-test-expected.ts';
 import {createClickTrack} from '../../realtime-bpm-analyzer/tests/fixtures/click-track.ts';
@@ -152,6 +154,16 @@ describe('realtime-bpm-analyzer CLI', () => {
       assert.equal(result.bpm, bpm);
     });
   }
+
+  it('runs the library\'s default engine when --engine is not given', async () => {
+    // Through the bin, so a default pinned in the argument parser fails here: analyzeFile alone never sees it
+    const {code, results: [result]} = await runJson([clickMp3]);
+    assert.equal(code, 0);
+    const {channelData, sampleRate} = await decodeFile(clickMp3, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
+    const reading = await analyzeChannelData(channelData, sampleRate);
+    const fields = ({bpm, bpmExact, confidence, candidates, engine}) => ({bpm, bpmExact, confidence, candidates, engine});
+    assert.deepEqual(fields(result), fields(reading));
+  });
 
   it('prints a stable JSON shape', async () => {
     const {results: [result]} = await runJson([clickFlac]);

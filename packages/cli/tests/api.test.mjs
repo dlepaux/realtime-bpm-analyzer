@@ -64,13 +64,16 @@ describe('realtime-bpm-analyzer-cli programmatic API', () => {
     assert.deepEqual(readingFields(await analyzeFile(path)), readingFields(await analyzeChannelData(channelData, sampleRate)));
   });
 
-  it('reports no beat as null fields and no candidates', async () => {
+  it('reports no beat as null fields and no candidates, whichever engine runs', async () => {
     const path = join(await mkdtemp(join(tmpdir(), 'rba-cli-silence-')), 'silence.wav');
     try {
       // 8-bit PCM is silent at 128: the click file's header over flat samples
       await writeFile(path, clickWav(44_100, 5 * 44_100).fill(128, 44));
-      const result = await analyzeFile(path, {engine: 'peaks'});
-      assert.deepEqual(result, {file: path, ok: true, bpm: null, bpmExact: null, confidence: null, candidates: [], engine: null});
+      // Each engine finds no beat its own way, and undefined is the library's default
+      for (const engine of ['peaks', 'tempogram', undefined]) {
+        const result = await analyzeFile(path, {engine});
+        assert.deepEqual(result, {file: path, ok: true, bpm: null, bpmExact: null, confidence: null, candidates: [], engine: null}, String(engine));
+      }
     } finally {
       await rm(join(path, '..'), {recursive: true, force: true});
     }

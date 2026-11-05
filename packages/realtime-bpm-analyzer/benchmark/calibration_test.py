@@ -11,7 +11,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from calibration import (HELDOUT_BAR, analyse, apply_table, fit_table, heldout_report, heldout_verdict,  # noqa: E402
+from calibration import (HELDOUT_BAR, analyse, apply_mapping, apply_table, fit_table, heldout_report, heldout_verdict,  # noqa: E402
                          is_check, is_correct, is_octave, load, main, pav, readings_of, sample, top_half)
 
 
@@ -26,7 +26,7 @@ def synthetic(count, calibrated, seed=1):
     for i in range(count):
         raw = rng.random()
         right = rng.random() < (raw if calibrated else raw * raw)
-        s = sample((120.0 if right else 150.0, raw), 120.0, ('free-mixes', f'g{i % 400}'), 'end', 'realtime')
+        s = sample((120.0 if right else 126.0, raw), 120.0, ('free-mixes', f'g{i % 400}'), 'end', 'realtime')
         out.append({**s, 'check': is_check({'set': 'free-mixes', 'group': f'g{i % 400}'})})
     return out
 
@@ -83,6 +83,41 @@ class Mapping(unittest.TestCase):
         self.assertAlmostEqual(apply_table(table, 0.4), 0.3)
         self.assertEqual(apply_table(table, 0.0), 0.1)
         self.assertEqual(apply_table(table, 0.9), 0.5)
+
+
+def banded(count, seed=2):
+    """Readings that are calibrated under 140 BPM and right far less often above 165"""
+    rng = random.Random(seed)
+    out = []
+    for i in range(count):
+        raw, fast = rng.random(), i % 2 == 0
+        truth = 170.0 if fast else 120.0
+        right = rng.random() < (raw * 0.4 if fast else raw)
+        s = sample((truth if right else truth * 1.2, raw), truth, ('free-mixes', f'g{i % 400}'), 'end', 'realtime')
+        out.append({**s, 'check': is_check({'set': 'free-mixes', 'group': f'g{i % 400}'})})
+    return out
+
+
+class Bands(unittest.TestCase):
+    def test_a_band_reads_its_own_table(self):
+        mapping = {'all': [[0.0, 0.1], [1.0, 0.9]], 'bands': {'165 and over': [[0.0, 0.0], [1.0, 0.4]]}}
+        self.assertAlmostEqual(apply_mapping(mapping, 0.5, 120), 0.5)
+        self.assertAlmostEqual(apply_mapping(mapping, 0.5, 170), 0.2)
+        self.assertAlmostEqual(apply_mapping([[0.0, 0.1], [1.0, 0.9]], 0.5, 170), 0.5)
+
+    def test_a_miscalibrated_band_gets_a_table_that_fixes_it(self):
+        result = analyse(banded(8000))
+        self.assertIn('165 and over', result['band tables needed'])
+        residual = result['check with band tables']['bands']['165 and over']
+        self.assertLessEqual(residual[1], 0)
+        self.assertGreaterEqual(residual[2], 0)
+        self.assertIn('165 and over', result['tables']['realtime']['bands'])
+
+    def test_no_band_table_when_none_is_needed(self):
+        result = analyse(synthetic(6000, calibrated=False))
+        self.assertEqual(result['band tables needed'], [])
+        self.assertIsNone(result['check with band tables'])
+        self.assertEqual(result['tables']['realtime']['bands'], {})
 
 
 class Analysis(unittest.TestCase):

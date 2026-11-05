@@ -6,8 +6,8 @@ import {analyzeSamples} from './offline';
 /**
  * Creates a biquad lowpass filter for audio processing.
  *
- * This filter helps isolate low-frequency components (bass) from the audio signal,
- * which is useful for detecting rhythmic patterns and beats in BPM analysis.
+ * This filter helps isolate low-frequency components (bass) from the audio signal. The `peaks` engine reads
+ * the bass, so it runs behind this filter; the default `tempogram` engine takes the full band and needs none.
  *
  * @param context - The AudioContext or OfflineAudioContext to create the filter in
  * @param options - Optional configuration for the filter's frequency and quality
@@ -31,7 +31,7 @@ import {analyzeSamples} from './offline';
  * - The lowpass filter attenuates high frequencies while preserving low frequencies
  * - Higher Q values create a steeper filter curve
  *
- * @see {@link analyzeFullBuffer} which uses this filter internally
+ * @see {@link analyzeFullBuffer} which uses this filter internally with `engine: 'peaks'`
  * @see {@link BiquadFilterOptions} for configuration options
  *
  * @group Functions

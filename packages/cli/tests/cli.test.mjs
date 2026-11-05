@@ -107,9 +107,11 @@ describe('realtime-bpm-analyzer CLI', () => {
   });
 
   it('runs the engine named by --engine, on the same default range as peaks', async () => {
-    const {results: [peaks]} = await runJson([fixture('click-140.ogg')]);
+    const {results: [peaks]} = await runJson(['--engine', 'peaks', fixture('click-140.ogg')]);
     const {results: [tempogram]} = await runJson(['--engine', 'tempogram', fixture('click-140.ogg')]);
 
+    assert.equal(peaks.engine, 'peaks');
+    assert.equal(tempogram.engine, 'tempogram');
     assert.ok(Math.abs(tempogram.bpm - 140) <= 2, `got ${tempogram.bpm}`);
     assert.notDeepEqual({confidence: tempogram.confidence, candidates: tempogram.candidates}, {confidence: peaks.confidence, candidates: peaks.candidates});
     // A lone --min-bpm is measured against 180: the first pick's 240 would let this through
@@ -130,10 +132,10 @@ describe('realtime-bpm-analyzer CLI', () => {
     assert.match(stderr, /Invalid engine: magic/);
   });
 
-  it('prints the BPM, confidence and candidates as text by default', async () => {
-    const {code, stdout} = await run([clickMp3]);
+  it('prints the BPM, engine, confidence and candidates as text by default', async () => {
+    const {code, stdout} = await run(['--engine', 'peaks', clickMp3]);
     assert.equal(code, 0);
-    assert.match(stdout, /click-128\.mp3: 128 BPM \(confidence 0\.\d\d\)\n {2}candidates: 128(, |$)/m);
+    assert.match(stdout, /click-128\.mp3: 128 BPM \(peaks, confidence 0\.\d\d\)\n {2}candidates: 128(, |$)/m);
   });
 
   it('finds the bass-test fixture tempo the browser finds', async () => {
@@ -153,9 +155,11 @@ describe('realtime-bpm-analyzer CLI', () => {
 
   it('prints a stable JSON shape', async () => {
     const {results: [result]} = await runJson([clickFlac]);
-    assert.deepEqual(Object.keys(result), ['file', 'ok', 'bpm', 'confidence', 'candidates']);
+    assert.deepEqual(Object.keys(result), ['file', 'ok', 'bpm', 'bpmExact', 'confidence', 'candidates', 'engine']);
     assert.equal(result.file, clickFlac);
     assert.equal(result.ok, true);
+    assert.ok(Math.abs(result.bpmExact - result.bpm) <= 1.5, `got ${result.bpmExact} for ${result.bpm}`);
+    assert.ok(['peaks', 'tempogram'].includes(result.engine), result.engine);
     assert.ok(result.confidence > 0 && result.confidence <= 1, `got ${result.confidence}`);
     assert.ok(result.candidates.length > 0 && result.candidates.length <= 5);
     assert.deepEqual(result.candidates[0], {bpm: result.bpm, relation: 'top'});

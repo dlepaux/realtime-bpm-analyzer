@@ -10,7 +10,8 @@ export type CliOptions = {
   readonly json: boolean;
   readonly recursive: boolean;
   readonly tempoRange: TempoRange | undefined;
-  readonly engine: EngineName;
+  /** Undefined runs the library's default engine, so the CLI follows the library's choice */
+  readonly engine: EngineName | undefined;
 };
 
 export type ParsedArgs =
@@ -29,9 +30,9 @@ Options:
   -r, --recursive    Walk sub-folders of a folder (up to 32 levels)
   --min-bpm <bpm>    Lowest tempo reported (default 90)
   --max-bpm <bpm>    Highest tempo reported (default 180, at least 2 x min)
-  --engine <name>    peaks (default) or tempogram, which searches the range
-                     instead of folding into it: from about 2 x min a tempo
-                     can read half, as over about 179 does by default
+  --engine <name>    tempogram (default) or peaks. The tempogram searches the
+                     range instead of folding into it: from about 2 x min a
+                     tempo can read half, as over about 179 does by default
   -h, --help         Show this help
   -v, --version      Show the version
 
@@ -57,7 +58,7 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
         recursive: {type: 'boolean', short: 'r', default: false},
         'min-bpm': {type: 'string'},
         'max-bpm': {type: 'string'},
-        engine: {type: 'string', default: 'peaks'},
+        engine: {type: 'string'},
         help: {type: 'boolean', short: 'h', default: false},
         version: {type: 'boolean', short: 'v', default: false},
       },
@@ -80,7 +81,7 @@ export async function parseCliArgs(argv: readonly string[]): Promise<ParsedArgs>
   }
 
   const {engine} = values;
-  if (engine !== 'peaks' && engine !== 'tempogram') {
+  if (engine !== undefined && engine !== 'peaks' && engine !== 'tempogram') {
     return {kind: 'usage-error', message: `Invalid engine: ${engine}. Use peaks or tempogram.`};
   }
 

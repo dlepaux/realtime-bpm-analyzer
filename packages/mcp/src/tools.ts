@@ -3,7 +3,7 @@
 import {McpServer} from '@modelcontextprotocol/server';
 import type {CallToolResult} from '@modelcontextprotocol/server';
 import {analyzeFile, decodedLimit, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
-import type {EngineName, FileResult, TempoRange} from 'realtime-bpm-analyzer-cli';
+import type {Candidate, EngineName, FileResult, TempoRange} from 'realtime-bpm-analyzer-cli';
 import * as z from 'zod/v4';
 import {absolutePath, checkFile, firstLine, limits, listFolder} from './paths';
 import {createQueue} from './queue';
@@ -18,7 +18,7 @@ const tempoArguments = {
   max_bpm: z.number().positive().max(2000).optional()
     .describe('Highest tempo to report, in BPM (default 180). Must be at least twice min_bpm.'),
   engine: z.enum(['peaks', 'tempogram']).optional()
-    .describe('Tempo engine (default peaks). The tempogram searches min_bpm..max_bpm instead of folding into it, so from about twice min_bpm a tempo can read half, as over about 179 BPM does by default.'),
+    .describe('Tempo engine (default tempogram). The tempogram searches min_bpm..max_bpm instead of folding into it, so from about twice min_bpm a tempo can read half, as over about 179 BPM does by default. peaks folds tempos into the range.'),
 };
 
 const path = z.string().min(1).max(4096);
@@ -29,11 +29,16 @@ const candidate = z.object({
     .describe('How it relates to the best tempo: top is the best tempo itself, half and double are within 2% of half or twice it'),
 });
 
+// The library's reading, field for field, with the MCP names in snake_case. A file has no analyzer
+// state, and the reading's audio span would only repeat the file's length, so neither is here.
 const analysis = {
   file: z.string().describe('Absolute path of the file'),
-  bpm: z.number().nullable().describe('Best tempo, or null when no clear beat was found'),
-  confidence: z.number().nullable().describe('From 0 to 1, how strongly the engine holds the best tempo. Uncalibrated: compare it between files of one engine, not as a probability'),
+  bpm: z.number().nullable().describe('Best tempo, a whole number of BPM, or null when no clear beat was found'),
+  bpm_exact: z.number().nullable().describe('The same tempo unrounded, for timing such as a beat grid or markers. Show bpm to people. Null when no clear beat was found'),
+  // RBA-106: calibration gives confidence its meaning, or removes it. Keep this text in step with Reading.confidence.
+  confidence: z.number().nullable().describe('From 0 to 1, the engine\'s own score for the best tempo. Uncalibrated and not a probability: each engine scores differently, so compare values from one engine only and set no fixed cut-off. Null when no clear beat was found'),
   candidates: z.array(candidate).describe('Tempo candidates, best first'),
+  engine: z.enum(['peaks', 'tempogram']).nullable().describe('The engine that measured the tempo, or null when no clear beat was found'),
 };
 
 const formats = 'MP3, WAV, FLAC, OGG Vorbis and Opus (bundled decoders), plus M4A/AAC, AIFF and WMA through ffmpeg when it is installed';
@@ -96,7 +101,7 @@ export function createServer(version: string): McpServer {
   server.registerTool('analyze_file', {
     title: 'Analyse the BPM of an audio file',
     description: `Detects the tempo (BPM) of one audio file on this computer. Reads ${formats}. `
-      + `Returns the best tempo, its confidence and the ranked candidates. Files over ${sizeLimit} or ${decodedLimit} are refused. ${timeLimit} ${privacy}`,
+      + `Returns the best tempo, the engine's uncalibrated confidence in it, the ranked candidates and the engine that ran. Files over ${sizeLimit} or ${decodedLimit} are refused. ${timeLimit} ${privacy}`,
     inputSchema: z.strictObject({
       path: path.describe('Path of the audio file. Absolute, or starting with ~ for the home folder.'),
       ...tempoArguments,
@@ -123,7 +128,7 @@ export function createServer(version: string): McpServer {
       return toolError(`Could not analyse ${result.file}: ${firstLine(result.error)}`);
     }
 
-    return toolResult({file: result.file, bpm: result.bpm, confidence: result.confidence, candidates: result.candidates});
+    return toolResult(analysisOutput(result));
   });
 
   server.registerTool('analyze_folder', {
@@ -175,7 +180,7 @@ export function createServer(version: string): McpServer {
     const page = folder.entries.slice(offset, offset + limits.maxFolderFiles);
     const {signal} = ctx.mcpReq;
     const progressToken = ctx.mcpReq._meta?.progressToken;
-    const results: FileResult[] = [];
+    const results: FolderResult[] = [];
     for (const entry of page) {
       // The client cancelled: nobody reads the result, so stop decoding
       if (signal.aborted) {
@@ -215,10 +220,36 @@ export function createServer(version: string): McpServer {
   return server;
 }
 
+type AnalysisOutput = {
+  readonly file: string;
+  readonly bpm: number | null;
+  readonly bpm_exact: number | null;
+  readonly confidence: number | null;
+  readonly candidates: readonly Candidate[];
+  readonly engine: EngineName | null;
+};
+
+type FolderResult = (AnalysisOutput & {readonly ok: true}) | {readonly file: string; readonly ok: false; readonly error: string};
+
+/**
+ * @param result An analysed file
+ * @returns The tool's output for it, in the tool's names
+ */
+function analysisOutput(result: Extract<FileResult, {ok: true}>): AnalysisOutput {
+  return {
+    file: result.file,
+    bpm: result.bpm,
+    bpm_exact: result.bpmExact,
+    confidence: result.confidence,
+    candidates: result.candidates,
+    engine: result.engine,
+  };
+}
+
 /**
  * @param result A file's result
- * @returns The same, with an error message trimmed to one line
+ * @returns Its folder entry: the analysis in the tool's names, or the error trimmed to one line
  */
-function clean(result: FileResult): FileResult {
-  return result.ok ? result : {...result, error: firstLine(result.error)};
+function clean(result: FileResult): FolderResult {
+  return result.ok ? {...analysisOutput(result), ok: true} : {file: result.file, ok: false, error: firstLine(result.error)};
 }

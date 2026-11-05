@@ -39,7 +39,7 @@ Node.js 20 or later.
 
 | Tool             | Arguments                                                | Returns |
 | ---------------- | -------------------------------------------------------- | ------- |
-| `analyze_file`   | `path`, optional `min_bpm`, `max_bpm`, `engine`        | `bpm`, `confidence` (0 to 1) and the ranked `candidates` |
+| `analyze_file`   | `path`, optional `min_bpm`, `max_bpm`, `engine`        | `bpm`, `bpm_exact`, `confidence` (0 to 1, uncalibrated), the ranked `candidates` and the `engine` that ran |
 | `analyze_folder` | `directory`, optional `recursive`, `offset`, `min_bpm`, `max_bpm`, `engine` | one result per file, in path order; a file that fails carries its `error` and the others go on |
 
 Then ask, for example: "What's the BPM of ~/Music/set/track.mp3?" or "Sort the tracks in
@@ -48,7 +48,9 @@ Then ask, for example: "What's the BPM of ~/Music/set/track.mp3?" or "Sort the t
 - Formats: MP3, WAV, FLAC, OGG Vorbis and Opus decode in pure JavaScript/WebAssembly.
   M4A/AAC, AIFF and WMA go through [ffmpeg](https://ffmpeg.org) when it is installed (set
   `FFMPEG_PATH` in the server's `env` to point at a binary that is not on the `PATH`).
-- Tempos are folded into `min_bpm`..`max_bpm` (default 90 to 180). With `engine: "tempogram"` that range is searched instead, and a tempo under it reads at the octave inside, and from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default.
+- The default engine, the tempogram, searches `min_bpm`..`max_bpm` (default 90 to 180): a tempo under it reads at the octave inside, and from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default. With `engine: "peaks"` tempos are folded into the range instead.
+- `confidence` is uncalibrated for now: each engine scores it its own way, so compare values from one engine only, and don't read it as a probability.
+  <!-- RBA-106: calibration gives confidence its meaning, or removes it. Update this line then. -->
 - Paths are absolute, start with `~`, or are relative to the server's working directory.
 - Limits: files over 100 MB are refused, and so is audio that decodes to more than 2048 MB in
   its first channel: 202 minutes at 44.1 kHz, however small the file (a file that fits peaks at about

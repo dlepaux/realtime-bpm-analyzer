@@ -1045,7 +1045,7 @@ function formatDuration(seconds: number): string {
                   class="bpm-text-btn"
                   :href="EXTENSION_PAGE"
                   @click="track('extension_link_clicked', { placement: 'stream_hint', target: 'page' })"
-                >Live BPM Detector</a> for Chrome shows the tempo on the page.
+                >Live BPM Detector</a> for Chrome and Edge shows the tempo on the page.
               </div>
             </template>
             <template v-else>

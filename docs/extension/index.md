@@ -1,23 +1,23 @@
 ---
 layout: page
-title: "Live BPM Detector: BPM of YouTube and SoundCloud in Chrome"
+title: "Live BPM Detector: BPM of YouTube and SoundCloud in Chrome and Edge"
 titleTemplate: false
-description: Free Chrome extension that shows the live BPM of the music in your tab, on YouTube, SoundCloud and more. Your audio never leaves your device.
+description: Free extension for Chrome and Edge that shows the live BPM of the music in your tab, on YouTube, SoundCloud and more. Your audio never leaves your device.
 faq:
   - q: How do I see the BPM of a YouTube video?
-    a: Play the video in Chrome and click the Live BPM Detector button in the toolbar. The BPM usually appears on the player and updates live, on YouTube, YouTube Shorts and YouTube Music.
+    a: Play the video in Chrome or Edge and click the Live BPM Detector button in the toolbar. The BPM usually appears on the player and updates live, on YouTube, YouTube Shorts and YouTube Music.
   - q: How do I see the BPM of a SoundCloud track?
-    a: Play the track in Chrome and click the Live BPM Detector button in the toolbar. The BPM usually appears in the play bar and updates live.
+    a: Play the track in Chrome or Edge and click the Live BPM Detector button in the toolbar. The BPM usually appears in the play bar and updates live.
   - q: Can I get the BPM from a YouTube link?
-    a: Not by pasting it. The extension reads what a tab is playing, so open the link in Chrome, play it and click the toolbar button.
+    a: Not by pasting it. The extension reads what a tab is playing, so open the link in Chrome or Edge, play it and click the toolbar button.
   - q: Does it work on a phone?
-    a: No. It is a Chrome extension, and those install on a computer. On a phone, the BPM Analyzer on this site's home page can listen through your microphone.
+    a: No. It is an extension for Chrome and Edge, and those install on a computer. On a phone, the BPM Analyzer on this site's home page can listen through your microphone.
   - q: Is it free?
     a: Yes. There is no account and nothing to buy in the extension.
   - q: Does it record me?
     a: No. It listens to the tab you clicked, not your microphone. The audio is not recorded, stored or sent anywhere.
   - q: The number looks wrong. Why?
-    a: "First check half and double: it looks for tempos from 90 to about 178 BPM, so 200 shows as 100 and 70 as 140. Then give it time, because the first readings can be off. Stable means the reading has settled, not that it is certainly right. If it still sounds wrong, tap along with the Tap Tempo tool on this site."
+    a: "First check half and double: it looks for tempos from 90 to 180 BPM, so 200 shows as 100 and 70 as 140. Then give it time, because the first readings can be off. Stable means the reading has settled, not that it is certainly right. If it still sounds wrong, tap along with the Tap Tempo tool on this site."
 ---
 
 <script setup>
@@ -37,7 +37,7 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
   <div class="ext-hero-action">
     <ExtensionInstall prompt-link />
   </div>
-  <p class="ext-lede">Live BPM Detector is a free Chrome extension that shows the live tempo of the music playing in the current tab. Click its button and the number appears on the page.</p>
+  <p class="ext-lede">Live BPM Detector is a free extension for Chrome and Edge that shows the live tempo of the music playing in the current tab. Click its button and the number appears on the page.</p>
   <p class="ext-support">It also works on YouTube Music, Twitch, Bandcamp and Mixcloud. Your audio never leaves your device.</p>
 </section>
 
@@ -83,8 +83,8 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
 
 <ol class="ext-howto">
   <li>
-    <h3>Add it to Chrome</h3>
-    <p>Confirm Chrome's prompt. <a href="#chrome-prompt">Its wording is strong, so here's what it means.</a></p>
+    <h3>Add it to Chrome or Edge</h3>
+    <p>Confirm the browser's prompt. <a href="#chrome-prompt">Its wording is strong, so here's what it means.</a></p>
   </li>
   <li>
     <h3>Play some music</h3>
@@ -92,7 +92,7 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
   </li>
   <li>
     <h3>Click the toolbar button</h3>
-    <p>Pin it from Chrome's puzzle-piece menu so it stays in view. The BPM appears on top of the page and updates live. Click again, or close the overlay, to stop.</p>
+    <p>Pin it from the browser's puzzle-piece Extensions menu so it stays in view. The BPM appears on top of the page and updates live. Click again, or close the overlay, to stop.</p>
   </li>
 </ol>
 
@@ -139,8 +139,8 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
 
 <dl class="ext-limits">
   <div>
-    <dt>Tempos from 90 to about 178</dt>
-    <dd>It looks for tempos from 90 to about 178 BPM. Faster music reads at half and slower music at double: 200 shows as 100, 70 as 140.</dd>
+    <dt>Tempos from 90 to 180</dt>
+    <dd>It looks for tempos from 90 to 180 BPM. Faster music reads at half and slower music at double: 200 shows as 100, 70 as 140.</dd>
   </div>
   <div>
     <dt>Mixes and radio</dt>
@@ -164,11 +164,11 @@ import ToolFaq from '../.vitepress/components/ToolFaq.vue'
 <section class="ext-sec ext-sec-tight">
 <div class="ext-wrap ext-narrow">
 
-## What does Chrome's install prompt mean? {#chrome-prompt}
+## What does the install prompt mean? {#chrome-prompt}
 
 Chrome's install prompt says "Read and change all your data on all websites" because that is its warning for tab capture. The extension only acts on the tab you click.
 
-Chrome writes that sentence, not us. Listening starts only when you click. It continues on that tab as you move around the same site, until you click again, close the overlay or close the tab. If the tab goes to another site, listening stops once that page has loaded.
+The browser writes that sentence, not us, and Edge words its own warning for the same access. Listening starts only when you click. It continues on that tab as you move around the same site, until you click again, close the overlay or close the tab. If the tab goes to another site, listening stops once that page has loaded.
 
 </div>
 </section>

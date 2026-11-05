@@ -288,24 +288,23 @@
 .ext-sw { position: absolute; top: 0; right: 0; }
 
 /* overlay:start */
-.ext-sw .pill { position: relative; display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(5 * var(--u)) calc(6 * var(--u)) calc(9 * var(--u)) calc(12 * var(--u)); border-radius: 999px;
+.ext-sw .pill { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(7 * var(--u)) calc(6 * var(--u)) calc(7 * var(--u)) calc(12 * var(--u)); border-radius: 999px;
   background: rgb(17 24 39 / .92); color: #f9fafb; font: 600 calc(14 * var(--u))/1 system-ui, -apple-system, "Segoe UI", sans-serif;
   box-shadow: 0 calc(2 * var(--u)) calc(8 * var(--u)) rgb(0 0 0 / .35); white-space: nowrap; user-select: none; }
 .ext-sw .value { display: inline-block; font-variant-numeric: tabular-nums; font-size: calc(16 * var(--u)); min-width: 3ch; text-align: right; }
 .ext-sw .unit { color: #d1d5db; font-size: calc(11 * var(--u)); letter-spacing: .06em; }
 .ext-sw .stack { display: inline-flex; flex-direction: column; align-items: flex-start; gap: calc(2 * var(--u)); }
-.ext-sw .hint { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); color: #9ca3af; font-size: calc(10 * var(--u)); font-weight: 600;
+.ext-sw .hint { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); color: #e5e7eb; font-size: calc(10 * var(--u)); font-weight: 600;
   text-transform: uppercase; letter-spacing: .14em; }
 .ext-sw .dot { width: calc(6 * var(--u)); height: calc(6 * var(--u)); border-radius: 50%; background: #9ca3af; }
 .ext-sw .hint[data-stability="settling"] .dot { background: #fbbf24; }
 .ext-sw .hint[data-stability="stable"] .dot { background: #4ade80; }
 .ext-sw .close { box-sizing: border-box; width: calc(24 * var(--u)); height: calc(24 * var(--u)); border-radius: 50%; display: grid;
   place-items: center; color: #e5e7eb; font-size: calc(16 * var(--u)); line-height: 1; }
-.ext-sw .progress { position: absolute; left: calc(12 * var(--u)); right: calc(12 * var(--u)); bottom: calc(2 * var(--u)); height: calc(2 * var(--u)); border-radius: calc(1 * var(--u));
-  background: rgb(255 255 255 / .12); overflow: hidden; pointer-events: none; }
-.ext-sw .fill { display: block; width: 100%; height: 100%; background: #9ca3af; }
-.ext-sw .progress[data-level="medium"] .fill { background: #fbbf24; }
-.ext-sw .progress[data-level="high"] .fill { background: #4ade80; }
+.ext-sw .progress { position: absolute; inset: 0; z-index: -1; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.ext-sw .fill { display: block; width: 100%; height: 100%; background: #4b5563; }
+.ext-sw .progress[data-stability="settling"] .fill { background: #92400e; }
+.ext-sw .progress[data-stability="stable"] .fill { background: #166534; }
 /* overlay:end */
 
 /* What the real overlay does by reflowing, done with layers. At rest they change nothing. */
@@ -318,17 +317,21 @@
 .ext-sw .dots span { display: inline-block; }
 .ext-hint-layer { position: absolute; top: calc(18 * var(--u)); left: 0; opacity: 0; }
 .ext-sw .close { position: relative; z-index: 1; }
-.ext-sw .progress { z-index: 1; transform-origin: right; }
-.ext-fill-track { display: block; position: relative; width: 100%; height: 100%; transform-origin: left; }
-.ext-fill-layer { position: absolute; inset: 0; opacity: 0; }
-.ext-fill-layer[data-level='low'] { background: #9ca3af; }
-.ext-fill-layer[data-level='medium'] { background: #fbbf24; }
+.ext-fill-shell { display: none; position: absolute; inset: 0; transform-origin: top; }
+.ext-fill-shell > i { position: absolute; inset: 0; border-radius: 999px; overflow: hidden; }
+.ext-fill-wipe { position: absolute; inset: 0; }
+.ext-fill-wipe b { position: absolute; inset: 0; }
+.ext-fill-wipe b[data-stability='stable'] { background: #166534; }
+.ext-fill-wipe b[data-stability='settling'] { background: #92400e; opacity: 0; }
+.ext-fill-wipe b[data-stability='listening'] { background: #4b5563; opacity: 0; }
 
 /* Two caps that overlap in one group, so the group's opacity reads as one pill at any width. */
 .ext-pill-shell { display: none; position: absolute; inset: 0; opacity: 0.92; transform-origin: top; filter: drop-shadow(0 calc(2 * var(--u)) calc(4 * var(--u)) rgb(0 0 0 / 0.35)); }
 .ext-pill-shell i { position: absolute; inset: 0; border-radius: 999px; background: rgb(17 24 39); }
-.is-live .ext-pill-shell { display: block; }
+.is-live .ext-pill-shell,
+.is-live .ext-fill-shell { display: block; }
 .is-live .ext-sw .pill { background: none; box-shadow: none; }
+.is-live .ext-sw .progress { display: none; }
 
 /* ── The figure's words and its control ────────────────────────────── */
 

@@ -14,14 +14,14 @@ const { track } = useAnalytics()
   <section class="ext-door ext-band">
     <h2>Playing on YouTube or SoundCloud?</h2>
     <p class="ext-door-line">
-      A free Chrome extension shows the live BPM right on the page, on YouTube, SoundCloud and more.
+      A free extension for Chrome and Edge shows the live BPM right on the page, on YouTube, SoundCloud and more.
       Your audio never leaves your device.
     </p>
     <a
       class="ext-cta"
       :href="EXTENSION_PAGE"
       @click="track('extension_link_clicked', { placement: 'home_door', target: 'page' })"
-    >Live BPM Detector for Chrome</a>
+    >Live BPM Detector for Chrome and Edge</a>
     <ExtensionScenes />
   </section>
 </template>

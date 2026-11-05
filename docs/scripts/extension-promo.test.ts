@@ -2,7 +2,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config.ts'
+import { EXTENSION_EDGE_URL, EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config.ts'
+import { TEMPO_RANGE } from '../.vitepress/tools/extension-scenes.ts'
 import {
   EXTENSION_HERO_TAGLINE,
   EXTENSION_LLMS_LINE,
@@ -14,12 +15,16 @@ import {
   sharePageLink,
   extensionNavItems,
   extensionPageSchema,
+  installRequirement,
   installTargets,
+  listingUrls,
   storeLink,
+  resolveEdgeUrl,
   resolveStoreUrl,
 } from '../.vitepress/tools/extension-promo.ts'
 
 const LISTING = `https://chromewebstore.google.com/detail/live-bpm-detector/${'a'.repeat(32)}`
+const EDGE_LISTING = `https://microsoftedge.microsoft.com/addons/detail/${'c'.repeat(32)}`
 
 // Markdown down to the words a reader sees, on one line.
 function plainText(markdown: string): string {
@@ -32,7 +37,7 @@ function plainText(markdown: string): string {
 const BANNED_CLAIMS = [
   /accura/i, /benchmark/i, /\d\s*%/, /\bbest\b/i, /\bfastest\b/i, /\bperfect/i, /\bguarantee/i,
   /coming soon/i, /\bsoon\b/i, /\bPro\b/, /pric(e|ing)/i, /\bforever\b/i, /\bpaid\b/i, /aggregateRating/, /testimonial/i, /\d\S*\s+installs\b/i, /\busers\b/i,
-  /GroovePeek/, /BPM Finder/, /BPM Counter/, /Spotify/, /Deezer/, /Vimeo/, /Firefox/, /\bEdge\b/, /Safari/,
+  /GroovePeek/, /BPM Finder/, /BPM Counter/, /Spotify/, /Deezer/, /Vimeo/, /Firefox/, /Opera/, /Brave/, /Vivaldi/, /Safari/,
   /collects no data/i,
   /—/, /–/,
 ]
@@ -63,12 +68,37 @@ test('resolveStoreUrl: anything else fails the build rather than ship a dead lin
   }
 })
 
-test('the committed value is off or a real listing', () => {
+test('resolveEdgeUrl: null stays off, an Edge listing passes, without its query', () => {
+  assert.equal(resolveEdgeUrl(null), null)
+  assert.equal(resolveEdgeUrl(EDGE_LISTING), EDGE_LISTING)
+  assert.equal(resolveEdgeUrl(`${EDGE_LISTING}/?hl=fr`), EDGE_LISTING)
+  const withSlug = `https://microsoftedge.microsoft.com/addons/detail/live-bpm-detector/${'d'.repeat(32)}`
+  assert.equal(resolveEdgeUrl(withSlug), withSlug)
+})
+
+test('resolveEdgeUrl: a Chrome listing, a placeholder or a lookalike host fails the build', () => {
+  for (const raw of [
+    '', 'TODO', LISTING,
+    'http://microsoftedge.microsoft.com/addons/detail/' + 'a'.repeat(32),
+    'https://microsoftedge.microsoft.com/addons/detail/live-bpm-detector',
+    'https://microsoftedge.microsoft.com/addons/detail/' + 'z'.repeat(32),
+    'https://microsoftedge.microsoft.com.evil.example/addons/detail/' + 'a'.repeat(32),
+    'https://microsoftedge.microsoft.com/detail/' + 'a'.repeat(32),
+  ]) {
+    assert.throws(() => resolveEdgeUrl(raw), /EXTENSION_EDGE_URL must be a Microsoft Edge Add-ons listing/, raw)
+  }
+  assert.throws(() => resolveStoreUrl(EDGE_LISTING), /EXTENSION_STORE_URL/, 'Chrome refuses an Edge listing')
+})
+
+test('the committed values are off or real listings', () => {
   assert.doesNotThrow(() => resolveStoreUrl(EXTENSION_STORE_URL))
+  assert.doesNotThrow(() => resolveEdgeUrl(EXTENSION_EDGE_URL))
 })
 
 test('switch off: nothing to render, and the page is left out of the build', () => {
   assert.deepEqual(installTargets(null), [])
+  assert.deepEqual(installTargets(null, EDGE_LISTING), [], 'Edge alone has no page to sit on')
+  assert.deepEqual(listingUrls(null, EDGE_LISTING), [])
   assert.deepEqual(extensionNavItems(null), [])
   assert.deepEqual(excludedSources(null), ['extension/index.md'])
 })
@@ -81,11 +111,31 @@ test('switch on: every install link is the listing, and the page is built', () =
   assert.deepEqual(extensionNavItems(LISTING).map((item) => item.link), ['/extension/'])
 })
 
+test('Edge joins as a second target, after Chrome, with its own tagged listing link', () => {
+  assert.deepEqual(installTargets(LISTING).map((target) => target.browser), ['Chrome'])
+  const targets = installTargets(LISTING, EDGE_LISTING)
+  assert.deepEqual(targets.map((target) => target.browser), ['Chrome', 'Edge'])
+  assert.deepEqual(targets.map((target) => target.label), ['Add to Chrome', 'Add to Edge'])
+  assert.deepEqual(targets.map((target) => target.store), ['Chrome Web Store', 'Edge Add-ons'])
+  assert.equal(targets[1]?.href, storeLink(EDGE_LISTING, 'extension_page'))
+  assert.deepEqual(listingUrls(LISTING, EDGE_LISTING), [LISTING, EDGE_LISTING])
+})
+
+test('installRequirement: one line naming every browser and the extension\'s minimum', () => {
+  assert.equal(installRequirement(installTargets(LISTING)), 'Free. For Chrome 150 or later, on a computer.')
+  assert.equal(installRequirement(installTargets(LISTING, EDGE_LISTING)), 'Free. For Chrome or Edge 150 or later, on a computer.')
+})
+
 test('structured data: names the listing and says it is free, with no rating or review', () => {
   const schema = extensionPageSchema(LISTING, 'https://x/extension/', 'Description')
   assert.equal(schema.installUrl, LISTING)
   assert.equal(schema.offers.price, '0')
   for (const key of ['aggregateRating', 'review', 'browserRequirements']) assert.ok(!(key in schema), key)
+  assert.equal(schema.operatingSystem, 'Chrome')
+  const both = extensionPageSchema(LISTING, 'https://x/extension/', 'Description', EDGE_LISTING)
+  assert.deepEqual(both.installUrl, [LISTING, EDGE_LISTING])
+  assert.equal(both.operatingSystem, 'Chrome, Microsoft Edge')
+  assert.equal(both.softwareRequirements, 'Chrome or Microsoft Edge 150 or later, on a computer')
 })
 
 test('the analyzer only suggests the extension for links to sites the listing names', () => {
@@ -125,7 +175,7 @@ test('page: the privacy section is exactly the kept sentences and the link to th
 
 test('page: states the listing\'s limits', () => {
   for (const limit of [
-    'It looks for tempos from 90 to about 178 BPM. Faster music reads at half and slower music at double: 200 shows as 100, 70 as 140.',
+    'It looks for tempos from 90 to 180 BPM. Faster music reads at half and slower music at double: 200 shows as 100, 70 as 140.',
     'the old tempo can stay on screen, still marked stable, for about 20 seconds after the music changes.',
     'The new tempo can take longer again to settle, and may be wrong at first.',
     'Stable means the reading has settled, not that it is certainly right.',
@@ -135,6 +185,13 @@ test('page: states the listing\'s limits', () => {
   ]) {
     assert.ok(page.includes(limit), limit)
   }
+})
+
+test('page: the range it states is the extension\'s, wherever it states one', () => {
+  const stated = [...pageSource.matchAll(/from (\d+) to (?:about )?(\d+)/g)]
+  assert.ok(stated.length >= 3, 'the limit, its heading and the FAQ')
+  for (const [match, min, max] of stated) assert.deepEqual([Number(min), Number(max)], [TEMPO_RANGE.min, TEMPO_RANGE.max], match)
+  assert.ok(!/about 1\d\d/.test(pageSource), 'no rounded range beside the constant')
 })
 
 test('page: names exactly the sites the player matrix and the listing prove', () => {
@@ -164,7 +221,7 @@ test('the promotion outside the page makes the same claims only', () => {
     llms: EXTENSION_LLMS_LINE,
     shareAlt: EXTENSION_SHARE_IMAGE.alt,
   }
-  assert.ok(surfaces.tap.includes('Chrome tab') && surfaces.metronome.includes('Chrome tab'), 'the mentions moved')
+  assert.ok(surfaces.tap.includes('Chrome or Edge tab') && surfaces.metronome.includes('Chrome or Edge tab'), 'the mentions moved')
   for (const [name, text] of Object.entries(surfaces)) {
     for (const banned of BANNED_CLAIMS) assert.ok(!banned.test(text), `${name} matches ${banned}`)
   }
@@ -194,7 +251,7 @@ test('llmsWithExtension: the real file gains the extension ahead of the library'
   const llms = readFileSync(new URL('../public/llms.txt', import.meta.url), 'utf8')
   const result = llmsWithExtension(llms)
   assert.ok(result.indexOf(EXTENSION_LLMS_LINE) < result.indexOf('## Library'))
-  assert.ok(result.split('\n')[2].includes('Chrome extension'), 'the summary names it')
+  assert.ok(result.split('\n')[2].includes('extension for Chrome and Edge'), 'the summary names it')
   assert.throws(() => llmsWithExtension('# moved'))
 })
 

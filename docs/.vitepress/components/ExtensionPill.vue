@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // A static picture of the extension's overlay pill (rba-pro extension/src/overlay/view.ts),
 // drawn with the same colours so the welcome page shows what will appear on the player.
-// `intro` plays the one moment the welcome page animates: the line fills while it
+// `intro` plays the one moment the welcome page animates: the background fills while it
 // listens, then the tempo locks. It is CSS only, so it runs without JavaScript, and
 // under reduced motion the pill simply shows the locked state.
 withDefaults(defineProps<{

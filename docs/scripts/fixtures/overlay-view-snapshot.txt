@@ -5,7 +5,7 @@ const STYLE = `
 :host([data-mode="floating"]) { position: fixed !important; left: var(--x, auto) !important; top: var(--y, auto) !important;
   right: 24px !important; bottom: 24px !important; }
 :host([data-mode="floating"][data-moved]) { right: auto !important; bottom: auto !important; }
-.pill { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 5px 6px 9px 12px; border-radius: 999px;
+.pill { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 8px; padding: 7px 6px 7px 12px; border-radius: 999px;
   background: rgb(17 24 39 / .92); color: #f9fafb; font: 600 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
   box-shadow: 0 2px 8px rgb(0 0 0 / .35); white-space: nowrap; user-select: none; }
 .value { display: inline-block; font-variant-numeric: tabular-nums; font-size: 16px; min-width: 3ch; text-align: right; }
@@ -23,7 +23,7 @@ const STYLE = `
 .unit { color: #d1d5db; font-size: 11px; letter-spacing: .06em; }
 /* The state reads as a caption under the tempo, not a second value beside it (David, 2026-10-30). */
 .stack { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-.hint { display: inline-flex; align-items: center; gap: 4px; color: #9ca3af; font-size: 10px; font-weight: 600;
+.hint { display: inline-flex; align-items: center; gap: 4px; color: #e5e7eb; font-size: 10px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .14em; }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; }
 .hint[data-stability="silent"] .dot { background: #f87171; }
@@ -39,31 +39,45 @@ button { all: unset; box-sizing: border-box; width: 24px; height: 24px; border-r
   place-items: center; cursor: pointer; color: #e5e7eb; font-size: 16px; line-height: 1; }
 button:hover { background: rgb(255 255 255 / .14); }
 button:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
-button.handle { display: none; width: 10px; height: 18px; cursor: grab; border-radius: 4px;
-  background: radial-gradient(circle, #9ca3af 1.2px, transparent 1.6px) 0 0 / 5px 5px; }
+/* Two columns of three dots: the content box is exactly 2 x 3 tiles, and the background stops at it. In the full
+   18px, a fourth row of tiles started and was cut through its dots' middle. The padding keeps the 18px target. */
+button.handle { display: none; width: 10px; height: 18px; padding: 1.5px 0; cursor: grab; border-radius: 4px;
+  background: radial-gradient(circle, #d1d5db 1.2px, transparent 1.6px) 0 0 / 5px 5px content-box; }
 :host([data-mode="floating"]) button.handle { display: block; }
-/* Progress toward the first tempo, full once one exists. Inset by the pill's corner radius so
-   the rounded ends don't clip it, and kept clear of the 24px buttons. The colour follows the
-   confidence band, like the dot; no opacity encoding (RBA-36 design comment, 2026-10-30). */
-.progress { position: absolute; left: 12px; right: 12px; bottom: 2px; height: 2px; border-radius: 1px;
-  background: rgb(255 255 255 / .12); overflow: hidden; pointer-events: none; }
-/* The caption under the tempo needs the 9px bottom padding of .pill to stay clear of this line. */
-.fill { display: block; width: 100%; height: 100%; background: #9ca3af; transform: scaleX(var(--progress, 0)); transform-origin: left;
+/* The pill's whole background is the progress toward the first tempo, full once one exists (David,
+   2026-11-02: the 2px line left a gap under it and its corners didn't follow the pill's). Same box and
+   radius as the pill, so the two shapes can't differ; z-index -1 inside the pill's isolation puts it
+   above the pill's background and behind its text. The colour follows the stability, like the dot, not
+   the confidence band the line used: nearly every tempogram reading is in the top band (reading.ts),
+   which would paint "settling" the same green as "stable" across the whole pill. No opacity encoding
+   (RBA-36 design comment, 2026-10-30). The fills are opaque so text contrast over them doesn't depend
+   on the page behind, and dark enough for every text colour to hold AA: view.test.ts measures that. */
+.progress { position: absolute; inset: 0; z-index: -1; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.fill { display: block; width: 100%; height: 100%; background: #4b5563; transform: scaleX(var(--progress, 0)); transform-origin: left;
   transition: transform .25s ease-out, background-color .25s ease-out; }
-.progress[data-level="medium"] .fill { background: #fbbf24; }
-.progress[data-level="high"] .fill { background: #4ade80; }
+.progress[data-stability="settling"] .fill { background: #92400e; }
+.progress[data-stability="stable"] .fill { background: #166534; }
 @media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+/* The other progress style, chosen on the settings page: a line flush with the pill's bottom edge, its ends
+   cut by the pill's curve because .progress clips it. It takes the dot's colours, one hue per state as the
+   fill has: the fill's deep shades, chosen to sit behind text, nearly vanish as a line on the dark pill. It
+   passes behind no text, and the text moves up 1px to clear it, with the same 14px of padding and so the same size. */
+.pill[data-progress-style="line"] { padding: 6px 6px 8px 12px; }
+.pill[data-progress-style="line"] .progress::before { content: ""; position: absolute; inset: auto 0 0; height: 3px; background: rgb(255 255 255 / .12); }
+.pill[data-progress-style="line"] .fill { position: absolute; inset: auto 0 0; width: auto; height: 3px; background: #9ca3af; }
+.pill[data-progress-style="line"] .progress[data-stability="settling"] .fill { background: #fbbf24; }
+.pill[data-progress-style="line"] .progress[data-stability="stable"] .fill { background: #4ade80; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 `;
 
 const TEMPLATE = `
-<div class="pill" role="group" aria-label="Realtime BPM Analyzer">
+<div class="pill" role="group" aria-label="Live BPM Detector" data-progress-style="full">
   <button type="button" class="handle" aria-label="Move the BPM display with the arrow keys. Press Enter to put it back in the corner."></button>
   <span class="stack"><span class="reading"><span class="value" data-state="listening"><span class="num">–</span><span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span> <span class="unit">BPM</span></span>
   <span class="hint" data-stability="listening" data-level="low"><span class="dot"></span><span class="label">listening</span><span class="rate" aria-hidden="true"></span><span class="sr rate-help"></span></span></span>
   <span class="sr live" aria-live="polite" aria-atomic="true"></span>
   <button type="button" class="close" aria-label="Stop the BPM analysis">✕</button>
-  <span class="progress" aria-hidden="true" data-level="low"><span class="fill"></span></span>
+  <span class="progress" aria-hidden="true" data-stability="listening"><span class="fill"></span></span>
 </div>`;
 
 const LABELS: Readonly<Record<Stability, string>> = {listening: 'listening', silent: 'no audio', settling: 'settling', stable: 'stable'};

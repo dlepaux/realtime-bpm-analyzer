@@ -16,8 +16,13 @@ export type LeadCapture = {
 // SaaS. Setting this also means adding the email list to website-privacy.md.
 export const LEAD_CAPTURE: LeadCapture | null = null
 
-// Null until the extension has a store listing. Setting it to the listing's URL is
-// the one switch for the site's promotion (RBA-58): it builds the /extension/ page and
-// turns on its nav link, the home hero action and section, the links from the tools and the goodbye
-// page's reinstall link. See tools/extension-promo.ts.
-export const EXTENSION_STORE_URL: string | null = null
+// The Chrome Web Store listing, or null to take the promotion down. It is the one switch
+// for the site's promotion (RBA-58): it builds the /extension/ page and turns on its nav
+// link, the home hero action and section, the links from the tools and the goodbye page's
+// reinstall link. See tools/extension-promo.ts.
+export const EXTENSION_STORE_URL: string | null = 'https://chromewebstore.google.com/detail/live-bpm-detector/lfchpangmngocdcicgkfaglldafpcifi'
+
+// The Microsoft Edge Add-ons listing: a second install button beside Chrome's. It is not a
+// switch of its own: with EXTENSION_STORE_URL null there is no page to put it on, so it
+// renders nothing.
+export const EXTENSION_EDGE_URL: string | null = 'https://microsoftedge.microsoft.com/addons/detail/ebnligedfmkadgdadjeopchjjlialmik'

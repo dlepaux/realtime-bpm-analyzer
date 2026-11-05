@@ -46,9 +46,10 @@ cookies in your browser and receives:
   when it updates. If you remove it and pick a reason from the list on that page,
   that reason and the version. Nothing you type is sent;
 - on the pages that promote the browser extension: which link to it you clicked
-  and where it sits on the site, and whether you paused or replayed its demo.
+  and where it sits on the site, for a store link which store it goes to (Chrome
+  or Edge), and whether you paused or replayed its demo.
 
-Links to the extension's Chrome Web Store listing carry a label naming this site
+Links to the extension's Chrome Web Store and Edge Add-ons listings carry a label naming this site
 and the place on it the link was, so the store can report which link brought an
 install. The label holds nothing about you.
 

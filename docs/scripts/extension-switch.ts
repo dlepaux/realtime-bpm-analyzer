@@ -2,7 +2,7 @@
 // pure checks over the build's files. verify-extension-switch.ts runs them on real
 // builds in CI; extension-switch.test.ts proves they catch what they claim to catch.
 
-import { storeLink } from '../.vitepress/tools/extension-promo.ts'
+import { listingUrls, storeLink } from '../.vitepress/tools/extension-promo.ts'
 
 export type BuiltSite = {
   /** Every file, relative to the build's root, with forward slashes. */
@@ -20,16 +20,16 @@ const SITE = 'https://www.realtime-bpm-analyzer.com'
 const PAGE = 'extension/index.html'
 const PAGE_LINK = 'href="/extension/"'
 const INSTALL_BUTTON = /<a\b[^>]*\bext-install-btn\b[^>]*>/g
-const STORE_LINK = /href="([^"]*chromewebstore[^"]*)"/g
+const STORE_LINK = /href="([^"]*(?:chromewebstore|microsoftedge)[^"]*)"/g
 const EMPTY_LINK = /<a\b[^>]*\bhref="(?:|null|undefined)"/
 const SCENES_DEMO = /\bext-scenes\b/
 const SCENES_LABEL = /\bext-scenes-canvas\b[^>]*\baria-label="[^"]+"|\baria-label="[^"]+"[^>]*\bext-scenes-canvas\b/
 const HOME_LAYOUT = /\bext-home\b/
 const SHARE_IMAGE = 'live-bpm-detector-share.png'
 const MAX_SHARE_IMAGE_BYTES = 300_000
-const HERO_ACTION = 'Live BPM Detector for Chrome'
+const HERO_ACTION = 'Live BPM Detector for Chrome and Edge'
 const HOME_SECTION = 'ext-band'
-const HOME_TAGLINE = 'Chrome extension for the music in your tabs'
+const HOME_TAGLINE = 'extension for Chrome and Edge, for the music in your tabs'
 const BANNED_MARKUP = /aggregateRating|ratingValue|reviewCount|"review"/
 
 // Where a musician lands, and where the promo must not reach: a developer's page and
@@ -74,26 +74,32 @@ function checkOff(site: BuiltSite): string[] {
 
 /** The listing, plain or with exactly the label `storeLink` adds. Nothing else may point at the store. */
 function isListingLink(rawHref: string, storeUrl: string): boolean {
+  if (storeUrl === '') return false
   const href = rawHref.replaceAll('&amp;', '&')
   const sample = 'goodbye'
   const labelled = storeLink(storeUrl, sample).slice(0, -sample.length)
   return href === storeUrl || (href.startsWith(labelled) && /^[a-z_]+$/.test(href.slice(labelled.length)))
 }
 
-function installProblems(site: BuiltSite, storeUrl: string): string[] {
+function installProblems(site: BuiltSite, storeUrl: string, edgeUrl: string | null): string[] {
   const problems: string[] = []
+  const listings = listingUrls(storeUrl, edgeUrl)
+  const anyListing = (href: string) => listings.some((listing) => isListingLink(href, listing))
   for (const path of site.paths.filter((p) => p.endsWith('.html'))) {
     const html = site.read(path)
     for (const [, href = ''] of html.matchAll(STORE_LINK)) {
-      if (!isListingLink(href, storeUrl)) problems.push(`on: ${path} links to ${href}, not the listing`)
+      if (!anyListing(href)) problems.push(`on: ${path} links to ${href}, not a listing`)
     }
     for (const [tag] of html.matchAll(INSTALL_BUTTON)) {
       const href = /\bhref="([^"]*)"/.exec(tag)?.[1] ?? ''
-      if (!href.startsWith(storeUrl) || !isListingLink(href, storeUrl)) problems.push(`on: ${path} has a dead install button: ${tag}`)
+      if (!anyListing(href)) problems.push(`on: ${path} has a dead install button: ${tag}`)
     }
   }
   const page = site.read(PAGE)
-  if ([...page.matchAll(INSTALL_BUTTON)].length === 0) problems.push(`on: ${PAGE} has no install button`)
+  const buttons = [...page.matchAll(INSTALL_BUTTON)].map(([tag]) => /\bhref="([^"]*)"/.exec(tag)?.[1] ?? '')
+  for (const listing of listings) {
+    if (!buttons.some((href) => isListingLink(href, listing))) problems.push(`on: ${PAGE} has no install button for ${listing}`)
+  }
   if (EMPTY_LINK.test(page)) problems.push(`on: ${PAGE} has an empty link`)
   if (![...site.read('extension/goodbye.html').matchAll(/<a href="([^"]*)">Reinstall the extension/g)].some(([, href = '']) => href.startsWith(storeUrl) && isListingLink(href, storeUrl))) {
     problems.push('on: goodbye has no reinstall link to the listing')
@@ -177,12 +183,12 @@ function placementProblems(site: BuiltSite): string[] {
   return problems
 }
 
-/** What is wrong with this build for this value of the switch. Empty means it is right. */
-export function switchProblems(site: BuiltSite, storeUrl: string | null): string[] {
+/** What is wrong with this build for these values of the switch. Empty means it is right. */
+export function switchProblems(site: BuiltSite, storeUrl: string | null, edgeUrl: string | null = null): string[] {
   if (storeUrl === null) return checkOff(site)
   if (!site.paths.includes(PAGE)) return [`on: ${PAGE} was not built`]
   return [
-    ...installProblems(site, storeUrl),
+    ...installProblems(site, storeUrl, edgeUrl),
     ...demoProblems(site),
     ...seoProblems(site, storeUrl),
     ...shareProblems(site),

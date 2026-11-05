@@ -14,6 +14,8 @@ const OG_IMAGE = `<meta property="og:image" content="${SITE_URL}/live-bpm-detect
 const LLMS_LINE = `- [Live BPM Detector](${SITE_URL}/extension/): the extension\n## Library`
 const LOC = '<loc>https://www.realtime-bpm-analyzer.com/extension/</loc>'
 const BUTTON = `<a class="tt-btn ext-install-btn tt-btn-primary" href="${STORE}">Add to Chrome</a>`
+const EDGE = `https://microsoftedge.microsoft.com/addons/detail/${'c'.repeat(32)}`
+const EDGE_BUTTON = `<a class="tt-btn ext-install-btn" href="${EDGE}">Add to Edge</a>`
 
 function site(files: Record<string, string>): BuiltSite {
   return { paths: Object.keys(files), read: (path) => files[path] ?? '', size: (path) => (files[path] ?? '').length }
@@ -36,7 +38,7 @@ const ON: Record<string, string> = {
   'live-bpm-detector-share.png': 'x',
   'extension/index.html': `<title>Live BPM Detector</title><meta property="og:title" content="Live BPM Detector: x"><link rel="canonical" href="https://www.realtime-bpm-analyzer.com/extension/">${OG_IMAGE}"@type":"SoftwareApplication","installUrl":"${STORE}","price":"0" <h1>Live BPM Detector</h1> ${BUTTON} <div class="ext-scenes-canvas ext-scenes" aria-label="A page"></div>`,
   'extension/goodbye.html': `<a href="${STORE}">Reinstall the extension</a>`,
-  'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome ext-home ext-band <div class="ext-scenes ext-scenes-canvas" aria-label="A page"></div> Chrome extension for the music in your tabs`,
+  'index.html': `${NAV_ON} Developer Docs Live BPM Detector for Chrome and Edge ext-home ext-band <div class="ext-scenes ext-scenes-canvas" aria-label="A page"></div> extension for Chrome and Edge, for the music in your tabs`,
   'tap-tempo.html': `${NAV_ON} Live BPM Detector</a>`,
   'metronome.html': `${NAV_ON} Live BPM Detector</a>`,
   'bpm-to-ms.html': NAV_ON,
@@ -62,7 +64,8 @@ test('switchProblems off: anything that shows the extension fails', () => {
     { 'metronome.html': `<a class="ext-install-btn" href="">Add to Chrome</a>` },
     { 'index.html': 'Live BPM Detector' },
     { 'index.html': `${NAV} Developer Docs ext-band` },
-    { 'index.html': `${NAV} Chrome extension for the music in your tabs` },
+    { 'index.html': `${NAV} extension for Chrome and Edge, for the music in your tabs` },
+    { 'bpm-to-ms.html': `href="${EDGE}"` },
     { 'llms.txt': LLMS_LINE },
     { 'live-bpm-detector-share.png': 'x' },
     { 'tap-tempo.html': `${NAV} "name":"Live BPM Detector"` },
@@ -126,6 +129,16 @@ test('switchProblems on: store links may carry the site\'s label, and nothing el
   assert.notDeepEqual(switchProblems(site({ ...ON, ...reinstall(`${STORE}x?utm_source=realtime-bpm-analyzer`) }), STORE), [])
   assert.notDeepEqual(switchProblems(site({ ...ON, ...reinstall(`${tagged}&amp;authuser=1`) }), STORE), [])
   assert.notDeepEqual(switchProblems(site({ ...ON, ...reinstall(`${STORE}#x`) }), STORE), [])
+})
+
+test('switchProblems on with Edge: its button must be there and point at its listing', () => {
+  const page = ON['extension/index.html'] ?? ''
+  const withEdge = { ...ON, 'extension/index.html': `${page} ${EDGE_BUTTON}` }
+  assert.deepEqual(switchProblems(site(withEdge), STORE, EDGE), [])
+  assert.notDeepEqual(switchProblems(site(ON), STORE, EDGE), [], 'no Edge button')
+  assert.notDeepEqual(switchProblems(site(withEdge), STORE), [], 'an Edge link the build was not given')
+  const other = EDGE_BUTTON.replace('c'.repeat(32), 'e'.repeat(32))
+  assert.notDeepEqual(switchProblems(site({ ...ON, 'extension/index.html': `${page} ${other}` }), STORE, EDGE), [], 'another listing')
 })
 
 test('the committed value is never the check\'s fixture', () => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAnalytics } from '../composables/useAnalytics'
 import { INSTALL_TARGETS } from '../tools/extension-live'
-import { SEND_LINK_MAILTO, sharePageLink } from '../tools/extension-promo'
+import { SEND_LINK_MAILTO, installRequirement, sharePageLink, type InstallTarget } from '../tools/extension-promo'
 
 // The install action. Renders from the list of available stores, so it can't show a
 // button without a listing behind it. The first browser is the primary action; any
@@ -14,7 +14,9 @@ import { SEND_LINK_MAILTO, sharePageLink } from '../tools/extension-promo'
 withDefaults(defineProps<{ promptLink?: boolean }>(), { promptLink: false })
 
 const { track } = useAnalytics()
-const trackStoreClick = () => track('extension_link_clicked', { placement: 'extension_page', target: 'store' })
+// Which store, so Chrome and Edge clicks can be told apart: a browser name, nothing about the visitor.
+const trackStoreClick = (target: InstallTarget) =>
+  track('extension_link_clicked', { placement: 'extension_page', target: 'store', store: target.browser.toLowerCase() })
 
 function sendLink(event: MouseEvent) {
   const share = typeof navigator.share === 'function' ? navigator.share.bind(navigator) : undefined
@@ -35,21 +37,17 @@ function sendLink(event: MouseEvent) {
           class="tt-btn ext-install-btn"
           :class="{ 'tt-btn-primary': index === 0 }"
           :href="target.href"
-          @click="trackStoreClick"
+          @click="trackStoreClick(target)"
         >{{ target.label }}</a>
       </div>
-      <p
-        v-for="target in INSTALL_TARGETS"
-        :key="target.browser"
-        class="ext-install-note"
-      >
-        {{ target.requirement }}
+      <p class="ext-install-note">
+        {{ installRequirement(INSTALL_TARGETS) }}
       </p>
       <p
         v-if="promptLink"
         class="ext-install-note"
       >
-        <a href="#chrome-prompt">What does Chrome's install prompt mean?</a>
+        <a href="#chrome-prompt">What does the install prompt mean?</a>
       </p>
     </div>
     <div class="ext-install-touch">
@@ -67,8 +65,8 @@ function sendLink(event: MouseEvent) {
           v-for="target in INSTALL_TARGETS"
           :key="target.browser"
           :href="target.href"
-          @click="trackStoreClick"
-        >See it on the {{ target.browser }} Web Store</a>
+          @click="trackStoreClick(target)"
+        >See it on {{ target.store }}</a>
       </div>
     </div>
   </div>

@@ -197,11 +197,17 @@ test('every declaration of the drawn widget is the real overlay\'s', () => {
   }
 })
 
+test('the progress is the one the extension ships by default: the whole pill fills', () => {
+  assert.match(SNAPSHOT, /data-progress-style="full"/, 'view.ts defaults to another style')
+  assert.match(SNAPSHOT, /<span class="progress" aria-hidden="true" data-stability="listening">/)
+  assert.match(CSS, /\.ext-sw \.progress \{ position: absolute; inset: 0;/)
+})
+
 test('the state names are the real overlay\'s', () => {
   for (const state of ['listening', 'settling', 'stable']) {
     assert.ok(SNAPSHOT.includes(`${state}: '${state}'`), `view.ts has no state ${state}`)
   }
-  for (const attribute of ['data-state="tempo"', 'data-stability="settling"', 'data-stability="stable"', 'data-level="high"', 'data-level="medium"', 'data-level="low"']) {
+  for (const attribute of ['data-state="tempo"', 'data-stability="settling"', 'data-stability="stable"', 'data-stability="listening"', 'data-level="high"', 'data-level="medium"']) {
     assert.ok(OVERLAY_VUE.includes(attribute), `the drawn widget has no ${attribute}`)
   }
 })

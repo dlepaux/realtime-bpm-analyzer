@@ -7,6 +7,9 @@ import { READINGS, SCENES, anchorTransform } from '../tools/extension-scenes'
 // layers and moves with transforms, so its states never touch the page's layout.
 const [FIRST] = SCENES
 const ANCHOR = anchorTransform(FIRST.anchor)
+// The progress, which fills the whole pill since the extension's 1.1.0: in motion it takes the
+// shape of the same two caps as the pill's background, so it follows every width the pill takes.
+const FILL_CAPS = ['ext-fill-body', 'ext-fill-edge'] as const
 </script>
 
 <template>
@@ -17,6 +20,11 @@ const ANCHOR = anchorTransform(FIRST.anchor)
     <div class="ext-sw">
       <div class="pill">
         <span class="ext-pill-shell"><i class="ext-pill-body"></i><i class="ext-pill-edge"></i></span>
+        <span class="ext-fill-shell"><i
+          v-for="cap in FILL_CAPS"
+          :key="cap"
+          :class="cap"
+        ><span class="ext-fill-wipe"><b data-stability="stable"></b><b data-stability="settling"></b><b data-stability="listening"></b></span></i></span>
         <span class="stack">
           <span class="reading"><span
             class="value"
@@ -42,14 +50,8 @@ const ANCHOR = anchorTransform(FIRST.anchor)
         <span class="close">✕</span>
         <span
           class="progress"
-          data-level="high"
-        ><span class="ext-fill-track"><span class="fill"></span><i
-          class="ext-fill-layer"
-          data-level="medium"
-        ></i><i
-          class="ext-fill-layer"
-          data-level="low"
-        ></i></span></span>
+          data-stability="stable"
+        ><span class="fill"></span></span>
       </div>
     </div>
   </div>

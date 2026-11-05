@@ -10,22 +10,31 @@ export const EXTENSION_PAGE = '/extension/'
 const EXTENSION_PAGE_SOURCE = 'extension/index.md'
 
 // A listing's address: /detail/<id>, or /detail/<slug>/<id>, where an id is 32 letters
-// from a to p.
+// from a to p. Edge Add-ons ids have the same shape as Chrome's.
 const STORE_LISTING = /^https:\/\/chromewebstore\.google\.com\/detail\/(?:[^/?#]+\/)?[a-p]{32}\/?(?:[?#].*)?$/
+const EDGE_LISTING = /^https:\/\/microsoftedge\.microsoft\.com\/addons\/detail\/(?:[^/?#]+\/)?[a-p]{32}\/?(?:[?#].*)?$/
 
 /**
- * The URL install links use, or null while the switch is off. Anything else that isn't
- * a listing throws, so a placeholder fails the build instead of shipping a dead button.
- * The query is dropped: the dashboard's address can carry `hl` and `authuser`. Links that
- * people click get their label from `storeLink`.
+ * A listing's address without its query, or null while unset. Anything else throws, so a
+ * placeholder fails the build instead of shipping a dead button. The query is dropped: a
+ * dashboard's address can carry `hl` and `authuser`. Links that people click get their
+ * label from `storeLink`.
  */
-export function resolveStoreUrl(raw: string | null): string | null {
+function resolveListing(raw: string | null, listing: RegExp, setting: string, store: string): string | null {
   if (raw === null) return null
-  if (!STORE_LISTING.test(raw)) {
-    throw new Error(`EXTENSION_STORE_URL must be a Chrome Web Store listing URL, got "${raw}"`)
-  }
+  if (!listing.test(raw)) throw new Error(`${setting} must be a ${store} listing URL, got "${raw}"`)
   const { origin, pathname } = new URL(raw)
   return `${origin}${pathname.replace(/\/$/, '')}`
+}
+
+/** The Chrome listing install links use, or null while the switch is off. */
+export function resolveStoreUrl(raw: string | null): string | null {
+  return resolveListing(raw, STORE_LISTING, 'EXTENSION_STORE_URL', 'Chrome Web Store')
+}
+
+/** The Edge listing, or null when Edge has none. */
+export function resolveEdgeUrl(raw: string | null): string | null {
+  return resolveListing(raw, EDGE_LISTING, 'EXTENSION_EDGE_URL', 'Microsoft Edge Add-ons')
 }
 
 /** Where on the site a link to the extension sits. Sent with clicks and on store links. */
@@ -56,27 +65,51 @@ export function storeLink(storeUrl: string, placement: ExtensionPlacement): stri
 }
 
 export type InstallTarget = {
-  readonly browser: string
+  readonly browser: 'Chrome' | 'Edge'
+  /** The store's own name, for links that go to the listing rather than install. */
+  readonly store: string
   readonly label: string
   readonly href: string
-  /** What the browser must be to install, shown beside the button. */
-  readonly requirement: string
 }
+
+// The extension's `minimum_chrome_version` (rba-pro extension/wxt.config.ts). Edge reads
+// that same key against its Chromium version, and Edge's version numbers follow
+// Chromium's, so one number is both browsers' minimum.
+export const MINIMUM_BROWSER_VERSION = 150
 
 /**
  * The browsers a visitor can install from today: another store joins as another entry
  * here. Install buttons render only from this list, so with no listing there is
- * nothing to render and no way to show a dead link. The minimum comes from the
- * extension's `minimum_chrome_version` (rba-pro extension/wxt.config.ts).
+ * nothing to render and no way to show a dead link. Chrome is the switch: Edge joins
+ * only beside it, because without Chrome's listing there is no page to show it on.
  */
-export function installTargets(storeUrl: string | null): readonly InstallTarget[] {
+export function installTargets(storeUrl: string | null, edgeUrl: string | null = null): readonly InstallTarget[] {
   if (storeUrl === null) return []
-  return [{
+  const chrome: InstallTarget = {
     browser: 'Chrome',
+    store: 'Chrome Web Store',
     label: 'Add to Chrome',
     href: storeLink(storeUrl, 'extension_page'),
-    requirement: 'Free. For Chrome 150 or later, on a computer.',
+  }
+  if (edgeUrl === null) return [chrome]
+  return [chrome, {
+    browser: 'Edge',
+    store: 'Edge Add-ons',
+    label: 'Add to Edge',
+    href: storeLink(edgeUrl, 'extension_page'),
   }]
+}
+
+/** What the browser must be to install, one line under the buttons for every target. */
+export function installRequirement(targets: readonly InstallTarget[]): string {
+  const browsers = targets.map((target) => target.browser).join(' or ')
+  return `Free. For ${browsers} ${MINIMUM_BROWSER_VERSION} or later, on a computer.`
+}
+
+/** Every listing a link may point at: what the switch check accepts. */
+export function listingUrls(storeUrl: string | null, edgeUrl: string | null): readonly string[] {
+  if (storeUrl === null) return []
+  return edgeUrl === null ? [storeUrl] : [storeUrl, edgeUrl]
 }
 
 /** Globs for VitePress's `srcExclude`. */
@@ -87,10 +120,10 @@ export function excludedSources(storeUrl: string | null): string[] {
 /** The main navigation's link. It goes right after Free Tools, ahead of the library's items. */
 export function extensionNavItems(storeUrl: string | null) {
   if (storeUrl === null) return []
-  return [{ text: 'Chrome Extension', link: EXTENSION_PAGE, activeMatch: '^/extension/$' }]
+  return [{ text: 'Browser Extension', link: EXTENSION_PAGE, activeMatch: '^/extension/$' }]
 }
 
-export const EXTENSION_HERO_TAGLINE = 'Free BPM detection in your browser, and your audio stays on your device. Also a Chrome extension for the music in your tabs.'
+export const EXTENSION_HERO_TAGLINE = 'Free BPM detection in your browser, and your audio stays on your device. Also an extension for Chrome and Edge, for the music in your tabs.'
 
 /**
  * The home hero as the switch leaves it. The action to the extension's page is in its
@@ -137,11 +170,11 @@ export const EXTENSION_SHARE_IMAGE = {
   file: 'live-bpm-detector-share.png',
   width: 1200,
   height: 630,
-  alt: 'Live BPM Detector, a free Chrome extension: the overlay showing an example reading of 120 BPM, marked stable.',
+  alt: 'Live BPM Detector, a free extension for Chrome and Edge: the overlay showing an example reading of 120 BPM, marked stable.',
 } as const
 
 /** llms.txt's line for the extension. */
-export const EXTENSION_LLMS_LINE = `- [Live BPM Detector](${SEND_LINK_URL}): free Chrome extension that shows the live BPM of the music playing in the current tab, on the page, with the audio analysed on the device`
+export const EXTENSION_LLMS_LINE = `- [Live BPM Detector](${SEND_LINK_URL}): free extension for Chrome and Edge that shows the live BPM of the music playing in the current tab, on the page, with the audio analysed on the device`
 
 /**
  * llms.txt with the extension in it, in its summary and ahead of the library, since
@@ -153,7 +186,7 @@ export function llmsWithExtension(llms: string): string {
   const library = '## Library'
   if (!llms.includes(summary) || !llms.includes(library)) throw new Error('llms.txt changed shape: update llmsWithExtension')
   return llms
-    .replace(summary, 'tempo (BPM) work, a Chrome extension that shows the tempo of the music in a tab, plus the')
+    .replace(summary, 'tempo (BPM) work, an extension for Chrome and Edge that shows the tempo of the music in a tab, plus the')
     .replace(library, `## Browser extension\n\n${EXTENSION_LLMS_LINE}\n\n${library}`)
 }
 
@@ -164,16 +197,17 @@ export function llmsWithExtension(llms: string): string {
  * true. `softwareRequirements` because schema.org defines `browserRequirements` only on
  * WebApplication.
  */
-export function extensionPageSchema(storeUrl: string, canonical: string, description: string) {
+export function extensionPageSchema(storeUrl: string, canonical: string, description: string, edgeUrl: string | null = null) {
+  const browsers = edgeUrl === null ? 'Chrome' : 'Chrome or Microsoft Edge'
   return {
     '@type': 'SoftwareApplication',
     name: 'Live BPM Detector',
     description,
     url: canonical,
     applicationCategory: 'MultimediaApplication',
-    operatingSystem: 'Chrome',
-    softwareRequirements: 'Chrome 150 or later, on a computer',
-    installUrl: storeUrl,
+    operatingSystem: edgeUrl === null ? 'Chrome' : 'Chrome, Microsoft Edge',
+    softwareRequirements: `${browsers} ${MINIMUM_BROWSER_VERSION} or later, on a computer`,
+    installUrl: edgeUrl === null ? storeUrl : [storeUrl, edgeUrl],
     inLanguage: 'en',
     isAccessibleForFree: true,
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },

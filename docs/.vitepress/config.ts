@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { isUsersOnlyExtensionPage } from './tools/extension-pages'
 import { isGuidePage, isNoindexPage, isUnpublishedGuide, SCHEMA_WEB_APPLICATION, siteGraph, techArticle, toolFaqPage } from './tools/site-schema'
-import { STORE_URL } from './tools/extension-live'
+import { EDGE_URL, STORE_URL } from './tools/extension-live'
 import { EXTENSION_SHARE_IMAGE, excludedSources, extensionHomeHero, extensionNavItems, extensionPageSchema, llmsWithExtension } from './tools/extension-promo'
 
 const require = createRequire(import.meta.url)
@@ -236,7 +236,7 @@ export default defineConfig({
     }
 
     if (STORE_URL && pageData.relativePath === 'extension/index.md') {
-      graph.push(extensionPageSchema(STORE_URL, canonical, ogDesc))
+      graph.push(extensionPageSchema(STORE_URL, canonical, ogDesc, EDGE_URL))
     }
     if (isHome) pageData.frontmatter.hero = extensionHomeHero(pageData.frontmatter.hero, STORE_URL)
 

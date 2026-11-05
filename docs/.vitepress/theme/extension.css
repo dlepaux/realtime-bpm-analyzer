@@ -7,11 +7,13 @@
 
 .ext-pill {
   --ext-pill-band: #4ade80;
+  --ext-pill-fill: #166534;
   position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 6px 9px 12px;
+  padding: 7px 6px 7px 12px;
   border-radius: 999px;
   background: rgb(17 24 39 / 0.92);
   color: #f9fafb;
@@ -20,7 +22,7 @@
   white-space: nowrap;
 }
 
-.ext-pill[data-stability='settling'] { --ext-pill-band: #fbbf24; }
+.ext-pill[data-stability='settling'] { --ext-pill-band: #fbbf24; --ext-pill-fill: #92400e; }
 
 .ext-pill-stack { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .ext-pill-value { display: inline-grid; font-size: 16px; font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
@@ -32,7 +34,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #9ca3af;
+  color: #e5e7eb;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -42,18 +44,20 @@
 .ext-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ext-pill-band); }
 .ext-pill-close { display: grid; place-items: center; width: 24px; height: 24px; color: #e5e7eb; font-size: 16px; }
 
+/* The extension's default progress since 1.1.0: the pill's whole background fills, grey while
+   it listens, then in the stability's deep shade once it has a tempo. Behind the text, clipped
+   by the pill's own shape. */
 .ext-pill-progress {
   position: absolute;
-  inset: auto 12px 2px;
-  height: 2px;
-  border-radius: 1px;
-  background: rgb(255 255 255 / 0.12);
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
   overflow: hidden;
 }
 
-.ext-pill-fill { display: block; height: 100%; background: var(--ext-pill-band); }
+.ext-pill-fill { display: block; width: 100%; height: 100%; background: var(--ext-pill-fill); }
 
-/* Intro: dots and a filling grey line while it listens, then the tempo locks. */
+/* Intro: dots and a filling grey background while it listens, then the tempo locks. */
 .ext-pill-dots { display: inline-flex; justify-content: flex-end; gap: 1px; opacity: 0; }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -73,9 +77,9 @@
 @keyframes ext-listen { 0% { opacity: 1; } 85% { opacity: 0; } }
 @keyframes ext-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-3px); opacity: 1; } }
 @keyframes ext-fill {
-  0% { transform: scaleX(0); background: #9ca3af; }
-  84% { transform: scaleX(1); background: #9ca3af; }
-  85%, 100% { transform: scaleX(1); background: var(--ext-pill-band); }
+  0% { transform: scaleX(0); background: #4b5563; }
+  84% { transform: scaleX(1); background: #4b5563; }
+  85%, 100% { transform: scaleX(1); background: var(--ext-pill-fill); }
 }
 
 /* ── Welcome: the stage ───────────────────────────────────────────────────── */

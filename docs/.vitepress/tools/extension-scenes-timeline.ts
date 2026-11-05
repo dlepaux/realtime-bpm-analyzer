@@ -68,10 +68,7 @@ export type PillWidths = { readonly listening: number; readonly settling: number
 // height, and its button re-centres by half of that. Taken from the real layout of view.ts.
 const LISTENING_DROP = 4 / 14
 const CLOSE_RISE = 2 / 14
-const BAR_RISE = 4 / 14
 const LISTENING_HEIGHT = 38 / 42
-// The progress bar is inset 12 px each side.
-const INSET = 24 / 14
 const FADE = 0.12
 // The real overlay replaces its number outright, and a slow fade would smear two numbers together.
 const SWAP = 0.03
@@ -165,38 +162,40 @@ function waveformPlayedTracks(all: readonly Visit[], total: number): Track[] {
   ]
 }
 
-// The overlay's own story on each visit. The moments come from view.ts: dots and a filling grey
-// line, then a number under which the caption reads settling, then stable and green.
+// The overlay's own story on each visit. The moments come from view.ts: dots while the pill's
+// background fills grey from the left, then a number under which the caption reads settling on an
+// amber fill, then stable on a green one.
 function overlayStateTracks(all: readonly Visit[], total: number): Track[] {
   const later = all.slice(1)
   const dots: Point[] = [[0, 0]]
   const settling: Point[] = [[0, 0]]
   const stable: Point[] = [[0, 1]]
-  const low: Point[] = [[0, 0]]
-  const medium: Point[] = [[0, 0]]
-  const fill: Frame[] = [{ offset: 0, transform: 'scaleX(1)' }]
+  const listening: Point[] = [[0, 0]]
+  const settlingFill: Point[] = [[0, 0]]
+  const fill: Frame[] = [{ offset: 0, transform: 'translateX(0%)' }]
   for (const visit of later) {
     const reset = visit.enter + MOVE / 2
     // The old number has gone before the dots arrive, so the two never ghost through each other.
     dots.push([reset + FADE, 1], [visit.reading, 0])
     settling.push([visit.reading, 1], [visit.stable, 0])
     stable.push([reset, 0], [visit.stable, 1])
-    low.push([reset, 1], [visit.reading, 0])
-    medium.push([visit.reading, 1], [visit.stable, 0])
-    // It empties at once on a new page, then grows steadily until the first number.
+    listening.push([reset, 1], [visit.reading, 0])
+    settlingFill.push([visit.reading, 1], [visit.stable, 0])
+    // It empties at once on a new page, then grows steadily until the first number. A slide inside
+    // the caps' rounded clip, rather than a scale, so its leading edge keeps the pill's curve.
     fill.push(
-      { offset: reset / total, transform: 'scaleX(1)' },
-      { offset: (reset + 0.1) / total, transform: 'scaleX(0)', easing: 'cubic-bezier(0.25, 0.6, 0.45, 1)' },
-      { offset: visit.reading / total, transform: 'scaleX(1)' },
+      { offset: reset / total, transform: 'translateX(0%)' },
+      { offset: (reset + 0.1) / total, transform: 'translateX(-100%)', easing: 'cubic-bezier(0.25, 0.6, 0.45, 1)' },
+      { offset: visit.reading / total, transform: 'translateX(0%)' },
     )
   }
   return [
     fadeTrack('.dots', dots, total),
     fadeTrack(`.hint[data-stability='settling']`, settling, total),
     fadeTrack(`.hint[data-stability='stable']`, stable, total),
-    fadeTrack(`.ext-fill-layer[data-level='low']`, low, total),
-    fadeTrack(`.ext-fill-layer[data-level='medium']`, medium, total),
-    { target: '.ext-fill-track', frames: [...fill, { offset: 1, transform: 'scaleX(1)' }] },
+    fadeTrack(`.ext-fill-wipe b[data-stability='listening']`, listening, total),
+    fadeTrack(`.ext-fill-wipe b[data-stability='settling']`, settlingFill, total),
+    { target: '.ext-fill-wipe', frames: [...fill, { offset: 1, transform: 'translateX(0%)' }] },
   ]
 }
 
@@ -219,11 +218,9 @@ function readingTracks(all: readonly Visit[], total: number): Track[] {
 function overlayShapeTracks(all: readonly Visit[], widths: PillWidths, total: number): Track[] {
   const later = all.slice(1)
   const shift = (width: number) => (widths.stable - width).toFixed(4)
-  const scale = (width: number) => ((width - INSET) / (widths.stable - INSET)).toFixed(4)
   const AT_REST = 'translateX(0em)'
   const stack: Point[] = [[0, AT_REST]]
   const edge: Point[] = [[0, AT_REST]]
-  const track: Point[] = [[0, 'translateY(0em) scaleX(1)']]
   const reading: Point[] = [[0, 'translateY(0em)']]
   const close: Point[] = [[0, 'translateY(0em)']]
   const height: Point[] = [[0, 'scaleY(1)']]
@@ -232,22 +229,17 @@ function overlayShapeTracks(all: readonly Visit[], widths: PillWidths, total: nu
     const atWidth = (width: number): string => `translateX(${shift(width)}em)`
     stack.push([reset, atWidth(widths.listening)], [visit.reading, atWidth(widths.settling)], [visit.stable, AT_REST])
     edge.push([reset, atWidth(widths.listening)], [visit.reading, atWidth(widths.settling)], [visit.stable, AT_REST])
-    track.push(
-      [reset, `translateY(${(-BAR_RISE).toFixed(4)}em) scaleX(${scale(widths.listening)})`],
-      [visit.reading, `translateY(0em) scaleX(${scale(widths.settling)})`],
-      [visit.stable, 'translateY(0em) scaleX(1)'],
-    )
     reading.push([reset, `translateY(${LISTENING_DROP.toFixed(4)}em)`], [visit.reading, 'translateY(0em)'])
     close.push([reset, `translateY(${(-CLOSE_RISE).toFixed(4)}em)`], [visit.reading, 'translateY(0em)'])
     height.push([reset, `scaleY(${LISTENING_HEIGHT.toFixed(4)})`], [visit.reading, 'scaleY(1)'])
   }
   return [
     moveTrack('.stack', stack, total),
-    moveTrack('.ext-pill-edge', edge, total),
-    moveTrack('.progress', track, total),
+    // The fill's caps are the background's, moved the same way, so the two shapes can't differ.
+    moveTrack('.ext-pill-edge, .ext-fill-edge', edge, total),
     moveTrack('.reading', reading, total),
     moveTrack('.close', close, total),
-    moveTrack('.ext-pill-shell', height, total),
+    moveTrack('.ext-pill-shell, .ext-fill-shell', height, total),
   ]
 }
 

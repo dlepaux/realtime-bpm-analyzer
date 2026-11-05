@@ -16,7 +16,7 @@ const onClick = () => track('extension_link_clicked', { placement: `result_${pro
     v-if="STORE_URL"
     class="ext-result-prompt"
   >
-    Music in a Chrome tab next time? <a
+    Music in a Chrome or Edge tab next time? <a
       :href="EXTENSION_PAGE"
       @click="onClick"
     >Live BPM Detector</a> shows its tempo on the page.

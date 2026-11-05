@@ -35,8 +35,8 @@ const analysis = {
   file: z.string().describe('Absolute path of the file'),
   bpm: z.number().nullable().describe('Best tempo, a whole number of BPM, or null when no clear beat was found'),
   bpm_exact: z.number().nullable().describe('The same tempo unrounded, for timing such as a beat grid or markers. Show bpm to people. Null when no clear beat was found'),
-  // RBA-106: calibration gives confidence its meaning, or removes it. Keep this text in step with Reading.confidence.
-  confidence: z.number().nullable().describe('From 0 to 1, the engine\'s own score for the best tempo. Uncalibrated and not a probability: each engine scores differently, so compare values from one engine only and set no fixed cut-off. Null when no clear beat was found'),
+  // Keep this text in step with Reading.confidence (RBA-106)
+  confidence: z.number().nullable().describe('From 0 to 1, the estimated chance the best tempo is right (within 4% of the true tempo, half or double counting as wrong), calibrated on licence-clean dev data, so it means the same for either engine. Null when no clear beat was found'),
   candidates: z.array(candidate).describe('Tempo candidates, best first'),
   engine: z.enum(['peaks', 'tempogram']).nullable().describe('The engine that measured the tempo, or null when no clear beat was found'),
 };
@@ -101,7 +101,7 @@ export function createServer(version: string): McpServer {
   server.registerTool('analyze_file', {
     title: 'Analyse the BPM of an audio file',
     description: `Detects the tempo (BPM) of one audio file on this computer. Reads ${formats}. `
-      + `Returns the best tempo, the engine's uncalibrated confidence in it, the ranked candidates and the engine that ran. Files over ${sizeLimit} or ${decodedLimit} are refused. ${timeLimit} ${privacy}`,
+      + `Returns the best tempo, the estimated chance it is right, the ranked candidates and the engine that ran. Files over ${sizeLimit} or ${decodedLimit} are refused. ${timeLimit} ${privacy}`,
     inputSchema: z.strictObject({
       path: path.describe('Path of the audio file. Absolute, or starting with ~ for the home folder.'),
       ...tempoArguments,

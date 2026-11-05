@@ -70,15 +70,13 @@ mean the same thing:
 
 - `bpm`: the tempo, a whole number. `null` when no beat was found, as are the fields below.
 - `bpmExact`: the same tempo unrounded, for timing (a beat grid, markers). Show `bpm`.
-- `confidence`: from 0 to 1, uncalibrated for now. Each engine scores it its own way, so
-  compare values from one engine only, set no fixed cut-off and don't read it as a probability.
+- `confidence`: from 0 to 1, the estimated chance the reading is right. It is calibrated on
+  licence-clean dev data, so it means the same whichever engine measured it.
 - `candidates`: each a `bpm` and its `relation` to the reading's tempo (`top`, `half`,
   `double` or `other`). Empty when no beat was found.
 - `engine`: the engine that measured it.
 
 A file has no analyzer state, so there is no `status`: the result is a reading or nothing.
-
-<!-- RBA-106: calibration gives confidence its meaning, or removes it. Update the confidence line then. -->
 
 ## Formats and decoders
 

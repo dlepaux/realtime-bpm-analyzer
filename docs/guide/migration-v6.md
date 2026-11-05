@@ -37,14 +37,12 @@ Every 5.x name and its v6 form. The sections below show each with before-and-aft
 | `stop()`, said to be restartable | final: `statechange` to `stopped` |
 | `Tempo.tempo` | `Reading.bpm`, and `Candidate.bpm` for the other tempos |
 | `Tempo.count` | removed |
-| `Tempo.confidence` | `Reading.confidence`, uncalibrated for now |
+| `Tempo.confidence` | `Reading.confidence`, now the estimated chance the reading is right |
 | `BpmCandidates.threshold`, `Threshold`, `Peaks` | removed |
 | `analyzeFullBuffer` and Node's `analyzeChannelData` return `Tempo[]` | return a `Reading`, or `null` when no tempo was found |
 | `createRealTimeBpmProcessor` | removed: use `createRealtimeBpmAnalyzer` |
 | `new BpmAnalyzer(node)` | private: use `createRealtimeBpmAnalyzer` |
 | `RealTimeBpmAnalyzer` (the worklet-side analyzer, deprecated in 5.x) | removed, no replacement |
-
-<!-- RBA-106: calibration gives confidence its meaning, or removes it. Update the Tempo.confidence row then. -->
 
 New, with no 5.x counterpart: `analyzer.state`, `Reading.bpmExact`, `Reading.audio`, `Reading.engine` and `Candidate.relation`. They are described [at the end of part 1](#new-in-a-reading).
 
@@ -415,10 +413,8 @@ v6 makes the `tempogram` engine the default, in realtime and for whole files. It
 - **Timing.** The first reading comes after a 4-second warm-up, and the earliest lock after about 11.5 seconds of audio, where `peaks` gives its first reading once it has 16 peaks (about 8 seconds on a steady kick) and locks from 10 seconds. Readings come twice a second instead of about ten times.
 - **Tempo range.** The tempogram searches `tempoRange` instead of folding every tempo into it. From about twice `min` up, a tempo can read at half: with the default 90 to 180, a track over about 179 BPM reads half. A wider range does not fix that. See [the tempogram engine](/guide/realtime-bpm-detection#the-tempogram-detector).
 - **Restarts.** `restartAfterSeconds` is a `peaks` setting. The tempogram's memory of past tempos fades with a 16-second half-life, so it follows a tempo change on its own.
-- **Confidence.** Each engine scores it its own way, so a value you compared under `peaks` means something else under the tempogram.
+- **Confidence.** It is now the estimated chance the reading is right, calibrated on licence-clean dev data, and it means the same under either engine. A cut-off you chose for a 5.x score does not carry over.
 - **Locks.** On some tracks the tempogram never locks where `peaks` did. Keep showing the latest `reading` while the analyzer is `settling`.
-
-<!-- RBA-106: calibration gives confidence its meaning, or removes it. Update the confidence bullet then. -->
 
 ### The way back: `engine: 'peaks'`
 

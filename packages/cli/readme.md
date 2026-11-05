@@ -71,9 +71,8 @@ const result = await analyzeFile('song.mp3', {tempoRange: await resolveTempoRang
 `resolveTempoRange(min, max)` fills a missing bound with the default and throws on an
 invalid range. `audioExtensions` is the set of extensions folder mode picks up.
 
-The confidence is uncalibrated for now: each engine scores it its own way, so compare values
-from one engine only, and don't read it as a probability.
-<!-- RBA-106: calibration gives confidence its meaning, or removes it. Update this paragraph then. -->
+The confidence is the estimated chance the reading is right, calibrated on licence-clean dev
+data, so it means the same whichever engine measured it.
 
 ## Licence
 

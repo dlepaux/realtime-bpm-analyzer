@@ -17,7 +17,7 @@ export function formatText(result: FileResult): string {
   const candidates = result.candidates
     .map(({bpm, relation}) => (relation === 'top' || relation === 'other' ? `${bpm}` : `${bpm} (${relation})`))
     .join(', ');
-  // The engine sits beside the confidence because each engine scores it its own way (RBA-106)
+  // The engine sits beside the confidence so the line says what measured the reading
   return `${result.file}: ${result.bpm} BPM (${result.engine}, confidence ${result.confidence.toFixed(2)})\n  candidates: ${candidates}`;
 }
 

@@ -344,11 +344,9 @@ This hook is intentionally small. Things you might add for production:
 - **Tap-tempo fallback**: when `state === 'error'` or the analyzer never
   locks, fall back to a manual tap input.
 - **Confidence display**: show `reading.confidence` next to the tempo.
-  It is uncalibrated for now: each engine scores it its own way, so it is
-  not a probability, and a fixed cut-off would mean different things per
-  engine. Compare values from one engine on your own music, and let the
-  move to `locked` decide when a tempo is the answer.
-  <!-- RBA-106: calibration gives confidence its meaning, or removes it. Update this bullet then. -->
+  It is the estimated chance the reading is right, calibrated on
+  licence-clean dev data, so it means the same whichever engine measured
+  it. Let the move to `locked` decide when a tempo is the answer.
 
 Each of these takes a few lines. Keep the hook itself focused; let
 the consuming component compose.

@@ -35,13 +35,15 @@ const ridge50 = {priorBpm: 50, priorOctaves: 2.4, halfBeatPenalty: 0, thirdBeatP
 const ridge80 = {priorBpm: 80, priorOctaves: 1.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.3};
 const ridge100 = {priorBpm: 100, priorOctaves: 1.3, halfBeatPenalty: 0, thirdBeatPenalty: 0.2};
 const tempogram = {engine: 'tempogram'} as const;
+// Named, not left to the default: since v6 the default is the tempogram, and these rows are the looks' peaks reference
+const peaks = {engine: 'peaks'} as const;
 
 // Rows with no `tuning` read what the library holds now. In result files from before 2026-11-01, `tempogram`,
 // `tempogram-90-180` and `tempogram-90-180-resetting` are the first pick, `tempogram` on 50 to 240.
 // Rows with a past tuning state the range they were measured on, as the library's default moved to 90 to 180.
 export const detectors: Record<string, DetectorConfig> = {
-  peaks: {options: {}, lowpass: true, offline: true},
-  'peaks-50-240': {options: {tempoRange: wideRange}, lowpass: true, offline: false},
+  peaks: {options: peaks, lowpass: true, offline: true},
+  'peaks-50-240': {options: {...peaks, tempoRange: wideRange}, lowpass: true, offline: false},
   tempogram: {options: tempogram, lowpass: false, offline: true},
   'tempogram-90-180': {options: {...tempogram, tempoRange: extensionRange}, lowpass: false, offline: false},
   'tempogram-285': {options: {...tempogram, tempoRange: wideRange}, lowpass: false, offline: false, tuning: tuning285},

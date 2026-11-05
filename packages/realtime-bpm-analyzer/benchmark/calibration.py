@@ -20,7 +20,9 @@ Every rule below is fixed before the samples exist:
 - Ranges are 95% percentile ranges from REPLICATES draws resampling artists within each set, as
   lib/pass-bar.ts does. The fitted table is held fixed, so they leave out the noise of the fit.
 - A tempo band gets its own table only if, on the check part, a band's mean residual (Acc1 less mean mapped
-  confidence) has a range that excludes zero.
+  confidence) has a range that excludes zero. The band is the reading's own tempo, known when it is emitted.
+  Its table is built the same way from that band's readings: fitted on the fit part and graded on the check
+  part, then refitted on all dev. Other bands read the table of all readings.
 - The offline path gets its own table only if, on the check part, the realtime table's ECE on offline
   readings is above the offline table's beyond the noise (the paired difference's range above zero).
 - "Adds nothing": on all dev, readings ranked by raw confidence and cut in halves of equal count, the top
@@ -127,6 +129,17 @@ def apply_table(table, raw):
     return table[-1][1]
 
 
+def as_mapping(table):
+    """A mapping is {'all': table, 'bands': {band name: table}}: a band with its own table reads it, the rest
+    read 'all'. A bare table is a mapping with no band table"""
+    return table if isinstance(table, dict) else {'all': table, 'bands': {}}
+
+
+def apply_mapping(mapping, raw, bpm):
+    mapping = as_mapping(mapping)
+    return apply_table(mapping['bands'].get(band_of(bpm), mapping['all']), raw)
+
+
 def ece_bin(confidence):
     return min(ECE_BINS - 1, int(confidence * ECE_BINS))
 
@@ -216,11 +229,11 @@ def residual(name):
     return lambda get: None if get(f'{name}:n') == 0 else (get(f'{name}:r') - get(f'{name}:c') / SCALE) / get(f'{name}:n')
 
 
-def check_fields(table):
+def check_fields(mapping):
     """What the check part sums per reading: ECE and Brier before and after, the reliability bins, octave
     errors, and each band's and each time's residual under the table"""
     def fields_of(s):
-        mapped = apply_table(table, s['raw'])
+        mapped = apply_mapping(mapping, s['raw'], s['bpm'])
         out = {**ece_fields('before:', s['raw'], s['right']), **ece_fields('after:', mapped, s['right'])}
         out[f"after:o{ece_bin(mapped)}"] = int(s['octave'])
         out[f"before:o{ece_bin(s['raw'])}"] = int(s['octave'])
@@ -260,20 +273,20 @@ def reliability(tally, prefix):
     return rows
 
 
-def offline_check(fit, check, realtime_table):
+def offline_check(fit, check, realtime_mapping):
     """The realtime table's ECE on offline readings less an offline table's, paired on the check part"""
     off_fit = [s for s in fit if s['path'] == 'offline']
     off_check = [s for s in check if s['path'] == 'offline']
     own = fit_table(off_fit)
-    tally = Tally(off_check, lambda s: {**ece_fields('rt:', apply_table(realtime_table, s['raw']), s['right']),
+    tally = Tally(off_check, lambda s: {**ece_fields('rt:', apply_mapping(realtime_mapping, s['raw'], s['bpm']), s['right']),
                                         **ece_fields('own:', apply_table(own, s['raw']), s['right'])})
     return {'readings': len(off_check), 'realtime table': tally.measure(ece('rt:')), 'own table': tally.measure(ece('own:')),
             'realtime less own': tally.measure(difference(ece('rt:'), ece('own:')))}
 
 
-def check_block(table, readings):
-    """ECE, Brier, reliability, band and time residuals of a table on realtime readings, with ranges"""
-    tally = Tally(readings, check_fields(table))
+def check_block(mapping, readings):
+    """ECE, Brier, reliability, band and time residuals of a mapping on realtime readings, with ranges"""
+    tally = Tally(readings, check_fields(mapping))
     pair = lambda measure: {'before': tally.measure(measure('before:')), 'after': tally.measure(measure('after:')),
                             'after less before': tally.measure(difference(measure('after:'), measure('before:')))}
     return {
@@ -292,10 +305,15 @@ def analyse(samples):
     check = [s for s in samples if s['check']]
     table = fit_table(on('realtime', fit))
     block = check_block(table, on('realtime', check))
-    block['offline'] = offline_check(fit, check, table)
+    needed = [name for name, r in block['bands'].items() if r is not None and (r[1] > 0 or r[2] < 0)]
+    # The bands the rule gives a table are fitted on the fit part and graded on the check part, as the whole table is
+    in_band = lambda name, chosen: [s for s in on('realtime', chosen) if band_of(s['bpm']) == name]
+    mapping = {'all': table, 'bands': {name: fit_table(in_band(name, fit)) for name in needed}}
+    banded = check_block(mapping, on('realtime', check)) if needed else None
+    block['offline'] = offline_check(fit, check, mapping)
     separate = block['offline']['realtime less own'] is not None and block['offline']['realtime less own'][1] > 0
     halves = {path: top_half(on(path, samples)) for path in ('realtime', 'offline')}
-    tables = {'realtime': fit_table(on('realtime', samples))}
+    tables = {'realtime': {'all': fit_table(on('realtime', samples)), 'bands': {name: fit_table(in_band(name, samples)) for name in needed}}}
     if separate:
         tables['offline'] = fit_table(on('offline', samples))
     return {
@@ -303,7 +321,8 @@ def analyse(samples):
                      'artists': len({s['cluster'] for s in samples}), 'check artists': len({s['cluster'] for s in check})},
         'fit table': table,
         'check': block,
-        'band tables needed': [name for name, r in block['bands'].items() if r is not None and (r[1] > 0 or r[2] < 0)],
+        'band tables needed': needed,
+        'check with band tables': banded,
         'separate offline table': separate,
         'top half less bottom half': halves,
         'adds something': halves['realtime'] is not None and halves['realtime'][1] > 0,
@@ -311,11 +330,11 @@ def analyse(samples):
     }
 
 
-def heldout_report(table, samples):
-    """The proposed held-out check, for when a DECISION on RBA-106 allows it: the shipped table on every
+def heldout_report(mapping, samples):
+    """The proposed held-out check, for when a DECISION on RBA-106 allows it: the shipped mapping on every
     held-out realtime reading, in the shape `heldout_verdict` reads. Nothing here calls it"""
     realtime = [s for s in samples if s['path'] == 'realtime']
-    return {'check': check_block(table, realtime), 'top half less bottom half': {'realtime': top_half(realtime)}}
+    return {'check': check_block(mapping, realtime), 'top half less bottom half': {'realtime': top_half(realtime)}}
 
 
 def heldout_verdict(report):
@@ -385,13 +404,29 @@ def markdown(engine, hysteresis, result):
         f'realtime table, {fmt(offline["own table"], 1, 3)} with their own, difference {fmt(offline["realtime less own"], 1, 3, True)}. '
         f'Separate offline table: {"yes" if result["separate offline table"] else "no"}. '
         f'Band tables needed: {", ".join(result["band tables needed"]) or "none"}.\n')
+    banded = result['check with band tables']
+    if banded is not None:
+        say(f'With the band tables ({", ".join(result["band tables needed"])}) fitted on the fit part, on the check part:\n')
+        say('| | before | after | after less before |')
+        say('|---|---|---|---|')
+        for name, digits in (('ece', 3), ('brier', 3)):
+            row = banded[name]
+            say(f'| {name.upper() if name == "ece" else "Brier"} | {fmt(row["before"], 1, digits)} | {fmt(row["after"], 1, digits)} '
+                f'| {fmt(row["after less before"], 1, digits, True)} |')
+        say('\n| scope | residual with band tables |')
+        say('|---|---|')
+        for name, value in banded['bands'].items():
+            say(f'| band {name} | {fmt(value, signed=True)} |')
+        for name, value in banded['times'].items():
+            say(f'| at {name} | {fmt(value, signed=True)} |')
+        say('')
     halves = result['top half less bottom half']
     say(f'"Adds nothing" bar, all dev: top half less bottom half by raw confidence, Acc1 points: realtime '
         f'{fmt(halves["realtime"], signed=True)}, offline {fmt(halves["offline"], signed=True)}. '
         f'Confidence {"adds something: it ships calibrated" if result["adds something"] else "adds nothing: drop it"}.\n')
     say('Table refitted on all dev (raw, calibrated):\n')
     for path, table in result['tables'].items():
-        say(f'- {path}: `{json.dumps(table)}`')
+        say(f'- {path}: `{json.dumps(table, sort_keys=True)}`')
     return '\n'.join(out)
 
 

@@ -13,7 +13,7 @@ npx realtime-bpm-analyzer-cli song.mp3
 
 ```text
 song.mp3: 128 BPM (tempogram, confidence 0.46)
-  candidates: 128, 64 (half), 171
+  candidates: 128, 171, 96
 ```
 
 Installed (`npm install -g realtime-bpm-analyzer-cli`), the command is also

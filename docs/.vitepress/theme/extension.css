@@ -329,7 +329,8 @@
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
   text-decoration: none;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  /* Also fades the swap after hydration, when the visitor's browser changes which one is filled. */
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 }
 
 :is(.ext-band, .ext-install) a.ext-cta {
@@ -577,9 +578,9 @@
 
 .vp-doc .ext-install-note { margin: 0.75rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; line-height: 1.5; }
 .vp-doc .ext-install-touch .ext-install-note { margin: 0; }
-.vp-doc .ext-install-context + .ext-install-note { margin-top: 0.4rem; } /* the prompt link */
+.vp-doc .ext-install-context + .ext-install-note { margin-top: 0.75rem; } /* the prompt link */
 
-/* Held open for a line about the visitor's own browser (Firefox's, today), so it appears after
+/* Held open for a line about the visitor's own browser (Firefox and Safari, today), so it appears after
    hydration without moving what follows. Empty for most visitors: that space is the price. */
 .vp-doc .ext-install-context { min-height: 1.5em; margin: 0.1rem 0 0; color: var(--vp-c-brand-1); font-size: 0.875rem; font-weight: 600; line-height: 1.5; }
 

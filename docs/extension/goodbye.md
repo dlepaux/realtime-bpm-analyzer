@@ -37,7 +37,7 @@ of your visit to this site. [Extension privacy](/extension/privacy) has the deta
 ## Changed your mind?
 
 <p v-if="reinstallTargets.length">Reinstall the extension any time from
-<template v-for="(target, index) in reinstallTargets" :key="target.browser"><template v-if="index > 0"> or </template><a
+<template v-for="(target, index) in reinstallTargets" :key="target.id"><template v-if="index > 0"> or </template><a
   :href="target.href"
   @click="track('extension_link_clicked', { placement: 'goodbye', target: 'store', store: target.id })"
 >{{ target.storeInText }}</a></template>.</p>

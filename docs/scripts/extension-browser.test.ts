@@ -67,7 +67,7 @@ test('installOffer: where neither store installs, no button is filled, so none l
   for (const browser of ['firefox', 'safari'] as const) {
     assert.deepEqual(view(browser).buttons, view('unknown').buttons.map(([id, , title, subtitle]) => [id, false, title, subtitle]), browser)
   }
-  assert.equal(view('safari').context, null, 'the requirement line already says Chrome or Edge, on a computer')
+  assert.equal(view('safari').context, 'Works in Chrome and Edge on a computer.', 'says why nothing is filled')
 })
 
 test('installOffer: Edge leads in Edge, with Chrome second', () => {

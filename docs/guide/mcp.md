@@ -61,7 +61,7 @@ tracks in ~/Music/house slower than 124 BPM."
   "file": "/Users/me/Music/song.mp3",
   "bpm": 128,
   "bpm_exact": 127.96,
-  "confidence": 0.459,
+  "confidence": 0.869,
   "candidates": [{"bpm": 128, "relation": "top"}, {"bpm": 171, "relation": "other"}],
   "engine": "tempogram"
 }
@@ -92,7 +92,7 @@ A file that cannot be analysed returns a tool error with a one-line reason.
 {
   "directory": "/Users/me/Music",
   "results": [
-    {"file": "/Users/me/Music/a.mp3", "ok": true, "bpm": 128, "bpm_exact": 127.96, "confidence": 0.459, "candidates": [{"bpm": 128, "relation": "top"}], "engine": "tempogram"},
+    {"file": "/Users/me/Music/a.mp3", "ok": true, "bpm": 128, "bpm_exact": 127.96, "confidence": 0.869, "candidates": [{"bpm": 128, "relation": "top"}], "engine": "tempogram"},
     {"file": "/Users/me/Music/b.mp3", "ok": false, "error": "No audio samples decoded (mp3)."}
   ],
   "total": 2,

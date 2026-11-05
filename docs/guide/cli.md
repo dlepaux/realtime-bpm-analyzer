@@ -19,7 +19,7 @@ npx realtime-bpm-analyzer-cli song.mp3
 ```
 
 ```text
-song.mp3: 128 BPM (tempogram, confidence 0.46)
+song.mp3: 128 BPM (tempogram, confidence 0.87)
   candidates: 128, 171, 96
 ```
 
@@ -56,7 +56,7 @@ and `2` for a usage error, such as an unknown option or an invalid tempo range.
       "ok": true,
       "bpm": 128,
       "bpmExact": 127.96,
-      "confidence": 0.459,
+      "confidence": 0.869,
       "candidates": [{"bpm": 128, "relation": "top"}, {"bpm": 171, "relation": "other"}],
       "engine": "tempogram"
     },

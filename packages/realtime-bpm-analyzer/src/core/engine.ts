@@ -50,6 +50,12 @@ export type ResolvedEngine = {
   readonly tuning?: Partial<TempogramTuning>;
 };
 
+/**
+ * The engine when the caller names none, realtime and offline. RBA-51 DECISION 2026-11-03: the tempogram with its
+ * 5.5.0 settings, after it passed the held-out look; `engine: 'peaks'` is the way back.
+ */
+export const defaultEngine: EngineName = 'tempogram';
+
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 /**
@@ -85,14 +91,14 @@ export function assertNoRemovedOptions(options: unknown): void {
 /**
  * Validates the realtime `engine` and `tempoRange` options together, on the main thread: a throw inside the
  * worklet would not reach the caller.
- * @param engine The caller's option
+ * @param engine The caller's option, {@link defaultEngine} when absent
  * @param tempoRange The caller's range
  * @returns The engine and the range to run with
  * @throws {RangeError} When the engine, its settings or the range are invalid, or contradict the tempogram's mode
  */
 export function resolveEngine(engine: EngineOption | undefined, tempoRange: TempoRange | undefined): {engine: ResolvedEngine; tempoRange: TempoRange} {
   const range = resolveTempoRange(tempoRange);
-  const value: unknown = engine ?? 'peaks';
+  const value: unknown = engine ?? defaultEngine;
 
   if (value === 'peaks' || value === 'tempogram') {
     return {engine: {name: value}, tempoRange: range};
@@ -131,12 +137,12 @@ export function resolveEngine(engine: EngineOption | undefined, tempoRange: Temp
 
 /**
  * Validates the offline `engine` option
- * @param engine The caller's option
+ * @param engine The caller's option, {@link defaultEngine} when absent
  * @returns The engine name, and the lowpass settings for `peaks`
  * @throws {RangeError} When the engine is unknown
  */
 export function resolveOfflineEngine(engine: OfflineEngineOption | undefined): {name: EngineName; lowpass: BiquadFilterOptions} {
-  const value: unknown = engine ?? 'peaks';
+  const value: unknown = engine ?? defaultEngine;
 
   if (value === 'peaks' || value === 'tempogram') {
     return {name: value, lowpass: {}};

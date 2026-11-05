@@ -48,7 +48,7 @@ export type {BiquadFilterOptions} from './core/types';
  * Creates a real-time BPM analyzer for live audio.
  *
  * @param audioContext - The AudioContext to run in
- * @param options - The engine, the tempo range, `processorUrl` for pages whose CSP refuses `blob:`, `liveInput`
+ * @param options - The engine (default `tempogram`), the tempo range, `processorUrl` for pages whose CSP refuses `blob:`, `liveInput`
  * for a MediaStream source, and `debug`
  * @returns The analyzer, once its processor has said it is ready
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
@@ -58,7 +58,8 @@ export type {BiquadFilterOptions} from './core/types';
  * @example
  * ```typescript
  * const audioContext = new AudioContext();
- * const analyzer = await createRealtimeBpmAnalyzer(audioContext, {engine: 'peaks'});
+ * // The tempogram by default; {engine: 'peaks'} for the peaks engine
+ * const analyzer = await createRealtimeBpmAnalyzer(audioContext);
  * const source = audioContext.createMediaElementSource(audioElement);
  * source.connect(analyzer.input);
  * source.connect(audioContext.destination);
@@ -80,7 +81,7 @@ export type {BiquadFilterOptions} from './core/types';
  *   audio: {echoCancellation: false, noiseSuppression: false, autoGainControl: false},
  * });
  * const [track] = stream.getAudioTracks();
- * const analyzer = await createRealtimeBpmAnalyzer(audioContext, {engine: 'tempogram', liveInput: track});
+ * const analyzer = await createRealtimeBpmAnalyzer(audioContext, {liveInput: track});
  * audioContext.createMediaStreamSource(stream).connect(analyzer.input);
  * ```
  *

@@ -74,7 +74,10 @@ export type TempoRange = {
 
 /** Options for the realtime analyzer. Invalid values throw a `RangeError` or `TypeError` synchronously. */
 export type AnalyzerOptions = {
-  /** Default decided in RBA-51. */
+  /**
+   * Default `tempogram`, as decided in RBA-51. `peaks` puts a fixed lowpass inside `analyzer.input`; the
+   * tempogram takes the full band.
+   */
   readonly engine?: EngineOption;
   readonly tempoRange?: TempoRange;
   /** URL of the processor file, for pages and extensions whose CSP refuses `blob:`. Default: an inlined `blob:`. */
@@ -90,6 +93,7 @@ export type AnalyzerOptions = {
 
 /** Options for whole-buffer analysis, in the browser and in Node. */
 export type OfflineOptions = {
+  /** Default `tempogram`, as for the realtime analyzer. Only `peaks` takes lowpass settings. */
   readonly engine?: OfflineEngineOption;
   readonly tempoRange?: TempoRange;
 };

@@ -1,6 +1,6 @@
 import {expect} from 'chai';
 import {createSession} from '../../../src/core/session';
-import {resolveEngine} from '../../../src/core/engine';
+import {resolveEngine, resolveOfflineEngine} from '../../../src/core/engine';
 import type {ResolvedEngine} from '../../../src/core/engine';
 import {createTempogramDetector} from '../../../src/core/tempogram';
 import type {EngineOption, TempoRange, WorkletMessage} from '../../../src/contract/types';
@@ -115,8 +115,11 @@ describe('the extension mode', () => {
 });
 
 describe('engine option', () => {
-  it('defaults to the peaks engine', () => {
-    expect(resolveEngine(undefined, undefined).engine).to.deep.equal({name: 'peaks'});
+  // RBA-51 DECISION 2026-11-03: v6 runs the tempogram unless the caller asks for peaks
+  it('defaults to the tempogram, realtime and offline', async () => {
+    expect(resolveEngine(undefined, undefined).engine).to.deep.equal({name: 'tempogram'});
+    expect(resolveOfflineEngine(undefined)).to.deep.equal({name: 'tempogram', lowpass: {}});
+    expect((await analyzeChannelData(createClickTrack(128, sampleRate, 20), sampleRate))?.engine).to.equal('tempogram');
   });
 
   it('refuses an unknown engine, and a restart period that is not a positive number', () => {

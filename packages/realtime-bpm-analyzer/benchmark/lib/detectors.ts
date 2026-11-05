@@ -1,5 +1,5 @@
 import type {TempogramTuning} from '../../src/core/tempogram';
-import type {EngineOption, TempoRange} from '../../src/contract/types';
+import type {EngineName, EngineOption, TempoRange} from '../../src/contract/types';
 
 /** A row's options: the public ones, and the restart the 5.x rows measured, now internal for the tempogram */
 export type BenchmarkOptions = {
@@ -19,6 +19,8 @@ export type DetectorConfig = {
   readonly tuning?: Partial<TempogramTuning>;
   /** For dev only, unless it is the pick */
   readonly candidate?: true;
+  /** RBA-106's hysteresis sweep of this engine (lib/hysteresis.ts), dev only: it runs every row on each track */
+  readonly sweep?: EngineName;
 };
 
 /** The extension's TEMPO_RANGE, rba-pro/extension/src/lib/reading.ts. Also what peaks folds into by default */
@@ -62,6 +64,9 @@ export const detectors: Record<string, DetectorConfig> = {
   },
   // The candidate as a caller gets it: through the option, with no override, so a look scores the shipped path
   'tempogram-extension': {options: {engine: {name: 'tempogram', mode: 'extension'}}, lowpass: false, offline: false},
+  // RBA-106's sweeps: the engine's own path per row, lowpass included for peaks, and the offline reading
+  'tempogram-hysteresis': {options: tempogram, lowpass: false, offline: false, sweep: 'tempogram', candidate: true},
+  'peaks-hysteresis': {options: {engine: 'peaks'}, lowpass: false, offline: false, sweep: 'peaks', candidate: true},
   // The extension's options as they are today, offscreen/main.ts: its timer resets the analyzer every 10 s
   'tempogram-90-180-resetting': {
     options: {...tempogram, tempoRange: extensionRange, restartAfterSeconds: 10},

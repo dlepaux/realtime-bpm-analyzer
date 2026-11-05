@@ -2,6 +2,7 @@
 //   job.mjs [tune]                                the data, then the dev sweep. The default
 //   job.mjs fetch                                 the data only
 //   job.mjs dev --detector a,b                    the data, then a dev scoring through the real path. No look
+//   job.mjs hysteresis                            the data, then RBA-106's hysteresis sweep on dev and its pick. No look
 //   job.mjs heldout --reason "..." [--detector]   the data, a dev scoring, then a held-out look, logged
 //   job.mjs free-look --reason "..."              RBA-51's one look at RBA-59's held-out free mixes, then its verdict
 // Every stage is safe to kill and restart. Exit: 0 done, 1 failed, 2 bad arguments, 3 the sweep is
@@ -23,6 +24,7 @@ import {freeLookRefusal, lookDetectorRefusal, lookRefusal, lookScopeRefusal} fro
 import type {RunFailure} from './lib/look';
 import {bandCounts} from './lib/metrics';
 import {guardShortfalls} from './lib/sweep';
+import {sweepDetectors} from './lib/hysteresis-pick';
 import type {TrackResult} from './lib/types';
 
 const benchmarkDir = process.cwd();
@@ -245,12 +247,27 @@ async function stages(summary: Summary, mode: string, wanted: readonly string[],
     await tune(summary, clean, options.plan);
   } else if (mode === 'dev') {
     await devScores(summary, clean, options.detector);
+  } else if (mode === 'hysteresis') {
+    await hysteresisSweep(summary, clean);
   } else if (mode === 'heldout') {
     assertPickHoldsGuard(await devScores(summary, clean, options.detector));
     await heldout(summary, wanted, options.reason!, options.detector);
   }
 
   summary.status = data.incomplete.length > 0 ? 'incomplete' : 'ok';
+}
+
+/**
+ * RBA-106's hysteresis sweep: every row of both engines' grids on dev, then the rule committed in
+ * lib/hysteresis-pick.ts picks, and the picked rows' readings are kept for the calibration. Dev only.
+ */
+async function hysteresisSweep(summary: Summary, sets: readonly string[]): Promise<void> {
+  const devOut = await devScores(summary, sets, sweepDetectors.join(','));
+  const sha = summary.sha.slice(0, 12);
+
+  summary.stage = 'hysteresis';
+  save(summary);
+  await runEntry('hysteresis', ['--in', devOut, '--out', join(jobDir, `hysteresis-report-${sha}.json`), '--samples', join(jobDir, `calibration-samples-${sha}.json`)]);
 }
 
 /** @returns The arguments, or null when they do not parse */
@@ -327,10 +344,10 @@ async function main(): Promise<number> {
   const wanted = args?.values.sets?.split(',') ?? Object.keys(loaders);
 
   // The clean sets' heldout mode never takes a free set: the free-mix look is its own mode
-  if (!args || !['tune', 'fetch', 'dev', 'heldout', 'free-look'].includes(mode) || !process.env.RBA_TEMPO_ROOT
+  if (!args || !['tune', 'fetch', 'dev', 'hysteresis', 'heldout', 'free-look'].includes(mode) || !process.env.RBA_TEMPO_ROOT
     || ((mode === 'heldout' || mode === 'free-look') && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set) || isFreeSet(set))
     || freeJobModeRefusal(mode, wanted) !== null) {
-    console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|dev|heldout --reason <why>|free-look --reason <why>] [--sets a,b]');
+    console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|dev|hysteresis|heldout --reason <why>|free-look --reason <why>] [--sets a,b]');
     return 2;
   }
 

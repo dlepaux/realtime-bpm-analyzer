@@ -159,8 +159,7 @@ const reading = {
 
 - **bpm**: The tempo to show, a whole number inside the tempo range. Always the first candidate's
 - **bpmExact**: The same tempo before rounding, for timing work such as spacing beat markers
-- **confidence**: From 0 to 1, uncalibrated for now. Each engine scores it its own way, so compare values from one engine only and set no fixed cut-off. It is not a probability
-<!-- RBA-106: calibration gives confidence its meaning, or removes it. Update the line above then. -->
+- **confidence**: From 0 to 1, the estimated chance the reading is right: within 4% of the true tempo, where half or double the tempo counts as wrong. Each engine's raw score is calibrated on licence-clean dev data, so the value means the same whichever engine measured it, realtime or offline
 - **candidates**: Up to 5, the reading's own tempo first, the others in the engine's rank order. Each has a **relation** to the reading's tempo: `top`, `half`, `double` or `other`
 
 The reading's `bpm` is usually the right one. A `half` or `double` candidate is the same beat at another octave.

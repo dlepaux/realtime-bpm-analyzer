@@ -24,10 +24,10 @@ export type FoundReading = {
   /** The same tempo unrounded, for timing (a beat grid, markers) */
   readonly bpmExact: number;
   /**
-   * From 0 to 1. Uncalibrated for now: each engine's own score, so compare
-   * values from one engine only and set no absolute cut-off. Not a probability.
+   * From 0 to 1, the estimated chance the reading is right (within 4% of the true tempo, half or double
+   * counting as wrong). Calibrated on licence-clean dev data, so it means the same for either engine.
    */
-  // RBA-106: calibration gives this its meaning, or removes it. Keep this doc in step with Reading.confidence.
+  // Keep this doc in step with Reading.confidence (RBA-106)
   readonly confidence: number;
   /** At most 5, best first, each with its relation to the top one */
   readonly candidates: readonly Candidate[];

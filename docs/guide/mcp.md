@@ -71,15 +71,13 @@ The fields are the library's [reading](./core-concepts#bpm-candidates), named in
 
 - `bpm`: the tempo, a whole number. `null` when no beat was found, as are the fields below.
 - `bpm_exact`: the same tempo unrounded, for timing (a beat grid, markers).
-- `confidence`: from 0 to 1, uncalibrated for now. Each engine scores it its own way, so
-  compare values from one engine only, set no fixed cut-off and don't read it as a probability.
+- `confidence`: from 0 to 1, the estimated chance the reading is right. It is calibrated on
+  licence-clean dev data, so it means the same whichever engine measured it.
 - `candidates`: each a `bpm` and its `relation` to that tempo (`top`, `half`, `double` or
   `other`). Empty when no beat was found.
 - `engine`: the engine that measured it.
 
 A file that cannot be analysed returns a tool error with a one-line reason.
-
-<!-- RBA-106: calibration gives confidence its meaning, or removes it. Update the confidence line then. -->
 
 ### `analyze_folder`
 

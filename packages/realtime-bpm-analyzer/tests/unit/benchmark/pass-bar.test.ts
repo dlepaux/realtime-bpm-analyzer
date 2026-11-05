@@ -204,8 +204,9 @@ describe('what the second look fixes', () => {
     expect(chosen?.tempoRange).to.deep.equal(defaultTempogramRange);
   });
 
-  it('leaves peaks the default detector, and the first pick only as a row to compare against', () => {
-    expect(resolveEngine(undefined, undefined).engine.name).to.equal('peaks');
+  // RBA-51 DECISION 2026-11-03 made the tempogram the library default once the held-out look passed
+  it('makes the tempogram the default engine, and keeps the first pick only as a row to compare against', () => {
+    expect(resolveEngine(undefined, undefined).engine.name).to.equal('tempogram');
     expect(detectors.peaks.options).to.deep.equal({});
     expect(detectors['tempogram-first'].tuning).to.include({priorBpm: 110, priorOctaves: 0.7, thirdBeatPenalty: 0.2});
     expect(detectors['tempogram-first'].options.tempoRange).to.deep.equal({min: 50, max: 240});

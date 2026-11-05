@@ -24,7 +24,7 @@ Every 5.x name and its v6 form. The sections below show each with before-and-aft
 | `tempogramMode: 'extension'` | `engine: { name: 'tempogram', mode: 'extension' }` |
 | `continuousAnalysis` and `stabilizationTime` (ms) | `engine: { name: 'peaks', restartAfterSeconds }` (seconds) |
 | `muteTimeInIndexes` | removed |
-| `analyzeFullBuffer` options `frequencyValue`, `qualityValue` | `engine: { name: 'peaks', lowpass: { frequency, q } }` |
+| `analyzeFullBuffer` and Node's `analyzeChannelData` options `frequencyValue`, `qualityValue` | `engine: { name: 'peaks', lowpass: { frequency, q } }` |
 | event `bpm` | `reading` |
 | event `bpmStable` | `statechange` with `to.status === 'locked'` |
 | event `analyzerReset` | `statechange` to `listening`, reason `audio-lost`, `tempo-changed` or `pulse-lost` |
@@ -39,8 +39,10 @@ Every 5.x name and its v6 form. The sections below show each with before-and-aft
 | `Tempo.count` | removed |
 | `Tempo.confidence` | `Reading.confidence`, uncalibrated for now |
 | `BpmCandidates.threshold`, `Threshold`, `Peaks` | removed |
-| `analyzeFullBuffer` returns `Tempo[]` | returns a `Reading`, or `null` when no tempo was found |
-| `RealTimeBpmAnalyzer`, `createRealTimeBpmProcessor` | removed: use `createRealtimeBpmAnalyzer` |
+| `analyzeFullBuffer` and Node's `analyzeChannelData` return `Tempo[]` | return a `Reading`, or `null` when no tempo was found |
+| `createRealTimeBpmProcessor` | removed: use `createRealtimeBpmAnalyzer` |
+| `new BpmAnalyzer(node)` | private: use `createRealtimeBpmAnalyzer` |
+| `RealTimeBpmAnalyzer` (the worklet-side analyzer, deprecated in 5.x) | removed, no replacement |
 
 <!-- RBA-106: calibration gives confidence its meaning, or removes it. Update the Tempo.confidence row then. -->
 

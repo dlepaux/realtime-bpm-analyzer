@@ -2,6 +2,8 @@
 // pure checks over the build's files. verify-extension-switch.ts runs them on real
 // builds in CI; extension-switch.test.ts proves they catch what they claim to catch.
 
+import { storeLink } from '../.vitepress/tools/extension-promo.ts'
+
 export type BuiltSite = {
   /** Every file, relative to the build's root, with forward slashes. */
   readonly paths: readonly string[]
@@ -20,8 +22,15 @@ const PAGE_LINK = 'href="/extension/"'
 const INSTALL_BUTTON = /<a\b[^>]*\bext-install-btn\b[^>]*>/g
 const STORE_LINK = /href="([^"]*chromewebstore[^"]*)"/g
 const EMPTY_LINK = /<a\b[^>]*\bhref="(?:|null|undefined)"/
-const SCREENSHOT = /\/(?:player|play-bar|playback-rate|no-audio)(?:-\d+)?\.[^/]*\.webp$/
-const MAX_IMAGE_BYTES = 40_000
+const SCENES_DEMO = /\bext-scenes\b/
+const SCENES_LABEL = /\bext-scenes-canvas\b[^>]*\baria-label="[^"]+"|\baria-label="[^"]+"[^>]*\bext-scenes-canvas\b/
+const HOME_LAYOUT = /\bext-home\b/
+const SHARE_IMAGE = 'live-bpm-detector-share.png'
+const MAX_SHARE_IMAGE_BYTES = 300_000
+const HERO_ACTION = 'Live BPM Detector for Chrome'
+const HOME_SECTION = 'ext-band'
+const HOME_TAGLINE = 'Chrome extension for the music in your tabs'
+const BANNED_MARKUP = /aggregateRating|ratingValue|reviewCount|"review"/
 
 // Where a musician lands, and where the promo must not reach: a developer's page and
 // the tool whose user already has the tempo.
@@ -36,8 +45,13 @@ function checkOff(site: BuiltSite): string[] {
   expectAbsent(site.paths.includes(PAGE), `${PAGE} was built, so the page is reachable`)
   expectAbsent(site.read('hashmap.json').includes('extension_index'), 'the page is in the hash map')
   expectAbsent(site.read('sitemap.xml').includes(`${SITE}/extension/</loc>`), 'the page is in the sitemap')
-  expectAbsent(site.paths.some((path) => SCREENSHOT.test(`/${path}`)), 'the page\'s screenshots were published')
+  expectAbsent(HOME_LAYOUT.test(site.read('index.html')), 'the home page has the extension\'s layout')
   expectAbsent(site.read('extension/goodbye.html').includes('Reinstall the extension'), 'goodbye offers a reinstall')
+  expectAbsent(site.paths.includes(SHARE_IMAGE), 'the share image was published')
+  expectAbsent(site.read('llms.txt').includes('Live BPM Detector'), 'llms.txt names the extension')
+  expectAbsent(site.read('index.html').includes(HERO_ACTION), 'the home page has the extension\'s action')
+  expectAbsent(site.read('index.html').includes(HOME_SECTION), 'the home page has the extension\'s section')
+  expectAbsent(site.read('index.html').includes(HOME_TAGLINE), 'the home tagline names the extension')
   for (const path of site.paths.filter((p) => p.includes('@localSearchIndex'))) {
     expectAbsent(site.read(path).includes('extension/#'), `the page is in the search index (${path})`)
   }
@@ -48,6 +62,9 @@ function checkOff(site: BuiltSite): string[] {
     STORE_LINK.lastIndex = 0
     expectAbsent(INSTALL_BUTTON.test(html), `${path} renders an install button`)
     INSTALL_BUTTON.lastIndex = 0
+    expectAbsent(html.includes('"name":"Live BPM Detector"'), `${path} carries the extension's structured data`)
+    expectAbsent(html.includes(SHARE_IMAGE), `${path} points at the extension's share image`)
+    expectAbsent(SCENES_DEMO.test(html), `${path} shows the demo`)
   }
   for (const path of PROMO_PAGES) {
     expectAbsent(site.read(path).includes('Live BPM Detector'), `${path} promotes the extension`)
@@ -55,46 +72,45 @@ function checkOff(site: BuiltSite): string[] {
   return problems
 }
 
+/** The listing, plain or with exactly the label `storeLink` adds. Nothing else may point at the store. */
+function isListingLink(rawHref: string, storeUrl: string): boolean {
+  const href = rawHref.replaceAll('&amp;', '&')
+  const sample = 'goodbye'
+  const labelled = storeLink(storeUrl, sample).slice(0, -sample.length)
+  return href === storeUrl || (href.startsWith(labelled) && /^[a-z_]+$/.test(href.slice(labelled.length)))
+}
+
 function installProblems(site: BuiltSite, storeUrl: string): string[] {
   const problems: string[] = []
   for (const path of site.paths.filter((p) => p.endsWith('.html'))) {
     const html = site.read(path)
-    for (const [, href] of html.matchAll(STORE_LINK)) {
-      if (href !== storeUrl) problems.push(`on: ${path} links to ${href}, not the listing`)
+    for (const [, href = ''] of html.matchAll(STORE_LINK)) {
+      if (!isListingLink(href, storeUrl)) problems.push(`on: ${path} links to ${href}, not the listing`)
     }
     for (const [tag] of html.matchAll(INSTALL_BUTTON)) {
-      if (!tag.includes(`href="${storeUrl}"`)) problems.push(`on: ${path} has a dead install button: ${tag}`)
+      const href = /\bhref="([^"]*)"/.exec(tag)?.[1] ?? ''
+      if (!href.startsWith(storeUrl) || !isListingLink(href, storeUrl)) problems.push(`on: ${path} has a dead install button: ${tag}`)
     }
   }
   const page = site.read(PAGE)
   if ([...page.matchAll(INSTALL_BUTTON)].length === 0) problems.push(`on: ${PAGE} has no install button`)
   if (EMPTY_LINK.test(page)) problems.push(`on: ${PAGE} has an empty link`)
-  if (!site.read('extension/goodbye.html').includes(`<a href="${storeUrl}">Reinstall the extension`)) {
+  if (![...site.read('extension/goodbye.html').matchAll(/<a href="([^"]*)">Reinstall the extension/g)].some(([, href = '']) => href.startsWith(storeUrl) && isListingLink(href, storeUrl))) {
     problems.push('on: goodbye has no reinstall link to the listing')
   }
   return problems
 }
 
-function imageProblems(site: BuiltSite): string[] {
+// The first screen and the home door show the product, drawn, so it has no files to go missing.
+// What must hold is that it is labelled for anyone who can't see it, and carries no picture of its
+// own that a phone would download.
+function demoProblems(site: BuiltSite): string[] {
   const problems: string[] = []
-  const screenshots = [...site.read(PAGE).matchAll(/<img\b[^>]*\bext-shot\b[^>]*>/g)].map(([tag]) => tag)
-  if (screenshots.length === 0) problems.push(`on: ${PAGE} has no screenshots`)
-  for (const tag of screenshots) {
-    const label = tag.replace(/data:[^"]*/, 'data:...')
-    // Sized, so the image's box is held before it loads, and described.
-    for (const attribute of [/\bwidth="\d+"/, /\bheight="\d+"/, /\balt="[^"]+"/]) {
-      if (!attribute.test(tag)) problems.push(`on: an image fails ${attribute}: ${label}`)
-    }
-    // Vite inlines the smallest images, which then have no file of their own to be missing.
-    const inlined = /\bsrc="(data:image\/[^"]+)"/.exec(tag)?.[1]
-    const src = /\bsrc="\/([^"]+)"/.exec(tag)?.[1]
-    if (inlined !== undefined) {
-      if (inlined.length > MAX_IMAGE_BYTES) problems.push(`on: an inlined image is over ${MAX_IMAGE_BYTES} bytes: ${label}`)
-    } else if (src === undefined || !site.paths.includes(src)) {
-      problems.push(`on: an image has no file: ${label}`)
-    } else if (site.size(src) > MAX_IMAGE_BYTES) {
-      problems.push(`on: ${src} is over ${MAX_IMAGE_BYTES} bytes`)
-    }
+  for (const path of [PAGE, 'index.html']) {
+    const html = site.read(path)
+    if (!SCENES_DEMO.test(html)) problems.push(`on: ${path} does not show the product`)
+    else if (!SCENES_LABEL.test(html)) problems.push(`on: ${path} shows the demo with no label`)
+    if (/\bext-scenes\b[\s\S]*<(?:video|audio)\b/.test(html)) problems.push(`on: ${path} has a video or audio element in the demo`)
   }
   return problems
 }
@@ -108,22 +124,45 @@ function seoProblems(site: BuiltSite, storeUrl: string): string[] {
   if (!page.includes('"@type":"SoftwareApplication"') || !page.includes(`"installUrl":"${storeUrl}"`)) {
     problems.push('on: no SoftwareApplication structured data with the listing')
   }
+  if (!page.includes('"price":"0"')) problems.push('on: the structured data does not say it is free')
+  if (BANNED_MARKUP.test(page)) problems.push('on: the structured data carries a rating or review')
+  if (!/<h1\b[\s\S]*Live BPM Detector[\s\S]*<\/h1>/.test(page)) problems.push('on: the h1 does not name the extension')
   const sitemap = site.read('sitemap.xml')
   if (!sitemap.includes(`${SITE}/extension/</loc>`)) problems.push('on: the page is not in the sitemap')
   if (sitemap.includes('extension/welcome')) problems.push('on: a users-only page is in the sitemap')
+  const llms = site.read('llms.txt')
+  const llmsLine = llms.indexOf(`[Live BPM Detector](${SITE}/extension/)`)
+  if (llmsLine === -1 || llmsLine > llms.indexOf('## Library')) problems.push('on: llms.txt must list the extension ahead of the library')
+  if (!/<meta property="og:title" content="[^"]*Live BPM Detector[^"|]*"/.test(page)) problems.push('on: the page\'s og:title is wrong or has the site suffix')
+  return problems
+}
+
+function shareProblems(site: BuiltSite): string[] {
+  const problems: string[] = []
+  const ownImage = `<meta property="og:image" content="${SITE}/${SHARE_IMAGE}"`
+  if (!site.paths.includes(SHARE_IMAGE)) problems.push(`on: ${SHARE_IMAGE} was not published`)
+  else if (site.size(SHARE_IMAGE) > MAX_SHARE_IMAGE_BYTES) problems.push(`on: ${SHARE_IMAGE} is over ${MAX_SHARE_IMAGE_BYTES} bytes`)
+  if (!site.read(PAGE).includes(ownImage)) problems.push('on: the page does not share its own image')
+  if (site.read(PAGE).split('property="og:image"').length !== 2) problems.push('on: the page has more than one og:image')
+  if (site.read('index.html').includes(ownImage)) problems.push('on: the home page shares the extension\'s image')
   return problems
 }
 
 function placementProblems(site: BuiltSite): string[] {
   const problems: string[] = []
   const home = site.read('index.html')
-  if (!home.includes('See the extension')) problems.push('on: the home page has no card')
+  if (!home.includes(HERO_ACTION)) problems.push('on: the home page has no action for the extension')
+  if (!home.includes(HOME_SECTION)) problems.push('on: the home page has no section for the extension')
+  if (!home.includes(HOME_TAGLINE)) problems.push('on: the home tagline does not name the extension')
+  if (!HOME_LAYOUT.test(home)) problems.push('on: the home page does not have the extension\'s layout')
   if (!home.includes('Developer Docs')) problems.push('on: the home page lost its Developer Docs action')
-  const guide = home.indexOf('href="/guide/getting-started"')
-  const api = home.indexOf('href="/api/"')
-  const extension = home.indexOf(PAGE_LINK)
-  if (guide === -1 || api === -1 || extension < api || extension < guide) {
-    problems.push('on: the library\'s nav items must come before the extension\'s')
+  // Read off a page with no other link to it, so this is the nav's order.
+  const nav = site.read('bpm-to-ms.html')
+  const extension = nav.indexOf(PAGE_LINK)
+  const guide = nav.indexOf('href="/guide/getting-started"')
+  const api = nav.indexOf('href="/api/"')
+  if (extension === -1 || guide === -1 || api === -1 || extension > guide) {
+    problems.push('on: the extension\'s nav item must come before the library\'s, which must stay')
   }
   for (const path of PROMO_PAGES) {
     if (!site.read(path).includes(PAGE_LINK)) problems.push(`on: ${path} has no link to the page`)
@@ -144,8 +183,9 @@ export function switchProblems(site: BuiltSite, storeUrl: string | null): string
   if (!site.paths.includes(PAGE)) return [`on: ${PAGE} was not built`]
   return [
     ...installProblems(site, storeUrl),
-    ...imageProblems(site),
+    ...demoProblems(site),
     ...seoProblems(site, storeUrl),
+    ...shareProblems(site),
     ...placementProblems(site),
   ]
 }

@@ -34,9 +34,10 @@ import {
 } from '../tools/stream-input'
 import GithubStarSupport from './GithubStarSupport.vue'
 import ResultToolLinks from './ResultToolLinks.vue'
+import ExtensionResultPrompt from './ExtensionResultPrompt.vue'
 import BeatMarkerExport from './BeatMarkerExport.vue'
 import { STORE_URL } from '../tools/extension-live'
-import { EXTENSION_PAGE } from '../tools/extension-promo'
+import { EXTENSION_PAGE, extensionCovers } from '../tools/extension-promo'
 
 type Mode = 'file' | 'mic' | 'stream'
 type Status = 'idle' | 'analysing' | 'result' | 'error'
@@ -947,6 +948,7 @@ function formatDuration(seconds: number): string {
               :bpm="micStableBpm"
               source="mic"
             />
+            <ExtensionResultPrompt source="mic" />
             <div class="bpm-result-actions">
               <button
                 type="button"
@@ -1036,13 +1038,14 @@ function formatDuration(seconds: number): string {
               <!-- Only here, where tab audio works: the extension needs a desktop
                    browser, and this is the moment its job is exactly what's wanted. -->
               <div
-                v-if="STORE_URL"
+                v-if="STORE_URL && extensionCovers(linkPlatform)"
                 class="bpm-stream-hint"
               >
-                Do this often? <a
+                Skip the sharing next time. <a
                   class="bpm-text-btn"
                   :href="EXTENSION_PAGE"
-                >Live BPM Detector</a> shows the tempo on the player, with no sharing.
+                  @click="track('extension_link_clicked', { placement: 'stream_hint', target: 'page' })"
+                >Live BPM Detector</a> for Chrome shows the tempo on the page.
               </div>
             </template>
             <template v-else>
@@ -1159,6 +1162,10 @@ function formatDuration(seconds: number): string {
             <ResultToolLinks
               v-if="streamStableBpm !== null"
               :bpm="streamStableBpm"
+              source="stream"
+            />
+            <ExtensionResultPrompt
+              v-if="streamStableBpm !== null"
               source="stream"
             />
           </div>

@@ -30,3 +30,9 @@ declare module '*.css' {
 // start. It is `null` when the GitHub API call failed (rate limit, offline CI,
 // network blip) — components MUST handle the null case and degrade gracefully.
 declare const __GITHUB_STAR_COUNT__: number | null
+
+// A stylesheet as a string, for the demo's later pages (extension-scenes-styles.ts).
+declare module '*.css?inline' {
+  const css: string
+  export default css
+}

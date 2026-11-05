@@ -6,7 +6,7 @@
 // under reduced motion the pill simply shows the locked state.
 withDefaults(defineProps<{
   bpm?: string
-  stability?: 'settling' | 'stable'
+  stability?: 'listening' | 'settling' | 'stable'
   intro?: boolean
 }>(), { bpm: '128', stability: 'stable', intro: false })
 </script>
@@ -22,15 +22,21 @@ withDefaults(defineProps<{
     <span class="ext-pill-stack">
       <span class="ext-pill-reading">
         <span class="ext-pill-value">
-          <span class="ext-pill-num">{{ bpm }}</span>
           <span
-            v-if="intro"
+            v-if="stability !== 'listening'"
+            class="ext-pill-num"
+          >{{ bpm }}</span>
+          <span
+            v-if="intro || stability === 'listening'"
             class="ext-pill-dots"
           ><span>.</span><span>.</span><span>.</span></span>
         </span>
         <span class="ext-pill-unit">BPM</span>
       </span>
-      <span class="ext-pill-hint">
+      <span
+        v-if="stability !== 'listening'"
+        class="ext-pill-hint"
+      >
         <span class="ext-pill-dot"></span>
         <span class="ext-pill-label">{{ stability }}</span>
       </span>

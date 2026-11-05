@@ -1,0 +1,69 @@
+const STYLE = `
+:host { all: initial !important; display: block !important; z-index: 2147483647 !important; }
+:host([data-mode="player"]) { position: absolute !important; top: 12px !important; right: 12px !important; }
+:host([data-mode="dock"]) { position: relative !important; display: flex !important; align-items: center !important; margin: 0 8px !important; }
+:host([data-mode="floating"]) { position: fixed !important; left: var(--x, auto) !important; top: var(--y, auto) !important;
+  right: 24px !important; bottom: 24px !important; }
+:host([data-mode="floating"][data-moved]) { right: auto !important; bottom: auto !important; }
+.pill { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 5px 6px 9px 12px; border-radius: 999px;
+  background: rgb(17 24 39 / .92); color: #f9fafb; font: 600 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .35); white-space: nowrap; user-select: none; }
+.value { display: inline-block; font-variant-numeric: tabular-nums; font-size: 16px; min-width: 3ch; text-align: right; }
+.dots { display: none; }
+.value[data-state="listening"] .num { display: none; }
+.value[data-state="listening"] .dots { display: inline-flex; gap: 1px; }
+.dots span { display: inline-block; animation: rba-pulse 1.2s ease-in-out infinite; }
+.dots span:nth-child(2) { animation-delay: .2s; }
+.dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes rba-pulse { 0%, 80%, 100% { transform: translateY(0); opacity: .35; } 40% { transform: translateY(-3px); opacity: 1; } }
+@keyframes rba-fade { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .dots span, .dots span:nth-child(n) { animation: rba-fade 2.4s ease-in-out infinite; animation-delay: 0s; }
+}
+.unit { color: #d1d5db; font-size: 11px; letter-spacing: .06em; }
+/* The state reads as a caption under the tempo, not a second value beside it (David, 2026-10-30). */
+.stack { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.hint { display: inline-flex; align-items: center; gap: 4px; color: #9ca3af; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .14em; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; }
+.hint[data-stability="silent"] .dot { background: #f87171; }
+.hint[data-stability="settling"] .dot { background: #fbbf24; }
+.hint[data-stability="stable"] .dot { background: #4ade80; }
+.hint[data-level="low"] .dot { opacity: .55; }
+/* The playback-rate note: numbers, so neither uppercased nor as widely spaced as the label. */
+.rate { margin-left: 4px; text-transform: none; letter-spacing: .04em; color: #d1d5db; }
+.rate:empty { display: none; }
+/* The animated dots already say "listening"; a label beside them is noise (David, 2026-10-30). */
+.hint[data-stability="listening"] { display: none; }
+button { all: unset; box-sizing: border-box; width: 24px; height: 24px; border-radius: 50%; display: grid;
+  place-items: center; cursor: pointer; color: #e5e7eb; font-size: 16px; line-height: 1; }
+button:hover { background: rgb(255 255 255 / .14); }
+button:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+button.handle { display: none; width: 10px; height: 18px; cursor: grab; border-radius: 4px;
+  background: radial-gradient(circle, #9ca3af 1.2px, transparent 1.6px) 0 0 / 5px 5px; }
+:host([data-mode="floating"]) button.handle { display: block; }
+/* Progress toward the first tempo, full once one exists. Inset by the pill's corner radius so
+   the rounded ends don't clip it, and kept clear of the 24px buttons. The colour follows the
+   confidence band, like the dot; no opacity encoding (RBA-36 design comment, 2026-10-30). */
+.progress { position: absolute; left: 12px; right: 12px; bottom: 2px; height: 2px; border-radius: 1px;
+  background: rgb(255 255 255 / .12); overflow: hidden; pointer-events: none; }
+/* The caption under the tempo needs the 9px bottom padding of .pill to stay clear of this line. */
+.fill { display: block; width: 100%; height: 100%; background: #9ca3af; transform: scaleX(var(--progress, 0)); transform-origin: left;
+  transition: transform .25s ease-out, background-color .25s ease-out; }
+.progress[data-level="medium"] .fill { background: #fbbf24; }
+.progress[data-level="high"] .fill { background: #4ade80; }
+@media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+`;
+
+const TEMPLATE = `
+<div class="pill" role="group" aria-label="Realtime BPM Analyzer">
+  <button type="button" class="handle" aria-label="Move the BPM display with the arrow keys. Press Enter to put it back in the corner."></button>
+  <span class="stack"><span class="reading"><span class="value" data-state="listening"><span class="num">–</span><span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span> <span class="unit">BPM</span></span>
+  <span class="hint" data-stability="listening" data-level="low"><span class="dot"></span><span class="label">listening</span><span class="rate" aria-hidden="true"></span><span class="sr rate-help"></span></span></span>
+  <span class="sr live" aria-live="polite" aria-atomic="true"></span>
+  <button type="button" class="close" aria-label="Stop the BPM analysis">✕</button>
+  <span class="progress" aria-hidden="true" data-level="low"><span class="fill"></span></span>
+</div>`;
+
+const LABELS: Readonly<Record<Stability, string>> = {listening: 'listening', silent: 'no audio', settling: 'settling', stable: 'stable'};

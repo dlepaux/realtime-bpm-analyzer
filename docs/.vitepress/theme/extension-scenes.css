@@ -1,0 +1,378 @@
+/* The extension's demo (RBA-58): the frame, the first page and the overlay. This much is the still
+   that every visitor gets, so it stays small. The later pages' styles load with the player. Sizes
+   are in --u, one unit of the 520-wide stage, because a container unit keeps text and vector edges
+   sharp at any size where scaling with a transform would blur them. */
+
+.ext-scenes { margin: 0; }
+
+.ext-scenes-box {
+  container-type: inline-size;
+  aspect-ratio: 520 / 343;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--sc-page);
+  box-shadow:
+    0 0 0 1px var(--vp-c-divider),
+    0 22px 48px -30px rgb(40 30 90 / 0.55);
+  --sc-page: #fff;
+  --sc-chrome: #eceef3;
+  --sc-tab: #fff;
+  --sc-ink: #17181c;
+  --sc-ink-2: #5d6067;
+  --sc-sk: rgb(23 24 28 / 0.09);
+  --sc-sk-2: rgb(23 24 28 / 0.16);
+  --sc-solid: #17181c;
+  --sc-solid-ink: #fff;
+}
+
+.dark .ext-scenes-box {
+  --sc-page: #101014;
+  --sc-chrome: #1d1e24;
+  --sc-tab: #101014;
+  --sc-ink: #f3f3f5;
+  --sc-ink-2: #a2a4ab;
+  --sc-sk: rgb(255 255 255 / 0.09);
+  --sc-sk-2: rgb(255 255 255 / 0.17);
+  --sc-solid: #f3f3f5;
+  --sc-solid-ink: #101014;
+  box-shadow:
+    0 0 0 1px #2e2e36,
+    0 22px 48px -28px rgb(120 60 220 / 0.5);
+}
+
+.ext-scenes-canvas {
+  --u: calc(100cqw / 520);
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  contain: layout paint;
+  color: var(--sc-ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: calc(9 * var(--u));
+  line-height: 1.25;
+}
+
+.ext-scenes-canvas *,
+.ext-scenes-canvas *::before { box-sizing: border-box; }
+.ext-scenes-canvas i,
+.ext-scenes-canvas u,
+.ext-scenes-canvas b { display: block; font-style: normal; text-decoration: none; }
+.ext-scenes-canvas svg { display: block; }
+
+/* The promotion's layers exist only while it plays, so a resting page holds no extra memory. */
+.is-live .ext-scene,
+.is-live .vid-fan,
+.is-live .vid-fans,
+.is-live .vid-sun,
+.is-live .vid-halo,
+.is-live .vid-ring,
+.is-live .vid-crowd { will-change: transform, opacity; }
+
+/* ── Browser frame ─────────────────────────────────────────────────── */
+
+.ext-browser { position: absolute; inset: 0 0 auto; height: calc(48 * var(--u)); background: var(--sc-chrome); }
+
+.ext-tabs { position: relative; display: flex; height: calc(26 * var(--u)); padding: calc(3 * var(--u)) calc(10 * var(--u)) 0; }
+
+.ext-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--u));
+  width: calc(106 * var(--u));
+  height: calc(23 * var(--u));
+  padding: 0 calc(10 * var(--u));
+  color: var(--sc-ink-2);
+}
+
+.ext-tab i { flex: none; width: calc(8 * var(--u)); height: calc(8 * var(--u)); border-radius: 50%; }
+.ext-tab[data-scene='video'] i { background: linear-gradient(135deg, #ff4fa3, #6a3cff); }
+.ext-tab[data-scene='music'] i { background: linear-gradient(135deg, #ffb45e, #ff5d8f); }
+.ext-tab[data-scene='waveform'] i { background: linear-gradient(135deg, #2bd4c5, #ff7a59); }
+.ext-tab b { flex: 1; min-width: 0; overflow: hidden; font-size: calc(7.5 * var(--u)); font-weight: 500; white-space: nowrap; }
+
+.ext-tab-active {
+  position: absolute;
+  bottom: 0;
+  left: calc(10 * var(--u));
+  width: calc(106 * var(--u));
+  height: calc(23 * var(--u));
+  border-radius: calc(8 * var(--u)) calc(8 * var(--u)) 0 0;
+  background: var(--sc-tab);
+}
+
+.ext-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  height: calc(22 * var(--u));
+  padding: 0 calc(10 * var(--u));
+  background: var(--sc-tab);
+  border-bottom: calc(0.5 * var(--u)) solid var(--sc-sk);
+  color: var(--sc-ink-2);
+}
+
+.ext-browser-address { position: relative; flex: 1; height: calc(15 * var(--u)); border-radius: calc(8 * var(--u)); background: var(--sc-sk); }
+.ext-url { position: absolute; inset: 0 calc(10 * var(--u)); display: flex; align-items: center; font-size: calc(7.5 * var(--u)); white-space: nowrap; opacity: 0; }
+.ext-url[data-scene='video'] { opacity: 1; }
+
+.ext-browser-action { display: grid; place-items: center; width: calc(17 * var(--u)); height: calc(17 * var(--u)); border-radius: 50%; background: var(--sc-sk); }
+.ext-browser-action img { display: block; width: calc(12 * var(--u)); height: calc(12 * var(--u)); }
+
+.ext-icon { flex: none; width: calc(10 * var(--u)); height: calc(10 * var(--u)); fill: currentColor; }
+
+.ext-scene-area { position: absolute; inset: calc(48 * var(--u)) 0 0; overflow: hidden; background: var(--sc-page); }
+.ext-scene { position: absolute; inset: 0; background: var(--sc-page); }
+.ext-scene-later { opacity: 0; }
+.ext-scene small { display: block; color: var(--sc-ink-2); font-size: calc(7 * var(--u)); white-space: nowrap; }
+
+/* Page furniture, drawn to say "a page" without copying anyone's. */
+.sk-avatar { flex: none; width: calc(15 * var(--u)); height: calc(15 * var(--u)); border-radius: 50%; background: linear-gradient(135deg, #8a8d96, #c7c9cf); }
+.sk-face { flex: none; width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: 50%; background: linear-gradient(135deg, #7c5cff, #ff5fb4); }
+.ext-chip { flex: none; padding: calc(3.5 * var(--u)) calc(9 * var(--u)); border-radius: calc(9 * var(--u)); background: var(--sc-sk); font-size: calc(7.5 * var(--u)); font-weight: 550; }
+.ext-chip-solid { background: var(--sc-solid); color: var(--sc-solid-ink); }
+
+/* ── The video page ────────────────────────────────────────────────── */
+
+.vid-mast { display: flex; align-items: center; gap: calc(9 * var(--u)); height: calc(26 * var(--u)); padding: 0 calc(12 * var(--u)); }
+
+.vid-mark { flex: none; width: calc(22 * var(--u)); height: calc(12 * var(--u)); border-radius: calc(4 * var(--u)); background: linear-gradient(135deg, #ff4fa3, #6a3cff); }
+.vid-search { flex: 1; display: flex; align-items: center; justify-content: space-between; height: calc(15 * var(--u)); padding: 0 calc(8 * var(--u)); border-radius: calc(8 * var(--u)); background: var(--sc-sk); color: var(--sc-ink-2); font-size: calc(7.5 * var(--u)); }
+
+.vid-main {
+  display: grid;
+  grid-template-columns: calc(360 * var(--u)) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  column-gap: calc(10 * var(--u));
+  padding: 0 calc(12 * var(--u));
+}
+
+.vid-player {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: calc(8 * var(--u));
+  background: #06031a;
+  isolation: isolate;
+}
+
+.vid-player > i,
+.vid-fans,
+.vid-crowd { position: absolute; }
+
+.vid-sky {
+  inset: 0;
+  background:
+    radial-gradient(70% 55% at 50% 118%, #ff4fa3 0, rgb(255 79 163 / 0) 100%),
+    linear-gradient(180deg, #05021a 0%, #150a45 52%, #481376 100%);
+}
+
+/* Stage light: two fans of soft beams that cross, from sources just above the frame. A conic
+   gradient has soft edges for free, so no filter has to run while they sway. */
+.vid-fans { inset: 0; mix-blend-mode: screen; }
+
+.vid-fan {
+  position: absolute;
+  width: calc(860 * var(--u));
+  height: calc(860 * var(--u));
+  top: calc(-452 * var(--u));
+  border-radius: 50%;
+}
+
+.vid-fan-l {
+  left: calc(-372 * var(--u));
+  background: conic-gradient(
+    from 118deg,
+    rgb(39 225 255 / 0) 0deg, rgb(39 225 255 / 0.85) 5deg, rgb(39 225 255 / 0) 11deg,
+    rgb(39 225 255 / 0) 19deg, rgb(120 150 255 / 0.75) 24deg, rgb(120 150 255 / 0) 30deg,
+    rgb(120 150 255 / 0) 39deg, rgb(39 225 255 / 0.7) 44deg, rgb(39 225 255 / 0) 50deg,
+    rgb(39 225 255 / 0) 60deg, rgb(120 150 255 / 0.6) 65deg, rgb(120 150 255 / 0) 71deg,
+    rgb(39 225 255 / 0) 360deg
+  );
+}
+
+.vid-fan-r {
+  right: calc(-372 * var(--u));
+  background: conic-gradient(
+    from 168deg,
+    rgb(255 64 170 / 0) 0deg, rgb(255 64 170 / 0.6) 6deg, rgb(255 64 170 / 0) 12deg,
+    rgb(255 64 170 / 0) 21deg, rgb(255 120 90 / 0.7) 26deg, rgb(255 120 90 / 0) 32deg,
+    rgb(255 120 90 / 0) 41deg, rgb(255 64 170 / 0.85) 46deg, rgb(255 64 170 / 0) 52deg,
+    rgb(255 64 170 / 0) 62deg, rgb(255 180 94 / 0.7) 67deg, rgb(255 180 94 / 0) 73deg,
+    rgb(255 64 170 / 0) 360deg
+  );
+}
+
+/* Light falls off with distance, without a mask to recomposite: the floor is simply darker. */
+.vid-haze { inset: 0; background: linear-gradient(180deg, rgb(5 2 26 / 0) 36%, rgb(10 3 34 / 0.72) 100%); }
+
+.vid-halo {
+  left: 50%;
+  top: 50%;
+  width: 92%;
+  aspect-ratio: 1;
+  margin: -46% 0 0 -46%;
+  border-radius: 50%;
+  opacity: 0.8;
+  background: radial-gradient(closest-side, rgb(255 95 180 / 0.85), rgb(138 60 255 / 0.32) 48%, rgb(138 60 255 / 0));
+}
+
+.vid-sun {
+  left: 50%;
+  top: 50%;
+  width: 22%;
+  aspect-ratio: 1;
+  margin: -11% 0 0 -11%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #fff 0, #fff 38%, #ffe0f1 50%, #ff74bd 74%, rgb(255 80 170 / 0) 100%);
+}
+
+.vid-ring {
+  left: 50%;
+  top: 50%;
+  width: 60%;
+  aspect-ratio: 1;
+  margin: -30% 0 0 -30%;
+  border-radius: 50%;
+  opacity: 0.5;
+  background: radial-gradient(closest-side, rgb(255 170 240 / 0) 66%, rgb(255 205 245 / 0.8) 88%, rgb(255 170 240 / 0) 100%);
+}
+
+.vid-ring-1 { transform: scale(0.92); }
+.vid-ring-2 { transform: scale(1.28); opacity: 0.3; }
+
+.vid-crowd { left: -2%; width: 104%; height: auto; paint-order: stroke; stroke-linejoin: round; }
+.vid-crowd-a { bottom: 22%; aspect-ratio: 440 / 70; fill: #2a1160; stroke: rgb(255 120 220 / 0.6); stroke-width: 1.3; }
+.vid-crowd-b { bottom: 4%; aspect-ratio: 300 / 70; fill: #07031d; stroke: rgb(120 200 255 / 0.55); stroke-width: 1; }
+
+/* As on any player, the controls sit on a shade of their own, clear of the picture. */
+.vid-controls {
+  position: absolute;
+  inset: auto 0 0;
+  padding: calc(14 * var(--u)) calc(10 * var(--u)) calc(5 * var(--u));
+  background: linear-gradient(180deg, rgb(3 1 16 / 0), rgb(3 1 16 / 0.92) 40%);
+  color: #fff;
+}
+
+.vid-scrub { height: calc(2.5 * var(--u)); border-radius: calc(2 * var(--u)); background: rgb(255 255 255 / 0.3); }
+.vid-scrub b { width: 38%; height: 100%; border-radius: inherit; background: #ff4fa3; }
+
+.vid-buttons { display: flex; align-items: center; gap: calc(8 * var(--u)); margin-top: calc(4 * var(--u)); }
+.vid-time { font-size: calc(7 * var(--u)); color: rgb(255 255 255 / 0.85); }
+.vid-expand { margin-left: auto; }
+
+.vid-below { grid-column: 1; padding-top: calc(7 * var(--u)); }
+.vid-title { display: block; font-size: calc(12 * var(--u)); font-weight: 650; letter-spacing: -0.01em; }
+.vid-channel { display: flex; align-items: center; gap: calc(7 * var(--u)); margin-top: calc(6 * var(--u)); }
+.vid-channel-name { flex: 1; display: grid; gap: calc(1 * var(--u)); }
+.vid-channel-name b { font-size: calc(9 * var(--u)); font-weight: 600; }
+
+.vid-side { grid-column: 2; grid-row: 1 / span 2; display: grid; align-content: start; gap: calc(7 * var(--u)); }
+.vid-card { display: grid; grid-template-columns: calc(62 * var(--u)) minmax(0, 1fr); gap: calc(6 * var(--u)); align-items: start; }
+.vid-card > span { display: grid; gap: calc(2 * var(--u)); min-width: 0; }
+.vid-card b { font-size: calc(7.5 * var(--u)); font-weight: 600; line-height: 1.2; }
+.vid-card small { overflow: hidden; }
+.vid-thumb { aspect-ratio: 16 / 9; border-radius: calc(4 * var(--u)); }
+.vid-thumb[data-n='1'] { background: radial-gradient(circle at 70% 30%, #ffb45e, #d43d7c 55%, #351062); }
+.vid-thumb[data-n='2'] { background: linear-gradient(135deg, #15395e, #2bd4c5); }
+.vid-thumb[data-n='3'] { background: radial-gradient(circle at 25% 80%, #ffe08a, #ef6b4a 50%, #4a1a3f); }
+.vid-thumb[data-n='4'] { background: linear-gradient(200deg, #5b4bff, #1a1250); }
+.vid-thumb[data-n='5'] { background: radial-gradient(circle at 50% 50%, #9ef0d0, #2a6f8f 60%, #0d2438); }
+
+/* ── The overlay ───────────────────────────────────────────────────────
+   Declared from rba-pro's extension/src/overlay/view.ts with px written as units, in the same
+   selectors and states. extension-scenes.test.ts reads this block against a snapshot of that file. */
+
+.ext-sw-pos { position: absolute; inset: 0; pointer-events: none; }
+.ext-sw { position: absolute; top: 0; right: 0; }
+
+/* overlay:start */
+.ext-sw .pill { position: relative; display: inline-flex; align-items: center; gap: calc(8 * var(--u)); padding: calc(5 * var(--u)) calc(6 * var(--u)) calc(9 * var(--u)) calc(12 * var(--u)); border-radius: 999px;
+  background: rgb(17 24 39 / .92); color: #f9fafb; font: 600 calc(14 * var(--u))/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-shadow: 0 calc(2 * var(--u)) calc(8 * var(--u)) rgb(0 0 0 / .35); white-space: nowrap; user-select: none; }
+.ext-sw .value { display: inline-block; font-variant-numeric: tabular-nums; font-size: calc(16 * var(--u)); min-width: 3ch; text-align: right; }
+.ext-sw .unit { color: #d1d5db; font-size: calc(11 * var(--u)); letter-spacing: .06em; }
+.ext-sw .stack { display: inline-flex; flex-direction: column; align-items: flex-start; gap: calc(2 * var(--u)); }
+.ext-sw .hint { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); color: #9ca3af; font-size: calc(10 * var(--u)); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .14em; }
+.ext-sw .dot { width: calc(6 * var(--u)); height: calc(6 * var(--u)); border-radius: 50%; background: #9ca3af; }
+.ext-sw .hint[data-stability="settling"] .dot { background: #fbbf24; }
+.ext-sw .hint[data-stability="stable"] .dot { background: #4ade80; }
+.ext-sw .close { box-sizing: border-box; width: calc(24 * var(--u)); height: calc(24 * var(--u)); border-radius: 50%; display: grid;
+  place-items: center; color: #e5e7eb; font-size: calc(16 * var(--u)); line-height: 1; }
+.ext-sw .progress { position: absolute; left: calc(12 * var(--u)); right: calc(12 * var(--u)); bottom: calc(2 * var(--u)); height: calc(2 * var(--u)); border-radius: calc(1 * var(--u));
+  background: rgb(255 255 255 / .12); overflow: hidden; pointer-events: none; }
+.ext-sw .fill { display: block; width: 100%; height: 100%; background: #9ca3af; }
+.ext-sw .progress[data-level="medium"] .fill { background: #fbbf24; }
+.ext-sw .progress[data-level="high"] .fill { background: #4ade80; }
+/* overlay:end */
+
+/* What the real overlay does by reflowing, done with layers. At rest they change nothing. */
+.ext-sw .stack { position: relative; z-index: 1; }
+.ext-sw .reading { display: inline-block; }
+.ext-sw .value { display: inline-grid; justify-items: end; }
+.ext-sw .value > * { grid-area: 1 / 1; }
+.ext-sw .num[data-shown='false'] { opacity: 0; }
+.ext-sw .dots { display: inline-flex; gap: calc(1 * var(--u)); opacity: 0; }
+.ext-sw .dots span { display: inline-block; }
+.ext-hint-layer { position: absolute; top: calc(18 * var(--u)); left: 0; opacity: 0; }
+.ext-sw .close { position: relative; z-index: 1; }
+.ext-sw .progress { z-index: 1; transform-origin: right; }
+.ext-fill-track { display: block; position: relative; width: 100%; height: 100%; transform-origin: left; }
+.ext-fill-layer { position: absolute; inset: 0; opacity: 0; }
+.ext-fill-layer[data-level='low'] { background: #9ca3af; }
+.ext-fill-layer[data-level='medium'] { background: #fbbf24; }
+
+/* Two caps that overlap in one group, so the group's opacity reads as one pill at any width. */
+.ext-pill-shell { display: none; position: absolute; inset: 0; opacity: 0.92; transform-origin: top; filter: drop-shadow(0 calc(2 * var(--u)) calc(4 * var(--u)) rgb(0 0 0 / 0.35)); }
+.ext-pill-shell i { position: absolute; inset: 0; border-radius: 999px; background: rgb(17 24 39); }
+.is-live .ext-pill-shell { display: block; }
+.is-live .ext-sw .pill { background: none; box-shadow: none; }
+
+/* ── The figure's words and its control ────────────────────────────── */
+
+.ext-scenes-caption { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.25rem 1rem; }
+.ext-scenes-caption > span { flex: 1 1 16rem; }
+.ext-scenes-caption > span > span { display: block; }
+
+/* Only what plays is sped up, so the words follow the same test that decides who gets motion. */
+.ext-scenes-caption .ext-scenes-sped { display: none; }
+
+@media (min-width: 720px) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .ext-scenes-caption .ext-scenes-sped { display: inline; }
+}
+
+/* It holds its place from the first paint, so nothing moves when it appears. */
+.ext-scenes-control {
+  flex: none;
+  min-height: 44px;
+  min-width: 4.5rem;
+  margin-top: -0.65rem;
+  padding: 0 0.5rem;
+  color: var(--vp-c-brand-1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: right;
+  cursor: pointer;
+}
+
+.ext-scenes[data-status='still'] .ext-scenes-control { visibility: hidden; }
+.ext-scenes-control:focus-visible { outline: 2px solid var(--vp-c-brand-1); outline-offset: 2px; border-radius: 4px; }
+
+/* ── A phone: the still, drawn for its width ──────────────────────── */
+
+@media (max-width: 719px) {
+  .ext-scenes-box { aspect-ratio: 340 / 276; }
+  .ext-scenes-canvas { --u: calc(100cqw / 340); }
+  .ext-browser { display: none; }
+  .ext-scene-area { inset: 0; }
+  .vid-mast { gap: calc(20 * var(--u)); padding-inline: calc(10 * var(--u)); }
+  .vid-main { display: block; padding: 0; }
+  .vid-player { border-radius: 0; }
+  .vid-side { display: none; }
+  .vid-below { padding: calc(6 * var(--u)) calc(10 * var(--u)) 0; }
+  /* Same 12 px inset from the player's corner as on a computer, just below the masthead. */
+  .ext-sw-pos { transform: translate(-3.529%, 13.768%) !important; }
+  .ext-scenes-control { display: none; }
+}

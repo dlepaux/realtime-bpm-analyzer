@@ -198,7 +198,8 @@ export function createEngine(engine: ResolvedEngine, tempoRange: TempoRange, deb
         pulse: candidates.length > 0,
         lockOffered: reading?.isStable ?? false,
         progress: detector.progress(),
-        debug: debug && reading ? {candidates, stable: reading.isStable} : undefined,
+        // frameTempo and leads let the benchmark replay the stable rule for other lock bands (RBA-106)
+        debug: debug && reading ? {candidates, stable: reading.isStable, frameTempo: reading.frameTempo, leads: reading.leads} : undefined,
       };
     },
     restart: () => {

@@ -122,6 +122,10 @@ export type TempogramReading = {
   readonly isStable: boolean;
   /** The reading has just become stable, or the stable tempo has just changed */
   readonly isNewlyStable: boolean;
+  /** This frame's own best tempo, from its salience alone, 0 when none stands out: what the stable rule's agreement counts */
+  readonly frameTempo: number;
+  /** The top candidate is salient enough and leads its rival: the stable rule less its agreement over time */
+  readonly leads: boolean;
 };
 
 export type TempogramDetector = {
@@ -546,22 +550,23 @@ export function createTempogramDetector({
       tempogramFrames += 1;
       stableTempo = 0;
 
-      return {candidates: [], isStable: false, isNewlyStable: false};
+      return {candidates: [], isStable: false, isNewlyStable: false, frameTempo: 0, leads: false};
     }
 
     const frameBest = bestOf(salience);
 
-    frameTempos[tempogramFrames % agreementFrames] = frameBest < 0 ? 0 : grid.tempos[frameBest];
+    const frameTempo = frameBest < 0 ? 0 : grid.tempos[frameBest];
+    frameTempos[tempogramFrames % agreementFrames] = frameTempo;
     tempogramFrames += 1;
     accumulate();
 
     const candidates = collectCandidates();
     const top = candidates[0];
     const rival = candidates[1];
-    const isStable = top !== undefined
+    const leads = top !== undefined
       && top.confidence >= tuning.stableSalience
-      && (rival === undefined || top.count >= tuning.stableMargin * rival.count)
-      && agreesOverTime(top.tempo);
+      && (rival === undefined || top.count >= tuning.stableMargin * rival.count);
+    const isStable = leads && agreesOverTime(top.tempo);
     const isSameTempo = isStable && Math.abs(top.tempo - stableTempo) <= tuning.stableTolerance * top.tempo;
     const isNewlyStable = isStable && !isSameTempo;
 
@@ -569,7 +574,7 @@ export function createTempogramDetector({
       stableTempo = top.tempo;
     }
 
-    return {candidates, isStable, isNewlyStable};
+    return {candidates, isStable, isNewlyStable, frameTempo, leads};
   }
 
   function process(samples: Float32Array): TempogramReading | null {

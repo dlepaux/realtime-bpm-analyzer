@@ -101,8 +101,13 @@ function installProblems(site: BuiltSite, storeUrl: string, edgeUrl: string | nu
     if (!buttons.some((href) => isListingLink(href, listing))) problems.push(`on: ${PAGE} has no install button for ${listing}`)
   }
   if (EMPTY_LINK.test(page)) problems.push(`on: ${PAGE} has an empty link`)
-  if (![...site.read('extension/goodbye.html').matchAll(/<a href="([^"]*)">Reinstall the extension/g)].some(([, href = '']) => href.startsWith(storeUrl) && isListingLink(href, storeUrl))) {
-    problems.push('on: goodbye has no reinstall link to the listing')
+  const goodbye = site.read('extension/goodbye.html')
+  if (!goodbye.includes('Reinstall the extension')) problems.push('on: goodbye offers no reinstall')
+  const goodbyeLinks = [...goodbye.matchAll(/<a\b[^>]*\bhref="([^"]*)"/g)].map(([, href = '']) => href)
+  for (const listing of listings) {
+    if (!goodbyeLinks.some((href) => href.startsWith(listing) && isListingLink(href, listing))) {
+      problems.push(`on: goodbye has no reinstall link to ${listing}`)
+    }
   }
   return problems
 }
@@ -121,13 +126,28 @@ function demoProblems(site: BuiltSite): string[] {
   return problems
 }
 
-function seoProblems(site: BuiltSite, storeUrl: string): string[] {
+// The structured data's installUrl: one listing as a string, several as an array (RBA-58,
+// Edge beside Chrome). Anything unreadable counts as no listing.
+function schemaInstallUrls(page: string): string[] {
+  const raw = /"installUrl":("[^"]*"|\[[^\]]*\])/.exec(page)?.[1]
+  if (raw === undefined) return []
+  try {
+    const value: unknown = JSON.parse(raw)
+    const urls = Array.isArray(value) ? value : [value]
+    return urls.filter((url): url is string => typeof url === 'string')
+  } catch {
+    return []
+  }
+}
+
+function seoProblems(site: BuiltSite, storeUrl: string, edgeUrl: string | null): string[] {
   const problems: string[] = []
   const page = site.read(PAGE)
   if (!/<title>[^<]*Live BPM Detector/.test(page)) problems.push('on: the title does not name the extension')
   if (!page.includes(`<link rel="canonical" href="${SITE}/extension/"`)) problems.push('on: wrong canonical')
   if (page.includes('noindex')) problems.push('on: the page is noindex')
-  if (!page.includes('"@type":"SoftwareApplication"') || !page.includes(`"installUrl":"${storeUrl}"`)) {
+  const installUrls = schemaInstallUrls(page)
+  if (!page.includes('"@type":"SoftwareApplication"') || !listingUrls(storeUrl, edgeUrl).every((url) => installUrls.includes(url))) {
     problems.push('on: no SoftwareApplication structured data with the listing')
   }
   if (!page.includes('"price":"0"')) problems.push('on: the structured data does not say it is free')
@@ -190,7 +210,7 @@ export function switchProblems(site: BuiltSite, storeUrl: string | null, edgeUrl
   return [
     ...installProblems(site, storeUrl, edgeUrl),
     ...demoProblems(site),
-    ...seoProblems(site, storeUrl),
+    ...seoProblems(site, storeUrl, edgeUrl),
     ...shareProblems(site),
     ...placementProblems(site),
   ]

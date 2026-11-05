@@ -80,4 +80,4 @@ linked to your name.
 The site is run by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 3 November 2026._
+_Last updated: 5 November 2026._

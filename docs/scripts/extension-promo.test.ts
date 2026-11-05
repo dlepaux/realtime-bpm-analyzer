@@ -121,6 +121,11 @@ test('Edge joins as a second target, after Chrome, with its own tagged listing l
   assert.deepEqual(listingUrls(LISTING, EDGE_LISTING), [LISTING, EDGE_LISTING])
 })
 
+test('installTargets tags every store link with the place it sits, so goodbye reinstalls are told apart', () => {
+  const targets = installTargets(LISTING, EDGE_LISTING, 'goodbye')
+  assert.deepEqual(targets.map((target) => target.href), [storeLink(LISTING, 'goodbye'), storeLink(EDGE_LISTING, 'goodbye')])
+})
+
 test('installRequirement: one line naming every browser and the extension\'s minimum', () => {
   assert.equal(installRequirement(installTargets(LISTING)), 'Free. For Chrome 150 or later, on a computer.')
   assert.equal(installRequirement(installTargets(LISTING, EDGE_LISTING)), 'Free. For Chrome or Edge 150 or later, on a computer.')

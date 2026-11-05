@@ -83,20 +83,24 @@ export const MINIMUM_BROWSER_VERSION = 150
  * nothing to render and no way to show a dead link. Chrome is the switch: Edge joins
  * only beside it, because without Chrome's listing there is no page to show it on.
  */
-export function installTargets(storeUrl: string | null, edgeUrl: string | null = null): readonly InstallTarget[] {
+export function installTargets(
+  storeUrl: string | null,
+  edgeUrl: string | null = null,
+  placement: ExtensionPlacement = 'extension_page',
+): readonly InstallTarget[] {
   if (storeUrl === null) return []
   const chrome: InstallTarget = {
     browser: 'Chrome',
     store: 'Chrome Web Store',
     label: 'Add to Chrome',
-    href: storeLink(storeUrl, 'extension_page'),
+    href: storeLink(storeUrl, placement),
   }
   if (edgeUrl === null) return [chrome]
   return [chrome, {
     browser: 'Edge',
     store: 'Edge Add-ons',
     label: 'Add to Edge',
-    href: storeLink(edgeUrl, 'extension_page'),
+    href: storeLink(edgeUrl, placement),
   }]
 }
 

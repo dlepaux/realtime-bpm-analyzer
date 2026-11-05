@@ -132,9 +132,14 @@ test('switchProblems on: store links may carry the site\'s label, and nothing el
 })
 
 test('switchProblems on with Edge: its button must be there and point at its listing', () => {
-  const page = ON['extension/index.html'] ?? ''
-  const withEdge = { ...ON, 'extension/index.html': `${page} ${EDGE_BUTTON}` }
+  // The real Edge build: installUrl becomes an array, and goodbye links to both stores.
+  const page = (ON['extension/index.html'] ?? '').replace(`"installUrl":"${STORE}"`, `"installUrl":["${STORE}","${EDGE}"]`)
+  const goodbye = `<p>Reinstall the extension any time from the <a href="${STORE}">Chrome Web Store</a> or the <a href="${EDGE}">Edge Add-ons</a>.</p>`
+  const withEdge = { ...ON, 'extension/index.html': `${page} ${EDGE_BUTTON}`, 'extension/goodbye.html': goodbye }
   assert.deepEqual(switchProblems(site(withEdge), STORE, EDGE), [])
+  assert.notDeepEqual(switchProblems(site({ ...withEdge, 'extension/index.html': `${ON['extension/index.html'] ?? ''} ${EDGE_BUTTON}` }), STORE, EDGE), [], 'schema without Edge')
+  assert.notDeepEqual(switchProblems(site({ ...withEdge, 'extension/goodbye.html': ON['extension/goodbye.html'] ?? '' }), STORE, EDGE), [], 'no Edge reinstall link')
+  assert.notDeepEqual(switchProblems(site({ ...withEdge, 'extension/index.html': `${page.replace('"installUrl":[', '"installUrl":[x')} ${EDGE_BUTTON}` }), STORE, EDGE), [], 'unreadable installUrl')
   assert.notDeepEqual(switchProblems(site(ON), STORE, EDGE), [], 'no Edge button')
   assert.notDeepEqual(switchProblems(site(withEdge), STORE), [], 'an Edge link the build was not given')
   const other = EDGE_BUTTON.replace('c'.repeat(32), 'e'.repeat(32))

@@ -381,6 +381,13 @@
 /* The tool's card sets its own width; in a door it takes the door's. */
 .ext-doors .ext-door .bpm-hero-tool { width: 100%; max-width: none; margin: 0; }
 
+/* A phone can't install the extension, and half of search visits come from phones (RBA-58):
+   there the band is a heading, a line and a link to the page, and the drawn demo stays on
+   /extension/, so the band adds only a few lines under the tool. */
+@media (max-width: 719px) {
+  .ext-band .ext-scenes { display: none; }
+}
+
 .ext-home .VPHero .image-container { width: 100%; height: auto; max-width: none; transform: none; }
 .ext-home .VPHero .image { width: 100%; margin: 0; }
 

@@ -14,7 +14,7 @@ const { track } = useAnalytics()
   <section class="ext-door ext-band">
     <h2>Playing on YouTube or SoundCloud?</h2>
     <p class="ext-door-line">
-      A free extension for Chrome and Edge shows the live BPM right on the page, on YouTube, SoundCloud and more.
+      A free extension for Chrome and Edge on a computer shows the live BPM right on the page you are playing.
       Your audio never leaves your device.
     </p>
     <a

@@ -71,9 +71,10 @@ const LEAD: Partial<Record<VisitorBrowser, StoreId>> = { edge: 'edge' }
 // renders Chrome filled, which fades out after hydration (extension.css) without moving anything.
 const NOTHING_FILLED: ReadonlySet<VisitorBrowser> = new Set(['firefox', 'safari'])
 
-const CONTEXT: Partial<Record<VisitorBrowser, string>> = {
-  firefox: 'A Firefox version is on its way.',
-  safari: 'Works in Chrome and Edge on a computer.',
+// Built from the listed browsers, so a build without an Edge listing never names Edge.
+const CONTEXT: Partial<Record<VisitorBrowser, (browsers: string) => string>> = {
+  firefox: () => 'A Firefox version is on its way.',
+  safari: (browsers) => `Works in ${browsers} on a computer.`,
 }
 
 function button(target: InstallTarget, primary: boolean, browser: VisitorBrowser): InstallButton {
@@ -95,6 +96,6 @@ export function installOffer(targets: readonly InstallTarget[], browser: Visitor
   const filled = !NOTHING_FILLED.has(browser)
   return {
     buttons: ordered.map((target, index) => button(target, filled && index === 0, browser)),
-    context: CONTEXT[browser] ?? null,
+    context: CONTEXT[browser]?.(targets.map((target) => target.browser).join(' and ')) ?? null,
   }
 }

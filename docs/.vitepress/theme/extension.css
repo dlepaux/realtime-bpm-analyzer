@@ -373,7 +373,7 @@
 
 .ext-install a.ext-install-btn:hover { border-color: var(--vp-c-brand-1); background: var(--vp-c-brand-soft); }
 .ext-install-title { font-size: 1.0625rem; font-weight: 650; line-height: 1.25; letter-spacing: -0.01em; }
-.ext-install-sub { color: var(--vp-c-text-2); font-size: 0.75rem; font-weight: 500; line-height: 1.3; }
+.ext-install-sub { color: var(--vp-c-text-2); font-size: 0.75rem; font-weight: 500; line-height: 1.3; transition: color 0.2s ease; }
 .ext-install-btn.is-primary .ext-install-sub { color: #fff; }
 
 :is(.ext-band, .ext-install) a:is(.ext-cta, .ext-install-btn):focus-visible {

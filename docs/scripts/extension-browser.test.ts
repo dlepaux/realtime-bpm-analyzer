@@ -103,6 +103,7 @@ test('installOffer without an Edge listing offers Chrome to everyone, Edge inclu
   const chromeOnly = installTargets(LISTING, null, 'extension_hero')
   assert.deepEqual(installOffer(chromeOnly, 'edge').buttons.map((b) => [b.id, b.primary]), [['chrome', true]])
   assert.deepEqual(installOffer([], 'chrome').buttons, [])
+  assert.equal(installOffer(chromeOnly, 'safari').context, 'Works in Chrome on a computer.', 'never names a browser with no listing')
 })
 
 test('readSignals takes the brand names where the browser has them, and nothing else', () => {

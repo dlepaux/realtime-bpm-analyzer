@@ -12,7 +12,7 @@ npx realtime-bpm-analyzer-cli song.mp3
 ```
 
 ```text
-song.mp3: 128 BPM (tempogram, confidence 0.46)
+song.mp3: 128 BPM (tempogram, confidence 0.87)
   candidates: 128, 171, 96
 ```
 

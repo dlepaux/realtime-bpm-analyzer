@@ -108,9 +108,11 @@ describe('Node entry parity with Web Audio', () => {
 
   describe('analyzeChannelData', () => {
     it('returns the candidates analyzeFullBuffer returns for the bass-test fixture', async () => {
+      // Peaks: only its path goes through the two lowpass implementations this compares
+      const options = {engine: 'peaks'} as const;
       const buffer = await loadFixture();
-      const browser = await analyzeFullBuffer(buffer);
-      const node = await analyzeChannelData(buffer.getChannelData(0), buffer.sampleRate);
+      const browser = await analyzeFullBuffer(buffer, options);
+      const node = await analyzeChannelData(buffer.getChannelData(0), buffer.sampleRate, options);
 
       console.log(`[parity] bass-test.wav browser ${JSON.stringify(browser)}`);
       console.log(`[parity] bass-test.wav node    ${JSON.stringify(node)}`);
@@ -123,8 +125,9 @@ describe('Node entry parity with Web Audio', () => {
       it(`returns the candidates analyzeFullBuffer returns for a ${bpm} BPM click track`, async () => {
         const sampleRate = 44_100;
         const samples = createClickTrack(bpm, sampleRate);
-        const browser = await analyzeFullBuffer(audioBufferFrom(samples, sampleRate));
-        const node = await analyzeChannelData(samples, sampleRate);
+        const options = {engine: 'peaks'} as const;
+        const browser = await analyzeFullBuffer(audioBufferFrom(samples, sampleRate), options);
+        const node = await analyzeChannelData(samples, sampleRate, options);
 
         console.log(`[parity] click ${bpm} BPM: browser ${browser?.bpm} (confidence ${browser?.confidence}), node ${node?.bpm} (confidence ${node?.confidence})`);
         expectSameReading(node, browser);

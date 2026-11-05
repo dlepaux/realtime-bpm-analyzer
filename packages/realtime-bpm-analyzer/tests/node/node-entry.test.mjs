@@ -116,7 +116,8 @@ describe('realtime-bpm-analyzer/node', () => {
     assert.ok(reading.candidates.slice(1).every(({relation}) => ['half', 'double', 'other'].includes(relation)));
     assert.ok(reading.confidence >= 0 && reading.confidence <= 1);
     assert.deepEqual(reading.audio, {from: 0, to: 30, contextTime: null});
-    assert.equal(reading.engine, 'peaks');
+    // The reading names the engine that ran: the default, since RBA-51
+    assert.equal(reading.engine, 'tempogram');
     assert.ok(Object.isFrozen(reading));
   });
 
@@ -124,24 +125,25 @@ describe('realtime-bpm-analyzer/node', () => {
     const {channelData, sampleRate} = await readWavChannel0(new URL('../fixtures/bass-test.wav', import.meta.url));
     assert.equal(sampleRate, bassTestExpected.sampleRate);
 
-    const reading = await analyzeChannelData(channelData, sampleRate);
+    // Peaks, as the browser parity test that pins this value runs it
+    const reading = await analyzeChannelData(channelData, sampleRate, {engine: 'peaks'});
     assert.equal(reading.bpm, bassTestExpected.tempo);
   });
 
   for (const bpm of clickTrackTempos) {
     it(`finds ${bpm} BPM in a click track`, async () => {
-      const reading = await analyzeChannelData(createClickTrack(bpm), 44_100);
+      const reading = await analyzeChannelData(createClickTrack(bpm), 44_100, {engine: 'peaks'});
       assert.ok(Math.abs(reading.bpm - bpm) <= 1, `expected ${bpm}, got ${reading.bpm}`);
     });
   }
 
   it('folds tempos into the requested range', async () => {
-    const reading = await analyzeChannelData(createClickTrack(174), 44_100, {tempoRange: {min: 70, max: 140}});
+    const reading = await analyzeChannelData(createClickTrack(174), 44_100, {engine: 'peaks', tempoRange: {min: 70, max: 140}});
     assert.ok(Math.abs(reading.bpm - 87) <= 1, `expected 87, got ${reading.bpm}`);
   });
 
   it('returns null for silence, with either engine', async () => {
-    assert.equal(await analyzeChannelData(new Float32Array(44_100), 44_100), null);
+    assert.equal(await analyzeChannelData(new Float32Array(44_100), 44_100, {engine: 'peaks'}), null);
     assert.equal(await analyzeChannelData(new Float32Array(44_100 * 10), 44_100, {engine: 'tempogram'}), null);
   });
 

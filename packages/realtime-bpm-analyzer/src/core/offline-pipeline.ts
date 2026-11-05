@@ -92,7 +92,7 @@ export async function getOfflineLowPassSource(
  * Detects the tempo of a whole decoded file at once.
  *
  * @param originalBuffer - The decoded audio. Channel 0 is analysed.
- * @param options - The engine (with the lowpass settings for `peaks`) and the tempo range
+ * @param options - The engine (default `tempogram`; lowpass settings for `peaks`) and the tempo range
  * @returns The reading, the same shape as a realtime one, or null when no tempo was found
  * @throws {Error} When the buffer is empty or its sample rate is not positive
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
@@ -100,12 +100,13 @@ export async function getOfflineLowPassSource(
  * @example
  * ```typescript
  * const audioBuffer = await audioContext.decodeAudioData(await (await fetch('song.mp3')).arrayBuffer());
- * const reading = await analyzeFullBuffer(audioBuffer, {engine: 'tempogram'});
+ * const reading = await analyzeFullBuffer(audioBuffer);
  * console.log(reading?.bpm, reading?.candidates);
  * ```
  *
  * @remarks
- * BPM values are folded into `tempoRange` (default 90-180) by doubling or halving. `audio` spans the whole buffer.
+ * The tempogram searches `tempoRange` (default 90-180); `peaks` folds into it by doubling or halving. `audio` spans
+ * the whole buffer.
  *
  * @see {@link createRealtimeBpmAnalyzer} for live audio
  *

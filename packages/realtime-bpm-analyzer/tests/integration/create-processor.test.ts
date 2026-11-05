@@ -98,8 +98,8 @@ describe('createRealtimeBpmAnalyzer', function () {
     });
 
     it('gives peaks a lowpass in front of the worklet, and the tempogram nothing', async () => {
-      const peaks = await createRealtimeBpmAnalyzer(audioContext);
-      const tempogram = await createRealtimeBpmAnalyzer(audioContext, {engine: 'tempogram'});
+      const peaks = await createRealtimeBpmAnalyzer(audioContext, {engine: 'peaks'});
+      const tempogram = await createRealtimeBpmAnalyzer(audioContext);
 
       expect(peaks.input).to.be.instanceOf(BiquadFilterNode);
       expect((peaks.input as BiquadFilterNode).type).to.equal('lowpass');
@@ -126,7 +126,7 @@ describe('createRealtimeBpmAnalyzer', function () {
       } as typeof connect;
 
       try {
-        const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+        const analyzer = await createRealtimeBpmAnalyzer(audioContext, {engine: 'peaks'});
 
         expect(built).to.equal(0);
         expect(analyzer.input).to.be.instanceOf(BiquadFilterNode);

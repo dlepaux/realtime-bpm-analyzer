@@ -32,7 +32,8 @@ export type {BiquadFilterOptions} from './core/types';
  *
  * @param channelData - Decoded PCM samples of one channel, in [-1, 1]
  * @param sampleRate - Sample rate of `channelData` in Hz
- * @param options - The engine (with the lowpass settings for `peaks`) and the tempo range, as for `analyzeFullBuffer`
+ * @param options - The engine (default `tempogram`; lowpass settings for `peaks`) and the tempo range, as for
+ * `analyzeFullBuffer`
  * @returns The reading, or null when no tempo was found
  * @throws {Error} When `channelData` is empty or not a Float32Array
  * @throws {RangeError} When the sample rate, `engine` or `tempoRange` is invalid

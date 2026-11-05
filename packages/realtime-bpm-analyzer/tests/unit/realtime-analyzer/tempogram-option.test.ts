@@ -122,6 +122,16 @@ describe('engine option', () => {
     expect((await analyzeChannelData(createClickTrack(128, sampleRate, 20), sampleRate))?.engine).to.equal('tempogram');
   });
 
+  it('still runs peaks when asked by name, realtime and offline', async () => {
+    expect(resolveEngine('peaks', undefined).engine).to.deep.equal({name: 'peaks'});
+    expect(resolveEngine({name: 'peaks'}, undefined).engine).to.deep.equal({name: 'peaks'});
+    expect(resolveOfflineEngine('peaks')).to.deep.equal({name: 'peaks', lowpass: {}});
+    expect((await analyzeChannelData(createClickTrack(128, sampleRate, 20), sampleRate, {engine: 'peaks'}))?.engine).to.equal('peaks');
+    const steps = (await stream('peaks', createClickTrack(128, sampleRate, 20))).filter(message => message.type === 'step' && message.status !== 'listening');
+    expect(steps.length).to.be.greaterThan(0);
+    expect(steps.every(message => message.type === 'step' && message.status !== 'listening' && message.reading.engine === 'peaks')).to.equal(true);
+  });
+
   it('refuses an unknown engine, and a restart period that is not a positive number', () => {
     // @ts-expect-error Invalid on purpose
     expect(() => resolveEngine('magic', undefined)).to.throw(RangeError, 'Invalid engine');
@@ -149,7 +159,7 @@ describe('engine option', () => {
   });
 
   it('leaves the peaks engine reading what it read', async () => {
-    const readings = readingsOf(await stream(undefined, createClickTrack(128, sampleRate, 20)));
+    const readings = readingsOf(await stream('peaks', createClickTrack(128, sampleRate, 20)));
 
     expect(readings.at(-1)).to.equal(128);
   });

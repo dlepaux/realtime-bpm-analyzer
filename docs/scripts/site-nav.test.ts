@@ -70,13 +70,26 @@ test('Developers holds the library: guide, examples, API, and the changelog unde
   assert.equal(menu(siteNav(null, '6.0.0'), 'Developers').items?.find((item) => item.items)?.text, 'v6.0.0', 'the version is read, not written in')
 })
 
+const OUTSIDE_THE_LIBRARY = ['/', '/tap-tempo', '/extension/', '/extension/privacy', '/privacy', '/website-privacy', '/contributing', '/guides']
+
 test('Developers highlights on every library page and nowhere else', () => {
   const { activeMatch } = menu(siteNav(LISTING, VERSION), 'Developers')
-  for (const path of ['/guide/getting-started', '/guide/how-it-works', '/api/', '/api/functions/createRealtimeBpmAnalyzer', '/examples/basic-usage', '/examples/react']) {
+  // The unlinked CLI and MCP guides are library pages too, so they light it up on purpose.
+  for (const path of ['/guide/getting-started', '/guide/how-it-works', '/guide/cli', '/guide/mcp', '/api/', '/api/functions/createRealtimeBpmAnalyzer', '/examples/basic-usage', '/examples/react']) {
     assert.ok(highlights(activeMatch, path), `${path} should highlight Developers`)
   }
-  for (const path of ['/', '/tap-tempo', '/extension/', '/extension/privacy', '/privacy', '/website-privacy', '/contributing', '/guides']) {
+  for (const path of OUTSIDE_THE_LIBRARY) {
     assert.ok(!highlights(activeMatch, path), `${path} should not highlight Developers`)
+  }
+})
+
+// A group with an activeMatch makes VitePress test each child's link as a regex too
+// (VPNavBarMenuGroup's isChildActive), so a child linking to '/' would light Developers everywhere.
+test('no Developers link, read as a regex, lights it up outside the library', () => {
+  for (const [, link] of links(menu(siteNav(LISTING, VERSION), 'Developers').items ?? [])) {
+    for (const path of OUTSIDE_THE_LIBRARY) {
+      assert.ok(!highlights(link, path), `${link} matches ${path}`)
+    }
   }
 })
 

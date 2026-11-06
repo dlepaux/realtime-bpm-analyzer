@@ -8,7 +8,8 @@ import { promisify } from 'node:util'
 import { isUsersOnlyExtensionPage } from './tools/extension-pages'
 import { isGuidePage, isNoindexPage, isUnpublishedGuide, SCHEMA_WEB_APPLICATION, siteGraph, techArticle, toolFaqPage } from './tools/site-schema'
 import { EDGE_URL, STORE_URL } from './tools/extension-live'
-import { EXTENSION_SHARE_IMAGE, excludedSources, extensionHomeHero, extensionNavItems, extensionPageSchema, llmsWithExtension } from './tools/extension-promo'
+import { siteNav } from './tools/site-nav'
+import { EXTENSION_SHARE_IMAGE, excludedSources, extensionHomeHero, extensionPageSchema, llmsWithExtension } from './tools/extension-promo'
 
 const require = createRequire(import.meta.url)
 // The library's version, through its workspace link (packages/realtime-bpm-analyzer)
@@ -297,35 +298,8 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     logo: '/logo.svg',
     
-    nav: [
-      {
-        text: 'Free Tools',
-        items: [
-          { text: 'BPM Analyzer', link: '/' },
-          { text: 'Tap Tempo', link: '/tap-tempo' },
-          { text: 'BPM to ms Calculator', link: '/bpm-to-ms' },
-          { text: 'Video BPM Finder', link: '/video-bpm' },
-          { text: 'BPM to Frames Calculator', link: '/bpm-to-frames' },
-          { text: 'Metronome', link: '/metronome' },
-        ],
-      },
-      ...extensionNavItems(STORE_URL),
-      { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'Examples', link: '/examples/basic-usage' },
-      { text: 'API Reference', link: '/api/' },
-      { 
-        text: `v${pkg.version}`,
-        items: [
-          { text: 'Changelog', link: 'https://github.com/dlepaux/realtime-bpm-analyzer/blob/main/packages/realtime-bpm-analyzer/changelog.md' },
-          { text: 'Contributing', link: '/contributing' },
-          { text: 'Code of Conduct', link: '/code-of-conduct' },
-          { text: 'Security', link: '/security' },
-          { text: 'Library Privacy', link: '/privacy' },
-          { text: 'Website Privacy', link: '/website-privacy' },
-          { text: 'Extension Privacy', link: '/extension/privacy' }
-        ]
-      }
-    ],
+    // Built from data in tools/site-nav.ts, gated on the extension switch (RBA-66).
+    nav: siteNav(STORE_URL, pkg.version),
 
     sidebar: {
       '/guide/': [

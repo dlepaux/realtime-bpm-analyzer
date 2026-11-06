@@ -8,8 +8,8 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config.ts'
-import { resolveStoreUrl } from '../.vitepress/tools/extension-promo.ts'
+import { EXTENSION_EDGE_URL, EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config.ts'
+import { resolveEdgeUrl, resolveStoreUrl } from '../.vitepress/tools/extension-promo.ts'
 import { FIXTURE_STORE_URL, switchProblems, type BuiltSite } from './extension-switch.ts'
 
 const DOCS = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -28,7 +28,7 @@ function builtSite(root: string): BuiltSite {
 }
 
 function check(root: string, storeUrl: string | null): boolean {
-  const problems = switchProblems(builtSite(root), storeUrl)
+  const problems = switchProblems(builtSite(root), storeUrl, resolveEdgeUrl(EXTENSION_EDGE_URL))
   const state = storeUrl === null ? 'off' : 'on'
   for (const problem of problems) console.error(problem)
   console.log(`extension switch ${state}: ${problems.length} problem(s)`)

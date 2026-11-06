@@ -5,6 +5,7 @@ import Layout from './Layout.vue'
 import './custom.css'
 import './tools.css'
 import './extension.css'
+import './extension-scenes.css'
 
 export default {
   extends: DefaultTheme,

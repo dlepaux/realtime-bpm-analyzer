@@ -129,6 +129,16 @@ export function extensionNavItems(storeUrl: string | null) {
   return [{ text: 'Browser Extension', link: EXTENSION_PAGE, activeMatch: '^/extension/$' }]
 }
 
+/**
+ * The About menu's link to the extension's privacy policy. The page itself always builds,
+ * because the installed extension links to it, but the site only points at it while there
+ * is an extension to install.
+ */
+export function extensionPrivacyNavItems(storeUrl: string | null) {
+  if (storeUrl === null) return []
+  return [{ text: 'Extension privacy', link: '/extension/privacy' }]
+}
+
 export const EXTENSION_HERO_TAGLINE = 'Free BPM detection in your browser, and your audio stays on your device. Also an extension for Chrome and Edge, for the music in your tabs.'
 
 /**

@@ -22,6 +22,7 @@ const WEBSITE_SURFACES = [
   '../public/llms.txt',
   '../.vitepress/tools/site-schema.ts',
   '../.vitepress/tools/extension-promo.ts',
+  '../.vitepress/tools/analytics-events.ts',
   '../.vitepress/components/BpmHeroTool.vue',
   ...readdirSync(new URL('../examples/', import.meta.url))
     .filter((name) => name.endsWith('.md'))
@@ -52,12 +53,20 @@ test('website surfaces: no line promises the website collects nothing', () => {
   }
 })
 
-// When the snippet goes or changes (RBA-84 decides consent), this fails so the policy moves with it.
+// When the loader goes or changes (RBA-84 decides consent), this fails so the policy moves with it.
 test('website privacy: names the analytics the site really loads', () => {
-  assert.match(read('../.vitepress/config.ts'), /googletagmanager\.com\/gtm\.js/)
+  assert.match(read('../.vitepress/config.ts'), /gaLoaderScript\(\)/)
+  assert.match(read('../.vitepress/tools/analytics-loader.ts'), /googletagmanager\.com\/gtag\/js/)
   const policy = read('../website-privacy.md')
   assert.match(policy, /Google Analytics 4/)
-  assert.match(policy, /Google Tag Manager/)
+  assert.match(policy, /gtag\.js/)
+  assert.doesNotMatch(policy, /Tag Manager/)
+})
+
+// The event list is printed from the catalogue track() is typed from (RBA-154), so it can't drift.
+test('website privacy: the event list comes from the analytics catalogue', () => {
+  assert.match(read('../website-privacy.md'), /<AnalyticsEventList \/>/)
+  assert.match(read('../.vitepress/components/AnalyticsEventList.vue'), /from '\.\.\/tools\/analytics-events'/)
 })
 
 test('website privacy: stream events are described as they are sent, with no address', () => {

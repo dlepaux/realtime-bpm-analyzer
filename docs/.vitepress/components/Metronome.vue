@@ -16,11 +16,12 @@ import {
 
 const { track } = useAnalytics()
 
+// `id` is what analytics sends (RBA-154), `label` what the button shows.
 const SUBDIVISIONS = [
-  { value: 1, label: 'Quarters' },
-  { value: 2, label: 'Eighths' },
-  { value: 3, label: 'Triplets' },
-  { value: 4, label: '16ths' },
+  { value: 1, label: 'Quarters', id: 'quarters' },
+  { value: 2, label: 'Eighths', id: 'eighths' },
+  { value: 3, label: 'Triplets', id: 'triplets' },
+  { value: 4, label: '16ths', id: 'sixteenths' },
 ] as const
 const PITCH: Record<ClickKind, number> = { accent: 1760, beat: 1320, sub: 880 }
 const SWING_DEG = 28
@@ -131,7 +132,14 @@ async function start() {
   schedule()
   schedulerTimer = window.setInterval(schedule, LOOKAHEAD_MS)
   frame = requestAnimationFrame(draw)
-  track('bpm_metronome_started', { bpm: bpm.value, mode: `${beatsPerBar.value}/4 ${SUBDIVISIONS.find((s) => s.value === subdivision.value)?.label ?? ''}`.trim() })
+  const chosen = SUBDIVISIONS.find((s) => s.value === subdivision.value) ?? SUBDIVISIONS[0]
+  // `mode` keeps its old form for the readback; time_signature and subdivision split it (RBA-154).
+  track('bpm_metronome_started', {
+    bpm: bpm.value,
+    mode: `${beatsPerBar.value}/4 ${chosen.label}`,
+    time_signature: `${beatsPerBar.value}/4`,
+    subdivision: chosen.id,
+  })
 
   // Keeps a phone's screen on during practice; refusal is harmless.
   try {

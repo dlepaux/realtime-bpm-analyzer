@@ -16,6 +16,7 @@ import {
 } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
 import { fileExtensionParam } from '../tools/analytics-params'
+import { classifyMicError } from '../tools/mic-error'
 import { decodeAndClose, openAnalysis } from '../tools/audio-setup'
 import {
   PLATFORM_LABELS,
@@ -287,6 +288,7 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
   if (micStatus.value !== 'idle') return
 
   track('bpm_mic_clicked', { input_method: entry })
+  const clickedAt = performance.now()
 
   micError.value = null
   micLiveBpm.value = null
@@ -338,20 +340,20 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
       if (top === undefined) return
       const bpm = Math.round(top)
       // bpmStable repeats on every qualifying chunk (~1/s): report a tempo once, and
-      // again only when it changes (RBA-5).
-      if (bpm !== micStableBpm.value) track('bpm_mic_stable', { bpm })
+      // again only when it changes (RBA-5). The first one also says how long it took.
+      if (bpm !== micStableBpm.value) track('bpm_mic_stable', stableReading(bpm, micStableBpm.value === null, clickedAt))
       micStableBpm.value = bpm
       micStatus.value = 'result'
     })
   } catch (error) {
     if (gen !== generation) return // invalidated during setup — bail quietly
     const reason = error instanceof Error ? error.message : 'unknown'
-    const denied = error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')
-    micError.value = denied
+    const micFailure = classifyMicError(error)
+    micError.value = micFailure.error_kind === 'denied'
       ? 'Microphone access denied. Enable it in your browser settings and try again.'
       : 'Couldn’t start the microphone. Check your device and try again.'
     micStatus.value = 'error'
-    track('bpm_mic_error', { reason })
+    track('bpm_mic_error', { reason, ...micFailure })
     console.error('[BpmHeroTool] mic setup failed:', error)
     // openAnalysis released what it opened. This covers what was already committed.
     teardownMic()
@@ -406,7 +408,15 @@ function resetStreamReadings() {
   tabSharingEnded.value = false
 }
 
-function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: StreamEventParams | { input_method: 'tab' }) {
+// A stable reading's params: the tempo, whether it is the first since the click, and for the
+// first one how long it took (RBA-154: time to first result).
+function stableReading(bpm: number, first: boolean, clickedAt: number) {
+  return first ? { bpm, first, elapsed_ms: Math.round(performance.now() - clickedAt) } : { bpm, first }
+}
+
+type UrlStreamParams = StreamEventParams & { input_method: 'url' }
+
+function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: UrlStreamParams | { input_method: 'tab' }, clickedAt: number) {
   analyzer.on('bpm', (data: BpmCandidates) => {
     const top = data.bpm?.[0]?.tempo
     if (top === undefined) return
@@ -417,7 +427,9 @@ function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: StreamEvent
     const top = data.bpm?.[0]?.tempo
     if (top === undefined) return
     const bpm = Math.round(top)
-    if (bpm !== streamStableBpm.value) track('bpm_stream_stable', { bpm, ...stableParams })
+    if (bpm !== streamStableBpm.value) {
+      track('bpm_stream_stable', { ...stableParams, ...stableReading(bpm, streamStableBpm.value === null, clickedAt) })
+    }
     streamStableBpm.value = bpm
   })
 }
@@ -425,7 +437,7 @@ function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: StreamEvent
 // The <audio> element only says "error". Show the failure at once, then ask the
 // server why (cors / network / decode / http / insecure) and send the one report
 // with that reason. The caller guarantees this runs once per attempt (RBA-4).
-async function reportStreamFailure(gen: number, url: string, eventParams: StreamEventParams, reason: string, knownKind?: StreamErrorKind) {
+async function reportStreamFailure(gen: number, url: string, eventParams: UrlStreamParams, reason: string, knownKind?: StreamErrorKind) {
   teardownStream()
   streamError.value = 'Couldn’t play that stream. Checking why…'
   streamStatus.value = 'error'
@@ -443,8 +455,9 @@ async function startStream() {
   if (!url || linkPlatform.value) return
 
   // Station, scheme and format, never the URL itself (RBA-35).
-  const eventParams = streamEventParams(url)
-  track('bpm_stream_clicked', { ...eventParams })
+  const eventParams: UrlStreamParams = { ...streamEventParams(url), input_method: 'url' }
+  track('bpm_stream_clicked', eventParams)
+  const clickedAt = performance.now()
 
   resetStreamReadings()
   streamInput.value = 'url'
@@ -495,7 +508,7 @@ async function startStream() {
 
     streamGain.value = localGain
 
-    listenToStreamAnalyzer(localAnalyzer, eventParams)
+    listenToStreamAnalyzer(localAnalyzer, eventParams, clickedAt)
 
     const handler = (): void => fail('audio_error')
     streamErrorHandler.value = handler
@@ -546,6 +559,8 @@ async function startTabCapture() {
   if (streamStatus.value !== 'idle') return
   resetStreamReadings()
   const gen = ++generation
+  // From the click, like the other inputs: the time in the browser's picker is part of the wait.
+  const clickedAt = performance.now()
 
   let captured: MediaStream
   try {
@@ -588,7 +603,7 @@ async function startTabCapture() {
     streamTabCapture.value = captured
     streamContext.value = localContext
     streamAnalyzer.value = localAnalyzer
-    listenToStreamAnalyzer(localAnalyzer, { input_method: 'tab' })
+    listenToStreamAnalyzer(localAnalyzer, { input_method: 'tab' }, clickedAt)
     audioTrack.addEventListener('ended', () => onTabSharingEnded(gen))
     track('bpm_tab_capture_started')
   } catch (error) {
@@ -670,7 +685,9 @@ function toggleStreamMute() {
   if (streamGain.value) {
     streamGain.value.gain.value = streamMuted.value ? GAIN_MUTED : GAIN_UNMUTED
   }
-  track(streamMuted.value ? 'bpm_stream_muted' : 'bpm_stream_unmuted')
+  // Two literal calls, so the call-site test can check each name against the catalogue.
+  if (streamMuted.value) track('bpm_stream_muted')
+  else track('bpm_stream_unmuted')
 }
 
 function stopStream() {
@@ -826,7 +843,7 @@ function formatDuration(seconds: number): string {
               </button>
               <GithubStarSupport
                 variant="inline"
-                placement="demo-file-result"
+                placement="demo_file_result"
               />
             </div>
           </div>
@@ -928,7 +945,7 @@ function formatDuration(seconds: number): string {
               </button>
               <GithubStarSupport
                 variant="inline"
-                placement="demo-mic-stable"
+                placement="demo_mic_stable"
               />
             </div>
           </div>
@@ -1107,7 +1124,7 @@ function formatDuration(seconds: number): string {
             >
               <GithubStarSupport
                 variant="inline"
-                placement="demo-stream-stable"
+                placement="demo_stream_stable"
               />
             </div>
             <ResultToolLinks

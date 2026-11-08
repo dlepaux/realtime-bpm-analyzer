@@ -3,6 +3,10 @@ title: Website Privacy
 description: What realtime-bpm-analyzer.com measures, with which tools, and what it never collects. Your audio never leaves your device.
 ---
 
+<script setup>
+import AnalyticsEventList from './.vitepress/components/AnalyticsEventList.vue'
+</script>
+
 # Website Privacy
 
 This page covers the website **realtime-bpm-analyzer.com**. The open-source
@@ -18,36 +22,23 @@ the next section describes.
 
 ## What the website measures
 
-The website uses **Google Analytics 4**, loaded through **Google Tag Manager** on
+The website uses **Google Analytics 4**, loaded directly with Google's tag (gtag.js) on
 every page, to understand how the tools are used and what to improve. Google Analytics sets
 cookies in your browser and receives:
 
 - the pages you visit, your approximate location, your device and browser type,
   and how you arrived on the site;
-- how you use the tools, as events tied to the random ID in the Google Analytics
-  cookie, not to your name: which tab, button or option you use (File, Mic or
-  Stream, the microphone from its tab or from a link, mute, unmute and stop, the
-  links to other tools under a result, the GitHub star button and where it sits);
-  the tempo found; the length, size and extension of an analysed file (never its
-  name or content), how long its analysis took and whether you dropped or browsed
-  for it; the number of taps on Tap Tempo; the metronome's time signature and
-  subdivision when you start it; the BPM and the label of a value you copy on BPM
-  to ms or BPM to Frames; which listed station you picked, or that the stream is
-  your own, with its scheme and format (never its address); the name of the
-  platform when you paste a link such as a YouTube one (never the link); when you
-  start sharing a tab's sound, and the reason when that fails; and when something
-  fails, the error type and the browser's error message, with any web address in
-  it removed;
-- when you download beat markers from a file result: the format, the frame rate
-  you picked and whether you picked drop-frame or non-drop, once per result
-  (never the markers or the file's name);
 - the version numbers in the address of the pages the browser extension opens:
   its version when you install it or remove it, its new and previous versions
-  when it updates. If you remove it and pick a reason from the list on that page,
-  that reason and the version. Nothing you type is sent;
-- on the pages that promote the browser extension: which link to it you clicked
-  and where it sits on the site, for a store link which store it goes to (Chrome
-  or Edge), and whether you paused or replayed its demo.
+  when it updates;
+- what Google Analytics measures by itself on any site that uses it: how long a page
+  stays open, scrolling to the bottom of a page, clicks on links to other sites with
+  the address of that link, file downloads, and use of forms and site search;
+- how you use the tools, as events tied to the random ID in the Google Analytics
+  cookie, not to your name. Each event below is sent only when you do what it
+  describes, and carries only what it lists, followed by its name in Google Analytics:
+
+<AnalyticsEventList />
 
 Links to the extension's Chrome Web Store and Edge Add-ons listings carry a label naming this site
 and the place on it the link was, so the store can report which link brought an
@@ -80,4 +71,4 @@ linked to your name.
 The site is run by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 5 November 2026._
+_Last updated: 8 November 2026._

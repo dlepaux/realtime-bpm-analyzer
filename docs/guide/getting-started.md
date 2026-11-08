@@ -186,5 +186,5 @@ Always create the `AudioContext` in response to a user action (like a button cli
 :::
 
 <div style="margin-top: 3rem; max-width: 480px; margin-left: auto; margin-right: auto;">
-  <GithubStarSupport variant="block" placement="getting-started-end" />
+  <GithubStarSupport variant="block" placement="getting_started_end" />
 </div>

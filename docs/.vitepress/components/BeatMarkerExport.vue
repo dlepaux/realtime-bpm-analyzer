@@ -114,7 +114,8 @@ function download() {
 
   if (!reported) {
     reported = true
-    track('bpm_markers_exported', { format: format.value, frame_rate: choice.value.id })
+    // `format` keeps its old meaning for the readback; export_format names it alone (RBA-154).
+    track('bpm_markers_exported', { format: format.value, frame_rate: choice.value.id, export_format: format.value })
   }
 }
 </script>

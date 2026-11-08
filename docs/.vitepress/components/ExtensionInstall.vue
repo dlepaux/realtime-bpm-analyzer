@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useAnalytics } from '../composables/useAnalytics'
 import { EDGE_URL, STORE_URL } from '../tools/extension-live'
-import { SEND_LINK_MAILTO, installRequirement, installTargets, sharePageLink, type StoreId } from '../tools/extension-promo'
+import { SEND_LINK_MAILTO, installRequirement, installTargets, sharePageLink, type ExtensionPlacement, type StoreId } from '../tools/extension-promo'
 import { TOUCH_QUERY, detectBrowser, installOffer, readSignals, type VisitorBrowser } from '../tools/extension-browser'
 
 // The install action. It renders from the store listings, so it can't show a button without a
@@ -28,10 +28,12 @@ onMounted(() => {
 })
 
 const { track } = useAnalytics()
-const trackStore = (placement: string, store: StoreId) =>
+const trackStore = (placement: ExtensionPlacement, store: StoreId) =>
   track('extension_link_clicked', { placement, target: 'store', store })
 
 function sendLink(event: MouseEvent) {
+  // The phone's way to the extension, counted like the home page's (RBA-154).
+  track('extension_link_clicked', { placement: props.placement, target: 'share' })
   const share = typeof navigator.share === 'function' ? navigator.share.bind(navigator) : undefined
   if (sharePageLink(share, () => { window.location.href = SEND_LINK_MAILTO })) event.preventDefault()
 }

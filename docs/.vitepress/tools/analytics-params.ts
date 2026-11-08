@@ -17,7 +17,7 @@ export function isUrlShaped(value: string): boolean {
 // The formats the file tool reads or a browser commonly plays. A fixed list, because what
 // follows the last dot of a name can be part of the name itself ("Artist.Title"), and a
 // name with no dot has no extension at all.
-const KNOWN_FILE_EXTENSIONS = new Set([
+export const KNOWN_FILE_EXTENSIONS: ReadonlySet<string> = new Set([
   'mp3', 'wav', 'flac', 'm4a', 'ogg', 'oga', 'opus', 'aac', 'aif', 'aiff', 'wma', 'webm', 'mp4', 'm4v', 'mov', 'mkv',
 ])
 

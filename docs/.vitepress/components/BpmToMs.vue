@@ -80,7 +80,8 @@ async function copy(key: string, text: string, label: string) {
     copied.value = key
     window.clearTimeout(copiedTimer)
     copiedTimer = window.setTimeout(() => (copied.value = null), 1400)
-    track('bpm_delay_copied', { bpm: Math.round(bpm.value ?? 0), mode: `${label} ${unit.value}` })
+    // `mode` keeps its old form for the readback; note_value and unit split it (RBA-154).
+    track('bpm_delay_copied', { bpm: Math.round(bpm.value ?? 0), mode: `${label} ${unit.value}`, note_value: label, unit: unit.value })
   } catch {
     // Clipboard refused (permissions, insecure context): the value stays
     // selectable on screen, so there is nothing to recover.

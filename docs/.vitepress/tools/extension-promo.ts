@@ -38,16 +38,19 @@ export function resolveEdgeUrl(raw: string | null): string | null {
 }
 
 /** Where on the site a link to the extension sits. Sent with clicks and on store links. */
-export type ExtensionPlacement =
-  | 'home_door'
-  | 'extension_hero'
-  | 'extension_closing'
-  | 'extension_touch'
-  | 'goodbye'
-  | 'stream_hint'
-  | 'result_mic'
-  | 'result_stream'
-  | 'tool_page'
+export const EXTENSION_PLACEMENTS = [
+  'home_door',
+  'home_touch',
+  'extension_hero',
+  'extension_closing',
+  'extension_touch',
+  'goodbye',
+  'stream_hint',
+  'result_mic',
+  'result_stream',
+  'tool_page',
+] as const
+export type ExtensionPlacement = (typeof EXTENSION_PLACEMENTS)[number]
 
 /**
  * A store link for one place on the site, so the store's own acquisition report can say which

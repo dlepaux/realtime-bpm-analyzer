@@ -88,14 +88,21 @@ let urlTimer: number | undefined
 onUnmounted(() => window.clearTimeout(urlTimer))
 
 let copiedTimer: number | undefined
-async function copy(key: string, text: string, label: string) {
+async function copy(key: string, text: string, row: { label: string; isCustom: boolean }, cell: 'beat' | 'bar') {
   if (text === '') return
   try {
     await navigator.clipboard.writeText(text)
     copied.value = key
     window.clearTimeout(copiedTimer)
     copiedTimer = window.setTimeout(() => (copied.value = null), 1400)
-    track('bpm_frames_copied', { bpm: Math.round(bpm.value ?? 0), mode: label })
+    // `mode` keeps its old form for the readback; fps and frame_cell split it, and a typed rate
+    // is sent as `custom`, never the number itself (RBA-154).
+    track('bpm_frames_copied', {
+      bpm: Math.round(bpm.value ?? 0),
+      mode: `${row.label} fps ${cell}`,
+      fps: row.isCustom ? 'custom' : row.label,
+      frame_cell: cell,
+    })
   } catch {
     // Clipboard refused (permissions, insecure context): the value stays
     // selectable on screen, so there is nothing to recover.
@@ -224,7 +231,7 @@ onMounted(() => {
                   :class="{ 'is-copied': copied === `${row.label}-${cell}` }"
                   :disabled="row[cell] === ''"
                   :aria-label="`Copy ${row[cell]} frames per ${cell} at ${row.label} fps`"
-                  @click="copy(`${row.label}-${cell}`, row[cell], `${row.label} fps ${cell}`)"
+                  @click="copy(`${row.label}-${cell}`, row[cell], row, cell)"
                 >
                   <span>{{ row[cell] }}</span>
                   <Check

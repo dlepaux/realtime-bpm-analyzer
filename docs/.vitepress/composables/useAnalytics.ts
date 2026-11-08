@@ -1,58 +1,38 @@
-// Thin analytics wrapper — pushes events into `window.dataLayer` for GTM to consume.
-// GTM forwards to GA4 (and any other configured tags) via the container dashboard.
-// SSR-safe — no-ops when `window` is undefined.
+// The site's one way to send an analytics event (RBA-154). Typed from the catalogue in
+// tools/analytics-events.ts, gated at run time by tools/analytics-gate.ts, then handed to gtag.js,
+// which tools/analytics-loader.ts loads on the production host only. Everywhere else the event is
+// still checked, and logged in dev, but nothing is sent. SSR-safe: a no-op without `window`.
 
-import { scrubEventParams, type EventParams } from '../tools/analytics-params'
+import type { EventName, TrackArgs } from '../tools/analytics-events'
+import { gateEvent, isEventName } from '../tools/analytics-gate'
+import { PRODUCTION_HOST } from '../tools/site-url'
+
+type Gtag = (command: 'event', name: string, params: Record<string, string | number | boolean>) => void
 
 declare global {
   interface Window {
-    dataLayer?: unknown[]
+    /** Defined by the analytics loader, on the production host only. */
+    gtag?: Gtag
   }
 }
 
-export type BpmAnalyticsEvent =
-  | 'bpm_tab_change'
-  | 'bpm_file_selected'
-  | 'bpm_file_result'
-  | 'bpm_file_error'
-  | 'bpm_file_restart'
-  | 'bpm_mic_clicked'
-  | 'bpm_mic_stable'
-  | 'bpm_mic_error'
-  | 'bpm_mic_stopped'
-  | 'bpm_stream_clicked'
-  | 'bpm_stream_stable'
-  | 'bpm_stream_error'
-  | 'bpm_stream_stopped'
-  | 'bpm_stream_muted'
-  | 'bpm_stream_unmuted'
-  | 'bpm_link_detected'
-  | 'bpm_tab_capture_started'
-  | 'bpm_tab_capture_failed'
-  | 'bpm_tap_measured'
-  | 'bpm_delay_copied'
-  | 'bpm_frames_copied'
-  | 'bpm_metronome_started'
-  | 'bpm_tool_link_clicked'
-  | 'bpm_markers_exported'
-  | 'github_star_clicked'
-  | 'extension_uninstall_reason'
-  | 'extension_link_clicked'
-  | 'extension_demo_control'
+/** A track() call that breaks the catalogue's contract. Thrown in dev only. */
+export class AnalyticsContractError extends Error {
+  override name = 'AnalyticsContractError'
+}
+
+export function track<E extends EventName>(event: E, ...[params]: TrackArgs<E>): void {
+  if (typeof window === 'undefined') return
+
+  const gated = gateEvent(event, params ?? {})
+  if (import.meta.env.DEV) {
+    if (gated.problems.length) throw new AnalyticsContractError(gated.problems.join('\n'))
+    console.debug('[analytics]', event, gated.params)
+  }
+  if (!isEventName(event) || window.location.hostname !== PRODUCTION_HOST || typeof window.gtag !== 'function') return
+  window.gtag('event', event, gated.params)
+}
 
 export function useAnalytics() {
-  function track(event: BpmAnalyticsEvent, params: EventParams = {}): void {
-    if (typeof window === 'undefined') return
-
-    // Never a URL in an event (RBA-35), even one quoted inside an error message.
-    const safe = scrubEventParams(params)
-    window.dataLayer = window.dataLayer || []
-    window.dataLayer.push({ event, ...safe })
-
-    if (import.meta.env.DEV) {
-      console.debug('[analytics]', event, safe)
-    }
-  }
-
   return { track }
 }

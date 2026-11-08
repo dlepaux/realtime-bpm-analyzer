@@ -10,12 +10,11 @@ import { useAnalytics } from '../composables/useAnalytics'
 //   - 'inline' → button + count only. Used inside other components where the
 //                surrounding context already provides framing copy.
 //
-// `placement` is a free-form string passed by the parent (e.g. 'demo-file-result',
-// 'footer', 'getting-started-end'). It rides the analytics event payload so
-// we can later attribute conversions to specific surfaces.
+// `placement` names the surface in the analytics event, so clicks can be attributed to it. Its
+// values are the catalogue's (tools/analytics-events.ts), in snake_case like every other value.
 const props = withDefaults(defineProps<{
   variant?: 'inline' | 'block'
-  placement: string
+  placement: 'demo_file_result' | 'demo_mic_stable' | 'demo_stream_stable' | 'getting_started_end'
 }>(), {
   variant: 'block',
 })

@@ -2,11 +2,17 @@
 // The free tools, right under the analyzer (RBA-66). One CSS grid of 6 columns: each row's tiles
 // share it evenly (3 then 2), so every row is full at every width, and a phone gets a list.
 import { Clock, Film, Hand, Timer, Video } from 'lucide-vue-next'
+import { useAnalytics } from '../composables/useAnalytics'
 import { FREE_TOOL_ROWS, GRID_COLUMNS, type ToolIcon } from '../tools/tool-list'
 
 const ICONS: Record<ToolIcon, typeof Hand> = { hand: Hand, timer: Timer, clock: Clock, video: Video, film: Film }
 
-const tiles = FREE_TOOL_ROWS.flatMap((row) => row.map((tool) => ({ ...tool, span: GRID_COLUMNS / row.length })))
+const tiles = FREE_TOOL_ROWS.flatMap((row) => row.map((tool) => ({ ...tool, id: tool.link.replace(/^\//, ''), span: GRID_COLUMNS / row.length })))
+
+const { track } = useAnalytics()
+// The same event as the links under a result, so one report shows where tool visits start (RBA-154).
+// `mode` matches its form there; result_source and tool are the params to read.
+const onClick = (tool: string) => track('bpm_tool_link_clicked', { mode: `home_grid→${tool}`, result_source: 'home_grid', tool })
 </script>
 
 <template>
@@ -23,6 +29,7 @@ const tiles = FREE_TOOL_ROWS.flatMap((row) => row.map((tool) => ({ ...tool, span
         <a
           class="home-tool-tile"
           :href="tool.link"
+          @click="onClick(tool.id)"
         >
           <component
             :is="ICONS[tool.icon]"

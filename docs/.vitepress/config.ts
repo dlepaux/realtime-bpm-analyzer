@@ -10,6 +10,8 @@ import { isGuidePage, isNoindexPage, isUnpublishedGuide, SCHEMA_WEB_APPLICATION,
 import { EDGE_URL, STORE_URL } from './tools/extension-live'
 import { siteNav } from './tools/site-nav'
 import { EXTENSION_SHARE_IMAGE, excludedSources, extensionHomeHero, extensionPageSchema, llmsWithExtension } from './tools/extension-promo'
+import { gaLoaderScript } from './tools/analytics-loader'
+import { SITE_URL } from './tools/site-url'
 
 const require = createRequire(import.meta.url)
 // The library's version, through its workspace link (packages/realtime-bpm-analyzer)
@@ -61,9 +63,6 @@ async function firstCommitTime(file: string): Promise<number | undefined> {
   }
 }
 
-// GTM container for analytics. Change here if the container is ever rotated.
-const GTM_CONTAINER_ID = 'GTM-WF758H3P'
-
 // Copyright year range — first commit landed in 2015. End year auto-updates
 // on every build so deployed docs always show the current year.
 const COPYRIGHT_START_YEAR = 2015
@@ -72,7 +71,6 @@ const COPYRIGHT_YEARS = COPYRIGHT_END_YEAR > COPYRIGHT_START_YEAR
   ? `${COPYRIGHT_START_YEAR}–${COPYRIGHT_END_YEAR}`
   : `${COPYRIGHT_START_YEAR}`
 
-const SITE_URL = 'https://www.realtime-bpm-analyzer.com'
 type ShareImage = { readonly file: string; readonly width: number; readonly height: number; readonly alt: string }
 const SITE_SHARE_IMAGE: ShareImage = {
   file: 'realtime-bpm-analyzer-share.png',
@@ -117,7 +115,7 @@ export default defineConfig({
 
   // Sitemap generation
   sitemap: {
-    hostname: 'https://www.realtime-bpm-analyzer.com',
+    hostname: SITE_URL,
     // The pages the browser extension opens (RBA-38) are for its users only and
     // carry noindex, so they stay out of the sitemap too. The /extension/ page itself
     // goes in once it is built (see srcExclude). A sitemap lists what should appear in
@@ -151,14 +149,6 @@ export default defineConfig({
     },
   },
 
-  // Inject the GTM noscript fallback right after <body>
-  transformHtml(code) {
-    return code.replace(
-      /<body([^>]*)>/,
-      `<body$1>\n<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
-    )
-  },
-
   // What goes live with the extension but can't be a page: public/ would publish the
   // image while the switch is off, and llms.txt is a static file.
   buildEnd({ outDir }) {
@@ -186,7 +176,7 @@ export default defineConfig({
     const slug = pageData.relativePath
       .replace(/(^|\/)index\.md$/, '$1')
       .replace(/\.md$/, '')
-    const canonical = `https://www.realtime-bpm-analyzer.com/${slug}`
+    const canonical = `${SITE_URL}/${slug}`
 
     const SITE_NAME = 'Realtime BPM Analyzer'
     const DEFAULT_OG_TITLE = 'Realtime BPM Analyzer — Web Audio BPM Detection Library'
@@ -268,12 +258,9 @@ export default defineConfig({
   },
   
   head: [
-    // Warm the connection to GTM before its loader script fires — saves the
-    // DNS + TLS round-trip on first paint. Paired with the GTM snippet below.
-    ['link', { rel: 'preconnect', href: 'https://www.googletagmanager.com', crossorigin: '' }],
-    // Google Tag Manager — container loads GA4 + any future tags from the GTM dashboard.
-    // GA4 measurement ID G-S911G9WQTM must be configured as a tag inside GTM.
-    ['script', {}, `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_CONTAINER_ID}');`],
+    // Google Analytics 4 through gtag.js, on the production host only (RBA-154): see
+    // tools/analytics-loader.ts for the internal-traffic flag and the page_view rule.
+    ['script', {}, gaLoaderScript()],
     ['meta', { name: 'theme-color', content: '#646cff' }],
     ['meta', { property: 'og:locale', content: 'en_US' }],
     ['meta', { property: 'og:site_name', content: 'Realtime BPM Analyzer' }],

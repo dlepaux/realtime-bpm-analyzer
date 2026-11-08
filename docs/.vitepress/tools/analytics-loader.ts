@@ -16,7 +16,8 @@
 import { PRODUCTION_HOST } from './site-url.ts'
 
 export const GA_MEASUREMENT_ID = 'G-S911G9WQTM'
-export const GTAG_SRC = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`
+const gtagSrc = (measurementId: string) => `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`
+export const GTAG_SRC = gtagSrc(GA_MEASUREMENT_ID)
 export const INTERNAL_FLAG_KEY = 'rba:internal'
 
 /** The inline loader: does nothing unless the page is on `host`. */
@@ -34,7 +35,7 @@ export function gaLoaderScript(measurementId: string = GA_MEASUREMENT_ID, host: 
     `try{if(localStorage.getItem(${JSON.stringify(INTERNAL_FLAG_KEY)})==='1')config.traffic_type='internal';}catch(e){}`,
     `gtag('config',${id},config);`,
     "var s=document.createElement('script');s.async=true;",
-    `s.src=${JSON.stringify(`https://www.googletagmanager.com/gtag/js?id=${measurementId}`)};`,
+    `s.src=${JSON.stringify(gtagSrc(measurementId))};`,
     'document.head.appendChild(s);',
     '})();',
   ].join('')

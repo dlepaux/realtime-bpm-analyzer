@@ -13,11 +13,10 @@
 
 import { KNOWN_FILE_EXTENSIONS } from './analytics-params.ts'
 import { EXPORT_TIMECODES, MARKER_FORMATS } from './beat-markers.ts'
-import { UNINSTALL_REASONS } from './extension-pages.ts'
 import { EXTENSION_PLACEMENTS } from './extension-promo.ts'
 import { FRAME_RATES } from './frames.ts'
 import { MIC_ERROR_KINDS, MIC_ERROR_NAMES } from './mic-error.ts'
-import { PLATFORM_LABELS, STATIONS, STREAM_ERROR_MESSAGES } from './stream-input.ts'
+import { PLATFORM_LABELS, STATIONS, STREAM_ERROR_MESSAGES, type Platform, type StreamErrorKind } from './stream-input.ts'
 import { NOTE_DIVISIONS } from './tempo.ts'
 import { freeTools } from './tool-list.ts'
 
@@ -42,6 +41,9 @@ export const DEPRECATED_REMOVE_AFTER = '2026-11-22'
 
 const NOTE_FEELS = ['straight', 'dotted', 'triplet'] as const
 const BEATS_PER_BAR = Array.from({ length: 12 }, (_, index) => index + 1)
+// Object.keys loses the key type; these records are total over their key unions, so the cast is exact.
+const PLATFORMS = Object.keys(PLATFORM_LABELS) as Platform[]
+const STREAM_ERROR_KINDS = Object.keys(STREAM_ERROR_MESSAGES) as StreamErrorKind[]
 const TOOL_IDS = freeTools().map((tool) => tool.link.replace(/^\//, ''))
 
 export const PARAMS = {
@@ -60,12 +62,12 @@ export const PARAMS = {
   elapsed_ms: { type: 'int', min: 0, max: 3_600_000, scope: 'metric' },
   error_kind: {
     type: 'enum',
-    values: ['decode_failed', 'no_bpm', ...Object.keys(STREAM_ERROR_MESSAGES), ...MIC_ERROR_KINDS],
+    values: ['decode_failed', 'no_bpm', ...STREAM_ERROR_KINDS, ...MIC_ERROR_KINDS],
     scope: 'dimension',
   },
   /** The browser's error message (URL-scrubbed), or a fixed reason on the events that have one. */
   reason: { type: 'text', maxLength: 100, scope: 'dimension' },
-  platform: { type: 'enum', values: Object.keys(PLATFORM_LABELS), scope: 'dimension' },
+  platform: { type: 'enum', values: PLATFORMS, scope: 'dimension' },
   station: { type: 'enum', values: [...STATIONS.map((station) => station.id), 'custom'], scope: 'dimension' },
   scheme: { type: 'enum', values: ['http', 'https', 'other'], scope: 'dimension' },
   /** A stream's codec, or a marker file's format: two meanings, so markers also send export_format. */
@@ -134,12 +136,12 @@ export const EVENTS = {
   bpm_file_result: {
     params: { input_method: 'required', bpm: 'required', duration_s: 'required', elapsed_ms: 'required' },
     repeats: 'Once per analysed file.',
-    privacy: 'When a file is analysed: the tempo found, the length of the file and how long the analysis took.',
+    privacy: 'When a file is analysed: whether you dropped or browsed for it, the tempo found, the length of the file and how long the analysis took.',
   },
   bpm_file_error: {
     params: { input_method: 'required', error_kind: 'required', extension: 'required', reason: 'required' },
     repeats: 'Once per failed file.',
-    privacy: "When a file can't be analysed: the kind of error, the file's extension and the browser's error message, with any web address in it removed.",
+    privacy: "When a file can't be analysed: whether you dropped or browsed for it, the kind of error, the file's extension and the browser's error message, with any web address in it removed.",
   },
   bpm_file_restart: {
     params: {},
@@ -227,7 +229,7 @@ export const EVENTS = {
   bpm_frames_copied: {
     params: { bpm: 'required', mode: 'required', fps: 'required', frame_cell: 'required' },
     repeats: 'Each time a value is copied.',
-    privacy: 'When you copy a value on BPM to Frames: the tempo, the frame rate (a rate you typed is sent as "custom") and whether it is a beat or a bar.',
+    privacy: 'When you copy a value on BPM to Frames: the tempo, the frame rate (a rate you typed is sent as "custom", and until 22 November 2026 also as the number) and whether it is a beat or a bar.',
     deprecated: { mode: 'fps and frame_cell' },
   },
   bpm_metronome_started: {
@@ -274,6 +276,10 @@ export type EventName = keyof typeof EVENTS
 
 // ── Types for track() ────────────────────────────────────────────────────────────────────────
 
+// An enum is a literal union only where its values list keeps literal types (the inline lists,
+// platform, error_kind, input_method...). Lists built from data ids or templates (station, tool,
+// fps, frame_rate, note_value, time_signature) type as string, and the run-time
+// gate is what holds them; literal ids there would mean retyping those data modules.
 type ValueOf<S> = S extends { type: 'enum'; values: readonly (infer V)[] }
   ? V
   : S extends { type: 'int' }

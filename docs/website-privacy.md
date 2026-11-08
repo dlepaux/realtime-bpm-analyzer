@@ -31,6 +31,9 @@ cookies in your browser and receives:
 - the version numbers in the address of the pages the browser extension opens:
   its version when you install it or remove it, its new and previous versions
   when it updates;
+- what Google Analytics measures by itself on any site that uses it: how long a page
+  stays open, scrolling to the bottom of a page, clicks on links to other sites with
+  the address of that link, file downloads, and use of forms and site search;
 - how you use the tools, as events tied to the random ID in the Google Analytics
   cookie, not to your name. Each event below is sent only when you do what it
   describes, and carries only what it lists, followed by its name in Google Analytics:

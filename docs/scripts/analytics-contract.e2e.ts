@@ -67,7 +67,8 @@ async function route(request: HTTPRequest): Promise<void> {
   const url = request.url()
   if (new URL(url).hostname === PRODUCTION_HOST) return serveLocally(request).catch(() => request.abort())
   if (url.startsWith(GTAG_SRC)) return request.continue()
-  if (COLLECT.test(url)) hits.push(...parseHits(url, request.postData()))
+  // A beacon's body can be missing from postData(); fetchPostData() reads it back from the browser.
+  if (COLLECT.test(url)) hits.push(...parseHits(url, request.postData() ?? (await request.fetchPostData().catch(() => undefined))))
   else blocked.push(url)
   return request.abort()
 }

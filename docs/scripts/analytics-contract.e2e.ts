@@ -9,9 +9,14 @@
 // interception missed still goes nowhere. The site is served under its production hostname (the
 // only one analytics loads on) from a local server, by answering those requests in the test.
 //
+// gtag.js comes from Google with the data stream's live settings, so the page_view counts hold
+// only while the stream's enhanced measurement "page changes based on browser history events" is
+// off, as the site requires (tools/analytics-loader.ts). If it is turned back on, this test fails.
+//
 // Run against a local site, dev or built (`vitepress preview`):
 //     CONTRACT_BASE_URL=http://localhost:5189 npm run test:analytics-contract -w docs
-// Puppeteer comes from the library's test setup; Chrome is launched muted.
+// Puppeteer is a docs dev dependency (the library's browser tests use the same version); Chrome is
+// launched muted.
 
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -30,7 +35,7 @@ const QUIET_MS = 3_000
 const GOOGLE_HOSTS = ['*.google-analytics.com', '*.analytics.google.com', '*.doubleclick.net', 'www.google.com']
 const COLLECT = /google-analytics\.com|analytics\.google\.com|doubleclick\.net|\/g\/collect|\/collect\?/
 
-type Hit = { readonly name: string; readonly location: string; readonly params: Readonly<Record<string, string>> }
+type Hit = { readonly name: string; readonly location: string; readonly title: string; readonly params: Readonly<Record<string, string>> }
 
 const hits: Hit[] = []
 const blocked: string[] = []
@@ -50,7 +55,7 @@ function parseHits(url: string, body: string | undefined): Hit[] {
       const match = /^epn?\.(.+)$/.exec(key)
       if (match?.[1]) params[match[1]] = value
     }
-    return { name: all.get('en') ?? '', location: all.get('dl') ?? '', params }
+    return { name: all.get('en') ?? '', location: all.get('dl') ?? '', title: all.get('dt') ?? '', params }
   })
 }
 
@@ -124,15 +129,49 @@ test('a hit carries exactly its own params, and none from the event before', asy
 test('an in-site navigation sends its event and exactly one more page_view', async () => {
   await page.click('.home-tool-tile[href="/tap-tempo"]')
   await waitFor('the tool page_view', () => pageViews().length >= 2)
-  assert.deepEqual(eventsNamed('bpm_tool_link_clicked').map((hit) => hit.params), [
-    { mode: 'home_grid→tap-tempo', result_source: 'home_grid', tool: 'tap-tempo' },
-  ])
+  assert.deepEqual(eventsNamed('bpm_home_tool_clicked').map((hit) => hit.params), [{ tool: 'tap-tempo' }])
   assert.equal(pageViews().length, 2, JSON.stringify(pageViews()))
   assert.match(pageViews()[1]!.location, /\/tap-tempo$/)
+  // The router changes the address before it renders the page: the hit must still carry the new title.
+  assert.match(pageViews()[1]!.title, /^Tap Tempo/)
 
   await page.goBack()
   await waitFor('the page_view of the way back', () => pageViews().length >= 3)
   assert.equal(pageViews().length, 3, JSON.stringify(pageViews()))
+})
+
+/** Loads a page fresh, then runs `act`, and returns how many page_views the whole visit sent. */
+async function pageViewsOfVisit(path: string, act: () => Promise<void> = async () => {}): Promise<number> {
+  const before = pageViews().length
+  await page.goto(`${SITE_URL}${path}`, { waitUntil: 'load', timeout: NAVIGATION_TIMEOUT_MS })
+  await waitFor(`the page_view of ${path}`, () => pageViews().length > before)
+  await act()
+  await new Promise((resolve) => setTimeout(resolve, QUIET_MS))
+  return pageViews().length - before
+}
+
+// The other ways VitePress and the tools rewrite the address without a new page (review of #362).
+test('a tempo written into the address is not a page_view', async () => {
+  const count = await pageViewsOfVisit('/bpm-to-frames', async () => {
+    await page.waitForSelector('.bpm-input')
+    await page.click('.bpm-input', { count: 3 })
+    await page.type('.bpm-input', '128')
+    await page.waitForFunction(() => location.search.includes('bpm=128'))
+  })
+  assert.equal(count, 1, JSON.stringify(pageViews().slice(-3)))
+})
+
+test('a jump to a heading on the same page is not a page_view', async () => {
+  const count = await pageViewsOfVisit('/guide/getting-started', async () => {
+    await page.click('a.header-anchor')
+    await page.waitForFunction(() => location.hash.length > 1)
+  })
+  assert.equal(count, 1, JSON.stringify(pageViews().slice(-3)))
+})
+
+test('an old .html address is one page_view, under its clean address', async () => {
+  const count = await pageViewsOfVisit('/tap-tempo.html')
+  assert.equal(count, 1, JSON.stringify(pageViews().slice(-3)))
 })
 
 // What GA4 and its enhanced measurement send by themselves, with params of their own.

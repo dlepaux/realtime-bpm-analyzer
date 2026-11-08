@@ -8,9 +8,10 @@
 // and its visits carry traffic_type=internal, which the GA4 internal traffic filter excludes.
 // localStorage.removeItem('rba:internal') turns it off.
 //
-// Page views: gtag's config sends the first, and GA4's enhanced measurement ("page changes based
-// on browser history events") sends one per in-site navigation. Nothing here sends page_view, so
-// there is exactly one per page (checked by scripts/analytics-contract.e2e.ts).
+// Page views: gtag's config sends the first, and the router one per new path (trackRouteChange in
+// composables/useAnalytics.ts). GA4's enhanced measurement setting "page changes based on browser
+// history events" must stay OFF in the data stream, or each navigation counts twice and each
+// tempo written into the address once more. scripts/analytics-contract.e2e.ts checks the result.
 // Pure and import-light so node --test runs it.
 
 import { PRODUCTION_HOST } from './site-url.ts'

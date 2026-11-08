@@ -6,7 +6,7 @@
 // Pure, so node --test runs it.
 
 import { EVENTS, INVALID, PARAMS, type EventName, type EventSpec, type ParamName, type ParamSpec } from './analytics-events.ts'
-import { scrubEventParams, type EventParams } from './analytics-params.ts'
+import { REDACTED, isUrlShaped, scrubEventParams, type EventParams } from './analytics-params.ts'
 
 export type GateResult = {
   /** Declared params only, each valid, URL-scrubbed. */
@@ -36,6 +36,8 @@ function checkValue(spec: ParamSpec, value: unknown): Checked {
       return typeof value === 'boolean' ? { value } : { problem: `${JSON.stringify(value)} is not a boolean` }
     case 'text': {
       if (typeof value !== 'string') return { problem: `${JSON.stringify(value)} is not a string` }
+      // Scrub the whole text before the cut: a cut can end mid-address and hide its shape (RBA-35).
+      if (isUrlShaped(value)) return { value: REDACTED }
       if (spec.pattern && !spec.pattern.test(value)) return { value: INVALID, problem: `${JSON.stringify(value)} does not match its pattern` }
       // GA4 cuts at 100 characters anyway; cutting here keeps that visible and predictable.
       return { value: value.slice(0, spec.maxLength) }

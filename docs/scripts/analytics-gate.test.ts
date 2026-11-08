@@ -62,6 +62,11 @@ test('scrubEventParams still applies: a URL inside an error message never leaves
   assert.deepEqual(problems, [])
 })
 
+test('an address past the length cut is still redacted: the scrub reads the whole text first', () => {
+  const reason = `${'a'.repeat(80)} at icecast.example.org/live`
+  assert.equal(gateEvent('bpm_stream_error', { input_method: 'url', error_kind: 'network', reason }).params.reason, REDACTED)
+})
+
 test('classifyMicError: the kind and the name, never the message', () => {
   const named = (name: string) => Object.assign(new Error('some text with https://x.example/'), { name })
   assert.deepEqual(classifyMicError(named('NotAllowedError')), { error_kind: 'denied', error_name: 'NotAllowedError' })

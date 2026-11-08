@@ -89,7 +89,7 @@ export const PARAMS = {
   action: { type: 'enum', values: ['replay', 'pause'], scope: 'dimension' },
 
   // ── Added by RBA-154 ─────────────────────────────────────────────────────────────────────
-  result_source: { type: 'enum', values: ['file', 'mic', 'stream', 'home_grid'], scope: 'dimension' },
+  result_source: { type: 'enum', values: ['file', 'mic', 'stream'], scope: 'dimension' },
   tool: { type: 'enum', values: TOOL_IDS, scope: 'dimension' },
   error_name: { type: 'enum', values: MIC_ERROR_NAMES, scope: 'dimension' },
   tap_count: { type: 'int', min: 0, max: 100_000, scope: 'metric' },
@@ -241,8 +241,13 @@ export const EVENTS = {
   bpm_tool_link_clicked: {
     params: { bpm: 'optional', mode: 'required', result_source: 'required', tool: 'required' },
     repeats: 'Each click.',
-    privacy: 'When you open another tool from a result or from the home page: which tool, where the link was, and the tempo it carries over.',
+    privacy: 'When you open another tool from the links under a result: which tool, which analyzer mode the result came from, and the tempo it carries over.',
     deprecated: { mode: 'result_source and tool' },
+  },
+  bpm_home_tool_clicked: {
+    params: { tool: 'required' },
+    repeats: 'Each click.',
+    privacy: 'When you open a tool from the list on the home page: which tool.',
   },
   bpm_markers_exported: {
     params: { format: 'required', frame_rate: 'required', export_format: 'required' },
@@ -301,7 +306,9 @@ export type EventParamsOf<E extends EventName> = {
   [K in OptionalKeys<E> & ParamName]?: ValueOf<(typeof PARAMS)[K]>
 }
 
-/** The name alone for an event with no required param, the name and its params for the rest. */
-export type TrackArgs<E extends EventName> = [RequiredKeys<E>] extends [never]
-  ? [params?: EventParamsOf<E>]
-  : [params: EventParamsOf<E>]
+/** The name alone for an event with no param, optional params when none is required, else the params. */
+export type TrackArgs<E extends EventName> = [keyof ParamsDeclared<E>] extends [never]
+  ? [] // `{}` would accept any value, so an event that declares no param takes no argument at all
+  : [RequiredKeys<E>] extends [never]
+    ? [params?: EventParamsOf<E>]
+    : [params: EventParamsOf<E>]

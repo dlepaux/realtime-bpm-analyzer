@@ -16,15 +16,24 @@ function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name)
     if (entry.isDirectory()) return SKIP.has(entry.name) ? [] : sourceFiles(path)
-    return /\.(vue|ts|md)$/.test(entry.name) ? [path] : []
+    // Type tests call track() wrongly on purpose, under @ts-expect-error.
+    return /\.(vue|ts|md)$/.test(entry.name) && !entry.name.endsWith('.typetest.ts') ? [path] : []
   })
 }
 
 type Call = { file: string; line: number; name: string | null }
 
+// Comments out, line count kept: a commented-out call is not a call site, and a comment may name
+// gtag or dataLayer freely. `://` is left alone so an address in a string isn't cut.
+function code(file: string): string {
+  return readFileSync(file, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\/|<!--[\s\S]*?-->/g, (block) => block.replace(/[^\n]/g, ' '))
+    .replace(/(^|[^:])\/\/.*$/gm, '$1')
+}
+
 // `track(` followed by an argument: prose such as "track() runs" is not a call.
 function callsIn(file: string): Call[] {
-  const text = readFileSync(file, 'utf8')
+  const text = code(file)
   return [...text.matchAll(/\btrack\((?!\))/g)].map((match) => {
     const after = text.slice(match.index + match[0].length)
     const literal = /^\s*'([a-z0-9_]+)'/.exec(after)
@@ -60,5 +69,24 @@ test('no markdown page calls track()', () => {
   }
   for (const file of files.filter((path) => path.endsWith('.md'))) {
     assert.doesNotMatch(readFileSync(file, 'utf8'), /useAnalytics/, relative(DOCS, file))
+  }
+})
+
+// The only two files that may talk to Google Analytics directly: anything else would skip the gate.
+const TRANSPORT_FILES = new Set(['.vitepress/tools/analytics-loader.ts', '.vitepress/composables/useAnalytics.ts'])
+
+test('nothing but the loader and track() reaches gtag or the dataLayer', () => {
+  for (const file of files) {
+    const where = relative(DOCS, file)
+    if (TRANSPORT_FILES.has(where)) continue
+    assert.doesNotMatch(code(file), /\bgtag\s*\(|\bdataLayer\b/, where)
+  }
+})
+
+test('track is never renamed or passed around, so the scan sees every call', () => {
+  for (const file of files.filter((path) => /useAnalytics/.test(code(path)))) {
+    const text = code(file)
+    // `{ track: send }`, `const send = track`, `fn(track)`: each would hide calls from the scan.
+    assert.doesNotMatch(text, /\btrack\s*:\s*[A-Za-z_$]|=\s*track\s*[;\n]|[(,]\s*track\s*[,)]/, relative(DOCS, file))
   }
 })

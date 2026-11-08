@@ -35,7 +35,7 @@ const hero = computed(() => frontmatter.value.homeHero as { text: string; taglin
         class="home-doors"
         :class="{ 'has-extension': STORE_URL }"
       >
-        <BpmHeroTool class="home-tool">
+        <BpmHeroTool>
           <template #heading>
             <h2 class="home-tool-heading">
               Got a file, a mic or a stream link?

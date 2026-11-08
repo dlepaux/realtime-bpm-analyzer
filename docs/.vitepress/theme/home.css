@@ -227,11 +227,10 @@
   .home-hero { padding-block: 40px 48px; }
   .home-title { font-size: 3rem; line-height: 1.15; }
 
-  /* The analyzer takes seven of twelve columns, the extension's door the other five. Without
-     the extension the analyzer keeps the same width, on the left. */
-  .home-doors { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 48px; }
-  .home-tool { grid-column: span 7; }
-  .home-doors .ext-door { grid-column: span 5; }
+  /* The analyzer takes seven twelfths, the extension's door the other five. Two tracks and one
+     gap rather than twelve, so eleven gaps don't eat the door's width. Without the extension the
+     analyzer keeps the same width, on the left. */
+  .home-doors { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 48px; }
 
   /* Five tools on six tracks: three on the first row, two wider ones on the second (tool-list.ts
      sets the rows), so no row ends with a lone tile. */

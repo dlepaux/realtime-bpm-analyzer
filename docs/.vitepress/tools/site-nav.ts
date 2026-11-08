@@ -11,7 +11,7 @@ import { extensionNavItems, extensionPrivacyNavItems } from './extension-promo.t
 const CHANGELOG = 'https://github.com/dlepaux/realtime-bpm-analyzer/blob/main/packages/realtime-bpm-analyzer/changelog.md'
 
 const FREE_TOOLS: DefaultTheme.NavItemWithChildren = {
-  text: 'Free Tools',
+  text: 'Free tools',
   items: [
     { text: 'BPM Analyzer', link: '/' },
     { text: 'Tap Tempo', link: '/tap-tempo' },
@@ -46,7 +46,7 @@ function aboutMenu(storeUrl: string | null): DefaultTheme.NavItemWithChildren {
       { text: 'Library privacy', link: '/privacy' },
       { text: 'Security', link: '/security' },
       { text: 'Contributing', link: '/contributing' },
-      { text: 'Code of Conduct', link: '/code-of-conduct' },
+      { text: 'Code of conduct', link: '/code-of-conduct' },
     ],
   }
 }

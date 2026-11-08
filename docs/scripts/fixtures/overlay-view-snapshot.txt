@@ -70,14 +70,24 @@ button.handle { display: none; width: 10px; height: 18px; padding: 1.5px 0; curs
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 `;
 
-const TEMPLATE = `
-<div class="pill" role="group" aria-label="Live BPM Detector" data-progress-style="full">
-  <button type="button" class="handle" aria-label="Move the BPM display with the arrow keys. Press Enter to put it back in the corner."></button>
-  <span class="stack"><span class="reading"><span class="value" data-state="listening"><span class="num">–</span><span class="dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></span> <span class="unit">BPM</span></span>
-  <span class="hint" data-stability="listening" data-level="low"><span class="dot"></span><span class="label">listening</span><span class="rate" aria-hidden="true"></span><span class="sr rate-help"></span></span></span>
-  <span class="sr live" aria-live="polite" aria-atomic="true"></span>
-  <button type="button" class="close" aria-label="Stop the BPM analysis">✕</button>
-  <span class="progress" aria-hidden="true" data-stability="listening"><span class="fill"></span></span>
-</div>`;
+type Markup = {readonly tag: string; readonly attrs?: Readonly<Record<string, string>> | undefined; readonly children?: readonly (Markup | string)[]};
+const el = (tag: string, attrs?: Readonly<Record<string, string>>, ...children: (Markup | string)[]): Markup => ({tag, attrs, children});
+
+// The pill's markup, built with DOM calls rather than parsed from a string, so no HTML parser ever runs in the
+// page (Firefox's add-on lint flags innerHTML, RBA-65). Every dynamic value goes through textContent later.
+const MARKUP: Markup = el('div', {class: 'pill', role: 'group', 'aria-label': 'Live BPM Detector', 'data-progress-style': 'full'},
+  el('button', {type: 'button', class: 'handle', 'aria-label': 'Move the BPM display with the arrow keys. Press Enter to put it back in the corner.'}),
+  el('span', {class: 'stack'},
+    el('span', {class: 'reading'},
+      el('span', {class: 'value', 'data-state': 'listening'},
+        el('span', {class: 'num'}, '–'),
+        el('span', {class: 'dots', 'aria-hidden': 'true'}, el('span', {}, '.'), el('span', {}, '.'), el('span', {}, '.'))),
+      ' ',
+      el('span', {class: 'unit'}, 'BPM')),
+    el('span', {class: 'hint', 'data-stability': 'listening', 'data-level': 'low'},
+      el('span', {class: 'dot'}), el('span', {class: 'label'}, 'listening'), el('span', {class: 'rate', 'aria-hidden': 'true'}), el('span', {class: 'sr rate-help'}))),
+  el('span', {class: 'sr live', 'aria-live': 'polite', 'aria-atomic': 'true'}),
+  el('button', {type: 'button', class: 'close', 'aria-label': 'Stop the BPM analysis'}, '✕'),
+  el('span', {class: 'progress', 'aria-hidden': 'true', 'data-stability': 'listening'}, el('span', {class: 'fill'})));
 
 const LABELS: Readonly<Record<Stability, string>> = {listening: 'listening', silent: 'no audio', settling: 'settling', stable: 'stable'};

@@ -31,23 +31,23 @@ const highlights = (activeMatch: string | undefined, path: string) =>
   activeMatch !== undefined && new RegExp(activeMatch).test(path)
 
 test('the top level is musician-first: tools, the extension, then Developers and About', () => {
-  assert.deepEqual(entries(siteNav(LISTING, VERSION)).map((item) => item.text), ['Free Tools', 'Browser Extension', 'Developers', 'About'])
+  assert.deepEqual(entries(siteNav(LISTING, VERSION)).map((item) => item.text), ['Free tools', 'Browser extension', 'Developers', 'About'])
 })
 
 test('switch off: no extension entry anywhere in the nav', () => {
   const nav = siteNav(null, VERSION)
-  assert.deepEqual(entries(nav).map((item) => item.text), ['Free Tools', 'Developers', 'About'])
+  assert.deepEqual(entries(nav).map((item) => item.text), ['Free tools', 'Developers', 'About'])
   assert.deepEqual(hrefs(nav).filter((link) => link.startsWith('/extension/')), [])
 })
 
 test('switch on: the extension page and its privacy page are both linked', () => {
   const nav = siteNav(LISTING, VERSION)
-  assert.deepEqual(entries(nav)[1], { text: 'Browser Extension', link: '/extension/', activeMatch: '^/extension/$' })
+  assert.deepEqual(entries(nav)[1], { text: 'Browser extension', link: '/extension/', activeMatch: '^/extension/$' })
   assert.deepEqual(links(menu(nav, 'About').items ?? []).find(([, link]) => link === '/extension/privacy'), ['Extension privacy', '/extension/privacy'])
 })
 
-test('Free Tools keeps its six tools, in order', () => {
-  assert.deepEqual(links(menu(siteNav(LISTING, VERSION), 'Free Tools').items ?? []), [
+test('Free tools keeps its six tools, in order', () => {
+  assert.deepEqual(links(menu(siteNav(LISTING, VERSION), 'Free tools').items ?? []), [
     ['BPM Analyzer', '/'],
     ['Tap Tempo', '/tap-tempo'],
     ['BPM to ms Calculator', '/bpm-to-ms'],
@@ -100,9 +100,9 @@ test('About holds the policies and the project pages', () => {
     ['Library privacy', '/privacy'],
     ['Security', '/security'],
     ['Contributing', '/contributing'],
-    ['Code of Conduct', '/code-of-conduct'],
+    ['Code of conduct', '/code-of-conduct'],
   ])
-  assert.deepEqual(links(menu(siteNav(null, VERSION), 'About').items ?? []).map(([text]) => text), ['Website privacy', 'Library privacy', 'Security', 'Contributing', 'Code of Conduct'])
+  assert.deepEqual(links(menu(siteNav(null, VERSION), 'About').items ?? []).map(([text]) => text), ['Website privacy', 'Library privacy', 'Security', 'Contributing', 'Code of conduct'])
 })
 
 test('everything the old version menu held is still in the nav', () => {

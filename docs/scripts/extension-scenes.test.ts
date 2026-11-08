@@ -185,7 +185,7 @@ function parseRules(css: string): Map<string, Map<string, string>> {
 }
 
 test('every declaration of the drawn widget is the real overlay\'s', () => {
-  const style = SNAPSHOT.slice(SNAPSHOT.indexOf('const STYLE'), SNAPSHOT.indexOf('const TEMPLATE')).replace(/\/\*[\s\S]*?\*\//g, '')
+  const style = SNAPSHOT.slice(SNAPSHOT.indexOf('const STYLE'), SNAPSHOT.indexOf('type Markup')).replace(/\/\*[\s\S]*?\*\//g, '')
   const real = parseRules(style)
   const drawn = drawnOverlay()
   assert.ok(drawn.size >= 12, 'the pinned block is all there')
@@ -198,8 +198,8 @@ test('every declaration of the drawn widget is the real overlay\'s', () => {
 })
 
 test('the progress is the one the extension ships by default: the whole pill fills', () => {
-  assert.match(SNAPSHOT, /data-progress-style="full"/, 'view.ts defaults to another style')
-  assert.match(SNAPSHOT, /<span class="progress" aria-hidden="true" data-stability="listening">/)
+  assert.ok(SNAPSHOT.includes("'data-progress-style': 'full'"), 'view.ts defaults to another style')
+  assert.ok(SNAPSHOT.includes("el('span', {class: 'progress', 'aria-hidden': 'true', 'data-stability': 'listening'}"))
   assert.match(CSS, /\.ext-sw \.progress \{ position: absolute; inset: 0;/)
 })
 

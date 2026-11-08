@@ -35,7 +35,7 @@ const QUIET_MS = 3_000
 const GOOGLE_HOSTS = ['*.google-analytics.com', '*.analytics.google.com', '*.doubleclick.net', 'www.google.com']
 const COLLECT = /google-analytics\.com|analytics\.google\.com|doubleclick\.net|\/g\/collect|\/collect\?/
 
-type Hit = { readonly name: string; readonly location: string; readonly title: string; readonly referrer: string; readonly params: Readonly<Record<string, string>> }
+type Hit = { readonly name: string; readonly location: string; readonly title: string; readonly referrer: string; readonly trafficType: string; readonly params: Readonly<Record<string, string>> }
 
 const hits: Hit[] = []
 const blocked: string[] = []
@@ -55,7 +55,7 @@ function parseHits(url: string, body: string | undefined): Hit[] {
       const match = /^epn?\.(.+)$/.exec(key)
       if (match?.[1]) params[match[1]] = value
     }
-    return { name: all.get('en') ?? '', location: all.get('dl') ?? '', title: all.get('dt') ?? '', referrer: all.get('dr') ?? '', params }
+    return { name: all.get('en') ?? '', location: all.get('dl') ?? '', title: all.get('dt') ?? '', referrer: all.get('dr') ?? '', trafficType: all.get('tt') ?? '', params }
   })
 }
 
@@ -175,6 +175,23 @@ test('a jump to a heading on the same page is not a page_view', async () => {
 test('an old .html address is one page_view, under its clean address', async () => {
   const count = await pageViewsOfVisit('/tap-tempo.html')
   assert.equal(count, 1, JSON.stringify(pageViews().slice(-3)))
+})
+
+// The GA4 internal traffic filter drops the hits that carry traffic_type=internal, so the owner's
+// flag has to reach the wire, and every other visit has to go out unmarked.
+test('a visit is unmarked, and a flagged browser marks every hit internal', async () => {
+  assert.deepEqual(hits.filter((hit) => hit.trafficType !== ''), [], 'an unflagged visit went out marked')
+  await page.evaluate(() => localStorage.setItem('rba:internal', '1'))
+  try {
+    const before = hits.length
+    await pageViewsOfVisit('/tap-tempo')
+    // Leaving the page before sends its user_engagement, unmarked: it belongs to the visit before.
+    const flagged = hits.slice(before).filter((hit) => hit.location.endsWith('/tap-tempo'))
+    assert.ok(flagged.length > 0)
+    assert.deepEqual(flagged.filter((hit) => hit.trafficType !== 'internal'), [], JSON.stringify(flagged))
+  } finally {
+    await page.evaluate(() => localStorage.removeItem('rba:internal'))
+  }
 })
 
 // What GA4 and its enhanced measurement send by themselves, with params of their own.

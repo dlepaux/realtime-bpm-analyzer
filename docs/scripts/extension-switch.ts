@@ -30,6 +30,8 @@ const MAX_SHARE_IMAGE_BYTES = 300_000
 const HERO_ACTION = 'Live BPM Detector for Chrome and Edge'
 const HOME_SECTION = 'ext-band'
 const HOME_TAGLINE = 'extension for Chrome and Edge, for the music in your tabs'
+// A phone's door to the extension: the page, sent to a computer (RBA-66).
+const HOME_SEND_LINK = 'Send the link to yourself'
 const BANNED_MARKUP = /aggregateRating|ratingValue|reviewCount|"review"/
 
 // Where a musician lands, and where the promo must not reach: a developer's page and
@@ -52,6 +54,7 @@ function checkOff(site: BuiltSite): string[] {
   expectAbsent(site.read('index.html').includes(HERO_ACTION), 'the home page has the extension\'s action')
   expectAbsent(site.read('index.html').includes(HOME_SECTION), 'the home page has the extension\'s section')
   expectAbsent(site.read('index.html').includes(HOME_TAGLINE), 'the home tagline names the extension')
+  expectAbsent(site.read('index.html').includes(HOME_SEND_LINK), 'the home page offers to send the extension\'s link')
   for (const path of site.paths.filter((p) => p.includes('@localSearchIndex'))) {
     expectAbsent(site.read(path).includes('extension/#'), `the page is in the search index (${path})`)
   }
@@ -181,7 +184,7 @@ function placementProblems(site: BuiltSite): string[] {
   if (!home.includes(HOME_SECTION)) problems.push('on: the home page has no section for the extension')
   if (!home.includes(HOME_TAGLINE)) problems.push('on: the home tagline does not name the extension')
   if (!HOME_LAYOUT.test(home)) problems.push('on: the home page does not have the extension\'s layout')
-  if (!home.includes('Developer Docs')) problems.push('on: the home page lost its Developer Docs action')
+  if (!home.includes(HOME_SEND_LINK)) problems.push('on: the home page has no way to send the link to a computer')
   // Read off a page with no other link to it, so this is the nav's order.
   const nav = site.read('bpm-to-ms.html')
   const extension = nav.indexOf(PAGE_LINK)

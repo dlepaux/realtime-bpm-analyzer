@@ -6,8 +6,8 @@
 /* ── The overlay pill ─────────────────────────────────────────────────────── */
 
 .ext-pill {
-  --ext-pill-band: #4ade80;
-  --ext-pill-fill: #166534;
+  --ext-pill-band: var(--rba-tempo-stable);
+  --ext-pill-fill: var(--rba-tempo-stable-fill);
   position: relative;
   isolation: isolate;
   display: inline-flex;
@@ -22,7 +22,7 @@
   white-space: nowrap;
 }
 
-.ext-pill[data-stability='settling'] { --ext-pill-band: #fbbf24; --ext-pill-fill: #92400e; }
+.ext-pill[data-stability='settling'] { --ext-pill-band: var(--rba-tempo-settling); --ext-pill-fill: var(--rba-tempo-settling-fill); }
 
 .ext-pill-stack { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .ext-pill-value { display: inline-grid; font-size: 16px; font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
@@ -304,18 +304,9 @@
 /* ── The promotion's colours ──────────────────────────────────────────────── */
 
 :root {
-  /* White on the theme's brand button is 4.48:1 in light and 4.15:1 on dark hover; these
-     clear AA. Only the promotion uses them. */
-  --ext-cta: #3a5ccc;
-  --ext-cta-hover: var(--vp-c-brand-1);
   --ext-ink: #0f1220;
   /* The scenes' players' accent, and the warm side of the demo's stage. */
   --ext-rose: #f43f5e;
-}
-
-.dark {
-  --ext-cta: #3e63dd;
-  --ext-cta-hover: #3a5ccc;
 }
 
 /* ── The actions ──────────────────────────────────────────────────────────── */
@@ -344,17 +335,17 @@
   line-height: 1.3;
 }
 
-:is(.ext-band, .ext-install) a.ext-cta,
+.ext-install a.ext-cta,
 .ext-install a.ext-install-btn.is-primary {
-  border-color: var(--ext-cta);
-  background: var(--ext-cta);
+  border-color: var(--rba-action);
+  background: var(--rba-action);
   color: #fff;
 }
 
-:is(.ext-band, .ext-install) a.ext-cta:hover,
+.ext-install a.ext-cta:hover,
 .ext-install a.ext-install-btn.is-primary:hover {
-  border-color: var(--ext-cta-hover);
-  background: var(--ext-cta-hover);
+  border-color: var(--rba-action-hover);
+  background: var(--rba-action-hover);
   color: #fff;
 }
 
@@ -381,12 +372,11 @@
   outline-offset: 3px;
 }
 
-/* ── Home: the section under the hero ─────────────────────────────────────── */
+/* ── Home: the extension's door, beside the analyzer ──────────────────────── */
 
-/* The home page's first screen once the extension is on: two doors, chosen by where the
-   visitor's music already is (Hick's Law: a choice they can answer without learning
-   anything). Scoped to .ext-home, so the live page keeps its hero until the switch is set. */
-.ext-doors { display: grid; gap: 40px; width: 100%; text-align: left; }
+/* The analyzer leads the first screen and keeps the page's one filled action (Von Restorff):
+   the door is an outline button and a smaller demo (RBA-66). A phone can't install the
+   extension, so there the door is gone and HomeComputerCard offers to send the link instead. */
 .ext-door { min-width: 0; }
 
 .ext-door h2 {
@@ -401,53 +391,19 @@
 }
 
 .ext-door-line { margin: -0.5rem 0 0.9rem; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.5; }
+/* The demoted door: a slimmer pill, on one line from about 980px. Narrower, it wraps rather than overflow. */
 .ext-door .ext-cta { margin-block: 0 1rem; }
-.ext-door-tools { margin: 0.9rem 0 0; color: var(--vp-c-text-2); font-size: 0.875rem; line-height: 1.6; }
-.ext-door-tools a { color: var(--vp-c-brand-1); font-weight: 500; }
-.ext-door-tools a:hover { text-decoration: underline; }
+.ext-band a.ext-cta { padding-inline: 1.1rem; font-size: 0.9375rem; text-wrap: balance; }
 
-/* The tool's card sets its own width; in a door it takes the door's. */
-.ext-doors .ext-door .bpm-hero-tool { width: 100%; max-width: none; margin: 0; }
+.ext-band a.ext-cta { border-color: var(--rba-action); color: var(--rba-action); }
+.ext-band a.ext-cta:hover { background: var(--vp-c-brand-soft); }
+.dark .ext-band a.ext-cta { border-color: var(--vp-c-brand-1); color: var(--vp-c-brand-1); }
 
-/* A phone can't install the extension, and half of search visits come from phones (RBA-58):
-   there the band is a heading, a line and a link to the page, and the drawn demo stays on
-   /extension/, so the band adds only a few lines under the tool. */
+/* On a short laptop screen the demo stays in the fold. */
+.ext-door .ext-scenes { max-width: calc(46svh * 1.516); }
+
 @media (pointer: coarse) {
-  .ext-band .ext-scenes { display: none; }
-  /* Nothing to install here, so the door is a plain link and the tool keeps the only filled action. */
-  .ext-band a.ext-cta { display: inline; min-height: 0; padding: 0; border: 0; background: none; color: var(--vp-c-brand-1); text-decoration: underline; text-underline-offset: 3px; }
-}
-
-.ext-home .VPHero .image-container { width: 100%; height: auto; max-width: none; transform: none; }
-.ext-home .VPHero .image { width: 100%; margin: 0; }
-
-@media (min-width: 960px) {
-  .ext-home .VPHero.VPHomeHero { padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 28px); padding-bottom: 32px; }
-  .ext-home .VPHero .container { flex-direction: column; max-width: 1152px; text-align: left; }
-  .ext-home .VPHero.VPHomeHero.has-image .main {
-    order: 1;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 40px;
-    align-items: end;
-    width: 100%;
-    max-width: none;
-  }
-  .ext-home .VPHero.VPHomeHero.has-image .main .heading { grid-column: 1 / -1; display: block; }
-  .ext-home .VPHero.VPHomeHero.has-image .main .name { display: block; font-size: 1rem; line-height: 1.5; letter-spacing: 0; }
-  .ext-home .VPHero.VPHomeHero.has-image .main .text { max-width: none; font-size: 3rem; line-height: 1.15; letter-spacing: -0.02em; }
-  .ext-home .VPHero.VPHomeHero.has-image .main .tagline { max-width: 46rem; margin: 0; padding-top: 10px; font-size: 1.0625rem; line-height: 1.5; }
-  .ext-home .VPHero.VPHomeHero.has-image .main .actions { margin: 0; padding-top: 0; justify-content: flex-end; }
-  .ext-home .VPHero .image { order: 2; margin-top: 28px; }
-  .ext-doors { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: start; }
-  /* On a short laptop screen the button stays in the fold. */
-  .ext-door .ext-scenes { max-width: calc(46svh * 1.516); }
-}
-
-/* The doors read from the left, so the phone's headline does too. */
-@media (max-width: 959px) {
-  .ext-home .VPHero .container { text-align: left; }
-  .ext-home .VPHero .bpm-hero-brand { margin-inline: 0; }
+  .ext-band { display: none; }
 }
 
 
@@ -549,7 +505,8 @@
     column-gap: 64px;
     row-gap: 20px;
     align-items: start;
-    padding-block: 64px 88px;
+    /* The next section brings its own top padding, so the fold ends with one gap, not two (RBA-58). */
+    padding-block: 64px 16px;
   }
 
   .ext-hero-stage { grid-column: 2; grid-row: 1 / span 4; width: 100%; }

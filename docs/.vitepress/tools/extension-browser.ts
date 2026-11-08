@@ -72,9 +72,10 @@ const LEAD: Partial<Record<VisitorBrowser, StoreId>> = { edge: 'edge' }
 const NOTHING_FILLED: ReadonlySet<VisitorBrowser> = new Set(['firefox', 'safari'])
 
 // Built from the listed browsers, so a build without an Edge listing never names Edge.
-const CONTEXT: Partial<Record<VisitorBrowser, (browsers: string) => string>> = {
+// Safari's line names where to go instead, since the visitor is one tab away from it (RBA-58).
+const CONTEXT: Partial<Record<VisitorBrowser, (browsers: readonly string[]) => string>> = {
   firefox: () => 'A Firefox version is on its way.',
-  safari: (browsers) => `Works in ${browsers} on a computer.`,
+  safari: (browsers) => `It doesn’t run in Safari. Open this page in ${browsers.join(' or ')}.`,
 }
 
 function button(target: InstallTarget, primary: boolean, browser: VisitorBrowser): InstallButton {
@@ -96,6 +97,6 @@ export function installOffer(targets: readonly InstallTarget[], browser: Visitor
   const filled = !NOTHING_FILLED.has(browser)
   return {
     buttons: ordered.map((target, index) => button(target, filled && index === 0, browser)),
-    context: CONTEXT[browser]?.(targets.map((target) => target.browser).join(' and ')) ?? null,
+    context: CONTEXT[browser]?.(targets.map((target) => target.browser)) ?? null,
   }
 }

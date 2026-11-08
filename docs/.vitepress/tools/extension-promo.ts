@@ -123,10 +123,10 @@ export function excludedSources(storeUrl: string | null): string[] {
   return storeUrl === null ? [EXTENSION_PAGE_SOURCE] : []
 }
 
-/** The main navigation's link. It goes right after Free Tools, ahead of the library's items. */
+/** The main navigation's link. It goes right after Free tools, ahead of the library's items. */
 export function extensionNavItems(storeUrl: string | null) {
   if (storeUrl === null) return []
-  return [{ text: 'Browser Extension', link: EXTENSION_PAGE, activeMatch: '^/extension/$' }]
+  return [{ text: 'Browser extension', link: EXTENSION_PAGE, activeMatch: '^/extension/$' }]
 }
 
 /**

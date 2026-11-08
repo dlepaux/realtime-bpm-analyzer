@@ -1,0 +1,243 @@
+/* The home page (RBA-66): the analyzer first, then the free tools, then the reading.
+   Widths follow VitePress's own home content (1280px, 24/48/64px gutters at 640 and 960), so
+   the hero, the tiles and the markdown below share one left edge. The one device check is
+   (pointer: coarse), as in extension.css; the widths are VitePress's breakpoints. */
+
+.home-wrap {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding-inline: 24px;
+}
+
+/* ── Hero ── */
+
+.home-hero { padding-block: 24px 40px; }
+
+.home-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--vp-c-brand-1);
+}
+
+.home-title {
+  margin: 0.5rem 0 0;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--vp-c-text-1);
+}
+
+.home-tagline {
+  max-width: 46rem;
+  margin: 0.75rem 0 0;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--vp-c-text-2);
+}
+
+.home-doors {
+  display: grid;
+  gap: 40px;
+  align-items: start;
+  margin-top: 28px;
+}
+
+.home-tool-heading {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--vp-c-text-1);
+}
+
+/* ── Free tools ── */
+
+.home-tools { padding-bottom: 48px; }
+
+/* Phones: a list, one tool per row, each a full-width target. */
+.home-tools-grid {
+  display: grid;
+  gap: 8px;
+  margin-block: 0;
+  list-style: none;
+}
+
+.home-tool-tile {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.85rem;
+  row-gap: 0.2rem;
+  align-items: start;
+  height: 100%;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  /* The page's own surface, so the raised tool card stays the heaviest thing on the first screen. */
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  text-decoration: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.home-tool-tile:hover { border-color: var(--vp-c-brand-1); background: var(--vp-c-bg-soft); }
+
+.home-tool-tile:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+/* The icon in a tinted chip and the name in the link colour: the tile reads as a link. */
+.home-tool-icon {
+  grid-row: span 2;
+  box-sizing: content-box;
+  padding: 0.45rem;
+  border-radius: 10px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+
+.home-tool-name { font-size: 1rem; font-weight: 600; line-height: 1.35; color: var(--vp-c-brand-1); }
+.home-tool-line { font-size: 0.875rem; line-height: 1.45; color: var(--vp-c-text-2); }
+
+/* ── Phones and tablets: send the link to a computer ── */
+
+.home-computer { display: none; }
+
+@media (pointer: coarse) {
+  .home-computer { display: block; padding-bottom: 48px; }
+}
+
+.home-computer-card {
+  padding: 1.25rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 16px;
+}
+
+.home-computer-card h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.home-computer-card p {
+  margin: 0.4rem 0 1rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2);
+}
+
+.home-computer-send {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 1.2rem;
+  border: 1.5px solid var(--rba-action);
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--rba-action);
+  text-decoration: none;
+}
+
+.dark .home-computer-send { border-color: var(--vp-c-brand-1); color: var(--vp-c-brand-1); }
+
+.home-computer-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-left: 1rem;
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+:is(.home-computer-send, .home-computer-more):focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+/* ── The reading below ── */
+
+.vp-doc .home-ways ul {
+  display: grid;
+  gap: 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-doc .home-ways li {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+
+.vp-doc .home-pair { display: grid; gap: 0 48px; }
+
+/* Limits: the small print, set quieter than the sections around it. */
+.vp-doc .home-limits {
+  margin-top: 48px;
+  padding: 0.25rem 1.25rem 0.5rem;
+  border-left: 3px solid var(--vp-c-divider);
+  font-size: 0.9375rem;
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc .home-limits h2 {
+  margin-top: 0.75rem;
+  padding-top: 0;
+  border-top: 0;
+  font-size: 1.125rem;
+}
+
+.vp-doc .home-limits strong { color: var(--vp-c-text-1); }
+
+@media (min-width: 640px) {
+  .home-wrap { padding-inline: 48px; }
+  .home-hero { padding-top: 32px; }
+
+  /* Tablets: two a row, too narrow for three. An odd last tile takes the whole row, so no row
+     is half empty. Every row is as tall as the tallest tile. */
+  .home-tools-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
+
+  .home-tool-tile {
+    grid-template-columns: 1fr;
+    row-gap: 0.35rem;
+    align-content: start;
+    padding: 1.1rem 1.2rem;
+  }
+
+  .home-tool-icon { grid-row: auto; justify-self: start; margin-bottom: 0.3rem; }
+}
+
+@media (min-width: 640px) and (max-width: 959px) {
+  .home-tools-grid > li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+@media (min-width: 960px) {
+  .home-wrap { padding-inline: 64px; }
+  .home-hero { padding-block: 40px 48px; }
+  .home-title { font-size: 3rem; line-height: 1.15; }
+
+  /* The analyzer takes seven twelfths, the extension's door the other five. Two tracks and one
+     gap rather than twelve, so eleven gaps don't eat the door's width. Without the extension the
+     analyzer keeps the same width, on the left. */
+  .home-doors { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 48px; }
+
+  /* Five tools on six tracks: three on the first row, two wider ones on the second (tool-list.ts
+     sets the rows), so no row ends with a lone tile. */
+  .home-tools-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .home-tools-grid > .home-tool-span-2 { grid-column: span 2; }
+  .home-tools-grid > .home-tool-span-3 { grid-column: span 3; }
+
+  .vp-doc .home-ways ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .vp-doc .home-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

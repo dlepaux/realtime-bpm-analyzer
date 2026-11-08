@@ -239,7 +239,7 @@ export default defineConfig({
     if (STORE_URL && pageData.relativePath === 'extension/index.md') {
       graph.push(extensionPageSchema(STORE_URL, canonical, ogDesc, EDGE_URL))
     }
-    if (isHome) pageData.frontmatter.hero = extensionHomeHero(pageData.frontmatter.hero, STORE_URL)
+    if (isHome) pageData.frontmatter.homeHero = extensionHomeHero(pageData.frontmatter.homeHero, STORE_URL)
 
     // Emitted per page, not from `head:` below: crawlers use the first occurrence, so a
     // global tag would pin every page to the site's image.
@@ -271,9 +271,6 @@ export default defineConfig({
     // Warm the connection to GTM before its loader script fires — saves the
     // DNS + TLS round-trip on first paint. Paired with the GTM snippet below.
     ['link', { rel: 'preconnect', href: 'https://www.googletagmanager.com', crossorigin: '' }],
-    // LCP candidate — the home hero image. Tells the preload scanner to start
-    // fetching before VitePress's CSS finishes parsing.
-    ['link', { rel: 'preload', as: 'image', href: '/logo.svg', type: 'image/svg+xml' }],
     // Google Tag Manager — container loads GA4 + any future tags from the GTM dashboard.
     // GA4 measurement ID G-S911G9WQTM must be configured as a tag inside GTM.
     ['script', {}, `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_CONTAINER_ID}');`],

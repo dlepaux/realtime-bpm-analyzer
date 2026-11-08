@@ -1,0 +1,24 @@
+/* The site's own colour tokens. The tempo states are the extension's (rba-pro
+   extension/src/overlay/view.ts): a bright mark for the dot, and a deep fill that white text
+   sits on at 7:1 or more. The drawn widget, the extension page's pill and the home tool's chip
+   all read them here, and scripts/extension-scenes.test.ts checks them against the extension. */
+:root {
+  --rba-tempo-stable: #4ade80;
+  --rba-tempo-stable-fill: #166534;
+  --rba-tempo-settling: #fbbf24;
+  --rba-tempo-settling-fill: #92400e;
+  /* The text on either fill. */
+  --rba-tempo-ink: #fff;
+}
+
+/* The filled action. White on VitePress's brand button is 4.48:1 in light and 4.15:1 on dark
+   hover; these clear AA, so every filled button on the site uses them. */
+:root {
+  --rba-action: #3a5ccc;
+  --rba-action-hover: var(--vp-c-brand-1);
+}
+
+.dark {
+  --rba-action: #3e63dd;
+  --rba-action-hover: #3a5ccc;
+}

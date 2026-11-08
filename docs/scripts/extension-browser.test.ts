@@ -67,7 +67,7 @@ test('installOffer: where neither store installs, no button is filled, so none l
   for (const browser of ['firefox', 'safari'] as const) {
     assert.deepEqual(view(browser).buttons, view('unknown').buttons.map(([id, , title, subtitle]) => [id, false, title, subtitle]), browser)
   }
-  assert.equal(view('safari').context, 'Works in Chrome and Edge on a computer.', 'says why nothing is filled')
+  assert.equal(view('safari').context, 'It doesn’t run in Safari. Open this page in Chrome or Edge.', 'says why nothing is filled')
 })
 
 test('installOffer: Edge leads in Edge, with Chrome second', () => {
@@ -103,7 +103,7 @@ test('installOffer without an Edge listing offers Chrome to everyone, Edge inclu
   const chromeOnly = installTargets(LISTING, null, 'extension_hero')
   assert.deepEqual(installOffer(chromeOnly, 'edge').buttons.map((b) => [b.id, b.primary]), [['chrome', true]])
   assert.deepEqual(installOffer([], 'chrome').buttons, [])
-  assert.equal(installOffer(chromeOnly, 'safari').context, 'Works in Chrome on a computer.', 'never names a browser with no listing')
+  assert.equal(installOffer(chromeOnly, 'safari').context, 'It doesn’t run in Safari. Open this page in Chrome.', 'never names a browser with no listing')
 })
 
 test('readSignals takes the brand names where the browser has them, and nothing else', () => {

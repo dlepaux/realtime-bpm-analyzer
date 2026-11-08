@@ -20,6 +20,7 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 const WIDTHS = { stable: 7, settling: 7.4, listening: 5 }
 const SNAPSHOT = read('./fixtures/overlay-view-snapshot.txt')
 const CSS = read('../.vitepress/theme/extension-scenes.css')
+const TOKENS = read('../.vitepress/theme/tokens.css')
 const REST_CSS = read('../.vitepress/theme/extension-scenes-rest.css')
 const SCENES_VUE = read('../.vitepress/components/ExtensionScenes.vue')
 const REST_VUE = read('../.vitepress/components/ExtensionScenesRest.vue')
@@ -169,7 +170,10 @@ function drawnOverlay(): Map<string, Map<string, string>> {
   const start = CSS.indexOf('/* overlay:start */')
   const end = CSS.indexOf('/* overlay:end */')
   assert.ok(start !== -1 && end > start, 'the pinned block is marked')
+  // The site's tokens read back as their values, so the comparison is with what the page paints.
+  const tokens = new Map([...TOKENS.matchAll(/(--rba-[\w-]+): ([^;]+);/g)].map(([, name = '', value = '']) => [name, value]))
   const block = CSS.slice(start, end).replace(/\/\*[\s\S]*?\*\//g, '').replace(/calc\(([-\d.]+) \* var\(--u\)\)/g, '$1px')
+    .replace(/var\((--rba-[\w-]+)\)/g, (_, name: string) => tokens.get(name) ?? `unknown ${name}`)
   return parseRules(block.replaceAll('.ext-sw ', ''))
 }
 
@@ -185,7 +189,7 @@ function parseRules(css: string): Map<string, Map<string, string>> {
 }
 
 test('every declaration of the drawn widget is the real overlay\'s', () => {
-  const style = SNAPSHOT.slice(SNAPSHOT.indexOf('const STYLE'), SNAPSHOT.indexOf('const TEMPLATE')).replace(/\/\*[\s\S]*?\*\//g, '')
+  const style = SNAPSHOT.slice(SNAPSHOT.indexOf('const STYLE'), SNAPSHOT.indexOf('type Markup')).replace(/\/\*[\s\S]*?\*\//g, '')
   const real = parseRules(style)
   const drawn = drawnOverlay()
   assert.ok(drawn.size >= 12, 'the pinned block is all there')
@@ -198,8 +202,8 @@ test('every declaration of the drawn widget is the real overlay\'s', () => {
 })
 
 test('the progress is the one the extension ships by default: the whole pill fills', () => {
-  assert.match(SNAPSHOT, /data-progress-style="full"/, 'view.ts defaults to another style')
-  assert.match(SNAPSHOT, /<span class="progress" aria-hidden="true" data-stability="listening">/)
+  assert.ok(SNAPSHOT.includes("'data-progress-style': 'full'"), 'view.ts defaults to another style')
+  assert.ok(SNAPSHOT.includes("el('span', {class: 'progress', 'aria-hidden': 'true', 'data-stability': 'listening'}"))
   assert.match(CSS, /\.ext-sw \.progress \{ position: absolute; inset: 0;/)
 })
 

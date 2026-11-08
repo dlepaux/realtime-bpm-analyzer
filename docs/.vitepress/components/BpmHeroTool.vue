@@ -7,7 +7,6 @@ import {
   Radio,
   Volume2,
   VolumeX,
-  ShieldCheck,
 } from 'lucide-vue-next'
 import {
   analyzeFullBuffer,
@@ -36,6 +35,8 @@ import GithubStarSupport from './GithubStarSupport.vue'
 import ResultToolLinks from './ResultToolLinks.vue'
 import ExtensionResultPrompt from './ExtensionResultPrompt.vue'
 import BeatMarkerExport from './BeatMarkerExport.vue'
+import BpmReadout from './BpmReadout.vue'
+import BpmSourceSwitch from './BpmSourceSwitch.vue'
 import { STORE_URL } from '../tools/extension-live'
 import { EXTENSION_PAGE, extensionCovers } from '../tools/extension-promo'
 
@@ -50,20 +51,23 @@ const GAIN_MUTED = 0
 // `video` frames the file panel for a video (the /video-bpm page): same analysis,
 // since the browser decodes a video's sound track like any audio file.
 const props = withDefaults(defineProps<{ variant?: 'audio' | 'video' }>(), { variant: 'audio' })
+// A touch screen has nothing to drop, so it gets the short line; CSS picks it with
+// (pointer: coarse), so the server's HTML and the hydrated page agree.
 const FILE_COPY = {
   audio: {
-    drop: 'Drop an audio file or click to browse',
-    headline: 'Drop audio file',
-    formats: 'MP3, WAV, FLAC, M4A, OGG & more',
+    headline: 'Drop a song or choose a file',
+    touchHeadline: 'Choose a song',
+    formats: 'MP3, WAV, FLAC, M4A, OGG',
     decodeError: 'Your browser couldn’t decode that file. Try MP3, WAV, FLAC, M4A or OGG.',
   },
   video: {
-    drop: 'Drop a video or audio file or click to browse',
-    headline: 'Drop video file',
-    formats: 'MP4, WebM, MOV & audio files',
+    headline: 'Drop a video or choose a file',
+    touchHeadline: 'Choose a video',
+    formats: 'MP4, WebM, MOV and audio files',
     decodeError: 'Your browser couldn’t decode the sound of that file. Try MP4 or WebM, or export the audio as WAV.',
   },
 } as const
+const STAYS_ON_DEVICE = 'Audio stays on your device'
 const fileCopy = computed(() => FILE_COPY[props.variant])
 
 const { track } = useAnalytics()
@@ -141,17 +145,11 @@ watch(linkPlatform, (platform) => {
   track('bpm_link_detected', { platform })
 })
 
-const modes: readonly { id: Mode; label: string }[] = [
-  { id: 'file', label: 'File' },
-  { id: 'mic', label: 'Mic' },
-  { id: 'stream', label: 'Stream' },
-] as const
-
-const iconForMode = {
-  file: FileAudio,
-  mic: Mic,
-  stream: Radio,
-} as const
+const modes = [
+  { id: 'file', label: 'File', icon: FileAudio },
+  { id: 'mic', label: 'Mic', icon: Mic },
+  { id: 'stream', label: 'Stream', icon: Radio },
+] as const satisfies readonly { id: Mode; label: string; icon: unknown }[]
 
 // ─── Mode switching (with teardown) ──────────────────────────────────────
 function setMode(next: Mode) {
@@ -172,6 +170,7 @@ function setMode(next: Mode) {
     streamStatus.value = 'idle'
     resetStreamReadings()
   }
+  announce('')
   mode.value = next
   track('bpm_tab_change', { mode: next })
 }
@@ -694,10 +693,19 @@ onBeforeUnmount(() => {
 })
 
 // ─── UI helpers ──────────────────────────────────────────────────────────
-const dropZoneClasses = computed(() => ({
-  'bpm-drop-zone-inner': true,
-  'is-drag-over': isDragOver.value,
-}))
+// One line under the tool: the formats where a file is chosen, and where the audio goes.
+const metaLine = computed(() => (mode.value === 'file' ? `${fileCopy.value.formats} · ${STAYS_ON_DEVICE}` : STAYS_ON_DEVICE))
+
+// What screen readers hear: a settled reading only, once, as it arrives. A live number changes
+// about once a second, and reading each one out would talk over the music. The readings are
+// watched rather than the mode, so going back to a tab that still shows an old result says nothing.
+const announcement = ref('')
+const announce = (text: string) => { announcement.value = text }
+watch(() => (fileStatus.value === 'result' ? fileBpm.value : null), (bpm) => announce(bpm === null ? '' : `${bpm} BPM`))
+watch([micStableBpm, streamStableBpm], ([mic, stream], [oldMic]) => {
+  const bpm = mic !== oldMic ? mic : stream
+  announce(bpm === null ? '' : `Stable at ${bpm} BPM`)
+})
 
 const streamLiveLabel = computed(() => {
   if (streamInput.value === 'tab') return tabSharingEnded.value ? 'Sharing stopped' : 'Listening to tab'
@@ -713,29 +721,12 @@ function formatDuration(seconds: number): string {
 
 <template>
   <div class="bpm-hero-tool">
-    <div
-      class="bpm-tabs"
-      role="tablist"
-      aria-label="Audio source"
-    >
-      <button
-        v-for="m in modes"
-        :key="m.id"
-        type="button"
-        role="tab"
-        :aria-selected="mode === m.id"
-        :class="['bpm-tab', { 'is-active': mode === m.id }]"
-        @click="setMode(m.id)"
-      >
-        <component
-          :is="iconForMode[m.id]"
-          :size="16"
-          :stroke-width="1.75"
-          aria-hidden="true"
-        />
-        <span>{{ m.label }}</span>
-      </button>
-    </div>
+    <slot name="heading" />
+    <BpmSourceSwitch
+      :options="modes"
+      :selected="mode"
+      @select="setMode"
+    />
 
     <div class="bpm-tool-body">
       <!-- FILE MODE -->
@@ -744,35 +735,33 @@ function formatDuration(seconds: number): string {
         class="bpm-mode bpm-mode-file"
       >
         <template v-if="fileStatus === 'idle'">
+          <!-- The whole zone takes a drop or a click; the button is the way in for a keyboard,
+               a screen reader and a touch screen, so the zone itself isn't a second control. -->
           <div
-            :class="dropZoneClasses"
-            role="button"
-            tabindex="0"
-            :aria-label="fileCopy.drop"
+            class="bpm-drop-zone"
+            :class="{ 'is-drag-over': isDragOver }"
             @click="openFilePicker"
-            @keydown.enter.prevent="openFilePicker"
-            @keydown.space.prevent="openFilePicker"
             @dragover="onDragOver"
             @dragleave="onDragLeave"
             @drop="onDrop"
           >
-            <div
+            <FileAudio
               class="bpm-icon"
+              :size="40"
+              :stroke-width="1.5"
               aria-hidden="true"
+            />
+            <p class="bpm-headline">
+              <span class="bpm-on-pointer">{{ fileCopy.headline }}</span>
+              <span class="bpm-on-touch">{{ fileCopy.touchHeadline }}</span>
+            </p>
+            <button
+              type="button"
+              class="bpm-primary-btn"
+              @click.stop="openFilePicker"
             >
-              <FileAudio
-                :size="52"
-                :stroke-width="1.5"
-              />
-            </div>
-            <div class="bpm-copy">
-              <div class="bpm-headline">
-                {{ fileCopy.headline }}
-              </div>
-              <div class="bpm-sub">
-                or click to browse
-              </div>
-            </div>
+              Choose a file
+            </button>
           </div>
           <input
             ref="fileInput"
@@ -781,16 +770,10 @@ function formatDuration(seconds: number): string {
             class="bpm-file-input"
             @change="onFileChange"
           />
-          <div class="bpm-formats">
-            {{ fileCopy.formats }}
-          </div>
         </template>
 
         <template v-else-if="fileStatus === 'analysing'">
-          <div
-            class="bpm-state bpm-state-analysing"
-            aria-live="polite"
-          >
+          <div class="bpm-state bpm-state-analysing">
             <div
               class="bpm-spinner"
               aria-hidden="true"
@@ -805,14 +788,11 @@ function formatDuration(seconds: number): string {
         </template>
 
         <template v-else-if="fileStatus === 'result'">
-          <div
-            class="bpm-state bpm-state-result"
-            aria-live="polite"
-          >
-            <div class="bpm-result-bpm">
-              <span class="bpm-result-number">{{ fileBpm }}</span>
-              <span class="bpm-result-unit">BPM</span>
-            </div>
+          <div class="bpm-state bpm-state-result">
+            <BpmReadout
+              :bpm="fileBpm"
+              state="final"
+            />
             <div class="bpm-state-name">
               {{ fileName }}
             </div>
@@ -903,23 +883,14 @@ function formatDuration(seconds: number): string {
         </template>
 
         <template v-else-if="micStatus === 'analysing'">
-          <div
-            class="bpm-state bpm-state-analysing bpm-state-live"
-            aria-live="polite"
-          >
-            <div
-              class="bpm-live-indicator"
-              aria-hidden="true"
-            >
-              <span class="bpm-live-dot"></span>
-              Listening
-            </div>
-            <div class="bpm-result-bpm">
-              <span class="bpm-result-number">{{ micLiveBpm ?? '—' }}</span>
-              <span class="bpm-result-unit">BPM</span>
-            </div>
+          <div class="bpm-state bpm-state-live">
+            <BpmReadout
+              :bpm="micLiveBpm"
+              state="settling"
+              listening
+            />
             <div class="bpm-state-label">
-              Stabilising…
+              Listening to your microphone
             </div>
             <button
               type="button"
@@ -932,16 +903,14 @@ function formatDuration(seconds: number): string {
         </template>
 
         <template v-else-if="micStatus === 'result'">
-          <div
-            class="bpm-state bpm-state-result"
-            aria-live="polite"
-          >
-            <div class="bpm-result-bpm">
-              <span class="bpm-result-number">{{ micStableBpm }}</span>
-              <span class="bpm-result-unit">BPM</span>
-            </div>
+          <div class="bpm-state bpm-state-result">
+            <BpmReadout
+              :bpm="micStableBpm"
+              state="stable"
+              listening
+            />
             <div class="bpm-state-label">
-              Stable from microphone
+              Listening to your microphone
             </div>
             <ResultToolLinks
               v-if="micStableBpm !== null"
@@ -1093,34 +1062,16 @@ function formatDuration(seconds: number): string {
         </template>
 
         <template v-else-if="streamStatus === 'analysing'">
-          <div
-            class="bpm-state bpm-state-analysing bpm-state-live"
-            aria-live="polite"
-          >
-            <div
-              class="bpm-live-indicator"
-              aria-hidden="true"
-            >
-              <span
-                v-if="!tabSharingEnded"
-                class="bpm-live-dot"
-              ></span>
+          <div class="bpm-state bpm-state-live">
+            <!-- A stream has no end, so the analysis keeps running after a stable reading: once
+                 there is one, it is the number shown, and later readings only refine it. -->
+            <BpmReadout
+              :bpm="streamStableBpm ?? streamLiveBpm"
+              :state="streamStableBpm === null ? 'settling' : 'stable'"
+              :listening="!tabSharingEnded"
+            />
+            <div class="bpm-state-label">
               {{ streamLiveLabel }}
-            </div>
-            <div class="bpm-result-bpm">
-              <span class="bpm-result-number">{{ streamLiveBpm ?? '—' }}</span>
-              <span class="bpm-result-unit">BPM</span>
-            </div>
-            <div
-              v-if="streamStableBpm !== null"
-              class="bpm-stable-pill"
-              aria-live="polite"
-            >
-              <span
-                class="bpm-stable-dot"
-                aria-hidden="true"
-              ></span>
-              Stable at {{ streamStableBpm }} BPM
             </div>
             <div class="bpm-stream-actions">
               <button
@@ -1209,257 +1160,170 @@ function formatDuration(seconds: number): string {
       </div>
     </div>
 
-    <div class="bpm-badge">
-      <ShieldCheck
-        :size="12"
-        :stroke-width="2"
-        aria-hidden="true"
-      />
-      Audio stays in your browser
-    </div>
+    <p class="bpm-meta">
+      {{ metaLine }}
+    </p>
+    <p
+      class="bpm-announce"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      {{ announcement }}
+    </p>
   </div>
 </template>
 
 <style scoped>
+/* The tool is a raised card: the one object on the page that does something (RBA-66). The body's
+   height is the tallest state's, a file result with its alternate reading, so idle, listening and a result all take the same
+   room and a result arriving seconds after the click moves nothing below (CLS). */
 .bpm-hero-tool {
-  width: 100%;
-  max-width: 440px;
-  margin: 0 auto;
+  --bpm-body-min-height: 24rem;
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.75rem;
-  position: relative;
-  z-index: 2;
-}
-
-.bpm-tabs {
-  display: flex;
-  gap: 0.25rem;
-  padding: 0.25rem;
-  background: var(--vp-c-bg-soft);
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 999px;
+  gap: 1rem;
   width: 100%;
-}
-
-.bpm-tab {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--vp-c-text-2);
-  background: transparent;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.bpm-tab:hover:not(.is-active) { color: var(--vp-c-text-1); }
-.bpm-tab.is-active {
+  padding: 1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 20px;
   background: var(--vp-c-bg);
-  color: var(--vp-c-brand-1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 16px 40px -20px rgb(40 30 90 / 0.28);
 }
 
-.bpm-tab > :deep(svg) { flex-shrink: 0; }
+:global(.dark) .bpm-hero-tool {
+  background: var(--vp-c-bg-soft);
+  box-shadow: 0 16px 40px -20px rgb(0 0 0 / 0.6);
+}
 
 .bpm-tool-body {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  min-height: var(--bpm-body-min-height);
 }
 
 .bpm-mode {
-  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
+  width: 100%;
 }
 
-.bpm-mode-file { gap: 0.5rem; }
-
-.bpm-drop-zone-inner {
+/* ── File ── */
+.bpm-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
   width: 100%;
-  padding: 1.75rem 1.25rem;
+  min-height: var(--bpm-body-min-height);
+  padding: 1.5rem 1rem;
   border: 2px dashed var(--vp-c-divider);
-  border-radius: 16px;
-  background: var(--vp-c-bg-soft);
+  border-radius: 14px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
-  outline: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-.bpm-drop-zone-inner:hover,
-.bpm-drop-zone-inner:focus-visible {
+.bpm-drop-zone:hover,
+.bpm-drop-zone.is-drag-over {
   border-color: var(--vp-c-brand-1);
-  background: var(--vp-c-bg-alt);
+  background: var(--vp-c-brand-soft);
 }
 
-.bpm-drop-zone-inner.is-drag-over {
-  border-color: var(--vp-c-brand-1);
-  background: var(--vp-c-bg-alt);
-  transform: scale(1.01);
-}
-
-.bpm-icon {
-  color: var(--vp-c-brand-1);
-  margin-bottom: 0.5rem;
-  display: flex;
-  justify-content: center;
-  /* Subtle downward float — signals "you can drop something here" without
-     grabbing attention. 3s cycle, 4px travel. Pauses on hover / drag-over. */
-  animation: bpm-icon-float 3s ease-in-out infinite;
-}
-
-.bpm-drop-zone-inner:hover .bpm-icon,
-.bpm-drop-zone-inner:focus-visible .bpm-icon,
-.bpm-drop-zone-inner.is-drag-over .bpm-icon {
-  animation-play-state: paused;
-}
-
-@keyframes bpm-icon-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(4px); }
-}
+.bpm-icon { color: var(--vp-c-brand-1); }
 
 .bpm-headline {
-  font-size: 1.2rem;
+  margin: 0;
+  font-size: 1.125rem;
   font-weight: 600;
+  line-height: 1.4;
   color: var(--vp-c-text-1);
-  letter-spacing: -0.01em;
 }
 
-.bpm-sub {
-  font-size: 0.9rem;
-  color: var(--vp-c-text-2);
-  margin-top: 0.2rem;
-}
+/* The one device check, as everywhere on the site: a touch screen has nothing to drop. */
+.bpm-on-touch { display: none; }
 
-.bpm-copy-centered { text-align: center; }
+@media (pointer: coarse) {
+  .bpm-on-pointer { display: none; }
+  .bpm-on-touch { display: inline; }
+}
 
 .bpm-file-input { display: none; }
 
-.bpm-formats {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
-  text-align: center;
+/* The card's one filled action, in the AA-safe action colours (tokens.css). */
+.bpm-primary-btn,
+.bpm-stream-btn {
+  min-height: 44px;
+  padding: 0 1.4rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--rba-action);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-/* Shared state card */
+.bpm-primary-btn:hover,
+.bpm-stream-btn:hover { background: var(--rba-action-hover); }
+
+.bpm-stream-btn { width: 100%; border-radius: 10px; }
+
+/* ── States ── */
 .bpm-state {
-  width: 100%;
-  padding: 1.25rem 1rem;
-  background: var(--vp-c-bg-soft);
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 16px;
-  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.6rem;
+  width: 100%;
+  text-align: center;
 }
 
 .bpm-state-name {
-  font-size: 0.85rem;
+  max-width: 100%;
+  font-size: 0.875rem;
   color: var(--vp-c-text-2);
   word-break: break-all;
-  max-width: 100%;
 }
 
 .bpm-state-label {
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   color: var(--vp-c-text-2);
 }
 
-/* Live indicator */
-.bpm-live-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--vp-c-danger-1, #f43f5e);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.bpm-live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--vp-c-danger-1, #f43f5e);
-  box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.45);
-  animation: bpm-pulse 1.2s ease-out infinite;
-}
-
-@keyframes bpm-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.45); }
-  70% { box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
-}
-
-/* Spinner */
 .bpm-spinner {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
   border: 3px solid var(--vp-c-divider);
   border-top-color: var(--vp-c-brand-1);
+  border-radius: 50%;
   animation: bpm-spin 0.8s linear infinite;
 }
 
 @keyframes bpm-spin { to { transform: rotate(360deg); } }
 
-/* Result */
-.bpm-result-bpm {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.5rem;
-  line-height: 1;
-}
-
-.bpm-result-number {
-  font-size: 4rem;
-  font-weight: 700;
-  color: var(--vp-c-brand-1);
-  letter-spacing: -0.04em;
-  font-variant-numeric: tabular-nums;
-  min-width: 3.2ch;
-}
-
-.bpm-result-unit {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--vp-c-text-2);
-  letter-spacing: 0.05em;
-}
-
 .bpm-result-meta {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
   display: flex;
   gap: 0.4rem;
   justify-content: center;
+  font-size: 0.875rem;
+  color: var(--vp-c-text-2);
 }
 
 .bpm-restart-btn {
-  margin-top: 0.4rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
+  min-height: 44px;
+  padding: 0 1.1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 999px;
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--vp-c-text-1);
   background: var(--vp-c-bg);
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 999px;
   cursor: pointer;
   transition: border-color 0.2s ease, color 0.2s ease;
 }
@@ -1469,136 +1333,79 @@ function formatDuration(seconds: number): string {
   color: var(--vp-c-brand-1);
 }
 
-/* Action row pairing the primary restart/stop button with the inline
-   GithubStarSupport CTA in success states (file-result, mic-stable, and
-   stream stability). The row owns the top margin so the restart button drops
-   its own (avoids double-stacking when nested here). */
-.bpm-result-actions {
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 0.4rem;
-}
-
-.bpm-result-actions .bpm-restart-btn {
-  margin-top: 0;
-}
-
+/* The restart button and the star link share a row in the success states. */
+.bpm-result-actions,
 .bpm-stream-actions {
   display: flex;
-  gap: 0.5rem;
-  justify-content: center;
   flex-wrap: wrap;
-}
-
-/* Stable pill shown inside stream analysing panel — signals the analyser has
-   stabilised while the stream continues playing (continuousAnalysis=true). */
-.bpm-stable-pill {
-  display: inline-flex;
+  gap: 0.6rem;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.7rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--vp-c-green-1, #10b981);
-  background: color-mix(in srgb, var(--vp-c-green-1, #10b981) 12%, transparent);
-  border-radius: 999px;
-  letter-spacing: 0.02em;
+  justify-content: center;
 }
 
-.bpm-stable-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
+.bpm-state-error .bpm-error-msg {
+  font-size: 0.9375rem;
+  color: var(--vp-c-danger-1);
 }
 
-.bpm-state-error { border-color: var(--vp-c-danger-1, #f43f5e); }
-.bpm-error-msg {
-  font-size: 0.9rem;
-  color: var(--vp-c-danger-1, #f43f5e);
-}
-
-/* Mic */
+/* ── Mic ── */
 .bpm-mic-button {
-  width: 148px;
-  height: 148px;
-  border-radius: 50%;
-  border: none;
-  background: var(--vp-c-bg-soft);
-  color: var(--vp-c-brand-1);
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(100, 108, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
-  margin-top: 0.5rem;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.2s ease;
 }
 
-.bpm-mic-button:hover {
-  transform: scale(1.03);
-  box-shadow: 0 12px 32px rgba(100, 108, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  background: var(--vp-c-bg-alt);
-}
-
+.bpm-mic-button:hover { transform: scale(1.03); }
 .bpm-mic-button:active { transform: scale(0.98); }
 
-/* Stream */
-.bpm-mode-stream {
-  gap: 0.6rem;
-  padding: 0.25rem 0.25rem 0;
-  width: 100%;
+.bpm-copy-centered { text-align: center; }
+
+.bpm-copy .bpm-headline { font-size: 1.125rem; }
+
+.bpm-sub {
+  margin-top: 0.2rem;
+  font-size: 0.9375rem;
+  color: var(--vp-c-text-2);
 }
 
+/* ── Stream ── */
+.bpm-mode-stream { gap: 0.6rem; }
+
 .bpm-stream-label {
-  font-size: 0.8rem;
+  align-self: flex-start;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--vp-c-text-2);
-  align-self: flex-start;
 }
 
 .bpm-stream-input {
   width: 100%;
-  padding: 0.7rem 0.9rem;
-  font-size: 0.9rem;
-  color: var(--vp-c-text-1);
-  background: var(--vp-c-bg-soft);
+  min-height: 44px;
+  padding: 0 0.9rem;
   border: 1px solid var(--vp-c-divider);
   border-radius: 10px;
-  outline: none;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.bpm-stream-input:focus {
-  border-color: var(--vp-c-brand-1);
+  font-size: 1rem;
+  color: var(--vp-c-text-1);
   background: var(--vp-c-bg);
+  transition: border-color 0.2s ease;
 }
 
-.bpm-stream-btn {
+.bpm-stream-input:focus { border-color: var(--vp-c-brand-1); }
+
+.bpm-stream-hint,
+.bpm-link-note {
   width: 100%;
-  padding: 0.65rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--vp-c-bg);
-  background: var(--vp-c-brand-1);
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.1s ease;
-}
-
-.bpm-stream-btn:hover { background: var(--vp-c-brand-2); }
-.bpm-stream-btn:active { transform: translateY(1px); }
-
-.bpm-stream-hint {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2);
   text-align: center;
-  width: 100%;
 }
 
 .bpm-stream-hint a {
@@ -1607,45 +1414,18 @@ function formatDuration(seconds: number): string {
   text-underline-offset: 2px;
 }
 
-/* Why a platform link can't be read: one plain line, not an error (nothing failed). */
-.bpm-link-note {
-  font-size: 0.85rem;
-  color: var(--vp-c-text-2);
-  text-align: center;
-  width: 100%;
-}
-
-/* Inline actions inside hint text (stations, mic fallback): styled as the hint's
-   links so the one filled button stays the only primary action. */
+/* Inline actions inside hint text (stations, the mic fallback): styled as links, so the filled
+   button stays the only primary action. Inline in a sentence, so exempt from the target size. */
 .bpm-text-btn {
   padding: 0;
   font: inherit;
   color: var(--vp-c-text-2);
-  background: none;
-  border: none;
-  cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 .bpm-text-btn:hover { color: var(--vp-c-brand-1); }
-
-.bpm-btn-centered { justify-content: center; }
-
-.bpm-badge {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  align-self: center;
-  margin-top: 0.25rem;
-}
-
-.bpm-badge > :deep(svg) {
-  color: var(--vp-c-green-1, #10b981);
-  flex-shrink: 0;
-}
 
 .bpm-btn-with-icon {
   display: inline-flex;
@@ -1653,20 +1433,46 @@ function formatDuration(seconds: number): string {
   gap: 0.35rem;
 }
 
+.bpm-btn-centered { justify-content: center; }
+
 .bpm-btn-with-icon > :deep(svg) { flex-shrink: 0; }
 
-@media (max-width: 640px) {
-  .bpm-drop-zone-inner { padding: 1.25rem 1rem; }
-  .bpm-headline { font-size: 1.05rem; }
-  .bpm-mic-button { width: 128px; height: 128px; }
-  .bpm-result-number { font-size: 3.25rem; }
+/* ── Under the card's body ── */
+.bpm-meta {
+  /* Two lines: the file mode's line wraps on a phone, the others don't, and the card keeps one height. */
+  min-height: 3em;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2);
+  text-align: center;
+}
+
+/* Heard, not seen: the settled reading for screen readers. */
+.bpm-announce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:is(.bpm-primary-btn, .bpm-stream-btn, .bpm-restart-btn, .bpm-mic-button, .bpm-text-btn):focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+@media (min-width: 640px) {
+  .bpm-hero-tool { --bpm-body-min-height: 21rem; padding: 1.5rem; }
+  .bpm-meta { min-height: 0; }
+  .bpm-mic-button { width: 148px; height: 148px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .bpm-spinner { animation: none; }
-  .bpm-live-dot { animation: none; }
-  .bpm-icon { animation: none; }
-  .bpm-drop-zone-inner.is-drag-over { transform: none; }
-  .bpm-mic-button:hover { transform: none; }
+  .bpm-mic-button:hover,
+  .bpm-mic-button:active { transform: none; }
 }
 </style>

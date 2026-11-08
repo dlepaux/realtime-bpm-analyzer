@@ -35,7 +35,7 @@ const QUIET_MS = 3_000
 const GOOGLE_HOSTS = ['*.google-analytics.com', '*.analytics.google.com', '*.doubleclick.net', 'www.google.com']
 const COLLECT = /google-analytics\.com|analytics\.google\.com|doubleclick\.net|\/g\/collect|\/collect\?/
 
-type Hit = { readonly name: string; readonly location: string; readonly title: string; readonly params: Readonly<Record<string, string>> }
+type Hit = { readonly name: string; readonly location: string; readonly title: string; readonly referrer: string; readonly params: Readonly<Record<string, string>> }
 
 const hits: Hit[] = []
 const blocked: string[] = []
@@ -55,7 +55,7 @@ function parseHits(url: string, body: string | undefined): Hit[] {
       const match = /^epn?\.(.+)$/.exec(key)
       if (match?.[1]) params[match[1]] = value
     }
-    return { name: all.get('en') ?? '', location: all.get('dl') ?? '', title: all.get('dt') ?? '', params }
+    return { name: all.get('en') ?? '', location: all.get('dl') ?? '', title: all.get('dt') ?? '', referrer: all.get('dr') ?? '', params }
   })
 }
 
@@ -134,10 +134,13 @@ test('an in-site navigation sends its event and exactly one more page_view', asy
   assert.match(pageViews()[1]!.location, /\/tap-tempo$/)
   // The router changes the address before it renders the page: the hit must still carry the new title.
   assert.match(pageViews()[1]!.title, /^Tap Tempo/)
+  // Its referrer is the page left, not the outside referrer of the landing page.
+  assert.equal(pageViews()[1]!.referrer, pageViews()[0]!.location)
 
   await page.goBack()
   await waitFor('the page_view of the way back', () => pageViews().length >= 3)
   assert.equal(pageViews().length, 3, JSON.stringify(pageViews()))
+  assert.match(pageViews()[2]!.referrer, /\/tap-tempo$/)
 })
 
 /** Loads a page fresh, then runs `act`, and returns how many page_views the whole visit sent. */

@@ -44,18 +44,23 @@ function canSend(): boolean {
 }
 
 // The first page view is gtag's config's; the router reports the rest, one per new path (see
-// tools/analytics-pageview.ts for why GA4's own history tracking is off).
+// tools/analytics-pageview.ts for why GA4's own history tracking is off). Each hit is shaped like
+// the config's: no hash in the address, and the page left as its referrer, which GA4's history
+// tracking used to set and gtag would otherwise fill with the landing page's outside referrer.
+const pageLocation = () => window.location.origin + window.location.pathname + window.location.search
+let previousLocation = ''
 const onRoute = typeof window === 'undefined'
   ? () => {}
-  : pageViewTracker(window.location.pathname, () => {
+  : pageViewTracker(() => {
     if (!canSend()) return
-    window.gtag?.('event', 'page_view', { page_location: window.location.href, page_title: document.title })
+    window.gtag?.('event', 'page_view', { page_location: pageLocation(), page_referrer: previousLocation, page_title: document.title })
   })
 
 /** The router's onAfterRouteChange: a page view once the new page, and its title, are in place. */
 export async function trackRouteChange(): Promise<void> {
   await nextTick()
   onRoute(window.location.pathname)
+  previousLocation = pageLocation()
 }
 
 export function useAnalytics() {

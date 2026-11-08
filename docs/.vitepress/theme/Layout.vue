@@ -6,6 +6,8 @@ import HomeComputerCard from '../components/HomeComputerCard.vue'
 import { STORE_URL } from '../tools/extension-live'
 
 const { Layout } = DefaultTheme
+// `ext-home` styles nothing now: scripts/extension-switch.ts reads it as the marker that the built
+// home has the extension's layout.
 </script>
 
 <template>

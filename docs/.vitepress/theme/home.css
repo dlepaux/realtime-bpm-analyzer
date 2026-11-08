@@ -73,27 +73,38 @@
   display: grid;
   grid-template-columns: auto 1fr;
   column-gap: 0.85rem;
-  align-items: center;
+  row-gap: 0.2rem;
+  align-items: start;
   height: 100%;
   min-height: 48px;
   padding: 0.75rem 1rem;
   border: 1px solid var(--vp-c-divider);
   border-radius: 12px;
-  background: var(--vp-c-bg-soft);
+  /* The page's own surface, so the raised tool card stays the heaviest thing on the first screen. */
+  background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
   text-decoration: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-.home-tool-tile:hover { border-color: var(--vp-c-brand-1); }
+.home-tool-tile:hover { border-color: var(--vp-c-brand-1); background: var(--vp-c-bg-soft); }
 
 .home-tool-tile:focus-visible {
   outline: 2px solid var(--vp-c-brand-1);
   outline-offset: 2px;
 }
 
-.home-tool-icon { grid-row: span 2; color: var(--vp-c-brand-1); }
-.home-tool-name { font-size: 1rem; font-weight: 600; line-height: 1.35; }
+/* The icon in a tinted chip and the name in the link colour: the tile reads as a link. */
+.home-tool-icon {
+  grid-row: span 2;
+  box-sizing: content-box;
+  padding: 0.45rem;
+  border-radius: 10px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+
+.home-tool-name { font-size: 1rem; font-weight: 600; line-height: 1.35; color: var(--vp-c-brand-1); }
 .home-tool-line { font-size: 0.875rem; line-height: 1.45; color: var(--vp-c-text-2); }
 
 /* ── Phones and tablets: send the link to a computer ── */
@@ -193,11 +204,9 @@
   .home-wrap { padding-inline: 48px; }
   .home-hero { padding-top: 32px; }
 
-  /* Five tools on six tracks: three on the first row, two wider ones on the second, so no row
-     ends with a lone tile and every tile in a row is the same height. */
-  .home-tools-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; }
-  .home-tool-span-2 { grid-column: span 2; }
-  .home-tool-span-3 { grid-column: span 3; }
+  /* Tablets: two a row, too narrow for three. An odd last tile takes the whole row, so no row
+     is half empty. Every row is as tall as the tallest tile. */
+  .home-tools-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
 
   .home-tool-tile {
     grid-template-columns: 1fr;
@@ -206,7 +215,11 @@
     padding: 1.1rem 1.2rem;
   }
 
-  .home-tool-icon { grid-row: auto; margin-bottom: 0.3rem; }
+  .home-tool-icon { grid-row: auto; justify-self: start; margin-bottom: 0.3rem; }
+}
+
+@media (min-width: 640px) and (max-width: 959px) {
+  .home-tools-grid > li:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 
 @media (min-width: 960px) {
@@ -219,6 +232,12 @@
   .home-doors { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 48px; }
   .home-tool { grid-column: span 7; }
   .home-doors .ext-door { grid-column: span 5; }
+
+  /* Five tools on six tracks: three on the first row, two wider ones on the second (tool-list.ts
+     sets the rows), so no row ends with a lone tile. */
+  .home-tools-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .home-tools-grid > .home-tool-span-2 { grid-column: span 2; }
+  .home-tools-grid > .home-tool-span-3 { grid-column: span 3; }
 
   .vp-doc .home-ways ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .vp-doc .home-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -12,6 +12,8 @@ test('every row fills the grid evenly, so no tile is left alone on a row', () =>
   for (const row of FREE_TOOL_ROWS) {
     assert.ok(row.length > 0)
     assert.equal(GRID_COLUMNS % row.length, 0, `a row of ${row.length} does not divide ${GRID_COLUMNS} columns`)
+    // home.css styles these spans only: a row of another length would get a class with no rule.
+    assert.ok([2, 3].includes(GRID_COLUMNS / row.length), `a row of ${row.length} has no span rule in home.css`)
   }
 })
 

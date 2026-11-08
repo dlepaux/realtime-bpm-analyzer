@@ -391,7 +391,9 @@
 }
 
 .ext-door-line { margin: -0.5rem 0 0.9rem; color: var(--vp-c-text-2); font-size: 0.95rem; line-height: 1.5; }
+/* The demoted door: a slimmer pill, so its label stays on one line down to the 5-column door at 960px. */
 .ext-door .ext-cta { margin-block: 0 1rem; }
+.ext-band a.ext-cta { padding-inline: 1.1rem; font-size: 0.9375rem; white-space: nowrap; }
 
 .ext-band a.ext-cta { border-color: var(--rba-action); color: var(--rba-action); }
 .ext-band a.ext-cta:hover { background: var(--vp-c-brand-soft); }

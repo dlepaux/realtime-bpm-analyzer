@@ -7,6 +7,8 @@
   --rba-tempo-stable-fill: #166534;
   --rba-tempo-settling: #fbbf24;
   --rba-tempo-settling-fill: #92400e;
+  /* The text on either fill. */
+  --rba-tempo-ink: #fff;
 }
 
 /* The filled action. White on VitePress's brand button is 4.48:1 in light and 4.15:1 on dark

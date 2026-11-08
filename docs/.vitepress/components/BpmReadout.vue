@@ -100,7 +100,7 @@ const formatBpm = (bpm: number) => (Number.isInteger(bpm) ? String(bpm) : bpm.to
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.2;
-  color: #fff;
+  color: var(--rba-tempo-ink);
   background: var(--rba-tempo-settling-fill);
 }
 

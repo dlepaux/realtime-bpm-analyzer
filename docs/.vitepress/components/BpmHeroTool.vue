@@ -170,6 +170,7 @@ function setMode(next: Mode) {
     streamStatus.value = 'idle'
     resetStreamReadings()
   }
+  announce('')
   mode.value = next
   track('bpm_tab_change', { mode: next })
 }
@@ -695,12 +696,15 @@ onBeforeUnmount(() => {
 // One line under the tool: the formats where a file is chosen, and where the audio goes.
 const metaLine = computed(() => (mode.value === 'file' ? `${fileCopy.value.formats} · ${STAYS_ON_DEVICE}` : STAYS_ON_DEVICE))
 
-// What screen readers hear: a settled reading only. A live number changes about once a second,
-// and reading each one out would talk over the music.
-const announcement = computed(() => {
-  if (mode.value === 'file') return fileStatus.value === 'result' && fileBpm.value !== null ? `${fileBpm.value} BPM` : ''
-  const stable = mode.value === 'mic' ? micStableBpm.value : streamStableBpm.value
-  return stable === null ? '' : `Stable at ${stable} BPM`
+// What screen readers hear: a settled reading only, once, as it arrives. A live number changes
+// about once a second, and reading each one out would talk over the music. The readings are
+// watched rather than the mode, so going back to a tab that still shows an old result says nothing.
+const announcement = ref('')
+const announce = (text: string) => { announcement.value = text }
+watch(() => (fileStatus.value === 'result' ? fileBpm.value : null), (bpm) => announce(bpm === null ? '' : `${bpm} BPM`))
+watch([micStableBpm, streamStableBpm], ([mic, stream], [oldMic]) => {
+  const bpm = mic !== oldMic ? mic : stream
+  announce(bpm === null ? '' : `Stable at ${bpm} BPM`)
 })
 
 const streamLiveLabel = computed(() => {

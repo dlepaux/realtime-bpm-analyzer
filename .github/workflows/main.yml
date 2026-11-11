@@ -314,6 +314,16 @@ jobs:
       - name: Check SEO output
         run: npm run verify:seo -w docs
 
+      # The analytics contract in Chrome (RBA-154): the built site, served under its production
+      # hostname, must send one page_view per page and hits carrying exactly their own params.
+      # Every Google Analytics request is aborted and its hosts resolve to the runner itself, so
+      # no real hit is ever sent. Only the gtag.js script is fetched from Google.
+      - name: Check the analytics contract
+        run: |
+          npm run preview -w docs -- --port 4173 > "$RUNNER_TEMP/preview.log" 2>&1 &
+          for attempt in $(seq 1 30); do curl -sf http://localhost:4173/ > /dev/null && break; sleep 1; done
+          CONTRACT_BASE_URL=http://localhost:4173 npm run test:analytics-contract -w docs
+
       # Checks this build against the committed EXTENSION_STORE_URL, then builds the site
       # in the other state and checks that too (RBA-58). Before and after the switch is
       # flipped, both states stay proven. The pages artifact below is this first build.

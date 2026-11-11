@@ -3,9 +3,9 @@
 // an event's own params (no stale values from the event before, the GTM failure) and that each
 // page sends exactly one page_view.
 //
-// It never sends a real hit. Every request to Google's collect endpoints is captured and aborted,
-// every other outside request is aborted, the only one let through is the gtag.js script itself,
-// and the browser resolves Google Analytics' hosts to this machine besides, so a request the
+// It never sends a real hit. Every request to Google's collect endpoints is captured and answered
+// here with an empty 204, every other outside request is aborted, the only one let through is the
+// gtag.js script itself, and the browser resolves Google Analytics' hosts to this machine besides, so a request the
 // interception missed still goes nowhere. The site is served under its production hostname (the
 // only one analytics loads on) from a local server, by answering those requests in the test.
 //
@@ -73,8 +73,14 @@ async function route(request: HTTPRequest): Promise<void> {
   if (new URL(url).hostname === PRODUCTION_HOST) return serveLocally(request).catch(() => request.abort())
   if (url.startsWith(GTAG_SRC)) return request.continue()
   // A beacon's body can be missing from postData(); fetchPostData() reads it back from the browser.
-  if (COLLECT.test(url)) hits.push(...parseHits(url, request.postData() ?? (await request.fetchPostData().catch(() => undefined))))
-  else blocked.push(url)
+  if (COLLECT.test(url)) {
+    hits.push(...parseHits(url, request.postData() ?? (await request.fetchPostData().catch(() => undefined))))
+    // Answered as Google's collect endpoint answers, not aborted: gtag.js sends a failed hit again by
+    // another transport, which counted every page_view twice on CI (RBA-155). The answer comes from
+    // this test inside the browser, so the hit still never leaves the machine.
+    return request.respond({ status: 204 })
+  }
+  blocked.push(url)
   return request.abort()
 }
 

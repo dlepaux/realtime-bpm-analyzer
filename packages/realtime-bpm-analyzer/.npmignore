@@ -19,7 +19,6 @@ types
 build.ts
 changelog.md
 code-of-conduct.md
-codecov.yml
 contributing.md
 tsconfig.json
 typedoc.json

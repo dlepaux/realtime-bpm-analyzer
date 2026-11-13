@@ -1,6 +1,6 @@
 {
   "name": "realtime-bpm-analyzer-cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Detect the BPM of audio files from the command line: npx realtime-bpm-analyzer-cli song.mp3. MP3, WAV, FLAC, OGG Vorbis and Opus decode in pure JS/WASM; M4A goes through ffmpeg.",
   "author": {
     "name": "David Lepaux",

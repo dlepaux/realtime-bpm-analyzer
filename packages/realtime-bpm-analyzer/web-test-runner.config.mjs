@@ -12,6 +12,10 @@ export default {
   testFramework: {config: {timeout: 10000}},
   browsers: [
     puppeteerLauncher({
+      // A window per test file, not a tab: files run side by side, and every tab but the newest is hidden. Chromium
+      // does not load media in a hidden page, so a media element's play() never settled there (RBA-243: readyState
+      // 0 in CI, and the same hang in Chrome 157 on a Mac with the page in a background tab, none when in front)
+      createPage: ({browser}) => browser.newPage({type: 'window'}),
       launchOptions: {
         headless: 'new',
         devtools: false,

@@ -74,6 +74,8 @@ Common tempos, in milliseconds:
 Don't know the tempo? [Tap it](/tap-tempo), or let the [BPM Analyzer](/)
 detect it from the track itself. Cutting video? The
 [BPM to frames calculator](/bpm-to-frames) gives the beat in frames.
+Working in a genre? The [tempo markings chart](/tempo-markings) lists common
+genre tempos, and each row opens this calculator at its tempo.
 
 ## Frequently asked questions
 

@@ -49,7 +49,9 @@ tempo, pick a time signature and a subdivision, and press **Start** or
 
 Need the tempo of a recording? [Tap it](/tap-tempo), or detect it
 automatically with the [BPM Analyzer](/). Setting up a delay to match? Use the
-[BPM to ms calculator](/bpm-to-ms).
+[BPM to ms calculator](/bpm-to-ms). Know the marking but not the number? The
+[tempo markings chart](/tempo-markings) lists the Italian terms and common
+genre tempos, and every row starts the metronome at its tempo.
 
 <ExtensionMention lead="Learning a song in a Chrome or Edge tab?" tail="shows its tempo, so you can set the click to match." />
 

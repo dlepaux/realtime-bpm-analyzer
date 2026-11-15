@@ -18,6 +18,7 @@ import { FRAME_RATES } from './frames.ts'
 import { MIC_ERROR_KINDS, MIC_ERROR_NAMES } from './mic-error.ts'
 import { PLATFORM_LABELS, STATIONS, STREAM_ERROR_MESSAGES, type Platform, type StreamErrorKind } from './stream-input.ts'
 import { NOTE_DIVISIONS } from './tempo.ts'
+import { CHART_ROW_IDS } from './tempo-chart.ts'
 import { freeTools } from './tool-list.ts'
 
 /**
@@ -105,6 +106,10 @@ export const PARAMS = {
   frame_cell: { type: 'enum', values: ['beat', 'bar'], scope: 'dimension' },
   export_format: { type: 'enum', values: MARKER_FORMATS.map((entry) => entry.id), scope: 'dimension' },
   first: { type: 'bool', scope: 'dimension' },
+
+  // ── Added by RBA-209 ─────────────────────────────────────────────────────────────────────
+  /** The tempo chart's row a click came from: an Italian term or a genre, by its stable id. */
+  chart_row: { type: 'enum', values: CHART_ROW_IDS, scope: 'dimension' },
 } as const satisfies Record<string, ParamSpec>
 
 export type ParamName = keyof typeof PARAMS
@@ -248,6 +253,11 @@ export const EVENTS = {
     params: { tool: 'required' },
     repeats: 'Each click.',
     privacy: 'When you open a tool from the list on the home page: which tool.',
+  },
+  bpm_chart_link_clicked: {
+    params: { bpm: 'required', tool: 'required', chart_row: 'required' },
+    repeats: 'Each click.',
+    privacy: 'When you open the metronome or BPM to ms from a row of the tempo markings chart: which tool, which row and its tempo.',
   },
   bpm_markers_exported: {
     params: { format: 'required', frame_rate: 'required', export_format: 'required' },

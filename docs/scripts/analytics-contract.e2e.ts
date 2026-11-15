@@ -149,6 +149,15 @@ test('an in-site navigation sends its event and exactly one more page_view', asy
   assert.match(pageViews()[2]!.referrer, /\/tap-tempo$/)
 })
 
+// The tempo chart's row links (RBA-209): the click is sent with its row, and the tool opens at the tempo.
+test('a tempo chart row sends its click and opens the metronome at its tempo', async () => {
+  await page.goto(`${SITE_URL}/tempo-markings`, { waitUntil: 'load', timeout: NAVIGATION_TIMEOUT_MS })
+  await page.click('#tempo-allegro a.tc-link[href="/metronome?bpm=126"]')
+  await waitFor('bpm_chart_link_clicked', () => eventsNamed('bpm_chart_link_clicked').length >= 1)
+  assert.deepEqual(eventsNamed('bpm_chart_link_clicked').map((hit) => hit.params), [{ bpm: '126', tool: 'metronome', chart_row: 'allegro' }])
+  assert.match(page.url(), /\/metronome\?bpm=126$/)
+})
+
 /** Loads a page fresh, then runs `act`, and returns how many page_views the whole visit sent. */
 async function pageViewsOfVisit(path: string, act: () => Promise<void> = async () => {}): Promise<number> {
   const before = pageViews().length

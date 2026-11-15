@@ -251,3 +251,16 @@
     transition: none !important;
   }
 }
+
+/* The tempo chart prints as a hand-out (RBA-209): the site's menus, banners and footers drop out
+   and the chart takes the page. Scoped to its pageClass, so no other page prints differently. */
+@media print {
+  .tempo-chart-page .VPNav,
+  .tempo-chart-page .VPLocalNav,
+  .tempo-chart-page .VPSidebar,
+  .tempo-chart-page .VPFooter,
+  .tempo-chart-page .VPDocFooter,
+  .tempo-chart-page .header-anchor { display: none !important; }
+  .tempo-chart-page .VPContent,
+  .tempo-chart-page .VPDoc { padding: 0 !important; }
+}

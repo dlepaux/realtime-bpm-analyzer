@@ -19,7 +19,10 @@ import {closeAudioContext, createTestAudioContext} from '../setup';
  * - Delay to the listener: median 40 ms, max 150 ms. A runner's main thread stalls now and then, and a test that
  *   failed on that would measure the runner. The report gives the measured numbers, which are what counts.
  *
- * The delay is read on the render clock as a bare worklet posts it every quantum, not on `contextNow`'s output
+ * The scene is the full mix's first seconds: kicks under a bass line, hats and a pad, as music plays, so the delay is
+ * the one a track gets and not that of kicks alone, which are confirmed sooner.
+ *
+ * The delay is read on the render clock as a bare worklet posts it every 8th quantum, not on `contextNow`'s output
  * timestamp: Firefox shifts both halves of `getOutputTimestamp()` back by `outputLatency` (measured on 132 and 158),
  * so the output timestamp plus `outputLatency` runs that far ahead there, 48 ms on CI, and the delay read 62-67 ms
  * where it was 14-19. The probe's clock reads early by one message's crossing instead, about 2 ms in Chromium. Both
@@ -72,7 +75,7 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
 
   /** The scene's first seconds, rendered at the context's rate */
   function scene() {
-    const full = createKickScene('kicks-alone', audioContext.sampleRate);
+    const full = createKickScene('full-mix', audioContext.sampleRate);
     const samples = full.samples.slice(0, seconds * audioContext.sampleRate);
     return {samples, kicks: full.kicks.filter(time => time < seconds - 0.1)};
   }
@@ -170,8 +173,17 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
       URL.revokeObjectURL(url);
     });
 
-    await element.play();
+    // Bounded, so that an element that never starts fails here and says so, not as the test's timeout
+    console.log('KICK-MEDIA play requested');
+    await Promise.race([
+      element.play(),
+      waitSeconds(5).then(() => {
+        throw new Error(`the media element did not start within 5 s (readyState ${element.readyState}, networkState ${element.networkState}, error ${element.error?.code ?? 'none'})`);
+      }),
+    ]);
+    console.log(`KICK-MEDIA playing at context time ${audioContext.currentTime.toFixed(3)}`);
     await waitSeconds(seconds + 0.5);
+    console.log(`KICK-MEDIA done, ${heard.length} kicks heard`);
     analyzer.stop();
 
     // When the element's first sample reached the context is not known, so the kicks are scored on their spacing
@@ -205,10 +217,17 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
   }
 });
 
-/** A bare worklet that posts its clock on every quantum and does nothing else, as the tests' render clock */
+/**
+ * A bare worklet that posts its clock and does nothing else, as the tests' render clock. Every 8th quantum, 21 ms at
+ * 48 kHz: the reading runs on from the last post by the wall clock, so a post per quantum adds nothing but 375
+ * messages a second to the main thread the test measures.
+ */
 const clockProbeModule = `registerProcessor('kick-test-clock-probe', class extends AudioWorkletProcessor {
+  n = 0;
   process() {
-    this.port.postMessage(currentTime);
+    if ((this.n++ & 7) === 0) {
+      this.port.postMessage(currentTime);
+    }
     return true;
   }
 });`;

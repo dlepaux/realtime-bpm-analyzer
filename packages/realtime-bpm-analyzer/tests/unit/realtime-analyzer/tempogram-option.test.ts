@@ -57,7 +57,7 @@ describe('a custom tempogram range', () => {
 describe('one tempogram behaviour', () => {
   for (const [name, engine] of [
     ['bare', 'tempogram'],
-    ['named mode', {name: 'tempogram', mode: 'extension'}],
+    ['named mode', {name: 'tempogram', mode: 'measured'}],
   ] as const) {
     it(`reads the locked settings, as the ${name} option`, async () => {
       const pcm = createClickTrack(128, sampleRate, 20);
@@ -97,18 +97,18 @@ describe('one tempogram behaviour', () => {
   });
 });
 
-describe('the extension mode', () => {
-  const extension = {name: 'tempogram', mode: 'extension'} as const;
+describe('the measured mode', () => {
+  const measuredMode = {name: 'tempogram', mode: 'measured'} as const;
 
   it('searches 90 to 180 BPM, so a fast pulse cannot read at half', async () => {
-    const readings = readingsOf(await stream(extension, createClickTrack(170, sampleRate, 20)));
+    const readings = readingsOf(await stream(measuredMode, createClickTrack(170, sampleRate, 20)));
 
     expect(readings.at(-1)).to.be.within(165, 175);
   });
 
   it('accepts its own range, and refuses another or an unknown mode', () => {
-    expect(() => resolveEngine(extension, {min: 90, max: 180})).to.not.throw();
-    expect(() => resolveEngine(extension, {min: 50, max: 240})).to.throw(RangeError, 'another range');
+    expect(() => resolveEngine(measuredMode, {min: 90, max: 180})).to.not.throw();
+    expect(() => resolveEngine(measuredMode, {min: 50, max: 240})).to.throw(RangeError, 'another range');
     // @ts-expect-error Invalid on purpose
     expect(() => resolveEngine({name: 'tempogram', mode: 'magic'}, undefined)).to.throw(RangeError, 'Invalid engine.mode');
   });

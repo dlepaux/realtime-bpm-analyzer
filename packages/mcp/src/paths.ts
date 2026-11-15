@@ -15,7 +15,7 @@ export const limits = {
   /**
    * Longest one file may take, decode and analysis together. The costliest file the limits let
    * through, 2 GB decoded at 8 kHz (18 hours), took 74 s with the tempogram on an Apple M-series
-   * Mac (RBA-64). Past this, a client that neither waits nor cancels no longer holds the CPU.
+   * Mac. Past this, a client that neither waits nor cancels no longer holds the CPU.
    */
   maxFileSeconds: 120,
   /**

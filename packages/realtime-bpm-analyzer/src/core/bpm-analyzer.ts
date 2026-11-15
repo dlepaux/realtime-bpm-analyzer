@@ -8,7 +8,6 @@ import type {
   AnalyzerEventMap,
   AnalyzerEventType,
   AnalyzerState,
-  BpmAnalyzerContract,
   ListenOptions,
 } from '../contract/types';
 import {contextNow, type Heard} from './context-now';
@@ -72,7 +71,7 @@ let construct: typeof constructAnalyzer;
 /**
  * The protocol the processor said it speaks in its first `ready`
  * @param analyzer The analyzer
- * @returns Its version, or `null` before `ready`. A feature that needs a later minor (beats, RBA-109) checks it,
+ * @returns Its version, or `null` before `ready`. A feature that needs a later minor (such as beat events) checks it,
  * and fails at once when the processor copy is out of date.
  */
 export const processorProtocol = (analyzer: BpmAnalyzer): ProtocolVersion | null => processorProtocols.get(analyzer) ?? null;
@@ -135,7 +134,9 @@ export async function whenReady(analyzer: BpmAnalyzer, timeoutMs = readyTimeoutM
  *
  * @group Classes
  */
-export class BpmAnalyzer extends EventTarget implements BpmAnalyzerContract {
+// No `implements BpmAnalyzerContract`: that type is internal, and the clause would put an undocumented name on the
+// API reference. tests/types/public-surface.ts holds the class to the contract instead.
+export class BpmAnalyzer extends EventTarget {
   /**
    * The underlying AudioWorkletNode
    * @remarks

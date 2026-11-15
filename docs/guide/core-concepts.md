@@ -199,7 +199,7 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
 - `'tempogram'` (default): spectral flux across several bands; see [the tempogram engine](/guide/realtime-bpm-detection#the-tempogram-detector)
 - `'peaks'`: amplitude peaks after a low-pass filter, the 5.x default
 - `{ name: 'peaks', restartAfterSeconds }`: start over every this many seconds of audio. Absent: never restarts
-- `{ name: 'tempogram', mode: 'extension' }`: pins the measured settings, for tab capture
+- `{ name: 'tempogram', mode: 'measured' }`: holds the analyzer to the measured settings, and refuses another `tempoRange`
 
 <a id="stabilizationtime"></a><a id="mutetimeinindexes"></a>
 

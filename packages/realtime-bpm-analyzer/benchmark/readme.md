@@ -1,6 +1,8 @@
 # Tempo benchmark
 
-Measures what a user gets from the real-time analyzer: decoded audio goes through the real streaming path (128-sample render quanta, the 4096-sample aggregator, `RealTimeBpmAnalyzer.analyzeChunk`, left channel, as the worklet does), and every event is timed in audio seconds. Results for both detectors are in [`results/`](results), per track.
+Measures what a user gets from the real-time analyzer: decoded audio goes through the real streaming path (128-sample render quanta, the 4096-sample aggregator, then the engine and the state machine the worklet runs, left channel), and every event is timed in audio seconds. Results for both engines are in [`results/`](results), per track.
+
+The sections from [Choosing the defaults](#choosing-the-defaults) on are a dated log. Each keeps the names of the version it measured, so the earlier ones say `detector` for v6's `engine` and `bpmStable` for a move to `locked`.
 
 Evaluation only: nothing here trains anything, and no audio or label file is committed, only track ids, their groups and numeric results.
 
@@ -11,9 +13,9 @@ Evaluation only: nothing here trains anything, and no audio or label file is com
 | Acc1 | share of tracks whose last reading is within ±4% of the truth |
 | Acc2 | the same, also accepting 2, 3, ½ and ⅓ times the truth (Gouyon et al. 2006) |
 | median time to first correct | audio seconds until the first reading within ±4%, over tracks that get one |
-| false-stable rate | share of all `bpmStable` readings outside ±4% of the truth |
-| false first stable | the same, for the first `bpmStable` of each track |
-| stable coverage | share of tracks with at least one `bpmStable` |
+| false-stable rate | share of all locks (each move to `locked`, 5.x's `bpmStable`) outside ±4% of the truth |
+| false first stable | the same, for the first lock of each track |
+| stable coverage | share of tracks with at least one lock |
 
 False-stable alone rewards never firing, so read it with coverage. Acc1 is scored against the single published tempo: a track labelled 170 read as 85 is an Acc1 miss even when a listener could tap either.
 
@@ -54,7 +56,7 @@ The peaks baseline is measured as it is wired in every guide, with the 200 Hz lo
 
 ## The detector
 
-`src/core/tempogram.ts`, opted into with `detector: 'tempogram'`.
+`src/core/tempogram.ts`, the default engine since v6 (5.x opted into it with `detector: 'tempogram'`).
 
 - **Onset strength**: log-compressed spectral flux in 5 bands, minus a local mean, half-wave rectified, summed at 100 Hz (Grosche & Müller 2009 for the compression and bands). A short smoothing stands in for the 7 Hz lowpass of Percival & Tzanetakis 2014.
 - **Tempogram**: normalised autocorrelation of the latest 8 s, every 0.5 s, read by a comb over the first 4 beat multiples (a window and hop in the region of Percival & Tzanetakis' 5.9 s and 0.37 s; their stretched-ACF sum is the same idea as the comb), with salience accumulated over a 16 s half-life.

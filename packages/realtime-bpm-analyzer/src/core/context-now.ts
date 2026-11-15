@@ -10,7 +10,7 @@ export type Heard = {readonly at: number; readonly wall: number};
  * output timestamp, a pair of clocks sampled together, plus the output latency, since it is when a sample reaches the
  * output. The other is the last processor message heard: its send time, plus the time since it was received. Each
  * reads early, never late, as a message arrives after it is sent, so the latest of them wins. The output
- * timestamp alone was not enough: in Firefox on CI it stood still through a 1.2 s block too (RBA-108).
+ * timestamp alone was not enough: in Firefox on CI it stood still through a 1.2 s block too.
  * Only `currentTime` counts while the context does not run, since a suspended clock stands still.
  * @param context The analyzer's context
  * @param heard The last processor message, or null before any

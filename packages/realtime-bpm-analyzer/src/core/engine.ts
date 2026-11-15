@@ -52,8 +52,8 @@ export type ResolvedEngine = {
 };
 
 /**
- * The engine when the caller names none, realtime and offline. RBA-51 DECISION 2026-11-03: the tempogram with its
- * 5.5.0 settings, after it passed the held-out look; `engine: 'peaks'` is the way back.
+ * The engine when the caller names none, realtime and offline: the tempogram with its 5.5.0 settings, since
+ * 2026-11-03, after it passed the benchmark's held-out look; `engine: 'peaks'` is the way back.
  */
 export const defaultEngine: EngineName = 'tempogram';
 
@@ -68,7 +68,7 @@ const removedOptions: Readonly<Record<string, string>> = Object.freeze({
   continuousAnalysis: "use engine: {name: 'peaks', restartAfterSeconds}",
   stabilizationTime: "use engine: {name: 'peaks', restartAfterSeconds}",
   muteTimeInIndexes: 'it has no replacement: remove it',
-  tempogramMode: "use engine: {name: 'tempogram', mode}",
+  tempogramMode: "use engine: {name: 'tempogram', mode: 'measured'}",
   frequencyValue: "use engine: {name: 'peaks', lowpass: {frequency}}",
   qualityValue: "use engine: {name: 'peaks', lowpass: {q}}",
 });
@@ -123,14 +123,14 @@ export function resolveEngine(engine: EngineOption | undefined, tempoRange: Temp
   }
 
   const {mode} = value;
-  if (mode !== undefined && mode !== 'extension') {
-    throw new RangeError(`Invalid engine.mode: ${JSON.stringify(mode)}. Use 'extension'.`);
+  if (mode !== undefined && mode !== 'measured') {
+    throw new RangeError(`Invalid engine.mode: ${JSON.stringify(mode)}. Use 'measured'.`);
   }
 
-  // The mode changes no setting: it holds the caller to the range that was measured (RBA-51)
+  // The mode changes no setting: it holds the caller to the range that was measured
   const {min, max} = defaultTempogramRange;
-  if (mode === 'extension' && tempoRange !== undefined && (range.min !== min || range.max !== max)) {
-    throw new RangeError(`engine mode 'extension' searches ${min} to ${max} BPM, and tempoRange asks for another range.`);
+  if (mode === 'measured' && tempoRange !== undefined && (range.min !== min || range.max !== max)) {
+    throw new RangeError(`engine mode 'measured' searches ${min} to ${max} BPM, and tempoRange asks for another range.`);
   }
 
   return {engine: {name: 'tempogram'}, tempoRange: range};
@@ -199,7 +199,7 @@ export function createEngine(engine: ResolvedEngine, tempoRange: TempoRange, deb
         pulse: candidates.length > 0,
         lockOffered: reading?.isStable ?? false,
         progress: detector.progress(),
-        // frameTempo and leads let the benchmark replay the stable rule for other lock bands (RBA-106)
+        // frameTempo and leads let the benchmark replay the stable rule for other lock bands
         debug: debug && reading ? {candidates, stable: reading.isStable, frameTempo: reading.frameTempo, leads: reading.leads} : undefined,
       };
     },
@@ -232,7 +232,7 @@ export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: En
   return Object.freeze({
     bpm: top.tempo,
     bpmExact: top.exact,
-    // The engine's raw score, mapped to the chance this reading is right (RBA-106)
+    // The engine's raw score, mapped to the chance this reading is right
     confidence: calibrate(engine, top.confidence, top.tempo),
     candidates: Object.freeze(candidates),
     audio: Object.freeze({from: audio.from, to: audio.to, contextTime: audio.contextTime}),

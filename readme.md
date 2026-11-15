@@ -3,14 +3,14 @@
 [![npm](https://img.shields.io/npm/v/realtime-bpm-analyzer.svg)](https://www.npmjs.com/package/realtime-bpm-analyzer)
 [![npm](https://img.shields.io/npm/dm/realtime-bpm-analyzer.svg)](https://www.npmjs.com/package/realtime-bpm-analyzer)
 [![install size](https://packagephobia.com/badge?p=realtime-bpm-analyzer)](https://packagephobia.com/result?p=realtime-bpm-analyzer)
-[![CI Actions Status](https://github.com/dlepaux/realtime-bpm-analyzer/workflows/CI/badge.svg)](https://github.com/dlepaux/realtime-bpm-analyzer/actions)
+[![Main Pipeline](https://github.com/dlepaux/realtime-bpm-analyzer/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/dlepaux/realtime-bpm-analyzer/actions/workflows/main.yml)
 
 <div align="center">
   <img src="https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png" alt="Realtime BPM Analyzer" width="600">
 </div>
 
 <p align="center">
-  <strong>A powerful TypeScript library for detecting beats-per-minute (BPM) in real-time.</strong>
+  <strong>Detects the tempo (BPM) of music in the browser, live as it plays or from a whole file, and in Node.js.</strong>
 </p>
 
 <p align="center">
@@ -28,8 +28,8 @@
 - **Two engines, one reading** - The tempogram by default, `engine: 'peaks'` for the 5.x engine
 - **Multiple sources** - Works with files, streams, microphone, or any audio/video node
 - **Typed events** - Full TypeScript support with autocomplete
-- **Runs locally** - The library analyses audio on the device, makes no network call of its own and collects nothing
-- **Supports MP3, FLAC, WAV** formats
+- **Runs locally** - The library analyzes audio on the device, makes no network call of its own and collects nothing
+- **Any decoded audio** - The library reads decoded audio: in the browser, whatever `decodeAudioData` supports; in Node.js, samples you decode. The [CLI](#command-line) reads MP3, WAV, FLAC, OGG and Opus files, and other formats through ffmpeg
 
 ## Installation
 
@@ -42,11 +42,16 @@ npm install realtime-bpm-analyzer
 ```typescript
 import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
-// Create the analyzer
+// In a click handler: browsers start audio only after a user gesture
+const audioContext = new AudioContext();
 const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-// Connect your audio source to its input, which holds the filter the engine needs
-audioSource.connect(analyzer.input);
+// An <audio> element as the source. Connect it to the analyzer's input, which feeds the engine you picked,
+// and to the speakers: a media element source plays only through the nodes it is connected to
+const audioElement = document.querySelector('audio')!;
+const source = audioContext.createMediaElementSource(audioElement);
+source.connect(analyzer.input);
+source.connect(audioContext.destination);
 
 // A reading on each analysis step outside listening: twice a second with the default
 // tempogram engine, about ten times a second with peaks
@@ -64,6 +69,29 @@ analyzer.on('statechange', ({ to }) => {
 
 While locked, keep showing the latest `reading`: the tempo can still move without a `statechange`.
 
+### A whole file
+
+```typescript
+import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
+
+// A File from an <input type="file">, or a Blob from fetch(). Call it from a user gesture, such as the input's
+// change event, so the AudioContext starts without an autoplay warning
+async function bpmOf(file: Blob) {
+  const audioContext = new AudioContext();
+  const audioBuffer = await audioContext.decodeAudioData(await file.arrayBuffer());
+  await audioContext.close(); // the decoded buffer outlives its context
+  // The same reading as realtime, or null when no tempo was found
+  const reading = await analyzeFullBuffer(audioBuffer);
+  return reading?.bpm ?? null;
+}
+```
+
+### How it works, and its limits
+
+The default engine, the tempogram, measures how the sound changes from moment to moment across several frequency bands, and reads the tempo as the spacing that repeats most in those changes. `engine: 'peaks'`, the 5.x engine, low-passes the audio and counts the intervals between its loudest peaks. Both report the same reading, with a `confidence` that is the chance the reading is right, calibrated on a labelled benchmark.
+
+Every tempo is reported in a range, 90 to 180 BPM by default. A track outside it reads at double or half its tempo: 70 BPM reads 140, and a track at about 180 BPM or faster can read at half. The `candidates` mark the half and double readings, and `tempoRange` moves the range. Music without a steady beat is the hard case: expect a lower confidence, a wrong reading or none. The [benchmark](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/packages/realtime-bpm-analyzer/benchmark#readme) describes the data, the method and what was measured.
+
 ### Strict CSP and browser extensions
 
 The worklet loads from a `blob:` URL by default. Pages whose Content Security Policy blocks `blob:` scripts, and Manifest V3 extensions, serve the published processor file (`realtime-bpm-analyzer/processor`, i.e. `dist/realtime-bpm-processor.js`) from their own origin and pass its URL:
@@ -78,7 +106,7 @@ See the [strict CSP guide](https://www.realtime-bpm-analyzer.com/guide/strict-cs
 
 ### Node.js
 
-`realtime-bpm-analyzer/node` analyses decoded PCM samples without Web Audio, in Node.js, Bun or Deno, with no added dependency. It returns the same reading as `analyzeFullBuffer` for the same samples, or `null` when it finds no tempo. Decoding is up to you (a WAV reader, ffmpeg, ...):
+`realtime-bpm-analyzer/node` analyzes decoded PCM samples without Web Audio, in Node.js, Bun or Deno, with no added dependency. It returns the same reading as `analyzeFullBuffer` for the same samples, or `null` when it finds no tempo. Decoding is up to you (a WAV reader, ffmpeg, ...):
 
 ```typescript
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
@@ -135,25 +163,25 @@ See the [MCP guide](https://www.realtime-bpm-analyzer.com/guide/mcp) for Claude 
 # Install dependencies
 npm install
 
-# Run a specific example
-npm run dev --workspace=examples/01-vanilla-basic
+# Build the library: the examples import it from its dist/ folder
+npm run build -w realtime-bpm-analyzer
 
-# Available examples:
-# - 01-vanilla-basic, 02-vanilla-streaming, 03-vanilla-microphone
-# - 04-react-basic, 05-react-streaming, 06-react-microphone  
-# - 07-vue-basic, 08-vue-streaming, 09-vue-microphone
+# Run one example
+npm run dev --workspace=examples/01-vanilla-basic
 ```
+
+Each folder in [`examples/`](examples) is one app, in vanilla JavaScript, React or Vue.
 
 ## Privacy & Security
 
 These points cover the library, the CLI and the MCP server:
 
-- **Local processing** - audio is analysed on the device and never leaves it
+- **Local processing** - audio is analyzed on the device and never leaves it
 - **No data collection** or transmission - no network call of their own, no telemetry
-- **No audio recording** - audio is analysed, not kept
+- **No audio recording** - audio is analyzed, not kept
 - **Open source** - fully auditable code
 
-The website that presents them, realtime-bpm-analyzer.com, is a separate thing. Its tools analyse your audio in your browser, and the website measures its own pages with Google Analytics, as [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy) describes.
+The website that presents them, realtime-bpm-analyzer.com, is a separate thing. Its tools analyze your audio in your browser, and the website measures its own pages with Google Analytics, as [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy) describes.
 
 See [privacy.md](privacy.md) and [security.md](security.md) for details.
 
@@ -167,9 +195,7 @@ Contributions are welcome! See [contributing.md](contributing.md) for guidelines
 
 ## License
 
-Apache-2.0 License - See [licence.md](licence.md) for details.
-
-For commercial licensing inquiries, contact: d.lepaux@gmail.com
+Apache-2.0 License - See [license.md](license.md) for details.
 
 ## Sponsors
 
@@ -177,5 +203,5 @@ If your product depends on this library, consider sponsoring its maintenance via
 
 ## Credits
 
-Inspired by [Tornqvist's bpm-detective](https://github.com/tornqvist/bpm-detective) and [Joe Sullivan's algorithm](http://joesul.li/van/beat-detection-using-web-audio/).
+Inspired by [Tornqvist's bpm-detective](https://github.com/tornqvist/bpm-detective) and [Joe Sullivan's algorithm](https://joesul.li/van/beat-detection-using-web-audio/).
 

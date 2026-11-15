@@ -12,6 +12,8 @@ Version 6 makes two changes, and this page keeps them apart, so an app that brea
 
 Do part 1 first, with `engine: 'peaks'` set, and check your app. Then remove that line to move to the new default.
 
+There is no 6.0.0 to install: a failed publish in November 2025 left that number on npm, deprecated, so version 6 starts at 6.1.0.
+
 As before, the library runs on the device, sends no audio anywhere and collects nothing.
 
 ## Part 1: events, options and fields
@@ -21,7 +23,7 @@ Every 5.x name and its v6 form. The sections below show each with before-and-aft
 | 5.x | v6 |
 | --- | --- |
 | option `detector` | `engine` |
-| `tempogramMode: 'extension'` | `engine: { name: 'tempogram', mode: 'extension' }` |
+| `tempogramMode: 'extension'` | `engine: { name: 'tempogram', mode: 'measured' }` |
 | `continuousAnalysis` and `stabilizationTime` (ms) | `engine: { name: 'peaks', restartAfterSeconds }` (seconds) |
 | `muteTimeInIndexes` | removed |
 | `analyzeFullBuffer` and Node's `analyzeChannelData` options `frequencyValue`, `qualityValue` | `engine: { name: 'peaks', lowpass: { frequency, q } }` |
@@ -80,6 +82,8 @@ The default engine changed too: see [part 2](#part-2-the-default-engine).
 
 #### `tempogramMode` moved into `engine`
 
+Its value is renamed too, for what it does rather than who uses it: `'extension'` is now `'measured'`. It still holds the analyzer to the measured settings and refuses another `tempoRange`.
+
 **Before (5.x):**
 ```typescript
 createRealtimeBpmAnalyzer(audioContext, { detector: 'tempogram', tempogramMode: 'extension' });
@@ -87,7 +91,7 @@ createRealtimeBpmAnalyzer(audioContext, { detector: 'tempogram', tempogramMode: 
 
 **After (v6):**
 ```typescript
-createRealtimeBpmAnalyzer(audioContext, { engine: { name: 'tempogram', mode: 'extension' } });
+createRealtimeBpmAnalyzer(audioContext, { engine: { name: 'tempogram', mode: 'measured' } });
 ```
 
 #### `continuousAnalysis` and `stabilizationTime` are now `restartAfterSeconds`
@@ -357,7 +361,7 @@ TypeScript code that imports one of these no longer compiles. Each 5.x type and 
 | `RealTimeBpmAnalyzerParameters` | `AnalyzerOptions` |
 | `AnalyzeFullBufferOptions` | `OfflineOptions` |
 | `Detector` | `EngineName` |
-| `TempogramMode` | `EngineOption`: `{ name: 'tempogram', mode: 'extension' }` |
+| `TempogramMode` | `EngineOption`: `{ name: 'tempogram', mode: 'measured' }` |
 | `Threshold` | None: the peaks engine's threshold is internal. `debug: true` shows it in `DebugInfo` |
 | `Peaks` | None: internal to the peaks engine. `debug: true` shows the peaks in `DebugInfo` |
 | `ProcessorInputEvent` | None: the worklet's messages are internal |

@@ -45,30 +45,8 @@ interface AudioWorkletProcessorImpl extends AudioWorkletProcessor {
   ): boolean;
 }
 
-interface WorkletGlobalScope {}
-
-declare var WorkletGlobalScope: {
-  prototype: WorkletGlobalScope;
-  new (): WorkletGlobalScope;
-};
-
-interface AudioWorkletGlobalScope extends WorkletGlobalScope {
-  readonly currentFrame: number;
-  readonly currentTime: number;
-  readonly sampleRate: number;
-  registerProcessor(
-    name: string,
-    processorCtor: AudioWorkletProcessorConstructor,
-  ): void;
-}
-
-declare var AudioWorkletGlobalScope: {
-  prototype: AudioWorkletGlobalScope;
-  new (): AudioWorkletGlobalScope;
-};
-
 interface AudioWorkletProcessorConstructor {
-  new (options: any): AudioWorkletProcessorImpl;
+  new (options: AudioWorkletProcessorParameters): AudioWorkletProcessorImpl;
 }
 
 declare function registerProcessor(

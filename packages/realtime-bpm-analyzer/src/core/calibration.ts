@@ -1,13 +1,15 @@
 import type {EngineName} from '../contract/types';
 
 /**
- * RBA-106: maps each engine's raw score to the chance its reading is right (within 4% of the true tempo), so a
- * `Reading.confidence` of 0.8 is right about 80% of the time. Fitted on the benchmark's dev half only, on the
- * default 90 to 180 range, so dev had no reading under 90 BPM and none far over 180: a reading there gets the
- * nearest table, unmeasured. Readings sampled at 10, 15, 20, 30 and 45 s and at the end of each track, so long
+ * Maps each engine's raw score to the chance its reading is right (within 4% of the true tempo), so a
+ * `Reading.confidence` of 0.8 is right about 80% of the time. Fitted on the benchmark's dev half, on the default
+ * 90 to 180 range, so dev had no reading under 90 BPM and none far over 180: a reading there gets the nearest
+ * table, unmeasured. Readings sampled at 10, 15, 20, 30 and 45 s and at the end of each track, so long
  * tracks do not weigh more; peaks under the shipped HYSTERESIS, the tempogram with `pulseLostAfterSeconds` 3 (the
- * readings are the same, only which were shown differs: see the results file). Results, method and ranges: benchmark/results/rba-106-calibration-dev.md. Not yet checked on
- * held-out data: that one check waits for a DECISION on RBA-106.
+ * readings are the same, only which were shown differs: see the results file). Results, method and ranges:
+ * benchmark/results/rba-106-calibration-dev.md. The tempogram's table was then checked once on the held-out half's
+ * real-time readings, under the shipped HYSTERESIS, and held:
+ * benchmark/results/rba-106-calibration-heldout-verdict.md. Peaks' table is fitted on dev only.
  *
  * Each table is [raw, calibrated] points with raw increasing and calibrated non-decreasing: read by linear
  * interpolation, flat past either end. A tempo band has its own table only where dev showed the shared one off

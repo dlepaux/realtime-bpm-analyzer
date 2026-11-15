@@ -337,10 +337,10 @@ whole files run the same settings without having been scored at them.
 The tempogram has no restart option: its memory of past tempos fades with
 a 16-second half-life, so it follows a tempo change on its own.
 
-### `mode: 'extension'` {#tempogrammode-extension}
+### `mode: 'measured'` {#tempogrammode-extension}
 
-For a browser extension or any other page listening to a tab, which wants
-to be sure it runs the settings that were measured. It reads exactly as
+For a page that wants to be sure it runs the settings that were measured,
+such as a browser extension listening to a tab. It reads exactly as
 `engine: 'tempogram'` does, and refuses what would leave those settings:
 a `tempoRange` other than 90 to 180. So over 180 BPM still reads half. It
 applies to real-time analysis only.
@@ -348,7 +348,7 @@ applies to real-time analysis only.
 ```typescript
 const source = audioContext.createMediaElementSource(audioElement);
 const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
-  engine: { name: 'tempogram', mode: 'extension' },
+  engine: { name: 'tempogram', mode: 'measured' },
 });
 
 source.connect(analyzer.input);

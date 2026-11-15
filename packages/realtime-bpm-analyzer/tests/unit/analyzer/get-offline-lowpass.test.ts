@@ -1,6 +1,6 @@
 import {expect} from 'chai';
-import {getOfflineLowPassSource, getBiquadFilter} from '../../../src/core/offline-pipeline';
-import {createTestAudioContext, closeAudioContext, createSyntheticBeat} from '../../setup';
+import {getOfflineLowPassSource} from '../../../src/core/offline-pipeline';
+import {createTestAudioContext, closeAudioContext} from '../../setup';
 
 /**
  * Unit tests for getOfflineLowPassSource function

@@ -329,7 +329,7 @@ export type Progress = {readonly fraction: number};
  *
  * @remarks
  * A kick is a sudden rise of energy under 150 Hz: the drum's attack. It is heard, not predicted, so it always
- * comes after the sound reached the analyzer, 13 to 24 ms after on its own clock, plus the time the message takes
+ * comes after the sound reached the analyzer, 11 to 27 ms after on its own clock, plus the time the message takes
  * to the main thread. A kick reported before a `reset()` is dropped, as a reading is.
  */
 export type Kick = {

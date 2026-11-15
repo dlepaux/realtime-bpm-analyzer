@@ -318,11 +318,12 @@ the status, from the first tenth of a second of audio, and a kick heard before
 `analyzeFullBuffer` reports none: it has no clock to put them on. Like the
 tempo, kicks are found on your device: your audio never leaves it.
 
-**When it arrives.** The analyzer needs 13 to 19 ms of audio after the kick
-starts, at most 24 ms, to tell it from a bass note or a hi-hat, then the
-event crosses to the main thread. Measured from the kick reaching the analyzer to your
-listener, on kicks under a bass line, hi-hats and a pad, about the same for
-a media element, a stream and a `liveInput` microphone:
+**When it arrives.** The analyzer needs 17 to 19 ms of audio after a kick
+under a bass line starts, at most 27 ms, to tell it from a bass note or a
+hi-hat, and about 11 ms for a kick alone. Then the event crosses to the main
+thread. Measured from the kick reaching the analyzer to your listener, on
+kicks under a bass line, hi-hats and a pad, about the same for a media
+element, a stream and a `liveInput` microphone:
 
 | Where | Median | At most |
 |-------|--------|---------|
@@ -330,7 +331,10 @@ a media element, a stream and a `liveInput` microphone:
 | Chromium 156 on CI's Linux runners | 19 to 20 ms | 28 ms |
 | Firefox 158 on CI's Linux runners | 21 to 26 ms | 36 ms |
 
-Kicks alone are confirmed about 5 ms sooner.
+These are read on the context clock as `currentTime` gives it, smoothed
+between its updates, the clock `heardAt` below uses. The browser renders the
+audio a few milliseconds ahead of that clock, which is why an event can come
+sooner than the audio it needed. Kicks alone come about 5 ms sooner.
 
 A busy main thread adds its own delay, as it does to every event.
 
@@ -395,8 +399,9 @@ by at most the few milliseconds `currentTime` lags in either browser.
 - A kick counts against the loudest of the last seconds. When the music
   drops by 10 dB at once, as a quieter track starts or the volume goes down
   before the analyzer, no kick counts for about 5 s, and for about 19 s after
-  a 20 dB drop. `reset()` starts over at once, and so does an input that
-  comes back after a gap.
+  a 20 dB drop. Call `reset()` when the track changes: it starts over at
+  once. A paused element may still send silence, which is not a gap, so do
+  not count on the input coming back to start it over.
 - `strength` is relative, so a quiet track's kicks are as strong as a loud
   one's. It is not a level meter.
 - Tested on synthetic music: kicks alone, kicks under hi-hats, snare and

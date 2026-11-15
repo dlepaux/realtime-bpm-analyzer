@@ -180,7 +180,7 @@ describe('what the second look fixes', () => {
   it('runs the mode through its option, with no override and no lowpass', () => {
     const {options, tuning, lowpass} = detectors[candidate];
 
-    expect(options).to.deep.equal({engine: {name: 'tempogram', mode: 'extension'}});
+    expect(options).to.deep.equal({engine: {name: 'tempogram', mode: 'measured'}});
     expect(tuning).to.equal(undefined);
     expect(lowpass).to.equal(false);
   });

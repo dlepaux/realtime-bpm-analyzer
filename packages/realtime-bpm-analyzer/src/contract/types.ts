@@ -16,8 +16,8 @@
  *   copy has. From the same or an older minor it is a bug, a typo included, and fatal. A known message that is
  *   malformed is fatal whatever the minor.
  *
- * The main thread keeps the processor's minor from its `ready`, so a feature that needs a newer processor (beats,
- * RBA-109) can fail at once with an error saying the processor copy is out of date, instead of going silent.
+ * The main thread keeps the processor's minor from its `ready`, so a feature that needs a newer processor (such as
+ * beat events) can fail at once with an error saying the processor copy is out of date, instead of going silent.
  *
  * A minor that adds a value to a union the processor sends must keep that value from an older main thread, as
  * rule 1 of `./readme.md` (Room for 6.x) sets out.
@@ -54,8 +54,11 @@ export type EngineOption =
   }
   | {
     readonly name: 'tempogram';
-    /** `extension` pins the measured settings for tab capture and refuses another `tempoRange`. */
-    readonly mode?: 'extension';
+    /**
+     * `measured` holds the analyzer to the settings the benchmark measured, on real-time audio at 90 to 180 BPM:
+     * it reads exactly as the bare `tempogram` does, and refuses another `tempoRange`.
+     */
+    readonly mode?: 'measured';
   };
 
 /** The offline engine option. Realtime `peaks` has a fixed lowpass inside `analyzer.input`, so only offline takes lowpass settings. */
@@ -75,8 +78,7 @@ export type TempoRange = {
 /** Options for the realtime analyzer. Invalid values throw a `RangeError` or `TypeError` synchronously. */
 export type AnalyzerOptions = {
   /**
-   * Default `tempogram`, as decided in RBA-51. `peaks` puts a fixed lowpass inside `analyzer.input`; the
-   * tempogram takes the full band.
+   * Default `tempogram`. `peaks` puts a fixed lowpass inside `analyzer.input`; the tempogram takes the full band.
    */
   readonly engine?: EngineOption;
   readonly tempoRange?: TempoRange;
@@ -114,7 +116,7 @@ export const RELATION_TOLERANCE = 0.02;
  * Another tempo the engine considered.
  *
  * @remarks
- * No confidence of its own: only the reading's tempo is calibrated (RBA-106). A per-candidate confidence
+ * No confidence of its own: only the reading's tempo is calibrated. A per-candidate confidence
  * comes back only if calibration covers it.
  */
 export type Candidate = {
@@ -172,15 +174,17 @@ export type Reading = {
    * salience) goes through that engine's table in `core/calibration.ts`, so values from either engine, realtime or
    * offline, mean the same thing. A reading at half or double the tempo counts as wrong.
    *
-   * Calibrated on the benchmark's dev half (RBA-106, benchmark/results/rba-106-calibration-dev.md). It is not yet
-   * checked on held-out data, so treat its exact values as an estimate for music like the benchmark's. Dev read on
-   * the default 90 to 180 range: a reading under 90 BPM, or far over 180 with a custom `tempoRange`, gets the nearest
-   * table, which no reading there measured.
+   * Fitted on the benchmark's dev half (benchmark/results/rba-106-calibration-dev.md), then checked once on its
+   * held-out half, which it had not seen: the tempogram's table held there
+   * (benchmark/results/rba-106-calibration-heldout-verdict.md). Peaks' table was fitted on dev only. Treat the
+   * values as an estimate for music like the benchmark's. Both halves were read on the default 90 to 180 range: a
+   * reading under 90 BPM, or far over 180 with a custom `tempoRange`, gets the nearest table, which no reading there
+   * measured.
    */
   readonly confidence: number;
   /**
-   * At most 5, `candidates[0]` first with relation `top`, the rest in the engine's rank order, each labelled as
-   * {@link relationTo} would. Never empty.
+   * At most 5, `candidates[0]` first with relation `top`, the rest in the engine's rank order, each labelled with
+   * its {@link CandidateRelation} to the top tempo. Never empty.
    */
   readonly candidates: readonly Candidate[];
   readonly audio: AudioSpan;
@@ -316,7 +320,7 @@ export type DebugInfo = {readonly engine: EngineName; readonly data: unknown};
  * - `error`: non-fatal faults. A fatal one is a `statechange` to `stopped` with reason `failed` instead.
  * - `debug`: engine detail, only with `debug: true`.
  *
- * Reserved for 6.x (RBA-109): a `beat` event, on the `AudioContext` clock ({@link AudioSpan.contextTime}). It
+ * Reserved for a later 6.x: a `beat` event, on the `AudioContext` clock ({@link AudioSpan.contextTime}). It
  * belongs to the epoch and the stretch of audio it was predicted in: `reset()` and every move to `listening`
  * cancel every predicted beat not yet dispatched, so no beat of an older epoch or a lost pulse is ever reported.
  */
@@ -450,16 +454,16 @@ export type Hysteresis = {
  * The hysteresis both engines report with. The one place these numbers live: the tempogram's stable rule reads
  * `lockBand` and `lockAfterSeconds` from here.
  *
- * Swept on the benchmark's dev half and kept (RBA-106, benchmark/results/rba-v6-hysteresis-dev.md). The pick rule
+ * Swept on the benchmark's dev half and kept (benchmark/results/rba-v6-hysteresis-dev.md). The pick rule
  * runs per engine, and these numbers are shared. The tempogram's pick (the default engine) moves only
  * `pulseLostAfterSeconds`, to 3, which changes none of its measures. Peaks' pick, `pulseLostAfterSeconds` 1, sits at
  * the edge of its grid and drops to listening almost four times as often. Neither pick is taken: one set of values
  * serves both engines, the tempogram's pick changes nothing measured, and peaks' trades locks for its edge. Not
- * checked on held-out data. Where each value comes from:
+ * checked on held-out data, though the held-out calibration check ran under them. Where each value comes from:
  * - `lockBand` 0.02 and `lockAfterSeconds` 8: the tempogram's 5.x stable rule (`stableTolerance`, `stableSeconds`:
  *   80% of the frames of the last 8 s agree within 2%, besides its lead and salience, which stay engine detail).
  *   The 2% is also the band rba-pro copied by hand to tell stable from settling (`reading.ts`, `STABLE_TOLERANCE`).
- *   The peaks engine keeps its own lock rule (10 s of audio, then a fuller threshold rung, RBA-107): its readings
+ *   The peaks engine keeps its own lock rule (10 s of audio, then a fuller threshold rung): its readings
  *   jump by whole BPM, so a band on them was never measured.
  * - `unlockBand` 0.04: the benchmark's ±4% for a correct reading. Leaving a lock while the reading is still within
  *   it would be noise, and twice the lock band keeps the two apart.

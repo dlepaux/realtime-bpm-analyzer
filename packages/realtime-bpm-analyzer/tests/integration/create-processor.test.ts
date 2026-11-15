@@ -37,7 +37,7 @@ describe('createRealtimeBpmAnalyzer', function () {
 
     it('should accept engine options', async () => {
       const peaks = await createRealtimeBpmAnalyzer(audioContext, {engine: {name: 'peaks', restartAfterSeconds: 10}, debug: false});
-      const tempogram = await createRealtimeBpmAnalyzer(audioContext, {engine: {name: 'tempogram', mode: 'extension'}});
+      const tempogram = await createRealtimeBpmAnalyzer(audioContext, {engine: {name: 'tempogram', mode: 'measured'}});
       expect(peaks).to.be.instanceOf(BpmAnalyzer);
       expect(tempogram).to.be.instanceOf(BpmAnalyzer);
     });

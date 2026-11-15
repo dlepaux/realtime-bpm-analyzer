@@ -62,9 +62,9 @@ export type TempogramTuning = {
 };
 
 /**
- * The settings RBA-51 locked on 2026-10-31 and checked once on held-out data, the only ones a caller can
- * get: no public option sets a knob. The prior, its width and the third-beat penalty were fixed by that
- * DECISION, so changing them needs a new ruling, and a new measure on data that has not been seen.
+ * The settings fixed on the benchmark's dev half on 2026-10-31 and checked once on held-out data, the only ones
+ * a caller can get: no public option sets a knob. The prior, its width and the third-beat penalty were fixed
+ * then, so changing them needs a new measure on data that has not been seen.
  */
 export const defaultTempogramTuning: TempogramTuning = {
   frameRate: 100,

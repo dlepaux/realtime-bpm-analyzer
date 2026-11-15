@@ -1,6 +1,7 @@
 import {expect} from 'chai';
 import {BpmAnalyzer} from '../../../src/core/bpm-analyzer';
 import {createRealtimeBpmAnalyzer} from '../../../src/index';
+import type {BpmAnalyzerContract} from '../../../src/contract/types';
 import {createTestAudioContext, closeAudioContext} from '../../setup';
 
 /** Only the factory builds an analyzer, and only the analyzer fails itself */
@@ -15,6 +16,16 @@ describe('BpmAnalyzer - public surface', function () {
 
   afterEach(async () => {
     await closeAudioContext(audioContext);
+  });
+
+  it('keeps the surface its contract describes', async () => {
+    // Checked by the compiler: the assignment fails to type-check if the class drifts from the contract
+    const analyzer: BpmAnalyzerContract = await createRealtimeBpmAnalyzer(audioContext);
+    try {
+      expect(analyzer.state.status).to.equal('listening');
+    } finally {
+      analyzer.stop();
+    }
   });
 
   it('has no fault method', async () => {

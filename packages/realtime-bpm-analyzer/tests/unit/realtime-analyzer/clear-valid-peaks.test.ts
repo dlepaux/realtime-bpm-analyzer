@@ -2,7 +2,6 @@ import {expect} from 'chai';
 import {PeaksEngine} from '../../../src/core/peaks-engine';
 
 const newEngine = (): PeaksEngine => new PeaksEngine({tempoRange: {min: 90, max: 180}});
-import * as utils from '../../../src/core/utils';
 
 /**
  * Helper function to find the actual key in validPeaks/nextIndexPeaks that represents a given threshold

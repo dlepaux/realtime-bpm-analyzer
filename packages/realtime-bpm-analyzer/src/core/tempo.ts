@@ -238,14 +238,14 @@ type Votes = {
 };
 
 /**
- * Sets each tempo's confidence and exact tempo from the same ±1 BPM window (RBA-12 proposal v1, RBA-128).
+ * Sets each tempo's confidence and exact tempo from the same ±1 BPM window.
  * Pooling neighbours absorbs rounding jitter, since a true 128 splits its votes over 127–129. The exact tempo is
  * the vote-weighted mean of the unrounded tempos in that window: a true 127.5 splits its votes between 127 and
  * 128, and only the window's mean comes back to 127.5, where the group's own mean would lean to its whole BPM.
  *
  * At an edge of the range the window also takes the votes folded across it: a true 90 with jitter puts its votes
  * under 90 at about 180, so the mean at 90 would see only the high side and read high. Confidence keeps the
- * window unfolded, as RBA-106 calibrates it.
+ * window unfolded, as the calibration reads it.
  * @param groups - Every tempo group, so the total counts all votes
  * @param acrossEdge - The octave images of votes the fold may have moved across the range's edge
  * @returns One tempo per group, in the groups' order

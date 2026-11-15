@@ -63,7 +63,7 @@ export const detectors: Record<string, DetectorConfig> = {
     candidate: true,
   },
   // The candidate as a caller gets it: through the option, with no override, so a look scores the shipped path
-  'tempogram-extension': {options: {engine: {name: 'tempogram', mode: 'extension'}}, lowpass: false, offline: false},
+  'tempogram-extension': {options: {engine: {name: 'tempogram', mode: 'measured'}}, lowpass: false, offline: false},
   // RBA-106's sweeps: the engine's own path per row, lowpass included for peaks, and the offline reading
   'tempogram-hysteresis': {options: tempogram, lowpass: false, offline: false, sweep: 'tempogram', candidate: true},
   'peaks-hysteresis': {options: {engine: 'peaks'}, lowpass: false, offline: false, sweep: 'peaks', candidate: true},

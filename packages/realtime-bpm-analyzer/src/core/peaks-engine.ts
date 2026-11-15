@@ -21,7 +21,7 @@ export type PeaksEngineOptions = {
  * signal, and the intervals between them. Internal, and a class because its peak lists are one mutable state
  * that every chunk extends.
  *
- * Its lock rule is its own (RBA-107): 10 s of audio heard, then a threshold rung fuller than the one it last
+ * Its lock rule is its own: 10 s of audio heard, then a threshold rung fuller than the one it last
  * locked on. After a lost pulse the rung it locked on may offer again, or a breakdown would end its locks.
  */
 export class PeaksEngine {
@@ -112,7 +112,7 @@ export class PeaksEngine {
       pulse: hasPulse(channelData, bufferSize),
       lockOffered,
       progress: fraction,
-      // The candidates carry the raw scores the benchmark records to re-fit the calibration (RBA-148)
+      // The candidates carry the raw scores the benchmark records to re-fit the calibration
       debug: this.options.debug ? {threshold, floor: this.minValidThreshold, newPeaks: debugPeaks, candidates} : undefined,
     };
   }
@@ -147,7 +147,7 @@ export class PeaksEngine {
         }
       }
 
-      // Bounds memory and the per-chunk work, which re-reads every kept peak: the oldest go first (RBA-107)
+      // Bounds memory and the per-chunk work, which re-reads every kept peak: the oldest go first
       const kept = this.validPeaks[atThreshold];
       if (kept.length > consts.maxKeptPeaks) {
         kept.splice(0, kept.length - consts.maxKeptPeaks);

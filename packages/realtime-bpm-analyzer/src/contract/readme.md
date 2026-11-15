@@ -65,7 +65,7 @@ listening. The reducer enforces only the table. The worklet's tracker (`core/tra
 and pulse values. The lock follows each engine's own rule: the tempogram's stable rule reads `lockBand` and
 `lockAfterSeconds`, and peaks locks on a fuller peak rung after its 10 s warm-up, with no band of its own. They map today's behaviour, and a sweep on the benchmark's dev half kept them (see `HYSTERESIS`).
 
-## Room for 6.x (beat events, RBA-109)
+## Room for 6.x (beat events)
 
 These rules are fixed now so that beats land in a minor release, without a break:
 
@@ -96,7 +96,7 @@ These rules are fixed now so that beats land in a minor release, without a break
    with its own result type, so the tempo result never grows a field that only some callers asked for.
    `analyzeFullBuffer` and `analyzeChannelData` keep their shape.
 
-## Exact tempo (RBA-128)
+## Exact tempo
 
 `Reading.bpm` stays a whole number, the tempo people read. `Reading.bpmExact` is the same tempo unrounded,
 for timing: a beat grid on 128 for a real 127.6 BPM drifts about 0.56 s in 3 minutes. Each engine measures
@@ -129,7 +129,7 @@ The migration guide builds on this table.
 | 5.x | v6 |
 |---|---|
 | option `detector` | `engine` |
-| `tempogramMode: 'extension'` | `engine: {name: 'tempogram', mode: 'extension'}` |
+| `tempogramMode: 'extension'` | `engine: {name: 'tempogram', mode: 'measured'}` |
 | `continuousAnalysis` + `stabilizationTime` (ms) | `engine: {name: 'peaks', restartAfterSeconds}` |
 | `muteTimeInIndexes` | removed (engine detail) |
 | `analyzeFullBuffer` lowpass `frequencyValue`, `qualityValue` | offline `engine: {name: 'peaks', lowpass: {frequency, q}}` |
@@ -145,7 +145,7 @@ The migration guide builds on this table.
 | `once()` | `on(type, listener, {once: true})` |
 | `Tempo.tempo` | `Reading.bpm`, `Candidate.bpm` |
 | `Tempo.count` | removed |
-| `Tempo.confidence` (per engine) | `Reading.confidence`, calibrated on dev (RBA-106): the chance the reading is right |
+| `Tempo.confidence` (per engine) | `Reading.confidence`, calibrated on the benchmark's dev half and checked on its held-out half: the chance the reading is right |
 | `BpmCandidates.threshold`, `Threshold`, `Peaks` | removed |
 | (none) | `Candidate.relation`: `top`, `half`, `double`, `other` |
 | (none) | `Reading.audio {from, to, contextTime}`, in seconds since the epoch began, anchored to the context clock |

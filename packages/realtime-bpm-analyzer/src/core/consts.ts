@@ -11,7 +11,7 @@ export const thresholdStep = 0.05;
  * Peaks one threshold keeps in real time, the newest ones
  * @remarks
  * Without `continuousAnalysis` nothing else ever drops a peak, and every chunk re-reads all of them:
- * loud generated 240 BPM pulses kept 2400 after 10 minutes, and a chunk then took 52 ms of its 93 ms (RBA-107).
+ * loud generated 240 BPM pulses kept 2400 after 10 minutes, and a chunk then took 52 ms of its 93 ms.
  * 256 covers the 30 s benchmark clips whole, even at the mute window's most of 4.8 peaks a second
  * at 48 kHz, so readings that short are unchanged. It is far above `requiredPeaks`, so which threshold
  * locks is unchanged too. Past it, the reading follows the latest minute or more of audio.
@@ -64,7 +64,7 @@ export const defaultBufferSize = 4096;
  * Audio the peaks detector must have heard before it offers a lock
  * @remarks
  * Without it every first lock above the lowest rung was announced stable at once, a median 5.9 s in,
- * and 40% of those were right on the RBA-51 dev half. Replaying the recorded locks with stable and the
+ * and 40% of those were right on the benchmark's dev half. Replaying the recorded locks with stable and the
  * floor raise both held until 10 s gives at least 53% (the reading at 10 s is not recorded, so a track
  * that locked earlier is scored on that earlier lock), and as many tracks still get one (79%).
  * 10 s is the `computeBpmDelay` default the stable signal had until it was removed in 2023, not a value

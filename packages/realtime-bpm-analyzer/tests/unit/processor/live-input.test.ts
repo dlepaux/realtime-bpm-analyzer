@@ -114,7 +114,7 @@ describe('RealTimeBpmProcessor - real analysis of a live input losing audio', ()
    * of the input go missing as the thread falls behind, and the track's clock reports every 250 ms in steps of 10 ms.
    */
   async function listen({detector = 'tempogram', bpm, seconds, share = () => 1, report = onTime, during}: Listening): Promise<Heard> {
-    const engine = detector === 'tempogram' ? {name: detector, mode: 'extension'} as const : detector;
+    const engine = detector === 'tempogram' ? {name: detector, mode: 'measured'} as const : detector;
     const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(engine, false, true)});
     const audio = groove(bpm, seconds * 1.3);
     const stable: Array<{at: number; tempo: number}> = [];

@@ -63,7 +63,7 @@ export type EngineOption =
 
 /**
  * The lowpass settings: the offline `engine: {name: 'peaks', lowpass}` and `getBiquadFilter` take the same ones.
- * Each must be a finite number. The 5.x names `frequencyValue` and `qualityValue`, and the DOM's `Q`, throw a
+ * Each must be a finite number. The 5.x names `frequencyValue` and `qualityValue`, and the DOM's `Q` and `detune`, throw a
  * `TypeError`.
  */
 export type LowpassOption = {

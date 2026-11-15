@@ -148,7 +148,7 @@ describe('analyzer - getOfflineLowPassSource', () => {
 
     it('refuses the 5.x names, which it would otherwise ignore', async () => {
       const buffer = audioContext.createBuffer(1, 128, sampleRate);
-      const removed: Array<[Record<string, number>, string]> = [[{frequencyValue: 150}, 'frequency'], [{qualityValue: 2}, 'q'], [{Q: 4}, 'q']];
+      const removed: Array<[Record<string, number>, string]> = [[{frequencyValue: 150}, 'frequency'], [{qualityValue: 2}, 'q'], [{Q: 4}, 'q'], [{detune: 100}, 'frequency']];
 
       for (const [options, replacement] of removed) {
         let caught: unknown;

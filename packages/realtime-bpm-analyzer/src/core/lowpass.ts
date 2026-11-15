@@ -4,12 +4,14 @@ import * as consts from './consts';
 /**
  * Names a caller may reach for, with why they don't apply: unrefused, they would be ignored without a word. The
  * DOM's `BiquadFilterOptions` spells the resonance `Q`, and shares `frequency`, so TypeScript accepts one of those
- * objects as a `LowpassOption`.
+ * objects as a `LowpassOption`. Its `detune` would move the cutoff, so it is refused too. Its `gain` and `type` are
+ * not: a lowpass ignores `gain`, and this filter is always a lowpass.
  */
 const refusedSettings: Readonly<Record<string, string>> = Object.freeze({
   frequencyValue: 'was removed in v6: use frequency',
   qualityValue: 'was removed in v6: use q',
   Q: "is the DOM's spelling: use q",
+  detune: "is the DOM's: use frequency, with the detune folded in",
 });
 
 /**
@@ -17,7 +19,7 @@ const refusedSettings: Readonly<Record<string, string>> = Object.freeze({
  * BiquadFilterNode, the OfflineAudioContext render and the plain-JS biquad), so all three refuse the same input
  * @param options The caller's settings
  * @returns The cutoff in Hz and the Q in dB
- * @throws {TypeError} When a 5.x setting name, or the DOM's `Q`, is set
+ * @throws {TypeError} When a 5.x setting name, or the DOM's `Q` or `detune`, is set
  * @throws {RangeError} When the frequency or Q is not a finite number
  */
 export function resolveLowpass(options: LowpassOption | undefined): {frequency: number; q: number} {
@@ -94,7 +96,7 @@ export function lowpassCoefficients(
  * @param sampleRate Sample rate in Hz
  * @param options The cutoff and Q, as `getBiquadFilter` takes them, defaulting to the browser pipeline's values
  * @returns A new filtered array, the input is left untouched
- * @throws {TypeError} When a 5.x setting name, or the DOM's `Q`, is set
+ * @throws {TypeError} When a 5.x setting name, or the DOM's `Q` or `detune`, is set
  * @throws {RangeError} When the sample rate, frequency or Q is not a usable number
  */
 export function applyLowpass(

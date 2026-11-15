@@ -417,9 +417,11 @@ describe('getBiquadFilter', () => {
       expect(() => getBiquadFilter(audioContext, {qualityValue: 2})).to.throw(TypeError, 'use q');
     });
 
-    it('refuses the DOM\'s Q, which shares frequency with LowpassOption and would pass as one', () => {
+    it('refuses the DOM\'s Q and detune, which share frequency with LowpassOption and would pass as one', () => {
       const domOptions: BiquadFilterOptions = {frequency: 150, Q: 4};
       expect(() => getBiquadFilter(audioContext, domOptions)).to.throw(TypeError, /Q is the DOM's spelling: use q/);
+      const detuned: BiquadFilterOptions = {frequency: 150, detune: 100};
+      expect(() => getBiquadFilter(audioContext, detuned)).to.throw(TypeError, /detune is the DOM's: use frequency/);
     });
 
     it('refuses a setting that is not a finite number', () => {

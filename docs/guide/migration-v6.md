@@ -12,6 +12,8 @@ Version 6 makes two changes, and this page keeps them apart, so an app that brea
 
 Do part 1 first, with `engine: 'peaks'` set, and check your app. Then remove that line to move to the new default.
 
+There is no 6.0.0 to install: a failed publish in November 2025 left that number on npm, deprecated, so version 6 starts at 6.1.0.
+
 As before, the library runs on the device, sends no audio anywhere and collects nothing.
 
 ## Part 1: events, options and fields

@@ -134,13 +134,21 @@ export function fps(rate: ExportRate): number {
   return rate.numerator / rate.denominator
 }
 
-/** Beat times in seconds, every 60 / bpm from the first beat, up to the end of the audio. */
+/**
+ * Beat times in seconds, every 60 / bpm from the first beat, inside the audio: the audio's end
+ * is not a beat, so a beat landing exactly on it is left out (RBA-239).
+ */
 export function beatTimes(bpm: number, firstBeat: number, duration: number): number[] {
   if (!(bpm > 0) || !(firstBeat >= 0) || !(duration > firstBeat)) return []
   const period = 60 / bpm
   // Multiplying, not adding, so float error doesn't pile up over thousands of beats.
-  const count = Math.min(MAX_MARKERS, Math.floor((duration - firstBeat) / period) + 1)
-  return Array.from({ length: count }, (_, index) => firstBeat + index * period)
+  const at = (index: number) => firstBeat + index * period
+  // The beats before the end number ceil(span / period). Float error in that quotient can be one
+  // off where a beat sits on the end, so the time of the beat itself decides, one step each way.
+  let count = Math.ceil((duration - firstBeat) / period)
+  if (count > 0 && at(count - 1) >= duration) count -= 1
+  if (at(count) < duration) count += 1
+  return Array.from({ length: Math.min(MAX_MARKERS, count) }, (_, index) => at(index))
 }
 
 /** The frame a time falls on, rounded to the nearest frame of the exact rate. */
@@ -234,32 +242,52 @@ export interface MarkerExport {
   dropFrame: boolean
 }
 
-interface Marker {
+export interface BeatMarker {
   index: number
   seconds: number
   frame: number
 }
 
-// A beat in the audio's last half frame rounds to the frame where the sequence ends, outside
-// the gap and the xmeml sequence, where an editor may drop it. It moves back onto the last
-// frame instead: under one frame early, and every format places it the same way.
-function markersOf(input: MarkerExport): Marker[] {
-  const lastFrame = durationFrames(input) - 1
-  return beatTimes(input.bpm, input.firstBeat, input.duration)
-    .map((seconds, index) => ({ index: index + 1, seconds, frame: Math.min(frameAt(seconds, input.rate), lastFrame) }))
+/**
+ * The markers every format writes, and the count the panel shows: each beat on its own frame, by
+ * frameAt's rounding, while that frame lies inside the sequence (RBA-239). A beat in the
+ * sequence's last half frame rounds to the frame where it ends, so it isn't written: moving it
+ * back onto the last frame would put a marker off the grid, its seconds and frame disagreeing.
+ */
+export function beatMarkers(input: MarkerExport): BeatMarker[] {
+  const frames = durationFrames(input)
+  const markers: BeatMarker[] = []
+  for (const [index, seconds] of beatTimes(input.bpm, input.firstBeat, input.duration).entries()) {
+    const frame = frameAt(seconds, input.rate)
+    // Frames never fall as the beats go on, so the first one at the end ends the grid.
+    if (frame >= frames) break
+    markers.push({ index: index + 1, seconds, frame })
+  }
+  return markers
 }
 
 function title(input: MarkerExport): string {
   return `${input.name} beat markers`
 }
 
+/**
+ * The sequence's length: the audio's, rounded up to whole frames, so the last frame holds the
+ * audio's end. Float error can carry a length of whole frames a few ulps past one (31 frames of
+ * 24000/1001 reads 31.000000000000004), whose ceiling would add a frame past the audio, so a
+ * length that close to a whole frame is that frame. It is a real length otherwise: n samples sit
+ * at least 1 / (sample rate × 1001) of a frame off a boundary they miss, over 5e-9 up to 192 kHz,
+ * and 4 ulps stay under that up to about 5 million frames, 23 hours at 60 fps.
+ */
 function durationFrames(input: MarkerExport): number {
-  return Math.max(1, Math.ceil((input.duration * input.rate.numerator) / input.rate.denominator))
+  const exact = (input.duration * input.rate.numerator) / input.rate.denominator
+  const whole = Math.round(exact)
+  const frames = Math.abs(exact - whole) <= 4 * Number.EPSILON * exact ? whole : Math.ceil(exact)
+  return Math.max(1, frames)
 }
 
 export function toCsv(input: MarkerExport): string {
   const isDrop = input.dropFrame && input.rate.canDropFrame
-  const rows = markersOf(input).map((marker) =>
+  const rows = beatMarkers(input).map((marker) =>
     [`Beat ${marker.index}`, marker.seconds.toFixed(3), marker.frame, timecode(marker.frame, input.rate, isDrop)].join(','))
   return ['marker,seconds,frame,timecode', ...rows].map((line) => `${line}\r\n`).join('')
 }
@@ -270,7 +298,7 @@ export function toFcpxml(input: MarkerExport): string {
   const duration = rationalTime(durationFrames(input), rate)
   const oneFrame = rationalTime(1, rate)
   const tcFormat = input.dropFrame && rate.canDropFrame ? 'DF' : 'NDF'
-  const markers = markersOf(input).map((marker) =>
+  const markers = beatMarkers(input).map((marker) =>
     `              <marker start="${rationalTime(marker.frame, rate)}" duration="${oneFrame}" value="Beat ${marker.index}"/>`)
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -319,7 +347,7 @@ export function toEdl(input: MarkerExport): string {
   const { rate } = input
   const isDrop = input.dropFrame && rate.canDropFrame
   const start = framesPerHour(rate, isDrop)
-  const markers = markersOf(input)
+  const markers = beatMarkers(input)
   const width = Math.max(3, String(markers.length).length)
   const events = markers.flatMap((marker) => {
     const tcIn = timecode(start + marker.frame, rate, isDrop)
@@ -346,7 +374,7 @@ export function toFcp7Xml(input: MarkerExport): string {
   const ntsc = rate.denominator === 1001 ? 'TRUE' : 'FALSE'
   const rateXml = `<rate><timebase>${rate.timebase}</timebase><ntsc>${ntsc}</ntsc></rate>`
   const displayFormat = input.dropFrame && rate.canDropFrame ? 'DF' : 'NDF'
-  const markers = markersOf(input).map((marker) =>
+  const markers = beatMarkers(input).map((marker) =>
     `    <marker><name>Beat ${marker.index}</name><comment/><in>${marker.frame}</in><out>-1</out></marker>`)
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',

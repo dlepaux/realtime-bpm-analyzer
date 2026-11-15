@@ -3,10 +3,11 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useAnalytics } from '../composables/useAnalytics'
 import {
   MARKER_FORMATS,
-  beatTimes,
+  beatMarkers,
   markerFile,
   timecodeChoice,
   timecodesFor,
+  type MarkerExport,
   type MarkerFormat,
 } from '../tools/beat-markers'
 import { fallbackNote, firstBeatOf, fitTempo, onsetCurveInSlices, type GridTempo } from '../tools/first-beat'
@@ -92,19 +93,22 @@ const timecodes = computed(() => timecodesFor(format.value))
 const choice = computed(() => timecodeChoice(format.value, timecodeId.value))
 // The Premiere XML has no 59.94 DF: switching to it moves that choice to 59.94 NDF.
 watch(format, () => { timecodeId.value = choice.value.id })
-const markerCount = computed(() =>
-  grid.value === null ? 0 : beatTimes(grid.value.tempo.bpm, grid.value.firstBeat, props.duration).length)
+// One input for the count and the file: how many beats fit depends on the frame rate, since a
+// beat in the sequence's last half frame isn't written (RBA-239).
+const exportInput = computed<MarkerExport | null>(() => (grid.value === null ? null : {
+  name: props.fileName,
+  bpm: grid.value.tempo.bpm,
+  firstBeat: grid.value.firstBeat,
+  duration: props.duration,
+  rate: choice.value.rate,
+  dropFrame: choice.value.dropFrame,
+}))
+const markerCount = computed(() => (exportInput.value === null ? 0 : beatMarkers(exportInput.value).length))
 
 function download() {
-  if (grid.value === null || markerCount.value === 0) return
-  const file = markerFile(format.value, {
-    name: props.fileName,
-    bpm: grid.value.tempo.bpm,
-    firstBeat: grid.value.firstBeat,
-    duration: props.duration,
-    rate: choice.value.rate,
-    dropFrame: choice.value.dropFrame,
-  })
+  const input = exportInput.value
+  if (input === null || markerCount.value === 0) return
+  const file = markerFile(format.value, input)
   const url = URL.createObjectURL(new Blob([file.content], { type: file.mime }))
   const link = document.createElement('a')
   link.href = url

@@ -217,6 +217,67 @@ describe('BpmAnalyzer - events and commands', function () {
     });
   });
 
+  describe('kick', () => {
+    it('reports each kick as frozen data with its context time and strength, and nothing else', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const kicks = record(analyzer, 'kick');
+      const details: unknown[] = [];
+      analyzer.addEventListener('kick', event => details.push((event as CustomEvent).detail));
+
+      send(analyzer, {type: 'kick', epoch: 0, contextTime: 1.25, strength: 0.8});
+      send(analyzer, {type: 'step', epoch: 0, status: 'settling', reason: 'first-reading', reading: reading(128, 2)});
+      send(analyzer, {type: 'kick', epoch: 0, contextTime: 1.72, strength: 1});
+
+      expect(kicks).to.deep.equal([{contextTime: 1.25, strength: 0.8}, {contextTime: 1.72, strength: 1}]);
+      expect(details).to.deep.equal(kicks);
+      expect(Object.isFrozen(kicks[0])).to.equal(true);
+      // A kick is no measurement of the tempo: the state stays where the step put it
+      expect(analyzer.state.status).to.equal('settling');
+    });
+
+    it('drops a kick heard before the last reset, as it drops a stale reading', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const kicks = record(analyzer, 'kick');
+      analyzer.reset();
+
+      send(analyzer, {type: 'kick', epoch: 0, contextTime: 1, strength: 1});
+      send(analyzer, {type: 'kick', epoch: 1, contextTime: 1.5, strength: 1});
+
+      expect(kicks).to.deep.equal([{contextTime: 1.5, strength: 1}]);
+    });
+
+    it('fails with a ProtocolError on a kick with no valid time or strength', async () => {
+      const invalid: Array<Record<string, unknown>> = [
+        {contextTime: -0.1, strength: 0.5},
+        {contextTime: Number.NaN, strength: 0.5},
+        {contextTime: Number.POSITIVE_INFINITY, strength: 0.5},
+        {contextTime: '1', strength: 0.5},
+        {strength: 0.5},
+        {contextTime: 1, strength: 1.01},
+        {contextTime: 1, strength: -0.01},
+        {contextTime: 1, strength: Number.NaN},
+        {contextTime: 1},
+      ];
+      for (const fields of invalid) {
+        const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+        const kicks = record(analyzer, 'kick');
+        send(analyzer, {type: 'kick', epoch: 0, ...fields});
+
+        expect(kicks, JSON.stringify(fields)).to.deep.equal([]);
+        expect(analyzer.state, JSON.stringify(fields)).to.deep.include({status: 'stopped'});
+        expect((analyzer.state as {error: {name: string}}).error.name).to.equal('ProtocolError');
+      }
+    });
+
+    it('reports no kick once stopped', async () => {
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      const kicks = record(analyzer, 'kick');
+      analyzer.stop();
+      send(analyzer, {type: 'kick', epoch: 0, contextTime: 1, strength: 1});
+      expect(kicks).to.deep.equal([]);
+    });
+  });
+
   describe('reset()', () => {
     it('moves to listening with reason reset in a new epoch, before it returns', async () => {
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);

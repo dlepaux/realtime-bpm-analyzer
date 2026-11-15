@@ -11,11 +11,13 @@ import {
   MAX_FLASHES_PER_WINDOW,
   MAX_LATE_MS,
   MIN_GAP_MS,
+  RESTART_GUARD_MS,
   alignToTap,
   beatsPerFlash,
   flashAnimation,
   initialStyle,
   isSaturatedRed,
+  isTooSoonAfterStop,
   mayFlash,
   start,
   step,
@@ -189,6 +191,16 @@ test('a stalled page never shows the beats it missed, late or in a burst', () =>
   }
 })
 
+test('a faster tempo takes over from the last beat, not after the old tempo\'s next beat', () => {
+  // 20 BPM flashes at the start, then 120 BPM from 1000 ms: the next flash comes on the new grid within
+  // one new period, where waiting for the old next beat would leave the light dark until 3000.
+  const { flashes } = run({ frames: frames(3, 60), bpm: (at) => (at < 1000 ? 20 : 120) })
+  assert.ok((flashes[0]?.at ?? Infinity) < 1000 / 30, 'the first flash, a frame after the start')
+  const first = flashes[1]?.at ?? Infinity
+  assert.ok(first >= 1000 && first < 1000 + 500 + 1000 / 60, `the first flash at the new tempo came at ${first}`)
+  assertSafe(flashes, 'a tempo change')
+})
+
 test('the microphone mode shows nothing until it has a tempo', () => {
   const { flashes } = run({ frames: frames(3, 60), bpm: (at) => (at < 2000 ? null : 128) })
   assert.ok(flashes.length > 0)
@@ -258,19 +270,53 @@ test('a tap while idle lines nothing up and starts nothing', () => {
 
 // ── Every stop path stops it, and nothing restarts it ───────────────────────────────────────
 
-test('stop() leaves it idle from any state, and nothing after it flashes again', () => {
+test('stop() leaves it stopped from any state, and nothing after it flashes again', () => {
   const running = run({ frames: frames(2, 60), bpm: () => 120 }).state
   assert.equal(running.running, true)
-  const stopped = stop()
-  assert.deepEqual(stopped, IDLE)
+  const stopped = stop(running)
+  assert.deepEqual({ ...stopped, shown: [] }, { ...IDLE, shown: [] })
+  // It keeps when the last flashes were, so a start right after can't add one to the window.
+  assert.deepEqual(stopped.shown, running.shown)
   // Time passing, tempo changes and taps: none of them is a start.
   const after = run({ frames: frames(10, 60, 0, 1, 2000), bpm: (at) => 60 + (at % 200), taps: [{ at: 3000, beat: 0 }] }, stopped)
   assert.deepEqual(after.flashes, [])
   assert.equal(after.state.running, false)
 })
 
-test('start() is the only way from idle to running', () => {
+test('start() is the only way from stopped to running', () => {
   assert.equal(start().running, true)
+  assert.equal(start(stop(start())).running, true)
   assert.equal(IDLE.running, false)
   assert.ok(Object.isFrozen(IDLE), 'IDLE cannot be changed into a running state')
+})
+
+test('stopping and starting again, however fast, never breaks the cap or the gap', () => {
+  // Holding Enter on Start and Esc, or clicking Start and the light in turn: every start would
+  // flash at once if the history went with the stop.
+  for (let seed = 1; seed <= 40; seed++) {
+    const next = random(seed)
+    let state = start()
+    const flashes: Flash[] = []
+    const tempo = 20 + seed * 7
+    for (const now of frames(10, 60, 8, seed)) {
+      if (next() < 0.15) state = state.running ? stop(state) : start(state)
+      const result = step(state, { now, bpm: tempo, beatsPerBar: 4 })
+      state = result.state
+      if (result.flash) flashes.push({ at: now, kind: result.flash })
+    }
+    assert.ok(flashes.length > 0, `seed ${seed} never flashed`)
+    assertSafe(flashes, `stop and start at ${tempo} BPM, seed ${seed}`)
+  }
+})
+
+test('a click too soon after a stop is not a start: a ghost click or a held key can\'t restart it', () => {
+  // A tap on the light stops it and reveals the Start button under the finger; the browser's
+  // click from that same tap, or a repeating Enter, would start it again.
+  assert.equal(RESTART_GUARD_MS, 500)
+  assert.equal(isTooSoonAfterStop(null, 10), false, 'never stopped: the first start is allowed')
+  assert.equal(isTooSoonAfterStop(1000, 1000), true)
+  assert.equal(isTooSoonAfterStop(1000, 1000 + RESTART_GUARD_MS - 1), true)
+  assert.equal(isTooSoonAfterStop(1000, 1000 + RESTART_GUARD_MS), false)
+  // A click stamped before the stop is earlier than it, so it is not a start either.
+  assert.equal(isTooSoonAfterStop(1000, 900), true)
 })

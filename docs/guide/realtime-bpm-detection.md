@@ -354,6 +354,12 @@ function heardAt(contextTime: number): number {
   return performance.now() + ((contextTime + latency - audioContext.currentTime) * 1000);
 }
 
+/** Your visual: keep it calm, see "A visual that flashes" below */
+function showKick(): void {
+  bpmDisplay.classList.add('kick');
+  setTimeout(() => bpmDisplay.classList.remove('kick'), 100);
+}
+
 analyzer.on('kick', ({ contextTime }) => {
   const wait = heardAt(contextTime) - performance.now();
   // Already heard, or within a frame: show it now. Otherwise when the listener hears it.

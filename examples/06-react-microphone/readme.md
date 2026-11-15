@@ -9,9 +9,10 @@ Analyzes the microphone live, with `createRealtimeBpmAnalyzer`, `liveInput` and 
 - Each `statechange` as `from → to (reason)`, newest first.
 - Each `reading` while settling or locked: `bpm`, `bpmExact`, `confidence` and the `candidates`, the same fields as a file analyzed offline.
 - `error` events (a failed analysis step) and a fatal fault, which is a move to `stopped` with the error.
+- Each `kick` as it is heard, newest first: its `contextTime` on the AudioContext clock and its `strength`, from 0 to 1, with a count of the kicks heard. The panel lists the newest eight, with nothing that flashes.
 - **Start over** calls `analyzer.reset()`. **Stop** calls `analyzer.stop()`, which is final, and releases the microphone.
 
-The code is in `src/components/bpm-analyzer.tsx`, with the panels in `src/components/reading-panel.tsx`, `src/components/state-panel.tsx` and the `useAnalyzerView` hook in `src/components/use-analyzer-view.ts`. Confidence is shown as the library reports it, from 0 to 1.
+The code is in `src/components/bpm-analyzer.tsx`, with the panels in `src/components/reading-panel.tsx`, `src/components/state-panel.tsx`, `src/components/kick-panel.tsx` and the `useAnalyzerView` hook in `src/components/use-analyzer-view.ts`. Confidence is shown as the library reports it, from 0 to 1.
 
 ## Run it from a clean clone
 

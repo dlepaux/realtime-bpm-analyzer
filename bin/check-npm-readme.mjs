@@ -9,13 +9,13 @@
 // but not the registry, which is what happened from 5.5.0 to 5.6.1.
 //
 // This check runs the same two steps without publishing: `npm pack --dry-run` (the same
-// libnpmpack call, scripts included, nothing written or sent), then the same manifest read,
+// libnpmpack call, scripts included, no tarball written and nothing sent), then the same manifest read,
 // with the @npmcli/package-json that ships inside the npm doing the packing.
 //
 // Usage: node bin/check-npm-readme.mjs <package-dir> [<file-the-readme-must-equal>]
 
 import {execFileSync} from 'node:child_process';
-import {readFileSync} from 'node:fs';
+import {existsSync, readFileSync, realpathSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import path from 'node:path';
 
@@ -28,19 +28,44 @@ function fail(message) {
 }
 
 function npm(args, cwd) {
-  return execFileSync('npm', args, {cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']}).trim();
+  try {
+    return execFileSync('npm', args, {cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']}).trim();
+  } catch (error) {
+    return fail(`npm ${args.join(' ')} failed in ${cwd}: ${error.message}`);
+  }
+}
+
+// The npm install that `npm` on PATH runs: its bin/npm usually links to <npm>/bin/npm-cli.js.
+// A shim (Volta, for example) doesn't, so fall back to the global root.
+function findNpmDir(cwd) {
+  for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
+    const bin = path.join(dir, 'npm');
+    if (!dir || !existsSync(bin)) {
+      continue;
+    }
+    const npmDir = path.dirname(path.dirname(realpathSync(bin)));
+    if (existsSync(path.join(npmDir, 'node_modules', '@npmcli', 'package-json'))) {
+      return npmDir;
+    }
+    break;
+  }
+  return path.join(npm(['root', '-g'], cwd), 'npm');
 }
 
 // The @npmcli/package-json of the npm on PATH, so the read below is the one that npm's publish does
 function loadNpmPackageJson(cwd) {
-  const npmDir = path.join(npm(['root', '-g'], cwd), 'npm');
-  const requireFromNpm = createRequire(path.join(npmDir, 'package.json'));
-  const bundledVersion = requireFromNpm('./package.json').version;
-  const runningVersion = npm(['--version'], cwd);
-  if (bundledVersion !== runningVersion) {
-    fail(`npm on PATH is ${runningVersion}, but ${npmDir} holds ${bundledVersion}: the check would read another npm's code`);
+  const npmDir = findNpmDir(cwd);
+  try {
+    const requireFromNpm = createRequire(path.join(npmDir, 'package.json'));
+    const bundledVersion = requireFromNpm('./package.json').version;
+    const runningVersion = npm(['--version'], cwd);
+    if (bundledVersion !== runningVersion) {
+      fail(`npm on PATH is ${runningVersion}, but ${npmDir} holds ${bundledVersion}: the check would read another npm's code`);
+    }
+    return {PackageJson: requireFromNpm('@npmcli/package-json'), version: runningVersion};
+  } catch (error) {
+    return fail(`cannot load @npmcli/package-json from ${npmDir}: ${error.message}`);
   }
-  return {PackageJson: requireFromNpm('@npmcli/package-json'), version: runningVersion};
 }
 
 const [packageArg, expectedArg] = process.argv.slice(2);

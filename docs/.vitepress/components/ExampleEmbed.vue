@@ -1,28 +1,22 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import {
+  DEV_SERVER_RETRY_MS,
+  EXAMPLE_DEV_PORTS,
+  EXAMPLES_DEV_COMMAND,
+  probeDevServer,
+  type DevServerStatus,
+} from '../tools/example-dev-server'
 
 const props = defineProps<{
   example: string
   height?: string
 }>()
 
-// Development ports for each example
-const devPorts: Record<string, number> = {
-  '01-vanilla-basic': 3001,
-  '02-vanilla-streaming': 3002,
-  '03-vanilla-microphone': 3003,
-  '04-react-basic': 3004,
-  '05-react-streaming': 3005,
-  '06-react-microphone': 3006,
-  '07-vue-basic': 3007,
-  '08-vue-streaming': 3008,
-  '09-vue-microphone': 3009,
-}
-
 const iframeUrl = computed(() => {
   // In development: point to example's dev server
   if (import.meta.env.DEV) {
-    const port = devPorts[props.example]
+    const port = EXAMPLE_DEV_PORTS[props.example]
     if (port) {
       return `http://localhost:${port}`
     }
@@ -32,6 +26,29 @@ const iframeUrl = computed(() => {
   
   // In production: use built examples from same domain
   return `/examples/${props.example}/`
+})
+
+// In docs dev the example's own dev server may not be running, and an iframe pointed at a closed
+// port is blank. So the frame waits for the server, and names the command while it is down.
+const devServer = ref<DevServerStatus>(import.meta.env.DEV ? 'checking' : 'up')
+let retry: ReturnType<typeof setTimeout> | undefined
+let mounted = false
+
+async function checkDevServer() {
+  const status = await probeDevServer(iframeUrl.value, (url, init) => fetch(url, init))
+  if (!mounted) return // the page changed while the probe was out: schedule nothing more
+  devServer.value = status
+  if (status === 'down') retry = setTimeout(checkDevServer, DEV_SERVER_RETRY_MS)
+}
+
+onMounted(() => {
+  mounted = true
+  if (import.meta.env.DEV && iframeUrl.value) void checkDevServer()
+})
+
+onUnmounted(() => {
+  mounted = false
+  clearTimeout(retry)
 })
 
 const githubUrl = computed(() => {
@@ -58,7 +75,7 @@ const exampleName = computed(() => {
            their own ports, another origin. In production they share the site's origin, where
            allow="microphone" grants nothing beyond what that origin already has. -->
       <iframe 
-        v-if="iframeUrl"
+        v-if="iframeUrl && devServer === 'up'"
         :src="iframeUrl"
         :height="height || '600px'"
         frameborder="0"
@@ -68,11 +85,26 @@ const exampleName = computed(() => {
         :title="`${exampleName} Demo`"
       ></iframe>
       <div
+        v-else-if="iframeUrl && devServer === 'checking'"
+        class="example-error"
+      >
+        <p>Looking for the example's dev server…</p>
+      </div>
+      <div
+        v-else-if="iframeUrl"
+        class="example-error"
+        role="status"
+      >
+        <p>This example runs on its own dev server, on port {{ EXAMPLE_DEV_PORTS[example] }}, which <code>npm run docs:dev</code> doesn't start.</p>
+        <p>Start every example in a second terminal, at the repository root: <code>{{ EXAMPLES_DEV_COMMAND }}</code></p>
+        <p>The frame loads once the server answers.</p>
+      </div>
+      <div
         v-else
         class="example-error"
       >
         <p>⚠️ Example not available in development mode.</p>
-        <p>Run the example locally: <code>cd examples/{{ example }} && npm run dev</code></p>
+        <p>Run the example locally, at the repository root: <code>npm run dev -w examples/{{ example }}</code></p>
       </div>
     </div>
     

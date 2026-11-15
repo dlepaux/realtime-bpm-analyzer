@@ -8,6 +8,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import {
   EXAMPLE_DEV_PORTS,
   EXAMPLES_DEV_COMMAND,
+  nextRetryMs,
   probeDevServer,
   type ProbeFetch,
 } from '../.vitepress/tools/example-dev-server.ts'
@@ -45,8 +46,10 @@ test('every example type-checks before vite bundles it', () => {
 // The file examples take video too (RBA-231): the browser decodes a video's sound track like any
 // audio file, as /video-bpm does. The three say it in the same words, so a reader can compare them.
 // The limits are the page's FAQ, plus the iOS .mov failure measured on the site (RBA-219).
-const FILE_FORMATS = 'Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS.'
-const DECODE_ERROR = 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file, or an MP4 or WebM video.'
+const FILE_FORMATS = 'Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS. The whole file is read into memory, so for a long video, export the sound or a shorter clip.'
+const DECODE_ERROR = 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file. For a video, try MP4 or WebM, or export its sound as WAV.'
+// The same limits in the readmes and the docs, in their markdown form.
+const LIMITS_MD = "MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone `.mov` files don't decode on iOS. The whole file is read into memory, so for a long video, export the sound or a shorter clip."
 const FILE_EXAMPLES = {
   '01-vanilla-basic': read('../../examples/01-vanilla-basic/index.html') + read('../../examples/01-vanilla-basic/src/main.ts'),
   '04-react-basic': read('../../examples/04-react-basic/src/components/bpm-analyzer.tsx'),
@@ -59,6 +62,7 @@ test('the file examples accept video files, as /video-bpm does', () => {
   for (const [example, source] of Object.entries(FILE_EXAMPLES)) {
     const accepts = [...source.matchAll(/type="file"[\s\S]*?accept="([^"]*)"/g)].map(m => m[1])
     assert.deepEqual(accepts, [page], `${example}: accept=${JSON.stringify(accepts)}`)
+    assert.ok(source.includes('aria-label="Audio or video file"'), `${example}: the file input has no accessible name`)
   }
 })
 
@@ -67,14 +71,23 @@ test('the file examples state the same formats and limits, iOS .mov included', (
     assert.ok(source.includes(FILE_FORMATS), `${example} lacks the formats line`)
     assert.ok(source.includes(DECODE_ERROR), `${example} lacks the decode error`)
   }
-  assert.match(FILE_FORMATS, /MP4[\s\S]*WebM[\s\S]*MOV[\s\S]*iPhone[\s\S]*iOS/)
+  assert.match(FILE_FORMATS, /MP4[\s\S]*WebM[\s\S]*MOV[\s\S]*iPhone[\s\S]*iOS[\s\S]*memory/)
 })
 
-test('the examples readme and Basic Usage say a video works the same way', () => {
-  assert.match(read('../../examples/readme.md'), /An audio or video file, analyzed at once/)
-  const basic = read('../examples/basic-usage.md')
-  assert.match(basic, /video file works the same way/)
-  assert.match(basic, /iPhone `\.mov` files don’t decode on iOS/)
+test('the readmes and the docs say a video works the same way, with the same limits', () => {
+  const docs = {
+    'examples/readme.md': read('../../examples/readme.md'),
+    'docs/examples/basic-usage.md': read('../examples/basic-usage.md'),
+    ...Object.fromEntries(Object.keys(FILE_EXAMPLES).map(e => [`${e}/readme.md`, read(`../../examples/${e}/readme.md`)])),
+  }
+  for (const [path, text] of Object.entries(docs)) {
+    assert.ok(text.includes(LIMITS_MD), `${path} lacks the limits`)
+  }
+  assert.match(docs['examples/readme.md'], /An audio or video file, analyzed at once/)
+  assert.match(docs['docs/examples/basic-usage.md'], /video file works the same way/)
+  for (const page of ['react', 'vue']) {
+    assert.match(read(`../examples/${page}.md`), /Pick an audio or video file/, `${page}.md`)
+  }
 })
 
 // In docs dev the embeds load each example's own dev server, which `npm run docs:dev` doesn't start.
@@ -100,11 +113,21 @@ test('the probe says up when the dev server answers, down when nothing listens',
   const answering: ProbeFetch = async (url, init) => { calls.push([url, init]); return {} }
   assert.equal(await probeDevServer('http://localhost:3001', answering), 'up')
   assert.equal(calls[0][1]?.mode, 'no-cors', 'a cross-origin probe must not need CORS headers')
+  // A script, not the HTML page: ORB may turn a no-cors HTML response into a network error
+  assert.equal(calls[0][0], 'http://localhost:3001/@vite/client')
   const refusing: ProbeFetch = async () => { throw new TypeError('Failed to fetch') }
   assert.equal(await probeDevServer('http://localhost:3001', refusing), 'down')
+})
+
+test('the probe backs off while the server stays down', () => {
+  const delays = [nextRetryMs()]
+  for (let i = 0; i < 6; i++) delays.push(nextRetryMs(delays[delays.length - 1]))
+  assert.deepEqual(delays, [3000, 6000, 12000, 24000, 30000, 30000, 30000])
 })
 
 test('the embed probes only in dev, so production keeps its plain iframe', () => {
   assert.match(EMBED, /import\.meta\.env\.DEV \? 'checking' : 'up'/)
   assert.match(EMBED, /return `\/examples\/\$\{props\.example\}\/`/)
+  assert.match(EMBED, /document\.hidden/, 'a hidden tab keeps probing')
+  assert.match(EMBED, /<a\s+v-if="devServer === 'up'"/, 'the new-tab link points at a dead server')
 })

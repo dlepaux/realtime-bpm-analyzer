@@ -58,13 +58,14 @@ function BpmAnalyzer() {
         <input
           type="file"
           accept="audio/*,video/*"
+          aria-label="Audio or video file"
           aria-describedby="file-formats"
           onChange={handleFileChange}
           disabled={progressText !== undefined}
           className="file-input"
         />
         <p id="file-formats" className="file-formats">
-          Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS.
+          Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS. The whole file is read into memory, so for a long video, export the sound or a shorter clip.
         </p>
       </div>
 
@@ -93,7 +94,7 @@ function BpmAnalyzer() {
 
 function describeError(error: unknown): string {
   if (error instanceof DOMException && error.name === 'EncodingError') {
-    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file, or an MP4 or WebM video.';
+    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file. For a video, try MP4 or WebM, or export its sound as WAV.';
   }
 
   return error instanceof Error ? error.message : 'Failed to analyze audio';

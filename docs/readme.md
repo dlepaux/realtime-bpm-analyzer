@@ -56,14 +56,4 @@ The examples are served as static files alongside the documentation in productio
 
 ## Example Port Mapping
 
-Each example runs on its own port in development. The list lives in `docs/.vitepress/tools/example-dev-server.ts`, which both the embed and `npm run examples:dev` read:
-
-- `01-vanilla-basic`: 3001
-- `02-vanilla-streaming`: 3002
-- `03-vanilla-microphone`: 3003
-- `04-react-basic`: 3004
-- `05-react-streaming`: 3005
-- `06-react-microphone`: 3006
-- `07-vue-basic`: 3007
-- `08-vue-streaming`: 3008
-- `09-vue-microphone`: 3009
+Example `NN` runs on port `30NN` in development, `01-vanilla-basic` on 3001 up to `09-vue-microphone` on 3009. The list lives in `docs/.vitepress/tools/example-dev-server.ts`, which both the embed and `npm run examples:dev` read, and a test checks it against each example's vite config.

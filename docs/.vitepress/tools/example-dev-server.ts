@@ -20,8 +20,13 @@ export const EXAMPLE_DEV_PORTS: Readonly<Record<string, number>> = {
 /** The root script that starts every example's dev server, as the embed shows it. */
 export const EXAMPLES_DEV_COMMAND = 'npm run examples:dev'
 
-/** How long the embed waits between two checks while the dev server is down. */
-export const DEV_SERVER_RETRY_MS = 3000
+/** The embed's wait between two checks while the dev server is down: it doubles up to the cap. */
+export const DEV_SERVER_RETRY_MS = { first: 3000, max: 30000 } as const
+
+/** The next wait, after `previous` (none before the first retry). */
+export function nextRetryMs(previous?: number): number {
+  return previous === undefined ? DEV_SERVER_RETRY_MS.first : Math.min(previous * 2, DEV_SERVER_RETRY_MS.max)
+}
 
 export type DevServerStatus = 'checking' | 'up' | 'down'
 
@@ -29,13 +34,15 @@ export type DevServerStatus = 'checking' | 'up' | 'down'
 export type ProbeFetch = (url: string, init?: RequestInit) => Promise<unknown>
 
 /**
- * Whether a dev server answers at `url`. The request is `no-cors`: the example is on another
- * origin and sends no CORS headers, so the response is opaque, but it resolves when anything
- * answers and rejects when nothing listens on the port.
+ * Whether a Vite dev server answers at `origin`. The request is `no-cors`: the example is on
+ * another origin and sends no CORS headers, so the response is opaque, but it resolves when the
+ * server answers and rejects when nothing listens on the port. It asks for Vite's client script
+ * rather than the page: Opaque Response Blocking may turn a no-cors HTML response into a network
+ * error, which would read as a server that is down, and it never blocks JavaScript.
  */
-export async function probeDevServer(url: string, fetchFn: ProbeFetch): Promise<DevServerStatus> {
+export async function probeDevServer(origin: string, fetchFn: ProbeFetch): Promise<DevServerStatus> {
   try {
-    await fetchFn(url, { mode: 'no-cors', cache: 'no-store' })
+    await fetchFn(new URL('/@vite/client', origin).href, { mode: 'no-cors', cache: 'no-store' })
     return 'up'
   } catch {
     return 'down'

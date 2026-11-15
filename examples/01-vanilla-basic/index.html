@@ -108,8 +108,8 @@
       <p class="subtitle">Choose an audio or video file to detect its tempo</p>
 
       <div class="file-input-wrapper">
-        <input type="file" id="audioFile" accept="audio/*,video/*" aria-describedby="fileFormats" />
-        <p class="file-formats" id="fileFormats">Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS.</p>
+        <input type="file" id="audioFile" accept="audio/*,video/*" aria-label="Audio or video file" aria-describedby="fileFormats" />
+        <p class="file-formats" id="fileFormats">Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS. The whole file is read into memory, so for a long video, export the sound or a shorter clip.</p>
       </div>
 
       <div class="status" id="status"></div>

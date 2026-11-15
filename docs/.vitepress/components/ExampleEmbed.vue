@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
-  DEV_SERVER_RETRY_MS,
   EXAMPLE_DEV_PORTS,
   EXAMPLES_DEV_COMMAND,
+  nextRetryMs,
   probeDevServer,
   type DevServerStatus,
 } from '../tools/example-dev-server'
@@ -29,16 +29,33 @@ const iframeUrl = computed(() => {
 })
 
 // In docs dev the example's own dev server may not be running, and an iframe pointed at a closed
-// port is blank. So the frame waits for the server, and names the command while it is down.
+// port is blank. So the frame waits for the server, and names the command while it is down. The
+// probe runs once per mount: VitePress remounts the embed on every page, so `example` never
+// changes under a mounted one.
 const devServer = ref<DevServerStatus>(import.meta.env.DEV ? 'checking' : 'up')
 let retry: ReturnType<typeof setTimeout> | undefined
+let retryMs: number | undefined
 let mounted = false
 
 async function checkDevServer() {
   const status = await probeDevServer(iframeUrl.value, (url, init) => fetch(url, init))
   if (!mounted) return // the page changed while the probe was out: schedule nothing more
   devServer.value = status
-  if (status === 'down') retry = setTimeout(checkDevServer, DEV_SERVER_RETRY_MS)
+  if (status === 'down') {
+    retryMs = nextRetryMs(retryMs)
+    retry = setTimeout(retryWhenVisible, retryMs)
+  }
+}
+
+// Each failed probe logs a refused connection in the console, so a hidden tab waits until it is
+// shown again, and the wait between probes grows.
+function retryWhenVisible() {
+  if (document.hidden) document.addEventListener('visibilitychange', onVisible, { once: true })
+  else void checkDevServer()
+}
+
+function onVisible() {
+  void checkDevServer()
 }
 
 onMounted(() => {
@@ -49,6 +66,7 @@ onMounted(() => {
 onUnmounted(() => {
   mounted = false
   clearTimeout(retry)
+  document.removeEventListener('visibilitychange', onVisible)
 })
 
 const githubUrl = computed(() => {
@@ -93,7 +111,6 @@ const exampleName = computed(() => {
       <div
         v-else-if="iframeUrl"
         class="example-error"
-        role="status"
       >
         <p>This example runs on its own dev server, on port {{ EXAMPLE_DEV_PORTS[example] }}, which <code>npm run docs:dev</code> doesn't start.</p>
         <p>Start every example in a second terminal, at the repository root: <code>{{ EXAMPLES_DEV_COMMAND }}</code></p>
@@ -110,6 +127,7 @@ const exampleName = computed(() => {
     
     <div class="example-links">
       <a
+        v-if="devServer === 'up'"
         :href="iframeUrl"
         target="_blank"
         rel="noopener"

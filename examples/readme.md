@@ -21,7 +21,7 @@ Every result is a `Reading`, the same type whether it comes from a file or from 
 
 ### A file: 01, 04 and 07
 
-`analyzeFullBuffer` analyzes a decoded file at once, with no playback, and returns a reading, or `null` when the file has no clear tempo. A video file works the same way, because `decodeAudioData` decodes its sound track: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone `.mov` files don’t decode on iOS. A file the browser can't decode fails at `decodeAudioData`, with a plain message.
+`analyzeFullBuffer` analyzes a decoded file at once, with no playback, and returns a reading, or `null` when the file has no clear tempo. A video file works the same way, because `decodeAudioData` decodes its sound track: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone `.mov` files don't decode on iOS. The whole file is read into memory, so for a long video, export the sound or a shorter clip. A file the browser can't decode fails at `decodeAudioData`, with a plain message.
 
 ### Live audio: 02, 03, 05, 06, 08 and 09
 

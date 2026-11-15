@@ -1,6 +1,6 @@
 # React File Example
 
-Analyzes an audio or video file offline, with `analyzeFullBuffer`, and shows the reading it returns. A video works the same way, because its sound track is what gets decoded: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone `.mov` files don’t decode on iOS. Written in React 19 with hooks.
+Analyzes an audio or video file offline, with `analyzeFullBuffer`, and shows the reading it returns. A video works the same way, because its sound track is what gets decoded: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone `.mov` files don't decode on iOS. The whole file is read into memory, so for a long video, export the sound or a shorter clip. Written in React 19 with hooks.
 
 ## What it shows
 

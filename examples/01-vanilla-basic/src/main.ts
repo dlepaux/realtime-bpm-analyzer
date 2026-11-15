@@ -53,7 +53,7 @@ function showStatus(message: string, type: 'analyzing' | 'success' | 'error') {
 
 function describeError(error: unknown): string {
   if (error instanceof DOMException && error.name === 'EncodingError') {
-    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file, or an MP4 or WebM video.';
+    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file. For a video, try MP4 or WebM, or export its sound as WAV.';
   }
 
   return error instanceof Error ? error.message : 'Failed to analyze audio';

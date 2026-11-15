@@ -1,83 +1,83 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue';
-import { 
-  createRealtimeBpmAnalyzer, 
+import { ref, computed, onUnmounted } from 'vue';
+import {
+  createRealtimeBpmAnalyzer,
   type BpmAnalyzer
 } from 'realtime-bpm-analyzer';
+import ReadingPanel from './reading-panel.vue';
+import StatePanel from './state-panel.vue';
+import { useAnalyzerView } from './use-analyzer-view';
 
-const bpm = ref<number>();
 const isRecording = ref(false);
+// One start at a time: a second click while the permission prompt is open would open a second analyzer
+const isStarting = ref(false);
 const error = ref<string>();
+const { view, watchAnalyzer } = useAnalyzerView();
 
-let audioContext: AudioContext | null = null;
+// The reading panel shows while settling or locked, with the status it was read in
+const liveReading = computed(() => {
+  const current = view.value;
+  if (!current?.reading) return null;
+  const { status } = current.state;
+  return status === 'settling' || status === 'locked' ? { reading: current.reading, status } : null;
+});
+
 let mediaStream: MediaStream | null = null;
 let source: MediaStreamAudioSourceNode | null = null;
 let bpmAnalyzer: BpmAnalyzer | null = null;
-let analyser: AnalyserNode | null = null;
 
 // Initialize audio context
-audioContext = new AudioContext();
+const audioContext = new AudioContext();
 
-const disconnect = async () => {
-  if (!audioContext || !source || !bpmAnalyzer || !analyser) {
-    return;
+const stopListening = async () => {
+  if (bpmAnalyzer) {
+    // stop() is final: the state panel shows the move to stopped, and the next start creates a new analyzer
+    bpmAnalyzer.stop();
+    bpmAnalyzer.disconnect();
+    bpmAnalyzer = null;
   }
 
-  // stop() is final: it ends the analysis, and the next start creates a new analyzer.
-  bpmAnalyzer.stop();
-  await audioContext.suspend();
+  if (source) {
+    source.disconnect();
+    source = null;
+  }
 
-  source.disconnect();
-  analyser.disconnect();
-  bpmAnalyzer.disconnect();
-
+  // Stop microphone tracks so the browser releases the device
   if (mediaStream) {
     mediaStream.getTracks().forEach(track => track.stop());
     mediaStream = null;
   }
 
   isRecording.value = false;
-  bpm.value = undefined;
+  await audioContext.suspend();
 };
 
 const handleStream = async (audioCtx: AudioContext, stream: MediaStream) => {
+  // A suspended context (after a stop) delivers no audio
   await audioCtx.resume();
 
-  // Create BPM analyzer
-  const analyzer = await createRealtimeBpmAnalyzer(audioCtx);
+  const [track] = stream.getAudioTracks();
+  if (!track) {
+    throw new Error('The microphone gave no audio track.');
+  }
+
+  // liveInput: the analyzer follows the track's clock, and moves to listening with reason audio-lost while
+  // the browser is losing input
+  const analyzer = await createRealtimeBpmAnalyzer(audioCtx, { liveInput: track });
   bpmAnalyzer = analyzer;
+  watchAnalyzer(analyzer);
 
-  // Create analyser node
-  const analyserNode = audioCtx.createAnalyser();
-  analyserNode.fftSize = 2048;
-  analyser = analyserNode;
-
-  // Create media stream source
+  // Create media stream source and connect it to the analyzer's input
   const mediaStreamSource = audioCtx.createMediaStreamSource(stream);
   source = mediaStreamSource;
-
-  // Connect everything together
-  mediaStreamSource.connect(analyserNode);
   mediaStreamSource.connect(analyzer.input);
-
-  // The state is current inside a reading listener. A lock can move without a statechange (peaks relocks
-  // on a fuller rung), so the locked BPM is read from every reading, not only from the move to locked.
-  analyzer.on('reading', reading => {
-    if (analyzer.state.status === 'locked') {
-      bpm.value = reading.bpm;
-    }
-  });
 };
 
 const handleStart = async () => {
+  isStarting.value = true;
+
   try {
     error.value = undefined;
-
-    if (!audioContext) throw new Error('Audio context not initialized');
-
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
 
     // Request microphone access
     // Disable the voice-mode filters. Echo cancellation removes audio coming
@@ -97,7 +97,7 @@ const handleStart = async () => {
     isRecording.value = true;
   } catch (err) {
     console.error('Error accessing microphone:', err);
-    
+
     let errorMessage = 'Failed to access microphone';
     if (err instanceof Error) {
       if (err.name === 'NotAllowedError') {
@@ -108,35 +108,44 @@ const handleStart = async () => {
         errorMessage = err.message;
       }
     }
-    
+
     error.value = errorMessage;
+    await stopListening();
+  } finally {
+    isStarting.value = false;
+  }
+};
+
+// Start over: back to listening with the next epoch, and nothing measured before is reported
+const handleReset = () => {
+  if (bpmAnalyzer && bpmAnalyzer.state.status !== 'stopped') {
+    bpmAnalyzer.reset();
   }
 };
 
 const handleStop = () => {
-  disconnect();
+  void stopListening();
 };
 
 onUnmounted(() => {
-  disconnect();
-  audioContext?.close();
+  void stopListening().finally(() => audioContext.close());
 });
 </script>
 
 <template>
   <div class="bpm-analyzer">
     <div class="controls">
-      <button 
-        @click="handleStart" 
-        :disabled="isRecording"
+      <button
+        @click="handleStart"
+        :disabled="isRecording || isStarting"
         class="start-btn"
       >
         🎤 Start Recording
       </button>
-      <button 
-        @click="handleStop" 
-        :disabled="!isRecording"
-      >
+      <button @click="handleReset" :disabled="!isRecording || view?.state.status === 'stopped'">
+        ↺ Start over
+      </button>
+      <button @click="handleStop" :disabled="!isRecording">
         ⏹ Stop
       </button>
     </div>
@@ -145,18 +154,13 @@ onUnmounted(() => {
       {{ error }}
     </div>
 
-    <div v-if="isRecording && !error && bpm !== undefined" class="status success">
-      Stable BPM detected: {{ Math.round(bpm) }}
-    </div>
-
-    <div v-if="isRecording && !error && bpm === undefined" class="status success">
+    <div v-if="isRecording && !error" class="status success">
       Listening for music - play something!
     </div>
 
-    <div :class="['bpm-display', { visible: bpm !== undefined }]">
-      <div class="bpm-value">{{ bpm !== undefined ? Math.round(bpm) : '--' }}</div>
-      <div class="bpm-label">BPM</div>
-    </div>
+    <StatePanel v-if="view" :state="view.state" :changes="view.changes" :last-error="view.lastError" />
+
+    <ReadingPanel v-if="liveReading" :reading="liveReading.reading" :status="liveReading.status" />
   </div>
 </template>
 
@@ -226,32 +230,4 @@ button:disabled {
   border: 1px solid #f5c6cb;
 }
 
-.bpm-display {
-  text-align: center;
-  padding: 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 15px;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.5s ease;
-}
-
-.bpm-display.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.bpm-value {
-  font-size: 64px;
-  font-weight: bold;
-  color: white;
-  margin-bottom: 5px;
-}
-
-.bpm-label {
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.9);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
 </style>

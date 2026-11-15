@@ -9,9 +9,9 @@ Detect BPM in real-time using your device's microphone. Perfect for analyzing mu
 
 ## Live Demo
 
-Try the interactive demo below - this is the **actual vanilla JavaScript microphone example** running. Click "Start" and allow microphone access!
+Try the interactive demo below - this is the **actual vanilla JavaScript microphone example** running. Click "Start Recording" and allow microphone access! It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates. The microphone's track goes to the analyzer as `liveInput`, so lost input shows as `listening` with reason `audio-lost`.
 
-<ExampleEmbed example="03-vanilla-microphone" height="500px" />
+<ExampleEmbed example="03-vanilla-microphone" height="950px" />
 
 ::: warning Microphone Permission Required
 Your browser will ask for microphone access. This demo works best when music is playing nearby.

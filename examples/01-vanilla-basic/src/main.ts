@@ -1,10 +1,14 @@
 import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
+import { createReadingPanel } from './reading-panel';
+import './panels.css';
 
 // Get DOM elements
 const audioFileInput = document.getElementById('audioFile') as HTMLInputElement;
 const statusElement = document.getElementById('status') as HTMLDivElement;
-const bpmDisplay = document.getElementById('bpmDisplay') as HTMLDivElement;
-const bpmValue = document.getElementById('bpmValue') as HTMLDivElement;
+const panels = document.getElementById('panels') as HTMLDivElement;
+
+const readingPanel = createReadingPanel();
+panels.append(readingPanel.element);
 
 // Create audio context
 const audioContext = new AudioContext();
@@ -14,40 +18,30 @@ audioFileInput.addEventListener('change', async (event) => {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
 
+  readingPanel.clear();
+  audioFileInput.disabled = true;
+
   try {
-    // Show analyzing status
+    // Decode the file. A format the browser can't decode rejects here, with an EncodingError.
+    showStatus('Decoding...', 'analyzing');
+    const audioBuffer = await audioContext.decodeAudioData(await file.arrayBuffer());
+
+    // Analyze the whole buffer at once: the same reading a live analyzer reports, or null when no tempo was found
     showStatus('Analyzing...', 'analyzing');
-    hideBpm();
-
-    // Resume audio context if suspended
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
-
-    // Read file as array buffer
-    const arrayBuffer = await file.arrayBuffer();
-
-    // Decode audio data
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-    // Analyze the full buffer: a reading, or null when no beat was found
     const reading = await analyzeFullBuffer(audioBuffer);
 
-    // The reading's tempo
-    const topTempo = reading?.bpm;
-
-    if (topTempo !== undefined) {
-      displayBpm(topTempo);
-      showStatus('Analysis complete!', 'success');
-    } else {
-      showStatus('Could not detect BPM', 'error');
+    if (reading === null) {
+      showStatus('No clear tempo found in this file', 'error');
+      return;
     }
+
+    readingPanel.show(reading);
+    showStatus('Analysis complete!', 'success');
   } catch (error) {
     console.error('Error analyzing audio:', error);
-    showStatus(
-      `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      'error'
-    );
+    showStatus(describeError(error), 'error');
+  } finally {
+    audioFileInput.disabled = false;
   }
 });
 
@@ -57,12 +51,10 @@ function showStatus(message: string, type: 'analyzing' | 'success' | 'error') {
   statusElement.className = `status visible ${type}`;
 }
 
-function displayBpm(bpm: number) {
-  bpmValue.textContent = Math.round(bpm).toString();
-  bpmDisplay.classList.add('visible');
-}
+function describeError(error: unknown): string {
+  if (error instanceof DOMException && error.name === 'EncodingError') {
+    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file.';
+  }
 
-function hideBpm() {
-  bpmDisplay.classList.remove('visible');
-  bpmValue.textContent = '--';
+  return error instanceof Error ? error.message : 'Failed to analyze audio';
 }

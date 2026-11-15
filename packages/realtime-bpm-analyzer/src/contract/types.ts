@@ -82,7 +82,7 @@ export type LowpassOption = {
    * Resonance at the cutoff in dB, as Web Audio reads a lowpass `Q`, not the Audio EQ Cookbook's linear Q: the
    * biquad's α is sin(ω0) / (2 × 10^(q/20)). So 0 dB is a linear Q of 1, a positive `q` raises a peak at the cutoff,
    * and a negative one rounds it off. Any finite number, though below about -759 dB (Chrome) or -6200 dB (Node) the
-   * arithmetic overflows and the output is NaN. Default 1.
+   * coefficients, and so the output, become NaN. Default 1.
    */
   readonly q?: number;
 };

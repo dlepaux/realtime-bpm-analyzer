@@ -98,8 +98,8 @@ function finiteSetting(name: string, value: unknown, fallback: number): number {
  * Web Audio AudioParam stores, so a value that rounds onto 0 or Nyquist there is refused on every path, and the
  * plain-JS biquad accepts exactly what the BiquadFilterNode does. The defaults pass at any rate above 400 Hz, so at
  * every rate a Web Audio context takes (3 kHz and up in Chrome; the spec requires 8 to 96 kHz). `q` has no range, by
- * the 2026-11-15 ruling, though at an extreme negative value the arithmetic overflows and the output is NaN: below
- * about -759 dB in Chrome, and about -6200 dB in the plain-JS biquad.
+ * the 2026-11-15 ruling, though at an extreme negative value the coefficients become NaN, and so does the output:
+ * below about -759 dB in Chrome, and about -6200 dB in the plain-JS biquad.
  * @param options The caller's settings, from TypeScript or plain JS
  * @param sampleRate The rate the filter runs at, in Hz
  * @returns The cutoff in Hz and the Q in dB
@@ -125,7 +125,8 @@ export function resolveLowpass(options: unknown, sampleRate: number): {frequency
   const nyquist = sampleRate / 2;
   const stored = Math.fround(frequency);
   if (!(stored > 0 && stored < nyquist)) {
-    const asStored = stored === frequency ? '' : ` (${stored} as the 32-bit float Web Audio stores)`;
+    // Named only when the rounding is what moved an in-range value out
+    const asStored = frequency > 0 && frequency < nyquist ? ` (${stored} as the 32-bit float Web Audio stores)` : '';
     throw new RangeError(`The lowpass setting frequency ${frequency}${asStored} is out of range: at a sample rate of `
       + `${sampleRate} Hz, it must be above 0 and below ${nyquist} Hz.`);
   }

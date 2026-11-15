@@ -427,7 +427,7 @@ describe('getBiquadFilter', () => {
         [{frequency: 150, type: undefined}, /type is the DOM's: this filter is always a lowpass/],
       ];
       for (const [domOptions, message] of refused) {
-        expect(() => getBiquadFilter(audioContext, domOptions), JSON.stringify(domOptions)).to.throw(TypeError, message);
+        expect(() => getBiquadFilter(audioContext, domOptions), Object.keys(domOptions).join()).to.throw(TypeError, message);
       }
     });
 

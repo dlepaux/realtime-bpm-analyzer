@@ -159,7 +159,8 @@ It throws when `channelData` is not a non-empty `Float32Array`, and throws a
 `RangeError` for a sample rate that is not positive, a lowpass setting that is not
 a finite number, an invalid `tempoRange` or an unknown `engine`. A 5.x option
 (`detector`, `frequencyValue`, `qualityValue`) throws a `TypeError` that names its
-replacement, and so does any key in `engine.lowpass` other than `frequency` and `q`.
+replacement, and any key in `engine.lowpass` other than `frequency` and `q` throws
+a `TypeError` that names it.
 
 ## The filter on its own
 

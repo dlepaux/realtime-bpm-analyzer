@@ -167,7 +167,7 @@ describe('analyzer - getOfflineLowPassSource', () => {
           caught = error;
         }
 
-        expect(caught, JSON.stringify(options)).to.be.instanceOf(TypeError);
+        expect(caught, Object.keys(options).join()).to.be.instanceOf(TypeError);
         expect((caught as Error).message).to.contain(`The lowpass setting ${Object.keys(options)[0]} `).and.to.contain(reason);
       }
     });

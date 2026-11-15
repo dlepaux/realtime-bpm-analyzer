@@ -26,7 +26,7 @@ const unknownSetting = 'is unknown: the settings are frequency and q';
  * The lowpass settings with their defaults, checked once for every path that builds the filter (the
  * BiquadFilterNode, the OfflineAudioContext render and the plain-JS biquad), so all three refuse the same input.
  * A key is refused by its presence, whatever its value, `undefined` included, so whether a call throws doesn't
- * depend on the data. The keys checked are the object's own enumerable ones, those a spread or JSON carries.
+ * depend on the data. The keys checked are the object's own enumerable string keys, those `Object.keys` lists.
  * @param options The caller's settings
  * @returns The cutoff in Hz and the Q in dB
  * @throws {TypeError} When the settings carry a key other than `frequency` and `q`, naming it

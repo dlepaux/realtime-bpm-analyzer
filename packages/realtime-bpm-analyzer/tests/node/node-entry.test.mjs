@@ -94,7 +94,7 @@ describe('realtime-bpm-analyzer/node', () => {
     await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass: {frequencyValue: 200}}}), {name: 'TypeError', message: /frequencyValue.*use frequency/});
     for (const [settings, message] of refusedLowpassKeys) {
       const lowpass = {frequency: 150, ...settings};
-      await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass}}), {name: 'TypeError', message}, JSON.stringify(settings));
+      await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass}}), {name: 'TypeError', message}, Object.keys(settings).join());
     }
     // The first pick, on 50 to 240, read this at half
     const fast = await analyzeChannelData(createClickTrack(174), 44_100, {engine: 'tempogram'});
@@ -218,11 +218,12 @@ describe('applyLowpass', () => {
   it('refuses every key but frequency and q, whatever its value, and keeps the defaults for none', () => {
     const input = createNoise(100);
     for (const [settings, message] of refusedLowpassKeys) {
-      assert.throws(() => applyLowpass(input, sampleRate, {frequency: 150, ...settings}), {name: 'TypeError', message}, JSON.stringify(settings));
+      assert.throws(() => applyLowpass(input, sampleRate, {frequency: 150, ...settings}), {name: 'TypeError', message}, Object.keys(settings).join());
     }
 
     const byDefault = applyLowpass(input, sampleRate);
     assert.deepEqual(applyLowpass(input, sampleRate, {}), byDefault);
+    assert.deepEqual(applyLowpass(input, sampleRate, null), byDefault);
     assert.deepEqual(applyLowpass(input, sampleRate, {frequency: undefined, q: undefined}), byDefault);
   });
 });

@@ -101,4 +101,64 @@ describe('RealTimeBpmProcessor - kicks', () => {
     expect(score.misses).to.equal(0);
     expect(score.falseKicks).to.equal(0);
   });
+
+  /** Counts the detector's resets, quantum by quantum */
+  function countResets(processor: any) {
+    const resets: number[] = [];
+    const reset = processor.kickDetector.reset;
+    let quanta = 0;
+    processor.kickDetector.reset = () => {
+      resets.push(quanta);
+      reset();
+    };
+
+    return {resets, tick() {
+      quanta += 1;
+    }};
+  }
+
+  it('starts the kicks over when the live input restarts for lost audio', () => {
+    const processor = build(true);
+    const {resets, tick} = countResets(processor);
+    let quanta = 0;
+    // A clock that has lost audio at the 10th quantum, and only then
+    processor.sampleClock = {
+      advance: () => false,
+      takeStartOver: () => quanta++ === 10,
+      isLosing: () => false,
+      offerLock: () => true,
+      forget: () => undefined,
+    };
+    for (let index = 0; index < 20; index += 1) {
+      processor.process([[new Float32Array(quantum)]], [[]], {});
+      tick();
+    }
+
+    expect(resets).to.deep.equal([10]);
+  });
+
+  it('starts the kicks over when the input comes back after a gap, and hears the kicks after it', () => {
+    const scene = createKickScene('kicks-alone');
+    const processor = build();
+    const {resets, tick} = countResets(processor);
+    // The input goes away for a second at 4 s, as a source that ended and another that took its place
+    const gapFrom = Math.round(4 * sampleRate / quantum);
+    const gapTo = gapFrom + Math.round(sampleRate / quantum);
+    for (let index = 0; index * quantum < scene.samples.length; index += 1) {
+      (globalThis as any).currentTime = (index * quantum) / sampleRate;
+      const chunk = new Float32Array(quantum);
+      chunk.set(scene.samples.subarray(index * quantum, (index + 1) * quantum));
+      processor.process(index >= gapFrom && index < gapTo ? [[]] : [[chunk]], [[]], {});
+      tick();
+    }
+
+    expect(resets).to.deep.equal([gapTo]);
+    const kicks = (processor.posted as PostedWorkletMessage[]).filter((message): message is KickMessage => message.type === 'kick');
+    const gapStart = (gapFrom * quantum) / sampleRate;
+    const gapEnd = (gapTo * quantum) / sampleRate;
+    const truth = scene.kicks.filter(time => time < gapStart - 0.03 || time > gapEnd + 0.08);
+    const score = scoreKicks(truth, kicks.map(({contextTime}) => contextTime), 0.05);
+    expect(score.misses).to.equal(0);
+    expect(score.falseKicks).to.equal(0);
+  });
 });

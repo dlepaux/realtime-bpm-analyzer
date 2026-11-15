@@ -77,6 +77,8 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   // Hears kicks in every quantum of real input, apart from the analysis: the kick event (RBA-243)
   kickDetector: KickDetector = createKickDetector(sampleRate);
   // Made once, as the detector calls it from inside the render loop
+  // Set while the input has no channels (a source that ended or was disconnected): the kicks start over after it
+  inputGap = false;
   onKick: OnKick = (contextTime, strength) => {
     this.post({type: 'kick', protocol: PROTOCOL, epoch: this.session!.epoch(), contextTime: Math.max(0, contextTime), strength});
   };
@@ -226,7 +228,14 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
     }
 
     if (!currentChunk) {
+      this.inputGap = true;
       return;
+    }
+
+    // After a gap, the audio before it is not the reference for what follows, and a kick it held would be misplaced
+    if (this.inputGap) {
+      this.inputGap = false;
+      this.kickDetector.reset();
     }
 
     // Real input only: owed silence stands for audio that never arrived, and has no kick in it. currentTime is the

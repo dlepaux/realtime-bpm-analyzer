@@ -11,6 +11,7 @@
 - [BPM to Frames Calculator](https://www.realtime-bpm-analyzer.com/bpm-to-frames): frames per beat and per bar at 23.976 to 60 fps or a custom rate; frames per beat = fps * 60 / BPM
 - [Beat Markers](https://www.realtime-bpm-analyzer.com/beat-markers): a marker on every beat of a song, exported as XML for Premiere Pro, EDL for DaVinci Resolve, FCPXML for Final Cut Pro or CSV, at 23.976 to 60 fps; for steady tempos
 - [Online Metronome](https://www.realtime-bpm-analyzer.com/metronome): 20-300 BPM, 1-12 beats per bar, subdivisions, tap to set
+- [Strobe Light](https://www.realtime-bpm-analyzer.com/strobe-light): flashes the screen on the beat at a typed, tapped or microphone tempo; at most 3 flashes a second (WCAG 2.3.1), every second beat above 180 BPM
 
 ## Privacy
 

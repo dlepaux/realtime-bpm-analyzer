@@ -19,6 +19,8 @@ const WEBSITE_SURFACES = [
   '../bpm-to-frames.md',
   '../video-bpm.md',
   '../beat-markers.md',
+  '../strobe-light.md',
+  '../.vitepress/components/StrobeLight.vue',
   '../website-privacy.md',
   '../public/llms.txt',
   '../.vitepress/tools/site-schema.ts',

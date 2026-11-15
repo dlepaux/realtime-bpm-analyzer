@@ -55,6 +55,7 @@ test('Free tools keeps its seven tools, in order', () => {
     ['BPM to Frames Calculator', '/bpm-to-frames'],
     ['Beat Markers', '/beat-markers'],
     ['Metronome', '/metronome'],
+    ['Strobe Light', '/strobe-light'],
   ])
 })
 

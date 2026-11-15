@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // The free tools, right under the analyzer (RBA-66). One CSS grid of 6 columns: each row's tiles
 // share it evenly, so every row is full at every width, and a phone gets a list.
-import { Clock, Film, Flag, Hand, Timer, Video } from 'lucide-vue-next'
+import { Clock, Film, Flag, Hand, Timer, Video, Zap } from 'lucide-vue-next'
 import { useAnalytics } from '../composables/useAnalytics'
 import { FREE_TOOL_ROWS, GRID_COLUMNS, type ToolIcon } from '../tools/tool-list'
 
-const ICONS: Record<ToolIcon, typeof Hand> = { hand: Hand, timer: Timer, clock: Clock, video: Video, film: Film, flag: Flag }
+const ICONS: Record<ToolIcon, typeof Hand> = { hand: Hand, timer: Timer, clock: Clock, video: Video, film: Film, flag: Flag, zap: Zap }
 
 const tiles = FREE_TOOL_ROWS.flatMap((row) => row.map((tool) => ({ ...tool, id: tool.link.replace(/^\//, ''), span: GRID_COLUMNS / row.length })))
 

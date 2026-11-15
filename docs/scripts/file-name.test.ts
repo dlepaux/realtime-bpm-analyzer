@@ -69,3 +69,9 @@ test('a file result sits 0.5rem apart, so its tallest form fits the reserve on a
   assert.match(HERO, /--bpm-body-min-height: 24rem;/)
   assert.match(HERO, /\.bpm-mode-file \.bpm-state-result \{ gap: 0\.5rem; \}/)
 })
+
+test('the name never sets its container\'s width, so a cut name can\'t push the page sideways', () => {
+  // On one line a 96-character name is 725 px wide, and the flex and grid items around it took that
+  // as their minimum: the page went 463 px past a 320 px screen until the name was contained.
+  assert.match(LINE, /\.file-name \{[^}]*width: 100%;[^}]*contain: inline-size;/)
+})

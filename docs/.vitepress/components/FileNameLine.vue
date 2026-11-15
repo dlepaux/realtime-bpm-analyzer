@@ -63,8 +63,12 @@ onBeforeUnmount(() => observer?.disconnect())
 </template>
 
 <style scoped>
+/* `contain: inline-size`: the name never sets its container's width. On one line, a whole name is
+   as wide as it is long, and every flex and grid item around it (up to the home's grid) would
+   otherwise take that as its minimum and push the page sideways instead of cutting the name. */
 .file-name {
-  max-width: 100%;
+  width: 100%;
+  contain: inline-size;
   font-size: 0.875rem;
   line-height: 1.5;
   color: var(--vp-c-text-2);
@@ -73,7 +77,7 @@ onBeforeUnmount(() => observer?.disconnect())
 .file-name-line {
   display: block;
   max-width: 100%;
-  margin: 0;
+  margin: 0 auto;
 }
 
 /* A button that reads as the name it is, with a dotted underline saying it opens. 24 px tall at

@@ -383,10 +383,11 @@ microphone, skip `heardAt` and show each kick at once.
 returns both of its times `outputLatency` early, though (measured in Firefox
 132 and 158), so a visual timed by it comes that much before the sound: 9 ms
 on a Mac's speakers, 48 ms on a Linux sound server. The recipe above is off
-by little: in Chrome 157, `currentTime` runs about 3 ms ahead of
-`getOutputTimestamp()`'s `contextTime` plus `outputLatency`, run on to now,
-so its visual comes that much early, and in Firefox `currentTime` stands
-still between updates, so its visual comes up to one update late.
+by little. In Chrome 157, `currentTime` runs about 3 ms ahead of the output
+clock, so its visual comes that much early. In Firefox `currentTime` stands
+still between updates, so its visual comes up to one update late. The output
+clock here is `getOutputTimestamp().contextTime + outputLatency`, plus the
+time since that timestamp's `performanceTime`.
 
 **Its limits:**
 

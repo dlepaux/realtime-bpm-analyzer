@@ -1,6 +1,6 @@
 ---
 title: Tempo Markings and Genre BPM Chart
-description: Italian tempo markings from grave to prestissimo and common genre tempos in BPM, each range with its source. Every row plays on the metronome.
+description: Italian tempo markings from larghissimo to prestissimo and common genre tempos in BPM, each range with its source. Every row opens the metronome.
 aside: false
 editLink: false
 pageClass: tempo-chart-page
@@ -13,11 +13,12 @@ import TempoChartSources from './.vitepress/components/TempoChartSources.vue'
 
 # Tempo Markings Chart
 
-A tempo marking tells you how fast to play. The Italian terms run from grave,
-very slow, to prestissimo, as fast as possible, and each one covers a span of
+A tempo marking tells you how fast to play. The Italian terms run from
+larghissimo, as slowly as possible, to prestissimo, as fast as possible, and
+each one covers a span of
 tempos rather than a single number. This chart gives each term's range in beats
 per minute (BPM) as each source gives it, then a tempo to start from. Press
-**Play** on any row to hear it on the [metronome](/metronome), or
+**Play** on any row to open the [metronome](/metronome) at that tempo, or
 **Delay times** for its note lengths in milliseconds.
 
 ## Italian tempo terms
@@ -65,9 +66,8 @@ most tracks in each style sit in.
 
 Dubstep and trap usually sit around 140 BPM, but the snare lands on beat 3
 rather than on 2 and 4, so the beat feels like 70. Wikipedia gives trap as 50
-to 88 counted in half time, which is 100 to 176 in full. Drum and bass at 174
-often feels like 87 for the same reason. The **feels like** number opens the
-metronome at the half-time tempo.
+to 88 counted in half time, which is 100 to 176 in full. The **feels like**
+number opens the metronome at the half-time tempo.
 
 If a tap or the [BPM Analyzer](/) gives you half or double the number you
 counted, both readings can be right: they count the same beat at two levels.

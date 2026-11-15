@@ -18,28 +18,36 @@ function onClick(row: ChartRow, tool: ChartTool, bpm: number) {
   track('bpm_chart_link_clicked', { bpm, tool, chart_row: row.id })
 }
 
+// Each name starts with the link's visible text, so a voice command such as "click Play" finds it.
 function label(row: ChartRow, tool: ChartTool, bpm: number): string {
-  const where = tool === 'metronome' ? 'on the metronome' : 'as delay times'
-  return `${row.name} at ${bpm} BPM, ${where}`
+  return tool === 'metronome' ? `Play ${row.name} at ${bpm} BPM on the metronome` : `Delay times for ${row.name} at ${bpm} BPM`
 }
+
+function halfLabel(row: ChartRow, bpm: number): string {
+  return `${bpm}, ${row.name} in half time, on the metronome`
+}
+
+const caption = computed(() => (props.section === 'italian' ? 'Italian tempo terms in BPM' : 'Common tempos by genre in BPM'))
 </script>
 
 <template>
-  <table class="tc-table">
-    <thead>
-      <tr>
-        <th scope="col">{{ nameHeading }}</th>
-        <th scope="col">{{ meaningHeading }}</th>
-        <th scope="col">BPM, by source</th>
-        <th scope="col" class="tc-num">Plays at</th>
-        <th scope="col" class="tc-actions"><span class="tc-hidden">Open at this tempo</span></th>
+  <!-- Explicit roles: the phone layout makes rows grids, which can cost a table its semantics in WebKit. -->
+  <table class="tc-table" role="table">
+    <caption class="tc-hidden">{{ caption }}</caption>
+    <thead role="rowgroup">
+      <tr role="row">
+        <th scope="col" role="columnheader">{{ nameHeading }}</th>
+        <th scope="col" role="columnheader">{{ meaningHeading }}</th>
+        <th scope="col" role="columnheader">BPM, by source</th>
+        <th scope="col" role="columnheader" class="tc-num">Plays at</th>
+        <th scope="col" role="columnheader" class="tc-actions"><span class="tc-hidden">Open at this tempo</span></th>
       </tr>
     </thead>
-    <tbody>
-      <tr v-for="row in rows" :id="`tempo-${row.id}`" :key="row.id">
-        <th scope="row" class="tc-name">{{ row.name }}</th>
-        <td class="tc-meaning">{{ row.meaning }}</td>
-        <td class="tc-ranges">
+    <tbody role="rowgroup">
+      <tr v-for="row in rows" :id="`tempo-${row.id}`" :key="row.id" role="row">
+        <th scope="row" role="rowheader" class="tc-name">{{ row.name }}</th>
+        <td role="cell" class="tc-meaning">{{ row.meaning }}</td>
+        <td role="cell" class="tc-ranges">
           <ul>
             <li v-for="range in row.ranges" :key="range.source">
               <span class="tc-range">{{ formatRange(range) }}</span>
@@ -47,17 +55,17 @@ function label(row: ChartRow, tool: ChartTool, bpm: number): string {
             </li>
           </ul>
         </td>
-        <td class="tc-num tc-play">
+        <td role="cell" class="tc-num tc-play">
           <span class="tc-play-label">Plays at </span><strong>{{ row.play }}</strong>
           <span v-if="row.half" class="tc-half">feels like
             <a
               :href="chartLink('metronome', row.half)"
-              :aria-label="label(row, 'metronome', row.half)"
+              :aria-label="halfLabel(row, row.half)"
               @click="onClick(row, 'metronome', row.half)"
             >{{ row.half }}</a>
           </span>
         </td>
-        <td class="tc-actions">
+        <td role="cell" class="tc-actions">
           <a
             v-for="link in CHART_TOOLS"
             :key="link.tool"

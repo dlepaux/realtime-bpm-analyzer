@@ -156,6 +156,8 @@ test('a tempo chart row sends its click and opens the metronome at its tempo', a
   await waitFor('bpm_chart_link_clicked', () => eventsNamed('bpm_chart_link_clicked').length >= 1)
   assert.deepEqual(eventsNamed('bpm_chart_link_clicked').map((hit) => hit.params), [{ bpm: '126', tool: 'metronome', chart_row: 'allegro' }])
   assert.match(page.url(), /\/metronome\?bpm=126$/)
+  // The metronome read the tempo on the way in, not only the address.
+  await page.waitForFunction(() => document.querySelector<HTMLInputElement>('input[aria-label="Tempo"]')?.value === '126')
 })
 
 /** Loads a page fresh, then runs `act`, and returns how many page_views the whole visit sent. */

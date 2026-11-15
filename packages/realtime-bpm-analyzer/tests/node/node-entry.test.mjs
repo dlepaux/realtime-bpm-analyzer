@@ -77,6 +77,8 @@ describe('realtime-bpm-analyzer/node', () => {
     // A 5.x option name would otherwise be ignored: {detector: 'tempogram'} would run peaks
     await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {detector: 'tempogram'}), {name: 'TypeError', message: /detector.*engine/});
     await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {frequencyValue: 200}), {name: 'TypeError', message: /lowpass/});
+    // ... and inside engine.lowpass too, where a 5.x reader is likely to move them
+    await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass: {frequencyValue: 200}}}), {name: 'TypeError', message: /frequencyValue.*use frequency/});
     // The first pick, on 50 to 240, read this at half
     const fast = await analyzeChannelData(createClickTrack(174), 44_100, {engine: 'tempogram'});
 
@@ -185,7 +187,14 @@ describe('applyLowpass', () => {
 
   it('follows Web Audio at the ends of the frequency range', () => {
     const input = createNoise(100);
-    assert.deepEqual(applyLowpass(input, sampleRate, {frequencyValue: sampleRate}), input);
-    assert.ok(applyLowpass(input, sampleRate, {frequencyValue: 0}).every(sample => sample === 0));
+    assert.deepEqual(applyLowpass(input, sampleRate, {frequency: sampleRate}), input);
+    assert.ok(applyLowpass(input, sampleRate, {frequency: 0}).every(sample => sample === 0));
+  });
+
+  it('takes the same {frequency, q} as the engine option, and refuses the 5.x names', () => {
+    const input = createNoise(100);
+    assert.notDeepEqual(applyLowpass(input, sampleRate, {q: 12}), applyLowpass(input, sampleRate));
+    assert.throws(() => applyLowpass(input, sampleRate, {frequencyValue: sampleRate}), {name: 'TypeError', message: /frequencyValue.*use frequency/});
+    assert.throws(() => applyLowpass(input, sampleRate, {qualityValue: 2}), {name: 'TypeError', message: /qualityValue.*use q/});
   });
 });

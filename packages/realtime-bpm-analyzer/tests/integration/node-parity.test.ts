@@ -3,7 +3,7 @@ import {analyzeFullBuffer} from '../../src/index';
 import {analyzeChannelData, applyLowpass} from '../../src/node';
 import {getOfflineLowPassSource, getBiquadFilter} from '../../src/core/offline-pipeline';
 import {lowpassCoefficients} from '../../src/core/lowpass';
-import type {BiquadFilterOptions} from '../../src/core/types';
+import type {LowpassOption} from '../../src/contract/types';
 import type {OfflineResult} from '../../src/contract/types';
 import {createClickTrack, createNoise, clickTrackTempos} from '../fixtures/click-track';
 import {bassTestExpected} from '../fixtures/bass-test-expected';
@@ -22,14 +22,14 @@ const maxSampleError = 1e-5;
 // Largest magnitude-response difference allowed against getFrequencyResponse (float32 API)
 const maxResponseError = 1e-4;
 
-const filterCases: BiquadFilterOptions[] = [
+const filterCases: LowpassOption[] = [
   {},
-  {frequencyValue: 150, qualityValue: 1},
-  {frequencyValue: 500, qualityValue: 6},
-  {frequencyValue: 100, qualityValue: -3},
+  {frequency: 150, q: 1},
+  {frequency: 500, q: 6},
+  {frequency: 100, q: -3},
   // Both ends of the clamp, special-cased by the spec
-  {frequencyValue: 0},
-  {frequencyValue: 30_000},
+  {frequency: 0},
+  {frequency: 30_000},
 ];
 
 function audioBufferFrom(samples: Float32Array<ArrayBuffer>, sampleRate: number): AudioBuffer {

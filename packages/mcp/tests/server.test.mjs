@@ -29,6 +29,8 @@ const megabyte = 1024 * 1024;
 
 /** Process id of each connected client's server */
 const serverPids = new WeakMap();
+/** Every message each connected client's server sent, in the order the client read them */
+const serverMessages = new WeakMap();
 
 /**
  * Starts the server as a child process and connects a client to it.
@@ -41,8 +43,14 @@ async function connect(cwd, home = process.env.HOME ?? '') {
   // A missing ffmpeg, so M4A fails the same way on every machine
   const env = {PATH: process.env.PATH ?? '', HOME: home, FFMPEG_PATH: '/nonexistent/ffmpeg'};
   const transport = new StdioClientTransport({command: process.execPath, args: [server], cwd, env, stderr: 'pipe'});
+  // The SDK keeps a handler set before connect and calls it first, synchronously, for each message
+  // it reads (Protocol.connect, @modelcontextprotocol/core 2.4.0). So this is the order the server
+  // sent them in, before any of the client's own dispatch can drop one.
+  const received = [];
+  transport.onmessage = message => received.push(message);
   await client.connect(transport);
   serverPids.set(client, transport.pid);
+  serverMessages.set(client, received);
   return client;
 }
 
@@ -325,10 +333,15 @@ describe('realtime-bpm-analyzer-mcp over stdio', hangLimit, () => {
   });
 
   it('analyses a folder in path order, with per-file errors that do not fail the batch', async () => {
-    const progress = [];
+    const sent = serverMessages.get(client);
+    const first = sent.length;
+    // onprogress makes the client ask for progress, but what it hears is not the server's doing. The
+    // SDK runs a progress handler a microtask after reading the notification, and the response read
+    // in the same chunk ends the request first, so the last one can be dropped (RBA-241). The test
+    // checks the messages the server sent instead.
     const result = await client.callTool(
       {name: 'analyze_folder', arguments: {directory: fixtures}},
-      {onprogress: update => progress.push(update)},
+      {onprogress: () => {}},
     );
     assert.equal(result.isError, undefined);
     const {directory, results, total, next_offset: nextOffset, scan_truncated: scanTruncated} = result.structuredContent;
@@ -336,7 +349,8 @@ describe('realtime-bpm-analyzer-mcp over stdio', hangLimit, () => {
     assert.equal(total, 5);
     assert.equal(nextOffset, null);
     assert.equal(scanTruncated, false);
-    assert.deepEqual(results.map(entry => entry.file), ['click-100.flac', 'click-128.m4a', 'click-128.mp3', 'click-140.ogg', 'click-140.opus'].map(fixture));
+    const files = ['click-100.flac', 'click-128.m4a', 'click-128.mp3', 'click-140.ogg', 'click-140.opus'].map(fixture);
+    assert.deepEqual(results.map(entry => entry.file), files);
 
     const [flac, m4a, mp3, ogg, opus] = results;
     near(flac.bpm, 100);
@@ -345,8 +359,16 @@ describe('realtime-bpm-analyzer-mcp over stdio', hangLimit, () => {
     near(opus.bpm, 140);
     assert.equal(m4a.ok, false);
     assert.match(m4a.error, /ffmpeg was not found/);
-    assert.deepEqual(progress.map(update => update.progress), [1, 2, 3, 4, 5]);
-    assert.ok(progress.every(update => update.total === 5));
+
+    // One progress per file, in path order, each sent before the result: a client's request timeout
+    // only hears about a long batch if they come first
+    const call = sent.slice(first);
+    const response = call.findIndex(message => 'id' in message && ('result' in message || 'error' in message));
+    assert.ok(response >= 0, 'the response is among the messages read');
+    const progress = call.map((message, index) => ({message, index}))
+      .filter(({message}) => message.method === 'notifications/progress' && Number(message.params.progressToken) === call[response].id);
+    assert.deepEqual(progress.map(({message}) => [message.params.progress, message.params.total, message.params.message]), files.map((file, index) => [index + 1, 5, file]));
+    assert.ok(progress.every(({index}) => index < response), 'every progress is sent before the result');
   });
 
   describe('folder boundaries', () => {

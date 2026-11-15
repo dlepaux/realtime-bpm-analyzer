@@ -13,9 +13,9 @@ We've built complete React examples demonstrating different use cases. Each is a
 
 ### Basic File Analysis
 
-Pick an audio file and analyze it in the browser to detect its BPM.
+Pick an audio file and analyze it in the browser to detect its BPM. It shows every field of the reading the file gives: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="04-react-basic" height="500px" />
+<ExampleEmbed example="04-react-basic" height="720px" />
 
 ::: tip View Source
 Full source: [`examples/04-react-basic`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/04-react-basic)
@@ -23,9 +23,9 @@ Full source: [`examples/04-react-basic`](https://github.com/dlepaux/realtime-bpm
 
 ### Streaming Audio
 
-Analyze BPM from live audio streams or URLs.
+Analyze BPM from live audio streams or URLs. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="05-react-streaming" height="600px" />
+<ExampleEmbed example="05-react-streaming" height="1050px" />
 
 ::: tip View Source
 Full source: [`examples/05-react-streaming`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/05-react-streaming)
@@ -33,9 +33,9 @@ Full source: [`examples/05-react-streaming`](https://github.com/dlepaux/realtime
 
 ### Microphone Input
 
-Real-time BPM detection from your microphone.
+Real-time BPM detection from your microphone, with its track passed as `liveInput`. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="06-react-microphone" height="500px" />
+<ExampleEmbed example="06-react-microphone" height="950px" />
 
 ::: tip View Source
 Full source: [`examples/06-react-microphone`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/06-react-microphone)

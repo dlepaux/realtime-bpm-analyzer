@@ -1,19 +1,28 @@
-# Microphone Input Example
+# Vanilla Microphone Example
 
-Real-time BPM detection from microphone or line-in audio input.
+Analyzes the microphone live, with `createRealtimeBpmAnalyzer`, `liveInput` and a `MediaStreamAudioSourceNode`. Written in vanilla TypeScript, no framework.
 
-## Features
+## What it shows
 
-- Real-time microphone input processing
-- Live BPM detection with continuous analysis
-- Tempo categorization (Slow, Moderate, Fast, etc.)
-- Visual feedback with animated microphone icon
+- The microphone opened with the voice filters off, its track passed as `liveInput`, so the analyzer follows the track's clock and reports lost input as `listening` with reason `audio-lost`.
+- `analyzer.state`, read at once and then kept current from the events: `listening` (with its reason and `progress`), `settling`, `locked` and `stopped`.
+- Each `statechange` as `from → to (reason)`, newest first.
+- Each `reading` while settling or locked: `bpm`, `bpmExact`, `confidence` and the `candidates`, the same fields as a file analyzed offline.
+- `error` events (a failed analysis step) and a fatal fault, which is a move to `stopped` with the error.
+- **Start over** calls `analyzer.reset()`. **Stop** calls `analyzer.stop()`, which is final, and releases the microphone.
 
-## Run Locally
+The code is in `src/main.ts`, with the panels in `src/reading-panel.ts` and `src/state-panel.ts`. Confidence is shown as the library reports it, from 0 to 1.
+
+## Run it from a clean clone
+
+The example uses the library from this repository, not from npm, so the library is built first. From the repository root:
 
 ```bash
-npm install
-npm run dev
+npm ci
+npm run build -w realtime-bpm-analyzer
+npm run dev -w examples/03-vanilla-microphone
 ```
 
-Open [http://localhost:3002](http://localhost:3002) in your browser.
+Then open [http://localhost:3003](http://localhost:3003).
+
+Allow the microphone when the browser asks. Browsers give the microphone only to `localhost` or HTTPS pages.

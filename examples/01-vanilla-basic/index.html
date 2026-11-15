@@ -62,35 +62,6 @@
         background: #f8f9ff;
       }
 
-      .bpm-display {
-        text-align: center;
-        padding: 30px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 15px;
-        margin-bottom: 20px;
-        opacity: 0;
-        transform: translateY(10px);
-        transition: all 0.5s ease;
-      }
-
-      .bpm-display.visible {
-        opacity: 1;
-        transform: translateY(0);
-      }
-
-      .bpm-value {
-        font-size: 64px;
-        font-weight: bold;
-        color: white;
-        margin-bottom: 5px;
-      }
-
-      .bpm-label {
-        font-size: 18px;
-        color: rgba(255, 255, 255, 0.9);
-        text-transform: uppercase;
-        letter-spacing: 2px;
-      }
 
       .status {
         padding: 15px;
@@ -135,10 +106,7 @@
 
       <div class="status" id="status"></div>
 
-      <div class="bpm-display" id="bpmDisplay">
-        <div class="bpm-value" id="bpmValue">--</div>
-        <div class="bpm-label">BPM</div>
-      </div>
+      <div id="panels"></div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

@@ -13,9 +13,9 @@ We've built complete Vue 3 examples demonstrating different use cases. Each is a
 
 ### Basic File Analysis
 
-Pick an audio file and analyze it in the browser to detect its BPM.
+Pick an audio file and analyze it in the browser to detect its BPM. It shows every field of the reading the file gives: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="07-vue-basic" height="500px" />
+<ExampleEmbed example="07-vue-basic" height="720px" />
 
 ::: tip View Source
 Full source: [`examples/07-vue-basic`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/07-vue-basic)
@@ -23,9 +23,9 @@ Full source: [`examples/07-vue-basic`](https://github.com/dlepaux/realtime-bpm-a
 
 ### Streaming Audio
 
-Analyze BPM from live audio streams or URLs.
+Analyze BPM from live audio streams or URLs. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="08-vue-streaming" height="600px" />
+<ExampleEmbed example="08-vue-streaming" height="1050px" />
 
 ::: tip View Source
 Full source: [`examples/08-vue-streaming`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/08-vue-streaming)
@@ -33,9 +33,9 @@ Full source: [`examples/08-vue-streaming`](https://github.com/dlepaux/realtime-b
 
 ### Microphone Input
 
-Real-time BPM detection from your microphone.
+Real-time BPM detection from your microphone, with its track passed as `liveInput`. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="09-vue-microphone" height="500px" />
+<ExampleEmbed example="09-vue-microphone" height="950px" />
 
 ::: tip View Source
 Full source: [`examples/09-vue-microphone`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/09-vue-microphone)

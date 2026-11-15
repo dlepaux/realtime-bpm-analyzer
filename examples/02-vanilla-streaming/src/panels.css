@@ -1,0 +1,132 @@
+/*
+ * The v6 panels: the reading, and the analyzer's state for the live examples.
+ * The same file in every example, so the vanilla, React and Vue versions look alike.
+ */
+
+.reading-panel {
+  margin-bottom: 20px;
+}
+
+.bpm-display {
+  text-align: center;
+  padding: 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+  margin-bottom: 15px;
+  transition: opacity 0.3s ease;
+}
+
+/* A settling reading is a measurement the analyzer doesn't trust yet */
+.bpm-display.settling {
+  opacity: 0.6;
+}
+
+.bpm-value {
+  font-size: 64px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 5px;
+}
+
+.bpm-label {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.reading-fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.reading-fields dt {
+  color: #666;
+}
+
+.reading-fields dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.confidence-meaning {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.state-panel {
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: #333;
+}
+
+.state-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.state-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: #f0f0f0;
+  color: #555;
+}
+
+.state-badge.listening {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.state-badge.settling {
+  background: #e2e3ff;
+  color: #3d3f99;
+}
+
+.state-badge.locked {
+  background: #d4edda;
+  color: #155724;
+}
+
+.state-detail {
+  color: #666;
+}
+
+.state-progress {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.state-changes-title {
+  margin: 12px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.state-changes {
+  margin: 6px 0 0 18px;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.analysis-error {
+  margin: 10px 0 0;
+  color: #721c24;
+}

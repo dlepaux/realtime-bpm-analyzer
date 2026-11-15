@@ -54,12 +54,16 @@ const exampleName = computed(() => {
     </div>
     
     <div class="example-frame">
+      <!-- The microphone examples need the permission delegated: in docs dev the examples run on
+           their own ports, another origin. In production they share the site's origin, where
+           allow="microphone" grants nothing beyond what that origin already has. -->
       <iframe 
         v-if="iframeUrl"
         :src="iframeUrl"
         :height="height || '600px'"
         frameborder="0"
         sandbox="allow-scripts allow-same-origin allow-forms"
+        allow="microphone"
         loading="lazy"
         :title="`${exampleName} Demo`"
       ></iframe>

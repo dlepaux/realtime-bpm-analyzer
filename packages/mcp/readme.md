@@ -33,7 +33,7 @@ claude mcp add bpm -- npx -y realtime-bpm-analyzer-mcp
 ```
 
 Any other MCP client: run `npx -y realtime-bpm-analyzer-mcp` as a stdio server. It needs
-Node.js 22 or later.
+Node.js 22.12 or later.
 
 ## Tools
 

@@ -159,10 +159,11 @@ jobs:
       - name: Test in Firefox
         run: npm run test:firefox -w realtime-bpm-analyzer
 
-  # The CLI and the MCP server declare >=22 as their floor (engines), the oldest maintained LTS (DECISION 2026-11-15
-  # on RBA-108), while every other job runs 26. This runs the built bins and the library's Node entry on 22.0.0, the
-  # floor itself, so the floor the docs state is one CI tests. Kept out of the release's needs, like Firefox.
-  # Renovate leaves this version alone: raise it and the engines floor together, by hand.
+  # The CLI and the MCP server declare >=22.12.0 as their floor (engines), in the oldest maintained LTS (DECISION
+  # 2026-11-15 on RBA-108), and not 22.0.0, whose worker teardown can deadlock and hang the host (DECISIONs 2026-11-15
+  # on RBA-241). Every other job runs 26. This runs the built bins and the library's Node entry on 22.12.0, the floor
+  # itself, so the floor the docs state is one CI tests. Kept out of the release's needs, like Firefox. Renovate leaves
+  # this version alone: raise it and the engines floor together, by hand (packages/cli/tests/node-floor.test.mjs).
   node-floor:
     name: CLI and MCP on Node 22
     needs: build
@@ -176,7 +177,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 22.0.0
+          node-version: 22.12.0
           cache: "npm"
 
       - name: Install dependencies
@@ -202,7 +203,7 @@ jobs:
           name: mcp-dist
           path: packages/mcp/dist
 
-      # 22.0.0 can't load the tests' shared .ts fixtures itself: the hook strips their types (test-only, see the file)
+      # 22.12.0 can't load the tests' shared .ts fixtures itself: the hook strips their types (test-only, see the file)
       - name: Test Node entry, CLI and MCP server
         run: npm run test:node
         env:

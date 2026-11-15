@@ -342,7 +342,13 @@ async function calibrationVerdict(summary: Summary): Promise<void> {
   save(summary);
   await runEntry('calibration-samples', ['--in', calibration.heldout, '--out', calibration.heldoutSamples]);
 
+  // 0 pass and 1 fail are both a judged check; a refusal or a crash exits 2 and records no verdict, so it can be retried
   const exit = await runCommand('python3', ['-I', 'calibration.py', 'heldout', calibration.heldoutSamples, committedCalibration, calibration.verdict.md, calibration.verdict.json], [0, 1], 'the verdict');
+  const written = existsSync(calibration.verdict.md) && existsSync(calibration.verdict.json)
+    ? JSON.parse(readFileSync(calibration.verdict.json, 'utf8')) as {passed?: unknown} : undefined;
+  if (written?.passed !== (exit === 0)) {
+    throw new Error(`the verdict exited ${exit} but ${calibration.verdict.json} does not say ${exit === 0 ? 'pass' : 'fail'}`);
+  }
 
   summary.verdict = {exit, ...calibration.verdict};
 }
@@ -357,11 +363,11 @@ function refuseCalibrationLook(reason: string, sets: string | undefined, detecto
     return 'The calibration check takes no --sets or --detector: its scope is fixed in lib/calibration-samples.ts';
   }
 
+  // Once the look's file exists, a restart only judges it again, which reads nothing new: allowed until a verdict is recorded
   const summaryPath = join(jobDir, 'summary-calibration-heldout.json');
-  const isRunning = existsSync(summaryPath) && (JSON.parse(readFileSync(summaryPath, 'utf8')) as Summary).status === 'running';
-
+  const previous = existsSync(summaryPath) ? JSON.parse(readFileSync(summaryPath, 'utf8')) as Summary : undefined;
   if (existsSync(calibration.heldout)) {
-    return isRunning ? null : `${calibration.heldout} exists: the check has run`;
+    return previous?.verdict === undefined ? null : `${calibration.heldout} exists and was judged: the check has run`;
   }
 
   const log = existsSync(calibration.log) ? readFileSync(calibration.log, 'utf8') : '';

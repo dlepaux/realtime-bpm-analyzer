@@ -11,7 +11,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from calibration import (HELDOUT_BAR, SAMPLES_FORMAT, analyse, apply_mapping, apply_table, fit_table, heldout_check,  # noqa: E402
+from calibration import (HELDOUT_BAR, HELDOUT_HYSTERESIS, SAMPLES_FORMAT, analyse, apply_mapping, apply_table, fit_table, heldout_check,  # noqa: E402
                          heldout_report, heldout_verdict, is_check, is_correct, is_octave, load, load_data, main, pav, readings_of,
                          refit, sample, top_half)
 
@@ -214,7 +214,9 @@ def committed_from(tracks):
 
 
 def samples_file(chosen, split='dev', **extra):
-    return {'format': SAMPLES_FORMAT, 'split': split, 'hysteresis': {'tempogram': ROW}, 'samples': {'tempogram': chosen}, **extra}
+    """A samples file as calibration-samples.ts writes it: dev at the fitted row, held-out at the shipped one"""
+    row = ROW if split == 'dev' else HELDOUT_HYSTERESIS
+    return {'format': SAMPLES_FORMAT, 'split': split, 'hysteresis': {'tempogram': row}, 'samples': {'tempogram': chosen}, **extra}
 
 
 class Refit(unittest.TestCase):
@@ -262,6 +264,17 @@ class Refit(unittest.TestCase):
         with self.assertRaises(SystemExit):
             refit(samples_file(self.recorded, split='heldout'), self.committed)
 
+    def test_main_exits_2_on_a_refused_refit_or_a_wrong_call(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = [os.path.join(directory, name) for name in ('samples.json', 'committed.json', 'refit.json')]
+            for path, value in zip(paths, (samples_file(self.recorded, split='heldout'), self.committed)):
+                with open(path, 'w', encoding='utf-8') as file:
+                    json.dump(value, file)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(main(['calibration.py', 'refit', *paths]), 2)
+                self.assertEqual(main(['calibration.py', 'refit', paths[0]]), 2)
+            self.assertFalse(os.path.exists(paths[2]))
+
 
 class HeldoutCheck(unittest.TestCase):
     @classmethod
@@ -289,9 +302,10 @@ class HeldoutCheck(unittest.TestCase):
         with self.assertRaises(SystemExit):
             load_data(self.heldout())
 
-    def test_it_judges_only_the_tempogram_at_the_committed_row(self):
+    def test_it_judges_only_the_tempogram_at_the_shipped_row(self):
+        self.assertEqual(HELDOUT_HYSTERESIS, {**ROW, 'pulseLostAfterSeconds': 2})
         with self.assertRaises(SystemExit):
-            heldout_check({**self.heldout(), 'hysteresis': {'tempogram': {**ROW, 'pulseLostAfterSeconds': 2}}}, self.committed)
+            heldout_check({**self.heldout(), 'hysteresis': {'tempogram': ROW}}, self.committed)
         with self.assertRaises(SystemExit):
             heldout_check({**self.heldout(), 'samples': {'peaks': []}, 'hysteresis': {'peaks': ROW}}, self.committed)
 
@@ -301,6 +315,28 @@ class HeldoutCheck(unittest.TestCase):
         data['samples']['tempogram'][0] = {**first, 'readings': [[r[0], round(min(1.0, r[1] + 0.01), 6), r[2]] for r in first['readings']]}
         with self.assertRaises(SystemExit):
             heldout_check(data, self.committed)
+
+    def run_main(self, samples):
+        """main's exit code, and the verdict files it left"""
+        with tempfile.TemporaryDirectory() as directory:
+            paths = [os.path.join(directory, name) for name in ('samples.json', 'committed.json', 'verdict.md', 'verdict.json')]
+            for path, value in zip(paths, (samples, self.committed)):
+                with open(path, 'w', encoding='utf-8') as file:
+                    json.dump(value, file)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                code = main(['calibration.py', 'heldout', *paths])
+            return code, [os.path.basename(p) for p in paths[2:] if os.path.exists(p)]
+
+    def test_a_refused_or_broken_check_exits_2_and_leaves_no_verdict(self):
+        mismatched = self.heldout()
+        first = mismatched['samples']['tempogram'][0]
+        mismatched['samples']['tempogram'][0] = {**first, 'readings': [[r[0], round(min(1.0, r[1] + 0.01), 6), r[2]] for r in first['readings']]}
+        for samples in (mismatched, {**self.heldout(), 'split': 'dev'}, {**self.heldout(), 'samples': {'tempogram': [{'broken': True}]}}):
+            self.assertEqual(self.run_main(samples), (2, []))
+
+    def test_a_judged_fail_exits_1_with_its_verdict(self):
+        overconfident = {**self.heldout(), 'samples': {'tempogram': with_confidence(recorded_tracks(1500, seed=21, overconfident=False), self.mapping)}}
+        self.assertEqual(self.run_main(overconfident), (1, ['verdict.md', 'verdict.json']))
 
     def test_main_writes_the_verdict_as_aggregates_and_exits_by_it(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -61,10 +61,23 @@ export type EngineOption =
     readonly mode?: 'measured';
   };
 
+/**
+ * The lowpass settings: the offline `engine: {name: 'peaks', lowpass}` and `getBiquadFilter` take the same ones.
+ * Each must be a finite number. No other key is accepted: one throws a `TypeError` that names it, whatever its value,
+ * `undefined` included. That covers the 5.x names `frequencyValue` and `qualityValue`, the DOM's `Q`, `detune`, `type`
+ * and `gain`, which TypeScript lets through from a `BiquadFilterOptions`, and typos.
+ */
+export type LowpassOption = {
+  /** Cutoff in Hz. Default 200, which keeps the kick drum and the bass. */
+  readonly frequency?: number;
+  /** Resonance in dB, as Web Audio reads a lowpass `Q`. Default 1. */
+  readonly q?: number;
+};
+
 /** The offline engine option. Realtime `peaks` has a fixed lowpass inside `analyzer.input`, so only offline takes lowpass settings. */
 export type OfflineEngineOption =
   | EngineName
-  | {readonly name: 'peaks'; readonly lowpass?: {readonly frequency?: number; readonly q?: number}};
+  | {readonly name: 'peaks'; readonly lowpass?: LowpassOption};
 
 /**
  * Range every tempo is reported in, in BPM. `max` must be at least twice `min`, so every tempo has an octave

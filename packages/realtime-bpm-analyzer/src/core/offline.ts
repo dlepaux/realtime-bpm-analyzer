@@ -1,9 +1,8 @@
-import type {OfflineOptions, OfflineResult} from '../contract/types';
+import type {LowpassOption, OfflineOptions, OfflineResult} from '../contract/types';
 import {assertNoRemovedOptions, resolveOfflineEngine, toReading} from './engine';
 import {resolveTempoRange} from './tempo';
 import {detectTempo} from './detect-tempo';
 import {detectTempogram} from './tempogram';
-import type {BiquadFilterOptions} from './types';
 
 /**
  * Whole-buffer analysis, shared by `analyzeFullBuffer` and `analyzeChannelData` so that both, and the realtime
@@ -18,7 +17,7 @@ export async function analyzeSamples(
   channelData: Float32Array,
   sampleRate: number,
   options: OfflineOptions | undefined,
-  lowpass: (settings: BiquadFilterOptions) => Promise<Float32Array>,
+  lowpass: (settings: LowpassOption) => Promise<Float32Array>,
 ): Promise<OfflineResult> {
   // Validated before the costly filtering, so a bad option fails fast on long files
   assertNoRemovedOptions(options);

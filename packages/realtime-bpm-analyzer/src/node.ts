@@ -13,6 +13,7 @@ export {RELATION_TOLERANCE} from './contract/types';
 export type {
   OfflineOptions,
   OfflineEngineOption,
+  LowpassOption,
   OfflineResult,
   EngineName,
   TempoRange,
@@ -21,7 +22,6 @@ export type {
   CandidateRelation,
   AudioSpan,
 } from './contract/types';
-export type {BiquadFilterOptions} from './core/types';
 
 /**
  * Detects the tempo of decoded PCM samples, without Web Audio.
@@ -37,6 +37,7 @@ export type {BiquadFilterOptions} from './core/types';
  * @returns The reading, or null when no tempo was found
  * @throws {Error} When `channelData` is empty or not a Float32Array
  * @throws {RangeError} When the sample rate, `engine` or `tempoRange` is invalid
+ * @throws {TypeError} When an option has its 5.x name, or `engine.lowpass` carries a key other than `frequency` and `q`
  *
  * @example
  * ```typescript

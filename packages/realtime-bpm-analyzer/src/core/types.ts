@@ -140,10 +140,3 @@ export type AggregateData = {
   readonly bufferSize: number;
 };
 
-/**
- * Configuration options for biquad filter creation
- */
-export type BiquadFilterOptions = {
-  frequencyValue?: number;
-  qualityValue?: number;
-};

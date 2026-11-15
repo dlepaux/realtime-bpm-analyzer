@@ -1,6 +1,5 @@
-import type {BiquadFilterOptions} from './types';
-import type {OfflineOptions, OfflineResult} from '../contract/types';
-import * as consts from './consts';
+import type {LowpassOption, OfflineOptions, OfflineResult} from '../contract/types';
+import {resolveLowpass} from './lowpass';
 import {analyzeSamples} from './offline';
 
 /**
@@ -10,15 +9,17 @@ import {analyzeSamples} from './offline';
  * the bass, so it runs behind this filter; the default `tempogram` engine takes the full band and needs none.
  *
  * @param context - The AudioContext or OfflineAudioContext to create the filter in
- * @param options - Optional configuration for the filter's frequency and quality
+ * @param options - The cutoff and Q, the same settings as the offline `engine: {name: 'peaks', lowpass}`
  * @returns A configured BiquadFilterNode ready to use in an audio graph
+ * @throws {TypeError} When the settings carry a key other than `frequency` and `q`, such as a 5.x name or the DOM's `Q`
+ * @throws {RangeError} When the frequency or Q is not a finite number
  *
  * @example
  * ```typescript
  * const audioContext = new AudioContext();
  * const filter = getBiquadFilter(audioContext, {
- *   frequencyValue: 150,  // Hz - frequencies above this are attenuated
- *   qualityValue: 1       // Q factor - steepness of the filter
+ *   frequency: 150, // Hz: frequencies above this are attenuated
+ *   q: 1,           // dB: the resonance at the cutoff
  * });
  *
  * // Use in an audio graph
@@ -29,22 +30,23 @@ import {analyzeSamples} from './offline';
  * @remarks
  * - Default frequency is optimized for detecting bass drum kicks
  * - The lowpass filter attenuates high frequencies while preserving low frequencies
- * - Higher Q values create a steeper filter curve
+ * - A higher `q` raises a resonant peak at the cutoff, and steepens the roll-off just past it
  *
  * @see {@link analyzeFullBuffer} which uses this filter internally with `engine: 'peaks'`
- * @see {@link BiquadFilterOptions} for configuration options
+ * @see {@link LowpassOption} for the settings and their defaults
  *
  * @group Functions
  */
 export function getBiquadFilter(
   context: OfflineAudioContext | AudioContext,
-  options?: BiquadFilterOptions,
+  options?: LowpassOption,
 ): BiquadFilterNode {
+  const {frequency, q} = resolveLowpass(options);
   const lowpass = context.createBiquadFilter();
 
   lowpass.type = 'lowpass';
-  lowpass.frequency.value = options?.frequencyValue ?? consts.frequencyValue;
-  lowpass.Q.value = options?.qualityValue ?? consts.qualityValue;
+  lowpass.frequency.value = frequency;
+  lowpass.Q.value = q;
 
   return lowpass;
 }
@@ -52,13 +54,13 @@ export function getBiquadFilter(
 /**
  * Apply to the source a biquad lowpass filter
  * @param buffer - Audio buffer
- * @param options - Optionnal BiquadFilterOptions
+ * @param options - The lowpass settings
  * @returns A Promise that resolves an AudioBuffer instance
  * @internal
  */
 export async function getOfflineLowPassSource(
   buffer: AudioBuffer,
-  options?: BiquadFilterOptions,
+  options?: LowpassOption,
 ): Promise<AudioBuffer> {
   const {length, numberOfChannels, sampleRate} = buffer;
   const offlineAudioContext = new OfflineAudioContext(
@@ -96,6 +98,7 @@ export async function getOfflineLowPassSource(
  * @returns The reading, the same shape as a realtime one, or null when no tempo was found
  * @throws {Error} When the buffer is empty or its sample rate is not positive
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
+ * @throws {TypeError} When an option has its 5.x name, or `engine.lowpass` carries a key other than `frequency` and `q`
  *
  * @example
  * ```typescript

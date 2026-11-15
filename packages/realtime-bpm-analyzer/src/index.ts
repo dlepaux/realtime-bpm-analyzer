@@ -20,6 +20,7 @@ export type {
   OfflineOptions,
   EngineOption,
   OfflineEngineOption,
+  LowpassOption,
   EngineName,
   TempoRange,
   Reading,
@@ -42,7 +43,6 @@ export type {
   AnalyzerErrorName,
   ListenOptions,
 } from './contract/types';
-export type {BiquadFilterOptions} from './core/types';
 
 /**
  * Creates a real-time BPM analyzer for live audio.

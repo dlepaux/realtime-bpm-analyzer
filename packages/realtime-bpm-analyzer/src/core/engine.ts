@@ -3,6 +3,7 @@ import type {
   Candidate,
   EngineName,
   EngineOption,
+  LowpassOption,
   OfflineEngineOption,
   Reading,
   TempoRange,
@@ -13,7 +14,8 @@ import {resolveTempoRange} from './tempo';
 import {createTempogramDetector, defaultTempogramRange} from './tempogram';
 import type {TempogramTuning} from './tempogram';
 import {PeaksEngine} from './peaks-engine';
-import type {BiquadFilterOptions, Tempo} from './types';
+import {resolveLowpass} from './lowpass';
+import type {Tempo} from './types';
 
 /** What one engine measured in one analysis step, before the tracker turns it into a status */
 export type EngineStep = {
@@ -140,9 +142,10 @@ export function resolveEngine(engine: EngineOption | undefined, tempoRange: Temp
  * Validates the offline `engine` option
  * @param engine The caller's option, {@link defaultEngine} when absent
  * @returns The engine name, and the lowpass settings for `peaks`
- * @throws {RangeError} When the engine is unknown
+ * @throws {RangeError} When the engine is unknown, or a lowpass setting is not a finite number
+ * @throws {TypeError} When `lowpass` carries a key other than `frequency` and `q`
  */
-export function resolveOfflineEngine(engine: OfflineEngineOption | undefined): {name: EngineName; lowpass: BiquadFilterOptions} {
+export function resolveOfflineEngine(engine: OfflineEngineOption | undefined): {name: EngineName; lowpass: LowpassOption} {
   const value: unknown = engine ?? defaultEngine;
 
   if (value === 'peaks' || value === 'tempogram') {
@@ -158,8 +161,10 @@ export function resolveOfflineEngine(engine: OfflineEngineOption | undefined): {
     throw new RangeError('Invalid engine.lowpass: use {frequency?, q?}.');
   }
 
-  // The lowpass itself validates the numbers, with the messages it always gave
-  return {name: 'peaks', lowpass: {frequencyValue: lowpass.frequency as number | undefined, qualityValue: lowpass.q as number | undefined}};
+  // Checked here, before the costly filtering, with the same rules every lowpass path applies
+  const settings = lowpass as LowpassOption;
+  resolveLowpass(settings);
+  return {name: 'peaks', lowpass: {frequency: settings.frequency, q: settings.q}};
 }
 
 /**

@@ -1,5 +1,6 @@
 import {expect} from 'chai';
-import {getOfflineLowPassSource} from '../../../src/core/offline-pipeline';
+import {getBiquadFilter, getOfflineLowPassSource} from '../../../src/core/offline-pipeline';
+import type {LowpassOption} from '../../../src/contract/types';
 import {createTestAudioContext, closeAudioContext} from '../../setup';
 
 /**
@@ -100,41 +101,75 @@ describe('analyzer - getOfflineLowPassSource', () => {
   });
 
   describe('filter options', () => {
-    it('should accept custom frequency value', async () => {
-      const buffer = audioContext.createBuffer(1, 44100, 44100);
-      const channelData = new Float32Array(44100).fill(0.5);
+    // Each case renders the same sine twice, once with the defaults (200 Hz, Q 1) and once with the setting, so a
+    // setting the filter ignores gives the default's output and fails.
+    const sampleRate = 44_100;
+
+    async function rmsAfterLowpass(toneHz: number, options?: LowpassOption): Promise<number> {
+      const buffer = audioContext.createBuffer(1, sampleRate, sampleRate);
+      const channelData = new Float32Array(sampleRate);
+      for (let i = 0; i < sampleRate; i++) {
+        channelData[i] = Math.sin(2 * Math.PI * toneHz * i / sampleRate);
+      }
+
       buffer.copyToChannel(channelData, 0);
+      const filtered = (await getOfflineLowPassSource(buffer, options)).getChannelData(0);
+      // Past the filter's settling time
+      const tail = filtered.subarray(sampleRate / 2);
+      return Math.sqrt(tail.reduce((sum, sample) => sum + (sample * sample), 0) / tail.length);
+    }
 
-      const filteredBuffer = await getOfflineLowPassSource(buffer, {
-        frequencyValue: 150,
-      });
+    it('applies a custom frequency', async () => {
+      // 1 kHz sits far above the default 200 Hz cutoff, and far below a 5 kHz one
+      const byDefault = await rmsAfterLowpass(1000);
+      const raised = await rmsAfterLowpass(1000, {frequency: 5000});
 
-      expect(filteredBuffer).to.be.instanceOf(AudioBuffer);
+      expect(raised).to.be.greaterThan(0.6);
+      expect(raised).to.be.greaterThan(byDefault * 5);
     });
 
-    it('should accept custom quality value', async () => {
-      const buffer = audioContext.createBuffer(1, 44100, 44100);
-      const channelData = new Float32Array(44100).fill(0.5);
-      buffer.copyToChannel(channelData, 0);
+    it('applies a custom q', async () => {
+      // At the cutoff the gain follows Q (in dB, as Web Audio reads it): 12 dB is about 4x, the default 1 dB about 1.1x
+      const byDefault = await rmsAfterLowpass(200);
+      const resonant = await rmsAfterLowpass(200, {q: 12});
 
-      const filteredBuffer = await getOfflineLowPassSource(buffer, {
-        qualityValue: 2,
-      });
-
-      expect(filteredBuffer).to.be.instanceOf(AudioBuffer);
+      expect(resonant).to.be.greaterThan(byDefault * 2.5);
     });
 
-    it('should accept both frequency and quality options', async () => {
-      const buffer = audioContext.createBuffer(1, 44100, 44100);
-      const channelData = new Float32Array(44100).fill(0.5);
-      buffer.copyToChannel(channelData, 0);
+    it('applies frequency and q together', async () => {
+      // Against the frequency alone, so the test fails if either setting is ignored
+      const byDefault = await rmsAfterLowpass(1000);
+      const frequencyOnly = await rmsAfterLowpass(1000, {frequency: 1000});
+      const both = await rmsAfterLowpass(1000, {frequency: 1000, q: 12});
 
-      const filteredBuffer = await getOfflineLowPassSource(buffer, {
-        frequencyValue: 180,
-        qualityValue: 1.5,
-      });
+      expect(frequencyOnly).to.be.greaterThan(byDefault * 5);
+      expect(both).to.be.greaterThan(frequencyOnly * 2.5);
+    });
 
-      expect(filteredBuffer).to.be.instanceOf(AudioBuffer);
+    it('refuses every key but frequency and q, which it would otherwise ignore', async () => {
+      const buffer = audioContext.createBuffer(1, 128, sampleRate);
+      const refused: Array<[Record<string, unknown>, string]> = [
+        [{frequencyValue: 150}, 'use frequency'],
+        [{qualityValue: 2}, 'use q'],
+        [{Q: 4}, 'use q'],
+        [{detune: 100}, 'fold it into frequency (frequency × 2^(detune/1200))'],
+        [{type: 'highpass'}, 'this filter is always a lowpass'],
+        [{gain: 6}, 'a lowpass has no gain'],
+        [{frequncy: 150}, 'the settings are frequency and q'],
+        [{type: undefined}, 'this filter is always a lowpass'],
+      ];
+
+      for (const [options, reason] of refused) {
+        let caught: unknown;
+        try {
+          await getOfflineLowPassSource(buffer, options as LowpassOption);
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught, Object.keys(options).join()).to.be.instanceOf(TypeError);
+        expect((caught as Error).message).to.contain(`The lowpass setting ${Object.keys(options)[0]} `).and.to.contain(reason);
+      }
     });
   });
 
@@ -207,25 +242,32 @@ describe('analyzer - getOfflineLowPassSource', () => {
   });
 
   describe('integration with getBiquadFilter', () => {
-    it('should use filter settings consistently', async () => {
+    it('renders what getBiquadFilter builds with the same settings', async () => {
       const buffer = audioContext.createBuffer(1, 44100, 44100);
       const channelData = new Float32Array(44100);
 
-      // 100Hz sine wave
+      // 300 Hz sine, between the two cutoffs below
       for (let i = 0; i < 44100; i++) {
-        channelData[i] = Math.sin(2 * Math.PI * 100 * i / 44100);
+        channelData[i] = Math.sin(2 * Math.PI * 300 * i / 44100);
       }
 
       buffer.copyToChannel(channelData, 0);
 
-      const options = {frequencyValue: 200, qualityValue: 1};
+      const options: LowpassOption = {frequency: 250, q: 3};
+      const filtered = (await getOfflineLowPassSource(buffer, options)).getChannelData(0);
 
-      // Apply filter
-      const filteredBuffer = await getOfflineLowPassSource(buffer, options);
+      const context = new OfflineAudioContext(1, buffer.length, buffer.sampleRate);
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      const filter = getBiquadFilter(context, options);
+      source.connect(filter);
+      filter.connect(context.destination);
+      source.start(0);
+      const expected = (await context.startRendering()).getChannelData(0);
 
-      // Verify the filter was configured correctly by checking we got a result
-      expect(filteredBuffer).to.be.instanceOf(AudioBuffer);
-      expect(filteredBuffer.sampleRate).to.equal(44100);
+      expect(filter.frequency.value).to.equal(250);
+      expect(filter.Q.value).to.equal(3);
+      expect(Array.from(filtered)).to.deep.equal(Array.from(expected));
     });
   });
 });

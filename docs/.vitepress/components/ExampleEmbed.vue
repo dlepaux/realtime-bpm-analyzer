@@ -36,9 +36,12 @@ const devServer = ref<DevServerStatus>(import.meta.env.DEV ? 'checking' : 'up')
 let retry: ReturnType<typeof setTimeout> | undefined
 let retryMs: number | undefined
 let mounted = false
+let probing = false
 
 async function checkDevServer() {
+  probing = true
   const status = await probeDevServer(iframeUrl.value, (url, init) => fetch(url, init))
+  probing = false
   if (!mounted) return // the page changed while the probe was out: schedule nothing more
   devServer.value = status
   if (status === 'down') {
@@ -58,15 +61,28 @@ function onVisible() {
   void checkDevServer()
 }
 
+// Coming back from the terminal that started the servers focuses the window without changing its
+// visibility, so the frame would wait out the backoff: probe at once, and start the backoff over.
+function onFocus() {
+  if (devServer.value !== 'down' || probing) return
+  clearTimeout(retry)
+  document.removeEventListener('visibilitychange', onVisible)
+  retryMs = undefined
+  void checkDevServer()
+}
+
 onMounted(() => {
   mounted = true
-  if (import.meta.env.DEV && iframeUrl.value) void checkDevServer()
+  if (!import.meta.env.DEV || !iframeUrl.value) return
+  window.addEventListener('focus', onFocus)
+  void checkDevServer()
 })
 
 onUnmounted(() => {
   mounted = false
   clearTimeout(retry)
   document.removeEventListener('visibilitychange', onVisible)
+  window.removeEventListener('focus', onFocus)
 })
 
 const githubUrl = computed(() => {

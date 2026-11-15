@@ -129,5 +129,8 @@ test('the embed probes only in dev, so production keeps its plain iframe', () =>
   assert.match(EMBED, /import\.meta\.env\.DEV \? 'checking' : 'up'/)
   assert.match(EMBED, /return `\/examples\/\$\{props\.example\}\/`/)
   assert.match(EMBED, /document\.hidden/, 'a hidden tab keeps probing')
+  // Back from the terminal that started the servers, the frame loads at once, not after the backoff
+  assert.match(EMBED, /window\.addEventListener\('focus', onFocus\)/)
+  assert.match(EMBED, /window\.removeEventListener\('focus', onFocus\)/)
   assert.match(EMBED, /<a\s+v-if="devServer === 'up'"/, 'the new-tab link points at a dead server')
 })

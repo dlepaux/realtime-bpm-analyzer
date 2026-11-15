@@ -21,11 +21,11 @@ export const EXAMPLE_DEV_PORTS: Readonly<Record<string, number>> = {
 export const EXAMPLES_DEV_COMMAND = 'npm run examples:dev'
 
 /** The embed's wait between two checks while the dev server is down: it doubles up to the cap. */
-export const DEV_SERVER_RETRY_MS = { first: 3000, max: 30000 } as const
+export const DEV_SERVER_RETRY = { firstMs: 3000, maxMs: 30000 } as const
 
 /** The next wait, after `previous` (none before the first retry). */
 export function nextRetryMs(previous?: number): number {
-  return previous === undefined ? DEV_SERVER_RETRY_MS.first : Math.min(previous * 2, DEV_SERVER_RETRY_MS.max)
+  return previous === undefined ? DEV_SERVER_RETRY.firstMs : Math.min(previous * 2, DEV_SERVER_RETRY.maxMs)
 }
 
 export type DevServerStatus = 'checking' | 'up' | 'down'

@@ -6,7 +6,9 @@ import { FRAME_RATES } from '../.vitepress/tools/frames.ts'
 import {
   EXPORT_RATES,
   EXPORT_TIMECODES,
+  MARKER_FORMATS,
   MAX_MARKERS,
+  beatMarkers,
   beatTimes,
   downloadName,
   escapeXml,
@@ -51,9 +53,12 @@ test('EXPORT_RATES: the /bpm-to-frames rates, as exact fractions', () => {
   assert.deepEqual(EXPORT_RATES.filter((entry) => entry.canDropFrame).map((entry) => entry.label), ['29.97', '59.94'])
 })
 
-test('beatTimes: every 60 / bpm from the first beat to the end of the audio', () => {
-  assert.deepEqual(beatTimes(120, 0.5, 2), [0.5, 1, 1.5, 2])
+test('beatTimes: every 60 / bpm from the first beat, up to but not at the end of the audio', () => {
+  // The audio's end is not a beat: 2 s of audio holds no beat at 2.000 s (RBA-239).
+  assert.deepEqual(beatTimes(120, 0.5, 2), [0.5, 1, 1.5])
+  assert.deepEqual(beatTimes(120, 0.5, 2.01), [0.5, 1, 1.5, 2])
   assert.deepEqual(beatTimes(120, 0.5, 1.99), [0.5, 1, 1.5])
+  assert.deepEqual(beatTimes(120, 0, 0.5), [0])
   assert.deepEqual(beatTimes(0, 0, 10), [])
   assert.deepEqual(beatTimes(120, 3, 2), [])
   assert.deepEqual(beatTimes(Number.NaN, 0, 2), [])
@@ -155,8 +160,7 @@ test('CSV: RFC 4180 with CRLF and a header, one row per beat', () => {
     'Beat 1,0.500,13,00:00:00:13',
     'Beat 2,1.000,25,00:00:01:00',
     'Beat 3,1.500,38,00:00:01:13',
-    // 2.000 s is the audio's end, frame 50, so it sits on the last frame, 49.
-    'Beat 4,2.000,49,00:00:01:24',
+    // 2.000 s is the audio's end: no beat there, so no row.
     '',
   ].join('\r\n'))
 })
@@ -188,13 +192,13 @@ test('FCPXML: drop-frame display at 29.97, and the file name escaped in every na
 })
 
 test('EDL: CMX 3600 events on a 01:00:00:00 timeline with Resolve marker notes, CR/LF, no FCM at 25 fps', () => {
-  assert.equal(toEdl(input({ firstBeat: 0.5, duration: 1 })), [
+  assert.equal(toEdl(input({ firstBeat: 0.5, duration: 1.1 })), [
     'TITLE: SONG MP3 BEAT MARKERS',
     '',
     '001  001      V     C        01:00:00:13 01:00:00:14 01:00:00:13 01:00:00:14',
     ' |C:ResolveColorBlue |M:Beat 1 |D:1',
     '',
-    '002  001      V     C        01:00:00:24 01:00:01:00 01:00:00:24 01:00:01:00',
+    '002  001      V     C        01:00:01:00 01:00:01:01 01:00:01:00 01:00:01:01',
     ' |C:ResolveColorBlue |M:Beat 2 |D:1',
     '',
   ].map((line) => `${line}\r\n`).join(''))
@@ -236,7 +240,7 @@ test('EDL: drop-frame at 29.97 and 59.94 says so in the FCM line, and with ; in 
 })
 
 test('EDL: the title is one line of capitals, digits and spaces, at most 70, and event numbers widen past 999', () => {
-  const edl = toEdl(input({ name: 'two\nlines\r.wav', bpm: 600, firstBeat: 0, duration: 120 }))
+  const edl = toEdl(input({ name: 'two\nlines\r.wav', bpm: 600, firstBeat: 0, duration: 120.05 }))
   assert.match(edl, /^TITLE: TWO LINES WAV BEAT MARKERS\r$/m)
   assert.match(toEdl(input({ name: 'Café – mix (v2).wav' })), /^TITLE: CAFE MIX V2 WAV BEAT MARKERS\r$/m)
   assert.match(toEdl(input({ name: '日本.wav' })), /^TITLE: WAV BEAT MARKERS\r$/m)
@@ -246,32 +250,29 @@ test('EDL: the title is one line of capitals, digits and spaces, at most 70, and
 })
 
 test('FCP7 XML: an xmeml sequence with frame-counted markers and an NTSC rate', () => {
-  const xml = toFcp7Xml(input({ name: 'Tom & Jerry.mp4', rate: rate('29.97'), dropFrame: true, firstBeat: 1, duration: 1.5 }))
+  const xml = toFcp7Xml(input({ name: 'Tom & Jerry.mp4', rate: rate('29.97'), dropFrame: true, firstBeat: 1, duration: 1.51 }))
   assert.match(xml, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<!DOCTYPE xmeml>\n<xmeml version="4">/)
   assert.match(xml, /<name>Tom &amp; Jerry\.mp4 beat markers<\/name>/)
   assert.match(xml, /<rate><timebase>30<\/timebase><ntsc>TRUE<\/ntsc><\/rate>/)
   assert.match(xml, /<string>00:00:00;00<\/string><frame>0<\/frame><displayformat>DF<\/displayformat>/)
-  assert.match(xml, /<duration>45<\/duration>/)
+  assert.match(xml, /<duration>46<\/duration>/)
   assert.match(xml, /<marker><name>Beat 1<\/name><comment\/><in>30<\/in><out>-1<\/out><\/marker>/)
-  assert.match(xml, /<marker><name>Beat 2<\/name><comment\/><in>44<\/in><out>-1<\/out><\/marker>/)
+  assert.match(xml, /<marker><name>Beat 2<\/name><comment\/><in>45<\/in><out>-1<\/out><\/marker>/)
   assert.equal([...xml.matchAll(/<marker>/g)].length, 2)
 })
 
-test('every format keeps the last marker inside the sequence, even a beat in its last half frame', () => {
-  // 120 BPM from 0.5 s over 2 s at 25 fps: the sequence is 50 frames, and the beat at 2.0 s rounds
-  // to frame 50, where the sequence ends. It moves back to 49.
+test('every format keeps every marker inside the sequence, and writes no beat at its end', () => {
+  // 120 BPM from 0.5 s over 2 s at 25 fps: the sequence is 50 frames, and 2.0 s is its end, so
+  // the markers stop at 1.5 s, frame 38 (RBA-239).
   const exportInput = input()
   const fcpxml = toFcpxml(exportInput)
   const sequence = Number(/<sequence format="r1" duration="(\d+)\/25s"/.exec(fcpxml)?.[1])
   const fcpStarts = [...fcpxml.matchAll(/<marker start="(\d+)\/25s"/g)].map(([, frame]) => Number(frame))
   assert.equal(sequence, 50)
-  assert.deepEqual(fcpStarts, [13, 25, 38, 49])
+  assert.deepEqual(fcpStarts, [13, 25, 38])
   const xmeml = toFcp7Xml(exportInput)
-  const length = Number(/<duration>(\d+)<\/duration>/.exec(xmeml)?.[1])
-  const ins = [...xmeml.matchAll(/<in>(\d+)<\/in>/g)].map(([, frame]) => Number(frame))
-  assert.equal(length, 50)
-  assert.ok(ins.every((frame) => frame < length), `${ins.join(',')} reach ${length}`)
-  assert.equal(ins.at(-1), 49)
+  assert.equal(Number(/<duration>(\d+)<\/duration>/.exec(xmeml)?.[1]), 50)
+  assert.deepEqual([...xmeml.matchAll(/<in>(\d+)<\/in>/g)].map(([, frame]) => Number(frame)), [13, 25, 38])
 })
 
 test('FCP7 XML: drop-frame only at a 30 timebase, as the xmeml reference allows, so 59.94 DF is refused', () => {
@@ -354,4 +355,191 @@ test('markerFile: name, type and content per format', () => {
   assert.match(file.content, /<fcpxml/)
   assert.equal(markerFile('csv', input()).mime, 'text/csv')
   assert.throws(() => markerFile('mp4' as never, input()), RangeError)
+})
+
+// RBA-239: every marker sits on its beat's frame and inside the audio's timeline. What each file
+// holds is read back from the file itself, and the expected grid is worked out here, not from
+// beatTimes or frameAt.
+
+interface Written {
+  /** The frame of each marker, in order, as the file places it. */
+  frames: number[]
+  /** The sequence's length in frames, where the file declares one (FCPXML, FCP7 XML). */
+  declared: number | null
+  /** The CSV's seconds and timecode, one per row. */
+  rows: { seconds: number; timecode: string }[]
+}
+
+/** Inverts `timecode` by search: EDL record-ins are timecodes, and drop-frame skips labels. */
+function edlFrames(edl: string, choice: (typeof EXPORT_TIMECODES)[number]): number[] {
+  const start = framesPerHour(choice.rate, choice.dropFrame)
+  const recordIns = [...edl.matchAll(/^\d+ {2}001 {6}V {5}C {8}\S+ \S+ (\S+) \S+\r$/gm)].map(([, tc]) => tc!)
+  let frame = start
+  return recordIns.map((label) => {
+    // Record-ins only grow, so the search resumes where the last one stopped.
+    while (timecode(frame, choice.rate, choice.dropFrame) !== label) {
+      frame += 1
+      assert.ok(frame < start + 10 ** 7, `no frame has the timecode ${label}`)
+    }
+    return frame - start
+  })
+}
+
+function written(format: (typeof MARKER_FORMATS)[number]['id'], exportInput: MarkerExport, choice: (typeof EXPORT_TIMECODES)[number]): Written {
+  const content = markerFile(format, exportInput).content
+  const { numerator, denominator } = exportInput.rate
+  if (format === 'csv') {
+    const rows = content.split('\r\n').slice(1, -1).map((line) => line.split(','))
+    return {
+      frames: rows.map((row) => Number(row[2])),
+      declared: null,
+      rows: rows.map((row) => ({ seconds: Number(row[1]), timecode: row[3]! })),
+    }
+  }
+  if (format === 'fcpxml') {
+    const toFrames = (value: string) => (value === '0' ? 0 : Number(value) / denominator)
+    const starts = [...content.matchAll(/<marker start="(\d+)(?:\/\d+)?s"/g)].map(([, value]) => toFrames(value!))
+    const [, total, unit] = /<sequence format="r1" duration="(\d+)\/(\d+)s"/.exec(content) ?? []
+    assert.equal(Number(unit), numerator)
+    return { frames: starts, declared: toFrames(total!), rows: [] }
+  }
+  if (format === 'fcp7xml') {
+    return {
+      frames: [...content.matchAll(/<in>(\d+)<\/in>/g)].map(([, value]) => Number(value)),
+      declared: Number(/<duration>(\d+)<\/duration>/.exec(content)?.[1]),
+      rows: [],
+    }
+  }
+  return { frames: edlFrames(content, choice), declared: null, rows: [] }
+}
+
+/**
+ * The grid the export must write: a beat every 60 / bpm from the first, inside the audio, on the
+ * nearest frame, and only while that frame is inside the sequence of `frames` frames.
+ */
+function expectedGrid(exportInput: MarkerExport, frames: number): { seconds: number; frame: number }[] {
+  const grid: { seconds: number; frame: number }[] = []
+  for (let index = 0; index < MAX_MARKERS; index += 1) {
+    const seconds = exportInput.firstBeat + index * (60 / exportInput.bpm)
+    const frame = Math.round((seconds * exportInput.rate.numerator) / exportInput.rate.denominator)
+    if (seconds >= exportInput.duration || frame >= frames) break
+    grid.push({ seconds, frame })
+  }
+  return grid
+}
+
+/** The rule, checked in every format the export offers at this timecode. Returns the CSV's frames. */
+function checkRule(scenario: Omit<MarkerExport, 'rate' | 'dropFrame'>, choice: (typeof EXPORT_TIMECODES)[number], frames: number): number[] {
+  const exportInput: MarkerExport = { ...scenario, rate: choice.rate, dropFrame: choice.dropFrame }
+  const grid = expectedGrid(exportInput, frames)
+  const where = `${choice.label}, ${scenario.bpm} BPM from ${scenario.firstBeat} s over ${scenario.duration} s`
+  assert.deepEqual(beatMarkers(exportInput).map((marker) => marker.frame), grid.map((beat) => beat.frame), `beatMarkers at ${where}`)
+  for (const format of MARKER_FORMATS.filter((entry) => timecodesFor(entry.id).includes(choice))) {
+    const file = written(format.id, exportInput, choice)
+    const label = `${format.id} at ${where}`
+    // A marker's frame is its beat's frame, and no beat is left out or added.
+    assert.deepEqual(file.frames, grid.map((beat) => beat.frame), label)
+    if (file.declared !== null) assert.equal(file.declared, frames, label)
+    // Inside the timeline at both ends.
+    for (const frame of file.frames) assert.ok(frame >= 0 && frame < frames, `${label}: frame ${frame} outside 0..${frames - 1}`)
+    // The CSV's seconds, frame and timecode name the same beat on every row.
+    for (const [index, row] of file.rows.entries()) {
+      const frame = file.frames[index]!
+      assert.ok(Math.abs(row.seconds - grid[index]!.seconds) <= 0.0005, `${label}: row ${index + 1} at ${row.seconds} s`)
+      assert.ok(row.seconds < scenario.duration, `${label}: row ${index + 1} at the audio's end`)
+      // Within half a frame, plus the 3-decimal rounding of the seconds.
+      const offset = Math.abs((row.seconds * choice.rate.numerator) / choice.rate.denominator - frame)
+      assert.ok(offset <= 0.5 + 0.0005 * fps(choice.rate), `${label}: row ${index + 1}, ${row.seconds} s on frame ${frame}`)
+      assert.equal(row.timecode, timecode(frame, choice.rate, choice.dropFrame), `${label}: row ${index + 1}`)
+    }
+  }
+  return grid.map((beat) => beat.frame)
+}
+
+/** Frames in `seconds` of audio, the audio's length rounded up to a whole frame. */
+const framesIn = (seconds: number, entry: ExportRate) => Math.ceil((seconds * entry.numerator) / entry.denominator)
+
+test('RBA-239: 30.000 s at 120 BPM from 0 s at 24 fps is 60 markers, the last at 29.500 s on frame 708', () => {
+  const card: MarkerExport = { name: 'kick.wav', bpm: 120, firstBeat: 0, duration: 30, rate: rate('24'), dropFrame: false }
+  const markers = beatMarkers(card)
+  assert.equal(markers.length, 60)
+  assert.deepEqual(markers.at(-1), { index: 60, seconds: 29.5, frame: 708 })
+  const csv = toCsv(card).split('\r\n')
+  assert.equal(csv.length, 62)
+  assert.equal(csv[1], 'Beat 1,0.000,0,00:00:00:00')
+  assert.equal(csv[60], 'Beat 60,29.500,708,00:00:29:12')
+  assert.doesNotMatch(toCsv(card), /Beat 61/)
+  const fcpxml = toFcpxml(card)
+  assert.equal([...fcpxml.matchAll(/<marker /g)].length, 60)
+  assert.match(fcpxml, /<marker start="708\/24s" duration="1\/24s" value="Beat 60"\/>\n {12}<\/gap>/)
+  assert.match(fcpxml, /<sequence format="r1" duration="720\/24s"/)
+  assert.equal([...toFcp7Xml(card).matchAll(/<marker>/g)].length, 60)
+  assert.match(toEdl(card), /^060 {2}001 {6}V {5}C {8}01:00:29:12 01:00:29:13 /m)
+  assert.doesNotMatch(toEdl(card), /^061 /m)
+})
+
+test('RBA-239: the card\'s 30 s at 120 BPM keeps 60 markers on their beats at every rate and in every format', () => {
+  for (const choice of EXPORT_TIMECODES) {
+    const frames = checkRule({ name: 'kick.wav', bpm: 120, firstBeat: 0, duration: 30 }, choice, framesIn(30, choice.rate))
+    assert.equal(frames.length, 60, choice.label)
+    assert.equal(frames[0], 0, choice.label)
+    assert.equal(frames.at(-1), Math.round(29.5 * fps(choice.rate)), choice.label)
+  }
+})
+
+test('RBA-239: a beat at the end, or inside the last half frame, is not written; one just before it is', () => {
+  // Each case puts the last of three beats, a second apart, at a place in the sequence's last
+  // frame. The audio ends on a frame boundary here, `frames` frames long, so the sequence and the
+  // audio end together and the last half frame lies inside the audio at every rate.
+  for (const choice of EXPORT_TIMECODES) {
+    const { numerator, denominator } = choice.rate
+    const frames = 30 * choice.rate.timebase
+    const duration = (frames * denominator) / numerator
+    const atFrame = (frame: number) => (frame * denominator) / numerator
+    const cases = [
+      { what: 'at the end', last: duration, count: 2 },
+      { what: 'in the last half frame', last: atFrame(frames - 0.25), count: 2 },
+      { what: 'just before the last half frame', last: atFrame(frames - 0.6), count: 3 },
+    ]
+    for (const { what, last, count } of cases) {
+      const written = checkRule({ name: 'edge.wav', bpm: 60, firstBeat: last - 2, duration }, choice, frames)
+      assert.equal(written.length, count, `${choice.label}, a beat ${what}`)
+      assert.ok(written.at(-1)! <= frames - 1, `${choice.label}, a beat ${what}`)
+    }
+  }
+})
+
+test('RBA-239: a first beat at 0 is frame 0, 00:00:00:00, and the EDL\'s 01:00:00:00', () => {
+  for (const choice of EXPORT_TIMECODES) {
+    const exportInput: MarkerExport = { name: 'zero.wav', bpm: 90, firstBeat: 0, duration: 4, rate: choice.rate, dropFrame: choice.dropFrame }
+    const frames = checkRule(exportInput, choice, framesIn(4, choice.rate))
+    assert.equal(frames[0], 0, choice.label)
+    const separator = choice.dropFrame ? ';' : ':'
+    assert.match(toCsv(exportInput), new RegExp(`^Beat 1,0\\.000,0,00:00:00${separator}00\\r$`, 'm'), choice.label)
+    assert.match(toEdl(exportInput), new RegExp(`^001 {2}001 {6}V {5}C {8}01:00:00${separator}00 `, 'm'), choice.label)
+  }
+})
+
+test('RBA-239: an audio that ends on a frame boundary declares exactly that many frames, despite float error', () => {
+  // 31 frames of 24000/1001 is 1.29295833... s, which times 24000 / 1001 is 31.000000000000004 in
+  // floats, whose ceiling would add a 32nd frame past the audio's end.
+  const choice = EXPORT_TIMECODES.find((entry) => entry.id === '23.976')!
+  const duration = (31 * 1001) / 24_000
+  assert.ok((duration * 24_000) / 1001 > 31, 'the float case this test is about')
+  const exportInput: MarkerExport = { name: 'seven.wav', bpm: 60, firstBeat: 0, duration, rate: choice.rate, dropFrame: false }
+  assert.match(toFcpxml(exportInput), /<sequence format="r1" duration="31031\/24000s"/)
+  assert.match(toFcp7Xml(exportInput), /<duration>31<\/duration>/)
+  // A beat in its last half frame rounds to frame 31, the sequence's end, so it isn't written.
+  const late = { ...exportInput, firstBeat: (30.75 * 1001) / 24_000 }
+  assert.equal(beatMarkers(late).length, 0)
+  assert.equal(toCsv(late), 'marker,seconds,frame,timecode\r\n')
+})
+
+test('RBA-239: the rule holds across tempos, first beats and lengths', () => {
+  // Off-grid tempos and first beats, and lengths that end anywhere inside a frame.
+  for (const choice of EXPORT_TIMECODES) {
+    for (const [bpm, firstBeat, duration] of [[127.6, 0.37, 61.3], [174, 0.011, 9.999], [93.25, 1.7, 30.03], [140, 0, 12.857]] as const) {
+      checkRule({ name: 'mix.wav', bpm, firstBeat, duration }, choice, framesIn(duration, choice.rate))
+    }
+  }
 })

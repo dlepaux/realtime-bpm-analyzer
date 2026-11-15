@@ -1,4 +1,4 @@
-/* The home page (RBA-66): the analyzer first, then the free tools, then the reading.
+/* The home page (RBA-66, RBA-240): the analyzer first, then the free tools, grouped, then the reading.
    Widths follow VitePress's own home content (1280px, 24/48/64px gutters at 640 and 960), so
    the hero, the tiles and the markdown below share one left edge. The one device check is
    (pointer: coarse), as in extension.css; the widths are VitePress's breakpoints. */
@@ -61,11 +61,33 @@
 
 .home-tools { padding-bottom: 48px; }
 
+/* A section heading, a step below the h1, and each group's title a quieter label above its row
+   (RBA-240): the groups say what each row is for, the tiles stay the links. */
+.home-tools-heading {
+  margin: 0 0 1rem;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--vp-c-text-1);
+}
+
+.home-tool-group + .home-tool-group { margin-top: 24px; }
+
+.home-tool-group-title {
+  margin: 0 0 0.6rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--vp-c-text-2);
+}
+
 /* Phones: a list, one tool per row, each a full-width target. */
 .home-tools-grid {
   display: grid;
   gap: 8px;
-  margin-block: 0;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
@@ -232,11 +254,11 @@
      analyzer keeps the same width, on the left. */
   .home-doors { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 48px; }
 
-  /* Five tools on six tracks: three on the first row, two wider ones on the second (tool-list.ts
-     sets the rows), so no row ends with a lone tile. */
-  .home-tools-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .home-tools-grid > .home-tool-span-2 { grid-column: span 2; }
+  /* Each group is one row on twelve tracks: four tiles of three, or three of four (tool-list.ts
+     sets the groups), so no row ends with a lone tile. */
+  .home-tools-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
   .home-tools-grid > .home-tool-span-3 { grid-column: span 3; }
+  .home-tools-grid > .home-tool-span-4 { grid-column: span 4; }
 
   .vp-doc .home-ways ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .vp-doc .home-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }

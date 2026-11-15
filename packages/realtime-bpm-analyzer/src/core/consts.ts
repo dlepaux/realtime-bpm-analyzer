@@ -17,8 +17,9 @@ export const thresholdStep = 0.05;
  * locks is unchanged too. Past it, the reading follows the latest minute or more of audio.
  */
 export const maxKeptPeaks = 256;
-export const frequencyValue = 200;
-export const qualityValue = 1;
+/** The lowpass defaults, which `LowpassOption` documents */
+export const lowpassFrequency = 200;
+export const lowpassQ = 1;
 
 /**
  * Minimum BPM value for tempo normalization

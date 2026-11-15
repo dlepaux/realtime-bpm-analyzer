@@ -25,7 +25,7 @@ export const legacyRedirects: Readonly<Record<string, string>> = {
   'functions/getBiquadFilters.html': '/api/functions/getBiquadFilter',
   'functions/createRealTimeBpmProcessor.html': '/api/functions/createRealtimeBpmAnalyzer',
 
-  'types/BiquadFilterOptions.html': '/api/type-aliases/BiquadFilterOptions',
+  'types/BiquadFilterOptions.html': '/api/type-aliases/LowpassOption',
   'types/BpmCandidates.html': '/api/type-aliases/Reading',
   'types/Peaks.html': '/api/type-aliases/Reading',
   'types/ValidPeaks.html': '/api/type-aliases/Reading',

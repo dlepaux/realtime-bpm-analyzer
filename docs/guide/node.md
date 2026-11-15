@@ -165,4 +165,5 @@ replacement.
 
 `applyLowpass(channelData, sampleRate, options?)` is exported too. It returns a
 new `Float32Array` filtered like the browser pipeline, and leaves the input
-untouched.
+untouched. Its `options` are the `{frequency, q}` of `engine.lowpass`, typed
+`LowpassOption`, with the same defaults.

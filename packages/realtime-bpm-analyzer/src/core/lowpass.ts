@@ -1,5 +1,35 @@
-import type {BiquadFilterOptions} from './types';
+import type {LowpassOption} from '../contract/types';
 import * as consts from './consts';
+
+/** The 5.x setting names, with their v6 names: unrefused, they would be ignored without a word */
+const removedSettings: Readonly<Record<string, string>> = Object.freeze({
+  frequencyValue: 'frequency',
+  qualityValue: 'q',
+});
+
+/**
+ * The lowpass settings with their defaults, checked once for every path that builds the filter (the
+ * BiquadFilterNode, the OfflineAudioContext render and the plain-JS biquad), so all three refuse the same input
+ * @param options The caller's settings
+ * @returns The cutoff in Hz and the Q in dB
+ * @throws {TypeError} When a 5.x setting name is set
+ * @throws {RangeError} When the frequency or Q is not a finite number
+ */
+export function resolveLowpass(options: LowpassOption | undefined): {frequency: number; q: number} {
+  const given: Record<string, unknown> = options ?? {};
+  const removed = Object.keys(removedSettings).find(name => given[name] !== undefined);
+  if (removed !== undefined) {
+    throw new TypeError(`The lowpass setting ${removed} was removed in v6: use ${removedSettings[removed]}.`);
+  }
+
+  const frequency = options?.frequency ?? consts.lowpassFrequency;
+  const q = options?.q ?? consts.lowpassQ;
+  if (!Number.isFinite(frequency) || !Number.isFinite(q)) {
+    throw new RangeError(`Invalid lowpass settings: frequency ${frequency}, q ${q}. Both must be finite numbers.`);
+  }
+
+  return {frequency, q};
+}
 
 /**
  * Normalised biquad coefficients (a0 divided out)
@@ -57,24 +87,20 @@ export function lowpassCoefficients(
  * in plain JavaScript, so tempo detection runs where Web Audio does not exist (Node).
  * @param channelData PCM samples of one channel
  * @param sampleRate Sample rate in Hz
- * @param options Cutoff and Q, defaulting to the browser pipeline's values
+ * @param options The cutoff and Q, as `getBiquadFilter` takes them, defaulting to the browser pipeline's values
  * @returns A new filtered array, the input is left untouched
+ * @throws {TypeError} When a 5.x setting name is set
  * @throws {RangeError} When the sample rate, frequency or Q is not a usable number
  */
 export function applyLowpass(
   channelData: Float32Array,
   sampleRate: number,
-  options?: BiquadFilterOptions,
+  options?: LowpassOption,
 ): Float32Array {
-  const frequency = options?.frequencyValue ?? consts.frequencyValue;
-  const q = options?.qualityValue ?? consts.qualityValue;
+  const {frequency, q} = resolveLowpass(options);
 
   if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
     throw new RangeError(`Invalid sample rate: ${sampleRate}. Sample rate must be positive.`);
-  }
-
-  if (!Number.isFinite(frequency) || !Number.isFinite(q)) {
-    throw new RangeError(`Invalid filter options: frequencyValue ${frequency}, qualityValue ${q}.`);
   }
 
   const {b0, b1, b2, a1, a2} = lowpassCoefficients(frequency, q, sampleRate);

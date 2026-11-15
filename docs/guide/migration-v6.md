@@ -27,6 +27,7 @@ Every 5.x name and its v6 form. The sections below show each with before-and-aft
 | `continuousAnalysis` and `stabilizationTime` (ms) | `engine: { name: 'peaks', restartAfterSeconds }` (seconds) |
 | `muteTimeInIndexes` | removed |
 | `analyzeFullBuffer` and Node's `analyzeChannelData` options `frequencyValue`, `qualityValue` | `engine: { name: 'peaks', lowpass: { frequency, q } }` |
+| `getBiquadFilter` and Node's `applyLowpass` settings `frequencyValue`, `qualityValue`, type `BiquadFilterOptions` | `{ frequency, q }`, type `LowpassOption` |
 | event `bpm` | `reading` |
 | event `bpmStable` | `statechange` with `to.status === 'locked'` |
 | event `analyzerReset` | `statechange` to `listening`, reason `audio-lost`, `tempo-changed` or `pulse-lost` |
@@ -138,9 +139,29 @@ analyzeFullBuffer(audioBuffer, { frequencyValue: 200, qualityValue: 1 });
 analyzeFullBuffer(audioBuffer, { engine: { name: 'peaks', lowpass: { frequency: 200, q: 1 } } });
 ```
 
+#### `getBiquadFilter` and `applyLowpass` take the same settings
+
+They take the `{ frequency, q }` of `engine.lowpass`, and their type is `LowpassOption`. `BiquadFilterOptions` is gone: the DOM declares a global type by that name with other fields, which TypeScript would accept in its place.
+
+**Before (5.x):**
+```typescript
+import { getBiquadFilter, type BiquadFilterOptions } from 'realtime-bpm-analyzer';
+
+const settings: BiquadFilterOptions = { frequencyValue: 150, qualityValue: 1 };
+const filter = getBiquadFilter(audioContext, settings);
+```
+
+**After (v6):**
+```typescript
+import { getBiquadFilter, type LowpassOption } from 'realtime-bpm-analyzer';
+
+const settings: LowpassOption = { frequency: 150, q: 1 };
+const filter = getBiquadFilter(audioContext, settings);
+```
+
 #### A removed option throws
 
-v6 refuses every option above by its 5.x name with a `TypeError` that names the replacement, so a missed rename fails at once instead of being ignored.
+v6 refuses every option above by its 5.x name with a `TypeError` that names the replacement, so a missed rename fails at once instead of being ignored. The lowpass settings do the same, wherever they are passed.
 
 ### Events
 

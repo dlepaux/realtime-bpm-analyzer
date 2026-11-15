@@ -13,6 +13,7 @@ export {RELATION_TOLERANCE} from './contract/types';
 export type {
   OfflineOptions,
   OfflineEngineOption,
+  LowpassOption,
   OfflineResult,
   EngineName,
   TempoRange,
@@ -21,7 +22,6 @@ export type {
   CandidateRelation,
   AudioSpan,
 } from './contract/types';
-export type {BiquadFilterOptions} from './core/types';
 
 /**
  * Detects the tempo of decoded PCM samples, without Web Audio.

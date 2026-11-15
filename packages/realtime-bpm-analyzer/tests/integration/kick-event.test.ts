@@ -23,11 +23,11 @@ import {closeAudioContext, createTestAudioContext} from '../setup';
  * the one a track gets and not that of kicks alone, which are confirmed sooner.
  *
  * The delay is read on `currentTime`, or on a bare worklet's clock run on by the wall clock where that is later (as
- * Firefox's `currentTime` stands still between updates), not on `contextNow`'s output
- * timestamp: Firefox shifts both halves of `getOutputTimestamp()` back by `outputLatency` (measured on 132 and 158),
- * so the output timestamp plus `outputLatency` runs that far ahead there, 48 ms on CI, and the delay read 62-67 ms
- * where it was 14-19. The probe's clock reads early by one message's crossing instead, about 2 ms in Chromium. Both
- * readings are logged, with the bare message's own crossing, so the log shows which clock moved.
+ * Firefox's `currentTime` stands still between updates), not on `contextNow`'s output timestamp: Firefox shifts both
+ * halves of `getOutputTimestamp()` back by `outputLatency` (measured on 132 and 158), so the output timestamp plus
+ * `outputLatency` runs that far ahead there, 48 ms on CI, and the delay read 62-67 ms where it was 14-19. The
+ * probe's clock reads early by one message's crossing instead, about 2 ms in Chromium. Both readings are logged,
+ * with the bare message's own crossing, so the log shows which clock moved.
  */
 describe('BpmAnalyzer - kick events from live inputs', function () {
   this.timeout(20_000);

@@ -27,7 +27,7 @@ Every 5.x name and its v6 form. The sections below show each with before-and-aft
 | `continuousAnalysis` and `stabilizationTime` (ms) | `engine: { name: 'peaks', restartAfterSeconds }` (seconds) |
 | `muteTimeInIndexes` | removed |
 | `analyzeFullBuffer` and Node's `analyzeChannelData` options `frequencyValue`, `qualityValue` | `engine: { name: 'peaks', lowpass: { frequency, q } }` |
-| `getBiquadFilter` and Node's `applyLowpass` settings `frequencyValue`, `qualityValue`, type `BiquadFilterOptions` | `{ frequency, q }`, type `LowpassOption` |
+| `getBiquadFilter` and Node's `applyLowpass` settings `frequencyValue`, `qualityValue`, type `BiquadFilterOptions` | `{ frequency, q }` and no other key, type `LowpassOption` |
 | event `bpm` | `reading` |
 | event `bpmStable` | `statechange` with `to.status === 'locked'` |
 | event `analyzerReset` | `statechange` to `listening`, reason `audio-lost`, `tempo-changed` or `pulse-lost` |
@@ -143,6 +143,8 @@ analyzeFullBuffer(audioBuffer, { engine: { name: 'peaks', lowpass: { frequency: 
 
 They take the `{ frequency, q }` of `engine.lowpass`, and their type is `LowpassOption`. `BiquadFilterOptions` is gone: the DOM declares a global type by that name with other fields, which TypeScript would accept in its place.
 
+The settings accept `frequency` and `q` and no other key. Any other key throws a `TypeError` that names it, whatever its value, so a DOM `BiquadFilterOptions` with `Q`, `detune`, `type` or `gain` fails at once, and so does a typo, instead of being dropped. Fold a `detune` into the frequency: `frequency × 2^(detune / 1200)`.
+
 **Before (5.x):**
 ```typescript
 import { getBiquadFilter, type BiquadFilterOptions } from 'realtime-bpm-analyzer';
@@ -161,7 +163,7 @@ const filter = getBiquadFilter(audioContext, settings);
 
 #### A removed option throws
 
-v6 refuses every option above by its 5.x name with a `TypeError` that names the replacement, so a missed rename fails at once instead of being ignored. The lowpass settings do the same, wherever they are passed.
+v6 refuses every option above by its 5.x name with a `TypeError` that names the replacement, so a missed rename fails at once instead of being ignored. The lowpass settings do the same, wherever they are passed, and refuse any key other than `frequency` and `q`.
 
 ### Events
 

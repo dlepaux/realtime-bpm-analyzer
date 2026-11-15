@@ -143,7 +143,7 @@ export function resolveEngine(engine: EngineOption | undefined, tempoRange: Temp
  * @param engine The caller's option, {@link defaultEngine} when absent
  * @returns The engine name, and the lowpass settings for `peaks`
  * @throws {RangeError} When the engine is unknown, or a lowpass setting is not a finite number
- * @throws {TypeError} When a lowpass setting has its 5.x name, or is the DOM's `Q` or `detune`
+ * @throws {TypeError} When `lowpass` carries a key other than `frequency` and `q`
  */
 export function resolveOfflineEngine(engine: OfflineEngineOption | undefined): {name: EngineName; lowpass: LowpassOption} {
   const value: unknown = engine ?? defaultEngine;

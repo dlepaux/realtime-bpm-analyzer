@@ -11,7 +11,7 @@ import {analyzeSamples} from './offline';
  * @param context - The AudioContext or OfflineAudioContext to create the filter in
  * @param options - The cutoff and Q, the same settings as the offline `engine: {name: 'peaks', lowpass}`
  * @returns A configured BiquadFilterNode ready to use in an audio graph
- * @throws {TypeError} When a 5.x setting name (`frequencyValue`, `qualityValue`) or the DOM's `Q` or `detune` is set
+ * @throws {TypeError} When the settings carry a key other than `frequency` and `q`, such as a 5.x name or the DOM's `Q`
  * @throws {RangeError} When the frequency or Q is not a finite number
  *
  * @example
@@ -98,7 +98,7 @@ export async function getOfflineLowPassSource(
  * @returns The reading, the same shape as a realtime one, or null when no tempo was found
  * @throws {Error} When the buffer is empty or its sample rate is not positive
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
- * @throws {TypeError} When an option, or an `engine.lowpass` setting, has its 5.x name, or a lowpass setting is the DOM's `Q` or `detune`
+ * @throws {TypeError} When an option has its 5.x name, or `engine.lowpass` carries a key other than `frequency` and `q`
  *
  * @example
  * ```typescript

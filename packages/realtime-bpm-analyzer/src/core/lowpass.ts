@@ -1,32 +1,42 @@
 import type {LowpassOption} from '../contract/types';
 import * as consts from './consts';
 
+/** The only keys a lowpass settings object may carry */
+const settingNames: ReadonlySet<string> = new Set(['frequency', 'q']);
+
 /**
- * Names a caller may reach for, with why they don't apply: unrefused, they would be ignored without a word. The
- * DOM's `BiquadFilterOptions` spells the resonance `Q`, and shares `frequency`, so TypeScript accepts one of those
- * objects as a `LowpassOption`. Its `detune` would move the cutoff, so it is refused too. Its `gain` and `type` are
- * not: a lowpass ignores `gain`, and this filter is always a lowpass.
+ * The settings take `frequency` and `q` and nothing else, so a key the filter would not apply fails at once
+ * instead of being dropped. TypeScript lets such keys through: the DOM's `BiquadFilterOptions` shares
+ * `frequency`, so one of those objects passes as a `LowpassOption`, and so does any variable holding a typo.
+ * Refusing a key after 6.1.0 would break callers, while accepting one later would not. These are the names a
+ * caller is likely to reach for, each with what to use instead; any other key gets {@link unknownSetting}.
  */
-const refusedSettings: Readonly<Record<string, string>> = Object.freeze({
-  frequencyValue: 'was removed in v6: use frequency',
-  qualityValue: 'was removed in v6: use q',
-  Q: "is the DOM's spelling: use q",
-  detune: "is the DOM's: use frequency, with the detune folded in",
-});
+const refusedSettings: ReadonlyMap<string, string> = new Map([
+  ['frequencyValue', 'was removed in v6: use frequency'],
+  ['qualityValue', 'was removed in v6: use q'],
+  ['Q', "is the DOM's spelling: use q"],
+  ['detune', "is the DOM's, and has no equivalent here: fold it into frequency (frequency × 2^(detune/1200))"],
+  ['type', "is the DOM's: this filter is always a lowpass, so drop it"],
+  ['gain', "is the DOM's: a lowpass has no gain, so drop it"],
+]);
+
+const unknownSetting = 'is unknown: the settings are frequency and q';
 
 /**
  * The lowpass settings with their defaults, checked once for every path that builds the filter (the
- * BiquadFilterNode, the OfflineAudioContext render and the plain-JS biquad), so all three refuse the same input
+ * BiquadFilterNode, the OfflineAudioContext render and the plain-JS biquad), so all three refuse the same input.
+ * A key is refused by its presence, whatever its value, `undefined` included, so whether a call throws doesn't
+ * depend on the data. The keys checked are the object's own enumerable ones, those a spread or JSON carries.
  * @param options The caller's settings
  * @returns The cutoff in Hz and the Q in dB
- * @throws {TypeError} When a 5.x setting name, or the DOM's `Q` or `detune`, is set
+ * @throws {TypeError} When the settings carry a key other than `frequency` and `q`, naming it
  * @throws {RangeError} When the frequency or Q is not a finite number
  */
 export function resolveLowpass(options: LowpassOption | undefined): {frequency: number; q: number} {
-  const given: Record<string, unknown> = options ?? {};
-  const refused = Object.keys(refusedSettings).find(name => given[name] !== undefined);
+  const keys = typeof options === 'object' && options !== null ? Object.keys(options) : [];
+  const refused = keys.find(key => !settingNames.has(key));
   if (refused !== undefined) {
-    throw new TypeError(`The lowpass setting ${refused} ${refusedSettings[refused]}.`);
+    throw new TypeError(`The lowpass setting ${refused} ${refusedSettings.get(refused) ?? unknownSetting}.`);
   }
 
   const frequency = options?.frequency ?? consts.lowpassFrequency;
@@ -96,7 +106,7 @@ export function lowpassCoefficients(
  * @param sampleRate Sample rate in Hz
  * @param options The cutoff and Q, as `getBiquadFilter` takes them, defaulting to the browser pipeline's values
  * @returns A new filtered array, the input is left untouched
- * @throws {TypeError} When a 5.x setting name, or the DOM's `Q` or `detune`, is set
+ * @throws {TypeError} When the settings carry a key other than `frequency` and `q`
  * @throws {RangeError} When the sample rate, frequency or Q is not a usable number
  */
 export function applyLowpass(

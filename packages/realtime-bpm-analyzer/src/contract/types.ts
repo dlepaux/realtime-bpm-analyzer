@@ -63,8 +63,9 @@ export type EngineOption =
 
 /**
  * The lowpass settings: the offline `engine: {name: 'peaks', lowpass}` and `getBiquadFilter` take the same ones.
- * Each must be a finite number. The 5.x names `frequencyValue` and `qualityValue`, and the DOM's `Q` and `detune`, throw a
- * `TypeError`.
+ * Each must be a finite number. No other key is accepted: one throws a `TypeError` that names it, whatever its value,
+ * `undefined` included. That covers the 5.x names `frequencyValue` and `qualityValue`, the DOM's `Q`, `detune`, `type`
+ * and `gain`, which TypeScript lets through from a `BiquadFilterOptions`, and typos.
  */
 export type LowpassOption = {
   /** Cutoff in Hz. Default 200, which keeps the kick drum and the bass. */

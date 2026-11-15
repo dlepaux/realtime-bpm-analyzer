@@ -96,6 +96,25 @@ These rules are fixed now so that beats land in a minor release, without a break
    with its own result type, so the tempo result never grows a field that only some callers asked for.
    `analyzeFullBuffer` and `analyzeChannelData` keep their shape.
 
+## Kicks
+
+`kick` reports each kick drum heard, `{contextTime, strength}`, before predicted beats exist (RBA-243). It
+follows the rules above without needing any of their room:
+
+- **Protocol.** The `kick` message is part of protocol 1.0. Minor 0 had not shipped when it was added: the
+  first release that speaks 1.0 is 6.1.0, and it carries kicks. A message added after a release that speaks
+  1.0 bumps the minor instead.
+- **Clock.** `contextTime` is on the clock of `AudioSpan.contextTime`, stamped in the worklet on the sample
+  where the kick starts, so the message's own delay does not move it.
+- **Resets.** A kick belongs to the epoch it was heard in, and the epoch check drops a stale one. Nothing is
+  predicted, so there is nothing to cancel. The detector starts over on a reset and on an audio-lost restart.
+- **No state.** A kick moves no state and is not part of a step's sequence of events. It is dispatched
+  through the same queue, so a `reset()` or `stop()` from a kick listener waits for the events in flight.
+- **Name.** `beat` stays free for predicted beats (RBA-244). A kick is heard, a beat is predicted: an app that
+  flashes on both tells them apart by the event's name.
+- **Offline.** `analyzeFullBuffer` lists no kicks. As with beats, a list of a file's kicks would come from a
+  separate function.
+
 ## Exact tempo
 
 `Reading.bpm` stays a whole number, the tempo people read. `Reading.bpmExact` is the same tempo unrounded,

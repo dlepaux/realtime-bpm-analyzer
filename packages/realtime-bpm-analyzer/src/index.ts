@@ -37,6 +37,7 @@ export type {
   CallerReason,
   Progress,
   DebugInfo,
+  Kick,
   AnalyzerEventMap,
   AnalyzerEventType,
   AnalyzerError,

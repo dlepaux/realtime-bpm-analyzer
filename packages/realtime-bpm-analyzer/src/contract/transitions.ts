@@ -176,6 +176,10 @@ function reduceMessage(state: ActiveState, data: unknown): ReducerResult {
     }
     case 'step':
       return reduceStep(state, data);
+    case 'kick':
+      return isTime(data.contextTime) && isFraction(data.strength)
+        ? {...unchanged(state), events: [{type: 'kick', detail: freeze({contextTime: data.contextTime, strength: data.strength})}]}
+        : protocolError(state, 'kick without a context time and a strength from 0 to 1');
     default:
       // Only a later minor may have added a type: from a newer processor copy it is a feature this side lacks,
       // from the same or an older one a bug or a typo (ProtocolVersion)
@@ -235,6 +239,7 @@ function reduceStep(state: ActiveState, data: Record<string, unknown>): ReducerR
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 const isPositive = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0;
 const isFraction = (value: unknown): value is number => typeof value === 'number' && value >= 0 && value <= 1;
+const isTime = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 const errorNames: readonly string[] = ['ProtocolError', 'ProcessorError', 'AnalysisError'] satisfies AnalyzerError['name'][];
 
 /** Payloads are shared by the state and every listener, so none may change one under the others. */

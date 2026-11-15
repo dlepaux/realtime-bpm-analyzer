@@ -50,7 +50,7 @@ until you do.
 - **Any bar.** 1 to 12 beats per bar.
 - **Full screen.** Where the browser has it, the light can fill the screen,
   and the screen stays awake while it runs.
-- **Safe by default.** At most three flashes in any second, never red, and a
+- **Within WCAG 2.3.1.** At most three flashes in any second, never red, and a
   soft pulse instead of a full flash when your device asks for reduced motion.
 
 Need the tempo first? [Tap it](/tap-tempo), or detect it with the
@@ -66,8 +66,11 @@ Need the tempo first? [Tap it](/tap-tempo), or detect it with the
 - **When the music changes tempo, the grid drifts** until the reading catches
   up, and the flashes drift with it. A few taps line them up again.
 - **At most three flashes a second.** Above 180 BPM it flashes on every second
-  beat. Near 180 BPM, on a slow or uneven screen, a flash is sometimes skipped
-  so the light never goes over three flashes a second.
+  beat, so with an odd number of beats per bar the white downbeat shows every
+  second bar. Near 180 BPM, on a slow or uneven screen, a flash is sometimes
+  skipped so the light never goes over three flashes a second.
+- **With the microphone, the light goes dark when no beat is heard,** and
+  starts again once a steady tempo is found.
 - **Full screen and the awake screen depend on the browser.** iPhone Safari,
   for one, can't show a web page full screen.
 

@@ -12,10 +12,12 @@ import { classifyMicError } from '../tools/mic-error'
 import {
   IDLE,
   MIN_GAP_MS,
+  STAGE_COLOR,
   alignToTap,
   beatsPerFlash,
   flashAnimation,
   initialStyle,
+  isTooSoonAfterStop,
   start as strobeStart,
   step,
   stop as strobeStop,
@@ -24,7 +26,7 @@ import {
   type Strobe,
   type TempoSource,
 } from '../tools/strobe'
-import { MAX_BPM, MIN_BPM, clampBpm, parseBpmParam, tapToSet } from '../tools/tempo'
+import { MAX_BPM, MIN_BPM, TAP_TIMEOUT_MS, clampBpm, parseBpmParam, tapToSet } from '../tools/tempo'
 
 const { track } = useAnalytics()
 
@@ -68,6 +70,7 @@ let strobe: Strobe = IDLE
 let frame: number | undefined
 let generation = 0
 let tapBeat = 0
+let stoppedAt: number | null = null
 let wakeLock: WakeLockSentinel | null = null
 let mic: { stream: MediaStream; context: AudioContext; analyzer: BpmAnalyzer } | null = null
 
@@ -97,11 +100,16 @@ function show(kind: FlashKind, at: number) {
 // ── Start and stop ────────────────────────────────────────────────────────────────────────
 
 /** The only start: the Start button's click, after the warning above it. */
-async function startFromClick() {
-  if (running.value) return
+async function startFromClick(event: MouseEvent) {
+  if (running.value || isTooSoonAfterStop(stoppedAt, event.timeStamp)) return
   const gen = ++generation
   micError.value = null
-  strobe = strobeStart()
+  strobe = strobeStart(strobe)
+  // Taps just before Start say where the beat is; older ones would skew the new run's downbeat.
+  const lastTap = tapTimes.value[tapTimes.value.length - 1]
+  if (lastTap !== undefined && event.timeStamp - lastTap < TAP_TIMEOUT_MS && tempo.value !== null) {
+    strobe = alignToTap(strobe, lastTap, 60_000 / tempo.value, tapBeat)
+  } else tapTimes.value = []
   running.value = true
   track('bpm_strobe_started', { tempo_source: source.value, ...(source.value === 'mic' ? {} : { bpm: bpm.value }) })
   frame = requestAnimationFrame(onFrame)
@@ -114,7 +122,8 @@ async function startFromClick() {
 /** Stops everything the strobe holds. Safe to call at any time and more than once. */
 function halt() {
   generation++
-  strobe = strobeStop()
+  stoppedAt = performance.now()
+  strobe = strobeStop(strobe)
   if (frame !== undefined) cancelAnimationFrame(frame)
   frame = undefined
   light.value?.getAnimations().forEach((animation) => animation.cancel())
@@ -161,7 +170,9 @@ async function listen(gen: number) {
       video: false,
     })
     const opened = stream
+    if (gen !== generation) return opened.getTracks().forEach((t) => t.stop())
     const { createRealtimeBpmAnalyzer } = await import('realtime-bpm-analyzer')
+    if (gen !== generation) return opened.getTracks().forEach((t) => t.stop())
     const [input] = opened.getAudioTracks()
     const { context, analyzer } = await openAnalysis(
       () => new AudioContext(),
@@ -173,22 +184,26 @@ async function listen(gen: number) {
     mic = { stream: opened, context, analyzer }
     // Not connected to the speakers: the sound is analysed and dropped.
     context.createMediaStreamSource(opened).connect(analyzer.input)
-    // Flashes follow a locked tempo only; a lock can move without a statechange, so readings update it.
+    // Flashes follow a locked tempo only; a lock can move without a statechange, so readings
+    // update it. Unlocked, a tempo is still heard and the last one holds; with no pulse, it goes dark.
     analyzer.on('reading', (reading) => {
       if (analyzer.state.status === 'locked') micBpm.value = reading.bpm
     })
     analyzer.on('statechange', ({ to }) => {
       if (to.status === 'locked') micBpm.value = to.reading.bpm
+      if (to.status === 'listening') micBpm.value = null
     })
     input?.addEventListener('ended', () => void stopAndRefocus())
   } catch (error) {
     stream?.getTracks().forEach((t) => t.stop())
     if (gen !== generation) return
-    micError.value = classifyMicError(error).error_kind === 'denied'
+    const message = classifyMicError(error).error_kind === 'denied'
       ? 'Microphone access denied. Enable it in your browser settings and try again.'
       : 'Couldn’t start the microphone. Check your device and try again.'
     console.error('[StrobeLight] mic setup failed:', error)
+    // Shown once the setup panel is back, so the alert is announced and Start describes it.
     await stopAndRefocus()
+    micError.value = message
   }
 }
 
@@ -242,7 +257,8 @@ function onKeyDown(event: KeyboardEvent) {
     return
   }
   const target = event.target instanceof HTMLElement ? event.target : null
-  if (target?.closest('a, button, input, select, textarea, [contenteditable="true"]')) return
+  // While it runs, focus is on Stop or the stage's controls: the keys work from there too.
+  if (!running.value && target?.closest('a, button, input, select, textarea, [contenteditable="true"]')) return
   const typed = source.value === 'typed'
   if (key.toLowerCase() === 't' && !event.repeat && (running.value || source.value === 'tapped')) tap(event.timeStamp)
   else if (typed && (key === 'ArrowUp' || key === 'ArrowRight')) setBpm(bpm.value + (event.shiftKey ? 10 : 1))
@@ -375,8 +391,17 @@ onBeforeUnmount(() => {
 
       <div class="strobe-settings">
         <div class="tt-field">
-          <span class="tt-label">Beats per bar</span>
-          <div class="strobe-stepper">
+          <span
+            id="strobe-bar-label"
+            class="tt-label"
+          >
+            Beats per bar
+          </span>
+          <div
+            class="strobe-stepper"
+            role="group"
+            aria-labelledby="strobe-bar-label"
+          >
             <button
               type="button"
               class="tt-btn tt-btn-round small"
@@ -386,7 +411,12 @@ onBeforeUnmount(() => {
             >
               <Minus :size="14" />
             </button>
-            <span class="strobe-stepper-value">{{ beatsPerBar }}</span>
+            <span
+              class="strobe-stepper-value"
+              aria-live="polite"
+            >
+              {{ beatsPerBar }}
+            </span>
             <button
               type="button"
               class="tt-btn tt-btn-round small"
@@ -435,6 +465,7 @@ onBeforeUnmount(() => {
       </div>
       <p
         v-if="micError"
+        id="strobe-error"
         class="strobe-error"
         role="alert"
       >
@@ -445,7 +476,7 @@ onBeforeUnmount(() => {
           ref="startButton"
           type="button"
           class="tt-btn tt-btn-primary strobe-start"
-          aria-describedby="strobe-warning"
+          :aria-describedby="micError ? 'strobe-error strobe-warning' : 'strobe-warning'"
           @click="startFromClick"
         >
           <Zap :size="20" /> Start the strobe
@@ -460,7 +491,7 @@ onBeforeUnmount(() => {
       v-show="running"
       ref="stage"
       class="strobe-stage"
-      @pointerdown="stopAndRefocus"
+      @pointerdown.prevent="stopAndRefocus"
     >
       <div
         ref="light"
@@ -612,7 +643,7 @@ onBeforeUnmount(() => {
   min-height: min(70vh, 640px);
   margin: calc(-1 * clamp(1.25rem, 4vw, 2.25rem));
   border-radius: inherit;
-  background: #000;
+  background: v-bind(STAGE_COLOR);
   color: #fff;
   cursor: pointer;
   touch-action: manipulation;

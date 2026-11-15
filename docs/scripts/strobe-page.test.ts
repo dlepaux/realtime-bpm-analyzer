@@ -51,10 +51,15 @@ test('the library loads only when the microphone mode starts, never in the theme
 // ── Safety wiring ───────────────────────────────────────────────────────────────────────────
 
 test('only the Start button\'s click starts it: one call to start(), from one handler, bound once', () => {
-  assert.equal(count(SCRIPT, /\bstrobeStart\(\)/), 1, 'start() is called in one place')
-  assert.match(SCRIPT, /async function startFromClick\(\)[\s\S]*?strobeStart\(\)/)
+  assert.equal(count(SCRIPT, /\bstrobeStart\(/), 1, 'start() is called in one place')
+  // The flash history goes with it, so stopping and starting fast can't add a flash.
+  assert.match(SCRIPT, /async function startFromClick\(event: MouseEvent\)[\s\S]*?strobe = strobeStart\(strobe\)/)
+  assert.match(SCRIPT, /strobe = strobeStop\(strobe\)/)
   assert.equal(count(COMPONENT, /\bstartFromClick\b/), 2, 'the handler is defined once and bound once')
   assert.match(TEMPLATE, /ref="startButton"[\s\S]{0,200}@click="startFromClick"|@click="startFromClick"[\s\S]{0,200}ref="startButton"/)
+  // A click right after a stop is a ghost of the stopping tap, or a held key: not a start.
+  assert.match(SCRIPT, /async function startFromClick\(event: MouseEvent\) \{\n  if \(running\.value \|\| isTooSoonAfterStop\(stoppedAt, event\.timeStamp\)\) return/)
+  assert.match(SCRIPT, /function halt\(\) \{[\s\S]*?stoppedAt = performance\.now\(\)/)
   // Nothing on mount, on a visible tab or on a key starts it.
   assert.doesNotMatch(SCRIPT, /onMounted\([^)]*startFromClick|visibilitychange[^\n]*start/)
 })
@@ -62,7 +67,7 @@ test('only the Start button\'s click starts it: one call to start(), from one ha
 test('every stop path stops it: Stop, Esc, Space, a tap on the stage, a hidden tab, leaving full screen', () => {
   assert.match(TEMPLATE, /@click="stopAndRefocus"/, 'the Stop control')
   assert.match(SCRIPT, /key === 'Escape' \|\| key === ' '/, 'Esc and Space')
-  assert.match(TEMPLATE, /class="strobe-stage"[\s\S]{0,400}@pointerdown="stopAndRefocus"/, 'a tap on the flashing area')
+  assert.match(TEMPLATE, /class="strobe-stage"[\s\S]{0,400}@pointerdown\.prevent="stopAndRefocus"/, 'a tap on the flashing area')
   assert.match(SCRIPT, /addEventListener\('visibilitychange'/)
   assert.match(SCRIPT, /document\.visibilityState === 'hidden'\) void stopAndRefocus\(\)/)
   assert.match(SCRIPT, /addEventListener\('pagehide', stopAndRefocus\)/)
@@ -78,21 +83,44 @@ test('prefers-reduced-motion picks the starting style through initialStyle()', (
   assert.match(SCRIPT, /initialStyle\(window\.matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches\)/)
 })
 
-test('the warning comes before the Start button, and the button points to it', () => {
+test('the warning comes before the Start button, and the button points to it and to any error', () => {
   const warning = TEMPLATE.indexOf('id="strobe-warning"')
   const button = TEMPLATE.indexOf('ref="startButton"')
   assert.ok(warning !== -1 && button !== -1 && warning < button, 'the warning is read before the button')
-  assert.match(TEMPLATE, /aria-describedby="strobe-warning"/)
+  assert.match(TEMPLATE, /:aria-describedby="micError \? 'strobe-error strobe-warning' : 'strobe-warning'"/)
+  assert.match(TEMPLATE, /id="strobe-error"/)
   assert.match(flat(TEMPLATE), /photosensitive epilepsy/i)
 })
 
 test('every control has a label a screen reader announces', () => {
-  for (const tag of TEMPLATE.match(/<(button|input|select)\b[^>]*>/g) ?? []) {
-    const labelled = /aria-label=|aria-labelledby=|:aria-label=/.test(tag) || /<button/.test(tag)
-    assert.ok(labelled, `unlabelled control: ${tag}`)
+  const buttons = [...TEMPLATE.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
+  assert.ok(buttons.length >= 10, `${buttons.length} buttons found`)
+  for (const [, attrs = '', inner = ''] of buttons) {
+    // Icons are components with no text: what's left is the button's name.
+    const text = inner.replace(/<[^>]*>/g, '').trim()
+    assert.ok(/\baria-label=/.test(attrs) || text.length > 0, `a button with no name: ${attrs.trim()}`)
   }
-  // Inputs sit inside a <label> or carry aria-label.
-  for (const tag of TEMPLATE.match(/<input\b[^>]*>/g) ?? []) assert.match(tag, /aria-label=|id="/, tag)
+  for (const [tag] of TEMPLATE.matchAll(/<(input|select|textarea)\b[^>]*>/g)) assert.match(tag, /\baria-label=/, tag)
+  // A group of controls is named, and a value its buttons change is announced.
+  for (const [tag] of TEMPLATE.matchAll(/<[a-z]+\b[^>]*role="group"[^>]*>/g)) assert.match(tag, /aria-label(ledby)?=/, tag)
+  assert.match(TEMPLATE, /role="group"\s+aria-labelledby="strobe-bar-label"/)
+  assert.match(TEMPLATE, /class="strobe-stepper-value"\s+aria-live="polite"/)
+})
+
+test('while it runs, T taps and the arrows change a typed tempo, wherever the focus is', () => {
+  // Focus sits on Stop while it runs, and a focused control would otherwise swallow the keys.
+  assert.match(SCRIPT, /if \(!running\.value && target\?\.closest\(/)
+})
+
+test('recent taps before Start line the grid up; older ones start a new run', () => {
+  assert.match(SCRIPT, /strobe = alignToTap\(strobe, lastTap, 60_000 \/ tempo\.value, tapBeat\)/)
+  assert.match(SCRIPT, /else tapTimes\.value = \[\]/)
+})
+
+test('the microphone: a late answer after a stop is dropped, the error is announced, and no stale tempo flashes', () => {
+  assert.ok(count(SCRIPT, /if \(gen !== generation\)/) >= 4, 'checked after each await')
+  assert.match(SCRIPT, /await stopAndRefocus\(\)\n    micError\.value = message/)
+  assert.match(SCRIPT, /if \(to\.status === 'listening'\) micBpm\.value = null/)
 })
 
 // ── The page ────────────────────────────────────────────────────────────────────────────────

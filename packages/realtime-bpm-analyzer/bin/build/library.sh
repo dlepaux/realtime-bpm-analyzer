@@ -14,7 +14,11 @@ echo "📝 Generating TypeScript declarations..."
 # so we pass them explicitly here.
 TSC_LIB="dom,dom.iterable,es2022"
 tsc --skipLibCheck --emitDeclarationOnly --module esnext --target es2022 --lib "$TSC_LIB" src/index.ts src/node.ts --declaration --outdir dist
-tsc --skipLibCheck --emitDeclarationOnly --module esnext --target es2022 --lib "$TSC_LIB" src/processor/realtime-bpm-processor.ts --declaration --outfile dist/realtime-bpm-processor.d.ts
+# The processor runs in an AudioWorkletGlobalScope and gives a page nothing to call: it is served as a file
+# (processorUrl), never imported. tsc's --outfile emit of it was 71 KB of ambient `declare module` blocks for every
+# internal file, so its declaration is written by hand. generated-processor is internal: index.d.ts never names it.
+printf '%s\n' '// Serve this file and pass its URL as processorUrl: it runs in an AudioWorkletGlobalScope and exports nothing.' 'export {};' > dist/realtime-bpm-processor.d.ts
+rm -f dist/generated-processor.d.ts
 
 echo "✅ Build complete! Files in dist/:"
 ls -lh dist/ | grep -E '\.(js|mjs|cjs|d\.ts)$' | awk '{print "   " $9 " (" $5 ")"}'

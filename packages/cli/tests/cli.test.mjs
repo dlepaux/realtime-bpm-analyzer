@@ -61,12 +61,12 @@ describe('realtime-bpm-analyzer CLI', () => {
     assert.equal(version.stdout.trim(), manifest.version);
   });
 
-  it('names every bin after one file, so npx realtime-bpm-analyzer-cli can pick one', async () => {
+  it('has one bin, so npx realtime-bpm-analyzer-cli can pick it', async () => {
     // npx runs the bin named after the package, or, when none is, the only file every bin
-    // points to (bins as aliases). This package has no bin named after it.
+    // points to. This package has no bin named after it, so a second bin pointing elsewhere
+    // would leave npx unable to choose.
     const {bin} = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
-    assert.deepEqual(Object.keys(bin).sort(), ['rba', 'realtime-bpm-analyzer']);
-    assert.deepEqual(new Set(Object.values(bin)), new Set(['dist/cli.mjs']));
+    assert.deepEqual(bin, {'realtime-bpm-analyzer': 'dist/cli.mjs'});
   });
 
   for (const [label, args, pattern] of [

@@ -20,7 +20,7 @@ to fetch the package.
 
 ## Install
 
-It needs Node.js 20 or later. In **Claude Desktop**, open Settings, Developer, Edit
+It needs Node.js 24 or later. In **Claude Desktop**, open Settings, Developer, Edit
 Config, add the server to `claude_desktop_config.json` and restart the app:
 
 ```json

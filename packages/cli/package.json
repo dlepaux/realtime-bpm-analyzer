@@ -31,8 +31,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "realtime-bpm-analyzer": "dist/cli.mjs",
-    "rba": "dist/cli.mjs"
+    "realtime-bpm-analyzer": "dist/cli.mjs"
   },
   "files": [
     "dist/cli.mjs",
@@ -43,13 +42,13 @@
     "license.md"
   ],
   "engines": {
-    "node": ">=24.22.2"
+    "node": ">=24"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=esm --packages=external --banner:js='#!/usr/bin/env node' --outfile=dist/cli.mjs && esbuild src/api.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/api.mjs && esbuild src/decode.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/decode.mjs && esbuild src/analyze-worker.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/analyze-worker.mjs && tsc --noEmit && tsc -p tsconfig.api.json",
+    "build": "esbuild src/cli.ts --bundle --platform=node --target=node24 --format=esm --packages=external --banner:js='#!/usr/bin/env node' --outfile=dist/cli.mjs && esbuild src/api.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/api.mjs && esbuild src/decode.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/decode.mjs && esbuild src/analyze-worker.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/analyze-worker.mjs && tsc --noEmit && tsc -p tsconfig.api.json",
     "prepack": "cp ../../license.md .",
     "postpack": "rm -f license.md",
     "lint": "eslint .",

@@ -153,6 +153,50 @@ jobs:
       - name: Test in Firefox
         run: npm run test:firefox -w realtime-bpm-analyzer
 
+  # The CLI and the MCP server declare Node 24 as their floor (engines), while every other job runs 26. This runs the
+  # built bins and the library's Node entry on the floor itself, so the floor the docs state is one CI tests. Kept out
+  # of the release's needs, like Firefox. Raise this version and the engines floor together, by hand.
+  node-floor:
+    name: CLI and MCP on Node 24
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.22.2
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The builds from Build & Test, so what runs here is the code a publish would ship
+      - name: Download the library build
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          # upload-artifact strips the paths' common ancestor (the package folder)
+          path: packages/realtime-bpm-analyzer
+
+      - name: Download the CLI build
+        uses: actions/download-artifact@v8
+        with:
+          name: cli-dist
+          path: packages/cli/dist
+
+      - name: Download the MCP server build
+        uses: actions/download-artifact@v8
+        with:
+          name: mcp-dist
+          path: packages/mcp/dist
+
+      - name: Test Node entry, CLI and MCP server
+        run: npm run test:node
+
   # Release to GitHub and npm. release-please keeps one release PR open for all three packages
   # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
   # commits under its path, and node-workspace moving the ranges between them.

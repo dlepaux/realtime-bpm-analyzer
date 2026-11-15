@@ -16,15 +16,15 @@ song.mp3: 128 BPM (tempogram, confidence 0.87)
   candidates: 128, 171, 96
 ```
 
-Installed (`npm install -g realtime-bpm-analyzer-cli`), the command is also
-available as `realtime-bpm-analyzer` and `rba`.
+Installed (`npm install -g realtime-bpm-analyzer-cli`), the command is
+`realtime-bpm-analyzer`. It needs Node.js 24 or later.
 
 ## Usage
 
 ```bash
-rba song.mp3 other.flac           # several files
-rba --json ./music                # every audio file of a folder, as one JSON document
-rba -r --min-bpm 70 --max-bpm 140 ./music
+realtime-bpm-analyzer song.mp3 other.flac           # several files
+realtime-bpm-analyzer --json ./music                # every audio file of a folder, as one JSON document
+realtime-bpm-analyzer -r --min-bpm 70 --max-bpm 140 ./music
 ```
 
 | Option            | Meaning                                                        |

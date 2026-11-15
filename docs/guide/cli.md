@@ -23,8 +23,8 @@ song.mp3: 128 BPM (tempogram, confidence 0.87)
   candidates: 128, 171, 96
 ```
 
-Installed globally (`npm install -g realtime-bpm-analyzer-cli`), the command is also
-available as `realtime-bpm-analyzer` and as `rba`. It needs Node.js 20 or later.
+Installed globally (`npm install -g realtime-bpm-analyzer-cli`), the command is
+`realtime-bpm-analyzer`. It needs Node.js 24 or later.
 
 ## Files and folders
 

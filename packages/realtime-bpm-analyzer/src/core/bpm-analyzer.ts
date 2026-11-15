@@ -135,7 +135,7 @@ export async function whenReady(analyzer: BpmAnalyzer, timeoutMs = readyTimeoutM
  * @group Classes
  */
 // No `implements BpmAnalyzerContract`: that type is internal, and the clause would put an undocumented name on the
-// API reference. tests/unit/bpm-analyzer/public-surface.test.ts holds the class to the contract instead.
+// API reference. tests/types/public-surface.ts holds the class to the contract instead.
 export class BpmAnalyzer extends EventTarget {
   /**
    * The underlying AudioWorkletNode

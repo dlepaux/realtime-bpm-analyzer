@@ -23,6 +23,7 @@ const MEASURED = {
   'guide/beat-detection-web-audio.md': { description: true },
   'guide/realtime-bpm-detection.md': { description: true },
   'bpm-to-frames.md': { title: true, description: true },
+  'beat-markers.md': { title: true, description: true },
 } as const
 
 test('titles fit in about 60 characters with the suffix, descriptions in 155', () => {
@@ -48,7 +49,7 @@ test('the CLI and MCP guides are out of the sidebar, llms.txt and every other pa
   const unpublished = /\/guide\/(cli|mcp)\b|\]\(\.\/(cli|mcp)\b/
   assert.ok(!unpublished.test(read('../.vitepress/config.ts')), 'config.ts')
   assert.ok(!unpublished.test(read('../public/llms.txt')), 'llms.txt')
-  const pages = ['index.md', 'bpm-to-frames.md', 'video-bpm.md', 'tap-tempo.md', 'bpm-to-ms.md', 'metronome.md']
+  const pages = ['index.md', 'bpm-to-frames.md', 'video-bpm.md', 'beat-markers.md', 'tap-tempo.md', 'bpm-to-ms.md', 'metronome.md']
   const guides = readdirSync(new URL('../guide/', import.meta.url))
     .filter((name) => name.endsWith('.md') && name !== 'cli.md' && name !== 'mcp.md')
     .map((name) => `guide/${name}`)

@@ -9,6 +9,10 @@ export function typeChecks(): void {
   // @ts-expect-error not even an empty object, which `{}` typing would let through
   track('bpm_file_restart', 'oops')
 
+  track('bpm_markers_home_clicked')
+  // @ts-expect-error the home line's click carries no param, so GA4 needs no new definition
+  track('bpm_markers_home_clicked', { tool: 'beat-markers' })
+
   track('extension_link_clicked', { placement: 'home_door', target: 'page' })
   // @ts-expect-error a required param is missing
   track('extension_link_clicked', { placement: 'home_door' })

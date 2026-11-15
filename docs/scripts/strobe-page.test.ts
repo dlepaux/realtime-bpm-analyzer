@@ -56,7 +56,7 @@ test('only the Start button\'s click starts it: one call to start(), from one ha
   assert.match(SCRIPT, /async function startFromClick\(event: MouseEvent\)[\s\S]*?strobe = strobeStart\(strobe\)/)
   assert.match(SCRIPT, /strobe = strobeStop\(strobe\)/)
   assert.equal(count(COMPONENT, /\bstartFromClick\b/), 2, 'the handler is defined once and bound once')
-  assert.match(TEMPLATE, /ref="startButton"[\s\S]{0,200}@click="startFromClick"|@click="startFromClick"[\s\S]{0,200}ref="startButton"/)
+  assert.match(TEMPLATE, /ref="startButton"[\s\S]{0,300}@click="startFromClick"|@click="startFromClick"[\s\S]{0,300}ref="startButton"/)
   // A click right after a stop is a ghost of the stopping tap, or a held key: not a start.
   assert.match(SCRIPT, /async function startFromClick\(event: MouseEvent\) \{\n  if \(running\.value \|\| isTooSoonAfterStop\(stoppedAt, event\.timeStamp\)\) return/)
   assert.match(SCRIPT, /function halt\(\) \{[\s\S]*?stoppedAt = performance\.now\(\)/)
@@ -110,6 +110,8 @@ test('every control has a label a screen reader announces', () => {
 test('while it runs, T taps and the arrows change a typed tempo, wherever the focus is', () => {
   // Focus sits on Stop while it runs, and a focused control would otherwise swallow the keys.
   assert.match(SCRIPT, /if \(!running\.value && target\?\.closest\(/)
+  // A text field elsewhere on the page, such as the search, keeps its keys.
+  assert.match(SCRIPT, /if \(target\?\.closest\('input, select, textarea, \[contenteditable="true"\]'\)\) return/)
 })
 
 test('recent taps before Start line the grid up; older ones start a new run', () => {
@@ -119,8 +121,18 @@ test('recent taps before Start line the grid up; older ones start a new run', ()
 
 test('the microphone: a late answer after a stop is dropped, the error is announced, and no stale tempo flashes', () => {
   assert.ok(count(SCRIPT, /if \(gen !== generation\)/) >= 4, 'checked after each await')
-  assert.match(SCRIPT, /await stopAndRefocus\(\)\n    micError\.value = message/)
-  assert.match(SCRIPT, /if \(to\.status === 'listening'\) micBpm\.value = null/)
+  assert.match(SCRIPT, /async function stopWithError\(gen: number, message: string\) \{\n  if \(gen !== generation\) return\n  await stopAndRefocus\(\)\n  micError\.value = message/)
+  assert.match(SCRIPT, /await stopWithError\(gen, message\)/)
+  // Dark only when nothing is heard; a new tempo keeps the old one until it locks, so the grid
+  // drifts as the page says.
+  assert.match(SCRIPT, /to\.status === 'listening' && \(to\.reason === 'pulse-lost' \|\| to\.reason === 'audio-lost'\)\) micBpm\.value = null/)
+  // A fatal fault in the library stops the light and says so.
+  assert.match(SCRIPT, /to\.status === 'stopped' && to\.error/)
+})
+
+test('a held Enter on Start does not start it again and again', () => {
+  assert.match(TEMPLATE, /ref="startButton"[\s\S]{0,300}@keydown\.enter="onStartKey"/)
+  assert.match(SCRIPT, /function onStartKey\(event: KeyboardEvent\) \{\n  if \(event\.repeat\) event\.preventDefault\(\)/)
 })
 
 // ── The page ────────────────────────────────────────────────────────────────────────────────

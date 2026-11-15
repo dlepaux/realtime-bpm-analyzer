@@ -69,8 +69,8 @@ Need the tempo first? [Tap it](/tap-tempo), or detect it with the
   beat, so with an odd number of beats per bar the white downbeat shows every
   second bar. Near 180 BPM, on a slow or uneven screen, a flash is sometimes
   skipped so the light never goes over three flashes a second.
-- **With the microphone, the light goes dark when no beat is heard,** and
-  starts again once a steady tempo is found.
+- **With the microphone, the light goes dark when no beat is heard** or the
+  sound is lost, and starts again once a steady tempo is found.
 - **Full screen and the awake screen depend on the browser.** iPhone Safari,
   for one, can't show a web page full screen.
 

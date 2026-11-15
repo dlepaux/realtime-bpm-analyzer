@@ -135,6 +135,11 @@ function halt() {
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined)
 }
 
+// A held Enter repeats onto Start once a stop returns focus there: only a fresh press starts it.
+function onStartKey(event: KeyboardEvent) {
+  if (event.repeat) event.preventDefault()
+}
+
 /** Every stop path: halts, then gives the keyboard back to the Start button. */
 async function stopAndRefocus() {
   if (!running.value) return
@@ -185,13 +190,15 @@ async function listen(gen: number) {
     // Not connected to the speakers: the sound is analysed and dropped.
     context.createMediaStreamSource(opened).connect(analyzer.input)
     // Flashes follow a locked tempo only; a lock can move without a statechange, so readings
-    // update it. Unlocked, a tempo is still heard and the last one holds; with no pulse, it goes dark.
+    // update it. Unlocked or following a new tempo, the last one holds and the grid drifts until
+    // the next lock; with no pulse or no input, it goes dark.
     analyzer.on('reading', (reading) => {
       if (analyzer.state.status === 'locked') micBpm.value = reading.bpm
     })
     analyzer.on('statechange', ({ to }) => {
       if (to.status === 'locked') micBpm.value = to.reading.bpm
-      if (to.status === 'listening') micBpm.value = null
+      if (to.status === 'listening' && (to.reason === 'pulse-lost' || to.reason === 'audio-lost')) micBpm.value = null
+      if (to.status === 'stopped' && to.error) void stopWithError(gen, 'The tempo reading stopped. Check your microphone and try again.')
     })
     input?.addEventListener('ended', () => void stopAndRefocus())
   } catch (error) {
@@ -201,10 +208,15 @@ async function listen(gen: number) {
       ? 'Microphone access denied. Enable it in your browser settings and try again.'
       : 'Couldn’t start the microphone. Check your device and try again.'
     console.error('[StrobeLight] mic setup failed:', error)
-    // Shown once the setup panel is back, so the alert is announced and Start describes it.
-    await stopAndRefocus()
-    micError.value = message
+    await stopWithError(gen, message)
   }
+}
+
+// Shown once the setup panel is back, so the alert is announced and Start describes it.
+async function stopWithError(gen: number, message: string) {
+  if (gen !== generation) return
+  await stopAndRefocus()
+  micError.value = message
 }
 
 function dispose(held: { stream: MediaStream; context: AudioContext; analyzer: BpmAnalyzer }) {
@@ -257,6 +269,8 @@ function onKeyDown(event: KeyboardEvent) {
     return
   }
   const target = event.target instanceof HTMLElement ? event.target : null
+  // A text field elsewhere on the page, such as the search, keeps its keys.
+  if (target?.closest('input, select, textarea, [contenteditable="true"]')) return
   // While it runs, focus is on Stop or the stage's controls: the keys work from there too.
   if (!running.value && target?.closest('a, button, input, select, textarea, [contenteditable="true"]')) return
   const typed = source.value === 'typed'
@@ -477,6 +491,7 @@ onBeforeUnmount(() => {
           type="button"
           class="tt-btn tt-btn-primary strobe-start"
           :aria-describedby="micError ? 'strobe-error strobe-warning' : 'strobe-warning'"
+          @keydown.enter="onStartKey"
           @click="startFromClick"
         >
           <Zap :size="20" /> Start the strobe

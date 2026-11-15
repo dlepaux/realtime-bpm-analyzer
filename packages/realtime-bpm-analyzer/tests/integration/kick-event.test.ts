@@ -18,6 +18,12 @@ import {closeAudioContext, createTestAudioContext} from '../setup';
  *   clock: the detector's own error, and half a 60 Hz frame.
  * - Delay to the listener: median 40 ms, max 150 ms. A runner's main thread stalls now and then, and a test that
  *   failed on that would measure the runner. The report gives the measured numbers, which are what counts.
+ *
+ * The delay is read on the render clock as a bare worklet posts it every quantum, not on `contextNow`'s output
+ * timestamp: Firefox shifts both halves of `getOutputTimestamp()` back by `outputLatency` (measured on 132 and 158),
+ * so the output timestamp plus `outputLatency` runs that far ahead there, 48 ms on CI, and the delay read 62-67 ms
+ * where it was 14-19. The probe's clock reads early by one message's crossing instead, about 2 ms in Chromium. Both
+ * readings are logged, with the bare message's own crossing, so the log shows which clock moved.
  */
 describe('BpmAnalyzer - kick events from live inputs', function () {
   this.timeout(20_000);
@@ -28,10 +34,34 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
   let audioContext: AudioContext;
   let cleanups: Array<() => void> = [];
 
-  beforeEach(() => {
+  /** The last message of the clock probe: the render clock when it was posted, and when it was received */
+  let probe: {at: number; wall: number} | null;
+  /** The bare probe message's crossing, on the two clocks that do not depend on it */
+  let crossings: Array<{byCurrentTime: number; byOutputClock: number}>;
+
+  beforeEach(async () => {
     audioContext = createTestAudioContext();
     cleanups = [];
+    probe = null;
+    crossings = [];
+    const url = URL.createObjectURL(new Blob([clockProbeModule], {type: 'text/javascript'}));
+    await audioContext.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+    const node = new AudioWorkletNode(audioContext, 'kick-test-clock-probe');
+    const mute = audioContext.createGain();
+    mute.gain.value = 0;
+    node.connect(mute).connect(audioContext.destination);
+    node.port.onmessage = (event: MessageEvent<number>) => {
+      probe = {at: event.data, wall: performance.now()};
+      crossings.push({byCurrentTime: audioContext.currentTime - event.data, byOutputClock: contextNow(audioContext) - event.data});
+    };
   });
+
+  /** The render clock now: the probe's last post run on by the time since, never behind currentTime */
+  function renderNow(): number {
+    const sincePost = probe === null ? -Infinity : probe.at + ((performance.now() - probe.wall) / 1000);
+    return Math.max(audioContext.currentTime, sincePost);
+  }
 
   afterEach(async () => {
     cleanups.forEach(cleanup => {
@@ -55,9 +85,9 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
 
   /** Every kick, with the context time its listener ran at */
   function listen(analyzer: BpmAnalyzer) {
-    const heard: Array<{kick: Kick; at: number}> = [];
+    const heard: Array<{kick: Kick; at: number; byOutputClock: number}> = [];
     analyzer.on('kick', kick => {
-      heard.push({kick, at: contextNow(audioContext)});
+      heard.push({kick, at: renderNow(), byOutputClock: contextNow(audioContext)});
     });
     return heard;
   }
@@ -69,10 +99,12 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
   }
 
   /** Checks and logs what one input heard, against the scene's kicks shifted by `offset` on the context clock */
-  function assertHeard(input: string, heard: ReadonlyArray<{kick: Kick; at: number}>, truth: readonly number[], offset: number, timingBound: number) {
+  function assertHeard(input: string, heard: ReadonlyArray<{kick: Kick; at: number; byOutputClock: number}>, truth: readonly number[], offset: number, timingBound: number) {
     const score = scoreKicks(truth.map(time => time + offset), heard.map(({kick}) => kick.contextTime), 0.05);
     const delays = heard.map(({kick, at}) => at - kick.contextTime);
     const ms = (value: number) => Number((value * 1000).toFixed(1));
+    const spread = (values: readonly number[]) => ({median: ms(absolutePercentile(values, 0.5)), p90: ms(absolutePercentile(values, 0.9)), max: ms(absolutePercentile(values, 1))});
+    const timestamp = audioContext.getOutputTimestamp();
     console.log(`KICK-DELAY ${JSON.stringify({
       input,
       browser: navigator.userAgent,
@@ -82,7 +114,10 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
       kicks: score.kicks,
       hits: score.hits,
       falseKicks: score.falseKicks,
-      delayMs: {median: ms(absolutePercentile(delays, 0.5)), p90: ms(absolutePercentile(delays, 0.9)), max: ms(absolutePercentile(delays, 1))},
+      delayMs: spread(delays),
+      delayByOutputClockMs: spread(heard.map(({kick, byOutputClock}) => byOutputClock - kick.contextTime)),
+      bareMessageMs: {byCurrentTime: spread(crossings.map(({byCurrentTime}) => byCurrentTime)), byOutputClock: spread(crossings.map(({byOutputClock}) => byOutputClock))},
+      outputTimestampBehindMs: {contextTime: ms(audioContext.currentTime - timestamp.contextTime), performanceTime: Number((performance.now() - timestamp.performanceTime).toFixed(1))},
       timingMs: {median: ms(absolutePercentile(score.errors, 0.5)), max: ms(absolutePercentile(score.errors, 1))},
     })}`);
 
@@ -169,6 +204,14 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
     });
   }
 });
+
+/** A bare worklet that posts its clock on every quantum and does nothing else, as the tests' render clock */
+const clockProbeModule = `registerProcessor('kick-test-clock-probe', class extends AudioWorkletProcessor {
+  process() {
+    this.port.postMessage(currentTime);
+    return true;
+  }
+});`;
 
 /**
  * Encodes mono samples as a 16-bit PCM WAV file

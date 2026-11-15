@@ -11,8 +11,11 @@ import {analyzeSamples} from './offline';
  * @param context - The AudioContext or OfflineAudioContext to create the filter in
  * @param options - The cutoff and Q, the same settings as the offline `engine: {name: 'peaks', lowpass}`
  * @returns A configured BiquadFilterNode ready to use in an audio graph
- * @throws {TypeError} When the settings carry a key other than `frequency` and `q`, such as a 5.x name or the DOM's `Q`
- * @throws {RangeError} When the frequency or Q is not a finite number
+ * @throws {TypeError} When the settings are not an object, `null` or `undefined`, carry a key other than `frequency`
+ * and `q` (such as a 5.x name or the DOM's `Q`), or hold a setting that is not a number
+ * @throws {RangeError} When a setting is `NaN` or infinite, the frequency is not above 0 and below half the
+ * context's sample rate, where Web Audio would clamp it silently, or `q` is not from -758 to 770 dB, where Web
+ * Audio's 32-bit resonance term stops being a normal, finite float
  *
  * @example
  * ```typescript
@@ -41,7 +44,7 @@ export function getBiquadFilter(
   context: OfflineAudioContext | AudioContext,
   options?: LowpassOption,
 ): BiquadFilterNode {
-  const {frequency, q} = resolveLowpass(options);
+  const {frequency, q} = resolveLowpass(options, context.sampleRate);
   const lowpass = context.createBiquadFilter();
 
   lowpass.type = 'lowpass';
@@ -54,8 +57,11 @@ export function getBiquadFilter(
 /**
  * Apply to the source a biquad lowpass filter
  * @param buffer - Audio buffer
- * @param options - The lowpass settings
+ * @param options - The lowpass settings, checked at the buffer's sample rate as `getBiquadFilter` checks them
  * @returns A Promise that resolves an AudioBuffer instance
+ * @throws {TypeError} As `getBiquadFilter` does
+ * @throws {RangeError} As `getBiquadFilter` does, the frequency against half the buffer's sample rate, and `q`
+ * outside -758 to 770 dB
  * @internal
  */
 export async function getOfflineLowPassSource(
@@ -98,7 +104,10 @@ export async function getOfflineLowPassSource(
  * @returns The reading, the same shape as a realtime one, or null when no tempo was found
  * @throws {Error} When the buffer is empty or its sample rate is not positive
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
- * @throws {TypeError} When an option has its 5.x name, or `engine.lowpass` carries a key other than `frequency` and `q`
+ * @throws {TypeError} When an option has its 5.x name, or `engine.lowpass` is not an object, `null` or `undefined`,
+ * carries a key other than `frequency` and `q`, or holds a setting that is not a number
+ * @throws {RangeError} When an `engine.lowpass` setting is `NaN` or infinite, its frequency is not above 0 and
+ * below half the buffer's sample rate, or its `q` is not from -758 to 770 dB
  *
  * @example
  * ```typescript

@@ -173,7 +173,7 @@ With the `peaks` engine, `analyzer.input` puts a low-pass filter in front of the
 
 **Frequency Response:**
 - **Frequency**: 200 Hz cutoff (whole-file analysis can set its own: `engine: { name: 'peaks', lowpass: { frequency, q } }`)
-- **Q Factor**: 1 (mild slope)
+- **Q**: 1 dB of resonance at the cutoff, as Web Audio reads a lowpass `Q` (not a linear Q factor)
 - **Type**: Lowpass
 
 This helps isolate kick drums and bass elements that carry the rhythm.

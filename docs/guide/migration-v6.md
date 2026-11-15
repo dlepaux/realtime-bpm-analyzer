@@ -27,7 +27,7 @@ Every 5.x name and its v6 form. The sections below show each with before-and-aft
 | `continuousAnalysis` and `stabilizationTime` (ms) | `engine: { name: 'peaks', restartAfterSeconds }` (seconds) |
 | `muteTimeInIndexes` | removed |
 | `analyzeFullBuffer` and Node's `analyzeChannelData` options `frequencyValue`, `qualityValue` | `engine: { name: 'peaks', lowpass: { frequency, q } }` |
-| `getBiquadFilter` and Node's `applyLowpass` settings `frequencyValue`, `qualityValue`, type `BiquadFilterOptions` | `{ frequency, q }` and no other key, type `LowpassOption` |
+| `getBiquadFilter` and Node's `applyLowpass` settings `frequencyValue`, `qualityValue`, type `BiquadFilterOptions` | `{ frequency, q }` and no other key, type `LowpassOption`: `frequency` in Hz above 0 and below half the sample rate (5.x clamped it silently), `q` the resonance in dB as Web Audio reads a lowpass `Q`, from -758 to 770 dB |
 | event `bpm` | `reading` |
 | event `bpmStable` | `statechange` with `to.status === 'locked'` |
 | event `analyzerReset` | `statechange` to `listening`, reason `audio-lost`, `tempo-changed` or `pulse-lost` |
@@ -144,6 +144,15 @@ analyzeFullBuffer(audioBuffer, { engine: { name: 'peaks', lowpass: { frequency: 
 They take the `{ frequency, q }` of `engine.lowpass`, and their type is `LowpassOption`. `BiquadFilterOptions` is gone: the DOM declares a global type by that name with other fields, which TypeScript would accept in its place.
 
 The settings accept `frequency` and `q` and no other key. Any other key throws a `TypeError` that names it, whatever its value, so a DOM `BiquadFilterOptions` with `Q`, `detune`, `type` or `gain` fails at once, and so does a typo, instead of being dropped. Fold a `detune` into the frequency: `frequency × 2^(detune/1200)`.
+
+`q` means what it meant in 5.x's `qualityValue`: the resonance at the cutoff in dB, as Web Audio reads a lowpass `Q`, not the Audio EQ Cookbook's linear Q. The biquad's α is sin(ω0) / (2 × 10^(q/20)), so 0 dB is a linear Q of 1.
+
+v6 also checks the values, on every path, where 5.x clamped or ignored them without a word:
+
+- **Settings that aren't an object.** `150`, `'150'` or an array used to give the defaults. They now throw a `TypeError` that names their type: "The lowpass settings are an object with frequency and q, not a number." `null` and `undefined` still mean the defaults.
+- **A setting that isn't a number.** `{ frequency: '150' }` throws a `TypeError`, and `NaN` or an infinity a `RangeError`. So does `null` for a single setting, such as `{ q: null }`, which 5.x read as the default: leave the key out instead. (`null` for the whole settings still means the defaults.)
+- **A cutoff outside the range.** 5.x clamped `frequency` to [0, Nyquist] as Web Audio does, so 0 or below gave silence, and half the sample rate or above returned the audio unfiltered. A `frequency` that isn't above 0 and below half the sample rate now throws a `RangeError` that names the value, the rate and the range: "The lowpass setting frequency 22050 is out of range: at a sample rate of 44100 Hz, it must be above 0 and below 22050 Hz." The default 200 Hz is valid at any rate above 400 Hz.
+- **A `q` outside -758 to 770 dB.** That is the range where Web Audio's resonance term 10^(q/20) is a normal, finite 32-bit float: below it Chrome's filter outputs NaN from the first sample, and above it the term overflows. 5.x passed any value on to Web Audio. A `q` outside the range now throws a `RangeError`: "The lowpass setting q -800 is out of range: it must be from -758 to 770 dB."
 
 **Before (5.x):**
 ```typescript

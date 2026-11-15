@@ -62,15 +62,28 @@ export type EngineOption =
   };
 
 /**
- * The lowpass settings: the offline `engine: {name: 'peaks', lowpass}` and `getBiquadFilter` take the same ones.
- * Each must be a finite number. No other key is accepted: one throws a `TypeError` that names it, whatever its value,
- * `undefined` included. That covers the 5.x names `frequencyValue` and `qualityValue`, the DOM's `Q`, `detune`, `type`
- * and `gain`, which TypeScript lets through from a `BiquadFilterOptions`, and typos.
+ * The lowpass settings: the offline `engine: {name: 'peaks', lowpass}`, `getBiquadFilter` and Node's `applyLowpass`
+ * take the same ones. `null` or `undefined` means the defaults. Anything else that is not an object, an array
+ * included, throws a `TypeError` that names its type. No key but `frequency` and `q` is accepted: another throws a
+ * `TypeError` that names it, whatever its value, `undefined` included. That covers the 5.x names `frequencyValue` and
+ * `qualityValue`, the DOM's `Q`, `detune`, `type` and `gain`, which TypeScript lets through from a
+ * `BiquadFilterOptions`, and typos. Each setting is a finite number: another type throws a `TypeError`, and `NaN` or
+ * an infinity a `RangeError`, as does a value outside its range.
  */
 export type LowpassOption = {
-  /** Cutoff in Hz. Default 200, which keeps the kick drum and the bass. */
+  /**
+   * Cutoff in Hz, above 0 and below half the sample rate once rounded to the 32-bit float Web Audio stores, or a
+   * `RangeError` names the value, the rate and the range.
+   * (5.x, after Web Audio, clamped it silently: 0 or below gave silence, and Nyquist or above no filter at all.)
+   * Default 200, which keeps the kick drum and the bass, and is valid at any rate above 400 Hz.
+   */
   readonly frequency?: number;
-  /** Resonance in dB, as Web Audio reads a lowpass `Q`. Default 1. */
+  /**
+   * Resonance at the cutoff in dB, as Web Audio reads a lowpass `Q`, not the Audio EQ Cookbook's linear Q: the
+   * biquad's α is sin(ω0) / (2 × 10^(q/20)). So 0 dB is a linear Q of 1, a positive `q` raises a peak at the cutoff,
+   * and a negative one rounds it off. From -758 to 770 dB, where 10^(q/20) is a normal, finite 32-bit float as Web
+   * Audio computes it, or a `RangeError` names the value and the range. Default 1.
+   */
   readonly q?: number;
 };
 

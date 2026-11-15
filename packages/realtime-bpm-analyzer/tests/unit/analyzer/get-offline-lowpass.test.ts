@@ -171,6 +171,76 @@ describe('analyzer - getOfflineLowPassSource', () => {
         expect((caught as Error).message).to.contain(`The lowpass setting ${Object.keys(options)[0]} `).and.to.contain(reason);
       }
     });
+
+    /** The error the render rejects with, or undefined when it resolves */
+    async function renderError(buffer: AudioBuffer, options: unknown): Promise<unknown> {
+      try {
+        await getOfflineLowPassSource(buffer, options as LowpassOption);
+        return undefined;
+      } catch (error) {
+        return error;
+      }
+    }
+
+    it('refuses settings that are not an object, naming their type and not their value', async () => {
+      const buffer = audioContext.createBuffer(1, 128, sampleRate);
+      const notObjects: Array<[unknown, string]> = [[150, 'a number'], ['150', 'a string'], [true, 'a boolean'], [[150, 1], 'an array'], [() => 150, 'a function']];
+      for (const [settings, kind] of notObjects) {
+        const caught = await renderError(buffer, settings);
+        expect(caught, kind).to.be.instanceOf(TypeError);
+        expect((caught as Error).message).to.equal(`The lowpass settings are an object with frequency and q, not ${kind}.`);
+      }
+    });
+
+    it('refuses a frequency that is not above 0 and below half the buffer\'s rate, which 5.x clamped silently', async () => {
+      // At 8 kHz too, so the rule is seen to follow the buffer's rate rather than a fixed one
+      for (const rate of [sampleRate, 8000]) {
+        const buffer = audioContext.createBuffer(1, 128, rate);
+        for (const frequency of [0, -1, rate / 2, rate]) {
+          const caught = await renderError(buffer, {frequency});
+          expect(caught, `${frequency} at ${rate}`).to.be.instanceOf(RangeError);
+          expect((caught as Error).message).to.equal(`The lowpass setting frequency ${frequency} is out of range: at a sample rate of ${rate} Hz, it must be above 0 and below ${rate / 2} Hz.`);
+        }
+      }
+    });
+
+    it('refuses a q outside -758 to 770 dB, where Web Audio\'s 32-bit resonance term stops being a normal finite float', async () => {
+      // Chrome rendered NaN from the first sample below about -758.6 dB, and 10^(q/20) overflows float32 above about 770.6
+      const buffer = audioContext.createBuffer(1, 128, sampleRate);
+      for (const q of [-759, 771, -800, -Number.MAX_VALUE, Number.MAX_VALUE]) {
+        const caught = await renderError(buffer, {q});
+        expect(caught, String(q)).to.be.instanceOf(RangeError);
+        expect((caught as Error).message).to.equal(`The lowpass setting q ${q} is out of range: it must be from -758 to 770 dB.`);
+      }
+    });
+
+    it('renders a finite output for a q at both ends of its range, 0 and the default', async () => {
+      const length = 4096;
+      const buffer = audioContext.createBuffer(1, length, sampleRate);
+      const input = new Float32Array(length);
+      for (let i = 0; i < length; i++) {
+        // A 100 Hz tone and a click every 1024 samples, a normal input with energy at and around the cutoff
+        input[i] = (0.5 * Math.sin(2 * Math.PI * 100 * i / sampleRate)) + (i % 1024 === 0 ? 0.5 : 0);
+      }
+
+      buffer.copyToChannel(input, 0);
+      for (const q of [-758, 770, 0, undefined]) {
+        const rendered = (await getOfflineLowPassSource(buffer, {q})).getChannelData(0);
+        expect(rendered.every(Number.isFinite), String(q)).to.equal(true);
+      }
+    });
+
+    it('renders the defaults across the rates Web Audio must support, and a frequency just inside both ends', async () => {
+      for (const rate of [8000, 96_000]) {
+        const buffer = audioContext.createBuffer(1, 128, rate);
+        expect(await renderError(buffer, undefined), String(rate)).to.equal(undefined);
+      }
+
+      const buffer = audioContext.createBuffer(1, 128, sampleRate);
+      for (const frequency of [0.001, (sampleRate / 2) - 0.01]) {
+        expect(await renderError(buffer, {frequency}), String(frequency)).to.equal(undefined);
+      }
+    });
   });
 
   describe('edge cases', () => {

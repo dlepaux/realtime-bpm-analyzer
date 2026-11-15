@@ -1,5 +1,6 @@
 import {expect} from 'chai';
 import {createRealtimeBpmAnalyzer, analyzeFullBuffer, getBiquadFilter, BpmAnalyzer} from '../../src/index';
+import type {LowpassOption} from '../../src/index';
 import {createTestAudioContext, closeAudioContext} from '../setup';
 
 /**
@@ -439,6 +440,60 @@ describe('getBiquadFilter', () => {
     it('refuses a setting that is not a finite number', () => {
       expect(() => getBiquadFilter(audioContext, {frequency: Number.NaN})).to.throw(RangeError, /frequency NaN/);
       expect(() => getBiquadFilter(audioContext, {q: Number.POSITIVE_INFINITY})).to.throw(RangeError, /q Infinity/);
+    });
+
+    it('refuses settings that are not an object, naming their type and not their value', () => {
+      const notObjects: Array<[unknown, string]> = [[150, 'a number'], ['150', 'a string'], [true, 'a boolean'], [[150, 1], 'an array'], [() => 150, 'a function']];
+      for (const [settings, kind] of notObjects) {
+        expect(() => getBiquadFilter(audioContext, settings as LowpassOption), kind)
+          .to.throw(TypeError, `The lowpass settings are an object with frequency and q, not ${kind}.`);
+      }
+    });
+
+    it('refuses a setting that is not a number, naming its type', () => {
+      const asString = {frequency: '150'} as unknown as LowpassOption;
+      expect(() => getBiquadFilter(audioContext, asString)).to.throw(TypeError, 'The lowpass setting frequency is a string: it must be a finite number.');
+    });
+
+    it('refuses a frequency that is not above 0 and below half the context\'s rate, which 5.x clamped silently', () => {
+      const {sampleRate} = audioContext;
+      for (const frequency of [0, -1, sampleRate / 2, sampleRate]) {
+        expect(() => getBiquadFilter(audioContext, {frequency}), String(frequency)).to.throw(
+          RangeError,
+          `The lowpass setting frequency ${frequency} is out of range: at a sample rate of ${sampleRate} Hz, it must be above 0 and below ${sampleRate / 2} Hz.`,
+        );
+      }
+    });
+
+    it('refuses a frequency that the AudioParam\'s 32-bit float would round onto Nyquist or 0', () => {
+      const {sampleRate} = audioContext;
+      for (const frequency of [(sampleRate / 2) - 0.0005, 1e-50]) {
+        expect(() => getBiquadFilter(audioContext, {frequency}), String(frequency)).to.throw(RangeError, 'as the 32-bit float Web Audio stores) is out of range');
+      }
+    });
+
+    it('refuses a q outside -758 to 770 dB, where Web Audio\'s 32-bit resonance term stops being a normal finite float', () => {
+      for (const q of [-759, 771, -800, -Number.MAX_VALUE, Number.MAX_VALUE]) {
+        expect(() => getBiquadFilter(audioContext, {q}), String(q)).to.throw(
+          RangeError,
+          `The lowpass setting q ${q} is out of range: it must be from -758 to 770 dB.`,
+        );
+      }
+    });
+
+    it('accepts a q at both ends of its range, 0 and the default', () => {
+      for (const q of [-758, 770, 0]) {
+        expect(getBiquadFilter(audioContext, {q}).Q.value, String(q)).to.equal(q);
+      }
+
+      expect(getBiquadFilter(audioContext).Q.value).to.equal(1);
+    });
+
+    it('accepts a frequency just inside both ends', () => {
+      // 0.01 Hz under Nyquist survives the AudioParam's 32-bit float, whose step there is about 0.002 Hz
+      for (const frequency of [0.001, (audioContext.sampleRate / 2) - 0.01]) {
+        expect(getBiquadFilter(audioContext, {frequency}).frequency.value).to.be.closeTo(frequency, 0.005);
+      }
     });
   });
 });

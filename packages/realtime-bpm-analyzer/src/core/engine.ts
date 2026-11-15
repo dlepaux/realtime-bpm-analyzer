@@ -141,11 +141,16 @@ export function resolveEngine(engine: EngineOption | undefined, tempoRange: Temp
 /**
  * Validates the offline `engine` option
  * @param engine The caller's option, {@link defaultEngine} when absent
+ * @param sampleRate The rate of the samples, which bounds the lowpass frequency
  * @returns The engine name, and the lowpass settings for `peaks`
- * @throws {RangeError} When the engine is unknown, or a lowpass setting is not a finite number
- * @throws {TypeError} When `lowpass` carries a key other than `frequency` and `q`
+ * @throws {RangeError} When the engine is unknown, or a lowpass value is out of range (see {@link resolveLowpass})
+ * @throws {TypeError} When `lowpass` is not an object, `null` or `undefined`, carries a key other than `frequency`
+ * and `q`, or holds a setting that is not a number
  */
-export function resolveOfflineEngine(engine: OfflineEngineOption | undefined): {name: EngineName; lowpass: LowpassOption} {
+export function resolveOfflineEngine(
+  engine: OfflineEngineOption | undefined,
+  sampleRate: number,
+): {name: EngineName; lowpass: LowpassOption} {
   const value: unknown = engine ?? defaultEngine;
 
   if (value === 'peaks' || value === 'tempogram') {
@@ -156,14 +161,10 @@ export function resolveOfflineEngine(engine: OfflineEngineOption | undefined): {
     throw new RangeError(`Invalid engine: ${JSON.stringify(value)}. Use 'peaks', 'tempogram' or {name: 'peaks', lowpass}.`);
   }
 
-  const lowpass: unknown = value.lowpass ?? {};
-  if (!isRecord(lowpass)) {
-    throw new RangeError('Invalid engine.lowpass: use {frequency?, q?}.');
-  }
-
   // Checked here, before the costly filtering, with the same rules every lowpass path applies
-  const settings = lowpass as LowpassOption;
-  resolveLowpass(settings);
+  const {lowpass} = value;
+  resolveLowpass(lowpass, sampleRate);
+  const settings = (lowpass ?? {}) as LowpassOption;
   return {name: 'peaks', lowpass: {frequency: settings.frequency, q: settings.q}};
 }
 

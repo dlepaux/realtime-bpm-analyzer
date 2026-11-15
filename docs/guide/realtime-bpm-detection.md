@@ -385,8 +385,8 @@ returns both of its times `outputLatency` early, though (measured in Firefox
 on a Mac's speakers, 48 ms on a Linux sound server. The recipe above is off
 by little: in Chrome 157, `currentTime` runs about 3 ms ahead of
 `getOutputTimestamp()`'s `contextTime` plus `outputLatency`, run on to now,
-so its visual comes that much early, and in Firefox `currentTime` stands still between updates, so its
-visual comes up to one update late.
+so its visual comes that much early, and in Firefox `currentTime` stands
+still between updates, so its visual comes up to one update late.
 
 **Its limits:**
 

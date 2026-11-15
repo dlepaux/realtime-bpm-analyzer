@@ -79,9 +79,9 @@ Don't know the tempo? Find it from the file with the
 [video BPM finder](/video-bpm), from a song with the
 [BPM finder](/), or [tap it](/tap-tempo).
 
-For a marker on every beat in your editor, drop the file on the
-[video BPM finder](/video-bpm#export-beat-markers) and export beat markers. They
-suit songs with a steady tempo.
+For a marker on every beat in your editor, drop the song on the
+[beat markers](/beat-markers) page and export a file for Premiere Pro, DaVinci
+Resolve or Final Cut Pro. The markers suit songs with a steady tempo.
 
 ## Frequently asked questions
 

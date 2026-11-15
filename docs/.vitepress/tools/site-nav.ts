@@ -18,6 +18,7 @@ const FREE_TOOLS: DefaultTheme.NavItemWithChildren = {
     { text: 'BPM to ms Calculator', link: '/bpm-to-ms' },
     { text: 'Video BPM Finder', link: '/video-bpm' },
     { text: 'BPM to Frames Calculator', link: '/bpm-to-frames' },
+    { text: 'Beat Markers', link: '/beat-markers' },
     { text: 'Metronome', link: '/metronome' },
   ],
 }

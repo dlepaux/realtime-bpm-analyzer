@@ -256,6 +256,12 @@ export const EVENTS = {
     repeats: 'Each click.',
     privacy: 'When you open a tool from the list on the home page: which tool.',
   },
+  bpm_markers_home_clicked: {
+    // No param, so GA4 counts it with no custom definition to register (RBA-116).
+    params: {},
+    repeats: 'Each click.',
+    privacy: 'When you open the beat markers page from the line in the analyzer on the home page.',
+  },
   bpm_markers_exported: {
     params: { format: 'required', frame_rate: 'required', export_format: 'required' },
     repeats: 'Once per file result, on the first download.',

@@ -106,6 +106,18 @@ export const MARKER_FORMATS: readonly { id: MarkerFormat; label: string; extensi
 ]
 
 /**
+ * How to bring each file into its editor, as the export panel shows it under the format picker.
+ * /beat-markers prints the same sentences word for word (beat-markers-page.test.ts), so the
+ * steps live here, once, for both (RBA-116).
+ */
+export const IMPORT_STEPS: Readonly<Record<MarkerFormat, string>> = {
+  fcp7xml: 'In Premiere Pro: File > Import, then pick the file. It adds a sequence with a marker on every beat.',
+  edl: 'In DaVinci Resolve: right-click your timeline in the Media Pool, then Timelines > Import > Timeline Markers from EDL. The markers assume the timeline starts at 01:00:00:00.',
+  fcpxml: 'In Final Cut Pro: File > Import > XML. It adds a project with a marker on every beat.',
+  csv: 'One row per beat, with the time in seconds, the frame and the timecode.',
+}
+
+/**
  * The timecodes a format can write: every one, but the FCP7 XML has drop-frame only at a 30
  * timebase (see displayformat above), so it has no 59.94 DF.
  */

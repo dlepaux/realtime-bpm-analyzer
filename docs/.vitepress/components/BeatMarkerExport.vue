@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ChevronDown, Download } from 'lucide-vue-next'
 import { useAnalytics } from '../composables/useAnalytics'
 import {
+  IMPORT_STEPS,
   MARKER_FORMATS,
   beatTimes,
   markerFile,
@@ -16,6 +18,8 @@ import { fallbackNote, firstBeatOf, fitTempo, onsetCurveInSlices, type GridTempo
 // the RBA-109 demand test: `bpm_markers_exported` fires once per result, on the first download,
 // so exports divided by `bpm_file_result` reads the share of results that exported. The parent
 // mounts a fresh instance per result (v-if on the result state), which resets that.
+// The step reads as the result's action, a filled pill, since a small link under the result went
+// unseen (RBA-116). On /beat-markers, where a visitor came for the markers, it opens by itself.
 const props = defineProps<{
   /** The analysed file's name: the sequence name and the download's name, never sent anywhere. */
   fileName: string
@@ -33,18 +37,13 @@ const props = defineProps<{
    */
   samples: Float32Array | null
   sampleRate: number
+  /** Open on arrival, measuring at once: the /beat-markers page, where the export is the point. */
+  startOpen?: boolean
 }>()
 
 const emit = defineEmits<{ searched: [] }>()
 
 const { track } = useAnalytics()
-
-const IMPORT_STEPS: Record<MarkerFormat, string> = {
-  fcp7xml: 'In Premiere Pro: File > Import, then pick the file. It adds a sequence with a marker on every beat.',
-  edl: 'In DaVinci Resolve: right-click your timeline in the Media Pool, then Timelines > Import > Timeline Markers from EDL. The markers assume the timeline starts at 01:00:00:00.',
-  fcpxml: 'In Final Cut Pro: File > Import > XML. It adds a project with a marker on every beat.',
-  csv: 'One row per beat, with the time in seconds, the frame and the timecode.',
-}
 
 const format = ref<MarkerFormat>('fcp7xml')
 const timecodeId = ref('24')
@@ -60,8 +59,18 @@ onBeforeUnmount(() => { unmounted = true })
 
 const nextTask = () => new Promise<void>((resolve) => window.setTimeout(resolve, 0))
 
-async function onToggle(event: Event) {
-  if (!(event.target as HTMLDetailsElement).open || search.value !== 'idle') return
+function onToggle(event: Event) {
+  if ((event.target as HTMLDetailsElement).open) void measure()
+}
+
+// Opened by itself, the panel measures from mount rather than wait on the toggle event the
+// browser queues for an element created open: the guard below makes a second call a no-op.
+onMounted(() => {
+  if (props.startOpen) void measure()
+})
+
+async function measure() {
+  if (search.value !== 'idle') return
   const samples = props.samples
   search.value = 'searching'
   try {
@@ -124,9 +133,25 @@ function download() {
 <template>
   <details
     class="marker-export"
+    :open="startOpen"
     @toggle="onToggle"
   >
-    <summary>Export beat markers</summary>
+    <!-- A summary is a button to assistive tech, named by its text and announced as expanded or
+         collapsed, so it needs no ARIA of its own. -->
+    <summary class="marker-action">
+      <Download
+        :size="18"
+        :stroke-width="2"
+        aria-hidden="true"
+      />
+      <span>Export beat markers</span>
+      <ChevronDown
+        class="marker-chevron"
+        :size="16"
+        :stroke-width="2"
+        aria-hidden="true"
+      />
+    </summary>
     <p class="marker-note">
       {{ intro }} For songs with a steady tempo. Check that the first marker and the last one sit
       on the beat before you cut.
@@ -190,25 +215,58 @@ function download() {
 </template>
 
 <style scoped>
+/* No top margin: the result's own gap spaces it, and the pill is already taller than the old link
+   was, inside the room the card keeps for a result (RBA-66). */
 .marker-export {
-  margin-top: 0.6rem;
   font-size: 0.85rem;
   text-align: left;
 }
 
-.marker-export summary {
+/* The result's action: the card's filled colours (tokens.css), at a finger's size. A flex summary
+   drops the disclosure triangle, so the chevron shows the open state instead. */
+.marker-action {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  min-height: 44px;
+  margin: 0 auto;
+  padding: 0 1.2rem;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--rba-action);
   cursor: pointer;
-  text-align: center;
-  font-weight: 500;
-  color: var(--vp-c-brand-1);
+  list-style: none;
+  transition: background-color 0.2s ease;
 }
 
-.marker-export summary:focus-visible,
+.marker-action::-webkit-details-marker { display: none; }
+.marker-action:hover { background: var(--rba-action-hover); }
+.marker-action > :deep(svg) { flex-shrink: 0; }
+.marker-chevron { transition: transform 0.2s ease; }
+.marker-export[open] .marker-chevron { transform: rotate(180deg); }
+
+/* Open, the toggle steps back to an outline, so the download is the one filled action left. */
+.marker-export[open] .marker-action {
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-bg);
+  box-shadow: inset 0 0 0 1px var(--vp-c-divider);
+}
+
+.marker-export[open] .marker-action:hover { box-shadow: inset 0 0 0 1px var(--vp-c-brand-1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .marker-chevron { transition: none; }
+}
+
+.marker-action:focus-visible,
 .marker-export select:focus-visible,
+/* No radius here: the outline follows each control's own shape, and a pill keeps its round ends. */
 .marker-download:focus-visible {
   outline: 2px solid var(--vp-c-brand-1);
   outline-offset: 2px;
-  border-radius: 4px;
 }
 
 .marker-note {

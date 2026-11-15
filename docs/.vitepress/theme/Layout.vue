@@ -1,24 +1,25 @@
 <script setup lang="ts">
 import DefaultTheme from 'vitepress/theme'
-import { useData } from 'vitepress'
-import BpmHeroTool from '../components/BpmHeroTool.vue'
+import HomeHero from '../components/HomeHero.vue'
+import HomeToolGrid from '../components/HomeToolGrid.vue'
+import HomeComputerCard from '../components/HomeComputerCard.vue'
+import { STORE_URL } from '../tools/extension-live'
 
 const { Layout } = DefaultTheme
-const { site } = useData()
+// `ext-home` styles nothing now: scripts/extension-switch.ts reads it as the marker that the built
+// home has the extension's layout.
 </script>
 
 <template>
-  <Layout>
-    <!-- The brand sits above the page's only h1, not inside it: the h1 holds the hero's
-         `text` alone, at every width (RBA-129). Below 960px custom.css reorders the
-         hero so the brand and the h1 come before the tool, as one headline. -->
-    <template #home-hero-info-before>
-      <p class="bpm-hero-brand">
-        {{ site.title }}
-      </p>
+  <Layout :class="{ 'ext-home': STORE_URL }">
+    <!-- The home's hero is ours, not VitePress's (see HomeHero.vue). These slots render on
+         the home layout only. -->
+    <template #home-hero-before>
+      <HomeHero />
     </template>
-    <template #home-hero-image>
-      <BpmHeroTool />
+    <template #home-features-before>
+      <HomeToolGrid />
+      <HomeComputerCard v-if="STORE_URL" />
     </template>
   </Layout>
 </template>

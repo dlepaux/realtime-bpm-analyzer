@@ -20,7 +20,7 @@ test('isUrlShaped: catches the addresses people paste and browsers quote', () =>
     'http://10.0.0.2:8000/private-mount',
     'Failed to load https://example.com/stream?token=abc',
     'icecast://radio.example.org/live',
-    'blob:https://bpm.lepaux.com/1234',
+    'blob:https://example.com/1234',
     'data:audio/mpeg;base64,AAAA',
     'spotify:track:4uLU6hMCjMI75M1A2tKUQC',
     'www.example.com',

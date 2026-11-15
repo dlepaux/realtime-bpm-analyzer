@@ -68,14 +68,14 @@ test('llms.txt lists the tutorials and calls the home tool the BPM Finder', () =
 
 test('home: one h1, holding only the hero text, at every width', () => {
   const home = read('../index.md')
-  const hero = home.split(/^hero:$/m)[1]?.split(/^\S/m)[0] ?? ''
-  assert.ok(!/^ {2}name:/m.test(hero), 'hero.name would put the brand inside the h1')
+  // A `hero:` key would bring back VitePress's own hero and its h1 next to HomeHero's (RBA-66).
+  assert.ok(!/^hero:$/m.test(home), 'VitePress would render a second hero')
+  const hero = home.split(/^homeHero:$/m)[1]?.split(/^\S/m)[0] ?? ''
   assert.equal(field(`---\n${hero.replace(/^ {2}/gm, '')}\n---`, 'text'), field(home, 'title'))
-  const layout = read('../.vitepress/theme/Layout.vue')
-  assert.ok(!/<h1\b/.test(layout), 'Layout.vue renders a second h1')
-  // display: none drops VitePress's h1 from the accessibility tree.
-  const css = read('../.vitepress/theme/custom.css')
-  assert.ok(!/\.VPHero[^{]*\.(heading|text|name)\b[^{]*\{[^}]*display:\s*none/.test(css), 'custom.css hides the h1')
+  assert.ok(!/<h1\b/.test(read('../.vitepress/theme/Layout.vue')), 'Layout.vue renders a second h1')
+  const heroView = read('../.vitepress/components/HomeHero.vue')
+  assert.equal(heroView.match(/<h1\b/g)?.length, 1)
+  assert.match(heroView, /<h1[^>]*>\s*\{\{ hero\.text \}\}\s*<\/h1>/, 'the h1 holds the hero text and nothing else')
 })
 
 test('home and the guides link where readers go next', () => {

@@ -4,7 +4,6 @@
 [![npm](https://img.shields.io/npm/dm/realtime-bpm-analyzer.svg)](https://www.npmjs.com/package/realtime-bpm-analyzer)
 [![install size](https://packagephobia.com/badge?p=realtime-bpm-analyzer)](https://packagephobia.com/result?p=realtime-bpm-analyzer)
 [![CI Actions Status](https://github.com/dlepaux/realtime-bpm-analyzer/workflows/CI/badge.svg)](https://github.com/dlepaux/realtime-bpm-analyzer/actions)
-[![codecov](https://codecov.io/gh/dlepaux/realtime-bpm-analyzer/branch/main/graph/badge.svg)](https://codecov.io/gh/dlepaux/realtime-bpm-analyzer)
 
 <div align="center">
   <img src="https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png" alt="Realtime BPM Analyzer" width="600">
@@ -157,6 +156,10 @@ These points cover the library, the CLI and the MCP server:
 The website that presents them, realtime-bpm-analyzer.com, is a separate thing. Its tools analyse your audio in your browser, and the website measures its own pages with Google Analytics, as [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy) describes.
 
 See [privacy.md](privacy.md) and [security.md](security.md) for details.
+
+## Live BPM Detector for Chrome
+
+Want the tempo without writing code? [Live BPM Detector](https://www.realtime-bpm-analyzer.com/extension/) is a free Chrome extension built on this library. It shows the live tempo of the music playing in the current tab, on YouTube, SoundCloud, Bandcamp and more. Your audio never leaves your device. This extension is independent, and is not affiliated with or endorsed by any of these services.
 
 ## Contributing
 

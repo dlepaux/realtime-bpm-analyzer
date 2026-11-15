@@ -10,7 +10,7 @@
   ],
   "overrides": {
     "serialize-javascript": "^7.1.4",
-    "ip-address": "^10.7.5",
+    "ip-address": "^10.7.6",
     "qs": "^6.16.1",
     "esbuild": "^0.28.2",
     "postcss": "^8.5.32",
@@ -49,6 +49,6 @@
     "@vitejs/plugin-vue": "^6.0.10",
     "esbuild": "^0.28.2",
     "husky": "^9.1.7",
-    "vite": "^8.3.5"
+    "vite": "^8.3.6"
   }
 }

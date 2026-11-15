@@ -25,7 +25,8 @@ const VIDEO_LINKS = [{ tool: 'bpm-to-frames', label: 'Frames at every fps' }] as
 const links = computed(() => (props.video ? VIDEO_LINKS : AUDIO_LINKS))
 
 function onClick(tool: string) {
-  track('bpm_tool_link_clicked', { bpm: props.bpm, mode: `${props.source}→${tool}` })
+  // `mode` keeps its old form for the readback; result_source and tool split it (RBA-154).
+  track('bpm_tool_link_clicked', { bpm: props.bpm, mode: `${props.source}→${tool}`, result_source: props.source, tool })
 }
 </script>
 

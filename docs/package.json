@@ -16,6 +16,7 @@
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint .",
     "test": "node --test scripts/*.test.ts",
+    "test:analytics-contract": "node --test scripts/analytics-contract.e2e.ts",
     "verify:extension-switch": "node scripts/verify-extension-switch.ts",
     "verify:seo": "node scripts/verify-seo.ts",
     "lint:fix": "eslint . --fix",
@@ -31,18 +32,19 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.6",
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "eslint-plugin-vue": "^10.12.0",
-    "globals": "^17.13.0",
-    "lucide-static": "^1.63.0",
+    "globals": "^17.14.0",
+    "lucide-static": "^1.70.0",
+    "puppeteer": "^25.16.0",
     "tsx": "^4.23.15",
     "typedoc": "^0.28.20",
     "typedoc-plugin-markdown": "^4.14.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.72.1",
     "vitepress": "^1.6.4",
-    "vue": "^3.5.44",
-    "vue-eslint-parser": "^10.4.1",
-    "vue-tsc": "^3.3.13"
+    "vue": "^3.5.45",
+    "vue-eslint-parser": "^10.4.2",
+    "vue-tsc": "^3.3.14"
   }
 }

@@ -14,7 +14,7 @@
 ## Privacy
 
 - [Library Privacy](https://www.realtime-bpm-analyzer.com/privacy): the library collects nothing and makes no network call of its own
-- [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy): realtime-bpm-analyzer.com measures its own pages with Google Analytics through Google Tag Manager, while audio stays in the browser
+- [Website Privacy](https://www.realtime-bpm-analyzer.com/website-privacy): realtime-bpm-analyzer.com measures its own pages with Google Analytics (gtag.js), while audio stays in the browser
 - [Extension Privacy](https://www.realtime-bpm-analyzer.com/extension/privacy): audio never leaves the device, the extension sends nothing of its own today, and the pages it opens are part of the website
 
 ## Library

@@ -23,7 +23,7 @@ defineProps<{
 
     <dl class="reading-fields">
       <dt>Exact tempo</dt>
-      <dd>{{ reading.bpmExactTypo.toFixed(2) }} BPM</dd>
+      <dd>{{ reading.bpmExact.toFixed(2) }} BPM</dd>
       <dt>Confidence</dt>
       <dd>{{ reading.confidence.toFixed(2) }}</dd>
       <!-- candidates[0] is the reading's own tempo; the others are labelled half, double or other -->

@@ -472,6 +472,23 @@ describe('getBiquadFilter', () => {
       }
     });
 
+    it('refuses a q outside -758 to 770 dB, where Web Audio\'s 32-bit resonance term stops being a normal finite float', () => {
+      for (const q of [-759, 771, -800, -Number.MAX_VALUE, Number.MAX_VALUE]) {
+        expect(() => getBiquadFilter(audioContext, {q}), String(q)).to.throw(
+          RangeError,
+          `The lowpass setting q ${q} is out of range: it must be from -758 to 770 dB.`,
+        );
+      }
+    });
+
+    it('accepts a q at both ends of its range, 0 and the default', () => {
+      for (const q of [-758, 770, 0]) {
+        expect(getBiquadFilter(audioContext, {q}).Q.value, String(q)).to.equal(q);
+      }
+
+      expect(getBiquadFilter(audioContext).Q.value).to.equal(1);
+    });
+
     it('accepts a frequency just inside both ends', () => {
       // 0.01 Hz under Nyquist survives the AudioParam's 32-bit float, whose step there is about 0.002 Hz
       for (const frequency of [0.001, (audioContext.sampleRate / 2) - 0.01]) {

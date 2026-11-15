@@ -37,6 +37,12 @@ const notObjectSettings = [
 /** The message for a frequency outside the open range (0, Nyquist), at the given sample rate */
 const outOfRange = (frequency, sampleRate) => `The lowpass setting frequency ${frequency} is out of range: at a sample rate of ${sampleRate} Hz, it must be above 0 and below ${sampleRate / 2} Hz.`;
 
+/** The message for a q outside -758 to 770 dB */
+const qOutOfRange = q => `The lowpass setting q ${q} is out of range: it must be from -758 to 770 dB.`;
+
+/** Values of q just outside its range, and far outside: Node's float64 math takes all of them, so the rule refuses them */
+const qOutside = [-759, 771, -800, -Number.MAX_VALUE, Number.MAX_VALUE];
+
 /**
  * Reads channel 0 of a PCM WAV file (16 or 24 bit), scaled to [-1, 1] the way
  * decodeAudioData scales it. Enough for the fixture; not a general decoder.
@@ -126,6 +132,15 @@ describe('realtime-bpm-analyzer/node', () => {
     await assert.rejects(analyzeChannelData(createClickTrack(128), 8000, {engine: {name: 'peaks', lowpass: {frequency: 4000}}}), {name: 'RangeError', message: outOfRange(4000, 8000)});
     for (const lowpass of [undefined, null, {}, {frequency: 0.001}, {frequency: 22_049.99}]) {
       await analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass}});
+    }
+
+    for (const q of qOutside) {
+      await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass: {q}}}), {name: 'RangeError', message: qOutOfRange(q)}, String(q));
+    }
+
+    for (const q of [-758, 770, 0, undefined]) {
+      const reading = await analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass: {q}}});
+      assert.ok(reading === null || Number.isFinite(reading.bpm), String(q));
     }
     // The first pick, on 50 to 240, read this at half
     const fast = await analyzeChannelData(createClickTrack(174), 44_100, {engine: 'tempogram'});
@@ -277,6 +292,20 @@ describe('applyLowpass', () => {
       const output = applyLowpass(input, sampleRate, {frequency});
       assert.ok(output.every(Number.isFinite), String(frequency));
       assert.notDeepEqual(output, input, String(frequency));
+    }
+  });
+
+  it('refuses a q outside -758 to 770 dB, the range where Web Audio\'s 32-bit resonance term is a normal finite float', () => {
+    const input = createNoise(100);
+    for (const q of qOutside) {
+      assert.throws(() => applyLowpass(input, sampleRate, {q}), {name: 'RangeError', message: qOutOfRange(q)}, String(q));
+    }
+  });
+
+  it('gives a finite output for a q at both ends of its range, 0 and the default', () => {
+    const input = createClickTrack(128).subarray(0, 44_100);
+    for (const q of [-758, 770, 0, undefined]) {
+      assert.ok(applyLowpass(input, sampleRate, {q}).every(Number.isFinite), String(q));
     }
   });
 

@@ -174,11 +174,11 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
     });
 
     // Bounded, so that an element that never starts fails here and says so, not as the test's timeout
-    console.log('KICK-MEDIA play requested');
+    console.log(`KICK-MEDIA play requested, page ${document.visibilityState}`);
     await Promise.race([
       element.play(),
       waitSeconds(5).then(() => {
-        throw new Error(`the media element did not start within 5 s (readyState ${element.readyState}, networkState ${element.networkState}, error ${element.error?.code ?? 'none'})`);
+        throw new Error(`the media element did not start within 5 s (readyState ${element.readyState}, networkState ${element.networkState}, error ${element.error?.code ?? 'none'}, page ${document.visibilityState})`);
       }),
     ]);
     console.log(`KICK-MEDIA playing at context time ${audioContext.currentTime.toFixed(3)}`);

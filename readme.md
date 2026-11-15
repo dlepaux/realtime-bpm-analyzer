@@ -159,18 +159,20 @@ See the [MCP guide](https://www.realtime-bpm-analyzer.com/guide/mcp) for Claude 
 
 ## Running Examples Locally
 
+From a clean clone, at the repository root:
+
 ```bash
-# Install dependencies
-npm install
+# Install the workspace from the lockfile
+npm ci
 
 # Build the library: the examples import it from its dist/ folder
 npm run build -w realtime-bpm-analyzer
 
 # Run one example
-npm run dev --workspace=examples/01-vanilla-basic
+npm run dev -w examples/01-vanilla-basic
 ```
 
-Each folder in [`examples/`](examples) is one app, in vanilla JavaScript, React or Vue.
+Each folder in [`examples/`](examples) is one app, in vanilla JavaScript, React or Vue. [`examples/readme.md`](examples/readme.md#running-an-example) gives each example's port, `npm run examples:dev` to start all nine at once, and why the microphone examples need `localhost` or HTTPS.
 
 ## Privacy & Security
 

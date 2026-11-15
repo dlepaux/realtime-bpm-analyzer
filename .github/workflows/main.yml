@@ -21,9 +21,9 @@ permissions:
 # gets its own: GitHub keeps one pending run per group, so a shared group silently
 # cancelled the PR runs queued behind a Renovate batch (3 of 5 on 2026-10-15).
 #
-# Every job has a timeout-minutes, at about three times its slowest recent run (5 at least): with
-# cancel-in-progress off, a hung job held its group, and every run behind it, for up to GitHub's
-# 6-hour limit (RBA-241: 72 minutes before a hand cancelled it).
+# Every job has a timeout-minutes, at about three times its slowest recent run (5 at least, and Deploy
+# Documentation above deploy-pages' own wait): with cancel-in-progress off, a hung job held its group,
+# and every run behind it, for up to GitHub's 6-hour limit (RBA-241: 72 minutes before a hand cancelled it).
 concurrency:
   group: main-pipeline-${{ github.event_name == 'push' && 'main' || github.ref }}
   cancel-in-progress: false
@@ -524,7 +524,8 @@ jobs:
     # main only, as Release: a dispatch on another branch would otherwise publish that branch's site
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Above deploy-pages' own 10-minute wait for the deployment, so a slow Pages day fails in its step
+    timeout-minutes: 12
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

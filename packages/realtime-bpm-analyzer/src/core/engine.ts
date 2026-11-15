@@ -232,7 +232,7 @@ export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: En
   return Object.freeze({
     bpm: top.tempo,
     bpmExact: top.exact,
-    // The engine's raw score, mapped to the chance this reading is right 
+    // The engine's raw score, mapped to the chance this reading is right
     confidence: calibrate(engine, top.confidence, top.tempo),
     candidates: Object.freeze(candidates),
     audio: Object.freeze({from: audio.from, to: audio.to, contextTime: audio.contextTime}),

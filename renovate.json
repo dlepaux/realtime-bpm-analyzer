@@ -67,11 +67,11 @@
       "enabled": false
     },
     {
-      "description": "Hold main.yml's node-floor job on Node 24, the engines floor above. Patches still move; the major moves by hand with the floor.",
+      "description": "Leave main.yml's node-floor job on 24.0.0, the engines floor above: a patch bump would test a newer Node than the floor promises. It moves by hand with the floor.",
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["node"],
       "matchCurrentValue": "/^24\\./",
-      "allowedVersions": "<25"
+      "enabled": false
     },
     {
       "description": "Hold TypeScript below 7 until ts-node and docs tooling support TS7 (TypeStrong/ts-node#2174, TypeStrong/typedoc#3098).",

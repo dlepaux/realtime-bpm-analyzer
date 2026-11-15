@@ -153,9 +153,10 @@ jobs:
       - name: Test in Firefox
         run: npm run test:firefox -w realtime-bpm-analyzer
 
-  # The CLI and the MCP server declare Node 24 as their floor (engines), while every other job runs 26. This runs the
-  # built bins and the library's Node entry on the floor itself, so the floor the docs state is one CI tests. Kept out
-  # of the release's needs, like Firefox. Raise this version and the engines floor together, by hand.
+  # The CLI and the MCP server declare >=24 as their floor (engines), while every other job runs 26. This runs the
+  # built bins and the library's Node entry on 24.0.0, the floor itself, so the floor the docs state is one CI tests.
+  # Kept out of the release's needs, like Firefox. Renovate leaves this version alone: raise it and the engines floor
+  # together, by hand.
   node-floor:
     name: CLI and MCP on Node 24
     needs: build
@@ -168,7 +169,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 24.22.2
+          node-version: 24.0.0
           cache: "npm"
 
       - name: Install dependencies

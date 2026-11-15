@@ -29,7 +29,7 @@
 - **Multiple sources** - Works with files, streams, microphone, or any audio/video node
 - **Typed events** - Full TypeScript support with autocomplete
 - **Runs locally** - The library analyzes audio on the device, makes no network call of its own and collects nothing
-- **Any format the browser decodes** - The library reads decoded audio: in the browser, whatever `decodeAudioData` supports; in Node.js, samples you decode. The [CLI](#command-line) reads MP3, WAV, FLAC, OGG and Opus files, and other formats through ffmpeg
+- **Any decoded audio** - The library reads decoded audio: in the browser, whatever `decodeAudioData` supports; in Node.js, samples you decode. The [CLI](#command-line) reads MP3, WAV, FLAC, OGG and Opus files, and other formats through ffmpeg
 
 ## Installation
 
@@ -46,8 +46,8 @@ import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 const audioContext = new AudioContext();
 const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-// An <audio> element as the source. Connect it to the analyzer's input, which holds the filter the engine
-// needs, and to the speakers: a media element source plays only through the nodes it is connected to
+// An <audio> element as the source. Connect it to the analyzer's input, which feeds the engine you picked,
+// and to the speakers: a media element source plays only through the nodes it is connected to
 const audioElement = document.querySelector('audio')!;
 const source = audioContext.createMediaElementSource(audioElement);
 source.connect(analyzer.input);
@@ -74,11 +74,12 @@ While locked, keep showing the latest `reading`: the tempo can still move withou
 ```typescript
 import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
 
-const audioContext = new AudioContext();
-
-// A File from an <input type="file">, or a Blob from fetch()
+// A File from an <input type="file">, or a Blob from fetch(). Call it from a user gesture, such as the input's
+// change event, so the AudioContext starts without an autoplay warning
 async function bpmOf(file: Blob) {
+  const audioContext = new AudioContext();
   const audioBuffer = await audioContext.decodeAudioData(await file.arrayBuffer());
+  await audioContext.close(); // the decoded buffer outlives its context
   // The same reading as realtime, or null when no tempo was found
   const reading = await analyzeFullBuffer(audioBuffer);
   return reading?.bpm ?? null;
@@ -89,7 +90,7 @@ async function bpmOf(file: Blob) {
 
 The default engine, the tempogram, measures how the sound changes from moment to moment across several frequency bands, and reads the tempo as the spacing that repeats most in those changes. `engine: 'peaks'`, the 5.x engine, low-passes the audio and counts the intervals between its loudest peaks. Both report the same reading, with a `confidence` that is the chance the reading is right, calibrated on a labelled benchmark.
 
-Every tempo is reported in a range, 90 to 180 BPM by default. A track outside it reads at double or half its tempo: 70 BPM reads 140, and anything over about 180 reads at half. The `candidates` mark the half and double readings, and `tempoRange` moves the range. Music without a steady beat is the hard case: expect a lower confidence, a wrong reading or none. The [benchmark](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/packages/realtime-bpm-analyzer/benchmark#readme) describes the data, the method and what was measured.
+Every tempo is reported in a range, 90 to 180 BPM by default. A track outside it reads at double or half its tempo: 70 BPM reads 140, and a track at about 180 BPM or faster can read at half. The `candidates` mark the half and double readings, and `tempoRange` moves the range. Music without a steady beat is the hard case: expect a lower confidence, a wrong reading or none. The [benchmark](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/packages/realtime-bpm-analyzer/benchmark#readme) describes the data, the method and what was measured.
 
 ### Strict CSP and browser extensions
 

@@ -7,8 +7,8 @@ import type {EngineName} from '../contract/types';
  * table, unmeasured. Readings sampled at 10, 15, 20, 30 and 45 s and at the end of each track, so long
  * tracks do not weigh more; peaks under the shipped HYSTERESIS, the tempogram with `pulseLostAfterSeconds` 3 (the
  * readings are the same, only which were shown differs: see the results file). Results, method and ranges:
- * benchmark/results/rba-106-calibration-dev.md. The tempogram's table was then checked once on the held-out half,
- * under the shipped HYSTERESIS, and held: benchmark/results/rba-106-calibration-heldout-verdict.md. Peaks' table is
+ * benchmark/results/rba-106-calibration-dev.md. The tempogram's table was then checked once on the held-out half's
+ * real-time readings, under the shipped HYSTERESIS, and held: benchmark/results/rba-106-calibration-heldout-verdict.md. Peaks' table is
  * fitted on dev only.
  *
  * Each table is [raw, calibrated] points with raw increasing and calibrated non-decreasing: read by linear

@@ -38,19 +38,39 @@ SAFE_PARSER = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=
 MAX_MARKERS = 20_000
 
 
+# RBA-239's file, worked out by hand: 60 beats in 30.0 s at 120 BPM, the last at 29.5 s. The end,
+# 30.0 s, is no beat. A grid that wrote one there passed this job until 2026-11-15, because the
+# grid below copied the export's own end bound and the only file then had no beat near its end.
+KNOWN_GRIDS = {"RBA-239 kick 120 BPM.wav": (60, 29.5)}
+
+
+def sequence_frames(entry):
+    """The sequence's length: the audio's, rounded up to whole frames, so its end is inside."""
+    exact = Fraction(entry["duration"]) * entry["numerator"] / entry["denominator"]
+    # A float duration a few ulps past a whole frame is that frame (as in beat-markers.ts).
+    if abs(exact - round(exact)) <= 4 * sys.float_info.epsilon * exact:
+        return max(1, round(exact))
+    return max(1, math.ceil(exact))
+
+
 def expected_frames(entry):
-    """The frame of every beat: beat_times then frame_at in beat-markers.ts, from the spec."""
+    """The frame of every beat inside the audio, on the nearest frame, while inside the sequence."""
     period = 60 / entry["bpm"]
-    span = entry["duration"] - entry["firstBeat"]
-    count = min(MAX_MARKERS, math.floor(span / period) + 1)
     numerator, denominator = entry["numerator"], entry["denominator"]
-    # The sequence is the audio's length rounded up to whole frames; a beat in its last half frame
-    # moves back onto the last frame instead of rounding past the end.
-    last_frame = max(1, math.ceil(entry["duration"] * numerator / denominator)) - 1
+    total = sequence_frames(entry)
     frames = []
-    for index in range(count):
+    for index in range(MAX_MARKERS):
         seconds = entry["firstBeat"] + index * period
-        frames.append(min(math.floor(seconds * numerator / denominator + 0.5), last_frame))
+        frame = math.floor(seconds * numerator / denominator + 0.5)
+        # The audio's end is not a beat, and a beat that rounds to the sequence's end has no frame.
+        if seconds >= entry["duration"] or frame >= total:
+            break
+        frames.append(frame)
+    known = KNOWN_GRIDS.get(entry["name"])
+    if known is not None:
+        count, last = known
+        if len(frames) != count or frames[-1] != math.floor(last * numerator / denominator + 0.5):
+            raise AssertionError(f"{entry['file']}: the expected grid is {len(frames)} beats to frame {frames[-1]}")
     return frames
 
 
@@ -71,6 +91,15 @@ def timecode_of(frame, entry):
 def check_count(path, found, frames):
     if found != len(frames):
         raise AssertionError(f"{path.name}: {found} markers, expected {len(frames)}")
+
+
+def check_inside(path, entry, declared, found):
+    """Every marker on a frame of the sequence the file declares, the audio rounded up to frames."""
+    if declared != sequence_frames(entry):
+        raise AssertionError(f"{path.name}: a sequence of {declared} frames, expected {sequence_frames(entry)}")
+    outside = [frame for frame in found if not 0 <= frame < declared]
+    if outside:
+        raise AssertionError(f"{path.name}: markers at frames {outside[:5]}, outside 0..{declared - 1}")
 
 
 def check_edl(path, entry, frames):
@@ -110,6 +139,8 @@ def check_fcp7(path, entry, frames):
         if marker.name != f"Beat {index + 1}" or start.value != frame or not math.isclose(start.rate, rate):
             raise AssertionError(f"{path.name}: marker {index + 1} is {marker.name} at {start}, expected frame {frame}")
     root = ElementTree.parse(path).getroot()
+    check_inside(path, entry, int(root.find("./sequence/duration").text),
+                 [int(marker.find("in").text) for marker in root.iter("marker")])
     display = root.find("./sequence/timecode/displayformat").text
     if display != ("DF" if entry["dropFrame"] else "NDF") or (display == "DF" and entry["timebase"] != 30):
         raise AssertionError(f"{path.name}: displayformat {display}")
@@ -131,8 +162,13 @@ def check_fcpxml(path, entry, frames, dtd):
         raise AssertionError(f"{path.name}: tcFormat {sequence.get('tcFormat')}")
     markers = list(root.iter("marker"))
     check_count(path, len(markers), frames)
+    starts = [Fraction(marker.get("start").removesuffix("s")) / frame_duration for marker in markers]
+    declared = Fraction(sequence.get("duration").removesuffix("s")) / frame_duration
+    if declared.denominator != 1:
+        raise AssertionError(f"{path.name}: a sequence of {declared} frames")
+    check_inside(path, entry, int(declared), starts)
     for index, (marker, frame) in enumerate(zip(markers, frames)):
-        start = Fraction(marker.get("start").removesuffix("s")) / frame_duration
+        start = starts[index]
         if start.denominator != 1 or start != frame or marker.get("value") != f"Beat {index + 1}":
             raise AssertionError(f"{path.name}: marker {index + 1} starts at frame {start}, expected {frame}")
 
@@ -148,6 +184,13 @@ def check_csv(path, entry, frames):
         seconds = entry["firstBeat"] + index * period
         if row[0] != f"Beat {index + 1}" or int(row[2]) != frame or abs(float(row[1]) - seconds) > 0.0005:
             raise AssertionError(f"{path.name}: row {index + 1} is {row}, expected frame {frame} at {seconds:.3f} s")
+        # The row's own seconds and frame agree, apart from any grid: within half a frame, plus
+        # the seconds' rounding to 3 decimals. A beat at the end moved onto the last frame doesn't.
+        frames_per_second = entry["numerator"] / entry["denominator"]
+        if abs(float(row[1]) * frames_per_second - int(row[2])) > 0.5 + 0.0005 * frames_per_second:
+            raise AssertionError(f"{path.name}: row {index + 1} puts {row[1]} s on frame {row[2]}")
+        if float(row[1]) >= entry["duration"]:
+            raise AssertionError(f"{path.name}: row {index + 1} at {row[1]} s, the audio ends at {entry['duration']} s")
     for index in sample(frames):
         if rows[index + 1][3] != timecode_of(frames[index], entry):
             raise AssertionError(f"{path.name}: row {index + 1} timecode {rows[index + 1][3]}")
@@ -159,8 +202,8 @@ def main(fixtures, dtd_path):
     if dtd.validate(etree.fromstring(b'<fcpxml version="1.10"><beat/></fcpxml>', SAFE_PARSER)):
         raise AssertionError("the FCPXML DTD accepted an element it doesn't define")
     manifest = json.loads((fixtures / "manifest.json").read_text(encoding="utf-8"))
-    if len(manifest) != 39:
-        raise AssertionError(f"{len(manifest)} files, expected 39: 4 formats at 10 timecodes, less FCP7 XML at 59.94 DF")
+    if len(manifest) != 78:
+        raise AssertionError(f"{len(manifest)} files, expected 78: 2 files, 4 formats at 10 timecodes, less FCP7 XML at 59.94 DF")
     for entry in manifest:
         path = fixtures / entry["file"]
         frames = expected_frames(entry)

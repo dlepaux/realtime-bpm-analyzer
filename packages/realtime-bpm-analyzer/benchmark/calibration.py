@@ -44,6 +44,7 @@ import hashlib
 import json
 import random
 import sys
+import traceback
 
 TOLERANCE = 0.04
 ACC2_FACTORS = (2, 3, 1 / 2, 1 / 3)
@@ -598,7 +599,15 @@ def main(argv):
         try:
             return judge(argv)
         except (Exception, SystemExit) as error:  # noqa: BLE001
-            print(f'{argv[1]} refused or broken: {error}', file=sys.stderr)
+            # The job's log leaves the volume. A refusal's text is this file's own and quotes counts only; any other
+            # held-out error may quote a track or a reading, so only its kind and place are named. Dev may be quoted.
+            if isinstance(error, SystemExit):
+                print(f'{argv[1]} refused: {error}', file=sys.stderr)
+            elif argv[1] == 'heldout':
+                frame = traceback.extract_tb(error.__traceback__)[-1]
+                print(f'heldout refused or broken: {type(error).__name__} at {frame.name}:{frame.lineno}', file=sys.stderr)
+            else:
+                traceback.print_exc()
             return 2
     legacy = len(argv) == 4 and argv[1] == '--legacy-raw'
     if len(argv) != 3 and not legacy:

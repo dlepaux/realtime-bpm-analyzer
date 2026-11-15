@@ -98,6 +98,9 @@ The markers are a fixed grid, so they suit songs with a steady tempo. A song
 that speeds up, slows down or changes tempo drifts away from them. The file is
 made in your browser, from audio that never leaves your device.
 
+The [beat markers page](/beat-markers) has the same export, open as soon as a
+song is read, with the import steps for each editor.
+
 ## Limits
 
 - **One tempo per file.** A video with several songs, or a song that changes

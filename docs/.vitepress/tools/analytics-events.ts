@@ -20,6 +20,7 @@ import { EXTENSION_PLACEMENTS } from './extension-promo.ts'
 import { FRAME_RATES } from './frames.ts'
 import { MIC_ERROR_KINDS, MIC_ERROR_NAMES } from './mic-error.ts'
 import { PLATFORM_LABELS, STATIONS, STREAM_ERROR_MESSAGES, type Platform, type StreamErrorKind } from './stream-input.ts'
+import { TEMPO_SOURCES } from './strobe.ts'
 import { NOTE_DIVISIONS } from './tempo.ts'
 import { freeTools } from './tool-list.ts'
 
@@ -112,6 +113,13 @@ export const PARAMS = {
   frame_cell: { type: 'enum', values: ['beat', 'bar'], scope: 'dimension' },
   export_format: { type: 'enum', values: MARKER_FORMATS.map((entry) => entry.id), scope: 'dimension' },
   first: { type: 'bool', scope: 'dimension' },
+
+  // ── Added by RBA-237 ─────────────────────────────────────────────────────────────────────
+  /**
+   * Where the strobe light's tempo came from. `none`: the readback reads it from the BigQuery
+   * export, which keeps every param, so it needs no Custom definition in GA4.
+   */
+  tempo_source: { type: 'enum', values: [...TEMPO_SOURCES], scope: 'none' },
 } as const satisfies Record<string, ParamSpec>
 
 export type ParamName = keyof typeof PARAMS
@@ -245,6 +253,11 @@ export const EVENTS = {
     privacy: 'When you start the metronome: the tempo, the time signature and the subdivision.',
     deprecated: { mode: 'time_signature and subdivision' },
   },
+  bpm_strobe_started: {
+    params: { tempo_source: 'required', bpm: 'optional' },
+    repeats: 'Each time the strobe light starts.',
+    privacy: 'When you start the strobe light: whether the tempo was typed, tapped or heard through the microphone, and the tempo when it is known at the start. Never the sound.',
+  },
   bpm_tool_link_clicked: {
     params: { bpm: 'optional', mode: 'required', result_source: 'required', tool: 'required' },
     repeats: 'Each click.',
@@ -255,6 +268,12 @@ export const EVENTS = {
     params: { tool: 'required' },
     repeats: 'Each click.',
     privacy: 'When you open a tool from the list on the home page: which tool.',
+  },
+  bpm_markers_home_clicked: {
+    // No param, so GA4 counts it with no custom definition to register (RBA-116).
+    params: {},
+    repeats: 'Each click.',
+    privacy: 'When you open the beat markers page from the line in the analyzer on the home page.',
   },
   bpm_markers_exported: {
     params: { format: 'required', frame_rate: 'required', export_format: 'required' },

@@ -336,13 +336,15 @@ export type Kick = {
   /**
    * When the kick's attack reached the analyzer, in seconds on the `AudioContext.currentTime` clock, like
    * {@link AudioSpan.contextTime}. For audio the context plays (a media element, a stream, a buffer), the listener
-   * hears it at `contextTime + outputLatency`. From a mic, the room heard it at about `contextTime`: it has already
-   * passed by the time the event fires.
+   * hears it at `contextTime + baseLatency + outputLatency`. From a mic, the room heard it at about `contextTime`: it
+   * has already passed by the time the event fires.
    */
   readonly contextTime: number;
   /**
-   * From 0 to 1: the kick's peak in the bass over the loudest kick's of the last few seconds. 1 is as loud as the
-   * loudest recent kick, 0.5 is 6 dB softer. Relative, so the range is the same from a quiet mic and a loud file.
+   * From 0 to 1: the kick's peak in the bass over the loudest kick's of the last few seconds, as an amplitude
+   * ratio. 1 is as loud as the loudest recent kick, 0.5 is 6 dB softer. Relative, so the range is the same from a
+   * quiet mic and a loud file. A kick more than 6 dB under that loudest one is not reported, so in practice it
+   * reads from 0.5 to 1. The meaning holds if that gate ever moves, so map the whole 0 to 1.
    */
   readonly strength: number;
 };

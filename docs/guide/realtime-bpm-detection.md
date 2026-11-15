@@ -289,6 +289,116 @@ and 70, which weakens it against the other candidates. In plain words: choose a
 range whose middle is where your music usually sits. See
 [How It Works](/guide/how-it-works) for the algorithm.
 
+## Kick events
+
+The live analyzer also reports each kick drum it hears, as it hears it,
+with the `kick` event. It runs beside the tempo, in the same audio thread,
+on every live input: a media element, a stream, a tab's audio, the
+microphone. Use it for a visual that reacts to the music, such as a light
+or a pulse.
+
+```typescript
+analyzer.on('kick', ({ contextTime, strength }) => {
+  // contextTime: where the kick started, on the AudioContext clock, in seconds.
+  // strength: from 0 to 1, against the loudest kick of the last few seconds.
+  // 0.5 is a kick 6 dB softer than that one.
+  console.log(contextTime.toFixed(3), strength.toFixed(2));
+});
+```
+
+`strength` is the kick's peak under 150 Hz over the loudest recent kick's,
+as an amplitude ratio. A kick more than 6 dB under that one is not
+reported, so in practice `strength` reads from 0.5 to 1: map that range to
+a brightness or a size. Its meaning stays the same if that threshold ever
+changes, so code that accepts the whole 0 to 1 keeps working.
+
+The payload is frozen and holds only these two fields. Kicks come whatever
+the status, from the first tenth of a second of audio, and a kick heard before
+`reset()` is dropped like a stale reading. After `stop()` none come.
+`analyzeFullBuffer` reports none: it has no clock to put them on. Like the
+tempo, kicks are found on your device: your audio never leaves it.
+
+**When it arrives.** The analyzer needs about 10 ms of audio after the kick
+starts to tell it from a bass note or a hi-hat, then the event crosses to
+the main thread. Measured from the kick reaching the analyzer to your
+listener, the same for a media element, a stream and a `liveInput`
+microphone:
+
+| Where | Median | At most |
+|-------|--------|---------|
+| Chrome 157 on a Mac, with its speakers | 11 to 12 ms | 14 ms |
+| Chromium and Firefox on CI's Linux runners | 11 to 17 ms | 23 ms |
+
+A busy main thread adds its own delay, as it does to every event.
+
+**Lining a visual up with what the listener hears.** `contextTime` is when
+the kick reached the analyzer, not when the listener hears it:
+
+- **From the speakers** (a file, a stream, anything the page plays through
+  the context), the listener hears the kick when the speakers play that sample,
+  `baseLatency + outputLatency` after it, often 10 to 50 ms and over 150 ms
+  on Bluetooth.
+  The event usually arrives before that moment, so wait for it.
+- **From the microphone**, the room heard the kick before the analyzer did.
+  Show it at once.
+
+```typescript
+/** When the listener hears a context time, in performance.now() milliseconds */
+function heardAt(contextTime: number): number {
+  // currentTime is about where the analyzer is now, and the speakers play it
+  // baseLatency + outputLatency later. Safari before 17 has no outputLatency.
+  const latency = audioContext.baseLatency + (audioContext.outputLatency || 0);
+  return performance.now() + ((contextTime + latency - audioContext.currentTime) * 1000);
+}
+
+analyzer.on('kick', ({ contextTime }) => {
+  const wait = heardAt(contextTime) - performance.now();
+  // Already heard, or within a frame: show it now. Otherwise when the listener hears it.
+  if (wait < 16) {
+    showKick();
+  } else {
+    setTimeout(showKick, wait);
+  }
+});
+```
+
+For a page that animates in `requestAnimationFrame`, keep `heardAt`'s time
+and show the kick in the first frame at or after it instead. For the
+microphone, skip `heardAt` and show each kick at once.
+
+`getOutputTimestamp()` would be the exact way, and it is in Chromium. Firefox
+returns both of its times `outputLatency` early, though (measured in Firefox
+132 and 158), so a visual timed by it comes that much before the sound: 9 ms
+on a Mac's speakers, 48 ms on a Linux sound server. The recipe above is off
+by at most the few milliseconds `currentTime` lags in either browser.
+
+**Its limits:**
+
+- It reacts and never predicts: a visual can be on time for the listener
+  only when the output's delay is longer than the event's. Beats predicted
+  ahead of time are a separate feature, to come.
+- It hears what is under 150 Hz. Music without a kick drum gives few kicks
+  or none, and a bass note as sharp as a kick and within about 6 dB of it
+  counts as one.
+- Low rumble, such as wind on a microphone or brown noise, gives a false
+  kick about once a minute.
+- Two kicks closer than 80 ms count as one.
+- `strength` is relative, so a quiet track's kicks are as strong as a loud
+  one's. It is not a level meter.
+- Tested on synthetic music: kicks alone, kicks under hi-hats, snare and
+  bass, a breakdown, a tempo change, silence and noise, at 44.1 and 48 kHz.
+  Every kick was heard within 4 ms of where it started, with no false kick.
+  Real rooms and phone microphones, which hear little under 100 Hz, are
+  harder.
+
+**A visual that flashes.** A kick can come several times a second. A light
+that flashes on each one can trigger seizures: [WCAG
+2.3.1](https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html)
+allows no more than three flashes a second over a large area. Keep the
+visual small, or let the page limit and soften it. The
+[examples](/examples/microphone-input) list the kicks with nothing that
+flashes.
+
 ## The tempogram engine {#the-tempogram-detector}
 
 The default engine reads the tempo from an onset tempogram rather than

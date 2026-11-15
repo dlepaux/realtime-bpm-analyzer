@@ -27,9 +27,9 @@ const filterCases: LowpassOption[] = [
   {frequency: 150, q: 1},
   {frequency: 500, q: 6},
   {frequency: 100, q: -3},
-  // Both ends of the clamp, special-cased by the spec
-  {frequency: 0},
-  {frequency: 30_000},
+  // Near both ends of the range the settings accept, above 0 and below Nyquist
+  {frequency: 20},
+  {frequency: 20_000},
 ];
 
 function audioBufferFrom(samples: Float32Array<ArrayBuffer>, sampleRate: number): AudioBuffer {

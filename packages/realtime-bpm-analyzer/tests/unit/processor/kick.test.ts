@@ -141,8 +141,9 @@ describe('RealTimeBpmProcessor - kicks', () => {
     const scene = createKickScene('kicks-alone');
     const processor = build();
     const {resets, tick} = countResets(processor);
-    // The input goes away for a second at 4 s, as a source that ended and another that took its place
-    const gapFrom = Math.round(4 * sampleRate / quantum);
+    // The input goes away for a second 6 ms into the kick at 4.25 s, as a source that ended and another that took its
+    // place: without the reset, the kick it was confirming is reported after the gap, stamped inside it
+    const gapFrom = Math.round(4.256 * sampleRate / quantum);
     const gapTo = gapFrom + Math.round(sampleRate / quantum);
     for (let index = 0; index * quantum < scene.samples.length; index += 1) {
       (globalThis as any).currentTime = (index * quantum) / sampleRate;

@@ -174,16 +174,13 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
     });
 
     // Bounded, so that an element that never starts fails here and says so, not as the test's timeout
-    console.log(`KICK-MEDIA play requested, page ${document.visibilityState}`);
     await Promise.race([
       element.play(),
       waitSeconds(5).then(() => {
         throw new Error(`the media element did not start within 5 s (readyState ${element.readyState}, networkState ${element.networkState}, error ${element.error?.code ?? 'none'}, page ${document.visibilityState})`);
       }),
     ]);
-    console.log(`KICK-MEDIA playing at context time ${audioContext.currentTime.toFixed(3)}`);
     await waitSeconds(seconds + 0.5);
-    console.log(`KICK-MEDIA done, ${heard.length} kicks heard`);
     analyzer.stop();
 
     // When the element's first sample reached the context is not known, so the kicks are scored on their spacing
@@ -218,9 +215,10 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
 });
 
 /**
- * A bare worklet that posts its clock and does nothing else, as the tests' render clock. Every 8th quantum, 21 ms at
- * 48 kHz: the reading runs on from the last post by the wall clock, so a post per quantum adds nothing but 375
- * messages a second to the main thread the test measures.
+ * A bare worklet that posts its clock and does nothing else, as the tests' context clock. Every 8th quantum, 21 ms at
+ * 48 kHz: the reading runs on from the last post by the wall clock, so it is the context clock as it runs, smoothed,
+ * the one `currentTime` gives a page. The audio thread renders a few quanta at once, ahead of that clock, so a post
+ * per quantum would not read when a quantum was rendered either, and would add 375 messages a second.
  */
 const clockProbeModule = `registerProcessor('kick-test-clock-probe', class extends AudioWorkletProcessor {
   n = 0;

@@ -61,7 +61,7 @@ export type KickTuning = {
  *   noise alone swings it by several dB: under 10 dB, white and pink noise counted several times a minute. A kick
  *   that follows silence or a bass note's tail jumps 20 dB and more.
  * - `gateDb`: a jump counts only if its peak is within 6 dB of the loudest kick's of the last seconds, so a bass note,
- *  a fill or a ghost note under the kicks does not. A bass note that starts as sharp and within 6 dB of the kick
+ *   a fill or a ghost note under the kicks does not. A bass note that starts as sharp and within 6 dB of the kick
  *   counts: in the band, nothing tells them apart. The loudest peak's energy halves every `memorySeconds` (its
  *   amplitude every 8 s), so after the music drops by 10 dB at once no kick counts for about 5 s, and after 20 dB
  *   about 19 s, until the loud ones are forgotten. `reset()` forgets them at once.

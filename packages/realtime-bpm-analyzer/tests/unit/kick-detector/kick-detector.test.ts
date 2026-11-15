@@ -14,9 +14,10 @@ import type {KickSceneName} from '../../fixtures/kick-scenes';
  * - Signed timing error, median from -4 to +0.5 ms: the time is corrected for the filters' delay, 4.5 ms at 60 Hz,
  *   so a kick is stamped where its sound starts or just before. Without the correction it lands 1.2 to 4 ms late,
  *   which the absolute bounds above would let through. Measured: -3.2 to -0.5 ms.
- * - Confirmation delay: each kick is reported within 27 ms of where it started, on the clock of the audio, counted to
- *   the end of the block that confirmed it. This is most of the event's delay, so a slower detector fails here and
- *   not only in a browser. Measured: median 13 to 19 ms, max 23.6 ms (tempo change at 48 kHz).
+ * - Confirmation delay: each kick is reported within 30 ms of where it truly started, on the clock of the audio,
+ *   counted to the end of the block that confirmed it. This is most of the event's delay, so a slower detector fails
+ *   here and not only in a browser. Measured: median 11 ms for kicks alone and 17 to 19 ms under a bass line, max
+ *   26.7 ms (tempo change at 48 kHz).
  * - Noise: no false kick. The scene is deterministic like the others, so a false kick in it is a regression. Real
  *   noise heavy in the bass swells by chance now and then: two minutes of pink and brown noise gave one to one and a
  *   half a minute, which the guide states.
@@ -41,13 +42,15 @@ function detect(name: KickSceneName, sampleRate: number, block = 128, startTime 
   const scene = createKickScene(name, sampleRate);
   const detector = createKickDetector(sampleRate);
   const detections: Detection[] = [];
-  // How long after its start each kick was confirmed: to the end of the block that reported it
+  // How long after the true kick's start each kick was confirmed, to the end of the block that reported it: from the
+  // reported time instead, a later stamp would read as a quicker detector
   const confirmations: number[] = [];
   for (let start = 0; start < scene.samples.length; start += block) {
     const blockEnd = startTime + (Math.min(start + block, scene.samples.length) / sampleRate);
     detector.process(scene.samples.subarray(start, start + block), startTime + (start / sampleRate), (time, strength) => {
       detections.push({time, strength});
-      confirmations.push(blockEnd - time);
+      const truth = scene.kicks.reduce((nearest, kick) => (Math.abs(startTime + kick - time) < Math.abs(nearest - time) ? startTime + kick : nearest), Number.POSITIVE_INFINITY);
+      confirmations.push(blockEnd - truth);
     });
   }
 
@@ -84,7 +87,7 @@ describe('Kick detector - synthetic scenes', () => {
         expect(timing.p90, 'p90 timing error').to.be.at.most(0.006);
         expect(timing.max, 'max timing error').to.be.at.most(0.008);
         expect(signedMedian(score.errors), 'signed median timing error').to.be.within(-0.004, 0.0005);
-        expect(Math.max(...confirmations), 'confirmation delay').to.be.at.most(0.027);
+        expect(Math.max(...confirmations), 'confirmation delay').to.be.at.most(0.03);
       });
     }
   }

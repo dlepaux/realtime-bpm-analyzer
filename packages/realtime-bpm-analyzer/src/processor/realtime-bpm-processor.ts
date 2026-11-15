@@ -76,9 +76,9 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   silentQuantum = new Float32Array(renderQuantumFrames);
   // Hears kicks in every quantum of real input, apart from the analysis: the kick event (RBA-243)
   kickDetector: KickDetector = createKickDetector(sampleRate);
-  // Made once, as the detector calls it from inside the render loop
   // Set while the input has no channels (a source that ended or was disconnected): the kicks start over after it
   inputGap = false;
+  // Made once, as the detector calls it from inside the render loop
   onKick: OnKick = (contextTime, strength) => {
     this.post({type: 'kick', protocol: PROTOCOL, epoch: this.session!.epoch(), contextTime: Math.max(0, contextTime), strength});
   };

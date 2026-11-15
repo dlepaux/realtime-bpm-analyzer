@@ -36,6 +36,7 @@ import ResultToolLinks from './ResultToolLinks.vue'
 import ExtensionResultPrompt from './ExtensionResultPrompt.vue'
 import BeatMarkerExport from './BeatMarkerExport.vue'
 import BpmReadout from './BpmReadout.vue'
+import FileNameLine from './FileNameLine.vue'
 import BpmSourceSwitch from './BpmSourceSwitch.vue'
 import { STORE_URL } from '../tools/extension-live'
 import { EXTENSION_PAGE, extensionCovers } from '../tools/extension-promo'
@@ -49,8 +50,10 @@ const GAIN_UNMUTED = 1
 const GAIN_MUTED = 0
 
 // `video` frames the file panel for a video (the /video-bpm page): same analysis,
-// since the browser decodes a video's sound track like any audio file.
-const props = withDefaults(defineProps<{ variant?: 'audio' | 'video' }>(), { variant: 'audio' })
+// since the browser decodes a video's sound track like any audio file. `markers` is the
+// /beat-markers page (RBA-116): a song's panel, the beat in frames, and the export open on a result.
+// `audio` is the home's, which alone carries the line that points to that page.
+const props = withDefaults(defineProps<{ variant?: 'audio' | 'video' | 'markers' }>(), { variant: 'audio' })
 // A touch screen has nothing to drop, so it gets the short line; CSS picks it with
 // (pointer: coarse), so the server's HTML and the hydrated page agree.
 const FILE_COPY = {
@@ -66,11 +69,19 @@ const FILE_COPY = {
     formats: 'MP4, WebM, MOV and audio files',
     decodeError: 'Your browser couldn’t decode the sound of that file. Try MP4 or WebM, or export the audio as WAV.',
   },
+  markers: {
+    headline: 'Drop a song or choose a file',
+    touchHeadline: 'Choose a song',
+    formats: 'MP3, WAV, FLAC, M4A, OGG and video files',
+    decodeError: 'Your browser couldn’t decode that file. Try MP3, WAV, FLAC, M4A or OGG, or export the sound of a video as WAV.',
+  },
 } as const
 const STAYS_ON_DEVICE = 'Audio stays on your device'
 const fileCopy = computed(() => FILE_COPY[props.variant])
 
 const { track } = useAnalytics()
+// The home line's own event (RBA-116): a tile click is bpm_home_tool_clicked, so the two stay apart.
+const onMarkersLineClick = () => track('bpm_markers_home_clicked')
 
 const mode = ref<Mode>('file')
 
@@ -785,6 +796,19 @@ function formatDuration(seconds: number): string {
             >
               Choose a file
             </button>
+            <!-- The export, before any result (RBA-116): inside the zone, so the hero keeps its
+                 height on a phone (RBA-151). The link stops its click, or the picker opens too. -->
+            <p
+              v-if="variant === 'audio'"
+              class="bpm-markers-line"
+            >
+              Editing video? After the result,
+              <a
+                href="/beat-markers"
+                @click.stop="onMarkersLineClick"
+              >export beat markers</a>
+              for Premiere Pro, DaVinci Resolve and Final Cut Pro.
+            </p>
           </div>
           <input
             ref="fileInput"
@@ -801,9 +825,10 @@ function formatDuration(seconds: number): string {
               class="bpm-spinner"
               aria-hidden="true"
             ></div>
-            <div class="bpm-state-name">
-              {{ fileName }}
-            </div>
+            <FileNameLine
+              class="bpm-state-name"
+              :name="fileName ?? ''"
+            />
             <div class="bpm-state-label">
               Analysing&hellip;
             </div>
@@ -816,9 +841,10 @@ function formatDuration(seconds: number): string {
               :bpm="fileBpm"
               state="final"
             />
-            <div class="bpm-state-name">
-              {{ fileName }}
-            </div>
+            <FileNameLine
+              class="bpm-state-name"
+              :name="fileName ?? ''"
+            />
             <div class="bpm-result-meta">
               <span v-if="fileDuration !== null">{{ formatDuration(fileDuration) }}</span>
               <span v-if="fileElapsedMs !== null">· Done in {{ fileElapsedMs }} ms</span>
@@ -827,7 +853,7 @@ function formatDuration(seconds: number): string {
               v-if="fileBpm !== null"
               :bpm="fileBpm"
               source="file"
-              :video="variant === 'video'"
+              :video="variant !== 'audio'"
             />
             <BeatMarkerExport
               v-if="fileTempo !== null && fileBpm !== null && fileDuration !== null && fileName !== null && fileSampleRate !== null"
@@ -837,6 +863,7 @@ function formatDuration(seconds: number): string {
               :duration="fileDuration"
               :samples="fileSamples"
               :sample-rate="fileSampleRate"
+              :start-open="variant === 'markers'"
               @searched="fileSamples = null"
             />
             <div class="bpm-result-actions">
@@ -860,9 +887,10 @@ function formatDuration(seconds: number): string {
             class="bpm-state bpm-state-error"
             role="alert"
           >
-            <div class="bpm-state-name">
-              {{ fileName }}
-            </div>
+            <FileNameLine
+              class="bpm-state-name"
+              :name="fileName ?? ''"
+            />
             <div class="bpm-error-msg">
               {{ fileError }}
             </div>
@@ -1199,7 +1227,8 @@ function formatDuration(seconds: number): string {
 <style scoped>
 /* The tool is a raised card: the one object on the page that does something (RBA-66). The body's
    height is the tallest state's, a file result with its alternate reading, so idle, listening and a result all take the same
-   room and a result arriving seconds after the click moves nothing below (CLS). */
+   room and a result arriving seconds after the click moves nothing below (CLS). A file's name
+   takes one line whatever its length (FileNameLine), so a long name can't break that. */
 .bpm-hero-tool {
   --bpm-body-min-height: 24rem;
   position: relative;
@@ -1277,6 +1306,31 @@ function formatDuration(seconds: number): string {
 
 .bpm-file-input { display: none; }
 
+/* Quieter than the headline and the button: a pointer for the video editors, not a second call. */
+.bpm-markers-line {
+  max-width: 22rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2);
+}
+
+.bpm-markers-line a {
+  font-weight: 500;
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Thicker, not another colour: no darker brand shade keeps AA on the card in dark mode. */
+.bpm-markers-line a:hover { text-decoration-thickness: 2px; }
+
+.bpm-markers-line a:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* The card's one filled action, in the AA-safe action colours (tokens.css). */
 .bpm-primary-btn,
 .bpm-stream-btn {
@@ -1307,12 +1361,10 @@ function formatDuration(seconds: number): string {
   text-align: center;
 }
 
-.bpm-state-name {
-  max-width: 100%;
-  font-size: 0.875rem;
-  color: var(--vp-c-text-2);
-  word-break: break-all;
-}
+/* A file result's tallest form is a long name with an alternate reading, and on a phone its
+   links and its actions take two rows each: 0.6rem between its six rows put it 4 px past the
+   reserve even with a one-character name, so it sits a little tighter (RBA-116, round 2). */
+.bpm-mode-file .bpm-state-result { gap: 0.5rem; }
 
 .bpm-state-label {
   font-size: 0.9375rem;

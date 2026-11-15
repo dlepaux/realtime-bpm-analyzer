@@ -40,7 +40,7 @@ test('home FAQ: every question and answer in the markup is on the page, word for
 test('no accuracy figure on the tool pages or in the markup', () => {
   // "within 1-2 BPM" had no measurement behind it. A figure comes back only with one.
   const figure = /within\s+\**\d[^.]*BPM/i
-  const pages = ['index.md', 'tap-tempo.md', 'metronome.md', 'bpm-to-ms.md', 'bpm-to-frames.md', 'video-bpm.md']
+  const pages = ['index.md', 'tap-tempo.md', 'metronome.md', 'bpm-to-ms.md', 'bpm-to-frames.md', 'video-bpm.md', 'beat-markers.md']
     .map((name) => [name, readFileSync(new URL(`../${name}`, import.meta.url), 'utf8')] as const)
   for (const [name, source] of pages) assert.ok(!figure.test(source), name)
   assert.ok(!figure.test(JSON.stringify([HOME_FAQ, SCHEMA_WEB_APPLICATION])))
@@ -103,7 +103,7 @@ test('no unmeasured tolerance or accuracy praise in the guides', () => {
 test('no long dash on home, the video pages or in the home markup', () => {
   // Plain copy rule (RBA-124): a long dash reads as generated text, in the snippet too.
   const dash = /[\u2013\u2014]/
-  for (const name of ['index.md', 'video-bpm.md', 'bpm-to-frames.md']) {
+  for (const name of ['index.md', 'video-bpm.md', 'bpm-to-frames.md', 'beat-markers.md']) {
     const source = readFileSync(new URL(`../${name}`, import.meta.url), 'utf8')
     for (const [index, line] of source.split('\n').entries()) assert.ok(!dash.test(line), `${name}:${index + 1}`)
   }

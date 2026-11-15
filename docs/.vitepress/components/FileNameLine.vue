@@ -1,0 +1,147 @@
+<script setup lang="ts">
+// A file's name on the home tool, on one line (RBA-116, round 2). Wrapped, a long name took three
+// lines and grew the result 20 px past the hero's reserved height on phones, so it is cut in the
+// middle instead, keeping its end and extension (tools/file-name.ts).
+// - Screen readers hear the whole name, once, from a hidden copy; the cut line is hidden from them.
+// - A cut name becomes a button: a tap or a click shows the whole name, wrapped, and another cuts
+//   it again. Opening it grows the card, which follows the visitor's own action, like opening the
+//   export. No tooltip: it would repeat the button's name to a screen reader.
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { fileNameParts } from '../tools/file-name'
+
+const props = defineProps<{ name: string }>()
+
+const parts = computed(() => fileNameParts(props.name))
+const root = ref<HTMLElement | null>(null)
+const cut = ref(false)
+const open = ref(false)
+const control = computed(() => cut.value || open.value)
+
+// Measured, not guessed from the length: whether a name fits depends on the font and the width.
+// An open name wraps whole, so it is only measured cut.
+function measure() {
+  if (open.value) return
+  const head = root.value?.querySelector<HTMLElement>('.file-name-head') ?? null
+  cut.value = head !== null && head.scrollWidth > head.clientWidth
+}
+
+function toggle() {
+  if (control.value) open.value = !open.value
+}
+
+let observer: ResizeObserver | null = null
+onMounted(() => {
+  measure()
+  if (root.value === null) return
+  observer = new ResizeObserver(measure)
+  observer.observe(root.value)
+})
+onBeforeUnmount(() => observer?.disconnect())
+</script>
+
+<template>
+  <div
+    ref="root"
+    class="file-name"
+  >
+    <component
+      :is="control ? 'button' : 'p'"
+      class="file-name-line"
+      :class="{ 'is-control': control, 'is-open': open }"
+      :type="control ? 'button' : undefined"
+      :aria-expanded="control ? open : undefined"
+      @click="toggle"
+    >
+      <span class="file-name-full">{{ name }}</span>
+      <span
+        class="file-name-visual"
+        aria-hidden="true"
+      ><span class="file-name-head">{{ parts.head }}</span><span class="file-name-tail">{{ parts.tail }}</span></span>
+    </component>
+  </div>
+</template>
+
+<style scoped>
+/* `contain: inline-size`: the name never sets its container's width. On one line, a whole name is
+   as wide as it is long, and every flex and grid item around it (up to the home's grid) would
+   otherwise take that as its minimum and push the page sideways instead of cutting the name. */
+.file-name {
+  width: 100%;
+  contain: inline-size;
+  font-size: 0.875rem;
+  color: var(--vp-c-text-2);
+}
+
+.file-name-line {
+  display: block;
+  max-width: 100%;
+  min-height: 1.5rem;
+  margin: 0 auto;
+  line-height: 1.5rem;
+}
+
+/* The paragraph and the button share one box, 1.5rem tall (24 px, the smallest target WCAG 2.5.8
+   allows), so a name becoming cut moves nothing, and `.vp-doc p`'s line-height can't change it on
+   the tool pages. The button reads as the name it is, with a dotted underline saying it opens. */
+.file-name-line.is-control {
+  padding: 0;
+  border: 0;
+  font: inherit;
+  line-height: 1.5rem;
+  color: inherit;
+  text-align: center;
+  background: none;
+  cursor: pointer;
+}
+
+.file-name-line.is-control .file-name-visual {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.file-name-line.is-control:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* For screen readers only: the whole name, read once. */
+.file-name-full {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* One line: the head gives way first, with an ellipsis, and the tail stays whole. `pre` keeps a
+   space at the cut, which a collapsing white-space would drop. */
+.file-name-visual {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.file-name-head {
+  min-width: 0;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-name-tail {
+  white-space: pre;
+  flex-shrink: 0;
+}
+
+/* Open: the whole name, wrapped anywhere, since a name without a space can't wrap otherwise. */
+.file-name-line.is-open .file-name-visual { display: block; }
+
+.file-name-line.is-open .file-name-head,
+.file-name-line.is-open .file-name-tail {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+</style>

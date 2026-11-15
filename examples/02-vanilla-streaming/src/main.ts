@@ -180,7 +180,8 @@ function hideStatus() {
 function enableControls(enabled: boolean) {
   playBtn.disabled = !enabled;
   pauseBtn.disabled = !enabled;
-  resetBtn.disabled = !enabled;
+  // A fatal fault can stop the analyzer before the audio is ready: then there is nothing to start over
+  resetBtn.disabled = !enabled || bpmAnalyzer?.state.status === 'stopped';
   stopBtn.disabled = !enabled;
 }
 

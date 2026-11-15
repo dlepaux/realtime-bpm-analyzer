@@ -126,8 +126,9 @@ export const GENRE_TEMPOS: readonly ChartRow[] = [
 /**
  * Rows whose term the tools' label knows, but whose tempo it names otherwise. Vivace: Wikipedia
  * gives 156–176, which the label calls vivace, while Dolmetsch and Lumen put it at about 140,
- * which it calls allegro, so no tempo satisfies both rules. One table for both is RBA-209's
- * follow-up: it changes what the tools show, so it waits for its own decision.
+ * which it calls allegro, so no tempo satisfies both rules. Five more rows (larghissimo, lento,
+ * adagietto, andantino, allegretto) have no band in the label at all, so it names a neighbour.
+ * One table for both is RBA-223: it changes what the tools show, so it waits for its own decision.
  */
 export const KNOWN_LABEL_MISMATCHES: readonly string[] = ['vivace']
 

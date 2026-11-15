@@ -318,16 +318,19 @@ the status, from the first tenth of a second of audio, and a kick heard before
 `analyzeFullBuffer` reports none: it has no clock to put them on. Like the
 tempo, kicks are found on your device: your audio never leaves it.
 
-**When it arrives.** The analyzer needs about 10 ms of audio after the kick
-starts to tell it from a bass note or a hi-hat, then the event crosses to
-the main thread. Measured from the kick reaching the analyzer to your
-listener, the same for a media element, a stream and a `liveInput`
-microphone:
+**When it arrives.** The analyzer needs 13 to 19 ms of audio after the kick
+starts, at most 24 ms, to tell it from a bass note or a hi-hat, then the
+event crosses to the main thread. Measured from the kick reaching the analyzer to your
+listener, on kicks under a bass line, hi-hats and a pad, about the same for
+a media element, a stream and a `liveInput` microphone:
 
 | Where | Median | At most |
 |-------|--------|---------|
-| Chrome 157 on a Mac, with its speakers | 11 to 12 ms | 14 ms |
-| Chromium and Firefox on CI's Linux runners | 11 to 17 ms | 23 ms |
+| Chrome 157 on a Mac, with its speakers | 16 ms | 19 ms |
+| Chromium 156 on CI's Linux runners | 19 to 20 ms | 28 ms |
+| Firefox 158 on CI's Linux runners | 21 to 26 ms | 36 ms |
+
+Kicks alone are confirmed about 5 ms sooner.
 
 A busy main thread adds its own delay, as it does to every event.
 
@@ -383,6 +386,11 @@ by at most the few milliseconds `currentTime` lags in either browser.
 - Low rumble, such as wind on a microphone or brown noise, gives a false
   kick about once a minute.
 - Two kicks closer than 80 ms count as one.
+- A kick counts against the loudest of the last seconds. When the music
+  drops by 10 dB at once, as a quieter track starts or the volume goes down
+  before the analyzer, no kick counts for about 5 s, and for about 19 s after
+  a 20 dB drop. `reset()` starts over at once, and so does an input that
+  comes back after a gap.
 - `strength` is relative, so a quiet track's kicks are as strong as a loud
   one's. It is not a level meter.
 - Tested on synthetic music: kicks alone, kicks under hi-hats, snare and

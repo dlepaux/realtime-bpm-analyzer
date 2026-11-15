@@ -116,3 +116,80 @@ export async function findPeaks({
     threshold: validThreshold,
   };
 }
+
+/**
+ * Level of a channel's loudest beats, which one click or clipped transient can't set
+ * @param data Lowpassed PCM samples
+ * @param audioSampleRate Sample rate in Hz
+ * @returns The `levelQuantile` of the channel's maxima per `peakSkipDuration` window, 0 for silence
+ * @remarks Only positive samples count, since `findPeaksAtThreshold` compares signed samples.
+ */
+export function levelReference(data: Float32Array, audioSampleRate: number): number {
+  const window = Math.max(1, utils.computeIndexesToSkip(consts.peakSkipDuration, audioSampleRate));
+  const maxima = new Float32Array(Math.ceil(data.length / window));
+
+  for (let w = 0; w < maxima.length; w += 1) {
+    const end = Math.min(data.length, (w + 1) * window);
+    let maximum = 0;
+
+    for (let i = w * window; i < end; i += 1) {
+      maximum = Math.max(maximum, data[i]);
+    }
+
+    maxima[w] = maximum;
+  }
+
+  if (maxima.length === 0) {
+    return 0;
+  }
+
+  maxima.sort();
+
+  return maxima[Math.floor(consts.levelQuantile * (maxima.length - 1))];
+}
+
+/**
+ * The fixed ladder, run again with every rung scaled by the channel's own level reference, so a quiet or
+ * bass-light file is searched the way a full-scale one is (RBA-221)
+ * @param options - AnalyzerFindPeaksOptions
+ * @param options.audioSampleRate - Sample rate
+ * @param options.channelData - Lowpassed channel data
+ * @returns The peaks of the first scaled rung with enough of them, or none when the reference is under
+ * `silenceFloor`, or at full scale, where the fixed ladder already was this search
+ * @remarks Call it only after `findPeaks` found nothing: it is the fallback, not a replacement.
+ */
+export async function findPeaksRelativeToLevel({
+  audioSampleRate,
+  channelData,
+}: AnalyzerFindPeaksOptions): Promise<PeaksAndThreshold> {
+  const level = levelReference(channelData, audioSampleRate);
+
+  if (level < consts.silenceFloor || level >= 1) {
+    return {peaks: [], threshold: 0};
+  }
+
+  let validPeaks: Peaks = [];
+  let validThreshold = 0;
+
+  await descendingOverThresholds(async rung => {
+    const {peaks, threshold} = findPeaksAtThreshold({
+      audioSampleRate,
+      data: channelData,
+      threshold: rung * level,
+    });
+
+    if (peaks.length < consts.minPeaks) {
+      return false;
+    }
+
+    validPeaks = peaks;
+    validThreshold = threshold;
+
+    return true;
+  });
+
+  return {
+    peaks: validPeaks,
+    threshold: validThreshold,
+  };
+}

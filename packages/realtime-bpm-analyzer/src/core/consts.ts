@@ -17,6 +17,24 @@ export const thresholdStep = 0.05;
  * locks is unchanged too. Past it, the reading follows the latest minute or more of audio.
  */
 export const maxKeptPeaks = 256;
+/**
+ * Quantile of the per-window maxima that a file-path read takes as the level of its loudest beats
+ * @remarks
+ * A window is `peakSkipDuration` long, the span one peak occupies. At 0.98 the loudest window never sets the
+ * reference, whatever the file's length, and on a 3-minute file the loudest 14 don't, so a click or a clipped
+ * transient can't. It sits on a plateau: on RBA-218's generated sources every quiet or high-passed variant
+ * reads its tempo from 0.97 to 1, while 0.95 and under read a high-passed full mix at 114 instead of 96,
+ * because the ladder then starts under the beats. Used only when the fixed ladder finds no tempo (RBA-221).
+ */
+export const levelQuantile = 0.98;
+/**
+ * Level reference below which a file is read as silence, about −70 dBFS
+ * @remarks
+ * Under it the relative ladder would count dither and noise as beats. 13 dB below the quietest variant
+ * RBA-218 built with a clear beat (a click at −24 dB through a 300 Hz highpass, −56.7 dBFS after the lowpass),
+ * and well above a 16-bit file's quantisation noise after the lowpass.
+ */
+export const silenceFloor = 10 ** (-70 / 20);
 export const frequencyValue = 200;
 export const qualityValue = 1;
 

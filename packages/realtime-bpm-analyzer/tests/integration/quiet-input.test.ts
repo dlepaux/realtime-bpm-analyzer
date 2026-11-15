@@ -1,6 +1,9 @@
 import {expect} from 'chai';
 // The function src/index exports, from its own module: the probe needs no worklet, so no build step
 import {analyzeFullBuffer, getOfflineLowPassSource} from '../../src/core/offline-pipeline';
+import {findPeaks} from '../../src/core/peak-detection';
+import {identifyIntervals, groupByTempo, getTopCandidates, resolveTempoRange} from '../../src/core/tempo';
+import type {Tempo} from '../../src/core/types';
 import {
   classify, decodeLikeTheSite, encodeWav, generatedSources, peakDb, renderVariant, sampleRate, variants,
   type Source, type Variant,
@@ -12,7 +15,19 @@ import {
  * (BpmHeroTool.vue), then read by analyzeFullBuffer on each engine. Every variant still has a clear beat,
  * so each must read the tempo it was built at: these fail today wherever the detector depends on the
  * input level or on the bass, and they are the fix's first red tests.
+ *
+ * RBA-221 fixed peaks with a ladder relative to the file's own level, used only where the fixed ladder finds
+ * nothing. Each case also checks that bar: wherever 5.6.1's peaks reads, the whole result is unchanged.
  */
+
+/** 5.6.1's `detectTempo`, verbatim: the fixed ladder alone, as the oracle for readings that must not change */
+async function fixedLadderTempos(channelData: Float32Array, sampleRate: number): Promise<Tempo[]> {
+  const {peaks} = await findPeaks({audioSampleRate: sampleRate, channelData});
+  const intervals = identifyIntervals(peaks);
+  const tempos = groupByTempo({audioSampleRate: sampleRate, intervalCounts: intervals, tempoRange: resolveTempoRange()});
+
+  return getTopCandidates(tempos);
+}
 
 // 5.x: the tempogram is opt-in and level-relative already (RBA-218), so only the default detector is pinned
 type Engine = 'peaks';
@@ -47,6 +62,16 @@ async function analyse(buffer: AudioBuffer, engine: Engine): Promise<number | un
   return tempos[0]?.tempo;
 }
 
+/**
+ * The committed fixture has no ground truth, so its variants are graded against its own original reading,
+ * which tests level invariance only (RBA-218). A highpass changes what the file holds, not its level: on a
+ * 7.7 s clip that peaks reads from at most 8 interval votes, with 125 against the tempogram's 93, the
+ * original's reading is no truth for it. Those variants must read a tempo, and the log records which one.
+ */
+function isGraded(source: Source, variant: Variant): boolean {
+  return source.truth !== null || variant.highpassHz === 0;
+}
+
 describe('RBA-218: a quiet or bass-light file still reads its tempo', function () {
   // Thirty seconds of audio per run
   this.timeout(60_000);
@@ -67,7 +92,9 @@ describe('RBA-218: a quiet or bass-light file still reads its tempo', function (
           const source = sources[index];
           const buffer = await decodedVariant(source, variant);
           const lowpassed = await getOfflineLowPassSource(buffer);
-          const bpm = await analyse(buffer, engine);
+          const tempos = await analyzeFullBuffer(buffer, {detector: engine});
+          const bpm = tempos[0]?.tempo;
+          const fixed = await fixedLadderTempos(lowpassed.getChannelData(0), lowpassed.sampleRate);
           const truth = source.truth ?? await analyse(await decodedVariant(source, variants[0]), engine);
 
           if (truth === undefined) {
@@ -78,11 +105,20 @@ describe('RBA-218: a quiet or bass-light file still reads its tempo', function (
 
           console.log(`RBA218 ${JSON.stringify({
             source: source.name, variant: variant.name, engine, truth, bpm: bpm ?? null, outcome,
+            readToday: fixed.length > 0,
             peakDb: Number(peakDb(buffer.getChannelData(0)).toFixed(1)),
             lowpassPeakDb: Number(peakDb(lowpassed.getChannelData(0)).toFixed(1)),
           })}`);
 
-          expect(outcome, `${source.name}, ${variant.name}, ${engine}: read ${bpm ?? 'nothing'}`).to.equal('correct');
+          if (fixed.length > 0) {
+            expect(tempos, `${source.name}, ${variant.name}: a reading that works in 5.6.1 changed`).to.deep.equal(fixed);
+          }
+
+          if (isGraded(source, variant)) {
+            expect(outcome, `${source.name}, ${variant.name}, ${engine}: read ${bpm ?? 'nothing'}`).to.equal('correct');
+          } else {
+            expect(bpm, `${source.name}, ${variant.name}, ${engine}: read nothing`).to.be.a('number');
+          }
         });
       }
     }

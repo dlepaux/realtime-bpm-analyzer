@@ -37,7 +37,13 @@ const props = defineProps<{
    */
   samples: Float32Array | null
   sampleRate: number
-  /** Open on arrival, measuring at once: the /beat-markers page, where the export is the point. */
+  /**
+   * Open on arrival, measuring at once: the /beat-markers page, where the export is the point.
+   * The open panel grows the result card past its reserved height, so the page below moves when
+   * the result lands and again when the grid is ready. Accepted (RBA-116): it follows the
+   * visitor's own drop, on the one page that asked for the panel, and reserving its height would
+   * make the empty drop zone twice as tall.
+   */
   startOpen?: boolean
 }>()
 
@@ -244,7 +250,7 @@ function download() {
 
 .marker-action::-webkit-details-marker { display: none; }
 .marker-action:hover { background: var(--rba-action-hover); }
-.marker-action > :deep(svg) { flex-shrink: 0; }
+.marker-action > svg { flex-shrink: 0; }
 .marker-chevron { transition: transform 0.2s ease; }
 .marker-export[open] .marker-chevron { transform: rotate(180deg); }
 
@@ -261,9 +267,9 @@ function download() {
   .marker-chevron { transition: none; }
 }
 
+/* No radius here: the outline follows each control's own shape, and a pill keeps its round ends. */
 .marker-action:focus-visible,
 .marker-export select:focus-visible,
-/* No radius here: the outline follows each control's own shape, and a pill keeps its round ends. */
 .marker-download:focus-visible {
   outline: 2px solid var(--vp-c-brand-1);
   outline-offset: 2px;
@@ -298,17 +304,21 @@ function download() {
   border-radius: 8px;
 }
 
+/* The site's filled-button colours (tokens.css), AA in both themes: white on brand-1 was about
+   2:1 in dark mode, and on /beat-markers this is the page's main action. */
 .marker-download {
+  min-height: 44px;
   margin-top: 0.6rem;
-  padding: 0.45rem 1rem;
+  padding: 0 1.2rem;
   font: inherit;
-  font-weight: 500;
-  color: var(--vp-c-white);
-  background: var(--vp-c-brand-1);
+  font-weight: 600;
+  color: #fff;
+  background: var(--rba-action);
   border: none;
   border-radius: 999px;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-.marker-download:hover { background: var(--vp-c-brand-2); }
+.marker-download:hover { background: var(--rba-action-hover); }
 </style>

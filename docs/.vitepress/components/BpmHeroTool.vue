@@ -72,7 +72,7 @@ const FILE_COPY = {
     headline: 'Drop a song or choose a file',
     touchHeadline: 'Choose a song',
     formats: 'MP3, WAV, FLAC, M4A, OGG and video files',
-    decodeError: 'Your browser couldn’t decode that file. Try MP3, WAV, FLAC, M4A or OGG.',
+    decodeError: 'Your browser couldn’t decode that file. Try MP3, WAV, FLAC, M4A or OGG, or export the sound of a video as WAV.',
   },
 } as const
 const STAYS_ON_DEVICE = 'Audio stays on your device'
@@ -1317,7 +1317,8 @@ function formatDuration(seconds: number): string {
   text-underline-offset: 2px;
 }
 
-.bpm-markers-line a:hover { color: var(--rba-action-hover); }
+/* Thicker, not another colour: no darker brand shade keeps AA on the card in dark mode. */
+.bpm-markers-line a:hover { text-decoration-thickness: 2px; }
 
 .bpm-markers-line a:focus-visible {
   outline: 2px solid var(--vp-c-brand-1);

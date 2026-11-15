@@ -10,7 +10,8 @@ const FIRST_BEAT = 48
 const BEATS = Array.from({ length: 9 }, (_, index) => FIRST_BEAT + index * BEAT_SPACING)
 
 // A waveform that peaks on each beat and decays until the next, so the markers visibly sit on
-// the hits. Deterministic, so the server's SVG and the hydrated one are identical.
+// the hits. Rounded to a tenth, so the prerendered SVG stays small and no engine's last digit of
+// Math.exp or Math.sin can tell the server's numbers from the browser's.
 const BAR_STEP = 6
 const BAR_DECAY_PX = 14
 const AUDIO_MID = 136
@@ -20,7 +21,8 @@ const bars = Array.from({ length: Math.floor((WIDTH - 32) / BAR_STEP) }, (_, ind
   const sinceBeat = (x - FIRST_BEAT + BEAT_SPACING * 4) % BEAT_SPACING
   const level = 0.18 + 0.82 * Math.exp(-sinceBeat / BAR_DECAY_PX) + 0.08 * Math.abs(Math.sin(index * 1.7))
   const half = Math.min(1, level) * AUDIO_HALF
-  return { x, y: AUDIO_MID - half, height: half * 2 }
+  const tenth = (value: number) => Math.round(value * 10) / 10
+  return { x, y: tenth(AUDIO_MID - half), height: tenth(half * 2) }
 })
 
 // The video track: clips cut on every second marker, as an edit to the beat would be.

@@ -15,8 +15,8 @@ faq:
     a: "Drop the song on the tool at the top of this page. Once the tempo is found, the export opens: pick your editor's format and the frame rate of your timeline, then download. The file holds a marker on every beat, from the first strong beat."
   - q: How do I add beat markers in Premiere Pro for free?
     a: "Download the XML for Premiere Pro, then in Premiere Pro choose File > Import and pick the file. It adds a sequence with a marker on every beat. The tool is free, with no account."
-  - q: How do I get the beats of a song into DaVinci Resolve?
-    a: "Download the EDL for DaVinci Resolve. In Resolve, right-click your timeline in the Media Pool, then Timelines > Import > Timeline Markers from EDL. The markers assume the timeline starts at 01:00:00:00."
+  - q: How do I detect the beats of a song for DaVinci Resolve for free?
+    a: "Drop the song here and download the EDL for DaVinci Resolve. In Resolve, right-click your timeline in the Media Pool, then Timelines > Import > Timeline Markers from EDL. The markers assume the timeline starts at 01:00:00:00. The tool is free, with no account."
   - q: How do I import FCPXML beat markers into Final Cut Pro?
     a: "Download the FCPXML for Final Cut Pro, then choose File > Import > XML. It adds a project with a marker on every beat. The file is FCPXML 1.10, which needs Final Cut Pro 10.6.1 or later."
   - q: How do I edit to the beat with the markers?

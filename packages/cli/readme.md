@@ -17,7 +17,7 @@ song.mp3: 128 BPM (tempogram, confidence 0.87)
 ```
 
 Installed (`npm install -g realtime-bpm-analyzer-cli`), the command is
-`realtime-bpm-analyzer`. It needs Node.js 24 or later.
+`realtime-bpm-analyzer`. It needs Node.js 22 or later.
 
 ## Usage
 

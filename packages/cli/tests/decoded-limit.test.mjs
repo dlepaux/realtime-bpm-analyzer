@@ -377,7 +377,7 @@ describe('decoded size limit', () => {
     it('asks ffmpeg to stop just past the limit', async () => {
       const argsFile = join(root, 'ffmpeg-args.json');
       const ffmpegPath = await fakeFfmpeg('ffmpeg-args.mjs', `
-        process.getBuiltinModule('node:fs').writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(args));
+        (await import('node:fs')).writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(args));
         process.exit(1);
       `);
       await analyzeFile(fixture('click-128.m4a'), {ffmpegPath, maxDecodedBytes: 44_100 * 4 * 60});

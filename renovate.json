@@ -67,10 +67,10 @@
       "enabled": false
     },
     {
-      "description": "Leave main.yml's node-floor job on 24.0.0, the engines floor above: a patch bump would test a newer Node than the floor promises. It moves by hand with the floor.",
+      "description": "Leave main.yml's node-floor job on 22.0.0, the engines floor above: a patch bump would test a newer Node than the floor promises. It moves by hand with the floor.",
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["node"],
-      "matchCurrentValue": "/^24\\./",
+      "matchCurrentValue": "/^22\\./",
       "enabled": false
     },
     {

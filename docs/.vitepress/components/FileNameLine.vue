@@ -4,8 +4,8 @@
 // middle instead, keeping its end and extension (tools/file-name.ts).
 // - Screen readers hear the whole name, once, from a hidden copy; the cut line is hidden from them.
 // - A cut name becomes a button: a tap or a click shows the whole name, wrapped, and another cuts
-//   it again. A pointer also gets the whole name as a tooltip. Opening it grows the card, which
-//   follows the visitor's own action, like opening the export.
+//   it again. Opening it grows the card, which follows the visitor's own action, like opening the
+//   export. No tooltip: it would repeat the button's name to a screen reader.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { fileNameParts } from '../tools/file-name'
 
@@ -50,7 +50,6 @@ onBeforeUnmount(() => observer?.disconnect())
       :class="{ 'is-control': control, 'is-open': open }"
       :type="control ? 'button' : undefined"
       :aria-expanded="control ? open : undefined"
-      :title="control ? name : undefined"
       @click="toggle"
     >
       <span class="file-name-full">{{ name }}</span>
@@ -70,23 +69,25 @@ onBeforeUnmount(() => observer?.disconnect())
   width: 100%;
   contain: inline-size;
   font-size: 0.875rem;
-  line-height: 1.5;
   color: var(--vp-c-text-2);
 }
 
 .file-name-line {
   display: block;
   max-width: 100%;
+  min-height: 1.5rem;
   margin: 0 auto;
+  line-height: 1.5rem;
 }
 
-/* A button that reads as the name it is, with a dotted underline saying it opens. 24 px tall at
-   least, the smallest target WCAG 2.5.8 allows. */
+/* The paragraph and the button share one box, 1.5rem tall (24 px, the smallest target WCAG 2.5.8
+   allows), so a name becoming cut moves nothing, and `.vp-doc p`'s line-height can't change it on
+   the tool pages. The button reads as the name it is, with a dotted underline saying it opens. */
 .file-name-line.is-control {
-  min-height: 24px;
   padding: 0;
   border: 0;
   font: inherit;
+  line-height: 1.5rem;
   color: inherit;
   text-align: center;
   background: none;

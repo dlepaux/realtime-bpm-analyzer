@@ -42,6 +42,15 @@ test('fileNameParts: never splits a character drawn from several code points', (
   assert.deepEqual(fileNameParts(`Cafe\u0301${rest}`), { head: 'Caf', tail: `e\u0301${rest}` })
 })
 
+test('fileNameParts: without Intl.Segmenter it counts code points, and still never cuts one', () => {
+  // Firefox before 125 has no Intl.Segmenter, and every page loads this module.
+  const name = `Set \u{1F3B5}${'z'.repeat(FILE_NAME_TAIL - 1)}`
+  assert.deepEqual(fileNameParts(name, null), { head: 'Set ', tail: `\u{1F3B5}${'z'.repeat(FILE_NAME_TAIL - 1)}` })
+  assert.deepEqual(fileNameParts(SPACED, null), fileNameParts(SPACED))
+  const source = read('../.vitepress/tools/file-name.ts')
+  assert.match(source, /typeof Intl\.Segmenter === 'function' \?/)
+})
+
 test('every state after a file shows the name through FileNameLine, never as wrapping text', () => {
   const after = HERO.slice(HERO.indexOf('<template v-else-if="fileStatus === \'analysing\'">'), HERO.indexOf('<!-- MIC MODE -->'))
   const uses = after.match(/<FileNameLine\s+class="bpm-state-name"\s+:name="fileName \?\? ''"/g) ?? []
@@ -59,7 +68,9 @@ test('FileNameLine: one line that clips, the full name for screen readers, and a
   // A cut name becomes a button that shows the whole name, with its state announced.
   assert.match(LINE, /:is="control \? 'button' : 'p'"/)
   assert.match(LINE, /:aria-expanded="control \? open : undefined"/)
-  assert.match(LINE, /:title="control \? name : undefined"/)
+  assert.doesNotMatch(LINE, /:title=/, 'a tooltip would repeat the name to a screen reader')
+  // One box whether cut or not, with its own line-height, so `.vp-doc p` can't change it.
+  assert.match(LINE, /\.file-name-line \{[^}]*min-height: 1\.5rem;[^}]*line-height: 1\.5rem;/)
   // Open, it wraps anywhere, since a name without a space can't wrap otherwise.
   assert.match(LINE, /\.is-open \.file-name-tail \{[^}]*overflow-wrap: anywhere;/)
 })

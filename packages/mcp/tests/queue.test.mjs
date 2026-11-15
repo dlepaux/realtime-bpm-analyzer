@@ -4,6 +4,10 @@ import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 import {createQueue} from '../dist/queue.mjs';
 
+// node --test has no timeout of its own: a hang fails under its test's name, instead of holding CI
+// for hours (RBA-241). Each top-level suite passes it to its tests, and each hook takes it.
+const hangLimit = {timeout: 60_000};
+
 /**
  * @returns {{promise: Promise<void>, resolve: () => void, reject: (error: Error) => void}} A promise settled from outside
  */
@@ -24,7 +28,7 @@ const tick = async () => new Promise(resolve => {
 // A queue that loses a slot hangs a test instead of failing it, so each has a timeout
 const bounded = {timeout: 5000};
 
-describe('analysis queue', () => {
+describe('analysis queue', hangLimit, () => {
   it('runs one task at a time, in the order they came', bounded, async () => {
     const queue = createQueue(1);
     const signal = new AbortController().signal;

@@ -11,6 +11,10 @@ import {analyzeFile, decodedLimit, defaultMaxDecodedBytes} from 'realtime-bpm-an
 // Built for these tests and not published: the sample counts are not part of the public API
 import {decodeFile} from '../dist/decode.mjs';
 
+// node --test has no timeout of its own: a hang fails under its test's name, instead of holding CI
+// for hours (RBA-241). Each top-level suite passes it to its tests, and each hook takes it.
+const hangLimit = {timeout: 60_000};
+
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 const tooLong = /^Too long to analyze: the limit is \d+ MB of decoded audio \(\d+ minutes at 44\.1 kHz\)/;
 // Refusing from the header must not cost a decode, however long the file claims to be
@@ -124,7 +128,7 @@ function intWav(bits, channels) {
   return Buffer.concat([header, Buffer.alloc(44_100 * bytes * channels, 1)]);
 }
 
-describe('decoded size limit', () => {
+describe('decoded size limit', hangLimit, () => {
   let root;
 
   /**
@@ -152,11 +156,11 @@ describe('decoded size limit', () => {
 
   before(async () => {
     root = await mkdtemp(join(tmpdir(), 'rba-cli-limit-'));
-  });
+  }, hangLimit);
 
   after(async () => {
     await rm(root, {recursive: true, force: true});
-  });
+  }, hangLimit);
 
   it('states the default limit in plain words', () => {
     assert.equal(defaultMaxDecodedBytes, 2 * 1024 * 1024 * 1024);

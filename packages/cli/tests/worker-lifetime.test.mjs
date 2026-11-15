@@ -13,6 +13,10 @@ import {copyFile, mkdtemp, rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
+// node --test has no timeout of its own: a hang fails under its test's name, instead of holding CI
+// for hours (RBA-241). Each top-level suite passes it to its tests, and each hook takes it.
+const hangLimit = {timeout: 60_000};
+
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 const packageDir = fileURLToPath(new URL('..', import.meta.url));
 
@@ -52,7 +56,7 @@ class RecordingWorker extends RealWorker {
   }
 }
 
-describe('the analysis worker\'s lifetime', {timeout: 60_000}, () => {
+describe('the analysis worker\'s lifetime', hangLimit, () => {
   let analyzeFile;
 
   before(async () => {
@@ -61,12 +65,12 @@ describe('the analysis worker\'s lifetime', {timeout: 60_000}, () => {
     workerThreads.Worker = RecordingWorker;
     syncBuiltinESMExports();
     ({analyzeFile} = await import('realtime-bpm-analyzer-cli'));
-  });
+  }, hangLimit);
 
   after(() => {
     workerThreads.Worker = RealWorker;
     syncBuiltinESMExports();
-  });
+  }, hangLimit);
 
   it('stays alive after it answers, until the host ends it', async () => {
     lives.length = 0;

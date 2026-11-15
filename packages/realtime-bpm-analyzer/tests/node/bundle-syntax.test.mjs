@@ -5,9 +5,13 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {transform} from 'esbuild';
 
+// node --test has no timeout of its own: a hang fails under its test's name, instead of holding CI
+// for hours (RBA-241). Each top-level suite passes it to its tests, and each hook takes it.
+const hangLimit = {timeout: 60_000};
+
 const dist = new URL('../../dist/', import.meta.url);
 
-describe('shipped syntax', () => {
+describe('shipped syntax', hangLimit, () => {
   for (const file of ['index.esm.js', 'index.js', 'realtime-bpm-processor.js']) {
     it(`ships ${file} at ES2020`, async () => {
       const code = await readFile(new URL(file, dist), 'utf8');

@@ -13,6 +13,10 @@ import {analyzeFile, audioExtensions, resolveTempoRange} from 'realtime-bpm-anal
 import {decodeFile} from '../dist/decode.mjs';
 import {clickWav} from './click-wav.mjs';
 
+// node --test has no timeout of its own: a hang fails under its test's name, instead of holding CI
+// for hours (RBA-241). Each top-level suite passes it to its tests, and each hook takes it.
+const hangLimit = {timeout: 60_000};
+
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 const packageDir = fileURLToPath(new URL('..', import.meta.url));
 
@@ -22,7 +26,7 @@ const packageDir = fileURLToPath(new URL('..', import.meta.url));
  */
 const readingFields = ({bpm, bpmExact, confidence, candidates, engine}) => ({bpm, bpmExact, confidence, candidates, engine});
 
-describe('realtime-bpm-analyzer-cli programmatic API', () => {
+describe('realtime-bpm-analyzer-cli programmatic API', hangLimit, () => {
   it('analyses a file into the result the CLI prints', async () => {
     const result = await analyzeFile(fixture('click-128.mp3'));
     assert.equal(result.ok, true);

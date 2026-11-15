@@ -16,6 +16,10 @@ import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import {decodeFile} from '../../cli/dist/decode.mjs';
 import {clickWav} from '../../cli/tests/click-wav.mjs';
 
+// node --test has no timeout of its own: a hang fails under its test's name, instead of holding CI
+// for hours (RBA-241). Each top-level suite passes it to its tests, and each hook takes it.
+const hangLimit = {timeout: 60_000};
+
 const server = fileURLToPath(new URL('../dist/server.mjs', import.meta.url));
 // The CLI's click-track fixtures, read in place
 const fixtures = fileURLToPath(new URL('../../cli/tests/fixtures/', import.meta.url));
@@ -72,19 +76,19 @@ async function toolError(client, name, args) {
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) <= 1, `expected ${expected} ±1 BPM, got ${actual}`);
 
-describe('realtime-bpm-analyzer-mcp over stdio', () => {
+describe('realtime-bpm-analyzer-mcp over stdio', hangLimit, () => {
   let client;
   let scratch;
 
   before(async () => {
     client = await connect(fixtures);
     scratch = await mkdtemp(join(tmpdir(), 'rba-mcp-'));
-  });
+  }, hangLimit);
 
   after(async () => {
     await client?.close();
     await rm(scratch, {recursive: true, force: true});
-  });
+  }, hangLimit);
 
   it('lists exactly the two tools, read-only, with strict argument schemas', async () => {
     const {tools} = await client.listTools();
@@ -364,7 +368,7 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
       const big = await open(join(folder, 'g-big.wav'), 'w');
       await big.truncate((100 * megabyte) + 1);
       await big.close();
-    });
+    }, hangLimit);
 
     it('reports broken, outside and oversized files and keeps going', async () => {
       const result = await client.callTool({name: 'analyze_folder', arguments: {directory: folder}});

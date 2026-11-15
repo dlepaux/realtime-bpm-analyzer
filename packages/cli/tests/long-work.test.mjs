@@ -10,12 +10,16 @@ import {analyzeFile} from 'realtime-bpm-analyzer-cli';
 import {decodeFile} from '../dist/decode.mjs';
 import {clickWav} from './click-wav.mjs';
 
+// node --test has no timeout of its own: a hang fails under its test's name, instead of holding CI
+// for hours (RBA-241). Each top-level suite passes it to its tests, and each hook takes it.
+const hangLimit = {timeout: 60_000};
+
 const tooLowRate = /^Sample rate too low to analyze: \d+ Hz, the lowest is 8000 Hz\.$/;
 // A low-rate regression stalls the analysis instead of failing it, and node --test has no
 // default timeout, so without one the job would hang until CI kills it
 const lowRateTimeout = {timeout: 30_000};
 
-describe('bounds on the work one file costs', () => {
+describe('bounds on the work one file costs', hangLimit, () => {
   let root;
   let long;
   let decodeMs;
@@ -31,11 +35,11 @@ describe('bounds on the work one file costs', () => {
       await decodeFile(long, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
       decodeMs = Math.max(decodeMs ?? 0, performance.now() - started);
     }
-  });
+  }, hangLimit);
 
   after(async () => {
     await rm(root, {recursive: true, force: true});
-  });
+  }, hangLimit);
 
   describe('sample rate', () => {
     for (const rate of [1, 100, 7999]) {

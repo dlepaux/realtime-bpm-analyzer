@@ -10,7 +10,7 @@
 // done on clean data but an evaluation set did not come back whole.
 import {spawn} from 'node:child_process';
 import type {ChildProcess} from 'node:child_process';
-import {existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {parseArgs} from 'node:util';
 import {dataRoot, loaders} from './lib/datasets';
@@ -103,8 +103,9 @@ async function runCommand(command: string, args: readonly string[], okCodes: rea
   const code = await new Promise<number>((resolve, reject) => {
     child = spawn(command, args, {stdio: 'inherit'})
       .on('error', reject)
+      // A process killed by a signal has no status: a failure, never one of a mode's verdict codes
       .on('close', status => {
-        resolve(status ?? 1);
+        resolve(status ?? -1);
       });
   });
 
@@ -342,7 +343,10 @@ async function calibrationVerdict(summary: Summary): Promise<void> {
   save(summary);
   await runEntry('calibration-samples', ['--in', calibration.heldout, '--out', calibration.heldoutSamples]);
 
-  // 0 pass and 1 fail are both a judged check; a refusal or a crash exits 2 and records no verdict, so it can be retried
+  // 0 pass and 1 fail are both a judged check; a refusal or a crash exits 2 and records no verdict, so it can be retried.
+  // An earlier attempt's files go first, so only this attempt's can be read as the verdict
+  rmSync(calibration.verdict.md, {force: true});
+  rmSync(calibration.verdict.json, {force: true});
   const exit = await runCommand('python3', ['-I', 'calibration.py', 'heldout', calibration.heldoutSamples, committedCalibration, calibration.verdict.md, calibration.verdict.json], [0, 1], 'the verdict');
   const written = existsSync(calibration.verdict.md) && existsSync(calibration.verdict.json)
     ? JSON.parse(readFileSync(calibration.verdict.json, 'utf8')) as {passed?: unknown} : undefined;
@@ -361,6 +365,11 @@ async function calibrationVerdict(summary: Summary): Promise<void> {
 function refuseCalibrationLook(reason: string, sets: string | undefined, detector: string | undefined): string | null {
   if (sets !== undefined || detector !== undefined) {
     return 'The calibration check takes no --sets or --detector: its scope is fixed in lib/calibration-samples.ts';
+  }
+
+  // Its files are named by the image's commit, which is what keeps a re-judge on the code that took the look
+  if (!process.env.RBA_BENCHMARK_SHA) {
+    return 'The calibration check runs from a built image only: RBA_BENCHMARK_SHA names the code that takes and judges it';
   }
 
   // Once the look's file exists, a restart only judges it again, which reads nothing new: allowed until a verdict is recorded

@@ -316,14 +316,14 @@ class HeldoutCheck(unittest.TestCase):
         with self.assertRaises(SystemExit):
             heldout_check(data, self.committed)
 
-    def run_main(self, samples):
-        """main's exit code, and the verdict files it left"""
+    def run_main(self, samples, stderr=True):
+        """main's exit code, and the verdict files it left; `stderr` False lets the caller read it"""
         with tempfile.TemporaryDirectory() as directory:
             paths = [os.path.join(directory, name) for name in ('samples.json', 'committed.json', 'verdict.md', 'verdict.json')]
             for path, value in zip(paths, (samples, self.committed)):
                 with open(path, 'w', encoding='utf-8') as file:
                     json.dump(value, file)
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO() if stderr else sys.stderr):
                 code = main(['calibration.py', 'heldout', *paths])
             return code, [os.path.basename(p) for p in paths[2:] if os.path.exists(p)]
 
@@ -333,6 +333,15 @@ class HeldoutCheck(unittest.TestCase):
         mismatched['samples']['tempogram'][0] = {**first, 'readings': [[r[0], round(min(1.0, r[1] + 0.01), 6), r[2]] for r in first['readings']]}
         for samples in (mismatched, {**self.heldout(), 'split': 'dev'}, {**self.heldout(), 'samples': {'tempogram': [{'broken': True}]}}):
             self.assertEqual(self.run_main(samples), (2, []))
+
+    def test_a_broken_held_out_check_names_no_track_in_its_error(self):
+        broken = self.heldout()
+        broken['samples']['tempogram'][0] = {**broken['samples']['tempogram'][0], 'readings': [[120, 0.5]]}
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            self.assertEqual(self.run_main(broken, stderr=False), (2, []))
+        self.assertIn('AssertionError at scored:', stderr.getvalue())
+        self.assertNotIn('artist', stderr.getvalue())
 
     def test_a_judged_fail_exits_1_with_its_verdict(self):
         overconfident = {**self.heldout(), 'samples': {'tempogram': with_confidence(recorded_tracks(1500, seed=21, overconfident=False), self.mapping)}}

@@ -22,6 +22,9 @@ let bpmAnalyzer: BpmAnalyzer | null = null;
 
 // Start listening to microphone
 startBtn.addEventListener('click', async () => {
+  // One start at a time: a second click while the permission prompt is open would open a second analyzer
+  startBtn.disabled = true;
+
   try {
     showStatus('Starting microphone...', 'analyzing');
 
@@ -106,6 +109,10 @@ function watchAnalyzer(analyzer: BpmAnalyzer) {
     if (change.to.status === 'listening' || change.to.status === 'stopped') {
       readingPanel.clear();
     }
+    // stop() is final, whether the page or a fatal fault called it: there is nothing to start over
+    if (change.to.status === 'stopped') {
+      resetBtn.disabled = true;
+    }
   });
 
   // While listening: how close the analyzer is to its first reading, from 0 to 1
@@ -135,13 +142,17 @@ resetBtn.addEventListener('click', () => {
 // Stop listening
 stopBtn.addEventListener('click', async () => {
   await stopListening();
-  showStatus('Stopped listening', 'analyzing');
+  hideStatus();
 });
 
 // Helper functions
 function showStatus(message: string, type: 'analyzing' | 'success' | 'error') {
   statusElement.textContent = message;
   statusElement.className = `status visible ${type}`;
+}
+
+function hideStatus() {
+  statusElement.className = 'status';
 }
 
 async function stopListening(): Promise<void> {

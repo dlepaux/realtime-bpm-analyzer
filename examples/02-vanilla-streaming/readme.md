@@ -5,7 +5,7 @@ Analyzes an audio URL live as it plays, with `createRealtimeBpmAnalyzer` and a `
 ## What it shows
 
 - `analyzer.state`, read at once and then kept current from the events: `listening` (with its reason and `progress`), `settling`, `locked` and `stopped`.
-- Each `statechange` as `from → to (reason)`, newest first. Pause the audio and the analyzer moves back to `listening` with reason `pulse-lost`.
+- Each `statechange` as `from → to (reason)`, newest first. When no beat is heard for a couple of seconds, the analyzer moves back to `listening` with reason `pulse-lost`.
 - Each `reading` while settling or locked: `bpm`, `bpmExact`, `confidence` and the `candidates`, the same fields as a file analyzed offline.
 - `error` events (a failed analysis step) and a fatal fault, which is a move to `stopped` with the error.
 - **Start over** calls `analyzer.reset()`: back to `listening` with reason `reset` and the next epoch. **Stop** calls `analyzer.stop()`, which is final.

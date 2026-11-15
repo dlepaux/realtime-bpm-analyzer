@@ -10,6 +10,8 @@ import './bpm-analyzer.css';
 
 function BpmAnalyzer() {
   const [isRecording, setIsRecording] = useState(false);
+  // One start at a time: a second click while the permission prompt is open would open a second analyzer
+  const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const { view, watchAnalyzer } = useAnalyzerView();
 
@@ -75,6 +77,8 @@ function BpmAnalyzer() {
   };
 
   const handleStart = async () => {
+    setIsStarting(true);
+
     try {
       setError(undefined);
 
@@ -113,6 +117,8 @@ function BpmAnalyzer() {
 
       setError(errorMessage);
       await stopListening();
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -135,12 +141,12 @@ function BpmAnalyzer() {
       <div className="controls">
         <button
           onClick={handleStart}
-          disabled={isRecording}
+          disabled={isRecording || isStarting}
           className="start-btn"
         >
           🎤 Start Recording
         </button>
-        <button onClick={handleReset} disabled={!isRecording}>
+        <button onClick={handleReset} disabled={!isRecording || status === 'stopped'}>
           ↺ Start over
         </button>
         <button onClick={handleStop} disabled={!isRecording}>

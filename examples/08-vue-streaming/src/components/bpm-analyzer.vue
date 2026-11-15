@@ -119,7 +119,6 @@ const handlePlay = async () => {
   }
 };
 
-// The analyzer hears silence, and after a couple of seconds moves to listening (pulse-lost)
 const handlePause = () => {
   if (!audioElement) return;
   audioElement.pause();
@@ -171,7 +170,7 @@ onUnmounted(() => {
       <button @click="handlePause" :disabled="!isLoaded || !isPlaying">
         ⏸ Pause
       </button>
-      <button @click="handleReset" :disabled="!isLoaded">
+      <button @click="handleReset" :disabled="!isLoaded || view?.state.status === 'stopped'">
         ↺ Start over
       </button>
       <button @click="handleStop" :disabled="!isLoaded">

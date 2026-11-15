@@ -9,6 +9,8 @@ import StatePanel from './state-panel.vue';
 import { useAnalyzerView } from './use-analyzer-view';
 
 const isRecording = ref(false);
+// One start at a time: a second click while the permission prompt is open would open a second analyzer
+const isStarting = ref(false);
 const error = ref<string>();
 const { view, watchAnalyzer } = useAnalyzerView();
 
@@ -72,6 +74,8 @@ const handleStream = async (audioCtx: AudioContext, stream: MediaStream) => {
 };
 
 const handleStart = async () => {
+  isStarting.value = true;
+
   try {
     error.value = undefined;
 
@@ -107,6 +111,8 @@ const handleStart = async () => {
 
     error.value = errorMessage;
     await stopListening();
+  } finally {
+    isStarting.value = false;
   }
 };
 
@@ -131,12 +137,12 @@ onUnmounted(() => {
     <div class="controls">
       <button
         @click="handleStart"
-        :disabled="isRecording"
+        :disabled="isRecording || isStarting"
         class="start-btn"
       >
         🎤 Start Recording
       </button>
-      <button @click="handleReset" :disabled="!isRecording">
+      <button @click="handleReset" :disabled="!isRecording || view?.state.status === 'stopped'">
         ↺ Start over
       </button>
       <button @click="handleStop" :disabled="!isRecording">

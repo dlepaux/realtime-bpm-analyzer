@@ -33,7 +33,7 @@ Every result is a `Reading`, the same type whether it comes from a file or from 
 
 The reading panel shows each `reading` while the state is `settling` (dimmed) or `locked`. **Start over** calls `analyzer.reset()`, and **Stop** calls `analyzer.stop()`, which is final.
 
-- **An audio URL (02, 05, 08)** goes through a `MediaElementAudioSourceNode`, connected to `analyzer.input` and to the speakers. Pause it, and after a couple of seconds the analyzer moves back to `listening` with reason `pulse-lost`.
+- **An audio URL (02, 05, 08)** goes through a `MediaElementAudioSourceNode`, connected to `analyzer.input` and to the speakers.
 - **The microphone (03, 06, 09)** is opened with the voice filters off, and its track goes to the analyzer as `liveInput`. The analyzer then follows the track's clock, and moves to `listening` with reason `audio-lost` while the browser is losing input.
 
 Every live example follows the same pattern:
@@ -61,7 +61,7 @@ analyzer.on('error', ({ name, message }) => {
 });
 ```
 
-None of them moves anything on the beat: the library reports the tempo, not where the beats fall.
+These examples show the tempo only: nothing in them moves on the beat.
 
 ## Running an example
 

@@ -33,6 +33,9 @@ loadBtn.addEventListener('click', async () => {
     return;
   }
 
+  // One load at a time: a second click while this one awaits would attach a second analyzer
+  loadBtn.disabled = true;
+
   try {
     // Clean up previous audio
     cleanup();
@@ -75,6 +78,8 @@ loadBtn.addEventListener('click', async () => {
       'error'
     );
     cleanup();
+  } finally {
+    loadBtn.disabled = false;
   }
 });
 
@@ -94,6 +99,10 @@ function watchAnalyzer(analyzer: BpmAnalyzer) {
     // A reading belongs to settling and locked: back to listening, the last one may no longer hold
     if (change.to.status === 'listening' || change.to.status === 'stopped') {
       readingPanel.clear();
+    }
+    // stop() is final, whether the page or a fatal fault called it: there is nothing to start over
+    if (change.to.status === 'stopped') {
+      resetBtn.disabled = true;
     }
   });
 
@@ -130,7 +139,7 @@ playBtn.addEventListener('click', async () => {
   }
 });
 
-// Pause audio. The analyzer hears silence, and after a couple of seconds moves to listening (pulse-lost).
+// Pause audio
 pauseBtn.addEventListener('click', () => {
   if (!audioElement) return;
   audioElement.pause();
@@ -147,7 +156,7 @@ resetBtn.addEventListener('click', () => {
 // Stop audio
 stopBtn.addEventListener('click', () => {
   cleanup();
-  showStatus('Stopped', 'analyzing');
+  hideStatus();
 });
 
 // Example URL clicks
@@ -162,6 +171,10 @@ document.querySelectorAll('.example-link').forEach((link) => {
 function showStatus(message: string, type: 'analyzing' | 'playing' | 'error') {
   statusElement.textContent = message;
   statusElement.className = `status visible ${type}`;
+}
+
+function hideStatus() {
+  statusElement.className = 'status';
 }
 
 function enableControls(enabled: boolean) {

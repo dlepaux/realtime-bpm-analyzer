@@ -122,7 +122,6 @@ function BpmAnalyzer() {
     }
   };
 
-  // The analyzer hears silence, and after a couple of seconds moves to listening (pulse-lost)
   const handlePause = () => {
     if (!audioElementRef.current) return;
     audioElementRef.current.pause();
@@ -172,7 +171,7 @@ function BpmAnalyzer() {
         <button onClick={handlePause} disabled={!isLoaded || !isPlaying}>
           ⏸ Pause
         </button>
-        <button onClick={handleReset} disabled={!isLoaded}>
+        <button onClick={handleReset} disabled={!isLoaded || status === 'stopped'}>
           ↺ Start over
         </button>
         <button onClick={handleStop} disabled={!isLoaded}>

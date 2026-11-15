@@ -39,7 +39,7 @@ audioFileInput.addEventListener('change', async (event) => {
     showStatus('Analysis complete!', 'success');
   } catch (error) {
     console.error('Error analyzing audio:', error);
-    showStatus(`Error: ${describeError(error)}`, 'error');
+    showStatus(describeError(error), 'error');
   } finally {
     audioFileInput.disabled = false;
   }
@@ -53,8 +53,8 @@ function showStatus(message: string, type: 'analyzing' | 'success' | 'error') {
 
 function describeError(error: unknown): string {
   if (error instanceof DOMException && error.name === 'EncodingError') {
-    return 'this file could not be decoded. Try an MP3, WAV, OGG or FLAC file.';
+    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file.';
   }
 
-  return error instanceof Error ? error.message : 'Unknown error';
+  return error instanceof Error ? error.message : 'Failed to analyze audio';
 }

@@ -176,10 +176,10 @@ export type Reading = {
    *
    * Fitted on the benchmark's dev half (benchmark/results/rba-106-calibration-dev.md), then checked once on the
    * real-time readings of its held-out half, which it had not seen: the tempogram's table held there
-   * (benchmark/results/rba-106-calibration-heldout-verdict.md). Offline readings were not part of that check. Peaks' table was fitted on dev only. Treat the
-   * values as an estimate for music like the benchmark's. Both halves were read on the default 90 to 180 range: a
-   * reading under 90 BPM, or far over 180 with a custom `tempoRange`, gets the nearest table, which no reading there
-   * measured.
+   * (benchmark/results/rba-106-calibration-heldout-verdict.md). Offline readings were not part of that check. Peaks'
+   * table was fitted on dev only. Treat the values as an estimate for music like the benchmark's. Both halves were
+   * read on the default 90 to 180 range: a reading under 90 BPM, or far over 180 with a custom `tempoRange`, gets the
+   * nearest table, which no reading there measured.
    */
   readonly confidence: number;
   /**

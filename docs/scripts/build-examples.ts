@@ -1,4 +1,4 @@
-import { execFileSync } from 'child_process';
+import { execSync } from 'child_process';
 import { cpSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -46,7 +46,10 @@ examples.forEach((example, index) => {
     // it: vite only strips types, and an example broken by a public rename would otherwise ship.
     // The root `npm ci` installs every workspace, examples included, so nothing is installed here.
     const basePath = `/examples/${example}/`;
-    execFileSync('npm', ['run', 'build', '--', '--base', basePath], { cwd: examplePath, stdio: 'pipe' });
+    // Through a shell so npm resolves on Windows too (npm.cmd), as in dev-examples.ts. The path
+    // comes from the fixed list above; the check keeps anything else out of the command line.
+    if (!/^\/examples\/[0-9a-z-]+\/$/.test(basePath)) throw new Error(`unsafe base path: ${basePath}`);
+    execSync(`npm run build -- --base ${basePath}`, { cwd: examplePath, stdio: 'pipe' });
 
     // Copy built files to docs
     const distPath = join(examplePath, 'dist');

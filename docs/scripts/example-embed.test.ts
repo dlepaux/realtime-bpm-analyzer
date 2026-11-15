@@ -1,4 +1,4 @@
-// Run with `npm test`. The docs embed every example, and CI builds them through build-examples.ts.
+// Run with `npm test -w docs`. The docs embed every example, and CI builds them through build-examples.ts.
 // Two things the build alone wouldn't catch (RBA-231): an embed that blocks the microphone, which
 // only shows in docs dev where the examples are on another origin, and an example whose types
 // drift from the library's, which vite strips without checking.
@@ -20,8 +20,9 @@ test('the embed lets the microphone examples ask for the microphone', () => {
   assert.ok(allow.split(';').map(s => s.trim()).includes('microphone'), `allow="${allow}"`)
 })
 
-test('the docs build runs each example through its own build script', () => {
-  assert.match(BUILD, /'npm', \['run', 'build', '--', '--base', basePath\]/)
+test('the docs build builds every example through its own build script', () => {
+  // A source check, loose on purpose: a bare `vite build` here would skip the type-check below.
+  assert.ok(BUILD.includes('npm run build'), 'build-examples.ts no longer runs the examples\' build script')
   for (const example of EXAMPLES) {
     assert.ok(BUILD.includes(`'${example}'`), `build-examples.ts does not build ${example}`)
   }

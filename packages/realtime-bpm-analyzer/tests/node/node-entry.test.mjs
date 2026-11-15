@@ -10,6 +10,19 @@ import {createClickTrack, createNoise, clickTrackTempos} from '../fixtures/click
 import {bassTestExpected} from '../fixtures/bass-test-expected.ts';
 
 /**
+ * Every key a lowpass setting refuses, with the message that must name it. A key's presence is the error, so
+ * one row sets its value to undefined: the call must throw whatever the data holds.
+ */
+const refusedLowpassKeys = [
+  [{Q: 4}, /Q is the DOM's spelling: use q/],
+  [{detune: 100}, /detune is the DOM's, and has no equivalent here: fold it into frequency/],
+  [{type: 'highpass'}, /type is the DOM's: this filter is always a lowpass/],
+  [{type: undefined}, /type is the DOM's: this filter is always a lowpass/],
+  [{gain: 6}, /gain is the DOM's: a lowpass has no gain/],
+  [{frequncy: 150}, /frequncy is unknown: the settings are frequency and q/],
+];
+
+/**
  * Reads channel 0 of a PCM WAV file (16 or 24 bit), scaled to [-1, 1] the way
  * decodeAudioData scales it. Enough for the fixture; not a general decoder.
  * @param {string} path WAV file path
@@ -79,6 +92,10 @@ describe('realtime-bpm-analyzer/node', () => {
     await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {frequencyValue: 200}), {name: 'TypeError', message: /lowpass/});
     // ... and inside engine.lowpass too, where a 5.x reader is likely to move them
     await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass: {frequencyValue: 200}}}), {name: 'TypeError', message: /frequencyValue.*use frequency/});
+    for (const [settings, message] of refusedLowpassKeys) {
+      const lowpass = {frequency: 150, ...settings};
+      await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass}}), {name: 'TypeError', message}, JSON.stringify(settings));
+    }
     // The first pick, on 50 to 240, read this at half
     const fast = await analyzeChannelData(createClickTrack(174), 44_100, {engine: 'tempogram'});
 
@@ -196,5 +213,16 @@ describe('applyLowpass', () => {
     assert.notDeepEqual(applyLowpass(input, sampleRate, {q: 12}), applyLowpass(input, sampleRate));
     assert.throws(() => applyLowpass(input, sampleRate, {frequencyValue: sampleRate}), {name: 'TypeError', message: /frequencyValue.*use frequency/});
     assert.throws(() => applyLowpass(input, sampleRate, {qualityValue: 2}), {name: 'TypeError', message: /qualityValue.*use q/});
+  });
+
+  it('refuses every key but frequency and q, whatever its value, and keeps the defaults for none', () => {
+    const input = createNoise(100);
+    for (const [settings, message] of refusedLowpassKeys) {
+      assert.throws(() => applyLowpass(input, sampleRate, {frequency: 150, ...settings}), {name: 'TypeError', message}, JSON.stringify(settings));
+    }
+
+    const byDefault = applyLowpass(input, sampleRate);
+    assert.deepEqual(applyLowpass(input, sampleRate, {}), byDefault);
+    assert.deepEqual(applyLowpass(input, sampleRate, {frequency: undefined, q: undefined}), byDefault);
   });
 });

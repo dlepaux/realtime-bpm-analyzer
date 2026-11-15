@@ -417,11 +417,23 @@ describe('getBiquadFilter', () => {
       expect(() => getBiquadFilter(audioContext, {qualityValue: 2})).to.throw(TypeError, 'use q');
     });
 
-    it('refuses the DOM\'s Q and detune, which share frequency with LowpassOption and would pass as one', () => {
-      const domOptions: BiquadFilterOptions = {frequency: 150, Q: 4};
-      expect(() => getBiquadFilter(audioContext, domOptions)).to.throw(TypeError, /Q is the DOM's spelling: use q/);
-      const detuned: BiquadFilterOptions = {frequency: 150, detune: 100};
-      expect(() => getBiquadFilter(audioContext, detuned)).to.throw(TypeError, /detune is the DOM's: use frequency/);
+    it('refuses the DOM\'s fields, which share frequency with LowpassOption and type-check as one', () => {
+      const refused: Array<[BiquadFilterOptions, RegExp]> = [
+        [{frequency: 150, Q: 4}, /Q is the DOM's spelling: use q/],
+        [{frequency: 150, detune: 100}, /detune is the DOM's, and has no equivalent here: fold it into frequency/],
+        [{frequency: 150, type: 'highpass'}, /type is the DOM's: this filter is always a lowpass/],
+        [{frequency: 150, gain: 6}, /gain is the DOM's: a lowpass has no gain/],
+        // The key's presence is the error, so the call can't pass on one value and throw on another
+        [{frequency: 150, type: undefined}, /type is the DOM's: this filter is always a lowpass/],
+      ];
+      for (const [domOptions, message] of refused) {
+        expect(() => getBiquadFilter(audioContext, domOptions), JSON.stringify(domOptions)).to.throw(TypeError, message);
+      }
+    });
+
+    it('refuses an unknown key, such as a typo that would otherwise fall back to the default', () => {
+      const typo = {frequency: 150, frequncy: 300};
+      expect(() => getBiquadFilter(audioContext, typo)).to.throw(TypeError, /frequncy is unknown: the settings are frequency and q/);
     });
 
     it('refuses a setting that is not a finite number', () => {

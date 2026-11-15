@@ -146,11 +146,20 @@ describe('analyzer - getOfflineLowPassSource', () => {
       expect(both).to.be.greaterThan(frequencyOnly * 2.5);
     });
 
-    it('refuses the 5.x names, which it would otherwise ignore', async () => {
+    it('refuses every key but frequency and q, which it would otherwise ignore', async () => {
       const buffer = audioContext.createBuffer(1, 128, sampleRate);
-      const removed: Array<[Record<string, number>, string]> = [[{frequencyValue: 150}, 'frequency'], [{qualityValue: 2}, 'q'], [{Q: 4}, 'q'], [{detune: 100}, 'frequency']];
+      const refused: Array<[Record<string, unknown>, string]> = [
+        [{frequencyValue: 150}, 'use frequency'],
+        [{qualityValue: 2}, 'use q'],
+        [{Q: 4}, 'use q'],
+        [{detune: 100}, 'fold it into frequency (frequency × 2^(detune/1200))'],
+        [{type: 'highpass'}, 'this filter is always a lowpass'],
+        [{gain: 6}, 'a lowpass has no gain'],
+        [{frequncy: 150}, 'the settings are frequency and q'],
+        [{type: undefined}, 'this filter is always a lowpass'],
+      ];
 
-      for (const [options, replacement] of removed) {
+      for (const [options, reason] of refused) {
         let caught: unknown;
         try {
           await getOfflineLowPassSource(buffer, options as LowpassOption);
@@ -159,7 +168,7 @@ describe('analyzer - getOfflineLowPassSource', () => {
         }
 
         expect(caught, JSON.stringify(options)).to.be.instanceOf(TypeError);
-        expect((caught as Error).message).to.contain(Object.keys(options)[0]).and.to.contain(`use ${replacement}`);
+        expect((caught as Error).message).to.contain(`The lowpass setting ${Object.keys(options)[0]} `).and.to.contain(reason);
       }
     });
   });

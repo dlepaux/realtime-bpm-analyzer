@@ -1,15 +1,19 @@
 import {expect} from 'chai';
 import {HYSTERESIS} from '../../../src/contract/types';
-import type {Hysteresis, WorkletMessage} from '../../../src/contract/types';
+import type {EngineName, Hysteresis, WorkletMessage} from '../../../src/contract/types';
+import {calibrate} from '../../../src/core/calibration';
+import {applyLowpass} from '../../../src/core/lowpass';
+import {analyzeSamples} from '../../../src/core/offline';
 import {
-  baseRowIndex, compactTrace, expandTrace, factorialGrid, hysteresisFields, oneAtATimeGrid, readingsAt, scoreReplay, scoreRow, sweepGrids,
-  sweepTrack, tempogramAxes,
+  baseRowIndex, compactTrace, expandTrace, factorialGrid, hysteresisFields, offlineSample, oneAtATimeGrid, readingsAt, scoreReplay, scoreRow,
+  sweepGrids, sweepTrack, tempogramAxes,
 } from '../../../benchmark/lib/hysteresis';
+import type {CompactTrace, Sample} from '../../../benchmark/lib/hysteresis';
 import {
   edgeFieldsOf, isEligible, metricNames, metricsOf, pickedSamples, pickHysteresis, pickRow, resamples, rowScores,
 } from '../../../benchmark/lib/hysteresis-pick';
 import type {Interval, MetricName, RowReport} from '../../../benchmark/lib/hysteresis-pick';
-import {offersOf, replayTracker, streamPcm, traceEngine} from '../../../benchmark/lib/stream';
+import {debugCandidates, offersOf, rawScore, replayTracker, streamPcm, traceEngine} from '../../../benchmark/lib/stream';
 import type {EngineTraceStep, Observation} from '../../../benchmark/lib/stream';
 import type {Track, TrackResult} from '../../../benchmark/lib/types';
 import {createClickTrack} from '../../fixtures/click-track';
@@ -96,6 +100,27 @@ describe('the hysteresis replay', () => {
     const exact = (step: EngineTraceStep) => [step.now, step.bpm, step.pulse, step.leads, step.lockOffered, step.frameTempo];
     expect(back.map(step => exact(step))).to.deep.equal(steps.map(step => exact(step)));
     expect(back.every(({confidence}, i) => Math.abs((confidence ?? 0) - (steps[i].confidence ?? 0)) < 1e-6)).to.equal(true);
+    expect(back.every(({raw}, i) => Math.abs((raw ?? 0) - (steps[i].raw ?? 0)) < 1e-6)).to.equal(true);
+  });
+
+  // RBA-148: the confidence is calibrated, so a re-fit needs the score it maps, recorded beside it
+  it('records the raw score each reading\'s confidence maps', async () => {
+    const steps = await traceEngine(changingTrack(), sampleRate, {engine: 'tempogram'});
+    const readings = steps.filter(step => step.bpm !== null);
+    expect(readings.length).to.be.greaterThan(10);
+    for (const {bpm, confidence, raw} of readings) {
+      expect(raw).to.be.within(0, 1);
+      expect(calibrate('tempogram', raw!, bpm!)).to.equal(confidence);
+    }
+
+    // A score the table maps flat would be lost if the calibrated value were all that was kept
+    expect(readings.some(({raw, confidence}) => raw !== confidence)).to.equal(true);
+    expect(steps.filter(step => step.bpm === null).every(step => step.raw === null && step.confidence === null)).to.equal(true);
+  });
+
+  it('refuses a trace written before the raw score was recorded', () => {
+    const old = {now: [1], bpm: [120], confidence: [0.5], frameTempo: [120], flags: [1]} as unknown as CompactTrace;
+    expect(() => expandTrace(old)).to.throw('RBA-148');
   });
 
   it('refuses peaks, whose steps depend on the tracker', async () => {
@@ -145,11 +170,11 @@ describe('scoreRow', () => {
 describe('readingsAt', () => {
   it('gives the reading last shown, whatever the status, null before the first', () => {
     const steps = [
-      {now: 8, bpm: 120, confidence: 0.2},
-      {now: 16, bpm: 121, confidence: 0.6},
-      {now: 18, bpm: null, confidence: null},
+      {now: 8, bpm: 120, confidence: 0.2, raw: 0.05},
+      {now: 16, bpm: 121, confidence: 0.6, raw: 0.12},
+      {now: 18, bpm: null, confidence: null, raw: null},
     ];
-    expect(readingsAt(steps, 25)).to.deep.equal([[120, 0.2], [120, 0.2], [121, 0.6], [121, 0.6]]);
+    expect(readingsAt(steps, 25)).to.deep.equal([[120, 0.2, 0.05], [120, 0.2, 0.05], [121, 0.6, 0.12], [121, 0.6, 0.12]]);
     expect(readingsAt([], 12)).to.deep.equal([null, null]);
   });
 });
@@ -313,5 +338,60 @@ describe('the sweep, end to end', function () {
       const samples = pickedSamples(engine, results[engine], pick.pick);
       expect(samples.map(({statuses, readings}) => [statuses.length, readings.length])).to.deep.equal([[4, 4], [4, 4]]);
     }
+  });
+
+  it('records each engine\'s raw score beside the calibrated confidence it maps, realtime and offline', () => {
+    for (const engine of ['tempogram', 'peaks'] as const) {
+      const samples = pickedSamples(engine, results[engine], baseRowIndex(engine));
+      const offline = results[engine].map(result => result.hysteresis?.offline ?? null);
+      const shown = [...samples.flatMap(({readings}) => readings), ...offline].filter((sample): sample is NonNullable<Sample> => sample !== null);
+      expect(shown.length, engine).to.be.greaterThan(4);
+      for (const [bpm, confidence, raw] of shown) {
+        expect(Math.abs(calibrate(engine, raw, bpm) - confidence), engine).to.be.below(1e-5);
+      }
+    }
+  });
+});
+
+describe('offlineSample', function () {
+  this.timeout(60_000);
+
+  for (const engine of ['tempogram', 'peaks'] as const satisfies readonly EngineName[]) {
+    it(`gives ${engine}'s offline reading as analyzeSamples does, with the raw score it maps`, async () => {
+      const pcm = createClickTrack(128, sampleRate, 20);
+      const reading = await analyzeSamples(pcm, sampleRate, {engine}, async lowpass => applyLowpass(pcm, sampleRate, lowpass));
+      const sample = await offlineSample(pcm, sampleRate, engine);
+      expect(reading).to.not.equal(null);
+      expect(sample?.slice(0, 2)).to.deep.equal([reading!.bpm, reading!.confidence]);
+      expect(calibrate(engine, sample![2], sample![0])).to.equal(reading!.confidence);
+    });
+  }
+});
+
+describe('the session\'s debug detail', function () {
+  this.timeout(60_000);
+
+  it('changes nothing peaks measures, and carries the raw score its reading maps', async () => {
+    const pcm = applyLowpass(createClickTrack(120, sampleRate, 20), sampleRate);
+    const steps = async (debug: boolean) => {
+      const sent: WorkletMessage[] = [];
+      await streamPcm(pcm, sampleRate, {engine: 'peaks'}, message => sent.push(message), undefined, undefined, debug);
+      return sent;
+    };
+
+    const [quiet, verbose] = [await steps(false), await steps(true)];
+    expect(verbose.filter(({type}) => type === 'step')).to.deep.equal(quiet.filter(({type}) => type === 'step'));
+    let raw: number | null = null;
+    let checked = 0;
+    for (const message of verbose) {
+      if (message.type === 'debug') {
+        raw = rawScore(debugCandidates(message.data));
+      } else if (message.type === 'step' && message.status !== 'listening') {
+        expect(calibrate('peaks', raw!, message.reading.bpm)).to.equal(message.reading.confidence);
+        checked += 1;
+      }
+    }
+
+    expect(checked).to.be.greaterThan(0);
   });
 });

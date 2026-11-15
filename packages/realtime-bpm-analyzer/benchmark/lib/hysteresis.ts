@@ -1,9 +1,13 @@
 import {HYSTERESIS} from '../../src/contract/types';
 import type {EngineName, Hysteresis} from '../../src/contract/types';
+import {calibrate} from '../../src/core/calibration';
+import {detectTempo} from '../../src/core/detect-tempo';
+import {toReading} from '../../src/core/engine';
 import {applyLowpass} from '../../src/core/lowpass';
-import {analyzeSamples} from '../../src/core/offline';
+import {resolveTempoRange} from '../../src/core/tempo';
+import {detectTempogram} from '../../src/core/tempogram';
 import {isCorrect} from './metrics';
-import {offersOf, streamPcm, traceEngine, visitReplay} from './stream';
+import {debugCandidates, offersOf, rawScore, streamPcm, traceEngine, visitReplay} from './stream';
 import type {EngineTraceStep, Observation} from './stream';
 import type {Track, TrackResult} from './types';
 
@@ -107,17 +111,23 @@ export const sampleSeconds: readonly number[] = [10, 15, 20, 30, 45];
  */
 export type SweepRow = readonly [number, number, number, number, number, number, string];
 
-/** A reading shown at a sample time, as [bpm, confidence], or null when the state was listening there */
-export type Sample = readonly [number, number] | null;
+/**
+ * A reading shown at a sample time, as [bpm, confidence, raw], or null when the state was listening there. The
+ * confidence is the calibrated one the reading carried, the raw score is what the calibration maps (RBA-148)
+ */
+export type Sample = readonly [number, number, number] | null;
 
 /**
  * The tempogram's fresh steps, one array per field: seconds, top tempo (0 for none), emitted confidence (0 for
- * none), the frame's own tempo, and flags (1 a pulse, 2 the frame leads, 4 the engine offered a lock)
+ * none), raw score (0 for none), the frame's own tempo, and flags (1 a pulse, 2 the frame leads, 4 the engine
+ * offered a lock)
  */
 export type CompactTrace = {
   readonly now: readonly number[];
   readonly bpm: readonly number[];
   readonly confidence: readonly number[];
+  /** Missing in traces written before RBA-148, which `expandTrace` refuses */
+  readonly raw: readonly number[];
   readonly frameTempo: readonly number[];
   readonly flags: readonly number[];
 };
@@ -134,8 +144,8 @@ export type HysteresisRecord =
     readonly offline: Sample;
   };
 
-/** An observation with the confidence of the reading it showed */
-type ScoredObservation = Observation & {readonly confidence: number | null};
+/** An observation with the confidence of the reading it showed, and the raw score that confidence maps */
+type ScoredObservation = Observation & {readonly confidence: number | null; readonly raw: number | null};
 
 const statusDigit = {listening: '0', settling: '1', locked: '2'} as const;
 
@@ -242,12 +252,20 @@ function timesOf(duration: number): number[] {
  * @param duration Seconds of audio
  * @returns The latest reading at or before each sample time and the end, null before the first
  */
-export function readingsAt(points: ReadonlyArray<{readonly now: number; readonly bpm: number | null; readonly confidence: number | null}>, duration: number): Sample[] {
+export function readingsAt(
+  points: ReadonlyArray<{readonly now: number; readonly bpm: number | null; readonly confidence: number | null; readonly raw: number | null}>,
+  duration: number,
+): Sample[] {
   return timesOf(duration).map(time => {
     const last = lastWhere(points, ({now, bpm}) => now <= time && bpm !== null);
-    return last === undefined || last.bpm === null || last.confidence === null ? null : [last.bpm, last.confidence] as const;
+    return last === undefined || last.bpm === null || last.confidence === null || last.raw === null
+      ? null
+      : [last.bpm, last.confidence, last.raw] as const;
   });
 }
+
+/** Six decimals: the dev samples the committed tables were fitted on held the score rounded so */
+const rounded = (value: number | null): number => (value === null ? 0 : Math.round(value * 1e6) / 1e6);
 
 /**
  * @param steps The tempogram's steps
@@ -257,7 +275,8 @@ export function compactTrace(steps: readonly EngineTraceStep[]): CompactTrace {
   return {
     now: steps.map(({now}) => now),
     bpm: steps.map(({bpm}) => bpm ?? 0),
-    confidence: steps.map(({confidence}) => (confidence === null ? 0 : Math.round(confidence * 1e6) / 1e6)),
+    confidence: steps.map(({confidence}) => rounded(confidence)),
+    raw: steps.map(({raw}) => rounded(raw)),
     frameTempo: steps.map(({frameTempo}) => frameTempo),
     flags: steps.map(({pulse, leads, lockOffered}) => (pulse ? 1 : 0) + (leads ? 2 : 0) + (lockOffered ? 4 : 0)),
   };
@@ -268,10 +287,16 @@ export function compactTrace(steps: readonly EngineTraceStep[]): CompactTrace {
  * @returns Its steps
  */
 export function expandTrace(trace: CompactTrace): EngineTraceStep[] {
+  // Its confidence was raw before e70a4f5 and calibrated after, and the file does not say which: run dev again
+  if (!Array.isArray(trace.raw)) {
+    throw new Error('This trace was written before RBA-148 and holds no raw score: score dev again with this harness');
+  }
+
   return trace.now.map((now, i) => ({
     now,
     bpm: trace.bpm[i] === 0 ? null : trace.bpm[i],
     confidence: trace.bpm[i] === 0 ? null : trace.confidence[i],
+    raw: trace.bpm[i] === 0 ? null : trace.raw[i],
     pulse: (trace.flags[i] & 1) !== 0,
     leads: (trace.flags[i] & 2) !== 0,
     lockOffered: (trace.flags[i] & 4) !== 0,
@@ -287,8 +312,15 @@ export function expandTrace(trace: CompactTrace): EngineTraceStep[] {
  */
 async function observePeaks(pcm: Float32Array, sampleRate: number, row: Hysteresis): Promise<ScoredObservation[]> {
   const observations: ScoredObservation[] = [];
+  // The session sends a step's debug detail just before the step itself, so this is the score of the next reading
+  let raw: number | null = null;
 
   await streamPcm(pcm, sampleRate, {engine: 'peaks'}, (message, heard) => {
+    if (message.type === 'debug') {
+      raw = rawScore(debugCandidates(message.data));
+      return;
+    }
+
     if (message.type !== 'step') {
       return;
     }
@@ -299,11 +331,44 @@ async function observePeaks(pcm: Float32Array, sampleRate: number, row: Hysteres
       status: message.status,
       bpm: reading?.bpm ?? null,
       confidence: reading?.confidence ?? null,
+      raw: reading === null ? null : rawOf(reading.bpm, reading.confidence, raw),
       ...(message.reason === undefined ? {} : {reason: message.reason}),
     });
-  }, undefined, row);
+  }, undefined, row, true);
 
   return observations;
+}
+
+/**
+ * @param bpm A reading's tempo
+ * @param confidence Its calibrated confidence
+ * @param raw The raw score recorded for it
+ * @returns The raw score, once it is the one that confidence maps: a recorded score that is not would make a re-fit wrong
+ */
+function rawOf(bpm: number, confidence: number, raw: number | null): number {
+  if (raw === null || calibrate('peaks', raw, bpm) !== confidence) {
+    throw new Error(`peaks: the raw score ${raw} does not map to the reading's confidence ${confidence} at ${bpm} BPM`);
+  }
+
+  return raw;
+}
+
+/**
+ * The offline reading, with its raw score: the same detection and the same `toReading` as `analyzeSamples` with
+ * only the engine named, which a test holds, so the score is the one the reading's confidence maps
+ * @param raw Mono samples, not lowpassed
+ * @param sampleRate Their rate
+ * @param engine The engine
+ * @returns The reading, or null when there is none
+ */
+export async function offlineSample(raw: Float32Array, sampleRate: number, engine: EngineName): Promise<Sample> {
+  const tempoRange = resolveTempoRange(undefined);
+  const tempos = engine === 'tempogram'
+    ? detectTempogram(raw, sampleRate, tempoRange)
+    : await detectTempo(applyLowpass(raw, sampleRate, {}), sampleRate, tempoRange);
+  const reading = toReading(tempos, {from: 0, to: raw.length / sampleRate, contextTime: null}, engine);
+  const score = rawScore(tempos);
+  return reading === null || score === null ? null : [reading.bpm, reading.confidence, score];
 }
 
 async function sweepPeaks(raw: Float32Array, sampleRate: number, truth: number, duration: number): Promise<{rows: SweepRow[]; readings: Sample[][]}> {
@@ -330,8 +395,7 @@ async function sweepPeaks(raw: Float32Array, sampleRate: number, truth: number, 
  */
 export async function sweepTrack(track: Track, raw: Float32Array, sampleRate: number, engine: EngineName): Promise<TrackResult> {
   const duration = raw.length / sampleRate;
-  const offlineReading = await analyzeSamples(raw, sampleRate, {engine}, async lowpass => applyLowpass(raw, sampleRate, lowpass));
-  const offline: Sample = offlineReading === null ? null : [offlineReading.bpm, offlineReading.confidence];
+  const offline = await offlineSample(raw, sampleRate, engine);
   let record: HysteresisRecord;
   let final: number | null;
 

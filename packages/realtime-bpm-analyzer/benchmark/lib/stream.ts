@@ -3,6 +3,7 @@ import {createSession} from '../../src/core/session';
 import {createTracker} from '../../src/core/tracker';
 import {defaultTempogramTuning} from '../../src/core/tempogram';
 import type {TempogramTuning} from '../../src/core/tempogram';
+import type {Tempo} from '../../src/core/types';
 import {chunkAggregator} from '../../src/core/utils';
 import type {ActiveStatus, CandidateRelation, EngineReason, Hysteresis, WorkletMessage} from '../../src/contract/types';
 import type {BenchmarkOptions} from './detectors';
@@ -36,6 +37,7 @@ export function repeatTo(pcm: Float32Array, length: number): Float32Array {
  * @param onMessage Called with each message and the seconds of audio heard so far
  * @param tuning Tempogram overrides, for tuning runs on dev
  * @param hysteresis Hysteresis overrides, for RBA-106's sweep on dev: the contract's values otherwise
+ * @param debug Whether the session sends the engine's debug detail, which holds the raw scores (RBA-148)
  */
 export async function streamPcm(
   pcm: Float32Array,
@@ -44,13 +46,14 @@ export async function streamPcm(
   onMessage: (message: WorkletMessage, heard: number) => void,
   tuning?: Partial<TempogramTuning>,
   hysteresis?: Hysteresis,
+  debug = false,
 ): Promise<void> {
   const {engine, tempoRange} = resolveEngine(options.engine, options.tempoRange);
   // restartAfterSeconds and tuning are internal: the rows that measure them set them here, past the public option
   const session = createSession({
     engine: {...engine, restartAfterSeconds: options.restartAfterSeconds ?? engine.restartAfterSeconds, tuning},
     tempoRange,
-    debug: false,
+    debug,
     hysteresis,
   });
   const aggregate = chunkAggregator();
@@ -147,13 +150,40 @@ export async function listen(
   };
 }
 
+/**
+ * The engine's raw score for its top tempo: what the calibration tables map, so what a re-fit must read (RBA-148).
+ * It is the score as `calibrate` takes it, and as `toReading` reported it before RBA-106 calibrated it, which is
+ * what the committed tables were fitted on.
+ * @param tempos The engine's candidates, best first
+ * @returns The score, 0 to 1, or null without a candidate
+ */
+export function rawScore(tempos: readonly Tempo[]): number | null {
+  const top = tempos[0];
+  if (top === undefined) {
+    return null;
+  }
+
+  return Number.isFinite(top.confidence) ? Math.min(1, Math.max(0, top.confidence)) : 0;
+}
+
+/**
+ * The candidates in an engine's debug detail: both engines put them there
+ * @param data A debug message's data
+ * @returns Its candidates, none when it has no such field
+ */
+export function debugCandidates(data: unknown): readonly Tempo[] {
+  return typeof data === 'object' && data !== null && 'candidates' in data && Array.isArray(data.candidates) ? data.candidates as Tempo[] : [];
+}
+
 /** One fresh step of the tempogram, as the session hands it to the tracker, with what its stable rule read */
 export type EngineTraceStep = {
   /** Seconds of audio analysed, as the session counts them */
   readonly now: number;
   readonly bpm: number | null;
-  /** The confidence `toReading` emits for this step, null without a reading */
+  /** The confidence `toReading` emits for this step, calibrated, null without a reading */
   readonly confidence: number | null;
+  /** The raw score that confidence maps (`rawScore`), null without a reading */
+  readonly raw: number | null;
   readonly pulse: boolean;
   readonly lockOffered: boolean;
   /** The frame's own best tempo, 0 when none stands out */
@@ -207,6 +237,7 @@ export async function traceEngine(
         now: seconds,
         bpm: reading?.bpm ?? null,
         confidence: reading?.confidence ?? null,
+        raw: reading === null ? null : rawScore(step.candidates),
         pulse: step.pulse,
         lockOffered: step.lockOffered,
         frameTempo: detail.frameTempo,

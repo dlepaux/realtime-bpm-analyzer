@@ -1,6 +1,7 @@
 // Benchmark CLI, see benchmark/readme.md. Bundled by benchmark/run.sh.
 //   run.mjs --split dev --detector peaks --out results/peaks-dev.json
 //   run.mjs --split heldout --detector peaks,tempogram --reason "..." --out ...
+//   run.mjs --split heldout --look calibration --detector tempogram-hysteresis --sets ... --reason "..." --out ...
 // --progress keeps each finished result, so a killed held-out look continues instead of being spent
 // twice. Held-out access goes through here on purpose: it needs a fixed pick, a reason, a committed
 // tree and room in the budget, and writes one line to the log before reading a single label. The
@@ -26,6 +27,7 @@ import {detectors, lookDetectors, pickedConfiguration} from './lib/detectors';
 import {UndecodableTrack, freeLookRefusal, lookDetectorRefusal, lookHeader, lookRefusal, lookScopeRefusal, progressRows, refusalOf, resumesLook, skippedTracks} from './lib/look';
 import type {RunFailure} from './lib/look';
 import {sweepTrack} from './lib/hysteresis';
+import {calibrationLogName, calibrationLookRefusal} from './lib/calibration-samples';
 import {listen} from './lib/stream';
 import {workerCount} from './lib/workers';
 import type {TempogramTuning} from '../src/core/tempogram';
@@ -181,6 +183,8 @@ async function main(): Promise<void> {
     limit: {type: 'string'},
     tuning: {type: 'string'},
     progress: {type: 'string'},
+    // `calibration`: RBA-106's one held-out calibration check, with its own scope and log
+    look: {type: 'string'},
   }});
   const benchmarkDir = values.dir!;
   const split = values.split as Split;
@@ -190,8 +194,14 @@ async function main(): Promise<void> {
 
   assertArguments(names, sets, values.out, values.limit);
 
-  // Before the log line, so naming one of them in a look spends nothing
-  const freeRefusal = freeHeldoutRefusal(split, sets, names);
+  const isCalibrationLook = values.look === 'calibration';
+
+  if (values.look !== undefined && (!isCalibrationLook || split !== 'heldout')) {
+    throw new Error('--look takes calibration, on --split heldout only');
+  }
+
+  // Before the log line, so naming one of them in a look spends nothing. The calibration check holds its own scope
+  const freeRefusal = isCalibrationLook ? null : freeHeldoutRefusal(split, sets, names);
 
   if (freeRefusal) {
     throw new Error(freeRefusal);
@@ -217,14 +227,16 @@ async function main(): Promise<void> {
     const sha = assertCommittedTree(benchmarkDir);
     const reason = values.reason;
     // freeHeldoutRefusal has held a free look to its whole scope: it keeps its own log and budget
-    const isFreeLook = sets.some(set => isFreeSet(set));
-    const logName = isFreeLook ? 'free-heldout-log.md' : 'heldout-log.md';
+    const isFreeLook = !isCalibrationLook && sets.some(set => isFreeSet(set));
+    const logName = isCalibrationLook ? calibrationLogName : isFreeLook ? 'free-heldout-log.md' : 'heldout-log.md';
 
     logLook(
       process.env.RBA_TEMPO_ROOT ? join(process.env.RBA_TEMPO_ROOT, '_job', logName) : join(benchmarkDir, logName),
       `| ${sha.slice(0, 12)} | ${names.join(', ')} | ${reason} (sets ${sets.join(', ')}, limit ${values.limit ?? 'none'}) |`,
       values.progress,
-      isFreeLook
+      isCalibrationLook
+        ? (log, isResuming) => calibrationLookRefusal(log, isResuming, reason, names, sets)
+        : isFreeLook
         ? (log, isResuming) => freeLookRefusal(log, isResuming, reason)
         : (log, isResuming) => lookDetectorRefusal(pickedConfiguration, names, lookDetectors)
           ?? lookScopeRefusal(names, sets, lookDetectors, Object.keys(loaders))

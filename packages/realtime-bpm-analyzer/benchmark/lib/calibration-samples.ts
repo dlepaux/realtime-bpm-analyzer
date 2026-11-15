@@ -20,6 +20,21 @@ export const samplesFormat = 2;
  */
 export const calibrationRow: Hysteresis = Object.freeze({...HYSTERESIS, pulseLostAfterSeconds: 3});
 
+/**
+ * The row the held-out check judges at: the shipped `HYSTERESIS`, as the check DECISION 2026-11-05 approved says
+ * (results/rba-106-calibration-dev.md, "Proposed held-out check"). calibration.py's `HELDOUT_HYSTERESIS` holds the
+ * same, which a test pins.
+ */
+export const heldoutRow: Hysteresis = HYSTERESIS;
+
+/**
+ * @param split The split sampled
+ * @returns The row its samples are taken at: on dev the fitted row, which the re-fit must reproduce; held-out, the shipped one
+ */
+export function sampleRow(split: 'dev' | 'heldout'): Hysteresis {
+  return split === 'dev' ? calibrationRow : heldoutRow;
+}
+
 /** The detector whose results the samples are built from: the tempogram's sweep record, one trace per track */
 export const calibrationDetector = 'tempogram-hysteresis';
 

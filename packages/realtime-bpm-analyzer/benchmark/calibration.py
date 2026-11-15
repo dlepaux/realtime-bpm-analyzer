@@ -17,8 +17,8 @@ The first prints aggregates as markdown and writes the fitted tables, aggregates
 than e70a4f5, when that confidence was still the raw score, as sha-0063495's was. `refit` fits dev again and exits 0
 only when the tables equal the committed ones exactly and every recorded confidence is the committed table read at
 the recorded raw score. `heldout` is RBA-106's one held-out check (DECISION 2026-11-05): the committed tempogram
-mapping on every held-out realtime reading, judged against HELDOUT_BAR, exit 0 pass and 1 fail. Both write
-aggregates only.
+mapping on every held-out realtime reading at the shipped HYSTERESIS, judged against HELDOUT_BAR, exit 0 pass and
+1 fail. Both write aggregates only, and exit 2, writing no verdict, when they refuse their input or break.
 
 Every rule below is fixed before the samples exist:
 - A reading counts when it was shown (status settling or locked). It is right at 4% (Acc1); a reading
@@ -58,11 +58,16 @@ TIMES = ('10 s', '15 s', '20 s', '30 s', '45 s')
 # The one held-out check this proposes, fixed before it may run: on the tempogram's realtime readings, with
 # the shipped table, all must hold. It needs a DECISION on RBA-106 and is not run by this file.
 HELDOUT_BAR = {'ece_max': 0.05, 'ece_high_max': 0.08, 'brier_not_worse': True, 'top_half_low_min': 0.0}
+# The row the held-out check judges at: the shipped HYSTERESIS, as the approved check says. The table was fitted at the
+# sweep's pick, pulseLostAfterSeconds 3, which only the dev re-fit uses. tests/unit/benchmark/calibration-samples.test.ts
+# holds this line to the library's HYSTERESIS.
+HELDOUT_HYSTERESIS = {"lockBand": 0.02, "lockAfterSeconds": 8, "unlockBand": 0.04, "unlockAfterSeconds": 2, "pulseLostAfterSeconds": 2}
 
 # The samples' format since RBA-148: readings as [bpm, confidence, raw]
 SAMPLES_FORMAT = 2
 # How far a recorded confidence may sit from the committed table read at its recorded raw score: the tempogram's
-# trace keeps both to six decimals, and the steepest segment of any table rises about 11 per unit of raw score
+# trace keeps both to six decimals, and the steepest segment of any table rises about 15 per unit of raw score, so
+# the two roundings stay under 8e-6
 SHOWN_TOLERANCE = 1e-5
 
 
@@ -437,22 +442,22 @@ def refit(data, committed):
         }
     passed = bool(engines) and all(e['readings'] == e['committed readings'] and e['hysteresis as committed'] and e['tables equal']
                                    and e['shown mismatches'] == 0 for e in engines.values())
-    return passed, {'split': 'dev', 'passed': passed, 'engines': engines}
+    return passed, {'split': 'dev', 'passed': passed, 'python': sys.version, 'engines': engines}
 
 
 def heldout_check(data, committed):
     """The verdict file of RBA-106's held-out check, aggregates only. Refuses before judging when the samples are
-    not the tempogram's at the committed row, or carry confidences the committed table does not give"""
+    not the tempogram's at the shipped row, or carry confidences the committed table does not give"""
     hysteresis, samples, counts = load_data(data, split='heldout')
-    if set(samples) != {'tempogram'} or hysteresis['tempogram'] != committed['hysteresis']['tempogram']:
-        raise SystemExit('the held-out check reads the tempogram at the row its table was fitted at, and nothing else')
+    if set(samples) != {'tempogram'} or hysteresis['tempogram'] != HELDOUT_HYSTERESIS:
+        raise SystemExit('the held-out check reads the tempogram at the shipped HYSTERESIS, and nothing else')
     mapping = shipped_mapping(committed, 'tempogram')
     chosen = samples['tempogram']
     mismatches = shown_mismatches(mapping, chosen)
     if mismatches:
         raise SystemExit(f'{mismatches} readings carry a confidence the committed table does not give: the image does not ship it')
     report = heldout_report(mapping, chosen)
-    return {'split': 'heldout', 'engine': 'tempogram', 'hysteresis': hysteresis['tempogram'], 'bar': HELDOUT_BAR,
+    return {'split': 'heldout', 'engine': 'tempogram', 'hysteresis': hysteresis['tempogram'], 'bar': HELDOUT_BAR, 'python': sys.version,
             'passed': heldout_verdict(report), 'tracks': counts['tracks'], 'skipped': counts['skipped'],
             'artists': len({s['cluster'] for s in chosen}), **report}
 
@@ -563,9 +568,9 @@ def markdown(engine, hysteresis, result):
 USAGE = __doc__.split('\n\n')[2]
 
 
-def main(argv):
-    """The exit code: 0 done or passed, 1 a re-fit or held-out check that did not pass"""
-    if len(argv) == 5 and argv[1] == 'refit':
+def judge(argv):
+    """`refit` and `heldout`: 0 passed, 1 judged and not passed"""
+    if argv[1] == 'refit':
         passed, report = refit(read_json(argv[2]), read_json(argv[3]))
         write_json(argv[4], report)
         for engine, result in report['engines'].items():
@@ -574,13 +579,27 @@ def main(argv):
                   f"{result['shown mismatches']} confidences off the committed table")
         print(f"re-fit {'reproduces' if passed else 'does not reproduce'} the committed tables")
         return 0 if passed else 1
-    if len(argv) == 6 and argv[1] == 'heldout':
-        verdict = heldout_check(read_json(argv[2]), read_json(argv[3]))
-        with open(argv[4], 'w', encoding='utf-8') as file:
-            file.write(heldout_markdown(verdict))
-        write_json(argv[5], verdict)
-        print(heldout_markdown(verdict))
-        return 0 if verdict['passed'] else 1
+    verdict = heldout_check(read_json(argv[2]), read_json(argv[3]))
+    markdown = heldout_markdown(verdict)
+    write_json(argv[5], verdict)
+    with open(argv[4], 'w', encoding='utf-8') as file:
+        file.write(markdown)
+    print(markdown)
+    return 0 if verdict['passed'] else 1
+
+
+def main(argv):
+    """The exit code: 0 done or passed, 1 a re-fit or held-out check judged and not passed, 2 refused or broken"""
+    if len(argv) > 1 and argv[1] in ('refit', 'heldout'):
+        if len(argv) != {'refit': 5, 'heldout': 6}[argv[1]]:
+            print(f'usage:\n{USAGE}', file=sys.stderr)
+            return 2
+        # A refusal or a crash must not read as a judged fail: the job records a verdict only for 0 and 1
+        try:
+            return judge(argv)
+        except (Exception, SystemExit) as error:  # noqa: BLE001
+            print(f'{argv[1]} refused or broken: {error}', file=sys.stderr)
+            return 2
     legacy = len(argv) == 4 and argv[1] == '--legacy-raw'
     if len(argv) != 3 and not legacy:
         raise SystemExit(f'usage:\n{USAGE}')

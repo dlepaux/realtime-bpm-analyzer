@@ -1,7 +1,8 @@
 import {expect} from 'chai';
+import {HYSTERESIS} from '../../../src/contract/types';
 import type {Hysteresis} from '../../../src/contract/types';
 import {
-  calibrationDetector, calibrationLookRefusal, calibrationLookScope, calibrationRow, rowIndex, samplesFile, samplesFormat,
+  calibrationDetector, calibrationLookRefusal, calibrationLookScope, calibrationRow, heldoutRow, rowIndex, sampleRow, samplesFile, samplesFormat,
 } from '../../../benchmark/lib/calibration-samples';
 import {detectors} from '../../../benchmark/lib/detectors';
 import {sweepGrids} from '../../../benchmark/lib/hysteresis';
@@ -12,6 +13,17 @@ describe('the calibration samples', () => {
     const {hysteresis} = await response.json() as {hysteresis: Record<'tempogram', Hysteresis>};
     expect(calibrationRow).to.deep.equal(hysteresis.tempogram);
     expect(sweepGrids.tempogram[rowIndex('tempogram', calibrationRow)]).to.deep.equal(calibrationRow);
+  });
+
+  it('are taken held-out at the shipped hysteresis, the row the approved check names, and calibration.py judges at the same', async () => {
+    expect(sampleRow('dev')).to.equal(calibrationRow);
+    expect(sampleRow('heldout')).to.equal(heldoutRow);
+    expect(heldoutRow).to.deep.equal(HYSTERESIS);
+    expect(sweepGrids.tempogram[rowIndex('tempogram', heldoutRow)]).to.deep.equal(HYSTERESIS);
+    const source = await (await fetch(new URL('../../../benchmark/calibration.py', import.meta.url))).text();
+    const line = /^HELDOUT_HYSTERESIS = (\{.*\})$/m.exec(source);
+    expect(line, 'calibration.py states HELDOUT_HYSTERESIS on one line').to.not.equal(null);
+    expect(JSON.parse(line![1])).to.deep.equal(HYSTERESIS);
   });
 
   it('come from the tempogram\'s sweep record', () => {

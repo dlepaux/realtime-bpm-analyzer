@@ -15,8 +15,8 @@ faq:
     a: Choose where the tempo comes from. Type the BPM if you know it, tap along to the music three times or more, or let the microphone hear the music. Press Start, then tap along once the flashes run to line them up with the beat. The first tap of a run marks the downbeat.
   - q: Is the strobe light safe for people with photosensitive epilepsy?
     a: Flashing light can trigger seizures, and no setting makes it safe for everyone. If you or anyone who can see the screen is sensitive to flashing light, don't use it. The tool follows WCAG 2.3.1, so it never flashes more than three times in one second, never flashes red, starts only when you press Start, and stops with Esc, Space, the Stop button or a tap on the light.
-  - q: Why does it flash on every second beat above 180 BPM?
-    a: At 180 BPM a beat falls three times a second, the most WCAG 2.3.1 allows. Above that the tool flashes on every second beat, so the light stays on the beat while staying under the limit.
+  - q: Why does it flash on every second beat above 150 BPM?
+    a: WCAG 2.3.1 allows at most three flashes in any one second, and at 180 BPM a beat falls exactly three times a second, with no room left. The tool keeps every four flashes more than a second apart, with room for a slow or uneven screen, so above 150 BPM it flashes on every second beat. The light stays on the beat and well under the limit.
   - q: Does the microphone mode find where the beats fall?
     a: No. The library reads the tempo from the microphone, not where each beat falls. The flashes start on a steady grid at that tempo, and a few taps along with the music line the grid up with the beat.
   - q: Is the microphone recorded or sent anywhere?
@@ -44,12 +44,13 @@ until you do.
   microphone hear it. In the microphone mode the tempo is read in your browser,
   and your audio stays on your device
   ([Website Privacy](/website-privacy)).
-- **Taps line it up.** A tap moves the flashes onto the beat you tapped. The
-  first tap of a run marks the downbeat, which flashes white, while the other
-  beats flash blue.
+- **Taps line it up.** The light flashes on your taps and keeps the beat after
+  them, so you see it while you tap along. The first tap of a run marks the
+  downbeat, which flashes white, while the other beats flash blue.
 - **Any bar.** 1 to 12 beats per bar.
-- **Full screen.** Where the browser has it, the light can fill the screen,
-  and the screen stays awake while it runs.
+- **The light fills the window.** While it runs, the light covers the browser's
+  window, with Stop at the bottom. Where the browser has full screen, it can
+  fill the screen too, and the screen stays awake while it runs.
 - **Within WCAG 2.3.1.** At most three flashes in any second, never red, and a
   soft pulse instead of a full flash when your device asks for reduced motion.
 
@@ -65,14 +66,16 @@ Need the tempo first? [Tap it](/tap-tempo), or detect it with the
   fall.** Tap along to line the flashes up with the beat.
 - **When the music changes tempo, the grid drifts** until the reading catches
   up, and the flashes drift with it. A few taps line them up again.
-- **At most three flashes a second.** Above 180 BPM it flashes on every second
+- **At most three flashes a second.** Above 150 BPM it flashes on every second
   beat, so with an odd number of beats per bar the white downbeat shows every
-  second bar. Near 180 BPM, on a slow or uneven screen, a flash is sometimes
-  skipped so the light never goes over three flashes a second.
+  second bar. Right after a tap or a tempo change, a flash that would come too
+  soon after the last ones is skipped, so the light never goes over three
+  flashes a second.
 - **With the microphone, the light goes dark when no beat is heard** or the
   sound is lost, and starts again once a steady tempo is found.
 - **Full screen and the awake screen depend on the browser.** iPhone Safari,
-  for one, can't show a web page full screen.
+  for one, can't show a web page full screen, so there the light fills the
+  browser's window instead.
 
 ## Frequently asked questions
 

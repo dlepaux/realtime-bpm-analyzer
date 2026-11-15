@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { EVENTS, PARAMS } from '../.vitepress/tools/analytics-events.ts'
-import { TEMPO_SOURCES } from '../.vitepress/tools/strobe.ts'
+import { EVERY_OTHER_BEAT_ABOVE_BPM, TEMPO_SOURCES } from '../.vitepress/tools/strobe.ts'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const PAGE = read('../strobe-light.md')
@@ -151,8 +151,20 @@ test('the limits are on the page: a steady grid, no beat positions from the mic,
   assert.match(limits, /steady grid/)
   assert.match(limits, /not where the beats fall/)
   assert.match(limits, /drifts/)
-  assert.match(limits, /180 BPM/)
   assert.match(limits, /three flashes a second/)
+})
+
+test('the page, its FAQ and the warning name the tempo where every second beat starts, from the module', () => {
+  const tempo = `${EVERY_OTHER_BEAT_ABOVE_BPM} BPM`
+  assert.ok(flat(PAGE.slice(PAGE.indexOf('## Limits'))).includes(`Above ${tempo} it flashes on every second beat`), 'the limits')
+  assert.ok(PAGE.includes(`every second beat above ${tempo}?`), 'the FAQ question')
+  // The warning reads the constant, so it can't fall out of step with the rule.
+  assert.match(flat(TEMPLATE), /above \{\{ EVERY_OTHER_BEAT_ABOVE_BPM \}\} BPM on every second beat/)
+  assert.ok(read('../public/llms.txt').includes(`every second beat above ${tempo}`), 'llms.txt')
+  // The old switch tempo is gone, wherever it was stated as the switch.
+  for (const text of [PAGE, COMPONENT, read('../public/llms.txt')]) {
+    assert.doesNotMatch(flat(text), /(above|near|up to) 180 BPM/i)
+  }
 })
 
 test('the microphone mode says the audio stays on the device, and the page links the website privacy page', () => {

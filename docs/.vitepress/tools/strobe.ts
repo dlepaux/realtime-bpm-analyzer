@@ -9,8 +9,27 @@ import { ticksBefore, type TickCursor } from './tempo.ts'
 export const MAX_FLASHES_PER_WINDOW = 3
 export const FLASH_WINDOW_MS = 1000
 
-/** Up to 180 BPM every beat fits under the cap (3 a second); above it, every second beat does. */
-export const EVERY_OTHER_BEAT_ABOVE_BPM = 180
+/**
+ * The cap is held with room to spare: any four onsets span at least FLASH_WINDOW_MS plus this.
+ * The onsets are decided on rAF's frame clock, and each is painted on a later frame, so the
+ * painted flashes can sit closer than the decided ones by the spread in that delay. On a 30 Hz
+ * screen, the slowest the tests use, a paint one frame late is 33 ms, and a dropped frame doubles
+ * it; 100 ms covers three such frames plus timer jitter. RUNNER-RBA-240 measured the painted span
+ * 1 ms under the decided one at 60 Hz, where dc3f56a held the cap at exactly 1000 ms.
+ */
+export const CAP_MARGIN_MS = 100
+
+/** The window the cap is counted in: WCAG's one second, plus the margin. */
+export const GUARDED_WINDOW_MS = FLASH_WINDOW_MS + CAP_MARGIN_MS
+
+/**
+ * Up to 150 BPM every beat flashes; above it, every second beat. At 150 BPM four beats span
+ * 1200 ms: the guarded window plus 100 ms, which absorbs a beat shown up to one frame late (and
+ * a held-back beat's MAX_LATE_MS wait) at 30 Hz, so a steady tempo never loses a flash to the
+ * margin. At 160 the slack would be 25 ms, under one 30 Hz frame, and the sweep in
+ * strobe.test.ts drops a beat at 30 Hz there; 150 stays clear of that by a round number.
+ */
+export const EVERY_OTHER_BEAT_ABOVE_BPM = 150
 
 /**
  * A beat not shown this long after it falls is dropped, never shown late: a busy or stalled page
@@ -52,11 +71,14 @@ export function initialStyle(reducedMotion: boolean): FlashStyle {
   return reducedMotion ? 'pulse' : 'flash'
 }
 
-/** May a flash start at `now`, given when the last ones started (oldest first)? */
+/**
+ * May a flash start at `now`, given when the last ones started (oldest first)? At most three in
+ * any GUARDED_WINDOW_MS, so a fourth comes at least 1100 ms after the first.
+ */
 export function mayFlash(shown: readonly number[], now: number): boolean {
   const last = shown[shown.length - 1]
   if (last !== undefined && now - last < MIN_GAP_MS) return false
-  return shown.filter((at) => now - at < FLASH_WINDOW_MS).length < MAX_FLASHES_PER_WINDOW
+  return shown.filter((at) => now - at < GUARDED_WINDOW_MS).length < MAX_FLASHES_PER_WINDOW
 }
 
 // ── Colours ─────────────────────────────────────────────────────────────────────────────────
@@ -151,7 +173,7 @@ export function step(state: Strobe, { now, bpm, beatsPerBar }: StepInput): { sta
   const pending = candidate && now - candidate.time <= MAX_LATE_MS ? candidate : null
 
   if (!pending || !mayFlash(state.shown, now)) return { state: { ...state, cursor: next, period, pending }, flash: null }
-  const shown = [...state.shown, now].filter((at) => now - at < FLASH_WINDOW_MS).slice(-MAX_FLASHES_PER_WINDOW)
+  const shown = [...state.shown, now].filter((at) => now - at < GUARDED_WINDOW_MS).slice(-MAX_FLASHES_PER_WINDOW)
   const flash: FlashKind = pending.tick % Math.max(1, beatsPerBar) === 0 ? 'accent' : 'beat'
   return { state: { ...state, cursor: next, period, pending: null, shown }, flash }
 }
@@ -175,10 +197,14 @@ function skipMissed(cursor: TickCursor, now: number, period: number): TickCursor
 
 /**
  * A tap says a beat falls at `at`: `beat` is its place in the bar, 0 for the downbeat. The grid
- * moves so the next beat falls one period later. A beat held back from the old grid is dropped,
- * and the cap still applies, so a tap can't add a flash. Taps while stopped change nothing.
+ * moves so that beat is the tap itself, and it flashes on the next frame if the cap and the gap
+ * allow; then the grid runs on a period apart. Putting the next beat a period after the tap
+ * instead kept the light dark while a visitor tapped along: each tap came just before that beat
+ * and moved it a period on again (RUNNER-RBA-240's browser check). A tap just after a flash is
+ * the same beat: MIN_GAP_MS holds it back past MAX_LATE_MS, so it is dropped, not doubled. A beat
+ * held back from the old grid is dropped. Taps while stopped change nothing.
  */
 export function alignToTap(state: Strobe, at: number, periodMs: number, beat: number): Strobe {
   if (!state.running || !(periodMs > 0)) return state
-  return { ...state, cursor: { tick: beat + 1, time: at + periodMs }, period: periodMs, pending: null }
+  return { ...state, cursor: { tick: beat, time: at }, period: periodMs, pending: null }
 }

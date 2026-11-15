@@ -10,6 +10,7 @@ import { useAnalytics } from '../composables/useAnalytics'
 import { openAnalysis } from '../tools/audio-setup'
 import { classifyMicError } from '../tools/mic-error'
 import {
+  EVERY_OTHER_BEAT_ABOVE_BPM,
   IDLE,
   MIN_GAP_MS,
   STAGE_COLOR,
@@ -474,7 +475,7 @@ onBeforeUnmount(() => {
       >
         <strong>Photosensitivity warning.</strong> This tool flashes the screen, which can trigger
         seizures in people with photosensitive epilepsy. It flashes at most three times a second, and
-        above 180 BPM on every second beat. Stop it at any time with Esc, Space, the Stop button or a
+        above {{ EVERY_OTHER_BEAT_ABOVE_BPM }} BPM on every second beat. Stop it at any time with Esc, Space, the Stop button or a
         tap on the light.
       </div>
       <p

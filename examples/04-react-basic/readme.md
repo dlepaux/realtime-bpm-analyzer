@@ -1,21 +1,23 @@
-# React Example
+# React File Example
 
-Professional React integration with TypeScript and React hooks for offline BPM analysis.
+Analyzes an audio file offline, with `analyzeFullBuffer`, and shows the reading it returns. Written in React 19 with hooks.
 
-## Features
+## What it shows
 
-- React 18 with TypeScript
-- Custom hooks for audio context management
-- Offline analysis with `analyzeFullBuffer`
-- Proper cleanup and resource management
-- Error handling
-- Modern component architecture
+- A file decoded with `decodeAudioData` and analyzed at once, with no playback.
+- The reading: `bpm`, the unrounded `bpmExact`, `confidence` and the `candidates` with their `relation` (`top`, `half`, `double`, `other`), plus the audio span and the engine. It is the same `Reading` the live examples show.
+- `null` when the file has no clear tempo, and a plain message when the browser can't decode it.
 
-## Run Locally
+The code is in `src/components/bpm-analyzer.tsx`, with the panels in `src/components/reading-panel.tsx`. Confidence is shown as the library reports it, from 0 to 1.
+
+## Run it from a clean clone
+
+The example uses the library from this repository, not from npm, so the library is built first. From the repository root:
 
 ```bash
-npm install
-npm run dev
+npm ci
+npm run build -w realtime-bpm-analyzer
+npm run dev -w examples/04-react-basic
 ```
 
-Open [http://localhost:3003](http://localhost:3003) in your browser.
+Then open [http://localhost:3004](http://localhost:3004).

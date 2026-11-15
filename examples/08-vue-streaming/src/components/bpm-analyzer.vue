@@ -1,15 +1,27 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue';
-import { 
-  createRealtimeBpmAnalyzer, 
+import { ref, computed, onUnmounted } from 'vue';
+import {
+  createRealtimeBpmAnalyzer,
   type BpmAnalyzer
 } from 'realtime-bpm-analyzer';
+import ReadingPanel from './reading-panel.vue';
+import StatePanel from './state-panel.vue';
+import { useAnalyzerView } from './use-analyzer-view';
 
-const bpm = ref<number>();
 const audioUrl = ref('https://ice1.somafm.com/groovesalad-128-mp3');
+const isLoaded = ref(false);
 const isPlaying = ref(false);
 const isLoading = ref(false);
 const error = ref<string>();
+const { view, watchAnalyzer } = useAnalyzerView();
+
+// The reading panel shows while settling or locked, with the status it was read in
+const liveReading = computed(() => {
+  const current = view.value;
+  if (!current?.reading) return null;
+  const { status } = current.state;
+  return status === 'settling' || status === 'locked' ? { reading: current.reading, status } : null;
+});
 
 let audioContext: AudioContext | null = null;
 let audioElement: HTMLAudioElement | null = null;
@@ -32,14 +44,14 @@ const cleanup = () => {
   }
 
   if (bpmAnalyzer) {
-    // stop() is final: it ends the analysis, and the next start creates a new analyzer.
+    // stop() is final: the state panel shows the move to stopped, and the next load creates a new analyzer
     bpmAnalyzer.stop();
     bpmAnalyzer.disconnect();
     bpmAnalyzer = null;
   }
 
+  isLoaded.value = false;
   isPlaying.value = false;
-  bpm.value = undefined;
 };
 
 const handleLoad = async () => {
@@ -60,35 +72,29 @@ const handleLoad = async () => {
     }
 
     // Create audio element
-    audioElement = new Audio(audioUrl.value);
-    audioElement.crossOrigin = 'anonymous';
+    const element = new Audio(audioUrl.value);
+    element.crossOrigin = 'anonymous';
+    audioElement = element;
 
-    // Create BPM analyzer
+    // Create BPM analyzer, and show what it reports
     const analyzer = await createRealtimeBpmAnalyzer(audioContext);
     bpmAnalyzer = analyzer;
-
-    // The state is current inside a reading listener. A lock can move without a statechange (peaks relocks
-    // on a fuller rung), so the locked BPM is read from every reading, not only from the move to locked.
-    analyzer.on('reading', reading => {
-      if (analyzer.state.status === 'locked') {
-        bpm.value = reading.bpm;
-      }
-    });
+    watchAnalyzer(analyzer);
 
     // Create media source and connect
-    const source = audioContext.createMediaElementSource(audioElement);
-    mediaSource = source;
+    mediaSource = audioContext.createMediaElementSource(element);
 
     // The analyzer's input holds what the engine needs in front of it
-    source.connect(analyzer.input);
-    source.connect(audioContext.destination);
+    mediaSource.connect(analyzer.input);
+    mediaSource.connect(audioContext.destination);
 
     // Wait for audio to be ready
     await new Promise<void>((resolve, reject) => {
-      audioElement!.addEventListener('canplay', () => resolve(), { once: true });
-      audioElement!.addEventListener('error', (e) => reject(e), { once: true });
+      element.addEventListener('canplay', () => resolve(), { once: true });
+      element.addEventListener('error', () => reject(new Error('The audio could not be loaded')), { once: true });
     });
 
+    isLoaded.value = true;
     isLoading.value = false;
   } catch (err) {
     console.error('Error loading audio:', err);
@@ -113,10 +119,18 @@ const handlePlay = async () => {
   }
 };
 
+// The analyzer hears silence, and after a couple of seconds moves to listening (pulse-lost)
 const handlePause = () => {
   if (!audioElement) return;
   audioElement.pause();
   isPlaying.value = false;
+};
+
+// Start over: back to listening with the next epoch, and nothing measured before is reported
+const handleReset = () => {
+  if (bpmAnalyzer && bpmAnalyzer.state.status !== 'stopped') {
+    bpmAnalyzer.reset();
+  }
 };
 
 const handleStop = () => {
@@ -141,8 +155,8 @@ onUnmounted(() => {
         :disabled="isLoading"
         placeholder="https://example.com/stream.mp3"
       />
-      <button 
-        @click="handleLoad" 
+      <button
+        @click="handleLoad"
         :disabled="isLoading"
         class="load-btn"
       >
@@ -151,22 +165,16 @@ onUnmounted(() => {
     </div>
 
     <div class="controls">
-      <button 
-        @click="handlePlay" 
-        :disabled="!audioElement || isPlaying"
-      >
+      <button @click="handlePlay" :disabled="!isLoaded || isPlaying">
         ▶ Play
       </button>
-      <button 
-        @click="handlePause" 
-        :disabled="!audioElement || !isPlaying"
-      >
+      <button @click="handlePause" :disabled="!isLoaded || !isPlaying">
         ⏸ Pause
       </button>
-      <button 
-        @click="handleStop" 
-        :disabled="!audioElement"
-      >
+      <button @click="handleReset" :disabled="!isLoaded">
+        ↺ Start over
+      </button>
+      <button @click="handleStop" :disabled="!isLoaded">
         ⏹ Stop
       </button>
     </div>
@@ -179,18 +187,13 @@ onUnmounted(() => {
       Loading audio stream...
     </div>
 
-    <div v-if="!error && !isLoading && isPlaying" class="status playing">
-      Playing and analyzing...
+    <div v-if="!error && isLoaded" class="status playing">
+      {{ isPlaying ? 'Playing and analyzing...' : 'Audio loaded - ready to play!' }}
     </div>
 
-    <div v-if="!error && !isLoading && audioElement && !isPlaying" class="status playing">
-      Audio loaded - ready to play!
-    </div>
+    <StatePanel v-if="view" :state="view.state" :changes="view.changes" :last-error="view.lastError" />
 
-    <div :class="['bpm-display', { visible: bpm !== undefined }]">
-      <div class="bpm-value">{{ bpm !== undefined ? Math.round(bpm) : '--' }}</div>
-      <div class="bpm-label">BPM</div>
-    </div>
+    <ReadingPanel v-if="liveReading" :reading="liveReading.reading" :status="liveReading.status" />
   </div>
 </template>
 
@@ -294,32 +297,4 @@ button:disabled {
   border: 1px solid #f5c6cb;
 }
 
-.bpm-display {
-  text-align: center;
-  padding: 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 15px;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.5s ease;
-}
-
-.bpm-display.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.bpm-value {
-  font-size: 64px;
-  font-weight: bold;
-  color: white;
-  margin-bottom: 5px;
-}
-
-.bpm-label {
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.9);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
 </style>

@@ -1,14 +1,21 @@
 import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
+import { createReadingPanel } from './reading-panel';
+import { createStatePanel } from './state-panel';
+import './panels.css';
 
 // Get DOM elements
 const audioUrlInput = document.getElementById('audioUrl') as HTMLInputElement;
 const loadBtn = document.getElementById('loadBtn') as HTMLButtonElement;
 const playBtn = document.getElementById('playBtn') as HTMLButtonElement;
 const pauseBtn = document.getElementById('pauseBtn') as HTMLButtonElement;
+const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement;
 const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
 const statusElement = document.getElementById('status') as HTMLDivElement;
-const bpmDisplay = document.getElementById('bpmDisplay') as HTMLDivElement;
-const bpmValue = document.getElementById('bpmValue') as HTMLDivElement;
+const panels = document.getElementById('panels') as HTMLDivElement;
+
+const statePanel = createStatePanel();
+const readingPanel = createReadingPanel();
+panels.append(statePanel.element, readingPanel.element);
 
 // Create audio context
 const audioContext = new AudioContext();
@@ -44,27 +51,19 @@ loadBtn.addEventListener('click', async () => {
     // Create BPM analyzer
     const analyzer = await createRealtimeBpmAnalyzer(audioContext);
     bpmAnalyzer = analyzer;
-
-    // The state is current inside a reading listener. A lock can move without a statechange (peaks relocks
-    // on a fuller rung), so the locked BPM is read from every reading, not only from the move to locked.
-    analyzer.on('reading', reading => {
-      if (analyzer.state.status === 'locked') {
-        displayBpm(reading.bpm);
-        showStatus(`Stable BPM detected: ${Math.round(reading.bpm)}`, 'playing');
-      }
-    });
+    watchAnalyzer(analyzer);
 
     // Create media source and connect the audio graph
     mediaSource = audioContext.createMediaElementSource(audioElement);
-    
+
     // Connect: source → analyzer (its input holds what the engine needs) and source → destination
-    mediaSource.connect(bpmAnalyzer.input);
+    mediaSource.connect(analyzer.input);
     mediaSource.connect(audioContext.destination);
 
     // Wait for audio to be ready
     await new Promise<void>((resolve, reject) => {
       audioElement!.addEventListener('canplay', () => resolve(), { once: true });
-      audioElement!.addEventListener('error', (e) => reject(e), { once: true });
+      audioElement!.addEventListener('error', () => reject(new Error('the audio could not be loaded')), { once: true });
     });
 
     showStatus('Audio loaded - ready to play!', 'playing');
@@ -78,6 +77,42 @@ loadBtn.addEventListener('click', async () => {
     cleanup();
   }
 });
+
+/**
+ * Shows what the analyzer reports. Its state can be read at any time, and events are never replayed, so the
+ * panel starts from `analyzer.state` and then follows the events.
+ */
+function watchAnalyzer(analyzer: BpmAnalyzer) {
+  statePanel.clear();
+  readingPanel.clear();
+  statePanel.show(analyzer.state);
+
+  // Fires on every change of status, of listening reason or of epoch, and only then
+  analyzer.on('statechange', change => {
+    statePanel.addChange(change);
+    statePanel.show(change.to);
+    // A reading belongs to settling and locked: back to listening, the last one may no longer hold
+    if (change.to.status === 'listening' || change.to.status === 'stopped') {
+      readingPanel.clear();
+    }
+  });
+
+  // While listening: how close the analyzer is to its first reading, from 0 to 1
+  analyzer.on('progress', () => statePanel.show(analyzer.state));
+
+  // Outside listening, every analysis step that measured something. The state is already current inside a
+  // listener, so it says whether this reading is settling or locked. A lock can move without a statechange,
+  // so the panel shows every reading, not only the one of the move to locked.
+  analyzer.on('reading', reading => {
+    const { status } = analyzer.state;
+    if (status === 'settling' || status === 'locked') {
+      readingPanel.show(reading, status);
+    }
+  });
+
+  // A failed analysis step: the next step runs. A fatal fault is a statechange to stopped instead.
+  analyzer.on('error', error => statePanel.showError(error));
+}
 
 // Play audio
 playBtn.addEventListener('click', async () => {
@@ -95,19 +130,24 @@ playBtn.addEventListener('click', async () => {
   }
 });
 
-// Pause audio
+// Pause audio. The analyzer hears silence, and after a couple of seconds moves to listening (pulse-lost).
 pauseBtn.addEventListener('click', () => {
   if (!audioElement) return;
   audioElement.pause();
   showStatus('Paused', 'analyzing');
 });
 
+// Start over: back to listening with the next epoch, and nothing measured before is reported
+resetBtn.addEventListener('click', () => {
+  if (bpmAnalyzer?.state.status !== 'stopped') {
+    bpmAnalyzer?.reset();
+  }
+});
+
 // Stop audio
 stopBtn.addEventListener('click', () => {
   cleanup();
   showStatus('Stopped', 'analyzing');
-  hideBpm();
-  enableControls(false);
 });
 
 // Example URL clicks
@@ -124,19 +164,10 @@ function showStatus(message: string, type: 'analyzing' | 'playing' | 'error') {
   statusElement.className = `status visible ${type}`;
 }
 
-function displayBpm(bpm: number) {
-  bpmValue.textContent = Math.round(bpm).toString();
-  bpmDisplay.classList.add('visible');
-}
-
-function hideBpm() {
-  bpmDisplay.classList.remove('visible');
-  bpmValue.textContent = '--';
-}
-
 function enableControls(enabled: boolean) {
   playBtn.disabled = !enabled;
   pauseBtn.disabled = !enabled;
+  resetBtn.disabled = !enabled;
   stopBtn.disabled = !enabled;
 }
 
@@ -153,11 +184,13 @@ function cleanup() {
   }
 
   if (bpmAnalyzer) {
-    // stop() is final: it ends the analysis, and the next start creates a new analyzer.
+    // stop() is final: the state panel shows the move to stopped, and the next load creates a new analyzer
     bpmAnalyzer.stop();
     bpmAnalyzer.disconnect();
     bpmAnalyzer = null;
   }
+
+  enableControls(false);
 }
 
 // Cleanup on page unload

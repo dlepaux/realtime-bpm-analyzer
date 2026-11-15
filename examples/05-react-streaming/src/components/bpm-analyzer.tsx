@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
-import { 
-  createRealtimeBpmAnalyzer, 
+import {
+  createRealtimeBpmAnalyzer,
   type BpmAnalyzer as BpmAnalyzerType
 } from 'realtime-bpm-analyzer';
+import ReadingPanel from './reading-panel';
+import StatePanel from './state-panel';
+import { useAnalyzerView } from './use-analyzer-view';
 import './bpm-analyzer.css';
 
 function BpmAnalyzer() {
-  const [bpm, setBpm] = useState<number | undefined>();
   const [audioUrl, setAudioUrl] = useState('https://ice1.somafm.com/groovesalad-128-mp3');
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  
+  const { view, watchAnalyzer } = useAnalyzerView();
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
@@ -39,16 +43,15 @@ function BpmAnalyzer() {
       mediaSourceRef.current = null;
     }
 
-
     if (bpmAnalyzerRef.current) {
-      // stop() is final: it ends the analysis, and the next start creates a new analyzer.
+      // stop() is final: the state panel shows the move to stopped, and the next load creates a new analyzer
       bpmAnalyzerRef.current.stop();
       bpmAnalyzerRef.current.disconnect();
       bpmAnalyzerRef.current = null;
     }
 
+    setIsLoaded(false);
     setIsPlaying(false);
-    setBpm(undefined);
   };
 
   const handleLoad = async () => {
@@ -74,17 +77,10 @@ function BpmAnalyzer() {
       audioElement.crossOrigin = 'anonymous';
       audioElementRef.current = audioElement;
 
-      // Create BPM analyzer
+      // Create BPM analyzer, and show what it reports
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       bpmAnalyzerRef.current = analyzer;
-
-      // The state is current inside a reading listener. A lock can move without a statechange (peaks relocks
-      // on a fuller rung), so the locked BPM is read from every reading, not only from the move to locked.
-      analyzer.on('reading', reading => {
-        if (analyzer.state.status === 'locked') {
-          setBpm(reading.bpm);
-        }
-      });
+      watchAnalyzer(analyzer);
 
       // Create media source and connect
       const source = audioContext.createMediaElementSource(audioElement);
@@ -97,9 +93,10 @@ function BpmAnalyzer() {
       // Wait for audio to be ready
       await new Promise<void>((resolve, reject) => {
         audioElement.addEventListener('canplay', () => resolve(), { once: true });
-        audioElement.addEventListener('error', (e) => reject(e), { once: true });
+        audioElement.addEventListener('error', () => reject(new Error('The audio could not be loaded')), { once: true });
       });
 
+      setIsLoaded(true);
       setIsLoading(false);
     } catch (err) {
       console.error('Error loading audio:', err);
@@ -125,16 +122,27 @@ function BpmAnalyzer() {
     }
   };
 
+  // The analyzer hears silence, and after a couple of seconds moves to listening (pulse-lost)
   const handlePause = () => {
     if (!audioElementRef.current) return;
     audioElementRef.current.pause();
     setIsPlaying(false);
   };
 
+  // Start over: back to listening with the next epoch, and nothing measured before is reported
+  const handleReset = () => {
+    const analyzer = bpmAnalyzerRef.current;
+    if (analyzer && analyzer.state.status !== 'stopped') {
+      analyzer.reset();
+    }
+  };
+
   const handleStop = () => {
     cleanup();
     setError(undefined);
   };
+
+  const status = view?.state.status;
 
   return (
     <div className="bpm-analyzer">
@@ -148,8 +156,8 @@ function BpmAnalyzer() {
           disabled={isLoading}
           placeholder="https://example.com/stream.mp3"
         />
-        <button 
-          onClick={handleLoad} 
+        <button
+          onClick={handleLoad}
           disabled={isLoading}
           className="load-btn"
         >
@@ -158,22 +166,16 @@ function BpmAnalyzer() {
       </div>
 
       <div className="controls">
-        <button 
-          onClick={handlePlay} 
-          disabled={!audioElementRef.current || isPlaying}
-        >
+        <button onClick={handlePlay} disabled={!isLoaded || isPlaying}>
           ▶ Play
         </button>
-        <button 
-          onClick={handlePause} 
-          disabled={!audioElementRef.current || !isPlaying}
-        >
+        <button onClick={handlePause} disabled={!isLoaded || !isPlaying}>
           ⏸ Pause
         </button>
-        <button 
-          onClick={handleStop} 
-          disabled={!audioElementRef.current}
-        >
+        <button onClick={handleReset} disabled={!isLoaded}>
+          ↺ Start over
+        </button>
+        <button onClick={handleStop} disabled={!isLoaded}>
           ⏹ Stop
         </button>
       </div>
@@ -190,22 +192,17 @@ function BpmAnalyzer() {
         </div>
       )}
 
-      {!error && !isLoading && isPlaying && (
+      {!error && isLoaded && (
         <div className="status playing">
-          Playing and analyzing...
+          {isPlaying ? 'Playing and analyzing...' : 'Audio loaded - ready to play!'}
         </div>
       )}
 
-      {!error && !isLoading && audioElementRef.current && !isPlaying && (
-        <div className="status playing">
-          Audio loaded - ready to play!
-        </div>
-      )}
+      {view && <StatePanel state={view.state} changes={view.changes} lastError={view.lastError} />}
 
-      <div className={`bpm-display ${bpm !== undefined ? 'visible' : ''}`}>
-        <div className="bpm-value">{bpm !== undefined ? Math.round(bpm) : '--'}</div>
-        <div className="bpm-label">BPM</div>
-      </div>
+      {view?.reading && (status === 'settling' || status === 'locked') && (
+        <ReadingPanel reading={view.reading} status={status} />
+      )}
     </div>
   );
 }

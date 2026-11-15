@@ -68,7 +68,6 @@
   "scripts": {
     "build": "bash bin/build/library.sh",
     "prepack": "cp ../../readme.md ../../license.md .",
-    "postpack": "rm -f readme.md license.md",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",

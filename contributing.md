@@ -41,7 +41,7 @@ The CLI reads the library's types from its built `dist/`, and the MCP server rea
 
 The root scripts (`npm run build`, `npm test`, `npm run lint`, `npm run docs:dev`) delegate to the workspaces. Run a workspace's own script with `-w`, for example `npm run test:node -w realtime-bpm-analyzer` or `npm run build -w docs`.
 
-The readme, the licence and this file live once, at the root. The library's `prepack` script copies `readme.md` and `license.md` into the package for npm, and `postpack` removes them, so never commit copies inside `packages/`. The CLI and the MCP server have their own `readme.md` and copy only the licence.
+The readme, the licence and this file live once, at the root. The library's `prepack` script copies `readme.md` and `license.md` into the package for npm, and the copies stay there, git-ignored, so never commit or edit them. They must outlive the pack: `npm publish` reads the README it sends to the registry from the package folder after `postpack` has run, so a `postpack` that removed them left npm's page without a README from 5.5.0 to 5.6.1. `npm run check:npm-readme` (`bin/check-npm-readme.mjs`, part of `npm run test:node`) packs each package the way `npm publish` does, without publishing, and fails CI if a README would not reach the registry again. The CLI and the MCP server have their own `readme.md` and copy only the licence.
 
 ## Releases
 

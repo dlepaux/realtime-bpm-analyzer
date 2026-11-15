@@ -10,7 +10,8 @@ packages/realtime-bpm-analyzer/testing/manifest.json
 # Generated files (auto-created during build)
 packages/realtime-bpm-analyzer/src/generated-processor.ts
 
-# Copied in from the repo root by the library's prepack script, removed by postpack
+# Copied in from the repo root by prepack. The library keeps its copies after packing, because
+# npm publish reads the README for the registry after postpack has run (RBA-229)
 packages/realtime-bpm-analyzer/readme.md
 packages/realtime-bpm-analyzer/license.md
 packages/cli/license.md

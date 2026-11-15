@@ -22,7 +22,7 @@ audioFileInput.addEventListener('change', async (event) => {
   audioFileInput.disabled = true;
 
   try {
-    // Decode the file. A format the browser can't decode rejects here, with an EncodingError.
+    // Decode the file, or a video's sound track. A format the browser can't decode rejects here, with an EncodingError.
     showStatus('Decoding...', 'analyzing');
     const audioBuffer = await audioContext.decodeAudioData(await file.arrayBuffer());
 
@@ -53,7 +53,7 @@ function showStatus(message: string, type: 'analyzing' | 'success' | 'error') {
 
 function describeError(error: unknown): string {
   if (error instanceof DOMException && error.name === 'EncodingError') {
-    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file.';
+    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file. For a video, try MP4 or WebM, or export its sound as WAV.';
   }
 
   return error instanceof Error ? error.message : 'Failed to analyze audio';

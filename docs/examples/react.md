@@ -13,7 +13,7 @@ We've built complete React examples demonstrating different use cases. Each is a
 
 ### Basic File Analysis
 
-Pick an audio file and analyze it in the browser to detect its BPM. It shows every field of the reading the file gives: `bpm`, `bpmExact`, `confidence` and the candidates.
+Pick an audio or video file and analyze it in the browser to detect its BPM. It shows every field of the reading the file gives: `bpm`, `bpmExact`, `confidence` and the candidates.
 
 <ExampleEmbed example="04-react-basic" height="720px" />
 

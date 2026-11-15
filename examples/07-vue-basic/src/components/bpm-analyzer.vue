@@ -28,7 +28,7 @@ const handleFileChange = async (event: Event) => {
   try {
     if (!audioContext) throw new Error('Audio context not initialized');
 
-    // Decode the file. A format the browser can't decode rejects here, with an EncodingError.
+    // Decode the file, or a video's sound track. A format the browser can't decode rejects here, with an EncodingError.
     progressText.value = 'Decoding...';
     const audioBuffer = await audioContext.decodeAudioData(await file.arrayBuffer());
 
@@ -51,7 +51,7 @@ const handleFileChange = async (event: Event) => {
 
 function describeError(err: unknown): string {
   if (err instanceof DOMException && err.name === 'EncodingError') {
-    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file.';
+    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file. For a video, try MP4 or WebM, or export its sound as WAV.';
   }
 
   return err instanceof Error ? err.message : 'Failed to analyze audio';
@@ -63,11 +63,16 @@ function describeError(err: unknown): string {
     <div class="file-input-wrapper">
       <input
         type="file"
-        accept="audio/*"
+        accept="audio/*,video/*"
+        aria-label="Audio or video file"
+        aria-describedby="file-formats"
         @change="handleFileChange"
         :disabled="progressText !== undefined"
         class="file-input"
       />
+      <p id="file-formats" class="file-formats">
+        Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS. The whole file is read into memory, so for a long video, export the sound or a shorter clip.
+      </p>
     </div>
 
     <div v-if="error" class="status error">
@@ -114,6 +119,13 @@ function describeError(err: unknown): string {
 .file-input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.file-formats {
+  margin-top: 8px;
+  color: #666;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .status {

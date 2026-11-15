@@ -36,6 +36,7 @@ import ResultToolLinks from './ResultToolLinks.vue'
 import ExtensionResultPrompt from './ExtensionResultPrompt.vue'
 import BeatMarkerExport from './BeatMarkerExport.vue'
 import BpmReadout from './BpmReadout.vue'
+import FileNameLine from './FileNameLine.vue'
 import BpmSourceSwitch from './BpmSourceSwitch.vue'
 import { STORE_URL } from '../tools/extension-live'
 import { EXTENSION_PAGE, extensionCovers } from '../tools/extension-promo'
@@ -824,9 +825,10 @@ function formatDuration(seconds: number): string {
               class="bpm-spinner"
               aria-hidden="true"
             ></div>
-            <div class="bpm-state-name">
-              {{ fileName }}
-            </div>
+            <FileNameLine
+              class="bpm-state-name"
+              :name="fileName ?? ''"
+            />
             <div class="bpm-state-label">
               Analysing&hellip;
             </div>
@@ -839,9 +841,10 @@ function formatDuration(seconds: number): string {
               :bpm="fileBpm"
               state="final"
             />
-            <div class="bpm-state-name">
-              {{ fileName }}
-            </div>
+            <FileNameLine
+              class="bpm-state-name"
+              :name="fileName ?? ''"
+            />
             <div class="bpm-result-meta">
               <span v-if="fileDuration !== null">{{ formatDuration(fileDuration) }}</span>
               <span v-if="fileElapsedMs !== null">· Done in {{ fileElapsedMs }} ms</span>
@@ -884,9 +887,10 @@ function formatDuration(seconds: number): string {
             class="bpm-state bpm-state-error"
             role="alert"
           >
-            <div class="bpm-state-name">
-              {{ fileName }}
-            </div>
+            <FileNameLine
+              class="bpm-state-name"
+              :name="fileName ?? ''"
+            />
             <div class="bpm-error-msg">
               {{ fileError }}
             </div>
@@ -1223,7 +1227,8 @@ function formatDuration(seconds: number): string {
 <style scoped>
 /* The tool is a raised card: the one object on the page that does something (RBA-66). The body's
    height is the tallest state's, a file result with its alternate reading, so idle, listening and a result all take the same
-   room and a result arriving seconds after the click moves nothing below (CLS). */
+   room and a result arriving seconds after the click moves nothing below (CLS). A file's name
+   takes one line whatever its length (FileNameLine), so a long name can't break that. */
 .bpm-hero-tool {
   --bpm-body-min-height: 24rem;
   position: relative;
@@ -1356,12 +1361,10 @@ function formatDuration(seconds: number): string {
   text-align: center;
 }
 
-.bpm-state-name {
-  max-width: 100%;
-  font-size: 0.875rem;
-  color: var(--vp-c-text-2);
-  word-break: break-all;
-}
+/* A file result's tallest form is a long name with an alternate reading, and on a phone its
+   links and its actions take two rows each: 0.6rem between its six rows put it 4 px past the
+   reserve even with a one-character name, so it sits a little tighter (RBA-116, round 2). */
+.bpm-mode-file .bpm-state-result { gap: 0.5rem; }
 
 .bpm-state-label {
   font-size: 0.9375rem;

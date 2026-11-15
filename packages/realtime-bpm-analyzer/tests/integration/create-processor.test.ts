@@ -417,9 +417,14 @@ describe('getBiquadFilter', () => {
       expect(() => getBiquadFilter(audioContext, {qualityValue: 2})).to.throw(TypeError, 'use q');
     });
 
+    it('refuses the DOM\'s Q, which shares frequency with LowpassOption and would pass as one', () => {
+      const domOptions: BiquadFilterOptions = {frequency: 150, Q: 4};
+      expect(() => getBiquadFilter(audioContext, domOptions)).to.throw(TypeError, /Q is the DOM's spelling: use q/);
+    });
+
     it('refuses a setting that is not a finite number', () => {
-      expect(() => getBiquadFilter(audioContext, {frequency: Number.NaN})).to.throw(RangeError, 'frequency');
-      expect(() => getBiquadFilter(audioContext, {q: Number.POSITIVE_INFINITY})).to.throw(RangeError, 'q');
+      expect(() => getBiquadFilter(audioContext, {frequency: Number.NaN})).to.throw(RangeError, /frequency NaN/);
+      expect(() => getBiquadFilter(audioContext, {q: Number.POSITIVE_INFINITY})).to.throw(RangeError, /q Infinity/);
     });
   });
 });

@@ -11,7 +11,7 @@ import {analyzeSamples} from './offline';
  * @param context - The AudioContext or OfflineAudioContext to create the filter in
  * @param options - The cutoff and Q, the same settings as the offline `engine: {name: 'peaks', lowpass}`
  * @returns A configured BiquadFilterNode ready to use in an audio graph
- * @throws {TypeError} When a 5.x setting name (`frequencyValue`, `qualityValue`) is set
+ * @throws {TypeError} When a 5.x setting name (`frequencyValue`, `qualityValue`) or the DOM's `Q` is set
  * @throws {RangeError} When the frequency or Q is not a finite number
  *
  * @example
@@ -30,7 +30,7 @@ import {analyzeSamples} from './offline';
  * @remarks
  * - Default frequency is optimized for detecting bass drum kicks
  * - The lowpass filter attenuates high frequencies while preserving low frequencies
- * - Higher Q values create a steeper filter curve
+ * - A higher `q` raises a resonant peak at the cutoff, and steepens the roll-off just past it
  *
  * @see {@link analyzeFullBuffer} which uses this filter internally with `engine: 'peaks'`
  * @see {@link LowpassOption} for the settings and their defaults
@@ -98,6 +98,7 @@ export async function getOfflineLowPassSource(
  * @returns The reading, the same shape as a realtime one, or null when no tempo was found
  * @throws {Error} When the buffer is empty or its sample rate is not positive
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
+ * @throws {TypeError} When an option, or an `engine.lowpass` setting, has its 5.x name
  *
  * @example
  * ```typescript

@@ -1,10 +1,15 @@
 import type {LowpassOption} from '../contract/types';
 import * as consts from './consts';
 
-/** The 5.x setting names, with their v6 names: unrefused, they would be ignored without a word */
-const removedSettings: Readonly<Record<string, string>> = Object.freeze({
-  frequencyValue: 'frequency',
-  qualityValue: 'q',
+/**
+ * Names a caller may reach for, with why they don't apply: unrefused, they would be ignored without a word. The
+ * DOM's `BiquadFilterOptions` spells the resonance `Q`, and shares `frequency`, so TypeScript accepts one of those
+ * objects as a `LowpassOption`.
+ */
+const refusedSettings: Readonly<Record<string, string>> = Object.freeze({
+  frequencyValue: 'was removed in v6: use frequency',
+  qualityValue: 'was removed in v6: use q',
+  Q: "is the DOM's spelling: use q",
 });
 
 /**
@@ -12,14 +17,14 @@ const removedSettings: Readonly<Record<string, string>> = Object.freeze({
  * BiquadFilterNode, the OfflineAudioContext render and the plain-JS biquad), so all three refuse the same input
  * @param options The caller's settings
  * @returns The cutoff in Hz and the Q in dB
- * @throws {TypeError} When a 5.x setting name is set
+ * @throws {TypeError} When a 5.x setting name, or the DOM's `Q`, is set
  * @throws {RangeError} When the frequency or Q is not a finite number
  */
 export function resolveLowpass(options: LowpassOption | undefined): {frequency: number; q: number} {
   const given: Record<string, unknown> = options ?? {};
-  const removed = Object.keys(removedSettings).find(name => given[name] !== undefined);
-  if (removed !== undefined) {
-    throw new TypeError(`The lowpass setting ${removed} was removed in v6: use ${removedSettings[removed]}.`);
+  const refused = Object.keys(refusedSettings).find(name => given[name] !== undefined);
+  if (refused !== undefined) {
+    throw new TypeError(`The lowpass setting ${refused} ${refusedSettings[refused]}.`);
   }
 
   const frequency = options?.frequency ?? consts.lowpassFrequency;
@@ -89,7 +94,7 @@ export function lowpassCoefficients(
  * @param sampleRate Sample rate in Hz
  * @param options The cutoff and Q, as `getBiquadFilter` takes them, defaulting to the browser pipeline's values
  * @returns A new filtered array, the input is left untouched
- * @throws {TypeError} When a 5.x setting name is set
+ * @throws {TypeError} When a 5.x setting name, or the DOM's `Q`, is set
  * @throws {RangeError} When the sample rate, frequency or Q is not a usable number
  */
 export function applyLowpass(

@@ -137,15 +137,18 @@ describe('analyzer - getOfflineLowPassSource', () => {
     });
 
     it('applies frequency and q together', async () => {
+      // Against the frequency alone, so the test fails if either setting is ignored
       const byDefault = await rmsAfterLowpass(1000);
+      const frequencyOnly = await rmsAfterLowpass(1000, {frequency: 1000});
       const both = await rmsAfterLowpass(1000, {frequency: 1000, q: 12});
 
-      expect(both).to.be.greaterThan(byDefault * 20);
+      expect(frequencyOnly).to.be.greaterThan(byDefault * 5);
+      expect(both).to.be.greaterThan(frequencyOnly * 2.5);
     });
 
     it('refuses the 5.x names, which it would otherwise ignore', async () => {
       const buffer = audioContext.createBuffer(1, 128, sampleRate);
-      const removed: Array<[Record<string, number>, string]> = [[{frequencyValue: 150}, 'frequency'], [{qualityValue: 2}, 'q']];
+      const removed: Array<[Record<string, number>, string]> = [[{frequencyValue: 150}, 'frequency'], [{qualityValue: 2}, 'q'], [{Q: 4}, 'q']];
 
       for (const [options, replacement] of removed) {
         let caught: unknown;

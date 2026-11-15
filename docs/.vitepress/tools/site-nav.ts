@@ -19,6 +19,7 @@ const FREE_TOOLS: DefaultTheme.NavItemWithChildren = {
     { text: 'Video BPM Finder', link: '/video-bpm' },
     { text: 'BPM to Frames Calculator', link: '/bpm-to-frames' },
     { text: 'Metronome', link: '/metronome' },
+    { text: 'Strobe Light', link: '/strobe-light' },
   ],
 }
 

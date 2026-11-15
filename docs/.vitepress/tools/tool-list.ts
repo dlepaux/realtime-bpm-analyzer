@@ -3,7 +3,7 @@
 // for word while the home's text is frozen (see scripts/home-frozen-text.test.ts).
 
 /** A lucide icon name, which the renderer maps to its own component. */
-export type ToolIcon = 'hand' | 'timer' | 'clock' | 'video' | 'film'
+export type ToolIcon = 'hand' | 'timer' | 'clock' | 'video' | 'film' | 'zap'
 
 export type FreeTool = {
   readonly name: string
@@ -16,9 +16,8 @@ export type FreeTool = {
 /** The grid's column count on wide screens. Every row's length divides it. */
 export const GRID_COLUMNS = 6
 
-// Rows in order of use: the musicians' everyday tools first, then the video editors' pair. Two
-// rows of 3 and 2 fill a 6-column grid with no tile left alone, which 5 tiles in equal columns
-// can't do (3 + 2 or 4 + 1).
+// Rows in order of use: the musicians' everyday tools first, then the video editors' pair and
+// the strobe light for visuals (RBA-237). Two rows of 3 fill the 6-column grid.
 export const FREE_TOOL_ROWS: readonly (readonly FreeTool[])[] = [
   [
     { name: 'Tap Tempo', line: 'Tap along with any song to measure its tempo, with a steadiness score.', link: '/tap-tempo', icon: 'hand' },
@@ -28,6 +27,7 @@ export const FREE_TOOL_ROWS: readonly (readonly FreeTool[])[] = [
   [
     { name: 'Video BPM Finder', line: 'Find the BPM of the music in a video file, with one beat in frames for cutting.', link: '/video-bpm', icon: 'video' },
     { name: 'BPM to Frames Calculator', line: 'Frames per beat and per bar at 23.976 to 60 fps, and the drift of a rounded cut.', link: '/bpm-to-frames', icon: 'film' },
+    { name: 'Strobe Light', line: 'Flash the screen on the beat, at a tempo you type, tap or play to the microphone.', link: '/strobe-light', icon: 'zap' },
   ],
 ]
 

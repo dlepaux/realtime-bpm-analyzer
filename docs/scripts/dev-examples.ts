@@ -1,21 +1,13 @@
 import { spawn } from 'child_process';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { EXAMPLE_DEV_PORTS } from '../.vitepress/tools/example-dev-server.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const examples = [
-  { name: '01-vanilla-basic', port: 3001 },
-  { name: '02-vanilla-streaming', port: 3002 },
-  { name: '03-vanilla-microphone', port: 3003 },
-  { name: '04-react-basic', port: 3004 },
-  { name: '05-react-streaming', port: 3005 },
-  { name: '06-react-microphone', port: 3006 },
-  { name: '07-vue-basic', port: 3007 },
-  { name: '08-vue-streaming', port: 3008 },
-  { name: '09-vue-microphone', port: 3009 },
-];
+// The same ports the docs embeds load in dev, from one list (RBA-231).
+const examples = Object.entries(EXAMPLE_DEV_PORTS).map(([name, port]) => ({ name, port }));
 
 const rootDir = join(__dirname, '../..');
 const processes: any[] = [];

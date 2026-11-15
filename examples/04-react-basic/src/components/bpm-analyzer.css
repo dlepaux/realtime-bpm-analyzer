@@ -27,6 +27,13 @@
   cursor: not-allowed;
 }
 
+.file-formats {
+  margin-top: 8px;
+  color: #666;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .status {
   padding: 15px;
   border-radius: 10px;

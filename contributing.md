@@ -39,7 +39,7 @@ The MCP server depends on the CLI's programmatic entry (`import {analyzeFile} fr
 
 The CLI reads the library's types from its built `dist/`, and the MCP server reads the CLI's the same way, so run `npm run build` before `npm run lint` or the CLI's and MCP server's tests in a fresh clone.
 
-The root scripts (`npm run build`, `npm test`, `npm run lint`, `npm run docs:dev`) delegate to the workspaces. Run a workspace's own script with `-w`, for example `npm run test:node -w realtime-bpm-analyzer` or `npm run build -w docs`.
+The root scripts (`npm run build`, `npm test`, `npm run lint`, `npm run docs:dev`) delegate to the workspaces. Run a workspace's own script with `-w`, for example `npm run test:node -w realtime-bpm-analyzer` or `npm run build -w docs`. `npm run docs:dev` doesn't start the examples' dev servers, which the docs embed: run `npm run examples:dev` in a second terminal, and each embed loads its example once its server answers.
 
 The readme, the licence and this file live once, at the root. The library's `prepack` script copies `readme.md` and `license.md` into the package for npm and leaves them there: `npm publish` reads the README from the package folder again after packing, to fill the registry's `readme` field, and a `postpack` that removed the copy left it empty from 5.5.0 on. `.gitignore` keeps the copies out of git and every pack overwrites them, so never commit copies inside `packages/`. The CLI and the MCP server have their own `readme.md` and copy only the licence.
 

@@ -26,8 +26,8 @@ The repository is an npm workspaces monorepo. The root is private and publishes 
 | Path | What it is | Published |
 | --- | --- | --- |
 | `packages/realtime-bpm-analyzer` | The library | to npm, as `realtime-bpm-analyzer` |
-| `packages/cli` | The command line, `npx realtime-bpm-analyzer-cli song.mp3` | to npm, as `realtime-bpm-analyzer-cli` |
-| `packages/mcp` | The local MCP server, `npx -y realtime-bpm-analyzer-mcp` | to npm, as `realtime-bpm-analyzer-mcp` |
+| `packages/cli` | The command line | to npm, as `realtime-bpm-analyzer-cli`, from v6 of the library (not on npm yet) |
+| `packages/mcp` | The local MCP server | to npm, as `realtime-bpm-analyzer-mcp`, from v6 of the library (not on npm yet) |
 | `docs` | The documentation site (VitePress) | to GitHub Pages |
 | `examples/*` | The example apps embedded in the docs | no |
 
@@ -76,7 +76,7 @@ For each package, `<package>` being its name:
 1. Merge the pull request that adds the package. release-please opens the package's release PR (`0.1.0`); leave it open. Until step 2, the pipeline logs that the package is not on npm yet and skips its publish.
 2. On an up-to-date `main`, with npm 11.5.1 or later and an npm account with two-factor authentication: `npm ci`, `npm run build`, then `npm publish --access public -w <package>`. This publishes `0.0.0`, the version on `main`, without provenance.
 3. On npmjs.com, open the package's settings, and under Trusted Publisher choose GitHub Actions with owner `dlepaux`, repository `realtime-bpm-analyzer` and workflow `main.yml` (the file name only).
-4. Within 2 days, merge the release PR. The pipeline publishes `0.1.0` with provenance, which validates the configuration. If the window passes (a red `main`, for example), the configuration expires: delete it on npmjs.com, add it again, and merge within the new 2 days. Merge the CLI's release PR before the MCP server's, so `npx -y realtime-bpm-analyzer-mcp` never resolves a CLI without its programmatic entry.
+4. Within 2 days, merge the release PR. The pipeline publishes `0.1.0` with provenance, which validates the configuration. If the window passes (a red `main`, for example), the configuration expires: delete it on npmjs.com, add it again, and merge within the new 2 days. Merge the CLI's release PR before the MCP server's, so an install of the MCP server never resolves a CLI without its programmatic entry.
 5. In the package's settings, under Publishing access, choose "Require two-factor authentication and disallow tokens", as npm recommends once trusted publishing works.
 
 ## Privacy Wording

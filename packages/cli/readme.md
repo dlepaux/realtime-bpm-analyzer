@@ -1,5 +1,7 @@
 # realtime-bpm-analyzer-cli
 
+> **Not on npm yet.** This package publishes with v6 of realtime-bpm-analyzer.
+
 Detect the tempo (BPM) of audio files from the command line, with the
 [realtime-bpm-analyzer](https://www.npmjs.com/package/realtime-bpm-analyzer) engine.
 

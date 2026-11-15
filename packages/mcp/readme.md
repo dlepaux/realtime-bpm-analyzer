@@ -1,5 +1,7 @@
 # realtime-bpm-analyzer-mcp
 
+> **Not on npm yet.** This package publishes with v6 of realtime-bpm-analyzer.
+
 A local [MCP](https://modelcontextprotocol.io) server that lets an assistant (Claude
 Desktop, Claude Code, any MCP client) detect the tempo (BPM) of audio files on your
 disk, with the [realtime-bpm-analyzer](https://www.npmjs.com/package/realtime-bpm-analyzer)

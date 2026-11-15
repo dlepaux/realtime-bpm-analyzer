@@ -38,6 +38,8 @@ const reading = await analyzeFullBuffer(audioBuffer);
 console.log(reading ? `Detected BPM: ${reading.bpm}` : 'No clear beat');
 ```
 
+A video file works the same way, because its sound track is what gets decoded and analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone `.mov` files don’t decode on iOS.
+
 This approach analyzes the **complete audio file** at once, making it perfect for:
 - Music library organization
 - DJ applications  

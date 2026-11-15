@@ -42,6 +42,41 @@ test('every example type-checks before vite bundles it', () => {
   }
 })
 
+// The file examples take video too (RBA-231): the browser decodes a video's sound track like any
+// audio file, as /video-bpm does. The three say it in the same words, so a reader can compare them.
+// The limits are the page's FAQ, plus the iOS .mov failure measured on the site (RBA-219).
+const FILE_FORMATS = 'Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS.'
+const DECODE_ERROR = 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file, or an MP4 or WebM video.'
+const FILE_EXAMPLES = {
+  '01-vanilla-basic': read('../../examples/01-vanilla-basic/index.html') + read('../../examples/01-vanilla-basic/src/main.ts'),
+  '04-react-basic': read('../../examples/04-react-basic/src/components/bpm-analyzer.tsx'),
+  '07-vue-basic': read('../../examples/07-vue-basic/src/components/bpm-analyzer.vue'),
+}
+
+test('the file examples accept video files, as /video-bpm does', () => {
+  const page = read('../.vitepress/components/BpmHeroTool.vue').match(/type="file"\s+accept="([^"]*)"/)?.[1]
+  assert.equal(page, 'audio/*,video/*')
+  for (const [example, source] of Object.entries(FILE_EXAMPLES)) {
+    const accepts = [...source.matchAll(/type="file"[\s\S]*?accept="([^"]*)"/g)].map(m => m[1])
+    assert.deepEqual(accepts, [page], `${example}: accept=${JSON.stringify(accepts)}`)
+  }
+})
+
+test('the file examples state the same formats and limits, iOS .mov included', () => {
+  for (const [example, source] of Object.entries(FILE_EXAMPLES)) {
+    assert.ok(source.includes(FILE_FORMATS), `${example} lacks the formats line`)
+    assert.ok(source.includes(DECODE_ERROR), `${example} lacks the decode error`)
+  }
+  assert.match(FILE_FORMATS, /MP4[\s\S]*WebM[\s\S]*MOV[\s\S]*iPhone[\s\S]*iOS/)
+})
+
+test('the examples readme and Basic Usage say a video works the same way', () => {
+  assert.match(read('../../examples/readme.md'), /An audio or video file, analyzed at once/)
+  const basic = read('../examples/basic-usage.md')
+  assert.match(basic, /video file works the same way/)
+  assert.match(basic, /iPhone `\.mov` files don’t decode on iOS/)
+})
+
 // In docs dev the embeds load each example's own dev server, which `npm run docs:dev` doesn't start.
 // The embed checks that server first, and names the command instead of showing a blank frame.
 test('every example has a dev port, the one its vite config falls back to', () => {

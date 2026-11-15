@@ -4,7 +4,7 @@ Nine small apps that use `realtime-bpm-analyzer`: three inputs, each written in 
 
 | Input | Vanilla | React | Vue |
 |-------|---------|-------|-----|
-| An audio file, analyzed at once | [01-vanilla-basic](./01-vanilla-basic/) | [04-react-basic](./04-react-basic/) | [07-vue-basic](./07-vue-basic/) |
+| An audio or video file, analyzed at once | [01-vanilla-basic](./01-vanilla-basic/) | [04-react-basic](./04-react-basic/) | [07-vue-basic](./07-vue-basic/) |
 | An audio URL, analyzed live as it plays | [02-vanilla-streaming](./02-vanilla-streaming/) | [05-react-streaming](./05-react-streaming/) | [08-vue-streaming](./08-vue-streaming/) |
 | The microphone, analyzed live | [03-vanilla-microphone](./03-vanilla-microphone/) | [06-react-microphone](./06-react-microphone/) | [09-vue-microphone](./09-vue-microphone/) |
 
@@ -21,7 +21,7 @@ Every result is a `Reading`, the same type whether it comes from a file or from 
 
 ### A file: 01, 04 and 07
 
-`analyzeFullBuffer` analyzes a decoded file at once, with no playback, and returns a reading, or `null` when the file has no clear tempo. A file the browser can't decode fails at `decodeAudioData`, with a plain message.
+`analyzeFullBuffer` analyzes a decoded file at once, with no playback, and returns a reading, or `null` when the file has no clear tempo. A video file works the same way, because `decodeAudioData` decodes its sound track: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone `.mov` files don’t decode on iOS. A file the browser can't decode fails at `decodeAudioData`, with a plain message.
 
 ### Live audio: 02, 03, 05, 06, 08 and 09
 

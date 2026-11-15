@@ -63,6 +63,13 @@
       }
 
 
+      .file-formats {
+        margin-top: 8px;
+        color: #666;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
       .status {
         padding: 15px;
         border-radius: 10px;
@@ -98,10 +105,11 @@
   <body>
     <div class="container">
       <h1>🎵 BPM Analyzer</h1>
-      <p class="subtitle">Choose an audio file to detect its tempo</p>
+      <p class="subtitle">Choose an audio or video file to detect its tempo</p>
 
       <div class="file-input-wrapper">
-        <input type="file" id="audioFile" accept="audio/*" />
+        <input type="file" id="audioFile" accept="audio/*,video/*" aria-describedby="fileFormats" />
+        <p class="file-formats" id="fileFormats">Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS.</p>
       </div>
 
       <div class="status" id="status"></div>

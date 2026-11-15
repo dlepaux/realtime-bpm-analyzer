@@ -31,7 +31,7 @@ function BpmAnalyzer() {
       const audioContext = audioContextRef.current;
       if (!audioContext) throw new Error('Audio context not initialized');
 
-      // Decode the file. A format the browser can't decode rejects here, with an EncodingError.
+      // Decode the file, or a video's sound track. A format the browser can't decode rejects here, with an EncodingError.
       setProgressText('Decoding...');
       const audioBuffer = await audioContext.decodeAudioData(await file.arrayBuffer());
 
@@ -57,11 +57,15 @@ function BpmAnalyzer() {
       <div className="file-input-wrapper">
         <input
           type="file"
-          accept="audio/*"
+          accept="audio/*,video/*"
+          aria-describedby="file-formats"
           onChange={handleFileChange}
           disabled={progressText !== undefined}
           className="file-input"
         />
+        <p id="file-formats" className="file-formats">
+          Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS.
+        </p>
       </div>
 
       {error && (
@@ -89,7 +93,7 @@ function BpmAnalyzer() {
 
 function describeError(error: unknown): string {
   if (error instanceof DOMException && error.name === 'EncodingError') {
-    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file.';
+    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file, or an MP4 or WebM video.';
   }
 
   return error instanceof Error ? error.message : 'Failed to analyze audio';

@@ -13,8 +13,9 @@ import {analyzeSamples} from './offline';
  * @returns A configured BiquadFilterNode ready to use in an audio graph
  * @throws {TypeError} When the settings are not an object, `null` or `undefined`, carry a key other than `frequency`
  * and `q` (such as a 5.x name or the DOM's `Q`), or hold a setting that is not a number
- * @throws {RangeError} When a setting is `NaN` or infinite, or the frequency is not above 0 and below half the
- * context's sample rate, where Web Audio would clamp it silently
+ * @throws {RangeError} When a setting is `NaN` or infinite, the frequency is not above 0 and below half the
+ * context's sample rate, where Web Audio would clamp it silently, or `q` is not from -758 to 770 dB, where Web
+ * Audio's 32-bit resonance term stops being a normal, finite float
  *
  * @example
  * ```typescript
@@ -59,7 +60,8 @@ export function getBiquadFilter(
  * @param options - The lowpass settings, checked at the buffer's sample rate as `getBiquadFilter` checks them
  * @returns A Promise that resolves an AudioBuffer instance
  * @throws {TypeError} As `getBiquadFilter` does
- * @throws {RangeError} As `getBiquadFilter` does, the frequency against half the buffer's sample rate
+ * @throws {RangeError} As `getBiquadFilter` does, the frequency against half the buffer's sample rate, and `q`
+ * outside -758 to 770 dB
  * @internal
  */
 export async function getOfflineLowPassSource(
@@ -104,8 +106,8 @@ export async function getOfflineLowPassSource(
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
  * @throws {TypeError} When an option has its 5.x name, or `engine.lowpass` is not an object, `null` or `undefined`,
  * carries a key other than `frequency` and `q`, or holds a setting that is not a number
- * @throws {RangeError} When an `engine.lowpass` setting is `NaN` or infinite, or its frequency is not above 0 and
- * below half the buffer's sample rate
+ * @throws {RangeError} When an `engine.lowpass` setting is `NaN` or infinite, its frequency is not above 0 and
+ * below half the buffer's sample rate, or its `q` is not from -758 to 770 dB
  *
  * @example
  * ```typescript

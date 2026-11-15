@@ -139,7 +139,7 @@ The third argument takes the same options as `analyzeFullBuffer`:
 
 | Option       | Default     | Meaning                                                   |
 | ------------ | ----------- | --------------------------------------------------------- |
-| `engine`     | `'tempogram'` | `'tempogram'` reads spectral flux across bands, with no lowpass. `'peaks'` reads amplitude peaks after a lowpass, and `{name: 'peaks', lowpass: {frequency, q}}` sets it, by default 200 Hz and Q 1. `frequency` is the cutoff in Hz, above 0 and below half the sample rate. `q` is the resonance at the cutoff in dB, as Web Audio reads a lowpass `Q` (α = sin(ω0) / (2 × 10^(q/20)), so 0 dB is a linear Q of 1), and may be any finite number |
+| `engine`     | `'tempogram'` | `'tempogram'` reads spectral flux across bands, with no lowpass. `'peaks'` reads amplitude peaks after a lowpass, and `{name: 'peaks', lowpass: {frequency, q}}` sets it, by default 200 Hz and Q 1. `frequency` is the cutoff in Hz, above 0 and below half the sample rate. `q` is the resonance at the cutoff in dB, as Web Audio reads a lowpass `Q` (α = sin(ω0) / (2 × 10^(q/20)), so 0 dB is a linear Q of 1), from -758 to 770 dB, where 10^(q/20) is a normal, finite 32-bit float as Web Audio computes it |
 | `tempoRange` | `{90, 180}` | Range the tempos are reported in: `peaks` folds into it, `tempogram` searches it; `max` must be at least 2 × `min` |
 
 ```typescript
@@ -158,7 +158,8 @@ audio without a clear beat resolves to `null`.
 It throws when `channelData` is not a non-empty `Float32Array`, and throws a
 `RangeError` for a sample rate that is not positive, a lowpass setting that is
 `NaN` or infinite, a lowpass `frequency` that is not above 0 and below half the
-sample rate, an invalid `tempoRange` or an unknown `engine`. A 5.x option
+sample rate, a lowpass `q` that is not from -758 to 770 dB, an invalid
+`tempoRange` or an unknown `engine`. A 5.x option
 (`detector`, `frequencyValue`, `qualityValue`) throws a `TypeError` that names its
 replacement. So do an `engine.lowpass` that is not an object, `null` or
 `undefined` (naming its type), a key in it other than `frequency` and `q` (naming
@@ -172,6 +173,7 @@ new `Float32Array` filtered like the browser pipeline, and leaves the input
 untouched. Its `options` are the `{frequency, q}` of `engine.lowpass`, typed
 `LowpassOption`, with the same defaults and the same checks: any other key
 throws a `TypeError` that names it, and a `frequency` that is not above 0 and
-below half `sampleRate` throws a `RangeError`. 5.x clamped that frequency
+below half `sampleRate`, or a `q` that is not from -758 to 770 dB, throws a
+`RangeError`. 5.x clamped that frequency
 silently, as Web Audio does, so 0 gave silence and 22050 Hz at 44.1 kHz gave
 the input back unfiltered.

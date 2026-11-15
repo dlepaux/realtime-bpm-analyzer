@@ -68,7 +68,7 @@ export type EngineOption =
  * `TypeError` that names it, whatever its value, `undefined` included. That covers the 5.x names `frequencyValue` and
  * `qualityValue`, the DOM's `Q`, `detune`, `type` and `gain`, which TypeScript lets through from a
  * `BiquadFilterOptions`, and typos. Each setting is a finite number: another type throws a `TypeError`, and `NaN` or
- * an infinity a `RangeError`.
+ * an infinity a `RangeError`, as does a value outside its range.
  */
 export type LowpassOption = {
   /**
@@ -81,8 +81,8 @@ export type LowpassOption = {
   /**
    * Resonance at the cutoff in dB, as Web Audio reads a lowpass `Q`, not the Audio EQ Cookbook's linear Q: the
    * biquad's α is sin(ω0) / (2 × 10^(q/20)). So 0 dB is a linear Q of 1, a positive `q` raises a peak at the cutoff,
-   * and a negative one rounds it off. Any finite number, though below about -759 dB (Chrome) or -6200 dB (Node) the
-   * coefficients, and so the output, become NaN. Default 1.
+   * and a negative one rounds it off. From -758 to 770 dB, where 10^(q/20) is a normal, finite 32-bit float as Web
+   * Audio computes it, or a `RangeError` names the value and the range. Default 1.
    */
   readonly q?: number;
 };

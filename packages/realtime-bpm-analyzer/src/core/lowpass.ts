@@ -23,6 +23,17 @@ const refusedSettings: ReadonlyMap<string, string> = new Map([
 const unknownSetting = 'is unknown: the settings are frequency and q';
 
 /**
+ * The range of `q` in dB: where Web Audio's resonance term 10^(q/20) is a normal, finite 32-bit float, rounded
+ * inward to whole decibels. Below 20·log10(2^-126) ≈ -758.6 dB, float32's smallest normal number, Chrome's lowpass
+ * renders NaN from the first sample; above 20·log10(float32's largest value, ≈ 3.4e38) ≈ 770.6 dB the term
+ * overflows. Node's float64 math would take far more, so the bound keeps both paths alike. Widening it later is not
+ * a breaking change, while narrowing it would be. RBA-108's DECISION of 2026-11-15 (16:26Z) sets it, on the
+ * measurements in RBA-228's READY 48826a7.
+ */
+const qMin = -758;
+const qMax = 770;
+
+/**
  * What a value is, for an error message that names the type and never echoes the caller's data
  * @param value Any value
  * @returns `null`, `an array`, or the `typeof` with its article, such as `a number`
@@ -97,16 +108,15 @@ function finiteSetting(name: string, value: unknown, fallback: number): number {
  * 6.1.0 would break callers, while accepting one later would not. The check reads the cutoff as the 32-bit float a
  * Web Audio AudioParam stores, so a value that rounds onto 0 or Nyquist there is refused on every path, and the
  * plain-JS biquad accepts exactly what the BiquadFilterNode does. The defaults pass at any rate above 400 Hz, so at
- * every rate a Web Audio context takes (3 kHz and up in Chrome; the spec requires 8 to 96 kHz). `q` has no range, by
- * the 2026-11-15 ruling, though at an extreme negative value the coefficients become NaN, and so does the output:
- * below about -759 dB in Chrome, and about -6200 dB in the plain-JS biquad.
+ * every rate a Web Audio context takes (3 kHz and up in Chrome; the spec requires 8 to 96 kHz). `q` must be from
+ * -758 to 770 dB (`qMin` and `qMax`), where 10^(q/20) is a normal, finite 32-bit float.
  * @param options The caller's settings, from TypeScript or plain JS
  * @param sampleRate The rate the filter runs at, in Hz
  * @returns The cutoff in Hz and the Q in dB
  * @throws {TypeError} When the settings are not an object, `null` or `undefined`, carry a key other than `frequency`
  * and `q` (naming it), or hold a setting that is not a number
- * @throws {RangeError} When the sample rate is not positive, a setting is `NaN` or infinite, or the frequency is not
- * above 0 and below half the sample rate
+ * @throws {RangeError} When the sample rate is not positive, a setting is `NaN` or infinite, the frequency is not
+ * above 0 and below half the sample rate, or `q` is not from -758 to 770 dB
  */
 export function resolveLowpass(options: unknown, sampleRate: number): {frequency: number; q: number} {
   const settings = settingsObject(options);
@@ -129,6 +139,10 @@ export function resolveLowpass(options: unknown, sampleRate: number): {frequency
     const asStored = frequency > 0 && frequency < nyquist ? ` (${stored} as the 32-bit float Web Audio stores)` : '';
     throw new RangeError(`The lowpass setting frequency ${frequency}${asStored} is out of range: at a sample rate of `
       + `${sampleRate} Hz, it must be above 0 and below ${nyquist} Hz.`);
+  }
+
+  if (q < qMin || q > qMax) {
+    throw new RangeError(`The lowpass setting q ${q} is out of range: it must be from ${qMin} to ${qMax} dB.`);
   }
 
   return {frequency, q};
@@ -185,8 +199,8 @@ export function lowpassCoefficients(
  * @returns A new filtered array, the input is left untouched
  * @throws {TypeError} When the settings are not an object, `null` or `undefined`, carry a key other than `frequency`
  * and `q`, or hold a setting that is not a number
- * @throws {RangeError} When the sample rate is not positive, a setting is `NaN` or infinite, or the frequency is not
- * above 0 and below half the sample rate
+ * @throws {RangeError} When the sample rate is not positive, a setting is `NaN` or infinite, the frequency is not
+ * above 0 and below half the sample rate, or `q` is not from -758 to 770 dB
  */
 export function applyLowpass(
   channelData: Float32Array,

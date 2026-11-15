@@ -164,7 +164,8 @@ export async function findPeaksRelativeToLevel({
 }: AnalyzerFindPeaksOptions): Promise<PeaksAndThreshold> {
   const level = levelReference(channelData, audioSampleRate);
 
-  if (level < consts.silenceFloor || level >= 1) {
+  // Written so a NaN level, from NaN samples, also finds nothing instead of scaling every rung to NaN
+  if (!(level >= consts.silenceFloor && level < 1)) {
     return {peaks: [], threshold: 0};
   }
 

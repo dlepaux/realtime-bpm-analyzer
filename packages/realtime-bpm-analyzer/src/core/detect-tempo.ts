@@ -8,7 +8,7 @@ import {identifyIntervals, groupByTempo, getTopCandidates} from './tempo';
  * @param channelData Lowpassed PCM samples of one channel
  * @param sampleRate Sample rate in Hz
  * @param tempoRange Validated range the tempos are folded into
- * @returns Up to 5 tempo candidates, sorted by `count`, or none for silence
+ * @returns Up to 5 tempo candidates, sorted by `count`, or none for silence or a file with no beat
  */
 export async function detectTempo(
   channelData: Float32Array,

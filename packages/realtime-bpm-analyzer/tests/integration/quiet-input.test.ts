@@ -64,12 +64,13 @@ async function analyse(buffer: AudioBuffer, engine: Engine): Promise<number | un
 
 /**
  * The committed fixture has no ground truth, so its variants are graded against its own original reading,
- * which tests level invariance only (RBA-218). A highpass changes what the file holds, not its level: on a
- * 7.7 s clip that peaks reads from at most 8 interval votes, with 125 against the tempogram's 93, the
- * original's reading is no truth for it. Those variants must read a tempo, and the log records which one.
+ * which tests level invariance only (RBA-218). A 300 Hz highpass changes what the file holds, not its level:
+ * on a 7.7 s clip that peaks reads from at most 8 interval votes, with 125 against the tempogram's 93, the
+ * original's top reading is no truth for it. There the original's tempo must still be among the candidates
+ * (it is third, after 111 and 112), and the log records the top one.
  */
 function isGraded(source: Source, variant: Variant): boolean {
-  return source.truth !== null || variant.highpassHz === 0;
+  return source.truth !== null || variant.highpassHz < 300;
 }
 
 describe('RBA-218: a quiet or bass-light file still reads its tempo', function () {
@@ -117,7 +118,8 @@ describe('RBA-218: a quiet or bass-light file still reads its tempo', function (
           if (isGraded(source, variant)) {
             expect(outcome, `${source.name}, ${variant.name}, ${engine}: read ${bpm ?? 'nothing'}`).to.equal('correct');
           } else {
-            expect(bpm, `${source.name}, ${variant.name}, ${engine}: read nothing`).to.be.a('number');
+            const candidates = tempos.map(tempo => tempo.tempo);
+            expect(candidates.some(tempo => classify(tempo, truth) === 'correct'), `${source.name}, ${variant.name}, ${engine}: ${truth} is not among ${candidates.join(', ') || 'no candidates'}`).to.equal(true);
           }
         });
       }

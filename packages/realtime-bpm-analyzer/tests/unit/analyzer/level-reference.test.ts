@@ -70,10 +70,22 @@ describe('analyzer - level reference (RBA-221)', () => {
       expect(peaks.length).to.be.at.least(consts.minPeaks);
     });
 
-    it('finds nothing at full scale, where the fixed ladder already was this search', async () => {
+    for (const level of [1, 1.5]) {
+      it(`finds nothing at ${level} of full scale, where the fixed ladder already was this search`, async () => {
+        // Above about 1.05 the scaled rungs would leave findPeaksAtThreshold's 0 to 1 range and throw
+        const {peaks} = await findPeaksRelativeToLevel({
+          audioSampleRate: sampleRate,
+          channelData: new Float32Array(sampleRate * 10).fill(level),
+        });
+
+        expect(peaks).to.have.lengthOf(0);
+      });
+    }
+
+    it('finds nothing in NaN samples', async () => {
       const {peaks} = await findPeaksRelativeToLevel({
         audioSampleRate: sampleRate,
-        channelData: new Float32Array(sampleRate * 10).fill(1),
+        channelData: new Float32Array(sampleRate * 10).fill(Number.NaN),
       });
 
       expect(peaks).to.have.lengthOf(0);

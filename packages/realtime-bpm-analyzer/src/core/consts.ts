@@ -21,7 +21,7 @@ export const maxKeptPeaks = 256;
  * Quantile of the per-window maxima that a file-path read takes as the level of its loudest beats
  * @remarks
  * A window is `peakSkipDuration` long, the span one peak occupies. At 0.98 the loudest window never sets the
- * reference, whatever the file's length, and on a 3-minute file the loudest 14 don't, so a click or a clipped
+ * reference on any file of two windows or more, and on a 3-minute file the loudest 15 don't, so a click or a clipped
  * transient can't. It sits on a plateau: on RBA-218's generated sources every quiet or high-passed variant
  * reads its tempo from 0.97 to 1, while 0.95 and under read a high-passed full mix at 114 instead of 96,
  * because the ladder then starts under the beats. Used only when the fixed ladder finds no tempo (RBA-221).

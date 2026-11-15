@@ -53,8 +53,8 @@ type Run = {
   /** The tempo at a frame's time, or null while the microphone has none. */
   bpm: (at: number) => number | null
   beatsPerBar?: number
-  /** Taps that line the grid up, with the beat each one marks. */
-  taps?: { at: number; beat: number }[]
+  /** Taps that line the grid up, with the beat each one marks (null: the nearest on the grid). */
+  taps?: { at: number; beat: number | null }[]
 }
 
 function run({ frames, bpm, beatsPerBar = 4, taps = [] }: Run, from: Strobe = start()): { flashes: Flash[]; state: Strobe } {
@@ -63,7 +63,7 @@ function run({ frames, bpm, beatsPerBar = 4, taps = [] }: Run, from: Strobe = st
   const pending = [...taps].sort((a, b) => a.at - b.at)
   for (const [i, now] of frames.entries()) {
     while (pending.length && (pending[0] as { at: number }).at <= now) {
-      const tap = pending.shift() as { at: number; beat: number }
+      const tap = pending.shift() as { at: number; beat: number | null }
       const tempo = bpm(tap.at)
       if (tempo !== null) state = alignToTap(state, tap.at, 60_000 / tempo, tap.beat)
     }
@@ -218,11 +218,14 @@ test('the switch to every second beat, crossed back and forth, never breaks the 
 
 // ── Tapping along never keeps the light dark ────────────────────────────────────────────────
 
-/** Taps every `everyMs` from `from` to `to`, each up to `jitterMs` early or late, counting the beats from 0. */
+/**
+ * Taps every `everyMs` from `from` to `to`, each up to `jitterMs` early or late, as the page sends
+ * them: the first of the run is the downbeat, each later one the nearest beat on the grid.
+ */
 function steadyTaps(everyMs: number, from: number, to: number, jitterMs: number, seed: number) {
   const next = random(seed)
   const count = Math.floor((to - from) / everyMs)
-  return Array.from({ length: count }, (_, i) => ({ at: from + i * everyMs + (next() * 2 - 1) * jitterMs, beat: i }))
+  return Array.from({ length: count }, (_, i) => ({ at: from + i * everyMs + (next() * 2 - 1) * jitterMs, beat: i === 0 ? 0 : null }))
 }
 
 test('tapping along at the tempo flashes on nearly every beat while the taps go on, within the cap', () => {
@@ -260,6 +263,39 @@ test('taps at twice the tempo still flash, within the cap', () => {
       }
     }
   }
+})
+
+test('above the switch, tapping on every second beat flashes on every tap, evenly', () => {
+  // Tapping along with the flashes at a drum and bass tempo: each tap is the nearest beat on the
+  // grid, so it keeps the grid's count and lands on a flashing beat. Counting taps as beats put
+  // every second tap on a beat that doesn't flash, and the light ran 350 ms, 1050 ms, 350 ms...
+  for (const bpm of [151, 170, 174, 220, 300]) {
+    for (const hz of [30, 60, 144]) {
+      for (let seed = 1; seed <= 10; seed++) {
+        const period = 60_000 / bpm
+        const taps = steadyTaps(2 * period, 1000, 11_000, 15, seed)
+        const { flashes } = run({ frames: frames(12, hz, 1000 / hz / 2, seed), bpm: () => bpm, taps })
+        const label = `taps on every second beat at ${bpm} BPM, ${hz} Hz, seed ${seed}`
+        const during = flashes.filter((f) => f.at >= 1000 && f.at < 11_000 - 2 * period)
+        assert.ok(during.length >= taps.length - 2, `${label}: ${during.length} flashes for ${taps.length} taps`)
+        const widest = during.slice(1).reduce((gap, f, i) => Math.max(gap, f.at - (during[i] as Flash).at), 0)
+        assert.ok(widest <= 2 * period + 70, `${label}: a gap of ${widest.toFixed(0)} ms`)
+        assertSafe(flashes, label)
+      }
+    }
+  }
+})
+
+test('a tap marks the nearest beat on the grid, and the first of a run the downbeat', () => {
+  // 120 BPM from 0: beats at 0, 500, 1000... A tap at 1530 is beat 3 (counted from 0), moved to 1530.
+  const running = run({ frames: frames(1.2, 60), bpm: () => 120 }).state
+  const late = alignToTap(running, 1530, 500, null)
+  assert.deepEqual(late.cursor, { tick: 3, time: 1530 })
+  const early = alignToTap(running, 1480, 500, null)
+  assert.deepEqual(early.cursor, { tick: 3, time: 1480 })
+  assert.deepEqual(alignToTap(running, 1530, 500, 0).cursor, { tick: 0, time: 1530 })
+  // No grid yet: the tap starts one, on the beat it marks or the downbeat.
+  assert.deepEqual(alignToTap(start(), 200, 500, null).cursor, { tick: 0, time: 200 })
 })
 
 test('taps that move the phase, however often, never double a flash or break the cap', () => {

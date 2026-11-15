@@ -13,6 +13,7 @@ import {
   EVERY_OTHER_BEAT_ABOVE_BPM,
   IDLE,
   MIN_GAP_MS,
+  RESTART_GUARD_MS,
   STAGE_COLOR,
   alignToTap,
   beatsPerFlash,
@@ -137,6 +138,26 @@ function halt() {
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined)
 }
 
+/**
+ * The browser's click from a tap that stops the light lands on what the stage uncovered: the
+ * nav, a link, a setting. It is swallowed once, before anything sees it; if no click comes, the
+ * listener goes after RESTART_GUARD_MS so a later click works.
+ */
+function swallowGhostClick() {
+  const swallow = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  window.addEventListener('click', swallow, { capture: true, once: true })
+  setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), RESTART_GUARD_MS)
+}
+
+/** A tap anywhere on the light. */
+function stopFromTap() {
+  swallowGhostClick()
+  void stopAndRefocus()
+}
+
 // A held Enter repeats onto Start once a stop returns focus there: only a fresh press starts it.
 function onStartKey(event: KeyboardEvent) {
   if (event.repeat) event.preventDefault()
@@ -241,14 +262,16 @@ function closeMic() {
 
 /**
  * A tap sets the tempo in the Tap mode (from the third tap, as on the metronome) and, while it
- * runs, says where the beat falls: the first tap of a run is the downbeat.
+ * runs, says where the beat falls: the first tap of a run is the downbeat, and a later one the
+ * nearest beat on the grid, so tapping every second beat above the switch stays on the flashes.
+ * tapBeat counts the run's taps for a Start that follows them, when there is no grid yet.
  */
 function tap(at: number) {
   const { taps, bpm: tapped } = tapToSet(tapTimes.value, at)
   tapBeat = taps.length === 1 ? 0 : tapBeat + 1
   tapTimes.value = taps
   if (source.value === 'tapped' && tapped !== null) setBpm(tapped)
-  if (tempo.value !== null) strobe = alignToTap(strobe, at, 60_000 / tempo.value, tapBeat)
+  if (tempo.value !== null) strobe = alignToTap(strobe, at, 60_000 / tempo.value, taps.length === 1 ? 0 : null)
 }
 
 function onTapPointer(event: PointerEvent) {
@@ -262,7 +285,11 @@ function onTapClick(event: MouseEvent) {
 
 // ── Keys and page events ──────────────────────────────────────────────────────────────────
 
+// Listened to in the capture phase. While it runs, the stage is modal: no key reaches the page
+// behind it, such as the site search's / or Ctrl+K, which opened over the light and fought the
+// stage for focus. Default actions still happen, so Enter on Stop and Tab work.
 function onKeyDown(event: KeyboardEvent) {
+  if (running.value) event.stopPropagation()
   if (event.metaKey || event.ctrlKey || event.altKey) return
   const key = event.key
   if (running.value && (key === 'Escape' || key === ' ')) {
@@ -284,9 +311,12 @@ function onKeyDown(event: KeyboardEvent) {
 }
 
 // While it runs the stage covers the page, so Tab can't reach controls hidden behind the light:
-// focus that leaves the stage goes back to Stop.
+// focus that leaves the stage wraps round its controls, to the last from Stop (Shift+Tab), else to Stop.
 function onFocusIn(event: FocusEvent) {
-  if (running.value && event.target instanceof Node && !stage.value?.contains(event.target)) stopButton.value?.focus({ preventScroll: true })
+  if (!running.value || !(event.target instanceof Node) || stage.value?.contains(event.target)) return
+  const controls = [...(stage.value?.querySelectorAll<HTMLButtonElement>('button') ?? [])]
+  const next = event.relatedTarget === stopButton.value ? controls[controls.length - 1] : stopButton.value
+  next?.focus({ preventScroll: true })
 }
 
 function onVisibility() {
@@ -304,7 +334,7 @@ onMounted(() => {
   style.value = initialStyle(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   reducedMotion.value = style.value === 'pulse'
   canFullscreen.value = document.fullscreenEnabled === true
-  window.addEventListener('keydown', onKeyDown)
+  window.addEventListener('keydown', onKeyDown, { capture: true })
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('pagehide', stopAndRefocus)
   document.addEventListener('fullscreenchange', onFullscreenChange)
@@ -313,7 +343,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   halt()
-  window.removeEventListener('keydown', onKeyDown)
+  window.removeEventListener('keydown', onKeyDown, { capture: true })
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('pagehide', stopAndRefocus)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
@@ -519,7 +549,7 @@ onBeforeUnmount(() => {
       role="dialog"
       aria-modal="true"
       aria-label="Strobe light running"
-      @pointerdown.prevent="stopAndRefocus"
+      @pointerdown.prevent="stopFromTap"
     >
       <div
         ref="light"
@@ -678,7 +708,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  overscroll-behavior: contain;
   background: v-bind(STAGE_COLOR);
   color: #fff;
   cursor: pointer;
@@ -717,7 +746,7 @@ onBeforeUnmount(() => {
   color: #fff;
 }
 
-/* One strip at the bottom, clear of a phone's home indicator. */
+/* One strip at the bottom. The safe-area insets are 0 until the site's viewport sets viewport-fit=cover. */
 .strobe-controls {
   position: relative;
   padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));

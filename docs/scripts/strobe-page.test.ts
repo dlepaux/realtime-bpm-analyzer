@@ -67,7 +67,8 @@ test('only the Start button\'s click starts it: one call to start(), from one ha
 test('every stop path stops it: Stop, Esc, Space, a tap on the stage, a hidden tab, leaving full screen', () => {
   assert.match(TEMPLATE, /@click="stopAndRefocus"/, 'the Stop control')
   assert.match(SCRIPT, /key === 'Escape' \|\| key === ' '/, 'Esc and Space')
-  assert.match(TEMPLATE, /class="strobe-stage"[\s\S]{0,400}@pointerdown\.prevent="stopAndRefocus"/, 'a tap on the flashing area')
+  assert.match(TEMPLATE, /class="strobe-stage"[\s\S]{0,400}@pointerdown\.prevent="stopFromTap"/, 'a tap on the flashing area')
+  assert.match(SCRIPT, /function stopFromTap\(\) \{\n  swallowGhostClick\(\)\n  void stopAndRefocus\(\)/)
   assert.match(SCRIPT, /addEventListener\('visibilitychange'/)
   assert.match(SCRIPT, /document\.visibilityState === 'hidden'\) void stopAndRefocus\(\)/)
   assert.match(SCRIPT, /addEventListener\('pagehide', stopAndRefocus\)/)
@@ -101,11 +102,31 @@ test('while it runs, the stage covers the whole window, with full screen or with
   assert.match(rule('.strobe-controls'), /env\(safe-area-inset-bottom\)/)
 })
 
+test('a tap that stops the light clicks nothing behind it', () => {
+  // The browser's click from the stopping tap lands on what the stage uncovered: on a phone the
+  // nav's "On this page" opened under the finger (round 2's browser check). It is swallowed once,
+  // in the capture phase, and the listener goes after RESTART_GUARD_MS if no click comes.
+  assert.match(SCRIPT, /function swallowGhostClick\(\) \{[\s\S]*?event\.preventDefault\(\)[\s\S]*?event\.stopPropagation\(\)[\s\S]*?window\.addEventListener\('click', swallow, \{ capture: true, once: true \}\)[\s\S]*?setTimeout\(\(\) => window\.removeEventListener\('click', swallow, \{ capture: true \}\), RESTART_GUARD_MS\)/)
+})
+
+test('while it runs, no key reaches the page behind the light, such as the site search\'s / or Ctrl+K', () => {
+  // The search opened over the light and fought the stage for focus until the browser crashed.
+  assert.match(SCRIPT, /window\.addEventListener\('keydown', onKeyDown, \{ capture: true \}\)/)
+  assert.match(SCRIPT, /window\.removeEventListener\('keydown', onKeyDown, \{ capture: true \}\)/)
+  assert.match(SCRIPT, /function onKeyDown\(event: KeyboardEvent\) \{\n  if \(running\.value\) event\.stopPropagation\(\)\n  if \(event\.metaKey/)
+})
+
+test('a tap while it runs marks the nearest beat on the grid; the first of a run, the downbeat', () => {
+  assert.match(SCRIPT, /strobe = alignToTap\(strobe, at, 60_000 \/ tempo\.value, taps\.length === 1 \? 0 : null\)/)
+})
+
 test('moving focus to Stop and back never scrolls the page, and focus stays on the stage while it runs', () => {
   assert.match(SCRIPT, /stopButton\.value\?\.focus\(\{ preventScroll: true \}\)/)
   assert.doesNotMatch(SCRIPT, /stopButton\.value\?\.focus\(\)/)
   // Tab can't reach the page hidden behind the light: focus that leaves the stage returns to Stop.
-  assert.match(SCRIPT, /function onFocusIn\(event: FocusEvent\) \{\n  if \(running\.value && event\.target instanceof Node && !stage\.value\?\.contains\(event\.target\)\) stopButton\.value\?\.focus\(\{ preventScroll: true \}\)/)
+  assert.match(SCRIPT, /function onFocusIn\(event: FocusEvent\) \{\n  if \(!running\.value \|\| !\(event\.target instanceof Node\) \|\| stage\.value\?\.contains\(event\.target\)\) return/)
+  // Shift+Tab from Stop wraps to the last control; anything else comes back to Stop.
+  assert.match(SCRIPT, /event\.relatedTarget === stopButton\.value \? controls\[controls\.length - 1\] : stopButton\.value/)
   assert.match(SCRIPT, /document\.addEventListener\('focusin', onFocusIn\)/)
   assert.match(SCRIPT, /document\.removeEventListener\('focusin', onFocusIn\)/)
   assert.match(TEMPLATE, /class="strobe-stage"[\s\S]{0,200}role="dialog"[\s\S]{0,100}aria-modal="true"/)

@@ -12,10 +12,13 @@ export const FLASH_WINDOW_MS = 1000
 /**
  * The cap is held with room to spare: any four onsets span at least FLASH_WINDOW_MS plus this.
  * The onsets are decided on rAF's frame clock, and each is painted on a later frame, so the
- * painted flashes can sit closer than the decided ones by the spread in that delay. On a 30 Hz
- * screen, the slowest the tests use, a paint one frame late is 33 ms, and a dropped frame doubles
- * it; 100 ms covers three such frames plus timer jitter. RUNNER-RBA-240 measured the painted span
- * 1 ms under the decided one at 60 Hz, where dc3f56a held the cap at exactly 1000 ms.
+ * painted flashes can sit closer than the decided ones by the spread in that delay. 100 ms is
+ * three frames of a 30 Hz screen, the slowest the tests use: a first flash painted up to three
+ * frames later than the fourth (a late paint, then dropped frames) still reads over 1 s. The
+ * paint follows the rAF callback in the same rendering step, so no script runs in between; a
+ * compositor that drops more than three frames at once at the first flash, and none at the
+ * fourth, is not covered. dc3f56a held the cap at exactly 1000 ms by the frame clock, and the
+ * browser painted 4 flashes in 999 ms at 179 BPM (RBA-237, round 2).
  */
 export const CAP_MARGIN_MS = 100
 
@@ -196,15 +199,26 @@ function skipMissed(cursor: TickCursor, now: number, period: number): TickCursor
 }
 
 /**
- * A tap says a beat falls at `at`: `beat` is its place in the bar, 0 for the downbeat. The grid
- * moves so that beat is the tap itself, and it flashes on the next frame if the cap and the gap
- * allow; then the grid runs on a period apart. Putting the next beat a period after the tap
- * instead kept the light dark while a visitor tapped along: each tap came just before that beat
- * and moved it a period on again (RUNNER-RBA-240's browser check). A tap just after a flash is
- * the same beat: MIN_GAP_MS holds it back past MAX_LATE_MS, so it is dropped, not doubled. A beat
- * held back from the old grid is dropped. Taps while stopped change nothing.
+ * A tap says a beat falls at `at`. `beat` is its place in the bar, 0 for the downbeat, or null
+ * for the beat on the grid nearest the tap, which keeps the grid's count: above the switch, a
+ * visitor tapping along with the flashes taps every second beat, and counting each tap as the
+ * next beat would put every second tap on a beat that doesn't flash.
+ *
+ * The grid moves so that beat is the tap itself, and it flashes on the next frame if the cap and
+ * the gap allow; then the grid runs on a period apart. Putting the next beat a period after the
+ * tap instead kept the light dark while a visitor tapped along: each tap came just before that
+ * beat and moved it a period on again (RUNNER-RBA-240's browser check). A tap just after a flash
+ * is the same beat: MIN_GAP_MS holds it back past MAX_LATE_MS, so it is dropped, not doubled. A
+ * beat held back from the old grid is dropped. Taps while stopped change nothing.
  */
-export function alignToTap(state: Strobe, at: number, periodMs: number, beat: number): Strobe {
+export function alignToTap(state: Strobe, at: number, periodMs: number, beat: number | null): Strobe {
   if (!state.running || !(periodMs > 0)) return state
-  return { ...state, cursor: { tick: beat, time: at }, period: periodMs, pending: null }
+  const tick = beat ?? nearestTick(state, at)
+  return { ...state, cursor: { tick, time: at }, period: periodMs, pending: null }
+}
+
+/** The tick of the grid's beat nearest `at`, or 0 with no grid yet. */
+function nearestTick({ cursor, period }: Strobe, at: number): number {
+  if (!cursor || period === null) return 0
+  return cursor.tick + Math.round((at - cursor.time) / period)
 }

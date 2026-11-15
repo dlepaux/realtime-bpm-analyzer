@@ -16,7 +16,7 @@ faq:
   - q: Is the strobe light safe for people with photosensitive epilepsy?
     a: Flashing light can trigger seizures, and no setting makes it safe for everyone. If you or anyone who can see the screen is sensitive to flashing light, don't use it. The tool follows WCAG 2.3.1, so it never flashes more than three times in one second, never flashes red, starts only when you press Start, and stops with Esc, Space, the Stop button or a tap on the light.
   - q: Why does it flash on every second beat above 150 BPM?
-    a: WCAG 2.3.1 allows at most three flashes in any one second, and at 180 BPM a beat falls exactly three times a second, with no room left. The tool keeps every four flashes more than a second apart, with room for a slow or uneven screen, so above 150 BPM it flashes on every second beat. The light stays on the beat and well under the limit.
+    a: WCAG 2.3.1 allows at most three flashes in any one second, and at 180 BPM a beat falls exactly three times a second, with no room left. The tool keeps every four flashes more than a second apart, with room for a slow or uneven screen, so above 150 BPM it flashes on every second beat. The light stays on the beat and under the limit, with room.
   - q: Does the microphone mode find where the beats fall?
     a: No. The library reads the tempo from the microphone, not where each beat falls. The flashes start on a steady grid at that tempo, and a few taps along with the music line the grid up with the beat.
   - q: Is the microphone recorded or sent anywhere?
@@ -45,7 +45,8 @@ until you do.
   and your audio stays on your device
   ([Website Privacy](/website-privacy)).
 - **Taps line it up.** The light flashes on your taps and keeps the beat after
-  them, so you see it while you tap along. The first tap of a run marks the
+  them, so you see it while you tap along. Above 150 BPM it flashes on every
+  second beat, so tap along with the flashes. The first tap of a run marks the
   downbeat, which flashes white, while the other beats flash blue.
 - **Any bar.** 1 to 12 beats per bar.
 - **The light fills the window.** While it runs, the light covers the browser's

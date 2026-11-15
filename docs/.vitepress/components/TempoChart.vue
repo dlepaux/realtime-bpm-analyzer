@@ -48,7 +48,7 @@ function label(row: ChartRow, tool: ChartTool, bpm: number): string {
           </ul>
         </td>
         <td class="tc-num tc-play">
-          <strong>{{ row.play }}</strong>
+          <span class="tc-play-label">Plays at </span><strong>{{ row.play }}</strong>
           <span v-if="row.half" class="tc-half">feels like
             <a
               :href="chartLink('metronome', row.half)"
@@ -93,8 +93,8 @@ function label(row: ChartRow, tool: ChartTool, bpm: number): string {
 }
 
 .vp-doc .tc-table tr { background: none; border: none; }
-.vp-doc .tc-table thead th { font-size: 0.8rem; color: var(--vp-c-text-2); font-weight: 600; }
-.vp-doc .tc-name { font-weight: 650; white-space: nowrap; }
+.vp-doc .tc-table thead th { font-size: 0.8rem; color: var(--vp-c-text-2); font-weight: 600; white-space: nowrap; }
+.vp-doc .tc-name { font-weight: 650; white-space: nowrap; color: var(--vp-c-text-1); }
 .tc-meaning { color: var(--vp-c-text-2); }
 .vp-doc .tc-num { text-align: right; font-variant-numeric: tabular-nums; }
 .tc-play strong { font-size: 1.05rem; }
@@ -108,7 +108,7 @@ function label(row: ChartRow, tool: ChartTool, bpm: number): string {
 
 .vp-doc .tc-ranges ul { margin: 0; padding: 0; list-style: none; }
 .vp-doc .tc-ranges li { margin: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.tc-range { display: inline-block; min-width: 6.5em; }
+.tc-range { display: inline-block; min-width: 7.5em; padding-right: 0.4em; }
 
 .vp-doc .tc-source {
   font-size: 0.8rem;
@@ -119,6 +119,7 @@ function label(row: ChartRow, tool: ChartTool, bpm: number): string {
 .vp-doc .tc-source:hover { color: var(--vp-c-brand-1); text-decoration: underline; }
 
 .tc-actions { white-space: nowrap; }
+.tc-play-label { display: none; }
 
 .vp-doc .tc-link {
   display: inline-block;
@@ -172,6 +173,7 @@ function label(row: ChartRow, tool: ChartTool, bpm: number): string {
   .tc-meaning { grid-area: meaning; }
   .tc-ranges { grid-area: ranges; }
   .tc-play { grid-area: play; }
+  .tc-play-label { display: inline; font-size: 0.8rem; color: var(--vp-c-text-2); }
   .tc-actions { grid-area: actions; }
   .vp-doc .tc-link { margin: 0.25rem 0.5rem 0 0; padding: 0.35rem 0.9rem; font-size: 0.85rem; }
 }

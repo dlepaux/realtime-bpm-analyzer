@@ -23,6 +23,21 @@ const refusedLowpassKeys = [
 ];
 
 /**
+ * Settings that are not an object, with the type each message must name. The message names the type and never
+ * the value, so no row's value may appear in it.
+ */
+const notObjectSettings = [
+  [150, 'a number'],
+  ['150', 'a string'],
+  [true, 'a boolean'],
+  [[150, 1], 'an array'],
+  [() => 150, 'a function'],
+];
+
+/** The message for a frequency outside the open range (0, Nyquist), at the given sample rate */
+const outOfRange = (frequency, sampleRate) => `The lowpass setting frequency ${frequency} is out of range: at a sample rate of ${sampleRate} Hz, it must be above 0 and below ${sampleRate / 2} Hz.`;
+
+/**
  * Reads channel 0 of a PCM WAV file (16 or 24 bit), scaled to [-1, 1] the way
  * decodeAudioData scales it. Enough for the fixture; not a general decoder.
  * @param {string} path WAV file path
@@ -95,6 +110,22 @@ describe('realtime-bpm-analyzer/node', () => {
     for (const [settings, message] of refusedLowpassKeys) {
       const lowpass = {frequency: 150, ...settings};
       await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass}}), {name: 'TypeError', message}, Object.keys(settings).join());
+    }
+    // The lowpass values are checked before the filtering, at the samples' rate
+    for (const [lowpass, kind] of notObjectSettings) {
+      await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass}}), {
+        name: 'TypeError',
+        message: `The lowpass settings are an object with frequency and q, not ${kind}.`,
+      }, kind);
+    }
+
+    for (const frequency of [0, -1, 22_050, 44_100]) {
+      await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass: {frequency}}}), {name: 'RangeError', message: outOfRange(frequency, 44_100)}, String(frequency));
+    }
+
+    await assert.rejects(analyzeChannelData(createClickTrack(128), 8000, {engine: {name: 'peaks', lowpass: {frequency: 4000}}}), {name: 'RangeError', message: outOfRange(4000, 8000)});
+    for (const lowpass of [undefined, null, {}, {frequency: 0.001}, {frequency: 22_049.99}]) {
+      await analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass}});
     }
     // The first pick, on 50 to 240, read this at half
     const fast = await analyzeChannelData(createClickTrack(174), 44_100, {engine: 'tempogram'});
@@ -202,10 +233,43 @@ describe('applyLowpass', () => {
     assert.deepEqual(input, copy);
   });
 
-  it('follows Web Audio at the ends of the frequency range', () => {
+  it('refuses settings that are not an object, naming their type and not their value', () => {
     const input = createNoise(100);
-    assert.deepEqual(applyLowpass(input, sampleRate, {frequency: sampleRate}), input);
-    assert.ok(applyLowpass(input, sampleRate, {frequency: 0}).every(sample => sample === 0));
+    for (const [settings, kind] of notObjectSettings) {
+      assert.throws(() => applyLowpass(input, sampleRate, settings), {
+        name: 'TypeError',
+        message: `The lowpass settings are an object with frequency and q, not ${kind}.`,
+      }, kind);
+    }
+  });
+
+  it('refuses a setting that is not a number, naming its type', () => {
+    const input = createNoise(100);
+    assert.throws(() => applyLowpass(input, sampleRate, {frequency: '150'}), {name: 'TypeError', message: 'The lowpass setting frequency is a string: it must be a finite number.'});
+    assert.throws(() => applyLowpass(input, sampleRate, {q: null}), {name: 'TypeError', message: 'The lowpass setting q is null: it must be a finite number.'});
+  });
+
+  it('refuses a frequency that is not above 0 and below half the sample rate, which 5.x clamped silently', () => {
+    const input = createNoise(100);
+    for (const frequency of [0, -1, -Number.MIN_VALUE, sampleRate / 2, sampleRate, Number.MAX_VALUE]) {
+      assert.throws(() => applyLowpass(input, sampleRate, {frequency}), {name: 'RangeError', message: outOfRange(frequency, sampleRate)}, String(frequency));
+    }
+
+    // The rule follows the rate: 4 kHz is fine at 44.1 kHz and is the Nyquist frequency at 8 kHz
+    assert.throws(() => applyLowpass(input, 8000, {frequency: 4000}), {name: 'RangeError', message: outOfRange(4000, 8000)});
+  });
+
+  it('accepts the defaults at every Web Audio rate and a frequency just inside both ends', () => {
+    for (const rate of [3000, 8000, 44_100, 96_000, 768_000]) {
+      assert.ok(applyLowpass(createNoise(100), rate).every(Number.isFinite), String(rate));
+    }
+
+    const input = createNoise(1000);
+    for (const frequency of [0.001, (sampleRate / 2) - 0.01]) {
+      const output = applyLowpass(input, sampleRate, {frequency});
+      assert.ok(output.every(Number.isFinite), String(frequency));
+      assert.notDeepEqual(output, input, String(frequency));
+    }
   });
 
   it('takes the same {frequency, q} as the engine option, and refuses the 5.x names', () => {

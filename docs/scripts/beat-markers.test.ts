@@ -446,7 +446,9 @@ function checkRule(scenario: Omit<MarkerExport, 'rate' | 'dropFrame'>, choice: (
     for (const [index, row] of file.rows.entries()) {
       const frame = file.frames[index]!
       assert.ok(Math.abs(row.seconds - grid[index]!.seconds) <= 0.0005, `${label}: row ${index + 1} at ${row.seconds} s`)
-      assert.ok(row.seconds < scenario.duration, `${label}: row ${index + 1} at the audio's end`)
+      // Inside the audio, give or take the seconds' rounding to 3 decimals: a beat 0.4 ms before
+      // the end can print past it.
+      assert.ok(row.seconds < scenario.duration + 0.0005, `${label}: row ${index + 1} at the audio's end`)
       // Within half a frame, plus the 3-decimal rounding of the seconds.
       const offset = Math.abs((row.seconds * choice.rate.numerator) / choice.rate.denominator - frame)
       assert.ok(offset <= 0.5 + 0.0005 * fps(choice.rate), `${label}: row ${index + 1}, ${row.seconds} s on frame ${frame}`)

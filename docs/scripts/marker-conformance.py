@@ -189,7 +189,8 @@ def check_csv(path, entry, frames):
         frames_per_second = entry["numerator"] / entry["denominator"]
         if abs(float(row[1]) * frames_per_second - int(row[2])) > 0.5 + 0.0005 * frames_per_second:
             raise AssertionError(f"{path.name}: row {index + 1} puts {row[1]} s on frame {row[2]}")
-        if float(row[1]) >= entry["duration"]:
+        # Give or take that rounding too: a beat 0.4 ms before the end can print past it.
+        if float(row[1]) >= entry["duration"] + 0.0005:
             raise AssertionError(f"{path.name}: row {index + 1} at {row[1]} s, the audio ends at {entry['duration']} s")
     for index in sample(frames):
         if rows[index + 1][3] != timecode_of(frames[index], entry):
@@ -204,6 +205,11 @@ def main(fixtures, dtd_path):
     manifest = json.loads((fixtures / "manifest.json").read_text(encoding="utf-8"))
     if len(manifest) != 78:
         raise AssertionError(f"{len(manifest)} files, expected 78: 2 files, 4 formats at 10 timecodes, less FCP7 XML at 59.94 DF")
+    # The hand-counted grids are the one check that doesn't share the export's rule: a renamed
+    # fixture must fail here, not skip them.
+    missing = set(KNOWN_GRIDS) - {entry["name"] for entry in manifest}
+    if missing:
+        raise AssertionError(f"no files for the hand-counted grids {sorted(missing)}")
     for entry in manifest:
         path = fixtures / entry["file"]
         frames = expected_frames(entry)

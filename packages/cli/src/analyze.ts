@@ -33,12 +33,19 @@ const workerCode = `import(${JSON.stringify(workerUrl.href)}).catch(error => { p
  * copied, so the decoded audio is unusable here afterwards.
  * @param request Decoded audio, tempo range and engine
  * @param signal Ends the analysis: the worker is terminated and the promise rejects, with the reason as cause
- * @returns The reading, or null when no beat was found
+ * @returns The reading, or null when no beat was found, once the worker has exited
  * @throws {Error} The library's error, or the abort
  */
 export async function analyzeOnWorker(request: AnalysisRequest, signal: AbortSignal | undefined): Promise<OfflineResult> {
   signal?.throwIfAborted();
   const worker = new Worker(workerCode, {eval: true, workerData: request, transferList: [request.channelData.buffer]});
+  const exited = new Promise<void>(resolve => {
+    worker.once('exit', () => {
+      resolve();
+    });
+  });
+  // Set when the worker is ending on its own: it threw, or it exited
+  let endingOnItsOwn = false;
   let onAbort = () => {};
   try {
     const reply = await new Promise<AnalysisReply>((resolve, reject) => {
@@ -48,8 +55,12 @@ export async function analyzeOnWorker(request: AnalysisRequest, signal: AbortSig
 
       signal?.addEventListener('abort', onAbort, {once: true});
       worker.once('message', resolve);
-      worker.once('error', reject);
+      worker.once('error', (error: Error) => {
+        endingOnItsOwn = true;
+        reject(error);
+      });
       worker.once('exit', code => {
+        endingOnItsOwn = true;
         reject(new Error(`The analysis stopped before it finished (exit code ${code}).`));
       });
     });
@@ -60,6 +71,16 @@ export async function analyzeOnWorker(request: AnalysisRequest, signal: AbortSig
     return reply.reading;
   } finally {
     signal?.removeEventListener('abort', onAbort);
-    await worker.terminate();
+    // One ending per worker, never two at once. On Node 22.0.0 a terminate() that lands while the
+    // worker exits by itself can deadlock its teardown: terminate never settles and the thread
+    // holds the host's event loop, so the CLI never exits (RBA-241). A worker that answered waits
+    // to be ended (analyze-worker.ts), and one that threw or exited is already going: wait for it.
+    // One overlap is left, and needs an abort at the worker's own end: an abort that lands after the
+    // worker threw or exited, before its 'error' or 'exit' reaches this thread, still terminates it.
+    if (!endingOnItsOwn) {
+      await worker.terminate();
+    }
+
+    await exited;
   }
 }

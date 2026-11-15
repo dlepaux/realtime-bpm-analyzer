@@ -9,6 +9,11 @@ import {analyzeChannelData, applyLowpass} from 'realtime-bpm-analyzer/node';
 import {createClickTrack, createNoise, clickTrackTempos} from '../fixtures/click-track.ts';
 import {bassTestExpected} from '../fixtures/bass-test-expected.ts';
 
+// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
+// thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
+const hangLimit = {timeout: 60_000};
+
 /**
  * Every key a lowpass setting refuses, with the message that must name it. A key's presence is the error, so
  * one row sets its value to undefined: the call must throw whatever the data holds.
@@ -88,7 +93,7 @@ async function readWavChannel0(path) {
   throw new Error(`No data chunk in ${path}`);
 }
 
-describe('realtime-bpm-analyzer/node', () => {
+describe('realtime-bpm-analyzer/node', hangLimit, () => {
   it('loads without Web Audio globals', () => {
     assert.equal(typeof globalThis.OfflineAudioContext, 'undefined');
     assert.equal(typeof globalThis.AudioContext, 'undefined');
@@ -227,7 +232,7 @@ describe('realtime-bpm-analyzer/node', () => {
   });
 });
 
-describe('applyLowpass', () => {
+describe('applyLowpass', hangLimit, () => {
   const sampleRate = 44_100;
   const sine = (frequency, length = sampleRate) => Float32Array.from(
     {length},

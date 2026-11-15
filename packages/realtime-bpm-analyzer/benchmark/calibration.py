@@ -3,11 +3,22 @@
 Reads the calibration samples the hysteresis sweep keeps on the data volume
 (`_job/calibration-samples-<commit>.json`, written by benchmark/hysteresis.ts): per dev track, under the
 picked hysteresis, the reading last shown at 10, 15, 20, 30 and 45 s and at the end, the status there, and
-the offline reading. It refuses any file whose `split` is not `dev`, and never opens anything else.
+the offline reading. Each reading is [bpm, confidence, raw] (`format` 2, RBA-148): the fit reads the raw score,
+since the confidence is already calibrated. It refuses any file whose `split` is not `dev`, except in the
+held-out mode, and never opens anything else.
 
     python3 -I benchmark/calibration.py <samples.json> <report.json>
+    python3 -I benchmark/calibration.py --legacy-raw <samples.json> <report.json>
+    python3 -I benchmark/calibration.py refit <dev samples.json> <committed results.json> <out.json>
+    python3 -I benchmark/calibration.py heldout <held-out samples.json> <committed results.json> <verdict.md> <verdict.json>
 
-prints aggregates as markdown and writes the fitted tables, aggregates only, to <report.json>.
+The first prints aggregates as markdown and writes the fitted tables, aggregates only, to <report.json>.
+`--legacy-raw` reads a file written before RBA-148, whose readings are [bpm, confidence]: only for an image older
+than e70a4f5, when that confidence was still the raw score, as sha-0063495's was. `refit` fits dev again and exits 0
+only when the tables equal the committed ones exactly and every recorded confidence is the committed table read at
+the recorded raw score. `heldout` is RBA-106's one held-out check (DECISION 2026-11-05): the committed tempogram
+mapping on every held-out realtime reading, judged against HELDOUT_BAR, exit 0 pass and 1 fail. Both write
+aggregates only.
 
 Every rule below is fixed before the samples exist:
 - A reading counts when it was shown (status settling or locked). It is right at 4% (Acc1); a reading
@@ -48,6 +59,12 @@ TIMES = ('10 s', '15 s', '20 s', '30 s', '45 s')
 # the shipped table, all must hold. It needs a DECISION on RBA-106 and is not run by this file.
 HELDOUT_BAR = {'ece_max': 0.05, 'ece_high_max': 0.08, 'brier_not_worse': True, 'top_half_low_min': 0.0}
 
+# The samples' format since RBA-148: readings as [bpm, confidence, raw]
+SAMPLES_FORMAT = 2
+# How far a recorded confidence may sit from the committed table read at its recorded raw score: the tempogram's
+# trace keeps both to six decimals, and the steepest segment of any table rises about 11 per unit of raw score
+SHOWN_TOLERANCE = 1e-5
+
 
 def is_correct(reading, truth):
     return abs(reading - truth) <= TOLERANCE * truth
@@ -62,24 +79,38 @@ def is_check(track):
     return digest[0] % CHECK_SHARE == 0
 
 
-def readings_of(track):
+def scored(reading, legacy=False):
+    """(bpm, raw score, recorded confidence) of a recorded reading: [bpm, confidence, raw], or, in a file from
+    before RBA-148, [bpm, raw] with no calibrated confidence beside it"""
+    if legacy:
+        assert len(reading) == 2, reading
+        return reading[0], reading[1], None
+    assert len(reading) == 3, reading
+    return reading[0], reading[2], reading[1]
+
+
+def readings_of(track, legacy=False):
     """The shown readings at the sample times and the end, as dicts, then the offline reading"""
     out = []
     cluster = (track['set'], track['group'])
     times = [t for i, t in enumerate(TIMES) if i < len(track['readings']) - 1] + ['end']
     for time, status, reading in zip(times, track['statuses'], track['readings']):
         if status != '0' and reading is not None:
-            out.append(sample(reading, track['truth'], cluster, time, 'realtime'))
+            bpm, raw, shown = scored(reading, legacy)
+            out.append(sample((bpm, raw), track['truth'], cluster, time, 'realtime', shown))
     if track.get('offline') is not None:
-        out.append(sample(track['offline'], track['truth'], cluster, 'offline', 'offline'))
+        bpm, raw, shown = scored(track['offline'], legacy)
+        out.append(sample((bpm, raw), track['truth'], cluster, 'offline', 'offline', shown))
     return out
 
 
-def sample(reading, truth, cluster, time, path):
+def sample(reading, truth, cluster, time, path, shown=None):
+    """One reading as the fit reads it: `reading` is (bpm, raw score), `shown` the calibrated confidence recorded
+    beside it, None in older files"""
     bpm, confidence = reading
     # The contract keeps confidence in 0..1, and the ECE bins and packed sums rely on it
     assert 0 <= confidence <= 1, (cluster, time, confidence)
-    return {'bpm': bpm, 'raw': confidence, 'right': is_correct(bpm, truth), 'octave': is_octave(bpm, truth),
+    return {'bpm': bpm, 'raw': confidence, 'shown': shown, 'right': is_correct(bpm, truth), 'octave': is_octave(bpm, truth),
             'cluster': cluster, 'time': time, 'path': path}
 
 
@@ -331,8 +362,8 @@ def analyse(samples):
 
 
 def heldout_report(mapping, samples):
-    """The proposed held-out check, for when a DECISION on RBA-106 allows it: the shipped mapping on every
-    held-out realtime reading, in the shape `heldout_verdict` reads. Nothing here calls it"""
+    """RBA-106's held-out check, which its DECISION of 2026-11-05 allows once: the shipped mapping on every
+    held-out realtime reading, in the shape `heldout_verdict` reads. Only the `heldout` mode calls it"""
     realtime = [s for s in samples if s['path'] == 'realtime']
     return {'check': check_block(mapping, realtime), 'top half less bottom half': {'realtime': top_half(realtime)}}
 
@@ -347,18 +378,117 @@ def heldout_verdict(report):
             and halves is not None and halves[1] > HELDOUT_BAR['top_half_low_min'])
 
 
-def load(path):
+def read_json(path):
     with open(path, encoding='utf-8') as file:
-        data = json.load(file)
-    if data.get('split') != 'dev':
-        raise SystemExit(f"calibration reads dev only, not {data.get('split')}")
+        return json.load(file)
+
+
+def load_data(data, split='dev', legacy=False):
+    """(hysteresis, {engine: readings}, the file's counts) of a samples file already parsed. Only `split` is read:
+    held-out only when the held-out mode asks for it"""
+    if data.get('split') != split:
+        raise SystemExit(f"calibration reads {split} only here, not {data.get('split')}")
+    if legacy and data.get('format') is not None:
+        raise SystemExit(f"--legacy-raw is for files from before RBA-148, and this one has format {data['format']}")
+    if not legacy and data.get('format') != SAMPLES_FORMAT:
+        raise SystemExit(f"these samples have format {data.get('format')}, not {SAMPLES_FORMAT}: a file from before RBA-148 "
+                         'holds the raw score only if its image predates e70a4f5, and then reads with --legacy-raw')
     out = {}
     for engine, tracks in data['samples'].items():
         out[engine] = []
         for track in tracks:
             check = is_check(track)
-            out[engine].extend({**s, 'check': check} for s in readings_of(track))
-    return data['hysteresis'], out
+            out[engine].extend({**s, 'check': check} for s in readings_of(track, legacy))
+    counts = {'tracks': data.get('tracks'), 'skipped': data.get('skipped')}
+    return data['hysteresis'], out, counts
+
+
+def load(path, split='dev', legacy=False):
+    hysteresis, out, _ = load_data(read_json(path), split, legacy)
+    return hysteresis, out
+
+
+def shown_mismatches(mapping, samples):
+    """How many readings carry a recorded confidence that is not `mapping` read at their recorded raw score"""
+    return sum(1 for s in samples if s['shown'] is None or abs(apply_mapping(mapping, s['raw'], s['bpm']) - s['shown']) > SHOWN_TOLERANCE)
+
+
+def shipped_mapping(committed, engine):
+    """The mapping the library ships for `engine`, from the committed results: realtime and offline share it"""
+    tables = committed['engines'][engine]['tables']
+    assert set(tables) == {'realtime'}, f'{engine} has a separate offline table, which the library does not ship'
+    return tables['realtime']
+
+
+def refit(data, committed):
+    """(passed, aggregates) of fitting dev again on recorded samples against the committed results"""
+    hysteresis, samples, _ = load_data(data)
+    engines = {}
+    for engine, chosen in samples.items():
+        result = analyse(chosen)
+        expected = committed['engines'][engine]
+        engines[engine] = {
+            'readings': result['readings'],
+            'committed readings': expected['readings'],
+            'hysteresis as committed': hysteresis[engine] == committed['hysteresis'][engine],
+            'tables equal': result['tables'] == expected['tables'],
+            'shown mismatches': shown_mismatches(shipped_mapping(committed, engine), chosen),
+            'tables': result['tables'],
+        }
+    passed = bool(engines) and all(e['readings'] == e['committed readings'] and e['hysteresis as committed'] and e['tables equal']
+                                   and e['shown mismatches'] == 0 for e in engines.values())
+    return passed, {'split': 'dev', 'passed': passed, 'engines': engines}
+
+
+def heldout_check(data, committed):
+    """The verdict file of RBA-106's held-out check, aggregates only. Refuses before judging when the samples are
+    not the tempogram's at the committed row, or carry confidences the committed table does not give"""
+    hysteresis, samples, counts = load_data(data, split='heldout')
+    if set(samples) != {'tempogram'} or hysteresis['tempogram'] != committed['hysteresis']['tempogram']:
+        raise SystemExit('the held-out check reads the tempogram at the row its table was fitted at, and nothing else')
+    mapping = shipped_mapping(committed, 'tempogram')
+    chosen = samples['tempogram']
+    mismatches = shown_mismatches(mapping, chosen)
+    if mismatches:
+        raise SystemExit(f'{mismatches} readings carry a confidence the committed table does not give: the image does not ship it')
+    report = heldout_report(mapping, chosen)
+    return {'split': 'heldout', 'engine': 'tempogram', 'hysteresis': hysteresis['tempogram'], 'bar': HELDOUT_BAR,
+            'passed': heldout_verdict(report), 'tracks': counts['tracks'], 'skipped': counts['skipped'],
+            'artists': len({s['cluster'] for s in chosen}), **report}
+
+
+def heldout_markdown(verdict):
+    """The held-out check's result, aggregates only"""
+    check = verdict['check']
+    halves = verdict['top half less bottom half']['realtime']
+    tracks = verdict['tracks'] or {}
+    out = [f"## RBA-106 held-out calibration check: {'pass' if verdict['passed'] else 'fail'}\n",
+           f"Tempogram realtime readings at `{json.dumps(verdict['hysteresis'], sort_keys=True)}`, the committed table. "
+           f"Tracks: {', '.join(f'{name} {n}' for name, n in sorted(tracks.items())) or 'n/a'}, {verdict['skipped']} skipped. "
+           f"Readings: {check['readings']}, from {verdict['artists']} artists. Ranges: 95% percentile, {REPLICATES} draws "
+           'resampling artists within each set.\n',
+           f"Bar (HELDOUT_BAR): ECE at most {HELDOUT_BAR['ece_max']}, its upper range at most {HELDOUT_BAR['ece_high_max']}, "
+           f"Brier no worse than raw, and the top half less bottom half's low end above {HELDOUT_BAR['top_half_low_min']}.\n",
+           '| | raw | shipped table | table less raw |', '|---|---|---|---|']
+    for name in ('ece', 'brier'):
+        row = check[name]
+        out.append(f"| {'ECE' if name == 'ece' else 'Brier'} | {fmt(row['before'], 1, 3)} | {fmt(row['after'], 1, 3)} "
+                   f"| {fmt(row['after less before'], 1, 3, True)} |")
+    out.append(f'\nTop half less bottom half by raw score, Acc1 points: {fmt(halves, signed=True)}.\n')
+    out.append('Reliability with the shipped table (confidence bin, readings, mean confidence, Acc1, octave errors):\n')
+    out.extend(['| bin | n | confidence | Acc1 | octave |', '|---|---|---|---|---|'])
+    for row in check['reliability']['after']:
+        out.append(f"| {row['bin'][0]:.1f} to {row['bin'][1]:.1f} | {row['n']} | {100 * row['confidence']:.1f} "
+                   f"| {100 * row['acc1']:.1f} | {100 * row['octave']:.1f} |")
+    out.extend(['\n| scope | residual (Acc1 less mean confidence, points) |', '|---|---|'])
+    out.extend(f'| band {name} | {fmt(value, signed=True)} |' for name, value in check['bands'].items())
+    out.extend(f'| at {name} | {fmt(value, signed=True)} |' for name, value in check['times'].items())
+    return '\n'.join(out) + '\n'
+
+
+def write_json(path, value):
+    with open(path, 'w', encoding='utf-8') as file:
+        json.dump(value, file, indent=1)
 
 
 def fmt(interval, scale=100, digits=1, signed=False):
@@ -430,16 +560,37 @@ def markdown(engine, hysteresis, result):
     return '\n'.join(out)
 
 
+USAGE = __doc__.split('\n\n')[2]
+
+
 def main(argv):
-    if len(argv) != 3:
-        raise SystemExit('usage: python3 -I calibration.py <samples.json> <report.json>')
-    hysteresis, samples = load(argv[1])
+    """The exit code: 0 done or passed, 1 a re-fit or held-out check that did not pass"""
+    if len(argv) == 5 and argv[1] == 'refit':
+        passed, report = refit(read_json(argv[2]), read_json(argv[3]))
+        write_json(argv[4], report)
+        for engine, result in report['engines'].items():
+            print(f"{engine}: tables equal {result['tables equal']}, readings {result['readings']} against "
+                  f"{result['committed readings']}, hysteresis as committed {result['hysteresis as committed']}, "
+                  f"{result['shown mismatches']} confidences off the committed table")
+        print(f"re-fit {'reproduces' if passed else 'does not reproduce'} the committed tables")
+        return 0 if passed else 1
+    if len(argv) == 6 and argv[1] == 'heldout':
+        verdict = heldout_check(read_json(argv[2]), read_json(argv[3]))
+        with open(argv[4], 'w', encoding='utf-8') as file:
+            file.write(heldout_markdown(verdict))
+        write_json(argv[5], verdict)
+        print(heldout_markdown(verdict))
+        return 0 if verdict['passed'] else 1
+    legacy = len(argv) == 4 and argv[1] == '--legacy-raw'
+    if len(argv) != 3 and not legacy:
+        raise SystemExit(f'usage:\n{USAGE}')
+    hysteresis, samples = load(argv[-2], legacy=legacy)
     results = {engine: analyse(chosen) for engine, chosen in samples.items()}
-    with open(argv[2], 'w', encoding='utf-8') as file:
-        json.dump({'split': 'dev', 'hysteresis': hysteresis, 'heldout bar': HELDOUT_BAR, 'engines': results}, file, indent=1)
+    write_json(argv[-1], {'split': 'dev', 'hysteresis': hysteresis, 'heldout bar': HELDOUT_BAR, 'engines': results})
     print(f'Ranges: 95% percentile, {REPLICATES} draws resampling artists within each set.\n')
     print('\n\n'.join(markdown(engine, hysteresis[engine], result) for engine, result in results.items()))
+    return 0
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    sys.exit(main(sys.argv))

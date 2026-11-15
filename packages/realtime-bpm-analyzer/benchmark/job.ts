@@ -5,6 +5,7 @@
 //   job.mjs hysteresis                            the data, then RBA-106's hysteresis sweep on dev and its pick. No look
 //   job.mjs heldout --reason "..." [--detector]   the data, a dev scoring, then a held-out look, logged
 //   job.mjs free-look --reason "..."              RBA-51's one look at RBA-59's held-out free mixes, then its verdict
+//   job.mjs calibration-heldout --reason "..."    RBA-106's one held-out check of the shipped calibration, then its verdict
 // Every stage is safe to kill and restart. Exit: 0 done, 1 failed, 2 bad arguments, 3 the sweep is
 // done on clean data but an evaluation set did not come back whole.
 import {spawn} from 'node:child_process';
@@ -25,6 +26,7 @@ import type {RunFailure} from './lib/look';
 import {bandCounts} from './lib/metrics';
 import {guardShortfalls} from './lib/sweep';
 import {sweepDetectors} from './lib/hysteresis-pick';
+import {calibrationDetector, calibrationLogName, calibrationLookRefusal, calibrationLookScope} from './lib/calibration-samples';
 import type {TrackResult} from './lib/types';
 
 const benchmarkDir = process.cwd();
@@ -40,6 +42,20 @@ const freeLog = join(jobDir, 'free-heldout-log.md');
 const freeOut = join(jobDir, `free-heldout-${benchmarkSha}.json`);
 const freeProgress = join(jobDir, `free-heldout-progress-${benchmarkSha}.jsonl`);
 const freeVerdict = {md: join(jobDir, `free-verdict-${benchmarkSha}.md`), json: join(jobDir, `free-verdict-${benchmarkSha}.json`)};
+// RBA-106's held-out calibration check. Per track, staying on the volume: the runs, their progress and the samples.
+// Aggregates, the only files that leave it: the dev re-fit's comparison and the verdict
+const calibration = {
+  log: join(jobDir, calibrationLogName),
+  dev: join(jobDir, `calibration-dev-${benchmarkSha}.json`),
+  devSamples: join(jobDir, `calibration-samples-dev-${benchmarkSha}.json`),
+  refit: join(jobDir, `calibration-refit-${benchmarkSha}.json`),
+  heldout: join(jobDir, `calibration-heldout-${benchmarkSha}.json`),
+  progress: join(jobDir, `calibration-heldout-progress-${benchmarkSha}.jsonl`),
+  heldoutSamples: join(jobDir, `calibration-samples-heldout-${benchmarkSha}.json`),
+  verdict: {md: join(jobDir, `calibration-verdict-${benchmarkSha}.md`), json: join(jobDir, `calibration-verdict-${benchmarkSha}.json`)},
+};
+// The tables the library ships, as the benchmark committed them: a library test holds the two equal
+const committedCalibration = 'results/rba-106-calibration-dev.json';
 
 type Summary = {
   mode: string;
@@ -61,8 +77,10 @@ type Summary = {
   heldout: string | null;
   /** Tracks a look scored without, because their file cannot decode. Each one is named here */
   skipped: readonly RunFailure[];
-  /** The free-mix look's verdict: free-verdict's exit (0 yes, 1 no) and its aggregate files */
+  /** A look's verdict: its exit (0 pass, 1 fail) and its aggregate files */
   verdict?: {exit: number; md: string; json: string};
+  /** The calibration check's dev re-fit, which must reproduce the committed tables before the look */
+  refit?: string;
 };
 
 /** One file per mode: a fetch or a held-out look must not overwrite the sweep's evidence */
@@ -78,8 +96,12 @@ function save(summary: Summary): void {
 let child: ChildProcess | null = null;
 
 async function runEntry(entry: string, args: readonly string[], okCodes: readonly number[] = [0]): Promise<number> {
+  return runCommand('./run.sh', [entry, ...args], okCodes, entry);
+}
+
+async function runCommand(command: string, args: readonly string[], okCodes: readonly number[], name: string): Promise<number> {
   const code = await new Promise<number>((resolve, reject) => {
-    child = spawn('./run.sh', [entry, ...args], {stdio: 'inherit'})
+    child = spawn(command, args, {stdio: 'inherit'})
       .on('error', reject)
       .on('close', status => {
         resolve(status ?? 1);
@@ -87,7 +109,7 @@ async function runEntry(entry: string, args: readonly string[], okCodes: readonl
   });
 
   if (!okCodes.includes(code)) {
-    throw new Error(`${entry} exited ${code}`);
+    throw new Error(`${name} exited ${code}`);
   }
 
   return code;
@@ -222,6 +244,13 @@ async function stages(summary: Summary, mode: string, wanted: readonly string[],
     return;
   }
 
+  // A restart after the check's file only judges it again: the verdict reads that file and nothing new
+  if (mode === 'calibration-heldout' && existsSync(calibration.heldout)) {
+    await calibrationVerdict(summary);
+    summary.status = 'ok';
+    return;
+  }
+
   summary.stage = 'data';
   save(summary);
 
@@ -239,7 +268,7 @@ async function stages(summary: Summary, mode: string, wanted: readonly string[],
 
   const dirtyClean = data.incomplete.filter(set => cleanSets.has(set));
 
-  if (dirtyClean.length > 0 || (mode === 'heldout' && data.incomplete.length > 0)) {
+  if (dirtyClean.length > 0 || ((mode === 'heldout' || mode === 'calibration-heldout') && data.incomplete.length > 0)) {
     throw new Error(`Incomplete sets, see data in this file: ${data.incomplete.join(', ')}`);
   }
 
@@ -252,6 +281,10 @@ async function stages(summary: Summary, mode: string, wanted: readonly string[],
   } else if (mode === 'heldout') {
     assertPickHoldsGuard(await devScores(summary, clean, options.detector));
     await heldout(summary, wanted, options.reason!, options.detector);
+  } else if (mode === 'calibration-heldout') {
+    await calibrationDevRefit(summary, wanted);
+    await calibrationLook(summary, wanted, options.reason!);
+    await calibrationVerdict(summary);
   }
 
   summary.status = data.incomplete.length > 0 ? 'incomplete' : 'ok';
@@ -268,6 +301,73 @@ async function hysteresisSweep(summary: Summary, sets: readonly string[]): Promi
   summary.stage = 'hysteresis';
   save(summary);
   await runEntry('hysteresis', ['--in', devOut, '--out', join(jobDir, `hysteresis-report-${sha}.json`), '--samples', join(jobDir, `calibration-samples-${sha}.json`)]);
+}
+
+/**
+ * RBA-106's check, first step: the tempogram on dev with this harness, its samples, and calibration.py's re-fit,
+ * which must give the committed tables exactly and find every recorded confidence to be the committed table read at
+ * the recorded raw score. It proves the raw scores are recorded right (RBA-148) and that the image ships those
+ * tables. A failure here takes no look.
+ */
+async function calibrationDevRefit(summary: Summary, sets: readonly string[]): Promise<void> {
+  summary.stage = 'calibration-dev';
+  save(summary);
+  if (!existsSync(calibration.dev)) {
+    await runEntry('run', ['--split', 'dev', '--detector', calibrationDetector, '--sets', sets.join(','), '--out', calibration.dev, '--progress', `${calibration.dev}.progress`]);
+  }
+
+  summary.dev = calibration.dev;
+  await runEntry('calibration-samples', ['--in', calibration.dev, '--out', calibration.devSamples]);
+  summary.stage = 'calibration-refit';
+  save(summary);
+  await runCommand('python3', ['-I', 'calibration.py', 'refit', calibration.devSamples, committedCalibration, calibration.refit], [0], 'the dev re-fit, so no look was taken,');
+  summary.refit = calibration.refit;
+}
+
+/** The check itself: logged once in its own log before a label is read, and resumable from its progress file */
+async function calibrationLook(summary: Summary, sets: readonly string[], reason: string): Promise<void> {
+  summary.stage = 'heldout';
+  save(summary);
+  await runEntry('run', [
+    '--split', 'heldout', '--look', 'calibration', '--detector', calibrationDetector, '--sets', sets.join(','), '--reason', reason,
+    '--out', calibration.heldout, '--progress', calibration.progress,
+  ]);
+}
+
+/** The held-out samples, then calibration.py's verdict against HELDOUT_BAR: 0 pass, 1 fail, both a finished check */
+async function calibrationVerdict(summary: Summary): Promise<void> {
+  summary.heldout = calibration.heldout;
+  summary.skipped = (JSON.parse(readFileSync(calibration.heldout, 'utf8')) as {skipped: RunFailure[]}).skipped;
+  summary.stage = 'verdict';
+  save(summary);
+  await runEntry('calibration-samples', ['--in', calibration.heldout, '--out', calibration.heldoutSamples]);
+
+  const exit = await runCommand('python3', ['-I', 'calibration.py', 'heldout', calibration.heldoutSamples, committedCalibration, calibration.verdict.md, calibration.verdict.json], [0, 1], 'the verdict');
+
+  summary.verdict = {exit, ...calibration.verdict};
+}
+
+/**
+ * The calibration check may start, or resume its own progress or its verdict. Anything else is refused before
+ * anything runs, the data and the dev re-fit included.
+ * @returns Why not, or null
+ */
+function refuseCalibrationLook(reason: string, sets: string | undefined, detector: string | undefined): string | null {
+  if (sets !== undefined || detector !== undefined) {
+    return 'The calibration check takes no --sets or --detector: its scope is fixed in lib/calibration-samples.ts';
+  }
+
+  const summaryPath = join(jobDir, 'summary-calibration-heldout.json');
+  const isRunning = existsSync(summaryPath) && (JSON.parse(readFileSync(summaryPath, 'utf8')) as Summary).status === 'running';
+
+  if (existsSync(calibration.heldout)) {
+    return isRunning ? null : `${calibration.heldout} exists: the check has run`;
+  }
+
+  const log = existsSync(calibration.log) ? readFileSync(calibration.log, 'utf8') : '';
+  const isResuming = existsSync(calibration.progress) && statSync(calibration.progress).size > 0;
+
+  return calibrationLookRefusal(log, isResuming, reason, calibrationLookScope.detectors, calibrationLookScope.sets);
 }
 
 /** @returns The arguments, or null when they do not parse */
@@ -341,13 +441,13 @@ function closeSpentLook(): number {
 async function main(): Promise<number> {
   const args = parseJobArgs();
   const mode = args?.positionals[0] ?? 'tune';
-  const wanted = args?.values.sets?.split(',') ?? Object.keys(loaders);
+  const wanted = mode === 'calibration-heldout' ? [...calibrationLookScope.sets] : args?.values.sets?.split(',') ?? Object.keys(loaders);
 
   // The clean sets' heldout mode never takes a free set: the free-mix look is its own mode
-  if (!args || !['tune', 'fetch', 'dev', 'hysteresis', 'heldout', 'free-look'].includes(mode) || !process.env.RBA_TEMPO_ROOT
-    || ((mode === 'heldout' || mode === 'free-look') && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set) || isFreeSet(set))
+  if (!args || !['tune', 'fetch', 'dev', 'hysteresis', 'heldout', 'free-look', 'calibration-heldout'].includes(mode) || !process.env.RBA_TEMPO_ROOT
+    || ((mode === 'heldout' || mode === 'free-look' || mode === 'calibration-heldout') && !args.values.reason) || !wanted.every(set => Object.hasOwn(loaders, set) || isFreeSet(set))
     || freeJobModeRefusal(mode, wanted) !== null) {
-    console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|dev|hysteresis|heldout --reason <why>|free-look --reason <why>] [--sets a,b]');
+    console.error('usage: RBA_TEMPO_ROOT=<dir> entrypoint [tune|fetch|dev|hysteresis|heldout --reason <why>|free-look --reason <why>|calibration-heldout --reason <why>] [--sets a,b]');
     return 2;
   }
 
@@ -358,6 +458,15 @@ async function main(): Promise<number> {
 
     if (freeRefusal) {
       console.error(freeRefusal);
+      return 2;
+    }
+  }
+
+  if (mode === 'calibration-heldout') {
+    const calibrationRefusal = refuseCalibrationLook(values.reason!, values.sets, values.detector);
+
+    if (calibrationRefusal) {
+      console.error(calibrationRefusal);
       return 2;
     }
   }
@@ -379,7 +488,7 @@ async function main(): Promise<number> {
   const summary: Summary = {
     mode,
     sha: process.env.RBA_BENCHMARK_SHA || 'local',
-    scope: mode === 'free-look' ? freeLookScope.sets.join(',') : values.sets ?? 'all',
+    scope: mode === 'free-look' ? freeLookScope.sets.join(',') : mode === 'calibration-heldout' ? calibrationLookScope.sets.join(',') : values.sets ?? 'all',
     startedAt: new Date().toISOString(),
     finishedAt: null,
     stage: 'start',

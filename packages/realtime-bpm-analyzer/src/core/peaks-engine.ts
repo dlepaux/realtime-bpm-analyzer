@@ -112,7 +112,8 @@ export class PeaksEngine {
       pulse: hasPulse(channelData, bufferSize),
       lockOffered,
       progress: fraction,
-      debug: this.options.debug ? {threshold, floor: this.minValidThreshold, newPeaks: debugPeaks} : undefined,
+      // The candidates carry the raw scores the benchmark records to re-fit the calibration (RBA-148)
+      debug: this.options.debug ? {threshold, floor: this.minValidThreshold, newPeaks: debugPeaks, candidates} : undefined,
     };
   }
 

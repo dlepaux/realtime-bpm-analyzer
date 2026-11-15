@@ -5,27 +5,12 @@
 import {readFileSync} from 'node:fs';
 import {parseArgs} from 'node:util';
 import type {EngineName} from '../src/contract/types';
+import {samplesFile, samplesOf} from './lib/calibration-samples';
 import {writeAtomic} from './lib/decode';
-import {pickedSamples, pickHysteresis, sweepDetectors} from './lib/hysteresis-pick';
-import type {EnginePick} from './lib/hysteresis-pick';
+import {pickHysteresis, sweepDetectors} from './lib/hysteresis-pick';
 import type {TrackResult} from './lib/types';
 
 const engines: readonly EngineName[] = ['tempogram', 'peaks'];
-
-/** The picked row's readings per track: what a listener was shown at each sample time, and the offline reading */
-function samplesOf(pick: EnginePick, results: readonly TrackResult[]) {
-  const shown = pickedSamples(pick.engine, results, pick.pick);
-  return results.map((result, track) => ({
-    set: result.set,
-    id: result.id,
-    group: result.group,
-    label: result.label,
-    truth: result.truth,
-    duration: result.duration,
-    ...shown[track],
-    offline: result.hysteresis?.offline ?? null,
-  }));
-}
 
 function main(): void {
   const {values} = parseArgs({options: {in: {type: 'string'}, out: {type: 'string'}, samples: {type: 'string'}}});
@@ -40,8 +25,9 @@ function main(): void {
 
   const picks = engines.map((engine, index) => pickHysteresis(engine, results[sweepDetectors[index]]));
   writeAtomic(values.out, Buffer.from(`${JSON.stringify({split, picks}, null, 1)}\n`));
-  const samples = Object.fromEntries(picks.map((pick, index) => [pick.engine, samplesOf(pick, results[sweepDetectors[index]])]));
-  writeAtomic(values.samples, Buffer.from(`${JSON.stringify({split, hysteresis: Object.fromEntries(picks.map(pick => [pick.engine, pick.rows[pick.pick].hysteresis])), samples})}\n`));
+  const samples = Object.fromEntries(picks.map((pick, index) => [pick.engine, samplesOf(pick.engine, results[sweepDetectors[index]], pick.pick)]));
+  const rows = Object.fromEntries(picks.map(pick => [pick.engine, pick.rows[pick.pick].hysteresis]));
+  writeAtomic(values.samples, Buffer.from(samplesFile('dev', rows, samples)));
 
   for (const pick of picks) {
     const row = pick.rows[pick.pick];

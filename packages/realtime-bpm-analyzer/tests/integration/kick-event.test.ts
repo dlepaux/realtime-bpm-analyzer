@@ -104,7 +104,7 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
     const delays = heard.map(({kick, at}) => at - kick.contextTime);
     const ms = (value: number) => Number((value * 1000).toFixed(1));
     const spread = (values: readonly number[]) => ({median: ms(absolutePercentile(values, 0.5)), p90: ms(absolutePercentile(values, 0.9)), max: ms(absolutePercentile(values, 1))});
-    const timestamp = audioContext.getOutputTimestamp();
+    const {contextTime: playing = 0, performanceTime = 0} = audioContext.getOutputTimestamp();
     console.log(`KICK-DELAY ${JSON.stringify({
       input,
       browser: navigator.userAgent,
@@ -117,7 +117,7 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
       delayMs: spread(delays),
       delayByOutputClockMs: spread(heard.map(({kick, byOutputClock}) => byOutputClock - kick.contextTime)),
       bareMessageMs: {byCurrentTime: spread(crossings.map(({byCurrentTime}) => byCurrentTime)), byOutputClock: spread(crossings.map(({byOutputClock}) => byOutputClock))},
-      outputTimestampBehindMs: {contextTime: ms(audioContext.currentTime - timestamp.contextTime), performanceTime: Number((performance.now() - timestamp.performanceTime).toFixed(1))},
+      outputTimestampBehindMs: {contextTime: ms(audioContext.currentTime - playing), performanceTime: Number((performance.now() - performanceTime).toFixed(1))},
       timingMs: {median: ms(absolutePercentile(score.errors, 0.5)), max: ms(absolutePercentile(score.errors, 1))},
     })}`);
 

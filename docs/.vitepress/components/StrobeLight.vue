@@ -115,7 +115,8 @@ async function startFromClick(event: MouseEvent) {
   track('bpm_strobe_started', { tempo_source: source.value, ...(source.value === 'mic' ? {} : { bpm: bpm.value }) })
   frame = requestAnimationFrame(onFrame)
   await nextTick()
-  stopButton.value?.focus()
+  // The stage is fixed to the window, and preventScroll keeps the page behind it where it was.
+  stopButton.value?.focus({ preventScroll: true })
   void keepAwake(gen)
   if (source.value === 'mic') await listen(gen)
 }
@@ -282,6 +283,12 @@ function onKeyDown(event: KeyboardEvent) {
   event.preventDefault()
 }
 
+// While it runs the stage covers the page, so Tab can't reach controls hidden behind the light:
+// focus that leaves the stage goes back to Stop.
+function onFocusIn(event: FocusEvent) {
+  if (running.value && event.target instanceof Node && !stage.value?.contains(event.target)) stopButton.value?.focus({ preventScroll: true })
+}
+
 function onVisibility() {
   if (document.visibilityState === 'hidden') void stopAndRefocus()
 }
@@ -301,6 +308,7 @@ onMounted(() => {
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('pagehide', stopAndRefocus)
   document.addEventListener('fullscreenchange', onFullscreenChange)
+  document.addEventListener('focusin', onFocusIn)
 })
 
 onBeforeUnmount(() => {
@@ -309,6 +317,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('pagehide', stopAndRefocus)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
+  document.removeEventListener('focusin', onFocusIn)
 })
 </script>
 
@@ -507,6 +516,9 @@ onBeforeUnmount(() => {
       v-show="running"
       ref="stage"
       class="strobe-stage"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Strobe light running"
       @pointerdown.prevent="stopAndRefocus"
     >
       <div
@@ -514,19 +526,21 @@ onBeforeUnmount(() => {
         class="strobe-light"
         aria-hidden="true"
       ></div>
-      <p class="strobe-stage-hint">
-        Tap the light, or press Esc or Space, to stop
-      </p>
-      <div
-        class="strobe-controls"
-        @pointerdown.stop
-      >
+      <div class="strobe-stage-top">
         <p
           class="strobe-status"
           role="status"
         >
           {{ status }}
         </p>
+        <p class="strobe-stage-hint">
+          Tap the light, or press Esc or Space, to stop
+        </p>
+      </div>
+      <div
+        class="strobe-controls"
+        @pointerdown.stop
+      >
         <div class="tt-row">
           <button
             ref="stopButton"
@@ -650,15 +664,21 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-/* Black between flashes, whatever the theme: tools/strobe.ts picks the flash colours against it. */
+/*
+ * While it runs, the stage covers the window, above the site's nav: the light is the whole window
+ * but the controls strip, and nothing scrolls it away. In the page's flow, focus moving to Stop
+ * scrolled most of it off a phone's screen. Full screen, where the browser has it, only grows the
+ * window; iPhone Safari has none for a page element and gets the same light. Black between
+ * flashes, whatever the theme: tools/strobe.ts picks the flash colours against it.
+ */
 .strobe-stage {
-  position: relative;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  min-height: min(70vh, 640px);
-  margin: calc(-1 * clamp(1.25rem, 4vw, 2.25rem));
-  border-radius: inherit;
+  justify-content: space-between;
+  overscroll-behavior: contain;
   background: v-bind(STAGE_COLOR);
   color: #fff;
   cursor: pointer;
@@ -667,49 +687,57 @@ onBeforeUnmount(() => {
   -webkit-user-select: none;
 }
 
-.strobe-stage:fullscreen {
-  min-height: 100vh;
-  margin: 0;
-  border-radius: 0;
-}
-
 .strobe-light {
   position: absolute;
   inset: 0;
-  border-radius: inherit;
   opacity: 0;
   pointer-events: none;
 }
 
-.strobe-stage-hint {
-  position: absolute;
-  top: 1rem;
-  right: 0;
-  left: 0;
-  margin: 0;
+/* Over the light, readable on black and on a flash alike. A tap here is a tap on the light. */
+.strobe-stage-top {
+  position: relative;
+  padding: calc(0.75rem + env(safe-area-inset-top)) 1rem 0;
   text-align: center;
-  font-size: 0.85rem;
-  color: #c8c8c8;
   mix-blend-mode: difference;
   pointer-events: none;
 }
 
-.strobe-controls {
-  position: relative;
-  padding: 1rem;
-  background: rgb(0 0 0 / 0.85);
-  border-radius: 0 0 24px 24px;
-  cursor: default;
+.strobe-stage-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: #c8c8c8;
 }
 
-.strobe-stage:fullscreen .strobe-controls { border-radius: 0; }
-
 .strobe-status {
-  margin: 0 0 0.25rem;
-  text-align: center;
+  margin: 0;
   font-size: 1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: #fff;
+}
+
+/* One strip at the bottom, clear of a phone's home indicator. */
+.strobe-controls {
+  position: relative;
+  padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: rgb(0 0 0 / 0.85);
+  cursor: default;
+}
+
+.strobe-controls .tt-row { margin-top: 0; }
+
+.strobe-controls .tt-btn:not(.strobe-stop) {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+/*
+ * Stop is as large as Start and grows to 20rem: on a phone that is a row of its own, above the
+ * smaller controls; on a wide screen they share one row.
+ */
+.strobe-controls .strobe-stop {
+  flex: 1 1 20rem;
+  max-width: 20rem;
 }
 </style>

@@ -75,6 +75,47 @@ test('every stop path stops it: Stop, Esc, Space, a tap on the stage, a hidden t
   assert.match(SCRIPT, /onBeforeUnmount\([\s\S]*?halt\(\)/)
 })
 
+// ── While it runs, the light fills the window ───────────────────────────────────────────────
+
+const STYLE = COMPONENT.slice(COMPONENT.indexOf('<style'))
+/** The declarations of one rule in the component's style, by its exact selector. */
+const rule = (selector: string) => {
+  const at = STYLE.indexOf(`\n${selector} {`)
+  assert.ok(at !== -1, `no rule for ${selector}`)
+  return STYLE.slice(at, STYLE.indexOf('}', at))
+}
+
+test('while it runs, the stage covers the whole window, with full screen or without it', () => {
+  // In the page's flow, focus moving to Stop scrolled most of the light off a phone's screen
+  // (RUNNER-RBA-240: 8 px of 591 left at 390 x 844). Fixed to the window, nothing scrolls it away,
+  // and iPhone Safari, which has no full screen for a page element, gets the same light.
+  const stage = rule('.strobe-stage')
+  assert.match(stage, /position: fixed;/)
+  assert.match(stage, /inset: 0;/)
+  // Above VitePress's own layers (nav, sidebar, backdrop), which stay under 100.
+  const z = Number(/z-index: (\d+);/.exec(stage)?.[1])
+  assert.ok(z >= 100, `z-index ${z}`)
+  assert.doesNotMatch(stage, /min-height|margin:/, 'no size or offset from the card it sits in')
+  assert.match(rule('.strobe-light'), /inset: 0;/)
+  // The controls are one strip at the bottom: the light is the rest of the window.
+  assert.match(rule('.strobe-controls'), /env\(safe-area-inset-bottom\)/)
+})
+
+test('moving focus to Stop and back never scrolls the page, and focus stays on the stage while it runs', () => {
+  assert.match(SCRIPT, /stopButton\.value\?\.focus\(\{ preventScroll: true \}\)/)
+  assert.doesNotMatch(SCRIPT, /stopButton\.value\?\.focus\(\)/)
+  // Tab can't reach the page hidden behind the light: focus that leaves the stage returns to Stop.
+  assert.match(SCRIPT, /function onFocusIn\(event: FocusEvent\) \{\n  if \(running\.value && event\.target instanceof Node && !stage\.value\?\.contains\(event\.target\)\) stopButton\.value\?\.focus\(\{ preventScroll: true \}\)/)
+  assert.match(SCRIPT, /document\.addEventListener\('focusin', onFocusIn\)/)
+  assert.match(SCRIPT, /document\.removeEventListener\('focusin', onFocusIn\)/)
+  assert.match(TEMPLATE, /class="strobe-stage"[\s\S]{0,200}role="dialog"[\s\S]{0,100}aria-modal="true"/)
+})
+
+test('the Stop control stays large: the full width of the strip on a phone, with Start\'s padding', () => {
+  assert.match(rule('.strobe-controls .strobe-stop'), /flex: 1 1 20rem;/)
+  assert.match(rule('.strobe-start,\n.strobe-stop'), /padding: 0\.85rem 1\.75rem;/)
+})
+
 test('a stop returns focus to the Start control', () => {
   assert.match(SCRIPT, /function stopAndRefocus\(\)[\s\S]*?halt\(\)[\s\S]*?startButton\.value\?\.focus\(\)/)
 })

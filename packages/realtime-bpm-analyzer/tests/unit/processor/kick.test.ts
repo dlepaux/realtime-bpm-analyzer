@@ -157,6 +157,7 @@ describe('RealTimeBpmProcessor - kicks', () => {
     const kicks = (processor.posted as PostedWorkletMessage[]).filter((message): message is KickMessage => message.type === 'kick');
     const gapStart = (gapFrom * quantum) / sampleRate;
     const gapEnd = (gapTo * quantum) / sampleRate;
+    expect(kicks.filter(({contextTime}) => contextTime >= gapStart && contextTime < gapEnd), 'kicks stamped inside the gap').to.deep.equal([]);
     const truth = scene.kicks.filter(time => time < gapStart - 0.03 || time > gapEnd + 0.08);
     const score = scoreKicks(truth, kicks.map(({contextTime}) => contextTime), 0.05);
     expect(score.misses).to.equal(0);

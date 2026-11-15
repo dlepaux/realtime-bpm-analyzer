@@ -215,10 +215,10 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
 });
 
 /**
- * A bare worklet that posts its clock and does nothing else, as the tests' context clock. Every 8th quantum, 21 ms at
- * 48 kHz: the reading runs on from the last post by the wall clock, so it is the context clock as it runs, smoothed,
- * the one `currentTime` gives a page. The audio thread renders a few quanta at once, ahead of that clock, so a post
- * per quantum would not read when a quantum was rendered either, and would add 375 messages a second.
+ * A bare worklet that posts its clock and does nothing else, as the tests' context clock where the main thread's
+ * `currentTime` stands still, as in Firefox. Every 8th quantum, 21 ms at 48 kHz: the reading runs on from the last
+ * post by the wall clock, and never reads below `currentTime`, so a post per quantum would only add 375 messages a
+ * second to the main thread the test measures.
  */
 const clockProbeModule = `registerProcessor('kick-test-clock-probe', class extends AudioWorkletProcessor {
   n = 0;

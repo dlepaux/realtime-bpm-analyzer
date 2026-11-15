@@ -327,14 +327,13 @@ element, a stream and a `liveInput` microphone:
 
 | Where | Median | At most |
 |-------|--------|---------|
-| Chrome 157 on a Mac, with its speakers | 16 ms | 19 ms |
+| Chrome 157 on a Mac, with its speakers | 18 to 19 ms | 22 ms |
 | Chromium 156 on CI's Linux runners | 19 to 20 ms | 28 ms |
 | Firefox 158 on CI's Linux runners | 21 to 26 ms | 36 ms |
 
-These are read on the context clock as `currentTime` gives it, smoothed
-between its updates, the clock `heardAt` below uses. The browser renders the
-audio a few milliseconds ahead of that clock, which is why an event can come
-sooner than the audio it needed. Kicks alone come about 5 ms sooner.
+These are read on the context clock, as `currentTime` gives it to the page.
+Firefox's `currentTime` stands still between its updates, so there it is the
+clock's last reading plus the time since.
 
 A busy main thread adds its own delay, as it does to every event.
 
@@ -399,9 +398,10 @@ by at most the few milliseconds `currentTime` lags in either browser.
 - A kick counts against the loudest of the last seconds. When the music
   drops by 10 dB at once, as a quieter track starts or the volume goes down
   before the analyzer, no kick counts for about 5 s, and for about 19 s after
-  a 20 dB drop. Call `reset()` when the track changes: it starts over at
-  once. A paused element may still send silence, which is not a gap, so do
-  not count on the input coming back to start it over.
+  a 20 dB drop. Call `reset()` when the track changes: the kicks start
+  over at once, and so does the tempo. A paused element may still send
+  silence, which does not start the kicks over the way an input that went
+  away and came back does.
 - `strength` is relative, so a quiet track's kicks are as strong as a loud
   one's. It is not a level meter.
 - Tested on synthetic music: kicks alone, kicks under hi-hats, snare and

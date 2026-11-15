@@ -49,12 +49,16 @@ function detect(name: KickSceneName, sampleRate: number, block = 128, startTime 
     const blockEnd = startTime + (Math.min(start + block, scene.samples.length) / sampleRate);
     detector.process(scene.samples.subarray(start, start + block), startTime + (start / sampleRate), (time, strength) => {
       detections.push({time, strength});
-      const truth = scene.kicks.reduce((nearest, kick) => (Math.abs(startTime + kick - time) < Math.abs(nearest - time) ? startTime + kick : nearest), Number.POSITIVE_INFINITY);
-      confirmations.push(blockEnd - truth);
+      confirmations.push(blockEnd - nearestKick(scene.kicks.map(kick => startTime + kick), time));
     });
   }
 
   return {scene, detections, confirmations};
+}
+
+/** The scene's kick nearest to a reported time */
+function nearestKick(kicks: readonly number[], time: number): number {
+  return kicks.reduce((nearest, kick) => (Math.abs(kick - time) < Math.abs(nearest - time) ? kick : nearest), Number.POSITIVE_INFINITY);
 }
 
 /** The median of signed values, nearest-rank */

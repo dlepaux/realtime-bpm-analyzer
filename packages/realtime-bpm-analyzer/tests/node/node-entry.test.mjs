@@ -255,6 +255,14 @@ describe('applyLowpass', () => {
       assert.throws(() => applyLowpass(input, sampleRate, {frequency}), {name: 'RangeError', message: outOfRange(frequency, sampleRate)}, String(frequency));
     }
 
+    // Read as the 32-bit float Web Audio stores, these round onto Nyquist and 0, which the browser would clamp
+    for (const [frequency, stored] of [[22_049.9995, 22_050], [1e-50, 0]]) {
+      assert.throws(() => applyLowpass(input, sampleRate, {frequency}), {
+        name: 'RangeError',
+        message: `The lowpass setting frequency ${frequency} (${stored} as the 32-bit float Web Audio stores) is out of range: at a sample rate of 44100 Hz, it must be above 0 and below 22050 Hz.`,
+      }, String(frequency));
+    }
+
     // The rule follows the rate: 4 kHz is fine at 44.1 kHz and is the Nyquist frequency at 8 kHz
     assert.throws(() => applyLowpass(input, 8000, {frequency: 4000}), {name: 'RangeError', message: outOfRange(4000, 8000)});
   });

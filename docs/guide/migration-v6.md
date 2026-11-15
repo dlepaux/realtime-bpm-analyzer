@@ -150,7 +150,7 @@ The settings accept `frequency` and `q` and no other key. Any other key throws a
 v6 also checks the values, on every path, where 5.x clamped or ignored them without a word:
 
 - **Settings that aren't an object.** `150`, `'150'` or an array used to give the defaults. They now throw a `TypeError` that names their type: "The lowpass settings are an object with frequency and q, not a number." `null` and `undefined` still mean the defaults.
-- **A setting that isn't a number.** `{ frequency: '150' }` throws a `TypeError`, and `NaN` or an infinity a `RangeError`.
+- **A setting that isn't a number.** `{ frequency: '150' }` throws a `TypeError`, and `NaN` or an infinity a `RangeError`. So does `null` for a single setting, such as `{ q: null }`, which 5.x read as the default: leave the key out instead. (`null` for the whole settings still means the defaults.)
 - **A cutoff outside the range.** 5.x clamped `frequency` to [0, Nyquist] as Web Audio does, so 0 or below gave silence, and half the sample rate or above returned the audio unfiltered. A `frequency` that isn't above 0 and below half the sample rate now throws a `RangeError` that names the value, the rate and the range: "The lowpass setting frequency 22050 is out of range: at a sample rate of 44100 Hz, it must be above 0 and below 22050 Hz." The default 200 Hz is valid at any rate above 400 Hz.
 
 **Before (5.x):**

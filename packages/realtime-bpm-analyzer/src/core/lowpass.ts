@@ -94,9 +94,12 @@ function finiteSetting(name: string, value: unknown, fallback: number): number {
  *
  * The cutoff must lie strictly between 0 and Nyquist. Web Audio, and 5.x after it, clamps it there instead: 0 or
  * below gives silence and Nyquist or above turns the filter off, both without a word. Refusing such a value after
- * 6.1.0 would break callers, while accepting one later would not. The defaults pass at any rate above 400 Hz, so at
- * every rate a Web Audio context takes (3 kHz and up in Chrome; the spec requires 8 to 96 kHz). `q` has no range:
- * any finite value is a filter, if an extreme one.
+ * 6.1.0 would break callers, while accepting one later would not. The check reads the cutoff as the 32-bit float a
+ * Web Audio AudioParam stores, so a value that rounds onto 0 or Nyquist there is refused on every path, and the
+ * plain-JS biquad accepts exactly what the BiquadFilterNode does. The defaults pass at any rate above 400 Hz, so at
+ * every rate a Web Audio context takes (3 kHz and up in Chrome; the spec requires 8 to 96 kHz). `q` has no range, by
+ * the 2026-11-15 ruling, though at an extreme negative value the arithmetic overflows and the output is NaN: below
+ * about -759 dB in Chrome, and about -6200 dB in the plain-JS biquad.
  * @param options The caller's settings, from TypeScript or plain JS
  * @param sampleRate The rate the filter runs at, in Hz
  * @returns The cutoff in Hz and the Q in dB
@@ -120,9 +123,11 @@ export function resolveLowpass(options: unknown, sampleRate: number): {frequency
   }
 
   const nyquist = sampleRate / 2;
-  if (!(frequency > 0 && frequency < nyquist)) {
-    throw new RangeError(`The lowpass setting frequency ${frequency} is out of range: at a sample rate of ${sampleRate} Hz, `
-      + `it must be above 0 and below ${nyquist} Hz.`);
+  const stored = Math.fround(frequency);
+  if (!(stored > 0 && stored < nyquist)) {
+    const asStored = stored === frequency ? '' : ` (${stored} as the 32-bit float Web Audio stores)`;
+    throw new RangeError(`The lowpass setting frequency ${frequency}${asStored} is out of range: at a sample rate of `
+      + `${sampleRate} Hz, it must be above 0 and below ${nyquist} Hz.`);
   }
 
   return {frequency, q};

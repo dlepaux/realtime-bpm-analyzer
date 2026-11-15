@@ -465,6 +465,13 @@ describe('getBiquadFilter', () => {
       }
     });
 
+    it('refuses a frequency that the AudioParam\'s 32-bit float would round onto Nyquist or 0', () => {
+      const {sampleRate} = audioContext;
+      for (const frequency of [(sampleRate / 2) - 0.0005, 1e-50]) {
+        expect(() => getBiquadFilter(audioContext, {frequency}), String(frequency)).to.throw(RangeError, 'as the 32-bit float Web Audio stores) is out of range');
+      }
+    });
+
     it('accepts a frequency just inside both ends', () => {
       // 0.01 Hz under Nyquist survives the AudioParam's 32-bit float, whose step there is about 0.002 Hz
       for (const frequency of [0.001, (audioContext.sampleRate / 2) - 0.01]) {

@@ -72,7 +72,8 @@ export type EngineOption =
  */
 export type LowpassOption = {
   /**
-   * Cutoff in Hz, above 0 and below half the sample rate, or a `RangeError` names the value, the rate and the range.
+   * Cutoff in Hz, above 0 and below half the sample rate once rounded to the 32-bit float Web Audio stores, or a
+   * `RangeError` names the value, the rate and the range.
    * (5.x, after Web Audio, clamped it silently: 0 or below gave silence, and Nyquist or above no filter at all.)
    * Default 200, which keeps the kick drum and the bass, and is valid at any rate above 400 Hz.
    */
@@ -80,7 +81,8 @@ export type LowpassOption = {
   /**
    * Resonance at the cutoff in dB, as Web Audio reads a lowpass `Q`, not the Audio EQ Cookbook's linear Q: the
    * biquad's α is sin(ω0) / (2 × 10^(q/20)). So 0 dB is a linear Q of 1, a positive `q` raises a peak at the cutoff,
-   * and a negative one rounds it off. Any finite number. Default 1.
+   * and a negative one rounds it off. Any finite number, though below about -759 dB (Chrome) or -6200 dB (Node) the
+   * arithmetic overflows and the output is NaN. Default 1.
    */
   readonly q?: number;
 };

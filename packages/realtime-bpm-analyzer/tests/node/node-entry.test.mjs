@@ -40,7 +40,7 @@ const outOfRange = (frequency, sampleRate) => `The lowpass setting frequency ${f
 /** The message for a q outside -758 to 770 dB */
 const qOutOfRange = q => `The lowpass setting q ${q} is out of range: it must be from -758 to 770 dB.`;
 
-/** Values of q just outside its range, and far outside: Node's float64 math takes all of them, so the rule refuses them */
+/** Values of q just outside its range, and far outside: Node's float64 math takes those near the range, so the rule refuses them */
 const qOutside = [-759, 771, -800, -Number.MAX_VALUE, Number.MAX_VALUE];
 
 /**
@@ -138,9 +138,15 @@ describe('realtime-bpm-analyzer/node', () => {
       await assert.rejects(analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass: {q}}}), {name: 'RangeError', message: qOutOfRange(q)}, String(q));
     }
 
-    for (const q of [-758, 770, 0, undefined]) {
+    // At the ends the filtered output is tiny (-758) or rings undamped (770), so no tempo is a fair result there
+    for (const q of [-758, 770]) {
       const reading = await analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass: {q}}});
       assert.ok(reading === null || Number.isFinite(reading.bpm), String(q));
+    }
+
+    for (const q of [0, undefined]) {
+      const reading = await analyzeChannelData(createClickTrack(128), 44_100, {engine: {name: 'peaks', lowpass: {q}}});
+      assert.ok(reading !== null && Math.abs(reading.bpm - 128) <= 1, `${q}: got ${reading?.bpm}`);
     }
     // The first pick, on 50 to 240, read this at half
     const fast = await analyzeChannelData(createClickTrack(174), 44_100, {engine: 'tempogram'});

@@ -75,8 +75,8 @@ export async function analyzeOnWorker(request: AnalysisRequest, signal: AbortSig
     // worker exits by itself can deadlock its teardown: terminate never settles and the thread
     // holds the host's event loop, so the CLI never exits (RBA-241). A worker that answered waits
     // to be ended (analyze-worker.ts), and one that threw or exited is already going: wait for it.
-    // One overlap is left, and needs a crash and an abort at once: an abort that lands after the
-    // worker threw, before its 'error' reaches this thread, still terminates it.
+    // One overlap is left, and needs an abort at the worker's own end: an abort that lands after the
+    // worker threw or exited, before its 'error' or 'exit' reaches this thread, still terminates it.
     if (!endingOnItsOwn) {
       await worker.terminate();
     }

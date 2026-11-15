@@ -13,9 +13,9 @@ import {copyFile, mkdtemp, rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-// node --test has no timeout of its own: a hang fails, under its test's name, instead of holding CI
-// for hours (RBA-241). It caps each top-level suite as a whole, with every test in it (the slowest
-// suite takes 16 s on CI), and each hook, which inherits none.
+// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
+// thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
 const hangLimit = {timeout: 60_000};
 
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
@@ -104,7 +104,7 @@ describe('the analysis worker\'s lifetime', hangLimit, () => {
     }
   });
 
-  it('is ended by the host when an abort stops the analysis', async () => {
+  it('is ended by the host when an abort stops the analysis', async t => {
     lives.length = 0;
     const controller = new AbortController();
     let settled = false;
@@ -112,8 +112,9 @@ describe('the analysis worker\'s lifetime', hangLimit, () => {
       settled = true;
     });
     // Aborted once the worker runs, so the abort lands on a live worker and not on the decode. A
-    // decode that fails settles the call first, and the assertions below report it.
-    while (lives.length === 0 && !settled) {
+    // decode that fails settles the call first, and the assertions below report it. The test's signal
+    // stops the wait when the hang limit ends the test, so a decode that hangs can't keep it spinning.
+    while (lives.length === 0 && !settled && !t.signal.aborted) {
       await new Promise(resolve => {
         setImmediate(resolve);
       });

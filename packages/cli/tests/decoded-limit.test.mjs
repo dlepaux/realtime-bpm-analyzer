@@ -11,8 +11,9 @@ import {analyzeFile, decodedLimit, defaultMaxDecodedBytes} from 'realtime-bpm-an
 // Built for these tests and not published: the sample counts are not part of the public API
 import {decodeFile} from '../dist/decode.mjs';
 
-// node --test has no timeout of its own: a hang fails under its test's name, instead of holding CI
-// for hours (RBA-241). Each top-level suite passes it to its tests, and each hook takes it.
+// node --test has no timeout of its own: a hang fails, under its test's name, instead of holding CI
+// for hours (RBA-241). It caps each top-level suite as a whole, with every test in it (the slowest
+// suite takes 16 s on CI), and each hook, which inherits none.
 const hangLimit = {timeout: 60_000};
 
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));

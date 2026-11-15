@@ -10,8 +10,9 @@ import {analyzeFile} from 'realtime-bpm-analyzer-cli';
 import {decodeFile} from '../dist/decode.mjs';
 import {clickWav} from './click-wav.mjs';
 
-// node --test has no timeout of its own: a hang fails under its test's name, instead of holding CI
-// for hours (RBA-241). Each top-level suite passes it to its tests, and each hook takes it.
+// node --test has no timeout of its own: a hang fails, under its test's name, instead of holding CI
+// for hours (RBA-241). It caps each top-level suite as a whole, with every test in it (the slowest
+// suite takes 16 s on CI), and each hook, which inherits none.
 const hangLimit = {timeout: 60_000};
 
 const tooLowRate = /^Sample rate too low to analyze: \d+ Hz, the lowest is 8000 Hz\.$/;

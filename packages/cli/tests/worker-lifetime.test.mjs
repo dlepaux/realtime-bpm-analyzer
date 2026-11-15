@@ -13,8 +13,9 @@ import {copyFile, mkdtemp, rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-// node --test has no timeout of its own: a hang fails under its test's name, instead of holding CI
-// for hours (RBA-241). Each top-level suite passes it to its tests, and each hook takes it.
+// node --test has no timeout of its own: a hang fails, under its test's name, instead of holding CI
+// for hours (RBA-241). It caps each top-level suite as a whole, with every test in it (the slowest
+// suite takes 16 s on CI), and each hook, which inherits none.
 const hangLimit = {timeout: 60_000};
 
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
@@ -106,9 +107,13 @@ describe('the analysis worker\'s lifetime', hangLimit, () => {
   it('is ended by the host when an abort stops the analysis', async () => {
     lives.length = 0;
     const controller = new AbortController();
-    const analysis = analyzeFile(fixture('click-128.mp3'), {signal: controller.signal});
-    // Aborted once the worker runs, so the abort lands on a live worker and not on the decode
-    while (lives.length === 0) {
+    let settled = false;
+    const analysis = analyzeFile(fixture('click-128.mp3'), {signal: controller.signal}).finally(() => {
+      settled = true;
+    });
+    // Aborted once the worker runs, so the abort lands on a live worker and not on the decode. A
+    // decode that fails settles the call first, and the assertions below report it.
+    while (lives.length === 0 && !settled) {
       await new Promise(resolve => {
         setImmediate(resolve);
       });
@@ -116,6 +121,7 @@ describe('the analysis worker\'s lifetime', hangLimit, () => {
 
     controller.abort();
     assert.deepEqual(await analysis, {file: fixture('click-128.mp3'), ok: false, error: 'Cancelled.'});
+    assert.equal(lives.length, 1);
     const [life] = lives;
     assert.equal(life.terminateCalled, true);
     assert.notEqual(life.exitCode, undefined, 'analyzeFile returned before the worker had exited');

@@ -332,8 +332,9 @@ element, a stream and a `liveInput` microphone:
 | Firefox 158 on CI's Linux runners | 21 to 26 ms | 36 ms |
 
 These are read on the context clock, as `currentTime` gives it to the page.
-Firefox's `currentTime` stands still between its updates, so there it is the
-clock's last reading plus the time since.
+Firefox's `currentTime` stands still between its updates, so on CI it is
+the audio thread's last posted reading plus the time since. That reads one
+message's crossing early, so Firefox's numbers may be a little low.
 
 A busy main thread adds its own delay, as it does to every event.
 
@@ -382,7 +383,9 @@ microphone, skip `heardAt` and show each kick at once.
 returns both of its times `outputLatency` early, though (measured in Firefox
 132 and 158), so a visual timed by it comes that much before the sound: 9 ms
 on a Mac's speakers, 48 ms on a Linux sound server. The recipe above is off
-by at most the few milliseconds `currentTime` lags in either browser.
+by at most a few milliseconds: `currentTime` runs about 3 ms ahead of the
+output timestamp in Chrome, so its visual comes that much early, and it stands
+still between updates in Firefox, so its visual comes up to an update late.
 
 **Its limits:**
 

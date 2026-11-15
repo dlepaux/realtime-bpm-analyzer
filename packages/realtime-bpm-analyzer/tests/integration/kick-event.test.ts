@@ -22,7 +22,8 @@ import {closeAudioContext, createTestAudioContext} from '../setup';
  * The scene is the full mix's first seconds: kicks under a bass line, hats and a pad, as music plays, so the delay is
  * the one a track gets and not that of kicks alone, which are confirmed sooner.
  *
- * The delay is read on the render clock as a bare worklet posts it every 8th quantum, not on `contextNow`'s output
+ * The delay is read on `currentTime`, or on a bare worklet's clock run on by the wall clock where that is later (as
+ * Firefox's `currentTime` stands still between updates), not on `contextNow`'s output
  * timestamp: Firefox shifts both halves of `getOutputTimestamp()` back by `outputLatency` (measured on 132 and 158),
  * so the output timestamp plus `outputLatency` runs that far ahead there, 48 ms on CI, and the delay read 62-67 ms
  * where it was 14-19. The probe's clock reads early by one message's crossing instead, about 2 ms in Chromium. Both
@@ -217,8 +218,8 @@ describe('BpmAnalyzer - kick events from live inputs', function () {
 /**
  * A bare worklet that posts its clock and does nothing else, as the tests' context clock where the main thread's
  * `currentTime` stands still, as in Firefox. Every 8th quantum, 21 ms at 48 kHz: the reading runs on from the last
- * post by the wall clock, and never reads below `currentTime`, so a post per quantum would only add 375 messages a
- * second to the main thread the test measures.
+ * post by the wall clock, so posting more often would not make it more exact, and a post per quantum would add 375
+ * messages a second to the main thread the test measures.
  */
 const clockProbeModule = `registerProcessor('kick-test-clock-probe', class extends AudioWorkletProcessor {
   n = 0;

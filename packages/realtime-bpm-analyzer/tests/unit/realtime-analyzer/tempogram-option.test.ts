@@ -118,14 +118,14 @@ describe('engine option', () => {
   // RBA-51 DECISION 2026-11-03: v6 runs the tempogram unless the caller asks for peaks
   it('defaults to the tempogram, realtime and offline', async () => {
     expect(resolveEngine(undefined, undefined).engine).to.deep.equal({name: 'tempogram'});
-    expect(resolveOfflineEngine(undefined)).to.deep.equal({name: 'tempogram', lowpass: {}});
+    expect(resolveOfflineEngine(undefined, 44_100)).to.deep.equal({name: 'tempogram', lowpass: {}});
     expect((await analyzeChannelData(createClickTrack(128, sampleRate, 20), sampleRate))?.engine).to.equal('tempogram');
   });
 
   it('still runs peaks when asked by name, realtime and offline', async () => {
     expect(resolveEngine('peaks', undefined).engine).to.deep.equal({name: 'peaks'});
     expect(resolveEngine({name: 'peaks'}, undefined).engine).to.deep.equal({name: 'peaks'});
-    expect(resolveOfflineEngine('peaks')).to.deep.equal({name: 'peaks', lowpass: {}});
+    expect(resolveOfflineEngine('peaks', 44_100)).to.deep.equal({name: 'peaks', lowpass: {}});
     expect((await analyzeChannelData(createClickTrack(128, sampleRate, 20), sampleRate, {engine: 'peaks'}))?.engine).to.equal('peaks');
     const engines = (await stream('peaks', createClickTrack(128, sampleRate, 20)))
       .flatMap(message => (message.type === 'step' && message.status !== 'listening' ? [message.reading.engine] : []));

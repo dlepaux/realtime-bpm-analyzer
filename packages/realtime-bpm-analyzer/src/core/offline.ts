@@ -21,7 +21,7 @@ export async function analyzeSamples(
 ): Promise<OfflineResult> {
   // Validated before the costly filtering, so a bad option fails fast on long files
   assertNoRemovedOptions(options);
-  const engine = resolveOfflineEngine(options?.engine);
+  const engine = resolveOfflineEngine(options?.engine, sampleRate);
   const tempoRange = resolveTempoRange(options?.tempoRange);
   const audio = {from: 0, to: channelData.length / sampleRate, contextTime: null};
 

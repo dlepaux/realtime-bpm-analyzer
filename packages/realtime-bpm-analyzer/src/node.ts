@@ -37,7 +37,10 @@ export type {
  * @returns The reading, or null when no tempo was found
  * @throws {Error} When `channelData` is empty or not a Float32Array
  * @throws {RangeError} When the sample rate, `engine` or `tempoRange` is invalid
- * @throws {TypeError} When an option has its 5.x name, or `engine.lowpass` carries a key other than `frequency` and `q`
+ * @throws {TypeError} When an option has its 5.x name, or `engine.lowpass` is not an object, `null` or `undefined`,
+ * carries a key other than `frequency` and `q`, or holds a setting that is not a number
+ * @throws {RangeError} When an `engine.lowpass` setting is `NaN` or infinite, or its frequency is not above 0 and
+ * below half the samples' sample rate
  *
  * @example
  * ```typescript

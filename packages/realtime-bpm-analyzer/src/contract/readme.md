@@ -133,7 +133,7 @@ The migration guide builds on this table.
 | `continuousAnalysis` + `stabilizationTime` (ms) | `engine: {name: 'peaks', restartAfterSeconds}` |
 | `muteTimeInIndexes` | removed (engine detail) |
 | `analyzeFullBuffer` lowpass `frequencyValue`, `qualityValue` | offline `engine: {name: 'peaks', lowpass: {frequency, q}}` |
-| `getBiquadFilter` / `applyLowpass` `{frequencyValue, qualityValue}`, type `BiquadFilterOptions` | `{frequency, q}` and no other key, type `LowpassOption` |
+| `getBiquadFilter` / `applyLowpass` `{frequencyValue, qualityValue}`, type `BiquadFilterOptions` | `{frequency, q}` and no other key, type `LowpassOption`; `frequency` above 0 and below half the sample rate, which 5.x clamped silently |
 | event `bpm` | `reading` |
 | event `bpmStable` | `statechange` with `to.status === 'locked'` |
 | event `analyzerReset` | `statechange` to `listening`, reason `audio-lost` or `tempo-changed` |

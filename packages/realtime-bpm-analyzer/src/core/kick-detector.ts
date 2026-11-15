@@ -61,9 +61,10 @@ export type KickTuning = {
  *   noise alone swings it by several dB: under 10 dB, white and pink noise counted several times a minute. A kick
  *   that follows silence or a bass note's tail jumps 20 dB and more.
  * - `gateDb`: a jump counts only if its peak is within 6 dB of the loudest kick's of the last seconds, so a bass note,
- *   a fill or a ghost note under the kicks does not. A bass note that starts as sharp and within 6 dB of the kick
- *   counts: in the band, nothing tells them apart. The loudest peak halves every `memorySeconds`, so a track that
- *   gets quieter is followed within seconds.
+ *  a fill or a ghost note under the kicks does not. A bass note that starts as sharp and within 6 dB of the kick
+ *   counts: in the band, nothing tells them apart. The loudest peak's energy halves every `memorySeconds` (its
+ *   amplitude every 8 s), so after the music drops by 10 dB at once no kick counts for about 5 s, and after 20 dB
+ *   about 19 s, until the loud ones are forgotten. `reset()` forgets them at once.
  * - `floorDb`: under -60 dB in the band nothing counts: silence, or a mic's hiss.
  * - `refractorySeconds`: after a kick, 80 ms with none, a sixteenth note at 187 BPM: music plays no kicks closer,
  *   and a kick's own decay never jumps again in that time.
@@ -168,7 +169,8 @@ const fromDb = (db: number) => 10 ** (db / 10);
  * Creates a detector for one stream of samples
  * @param sampleRate Sample rate in Hz
  * @param overrides Other settings, for the measurement script only: no public option sets them
- * @returns The detector. Every buffer is allocated here, and `process` allocates nothing.
+ * @returns The detector. Every buffer is allocated here: `process` allocates nothing per sample, only one small
+ * object per kick it confirms
  */
 export function createKickDetector(sampleRate: number, overrides: Partial<KickTuning> = {}): KickDetector {
   const tuning: KickTuning = {...kickTuning, ...overrides};
@@ -267,8 +269,8 @@ export function createKickDetector(sampleRate: number, overrides: Partial<KickTu
     process(samples, startTime, onKick) {
       for (let i = 0; i < samples.length; i += 1) {
         let y = samples[i];
-        for (const s of sections) {
-          y = run(s, y);
+        for (let k = 0; k < sections.length; k += 1) {
+          y = run(sections[k], y);
         }
 
         sum += y * y;

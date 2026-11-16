@@ -14,7 +14,8 @@ const sampleRate = 48_000;
  *
  * Logged as `KICK-COST` for the report. The one assertion is loose, so the test measures the code and not the
  * runner: the kick detector may add at most 1% of the real-time budget, that is 10 ms of CPU per second of audio,
- * the whole tempogram's sustained share on CI (RBA-51).
+ * the whole tempogram's sustained share on CI (RBA-51). That is v6's CPU rule, `benchmark/cpu-rule.md`, where the
+ * measured costs are kept.
  */
 describe('Kick event - CPU cost', function () {
   this.timeout(120_000);

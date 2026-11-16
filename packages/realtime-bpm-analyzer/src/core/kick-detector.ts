@@ -2,7 +2,8 @@
 
 /**
  * Called once per kick, with its time on the clock `process` was given, and its strength: its peak in the band over
- * the loudest kick's of the last seconds, from 0 to 1, so a kick 6 dB softer than the loudest is 0.5
+ * the loudest kick's of the last `memorySeconds`, itself included, from 0 to 1, so a kick 6 dB softer than the
+ * loudest is 0.5
  */
 export type OnKick = (time: number, strength: number) => void;
 
@@ -14,7 +15,10 @@ export type KickDetector = {
    * @param onKick Called with each kick, in time order
    */
   readonly process: (samples: Float32Array, startTime: number, onKick: OnKick) => void;
-  /** Forgets everything heard: the next kick is judged against silence */
+  /**
+   * Forgets everything heard: the next kick is judged against silence. A sample that is not finite (NaN or infinite)
+   * does part of this by itself, see `createKickDetector`
+   */
   readonly reset: () => void;
 };
 
@@ -36,7 +40,7 @@ export type KickTuning = {
   readonly gateDb: number;
   /** Under this energy in the band, in dB relative to a full-scale sine, nothing counts */
   readonly floorDb: number;
-  /** Half-life of the loudest recent kick's peak, in seconds */
+  /** How long a kick is remembered: the gate is judged against the loudest kick of this many seconds before, in seconds */
   readonly memorySeconds: number;
   /** After a kick, none for this long, in seconds */
   readonly refractorySeconds: number;
@@ -60,11 +64,24 @@ export type KickTuning = {
  * - `riseDb`: the jump a kick needs, 10.5 dB. A 10 ms mean of a 120 Hz-wide band is a rough estimate of its level, so
  *   noise alone swings it by several dB: under 10 dB, white and pink noise counted several times a minute. A kick
  *   that follows silence or a bass note's tail jumps 20 dB and more.
- * - `gateDb`: a jump counts only if its peak is within 6 dB of the loudest kick's of the last seconds, so a bass note,
+ * - `gateDb`: a jump counts only if its peak is within 6 dB of the loudest kick's of the window (`memorySeconds`), so a bass note,
  *   a fill or a ghost note under the kicks does not. A bass note that starts as sharp and within 6 dB of the kick
- *   counts: in the band, nothing tells them apart. The loudest peak's energy halves every `memorySeconds` (its
- *   amplitude every 8 s), so after the music drops by 10 dB at once no kick counts for about 5 s, and after 20 dB
- *   about 19 s, until the loud ones are forgotten. `reset()` forgets them at once.
+ *   counts: in the band, nothing tells them apart.
+ * - `memorySeconds`: the loudest kick is the loudest of the last 3.5 s, its window. A 4/4 bar with no kick in it
+ *   leaves at most 5 beats between two kicks, 3.33 s at 90 BPM, the slowest tempo the library reads, so through a
+ *   bar's fill the gate still holds the bass and the snare out. When the music drops at once, as a quieter track
+ *   starts, the loud kicks leave the window within 3.5 s whatever the drop, and the quiet ones count again from then
+ *   on. A window with no kick in it judges a jump against the last kick heard, however old, and against the jumps the
+ *   gate held out in the window: one within 6 dB of either counts. So after a drop, the quiet kicks the gate held out
+ *   vouch for the next one as soon as the loud kicks have left the window, while a lone hit in a long breakdown
+ *   matches nothing and stays out. Before any kick, after the start or `reset()`, the gate is open:
+ *   the first jump that passes the other tests counts, and sets the level. The price of the bound: through a
+ *   stretch of more than 3.5 s with no kick, any sound under 150 Hz that repeats as sharply as a kick and within 6 dB
+ *   of itself counts, however soft: a bass line, and likely a snare's or a clap's body on the backbeat (unmeasured).
+ *   In the band, a quieter track's kicks and a bass line look the same, so a gate that kept
+ *   the bass out for longer would keep the quiet kicks out as long. It was a decaying peak before, with a 4 s
+ *   half-life, which let kicks back in about 5 s after a 10 dB drop, and about 19 s after 20 dB (RBA-246). A level
+ *   that rises lets every kick through at once, as each is louder than the window's loudest.
  * - `floorDb`: under -60 dB in the band nothing counts: silence, or a mic's hiss.
  * - `refractorySeconds`: after a kick, 80 ms with none, a sixteenth note at 187 BPM: music plays no kicks closer,
  *   and a kick's own decay never jumps again in that time.
@@ -79,7 +96,7 @@ export const kickTuning: KickTuning = Object.freeze({
   riseDb: 10.5,
   gateDb: 6,
   floorDb: -60,
-  memorySeconds: 4,
+  memorySeconds: 3.5,
   refractorySeconds: 0.08,
 });
 
@@ -170,7 +187,14 @@ const fromDb = (db: number) => 10 ** (db / 10);
  * @param sampleRate Sample rate in Hz
  * @param overrides Other settings, for the measurement script only: no public option sets them
  * @returns The detector. Every buffer is allocated here: `process` allocates nothing per sample, only one small
- * object per kick it confirms
+ * object per kick it confirms.
+ *
+ * @remarks
+ * A sample that is not finite would leave the filters' state at NaN, and no kick would count again until
+ * `reset()`. So at the end of each hop, where the energy is summed, a sum that is not finite puts the filters
+ * back at rest and empties the energy history, as `reset()` does, and the detector judges nothing until that history
+ * is full again, about 80 ms. One test per hop, not per sample, so it costs nothing measurable. The kicks heard
+ * before stay remembered: a glitch is not a new track.
  */
 export function createKickDetector(sampleRate: number, overrides: Partial<KickTuning> = {}): KickDetector {
   const tuning: KickTuning = {...kickTuning, ...overrides};
@@ -191,17 +215,78 @@ export function createKickDetector(sampleRate: number, overrides: Partial<KickTu
   const gate = fromDb(-tuning.gateDb);
   // Relative to a full-scale sine, whose energy is 1/2
   const floor = fromDb(tuning.floorDb) / 2;
-  const decay = 0.5 ** (hop / (tuning.memorySeconds * sampleRate));
   const refractoryHops = Math.ceil(tuning.refractorySeconds * sampleRate / hop);
+  const memoryHops = Math.round(tuning.memorySeconds * sampleRate / hop);
+  // The kicks of the window, each with the hop it was judged at and its peak energy. They are at least
+  // `refractoryHops` apart, so the window holds this many at most, and a full ring has only older ones to overwrite
+  const remembered = Math.floor(memoryHops / refractoryHops) + 1;
+  const kickHops = new Float64Array(remembered).fill(-Infinity);
+  const kickPeaks = new Float64Array(remembered);
+  // The jumps the gate kept out, the same way: the newest of them are enough to tell whether a jump repeats
+  const jumpHops = new Float64Array(remembered).fill(-Infinity);
+  const jumpPeaks = new Float64Array(remembered);
 
   let sum = 0;
   let peak = 0;
   let inHop = 0;
   let hops = 0;
-  let loudest = 0;
+  // Nothing is judged before this many hops: until the history holds a reference, a window and the confirming hops
+  let judgedFrom = size;
+  let kicksHeard = 0;
+  let jumpsKept = 0;
+  // The newest kick's peak energy, however old
+  let lastKick = 0;
   let sinceKick = refractoryHops;
   // Whether the previous hop's window had jumped over its own reference
   let wasAbove = false;
+
+  /** The loudest kick's peak energy of the window, or 0 when it holds none */
+  function loudest(): number {
+    let most = 0;
+    for (let k = 0; k < remembered; k += 1) {
+      if (hops - kickHops[k] <= memoryHops) {
+        most = Math.max(most, kickPeaks[k]);
+      }
+    }
+
+    return most;
+  }
+
+  /** Whether the window holds a jump the gate kept out within `gateDb` of this peak energy, either way */
+  function repeats(own: number): boolean {
+    for (let k = 0; k < remembered; k += 1) {
+      if (hops - jumpHops[k] <= memoryHops && jumpPeaks[k] > gate * own && own > gate * jumpPeaks[k]) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Whether a jump with this peak energy is loud enough to be a kick: within `gateDb` of the loudest kick of the
+   * window. A window with no kick in it judges the jump against the newest kick, or lets it in if an earlier jump of
+   * the window was as loud: a quieter track's kicks repeat, while a lone fill or snare hit does not
+   */
+  function loudEnough(own: number, most: number): boolean {
+    if (most > 0 || kicksHeard === 0) {
+      return own > gate * most;
+    }
+
+    return own > gate * lastKick || repeats(own);
+  }
+
+  /** Back at rest, with an empty history: what reset() does, the kicks heard kept apart */
+  function settle(): void {
+    sections.forEach(rest);
+    ring.fill(0);
+    peaks.fill(0);
+    sum = 0;
+    peak = 0;
+    inHop = 0;
+    wasAbove = false;
+    judgedFrom = hops + size;
+  }
 
   /** The energy of the hop `back` hops before the newest, which is 1 */
   const energy = (back: number) => ring[(hops - back) % size];
@@ -222,9 +307,8 @@ export function createKickDetector(sampleRate: number, overrides: Partial<KickTu
    * strength, or null
    */
   function judge(): {readonly strength: number; readonly entered: number} | null {
-    loudest *= decay;
     sinceKick += 1;
-    if (hops < size) {
+    if (hops < judgedFrom) {
       return null;
     }
 
@@ -256,13 +340,20 @@ export function createKickDetector(sampleRate: number, overrides: Partial<KickTu
     }
 
     own *= own;
-    if (own <= gate * loudest) {
+    const most = loudest();
+    if (!loudEnough(own, most)) {
+      jumpHops[jumpsKept % remembered] = hops;
+      jumpPeaks[jumpsKept % remembered] = own;
+      jumpsKept += 1;
       return null;
     }
 
     sinceKick = 0;
-    loudest = Math.max(loudest, own);
-    return {strength: Math.sqrt(own / loudest), entered};
+    kickHops[kicksHeard % remembered] = hops;
+    kickPeaks[kicksHeard % remembered] = own;
+    kicksHeard += 1;
+    lastKick = own;
+    return {strength: Math.sqrt(own / Math.max(most, own)), entered};
   }
 
   return {
@@ -283,6 +374,12 @@ export function createKickDetector(sampleRate: number, overrides: Partial<KickTu
         ring[hops % size] = sum / hop;
         peaks[hops % size] = peak;
         hops += 1;
+        // NaN or an infinity in the hop: it would stay in the filters for good, so they start over from rest, and
+        // the history is refilled from the hop after this one
+        if (!Number.isFinite(sum)) {
+          settle();
+        }
+
         sum = 0;
         peak = 0;
         inHop = 0;
@@ -297,16 +394,14 @@ export function createKickDetector(sampleRate: number, overrides: Partial<KickTu
       }
     },
     reset() {
-      sections.forEach(rest);
-      ring.fill(0);
-      peaks.fill(0);
-      sum = 0;
-      peak = 0;
-      inHop = 0;
       hops = 0;
-      loudest = 0;
+      settle();
+      kickHops.fill(-Infinity);
+      jumpHops.fill(-Infinity);
+      kicksHeard = 0;
+      jumpsKept = 0;
+      lastKick = 0;
       sinceKick = refractoryHops;
-      wasAbove = false;
     },
   };
 }

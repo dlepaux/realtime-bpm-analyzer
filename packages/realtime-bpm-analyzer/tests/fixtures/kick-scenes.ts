@@ -272,3 +272,91 @@ export function absolutePercentile(values: readonly number[], fraction: number):
   const sorted = values.map(Math.abs).sort((a, b) => a - b);
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(fraction * sorted.length) - 1))];
 }
+
+/** Scenes where the music changes under the detector (RBA-246): its level at once, or its kicks for a while */
+export const kickChangeSceneNames = ['drop-10', 'drop-20', 'rise-20', 'long-breakdown', 'kick-free-bars', 'bass-breakdown'] as const;
+export type KickChangeSceneName = typeof kickChangeSceneNames[number];
+
+/** A scene, and the time its change starts, in seconds from the first sample */
+export type KickChangeScene = KickScene & {readonly changeAt: number};
+
+/**
+ * Renders a scene that changes. The level changes are a cut of the whole mix, the hardest case: a radio's next track
+ * at another level, or a volume knob turned at once, with no `reset()`.
+ * - `drop-10`, `drop-20`: the full mix, 10 or 20 dB quieter from 10 s on, mid-bar and mid-note.
+ * - `rise-20`: the full mix 20 dB quieter until 10 s, then at its level.
+ * - `long-breakdown`: the breakdown scene with its break 12 s long, from 8.5 to 20.5 s: the kick and the bass stop,
+ *   the hats and a pad play on, and a snare roll rises over its last 2 s.
+ * - `kick-free-bars`: 90 BPM, the library's slowest tempo, with hats, snare and bass all through and the kick left
+ *   out of two whole bars, one from 8.5 s and one from 19.17 s: the bass notes of those bars start from silence, so
+ *   only the gate keeps them out.
+ * - `bass-breakdown`: the breakdown scene with its bass line playing on through the break, from 8.5 to 16.5 s, as
+ *   the kick stops: the case the detector's window gives up on (see `memorySeconds` in the detector).
+ * @param name Which case
+ * @param sampleRate Sample rate in Hz
+ * @returns The samples, the kick times and when the change starts
+ */
+export function createKickChangeScene(name: KickChangeSceneName, sampleRate = 48_000): KickChangeScene {
+  const at = (seconds: number) => Math.round(seconds * sampleRate);
+  const scale = (samples: Float32Array<ArrayBuffer>, from: number, to: number, db: number) => {
+    const gain = 10 ** (db / 20);
+    for (let i = from; i < to; i += 1) {
+      samples[i] *= gain;
+    }
+
+    return samples;
+  };
+
+  switch (name) {
+    case 'drop-10':
+    case 'drop-20': {
+      const scene = createKickScene('full-mix', sampleRate);
+      const samples = scale(scene.samples, at(10), scene.samples.length, name === 'drop-10' ? -10 : -20);
+      return {...scene, name, samples, changeAt: at(10) / sampleRate};
+    }
+    case 'rise-20': {
+      const scene = createKickScene('full-mix', sampleRate);
+      return {...scene, name, samples: scale(scene.samples, 0, at(10), -20), changeAt: at(10) / sampleRate};
+    }
+    case 'long-breakdown': {
+      const out = new Float32Array(at(28));
+      const times = beats(126, 0.5, 27.5);
+      const isBreak = (time: number) => time >= 8.5 && time < 20.5;
+      addGroove(out, times.filter(time => !isBreak(time)), 126, sampleRate);
+      addGroove(out, times.filter(isBreak), 126, sampleRate, false);
+      addPad(out, at(8.5), 12, sampleRate, 0.12);
+      for (let time = 18.5; time < 20.5; time += 60 / 126 / 4) {
+        addSnare(out, at(time), sampleRate, 0.1 + (0.15 * (time - 18.5)));
+      }
+
+      const kicks = times.filter(time => !isBreak(time)).map(time => {
+        addKick(out, at(time), sampleRate, 0.7);
+        return at(time) / sampleRate;
+      });
+      return {name, samples: out, sampleRate, kicks, changeAt: at(8.5) / sampleRate};
+    }
+    case 'kick-free-bars': {
+      const out = new Float32Array(at(28));
+      const times = beats(90, 0.5, 27.5);
+      addGroove(out, times, 90, sampleRate);
+      // Beats 12 to 15 and 28 to 31: two bars of four, each starting on a downbeat
+      const kickFree = (index: number) => (index >= 12 && index < 16) || (index >= 28 && index < 32);
+      const kicks = times.filter((_, index) => !kickFree(index)).map(time => {
+        addKick(out, at(time), sampleRate, 0.7);
+        return at(time) / sampleRate;
+      });
+      return {name, samples: out, sampleRate, kicks, changeAt: at(times[12]) / sampleRate};
+    }
+    case 'bass-breakdown': {
+      const out = new Float32Array(at(26));
+      const times = beats(126, 0.5, 25.5);
+      const isBreak = (time: number) => time >= 8.5 && time < 16.5;
+      addGroove(out, times, 126, sampleRate);
+      const kicks = times.filter(time => !isBreak(time)).map(time => {
+        addKick(out, at(time), sampleRate, 0.7);
+        return at(time) / sampleRate;
+      });
+      return {name, samples: out, sampleRate, kicks, changeAt: at(8.5) / sampleRate};
+    }
+  }
+}

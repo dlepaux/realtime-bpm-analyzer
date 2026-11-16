@@ -341,8 +341,8 @@ export type Kick = {
    */
   readonly contextTime: number;
   /**
-   * From 0 to 1: the kick's peak in the bass over the loudest kick's of the last few seconds, as an amplitude
-   * ratio. 1 is as loud as the loudest recent kick, 0.5 is 6 dB softer. Relative, so the range is the same from a
+   * From 0 to 1: the kick's peak in the bass over the loudest kick's of the last 3.5 s, itself included, as an
+   * amplitude ratio. 1 is as loud as the loudest recent kick, 0.5 is 6 dB softer. Relative, so the range is the same from a
    * quiet mic and a loud file. A kick more than 6 dB under that loudest one is not reported, so in practice it
    * reads from 0.5 to 1. The meaning holds if that gate ever moves, so map the whole 0 to 1.
    */

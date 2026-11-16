@@ -1,6 +1,6 @@
 import {expect} from 'chai';
 import {createKickDetector} from '../../../src/core/kick-detector';
-import {absolutePercentile, createKickScene, kickSceneNames, scoreKicks} from '../../fixtures/kick-scenes';
+import {absolutePercentile, createKickChangeScene, createKickScene, kickSceneNames, scoreKicks} from '../../fixtures/kick-scenes';
 import type {KickSceneName} from '../../fixtures/kick-scenes';
 
 /**
@@ -175,4 +175,117 @@ describe('Kick detector - its interface', () => {
     detector.process(new Float32Array(48_000), 0.02, time => kicks.push(time));
     expect(kicks).to.deep.equal([]);
   });
+});
+
+/**
+ * Runs a fresh detector over samples in quanta of 128, as the worklet does
+ * @returns The detections, in time order
+ */
+function detectIn(samples: Float32Array, sampleRate: number): Detection[] {
+  const detector = createKickDetector(sampleRate);
+  const detections: Detection[] = [];
+  for (let start = 0; start < samples.length; start += 128) {
+    detector.process(samples.subarray(start, start + 128), start / sampleRate, (time, strength) => detections.push({time, strength}));
+  }
+
+  return detections;
+}
+
+/** The true kicks no detection fell within the hit window of */
+const missedKicks = (truth: readonly number[], detections: readonly Detection[]) => truth.filter(kick => !detections.some(({time}) => Math.abs(time - kick) <= hitWindow));
+
+/** The detections that fell within the hit window of no true kick */
+const falseKicks = (truth: readonly number[], detections: readonly Detection[]) => detections.filter(({time}) => !truth.some(kick => Math.abs(time - kick) <= hitWindow));
+
+/**
+ * When the music changes under the detector, with no reset() (RBA-246). The thresholds, and why:
+ * - The loudest kick is the loudest of the last 3.5 s (`memorySeconds`), so after a drop every kick that starts 3.55 s
+ *   or more after it counts again, whatever the drop: 3.5 s for the window, and 50 ms for the hops a kick takes to be
+ *   confirmed, which differ from one kick to the next. Measured: the last kick missed starts 3.08 s after either drop,
+ *   the next one, 3.57 s after it, counts. The decaying peak before it missed kicks until 5.0 s after a 10 dB drop,
+ *   and every one of the 10 s after a 20 dB drop.
+ * - A level that rises lets every kick through, with no false kick but the cut itself: a whole mix 20 dB louder from
+ *   one sample to the next is a jump in the band, under 150 Hz like a kick, so it may count once, within 50 ms.
+ * - A break longer than the window, kick and bass gone, and two bars with no kick but the bass, at 90 BPM, the
+ *   slowest tempo the library reads: no false kick. In the bars, the bass notes pass every test but the gate, which
+ *   still holds the kicks before them: a 2 s window lets 4 of them through.
+ * - A bass line that plays on with no kick: its notes count once the last kick has left the window. Pinned, so the
+ *   guide's word on it stays true.
+ */
+describe('Kick detector - when the music changes', () => {
+  for (const sampleRate of [48_000, 44_100]) {
+    for (const name of ['drop-10', 'drop-20'] as const) {
+      it(`${name} at ${sampleRate} Hz: hears the quieter kicks again within 3.55 s, with no false kick`, () => {
+        const scene = createKickChangeScene(name, sampleRate);
+        const detections = detectIn(scene.samples, sampleRate);
+        const missed = missedKicks(scene.kicks, detections);
+        console.log(`KICK-CHANGE ${JSON.stringify({name, sampleRate, kicks: scene.kicks.length, missed: missed.length, lastMissedAfterChange: missed.length === 0 ? null : Number((Math.max(...missed) - scene.changeAt).toFixed(3))})}`);
+
+        expect(missed.filter(kick => kick < scene.changeAt), 'kicks missed before the drop').to.deep.equal([]);
+        expect(missed.filter(kick => kick >= scene.changeAt + 3.55), 'kicks missed 3.55 s and more after the drop').to.deep.equal([]);
+        expect(falseKicks(scene.kicks, detections), 'false kicks').to.deep.equal([]);
+      });
+    }
+
+    it(`rise-20 at ${sampleRate} Hz: hears every kick, and nothing else but the cut itself`, () => {
+      const scene = createKickChangeScene('rise-20', sampleRate);
+      const detections = detectIn(scene.samples, sampleRate);
+      expect(missedKicks(scene.kicks, detections), 'missed kicks').to.deep.equal([]);
+      const extra = falseKicks(scene.kicks, detections);
+      expect(extra.length, 'false kicks').to.be.at.most(1);
+      extra.forEach(({time}) => {
+        expect(Math.abs(time - scene.changeAt), 'a false kick away from the cut').to.be.at.most(hitWindow);
+      });
+    });
+
+    for (const name of ['long-breakdown', 'kick-free-bars'] as const) {
+      it(`${name} at ${sampleRate} Hz: hears every kick, with no false kick`, () => {
+        const scene = createKickChangeScene(name, sampleRate);
+        const detections = detectIn(scene.samples, sampleRate);
+        expect(missedKicks(scene.kicks, detections), 'missed kicks').to.deep.equal([]);
+        expect(falseKicks(scene.kicks, detections), 'false kicks').to.deep.equal([]);
+      });
+    }
+
+    it(`bass-breakdown at ${sampleRate} Hz: counts the bass notes as kicks once the last kick has left the window`, () => {
+      const scene = createKickChangeScene('bass-breakdown', sampleRate);
+      const detections = detectIn(scene.samples, sampleRate);
+      const lastKick = Math.max(...scene.kicks.filter(kick => kick < scene.changeAt));
+      const extra = falseKicks(scene.kicks, detections);
+      expect(missedKicks(scene.kicks, detections), 'missed kicks').to.deep.equal([]);
+      expect(extra.filter(({time}) => time < lastKick + 3.45), 'false kicks while the last kick is in the window').to.deep.equal([]);
+      expect(extra.length, 'bass notes counted after it').to.be.above(0);
+    });
+  }
+});
+
+/**
+ * A sample that is not finite, once (RBA-246). It used to leave the filters at NaN, and no kick counted again until
+ * reset(). Each one lands 23 ms into the full mix's kick at 10.18 s, just after that kick was confirmed. The bound:
+ * every kick that starts 100 ms or more after it is heard, the 80 ms the detector takes to refill its history and
+ * the time it takes to confirm a kick. The scene's next kick starts 461 ms after it, so this pins the recovery, not
+ * the 100 ms itself. Measured: every kick of the scene is heard. The kicks heard before are kept: from 250 ms after the sample on, once the
+ * filters have settled, every kick is heard at the same time and with the same strength as without it.
+ */
+describe('Kick detector - a sample that is not finite', () => {
+  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+    it(`starts over by itself after one ${String(bad)}, and hears the kicks after it`, () => {
+      const sampleRate = 48_000;
+      const scene = createKickScene('full-mix', sampleRate);
+      const clean = detectIn(scene.samples, sampleRate);
+      const samples = scene.samples.slice();
+      const badAt = 10.2;
+      samples[Math.round(badAt * sampleRate)] = bad;
+      const detections = detectIn(samples, sampleRate);
+
+      expect(missedKicks(scene.kicks.filter(kick => kick < badAt - 0.03 || kick >= badAt + 0.1), detections), 'missed kicks').to.deep.equal([]);
+      expect(falseKicks(scene.kicks, detections), 'false kicks').to.deep.equal([]);
+      const settled = (list: readonly Detection[]) => list.filter(({time}) => time >= badAt + 0.25);
+      expect(settled(detections)).to.have.length(settled(clean).length);
+      settled(detections).forEach(({time, strength}, index) => {
+        expect(time).to.be.closeTo(settled(clean)[index].time, 1e-6);
+        expect(strength).to.be.closeTo(settled(clean)[index].strength, 1e-6);
+      });
+    });
+  }
 });

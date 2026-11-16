@@ -272,7 +272,7 @@ analyzer.on('error', ({ name, message }) => {
 ```
 
 ### `kick`
-Emitted on each kick drum heard by a live analyzer, whatever the status, with where the kick started on the AudioContext clock and its `strength`, from 0 to 1, against the loudest kick of the last few seconds:
+Emitted on each kick drum heard by a live analyzer, whatever the status, with where the kick started on the AudioContext clock and its `strength`, from 0 to 1, against the loudest kick of the last 3.5 s:
 
 ```typescript
 analyzer.on('kick', ({ contextTime, strength }) => {

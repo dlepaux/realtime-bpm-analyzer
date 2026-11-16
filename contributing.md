@@ -191,13 +191,13 @@ Every step is the maintainer's (David's). You need the GitHub CLI, signed in wit
    - Check: `gh pr view <n>` lists `6.2.0` for the library, `jvm: 6.2.0` and `python: 6.2.0`. `gh pr diff <n>` adds `packages/jvm/changelog.md` and `packages/python/changelog.md`, and sets the three in `.release-please-manifest.json` to 6.2.0. It also changes the library's `package.json`, `changelog.md` and the root `package-lock.json`. `pom.xml` and `pyproject.toml` stay unchanged, since they already say 6.2.0. The CLI and the MCP server come along: `node-workspace` moves the CLI's range to `realtime-bpm-analyzer` `^6.2.0` and the MCP server's to the new CLI, and releases each as a patch, `cli: 0.1.1` and `mcp: 0.1.1` (a minor or major if they have `feat` or breaking commits of their own).
    - If the library is missing: don't merge. Merged without it, the ports would ship as 6.2.0 while npm's `latest` stays 6.1.0.
 4. **Run CI on the release PR**: `gh workflow run main.yml --ref release-please--branches--main`, as in v6's step 5.
-   - Check: the run is green, with Release and the three publish jobs skipped.
+   - Check: the run is green, with Release, Build (PyPI), Publish (PyPI), Check (Maven Central) and Publish (Maven Central) skipped.
 
 **The release**
 
 5. **Merge the release PR**: `gh pr merge <n> --squash`.
    - Push nothing to `main` until this merge's run has started. Runs on `main` queue one at a time, and GitHub cancels a queued run when a newer push queues behind it. A later run's release-please would then tag this commit, and its port jobs would publish nothing, since the tags name another commit (see "If a publish job fails").
-   - Check, on the push run: Release tags `v6.2.0`, `cli-v0.1.1`, `mcp-v0.1.1`, `jvm-v6.2.0` and `python-v6.2.0`, and publishes the library, the CLI and the MCP server to npm. Build (PyPI) logs `python-v6.2.0 is released here: publishing what is missing`. Publish (PyPI) deploys to `pypi` and uploads the wheel and the sdist. Publish (Maven Central) logs `jvm-v6.2.0 is released here and not on the registry: publishing`, then uploads, and ends after Central reports the deployment `PUBLISHED`. That takes 5 to 30 minutes.
+   - Check, on the push run: Release tags `v6.2.0`, `cli-v0.1.1`, `mcp-v0.1.1`, `jvm-v6.2.0` and `python-v6.2.0`, and publishes the library, the CLI and the MCP server to npm. Build (PyPI) logs `python-v6.2.0 is released here: publishing what is missing`. Publish (PyPI) deploys to `pypi` and uploads the wheel and the sdist. Check (Maven Central) logs `jvm-v6.2.0 is released here and not on the registry: publishing`. Publish (Maven Central) then uploads, and ends after Central reports the deployment `PUBLISHED`. That takes 5 to 30 minutes.
 6. **Check each package from outside the repository.**
    - PyPI:
      ```bash

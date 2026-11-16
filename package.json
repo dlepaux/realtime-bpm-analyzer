@@ -37,6 +37,8 @@
     "docs:preview": "npm run preview -w docs",
     "examples:build": "npm run build -w examples --if-present",
     "examples:dev": "npm run dev:examples -w docs",
+    "conformance:generate": "node conformance/generator/generate.mjs",
+    "conformance:check": "node conformance/generator/generate.mjs --check",
     "prepare": "husky"
   },
   "repository": {

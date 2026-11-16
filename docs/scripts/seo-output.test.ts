@@ -21,6 +21,8 @@ function site(overrides: Record<string, string> = {}): BuiltSite {
     'sitemap.xml': sitemap(LISTED),
     'website-privacy.html': `${canonical('/website-privacy')}<p>privacy</p>`,
     '404.html': '<h1>Page not found</h1>',
+    'guide/java.html': `${NOINDEX}<a href="/guide/node">Node.js</a>`,
+    'guide/python.html': NOINDEX,
     'guide/quick-start.html': '<meta http-equiv="refresh" content="0; url=/guide/getting-started">',
     ...Object.fromEntries(GUIDES.map((name) => [`guide/${name}.html`, `${canonical(`/guide/${name}`)}${GUIDE}`])),
     ...overrides,
@@ -50,6 +52,14 @@ test('seoProblems: the CLI and MCP guides are guides like the others', () => {
   assert.match(seoProblems(undated).join(), /guide\/mcp\.html: no TechArticle,guide\/mcp\.html: no datePublished/)
   const unlisted = site({ 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/mcp')) })
   assert.deepEqual(seoProblems(unlisted), ['guide/mcp.html: indexable but not in the sitemap'])
+})
+
+// Until their ports are on Maven Central and PyPI, the Java and Python guides stay noindex and
+// out of the sitemap, linked or not (contributing.md, "First publish of the 6.2 ports").
+test('seoProblems: the unpublished Java and Python guides stay noindex and out of the sitemap', () => {
+  assert.match(seoProblems(site({ 'guide/java.html': '<p>java</p>' })).join(), /guide\/java: not noindex/)
+  const listed = site({ 'sitemap.xml': sitemap([...LISTED, '/guide/python']) })
+  assert.match(seoProblems(listed).join(), /guide\/python: in the sitemap/)
 })
 
 test('seoProblems: every other guide is an article with a server-rendered date', () => {

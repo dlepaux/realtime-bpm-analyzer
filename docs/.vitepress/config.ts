@@ -238,8 +238,8 @@ export default defineConfig({
       : SITE_SHARE_IMAGE
 
     pageData.frontmatter.head ??= []
-    // A guide whose package isn't on npm yet stays unindexed (UNPUBLISHED_GUIDES in
-    // tools/site-schema.ts, empty since the CLI and MCP server reached npm).
+    // A guide whose package isn't published yet stays unindexed (UNPUBLISHED_GUIDES in
+    // tools/site-schema.ts: the Java and Python guides, until their ports are on Maven Central and PyPI).
     if (isUnpublishedGuide(pageData.relativePath)) {
       pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
     }

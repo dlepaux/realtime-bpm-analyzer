@@ -45,6 +45,15 @@ The test suite checks this on every change:
 Pass channel 0 to match `analyzeFullBuffer`, which reads the first channel, or
 a mono downmix of your own.
 
+## Runtimes tested on every change
+
+CI runs the [conformance vectors](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/conformance)
+through `analyzeChannelData` in Node 22.12.0 and 26.12.1, Deno 2.9.8, Bun 1.4.4
+and Hermes, the engine of React Native 0.88. Each run must return the reference
+reading for every case. These runs cover analysing samples you already hold.
+Live microphone input stays browser-only, since React Native needs a native
+audio module for it.
+
 ## Decoding the audio
 
 The entry point takes samples, not files, so you choose the decoder. A WAV reader,

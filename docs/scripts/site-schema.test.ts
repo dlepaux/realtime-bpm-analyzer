@@ -47,21 +47,23 @@ test('no accuracy figure on the tool pages or in the markup', () => {
   assert.ok(figure.test('accurate within **1–2 BPM**'), 'the check itself must catch the old claim')
 })
 
-test('isNoindexPage: the docs readme leaves the sitemap', () => {
-  for (const url of ['readme', '/readme.html']) assert.ok(isNoindexPage(url), url)
+test('isNoindexPage: the docs readme and the unpublished guides leave the sitemap', () => {
+  for (const url of ['readme', '/readme.html', 'guide/java', '/guide/python.html']) assert.ok(isNoindexPage(url), url)
   for (const url of ['', 'guide/readme-tips', 'guide/node', 'guide/client', 'guide/cli', '/guide/mcp.html', 'tap-tempo', 'extension/privacy']) {
     assert.ok(!isNoindexPage(url), url)
   }
 })
 
-// The noindex flip (contributing.md, "First publish of v6", step 13) made them articles.
-test('isUnpublishedGuide and isGuidePage: the CLI and MCP guides are articles since both packages reached npm', () => {
-  assert.deepEqual(UNPUBLISHED_GUIDES, [])
+// The noindex flip (contributing.md, "First publish of v6", step 13) made the CLI and MCP guides
+// articles. The Java and Python guides follow once their ports are published ("First publish of the 6.2 ports").
+test('isUnpublishedGuide and isGuidePage: the CLI and MCP guides are articles, the Java and Python guides not until published', () => {
+  assert.deepEqual(UNPUBLISHED_GUIDES, ['guide/java', 'guide/python'])
   for (const path of ['guide/cli.md', '/guide/mcp', 'guide/node.md']) assert.ok(!isUnpublishedGuide(path), path)
+  assert.ok(isUnpublishedGuide('guide/java.md') && isUnpublishedGuide('/guide/python'))
   for (const path of ['guide/node.md', 'guide/beat-detection-web-audio.md', 'guide/cli.md', 'guide/mcp.md']) {
     assert.ok(isGuidePage(path), path)
   }
-  for (const path of ['index.md', 'bpm-to-frames.md', 'examples/react.md']) {
+  for (const path of ['guide/java.md', 'guide/python.md', 'index.md', 'bpm-to-frames.md', 'examples/react.md']) {
     assert.ok(!isGuidePage(path), path)
   }
 })

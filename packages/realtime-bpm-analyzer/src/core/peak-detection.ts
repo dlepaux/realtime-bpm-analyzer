@@ -44,6 +44,15 @@ export function findPeaksAtThreshold({
     audioSampleRate,
   );
 
+  // Every pass of the loop below moves i on by at least one sample only while the skip is a whole sample or more, so
+  // this bounds the loop to `length` passes. Under 2 Hz the skip rounds to 0 and the same peak would be found forever
+  if (!(skipForwardIndexes >= 1)) {
+    throw new RangeError(
+      `Invalid sample rate: ${audioSampleRate}. The peaks engine needs at least ${consts.peaksMinSampleRate} Hz, `
+        + 'where the skip after a peak is a whole sample.',
+    );
+  }
+
   const {length} = data;
 
   /**

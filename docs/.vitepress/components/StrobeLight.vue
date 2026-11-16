@@ -149,6 +149,8 @@ function drawSpectrogram(now: number) {
 function prepareSpectrogram(analyser: AnalyserNode, sampleRate: number) {
   const context = canvas.value?.getContext('2d', { alpha: false })
   if (!context) return
+  // The stretched column after a stall stays crisp, not blended with its neighbour.
+  context.imageSmoothingEnabled = false
   context.fillStyle = STAGE_COLOR
   context.fillRect(0, 0, SPECTROGRAM_WIDTH, SPECTROGRAM_HEIGHT)
   paint = {
@@ -487,8 +489,19 @@ function onKeyDown(event: KeyboardEvent) {
   if (event.metaKey || event.ctrlKey || event.altKey) return
   if (event.key === 'Escape' || event.key === ' ') {
     event.preventDefault()
+    stopKey = event.key
     void stopAndRefocus()
   }
+}
+
+// The key that stopped the light is released over Start, where focus has gone back. A browser
+// that clicks a button on Space's release alone would start the light again: that release is cancelled.
+let stopKey: string | null = null
+function onKeyUp(event: KeyboardEvent) {
+  if (stopKey === null || event.key !== stopKey) return
+  stopKey = null
+  event.preventDefault()
+  event.stopPropagation()
 }
 
 // While it runs the stage covers the page, so Tab can't reach controls hidden behind the light:
@@ -526,6 +539,7 @@ onMounted(() => {
   canShareTab.value = tabSoundShareable()
   canFullscreen.value = document.fullscreenEnabled === true
   window.addEventListener('keydown', onKeyDown, { capture: true })
+  window.addEventListener('keyup', onKeyUp, { capture: true })
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('pagehide', stopAndRefocus)
   document.addEventListener('fullscreenchange', onFullscreenChange)
@@ -535,6 +549,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   halt()
   window.removeEventListener('keydown', onKeyDown, { capture: true })
+  window.removeEventListener('keyup', onKeyUp, { capture: true })
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('pagehide', stopAndRefocus)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
@@ -871,7 +886,13 @@ onBeforeUnmount(() => {
 
 .strobe-note:empty:not([role='status']) { display: none; }
 /* The status line stays in the page while empty, so a screen reader hears it when it fills. */
-.strobe-note[role='status']:empty { margin: 0; }
+.strobe-note[role='status']:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: polygon(0 0, 0 0, 0 0);
+}
 
 .strobe-error { color: var(--vp-c-danger-1); }
 

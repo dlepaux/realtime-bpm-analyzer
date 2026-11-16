@@ -22,8 +22,9 @@ test('about 30 s: an intro with a kick on every beat, a breakdown with none, the
 })
 
 test('the bass, the only other part in the detector\'s band, plays the offbeats and stays well under the kick', () => {
-  // A sawtooth's fundamental is 2/π of its peak; the library takes a jump within 6 dB of the
-  // loudest recent kick for a kick, so the bass keeps at least 8 dB under it.
+  // A sawtooth's fundamental is 2/π of its peak (its second harmonic, also in band, adds about
+  // 3 dB); the library takes a jump within 6 dB of the loudest recent kick for a kick, so the
+  // bass's fundamental keeps at least 8 dB under it.
   const db = 20 * Math.log10((DEMO_LEVELS.bass * 2) / Math.PI / DEMO_LEVELS.kick)
   assert.ok(db <= -8, `the bass is ${db.toFixed(1)} dB under the kick`)
   for (const note of score.bass) {

@@ -180,6 +180,11 @@ test('while it runs, no key reaches the page behind the light, such as the site 
   // The search opened over the light and fought the stage for focus until the browser crashed.
   assert.match(SCRIPT, /window\.addEventListener\('keydown', onKeyDown, \{ capture: true \}\)/)
   assert.match(SCRIPT, /window\.removeEventListener\('keydown', onKeyDown, \{ capture: true \}\)/)
+  // The release of the key that stopped it is cancelled too: a browser may click Start on it.
+  assert.match(SCRIPT, /event\.preventDefault\(\)\n    stopKey = event\.key\n    void stopAndRefocus\(\)/)
+  assert.match(SCRIPT, /function onKeyUp\(event: KeyboardEvent\) \{\n  if \(stopKey === null \|\| event\.key !== stopKey\) return\n  stopKey = null\n  event\.preventDefault\(\)/)
+  assert.match(SCRIPT, /window\.addEventListener\('keyup', onKeyUp, \{ capture: true \}\)/)
+  assert.match(SCRIPT, /window\.removeEventListener\('keyup', onKeyUp, \{ capture: true \}\)/)
   assert.match(SCRIPT, /function onKeyDown\(event: KeyboardEvent\) \{\n  if \(!running\.value\) return\n  event\.stopPropagation\(\)/)
   assert.match(SCRIPT, /event\.key === 'Escape' \|\| event\.key === ' '/)
 })

@@ -357,14 +357,17 @@ test('a kick\'s mark sits at its own time: back in the past for the mic and a ta
   assert.equal(Math.round(markTimeFor('file', 1.98, clock)), 980 + SPEAKER_DELAY_MS)
 })
 
-test('the light\'s work per frame stays far inside the frame budget, with every queue full', () => {
+test('the light\'s work per frame stays far inside the frame budget, with its kick queue full', () => {
   let state = start(IDLE)
   let at = 0
   const rounds = 4000
   const began = performance.now()
   for (let i = 0; i < rounds; i++) {
-    at += 90 + (i % 7) * 40
-    state = addKick(state, at, 0.8)
+    // Several kicks a frame, as after a stall, so the queue holds the most it keeps.
+    for (let k = 0; k < 4; k++) {
+      at += 85 + (i % 7) * 10
+      state = addKick(state, at, 0.8)
+    }
     state = step(state, at + 5).state
   }
   const perFrame = (performance.now() - began) / rounds

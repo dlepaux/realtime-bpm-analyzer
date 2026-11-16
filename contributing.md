@@ -104,7 +104,7 @@ From step 2 to step 5 the site shows v6 while npm's `latest` is still 5.6.1. Tha
 
 **The release**
 
-5. **Merge the release PR**, as soon as #323's deploy of step 1 is done.
+5. **Merge the release PR**, as soon as #323's deploy of step 2 is done.
    - Run: `gh pr merge <n> --squash`.
    - Check, on the push run's Release job: it tags `v6.1.0`, `cli-v0.1.0` and `mcp-v0.1.0` and writes their GitHub releases, publishes the library, and logs that `realtime-bpm-analyzer-cli` and `realtime-bpm-analyzer-mcp` are not on npm yet and skips them. Then `npm view realtime-bpm-analyzer dist-tags` shows `latest: '6.1.0'`.
    - If the Release job fails: `gh run rerun <id> --failed`. It publishes only what npm doesn't have yet, so a re-run is safe.

@@ -78,7 +78,7 @@ This approach is ideal for:
 ## Key Features
 
 - ✅ Real-time microphone analysis
-- ✅ Continuous BPM updates, about ten a second once the first reading is in
+- ✅ Continuous BPM updates, every half second once the first reading is in
 - ✅ Works with any audio source (music, instruments, etc.)
 - ✅ No recording or storage
 - ✅ A `statechange` event when the tempo locks

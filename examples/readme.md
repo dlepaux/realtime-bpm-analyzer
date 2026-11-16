@@ -33,7 +33,7 @@ Every result is a `Reading`, the same type whether it comes from a file or from 
 
 The reading panel shows each `reading` while the state is `settling` (dimmed) or `locked`. **Start over** calls `analyzer.reset()`, and **Stop** calls `analyzer.stop()`, which is final.
 
-- **An audio URL (02, 05, 08)** goes through a `MediaElementAudioSourceNode`, connected to `analyzer.input` and to the speakers.
+- **An audio URL (02, 05, 08)** goes through a `MediaElementAudioSourceNode`, connected to `analyzer.input` and to the speakers. Each one starts on a bundled 128 BPM click track, so it plays from a clean clone. A stream from another site needs CORS headers, and terms that allow other websites to play it.
 - **The microphone (03, 06, 09)** is opened with the voice filters off, and its track goes to the analyzer as `liveInput`. The analyzer then follows the track's clock, and moves to `listening` with reason `audio-lost` while the browser is losing input.
 
 Every live example follows the same pattern:
@@ -64,7 +64,7 @@ analyzer.on('error', ({ name, message }) => {
 The microphone examples also list each `kick` as it is heard, with its `contextTime` and `strength`, in a **kick panel** with nothing that flashes:
 
 ```typescript
-// Each kick drum heard, 18 to 26 ms after it reached the analyzer: its time on the AudioContext clock, and its
+// Each kick drum heard, about 20 to 26 ms after it reached the analyzer: its time on the AudioContext clock, and its
 // strength from 0 to 1 against the loudest kick of the last few seconds
 analyzer.on('kick', ({ contextTime, strength }) => {
   console.log(contextTime.toFixed(3), strength.toFixed(2));

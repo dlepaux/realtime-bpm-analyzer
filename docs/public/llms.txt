@@ -28,5 +28,6 @@
 - [Beat detection with Web Audio](https://www.realtime-bpm-analyzer.com/guide/beat-detection-web-audio): onsets, tempo and beat tracking compared; the tempo of live audio and of whole files
 - [Node.js](https://www.realtime-bpm-analyzer.com/guide/node): BPM detection outside the browser
 - [Strict CSP and browser extensions](https://www.realtime-bpm-analyzer.com/guide/strict-csp): loading the worklet from a URL
+- [Migrating to v6](https://www.realtime-bpm-analyzer.com/guide/migration-v6): what replaced each 5.x option, event and type, with before and after code
 - [API reference](https://www.realtime-bpm-analyzer.com/api/)
 - [Source code](https://github.com/dlepaux/realtime-bpm-analyzer): Apache-2.0

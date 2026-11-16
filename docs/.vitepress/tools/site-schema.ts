@@ -132,9 +132,10 @@ export function siteGraph(relativePath: string): object[] {
 }
 
 /**
- * Guides for packages that aren't on npm yet. Their pages stay at the same URLs but are
- * noindex, out of the sitemap, the sidebar, the search and llms.txt, and nothing links
- * to them (RBA-122). They come back with the v6 release, PR #323.
+ * Guides for packages that aren't on npm yet. Their pages are noindex and out of the
+ * sitemap, the sidebar, the search and llms.txt (RBA-122). From v6 the Developers menu
+ * links them (RBA-247). Once both packages are on npm, the noindex flip empties this
+ * list (contributing.md, "First publish of v6").
  */
 export const UNPUBLISHED_GUIDES: readonly string[] = ['guide/cli', 'guide/mcp']
 

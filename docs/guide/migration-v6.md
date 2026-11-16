@@ -30,7 +30,8 @@ Every 5.x name and its v6 form. The sections below show each with before-and-aft
 | `getBiquadFilter` and Node's `applyLowpass` settings `frequencyValue`, `qualityValue`, type `BiquadFilterOptions` | `{ frequency, q }` and no other key, type `LowpassOption`: `frequency` in Hz above 0 and below half the sample rate (5.x clamped it silently), `q` the resonance in dB as Web Audio reads a lowpass `Q`, from -758 to 770 dB |
 | event `bpm` | `reading` |
 | event `bpmStable` | `statechange` with `to.status === 'locked'` |
-| event `analyzerReset` | `statechange` to `listening`, reason `audio-lost`, `tempo-changed` or `pulse-lost` |
+| event `analyzerReset` | `statechange` to `listening`, reason `audio-lost` or `tempo-changed`. Reason `pulse-lost` is a lost beat, without a start-over |
+| none | event `kick` `{ contextTime, strength }`: each kick drum heard, new in v6 |
 | event `progress` `{ peaks, requiredPeaks }` | `progress` `{ fraction }`, also `analyzer.state.progress` |
 | event `error` `{ message, error }` | `error` `{ name, message }`; a fatal fault moves to `stopped` instead |
 | debug events `analyzeChunk`, `validPeak` | `debug` `{ engine, data }`, with no stable shape |
@@ -216,7 +217,7 @@ While locked, the tempo can still move without a `statechange`, so keep showing 
 
 #### `analyzerReset` is now `statechange` to `listening`
 
-The reason says why the analyzer started over: `audio-lost`, `tempo-changed` or `pulse-lost`.
+The reason says why the analyzer started over: `audio-lost` or `tempo-changed`. A `statechange` to `listening` with reason `pulse-lost` means the beat was lost, and the analyzer keeps what it heard.
 
 **Before (5.x):**
 ```typescript
@@ -394,6 +395,7 @@ TypeScript code that imports one of these no longer compiles. Each 5.x type and 
 | `AnalyzeFullBufferOptions` | `OfflineOptions` |
 | `Detector` | `EngineName` |
 | `TempogramMode` | `EngineOption`: `{ name: 'tempogram', mode: 'measured' }` |
+| `BiquadFilterOptions` | `LowpassOption`: `{ frequency, q }` |
 | `Threshold` | None: the peaks engine's threshold is internal. `debug: true` shows it in `DebugInfo` |
 | `Peaks` | None: internal to the peaks engine. `debug: true` shows the peaks in `DebugInfo` |
 | `ProcessorInputEvent` | None: the worklet's messages are internal |

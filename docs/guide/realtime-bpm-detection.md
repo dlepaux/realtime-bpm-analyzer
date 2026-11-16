@@ -31,7 +31,7 @@ Detecting BPM in the browser comes down to three tasks:
 1. **Get audio samples** into a place where you can read them. The Web
    Audio API does this with `AudioContext` and a graph of `AudioNode`s.
 2. **Find the beats** in those samples. This is signal processing:
-   filtering, peak detection and interval analysis.
+   onset detection and tempo estimation.
 3. **Stay off the UI thread.** Audio analysis on the main thread glitches
    playback whenever React re-renders or the garbage collector pauses.
 
@@ -208,6 +208,10 @@ Set `crossOrigin = 'anonymous'` for any stream served from a different
 origin. Without it, the browser refuses to expose the audio data to the
 Web Audio API and the analyzer receives silence.
 
+Read the station's terms before you ship a stream in your app or site. Many
+stations allow personal listening only, and forbid other websites or apps
+from playing their streams.
+
 For HLS or DASH streams, you do **not** integrate the player at the
 network layer. Let `hls.js` or your video framework play the stream, and
 feed the resulting `<audio>` or `<video>` element into the same
@@ -319,18 +323,16 @@ the status, from the first tenth of a second of audio, and a kick heard before
 `analyzeFullBuffer` reports none: it has no clock to put them on. Like the
 tempo, kicks are found on your device: your audio never leaves it.
 
-**When it arrives.** The analyzer needs 17 to 19 ms of audio after a kick
-under a bass line starts, at most 27 ms, to tell it from a bass note or a
-hi-hat, and about 11 ms for a kick alone. Then the event crosses to the main
-thread. Measured from the kick reaching the analyzer to your listener, on
-kicks under a bass line, hi-hats and a pad, about the same for a media
-element, a stream and a `liveInput` microphone:
+**When it arrives.** The analyzer needs about 11 ms of audio after a kick
+starts, 17 to 19 ms under a bass line, to tell it from a bass note or a hi-hat. Then the event crosses to
+the main thread. Measured on CI's Linux runners from the kick reaching the
+analyzer to your listener, on kicks under a bass line, hi-hats and a pad, the
+median for each source:
 
-| Where | Median | At most |
-|-------|--------|---------|
-| Chrome 157 on a Mac, with its speakers | 18 to 19 ms | 22 ms |
-| Chromium 156 on CI's Linux runners | 19 to 20 ms | 28 ms |
-| Firefox 158 on CI's Linux runners | 21 to 26 ms | 36 ms |
+| Browser | Buffer | Media element | Tab stream | `liveInput` microphone |
+|---------|--------|---------------|------------|------------------------|
+| Chromium | 19.8 ms | 20.1 ms | 20.3 ms | 20.3 ms |
+| Firefox | 22.2 ms | 25.9 ms | 22.5 ms | 23.2 ms |
 
 These are read on the context clock, as `currentTime` gives it to the page.
 Firefox's `currentTime` stands still between its updates, so on CI it is
@@ -621,9 +623,9 @@ rhythm, and once the pulse has been gone for 2 seconds it goes back to
 rather than waiting forever; if no lock comes in 20 seconds of audible
 audio, the material is probably ambient or has no beat.
 
-**Very short clips.** Below about 5 seconds the algorithm has too few
-peaks to form a stable interval distribution, and no lock comes before 10
-seconds of audio. For short samples, treat the reading as approximate.
+**Very short clips.** The first reading comes after a 4-second warm-up, and
+the earliest lock after about 11.5 seconds of audio. For shorter samples, treat
+the reading as approximate.
 
 **Tempo changes.** The analyzer adapts, with a delay. A track that ramps
 from 120 to 140 BPM mid-song will show both tempos among the reading's
@@ -650,8 +652,8 @@ no samples.
 - The [React hook tutorial](/guide/react-bpm-hook) wraps everything above
   in a typed `useBpm` hook with StrictMode-safe cleanup.
 - The [How It Works guide](/guide/how-it-works) opens the algorithm:
-  threshold scanning, peak detection, interval grouping and how the
-  engines lock.
+  the tempogram, the peaks engine's threshold scanning and interval
+  grouping, and how the engines lock.
 - The [API reference](/api/) has the full type signatures.
 - The [examples directory](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples)
   has nine runnable apps across vanilla JS, React, and Vue.

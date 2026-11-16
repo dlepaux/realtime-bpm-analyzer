@@ -10,12 +10,12 @@ on:
   # Manual retry when a release fails after its commit landed (e.g. npm's provenance step).
   workflow_dispatch:
 
+# Read-only by default. Each job names what it needs (RBA-232): npm's trusted publisher accepts an OIDC
+# token from any job of this file, so id-token: write is only on Release, which runs in the npm environment
+# that only main may deploy to, and on Deploy Documentation. Pull requests never get a write token here.
+# docs/scripts/workflow-permissions.test.ts pins each job's permissions.
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  id-token: write
-  pages: write
+  contents: read
 
 # Pushes to main share one group so releases and Pages deploys never overlap. Each PR
 # gets its own: GitHub keeps one pending run per group, so a shared group silently
@@ -29,6 +29,9 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
+    # It runs every dependency's install scripts, a pull request's too: read only
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -109,6 +112,16 @@ jobs:
     # workflow_dispatch can target any branch; only main ever releases
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # The environment only main may deploy to (Settings > Environments > npm). With the trusted publisher on
+    # npmjs.com set to it as well, a token from any other job, or from another branch's run, can't publish.
+    environment: npm
+    # release-please: contents (tags, releases, the release branch), pull-requests (the release PR), issues
+    # (its labels). id-token: the OIDC token npm's trusted publishing takes, which also signs the provenance.
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
 
     steps:
       - name: Release PR, tag and GitHub release
@@ -152,8 +165,8 @@ jobs:
           # upload-artifact strips the paths' common ancestor (the package folder)
           path: packages/realtime-bpm-analyzer
 
-      # npm's trusted publisher (OIDC, no token) is bound to this workflow file name:
-      # renaming main.yml means redoing the trusted-publisher setup on npmjs.com.
+      # npm's trusted publisher (OIDC, no token) is bound to this workflow file name and the npm environment:
+      # renaming either means redoing the trusted-publisher setup on npmjs.com, or the publish fails.
       # prepack copies the root readme.md and license.md into the package first.
       - name: Publish to npm
         if: steps.unpublished.outputs.publish == 'true'
@@ -258,6 +271,10 @@ jobs:
     name: Build Documentation
     needs: build
     runs-on: ubuntu-latest
+    # pages: read for configure-pages, which reads the Pages site on pushes
+    permissions:
+      contents: read
+      pages: read
 
     steps:
       - name: Checkout
@@ -343,8 +360,7 @@ jobs:
   markers:
     name: Marker files (OpenTimelineIO, FCPXML DTD)
     runs-on: ubuntu-latest
-    # It runs code downloaded from PyPI and reads a file fetched from Apple: read access only,
-    # not the workflow's pages and id-token writes.
+    # It runs code downloaded from PyPI and reads a file fetched from Apple: read access only.
     permissions:
       contents: read
     env:
@@ -411,6 +427,10 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    # deploy-pages: pages to create the deployment, id-token to prove where it comes from
+    permissions:
+      pages: write
+      id-token: write
 
     steps:
       - name: Deploy to GitHub Pages

@@ -1,6 +1,6 @@
 // Run with `npm test`. What the page sources must say for search engines and AI readers:
-// the CLI, MCP, Java and Python guides are in every list since their noindex flips, home has one h1 (RBA-129),
-// and the titles and snippets this repo has tuned stay within what results show.
+// the CLI, MCP, Java and Python guides are in every list since their noindex flips, home has
+// one h1 (RBA-129), and the titles and snippets this repo has tuned stay within what results show.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

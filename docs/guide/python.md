@@ -8,7 +8,7 @@ description: Detect the BPM of decoded audio in Python with realtime-bpm-analyze
 `realtime-bpm-analyzer` for Python is the library's offline analysis,
 [`analyzeChannelData`](./node), ported to Python. You pass the decoded samples
 of one channel and get a reading back: the tempo, its confidence and the other
-candidate tempos, in the same shape the JS library gives.
+candidate tempos, in the same shape the JS library gives. It is on PyPI:
 
 ```bash
 pip install realtime-bpm-analyzer

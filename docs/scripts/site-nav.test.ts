@@ -78,7 +78,7 @@ const OUTSIDE_THE_LIBRARY = ['/', '/tap-tempo', '/extension/', '/extension/priva
 
 test('Developers highlights on every library page and nowhere else', () => {
   const { activeMatch } = menu(siteNav(LISTING, VERSION), 'Developers')
-  // The unlinked CLI and MCP guides are library pages too, so they light it up on purpose.
+  // The CLI and MCP guides are library pages too, so they light it up on purpose.
   for (const path of ['/guide/getting-started', '/guide/how-it-works', '/guide/cli', '/guide/mcp', '/api/', '/api/functions/createRealtimeBpmAnalyzer', '/examples/basic-usage', '/examples/react']) {
     assert.ok(highlights(activeMatch, path), `${path} should highlight Developers`)
   }

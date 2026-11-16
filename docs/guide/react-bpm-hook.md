@@ -71,7 +71,7 @@ export type UseBpmState = 'idle' | 'starting' | 'listening' | 'error';
 export interface UseBpmReturn {
   /** Live BPM, updated as the analysis runs. Null until first detection. */
   bpm: number | null;
-  /** Locked BPM, from about 12 s of audio at the earliest. Null until then. */
+  /** Locked BPM, from about 11.5 s of audio at the earliest. Null until then. */
   lockedBpm: number | null;
   /** Current state. Drives UI affordances. */
   state: UseBpmState;

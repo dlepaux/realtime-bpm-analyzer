@@ -99,9 +99,9 @@ The `tempogram` engine has no restart option: its memory of past tempos fades wi
 
 A restart period under 10 s also brings the earliest lock forward to fit before it, as `peaks` otherwise waits 10 s of audio before it locks.
 
-**Memory Impact:**
-- Lower = less memory, less audio to settle on, follows tempo changes sooner
-- Higher = more memory, more audio to settle on, follows tempo changes later
+**What the period changes:**
+- Lower = less audio to settle on, follows tempo changes sooner
+- Higher = more audio to settle on, follows tempo changes later
 
 ### Clean Up Resources
 
@@ -154,8 +154,6 @@ Ask for a longer one when the device glitches under load, and a shorter one for 
 ```typescript
 const playbackContext = new AudioContext({ latencyHint: 'playback' }); // or 'interactive', the default
 ```
-
-Most devices default to 128-256 samples, which is optimal.
 
 ### 3. Throttle UI Updates
 

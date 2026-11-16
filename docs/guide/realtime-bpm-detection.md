@@ -323,8 +323,8 @@ the status, from the first tenth of a second of audio, and a kick heard before
 `analyzeFullBuffer` reports none: it has no clock to put them on. Like the
 tempo, kicks are found on your device: your audio never leaves it.
 
-**When it arrives.** The analyzer needs a few milliseconds of audio after a
-kick starts to tell it from a bass note or a hi-hat. Then the event crosses to
+**When it arrives.** The analyzer needs about 11 ms of audio after a kick
+starts, 17 to 19 ms under a bass line, to tell it from a bass note or a hi-hat. Then the event crosses to
 the main thread. Measured on CI's Linux runners from the kick reaching the
 analyzer to your listener, on kicks under a bass line, hi-hats and a pad, the
 median for each source:

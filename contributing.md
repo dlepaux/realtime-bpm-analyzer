@@ -71,7 +71,7 @@ A new package (the CLI or the MCP server, for example) gets its own folder under
 
 npm's [trusted publishing](https://docs.npmjs.com/trusted-publishers) lets the pipeline publish without a token, but it can only be configured on a package that already exists on the registry, and a new configuration expires unless a publish through it succeeds within 2 days. The release job skips a package npm doesn't have yet. So a new package's first version on npm is a throwaway `0.0.0` that a maintainer publishes by hand and deprecates, and the pipeline publishes its real first version once trusted publishing is set up.
 
-The first package to go through this is v6's pair, below. A later new package follows steps 6 to 10 from the commit of its own first release.
+The first package to go through this is v6's pair, below. A later new package follows steps 6 to 10 from the commit of its own first release, with its own tag (`<component>-vX.Y.Z`) and package name in place of `v6.1.0` and the two names.
 
 #### First publish of v6: 6.1.0, the CLI and the MCP server
 
@@ -83,17 +83,17 @@ Every npm step is the maintainer's (David's). You need:
 - npm signed in as an owner of `realtime-bpm-analyzer`, with two-factor authentication: `npm whoami` prints your user (if it doesn't, `npm login`);
 - Node 22.12 or later.
 
-From step 1 to step 5 the site shows v6 while npm's `latest` is still 5.6.1. That gap lasts minutes to an hour and is accepted (RBA-247). The CLI and MCP guides stay noindex until step 11.
+From step 2 to step 5 the site shows v6 while npm's `latest` is still 5.6.1. That gap lasts minutes to an hour and is accepted (RBA-247). The CLI and MCP guides stay noindex until step 12.
 
 **Before the release PR**
 
-1. **Merge #323 with a merge commit**, never a squash: release-please reads the `!` markers in its commits.
+1. **Close the two stale per-package release PRs**, left from before the release PRs were combined.
+   - Run: `gh pr close 279 --delete-branch --comment "Superseded by the combined v6 release PR."`, and the same for `282`.
+   - Check: `gh pr view 279 --json state` and `gh pr view 282 --json state` print `"state":"CLOSED"`.
+2. **Merge #323 with a merge commit**, never a squash: release-please reads the `!` markers in its commits.
    - Run: `gh pr merge 323 --merge`.
    - Check: the Main Pipeline run on `main` goes green, Deploy Documentation included (`gh run list --workflow main.yml --branch main --limit 1`, then `gh run watch <id>`). release-please opens one release PR, from the branch `release-please--branches--main`.
    - If it fails: nothing is published yet. Fix it on `main`; the release PR follows the next push.
-2. **Close the two stale per-package release PRs**, left from before the release PRs were combined.
-   - Run: `gh pr close 279 --delete-branch --comment "Superseded by the combined v6 release PR."`, and the same for `282`.
-   - Check: `gh pr view 279 --json state` and `gh pr view 282 --json state` print `"state":"CLOSED"`.
 3. **Read the release PR**: `gh pr view <n>` and `gh pr diff <n>`.
    - Check: the library at 6.1.0, the CLI at 0.1.0 with `"realtime-bpm-analyzer": "^6.1.0"`, the MCP server at 0.1.0 with `"realtime-bpm-analyzer-cli": "^0.1.0"`, the three changelogs, `.release-please-manifest.json`, and `package-lock.json` at the same versions and ranges.
    - If a version or range is wrong: don't merge. The fix goes to `main` as its own PR, and release-please rebuilds the release PR on that push.
@@ -132,12 +132,12 @@ From step 1 to step 5 the site shows v6 while npm's `latest` is still 5.6.1. Tha
      npm deprecate realtime-bpm-analyzer-mcp@0.0.0 "Placeholder for the first publish. Use 0.1.0 or later."
      ```
    - Check: `npm view realtime-bpm-analyzer-cli@0.0.0 deprecated` prints the message, and the same for the MCP server. Then delete the clone: `cd .. && rm -rf rba-bootstrap`.
-   - If a publish fails: `E401` or `ENEEDAUTH` means `npm login` and run it again. `E403` naming the package means npm refuses the name: stop there, since the pipeline and the docs use these names. A publish that reports the version already exists has already happened: go on to the next command.
+   - If a publish fails: `E401` or `ENEEDAUTH` means `npm login` and run it again. `E403` has two meanings, so read its message: if npm refuses the name, stop there, since the pipeline and the docs use these names; if it says the version was already published, that publish has already happened: go on to the next command.
 8. **Set up trusted publishing**, for each of the two packages: on npmjs.com, the package's Settings, Trusted Publisher, GitHub Actions, with owner `dlepaux`, repository `realtime-bpm-analyzer`, workflow `main.yml` (the file name only) and no environment.
    - Check: each package's settings list the publisher.
    - The configuration expires unless a publish through it succeeds within 2 days, so go on to step 9 now.
 9. **Re-run the release pipeline on `main`.**
-   - Run: `gh workflow run main.yml --ref main`, then `gh run watch <id>`.
+   - Run: `gh workflow run main.yml --ref main`, then `gh run list --workflow main.yml --branch main --event workflow_dispatch --limit 1` for its id, and `gh run watch <id>`.
    - Check: the Release job logs that `realtime-bpm-analyzer@6.1.0` is already on npm, then publishes `realtime-bpm-analyzer-cli@0.1.0` and then `realtime-bpm-analyzer-mcp@0.1.0`. `npm view realtime-bpm-analyzer-cli dist-tags` and `npm view realtime-bpm-analyzer-mcp dist-tags` show `latest: '0.1.0'`, each version's page on npmjs.com shows its provenance, and `npx -y realtime-bpm-analyzer-cli@0.1.0 --version` prints `0.1.0`.
    - If a publish fails on authentication (`E404` or `E403` from `npm publish`, or an OIDC error): one of step 8's fields doesn't match. Correct it and run step 9 again. If the 2 days have passed, delete the configuration, add it again, and run step 9 again.
 10. **Lock publishing access**, for each of the two packages: Settings, Publishing access, "Require two-factor authentication and disallow tokens".
@@ -145,10 +145,10 @@ From step 1 to step 5 the site shows v6 while npm's `latest` is still 5.6.1. Tha
 
 **After**
 
-11. **The noindex flip.** Ask RBA-COMMANDER for its PR. It empties `UNPUBLISHED_GUIDES` in `docs/.vitepress/tools/site-schema.ts`, removes `search: false` from `docs/guide/cli.md` and `docs/guide/mcp.md`, adds both guides to the sidebar and to `docs/public/llms.txt`, and updates the tests that pin them out.
-    - Check, after its deploy: `/guide/cli` and `/guide/mcp` carry no `noindex`, and both are in `/sitemap.xml`.
-12. **Remove `release-as`.** A `chore` PR that drops `"release-as": "6.1.0"` from `release-please-config.json`. Merge it before any `feat` or `fix` reaches `main`, or the next release PR proposes 6.1.0 again.
+11. **Remove `release-as`.** A `chore` PR that drops `"release-as": "6.1.0"` from `release-please-config.json`. Merge it before any `feat` or `fix` reaches `main`, or the next release PR proposes 6.1.0 again. Until it merges, every other PR fails "Check release-as is still pending" in Build & Test, since the manifest is already at 6.1.0.
     - Check: the next release PR proposes 6.1.1 or 6.2.0.
+12. **The noindex flip.** Open a PR that empties `UNPUBLISHED_GUIDES` in `docs/.vitepress/tools/site-schema.ts`, removes `search: false` from `docs/guide/cli.md` and `docs/guide/mcp.md`, adds both guides to the sidebar and to `docs/public/llms.txt`, and updates the tests that pin them out.
+    - Check, after its deploy: `/guide/cli` and `/guide/mcp` carry no `noindex`, and both are in `/sitemap.xml`.
 13. **Re-word 6.0.0's deprecation**, which still says "use version 5".
     - Run: `npm deprecate realtime-bpm-analyzer@6.0.0 "Published by mistake. Use 6.1.0 or later."`
     - Check: `npm view realtime-bpm-analyzer@6.0.0 deprecated` prints the new message.

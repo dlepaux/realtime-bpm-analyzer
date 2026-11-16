@@ -44,7 +44,7 @@ test('the guides whose openings answer first still do', () => {
   assert.match(opening('guide/bpm-from-microphone.md'), /^To detect BPM from the microphone/)
 })
 
-test('the CLI and MCP guides are out of the sidebar, llms.txt and every other page', () => {
+test('the CLI and MCP guides are out of the sidebar, llms.txt and the content of every other page', () => {
   const unpublished = /\/guide\/(cli|mcp)\b|\]\(\.\/(cli|mcp)\b/
   assert.ok(!unpublished.test(read('../.vitepress/config.ts')), 'config.ts')
   assert.ok(!unpublished.test(read('../public/llms.txt')), 'llms.txt')

@@ -34,11 +34,13 @@ export type {
  * @param sampleRate - Sample rate of `channelData` in Hz
  * @param options - The engine (default `tempogram`; lowpass settings for `peaks`) and the tempo range, as for
  * `analyzeFullBuffer`
- * @returns The reading, or null when no tempo was found
+ * @returns A promise of the reading, or null when no tempo was found. The function itself never throws: each error
+ * below rejects the promise.
  * @throws {Error} When `channelData` is empty or not a Float32Array
  * @throws {RangeError} When the sample rate, `engine` or `tempoRange` is invalid
- * @throws {TypeError} When an option has its 5.x name, or `engine.lowpass` is not an object, `null` or `undefined`,
- * carries a key other than `frequency` and `q`, or holds a setting that is not a number
+ * @throws {TypeError} When an option has its 5.x name, the `engine` object carries a key other than `name` and
+ * `lowpass`, or `engine.lowpass` is not an object, `null` or `undefined`, carries a key other than `frequency` and
+ * `q`, or holds a setting that is not a number
  * @throws {RangeError} When an `engine.lowpass` setting is `NaN` or infinite, its frequency is not above 0 and
  * below half the samples' sample rate, or its `q` is not from -758 to 770 dB
  *

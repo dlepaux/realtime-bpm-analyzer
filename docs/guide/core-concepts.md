@@ -15,7 +15,7 @@ The library supports different usage patterns depending on your needs:
 Analyze audio while it's playing:
 
 - Accumulates data throughout playback
-- Provides increasingly accurate results
+- Locks once the readings agree, and keeps reporting while locked
 - No automatic reset
 - Best for: Music players, video players, defined-length audio
 
@@ -28,8 +28,7 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 For long-running or infinite streams:
 
 - Automatically starts over after a set stretch of audio
-- Prevents memory buildup in 24/7 scenarios
-- Follows a change of tempo
+- Follows a change of tempo sooner
 - Best for: Radio streams, live broadcasts, streaming services
 
 ```typescript
@@ -89,7 +88,6 @@ The library uses the Web Audio API's node-based architecture:
 With the `peaks` engine, connecting the source to `analyzer.input` puts a low-pass filter in front of it (the same filter `getBiquadFilter()` builds). It:
 - Isolates bass frequencies (typically where the beat is strongest)
 - Reduces noise from high-frequency content
-- Improves peak detection accuracy
 
 To skip it or use your own filter, connect to `analyzer.node` instead, the analyzer with nothing in front of it. The default `tempogram` engine needs the full band, so its `.input` adds no filter. Connect to `analyzer.input` either way, and each engine gets what it needs.
 
@@ -175,7 +173,7 @@ The `peaks` engine uses a **progressive threshold** system:
 
 Benefits:
 - Early results from strong beats
-- Increasing accuracy over time
+- Later locks rest on stronger peaks
 - Filters out weak/noise peaks
 
 ## Configuration Options
@@ -200,13 +198,14 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
 - `'peaks'`: amplitude peaks after a low-pass filter, the 5.x default
 - `{ name: 'peaks', restartAfterSeconds }`: start over every this many seconds of audio. Absent: never restarts
 - `{ name: 'tempogram', mode: 'measured' }`: holds the analyzer to the measured settings, and refuses another `tempoRange`
+- Any other key in the object, such as `lowpass` (realtime `peaks` has a fixed lowpass inside `analyzer.input`) or a typo, is refused with a `TypeError` that names it
 
 <a id="stabilizationtime"></a><a id="mutetimeinindexes"></a>
 
 ### tempoRange
 - Default: `{ min: 90, max: 180 }`
 - It picks the octave: the default reads an 85 BPM hip-hop track as 170, `{ min: 70, max: 140 }` reads it as 85
-- `max` must be at least twice `min`; a narrower range throws a `RangeError`
+- `max` must be at least twice `min`; a narrower range is refused with a `RangeError`
 - Keep the expected tempo away from the bounds: a tempo right on an edge jitters across it and its votes split between the two octaves
 - `analyzeFullBuffer(buffer, { tempoRange })` takes the same option
 - Both engines take it: `peaks` folds every tempo into it, the `tempogram` engine searches it and folds nothing
@@ -293,7 +292,7 @@ It comes about 20 ms after the kick reached the analyzer in Chromium, and 22 to 
 
 ### ❌ Don't
 - Create `AudioContext` immediately on page load (autoplay restrictions)
-- Assume the first reading is accurate (wait for the lock)
+- Treat the first reading as final (wait for the lock)
 - Ignore the candidates' `relation` (a `half` or `double` is the same beat at another octave)
 - Use continuous analysis for short audio clips
 

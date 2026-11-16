@@ -286,7 +286,7 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
 ```
 
 `max` must be at least twice `min`, so that every tempo has an octave
-inside the range; anything narrower throws a `RangeError`. Keep your
+inside the range; anything narrower is refused with a `RangeError`. Keep your
 music's tempo away from the edges: a tempo sitting right on a bound (140
 in a 70 to 140 range) jitters across it, and its votes split between 140
 and 70, which weakens it against the other candidates. In plain words: choose a

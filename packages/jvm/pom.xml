@@ -209,7 +209,10 @@
             <configuration>
               <!-- The API's Java level, as the compiler's release: links resolve against Java 8's classes -->
               <release>8</release>
-              <!-- Zero warnings, as the compiler: a broken reference or bad HTML fails the build -->
+              <!-- Zero warnings, as the compiler: a broken reference or bad HTML fails the build. Every check but
+                   "missing": JDK 21's javadoc counts a comment that opens with @param as missing its description,
+                   which JDK 11's doesn't, and a Central publish shouldn't hang on a doc-comment style -->
+              <doclint>all,-missing</doclint>
               <failOnWarnings>true</failOnWarnings>
             </configuration>
             <executions>

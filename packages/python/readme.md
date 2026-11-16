@@ -52,7 +52,7 @@ def analyze_channel_data(
 
 - `samples`: one channel of numbers from -1 to 1, as a list, a float `array.array` or a 1-D float NumPy array.
   They are analysed as 32-bit floats, as the JS library holds them, so a float64 array reads like its float32 copy.
-  An integer array is refused: scale integer PCM first, for 16-bit samples `pcm / 32768`.
+  Integers are refused, whatever holds them: scale integer PCM first, for 16-bit samples `pcm / 32768`.
 - `sample_rate`: their rate in Hz. The tempogram needs at least 100 Hz, and `peaks` at least 2 Hz.
 - `engine`: `"tempogram"`, the default, reads the full band. `"peaks"` counts the intervals between bass peaks.
 - `tempo_range`: `TempoRange(min=90, max=180)` by default. A reading is folded into this range by octaves, so `max`
@@ -82,7 +82,7 @@ The options and defaults are the JS library's, in snake case. Two names differ f
 |-----------|------|
 | `InvalidSamplesError` (a `ValueError`) | The samples are empty or not one channel |
 | `OutOfRangeError` (a `ValueError`) | A value is out of range: the sample rate, the engine, the tempo range, or the lowpass settings |
-| `TypeError` | An argument has the wrong type, or the samples are an integer array |
+| `TypeError` | An argument has the wrong type, or the samples are integers |
 
 ## Limits
 

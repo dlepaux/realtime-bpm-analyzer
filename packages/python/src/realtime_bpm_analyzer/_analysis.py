@@ -7,7 +7,6 @@ src/core/{offline,engine,tempo,lowpass}.ts.
 from __future__ import annotations
 
 import math
-from array import array
 from collections.abc import Sequence
 from numbers import Real
 from typing import Any, TypeAlias
@@ -33,7 +32,7 @@ from ._types import (
 )
 
 Samples: TypeAlias = Sequence[float] | NDArray[np.floating[Any]]
-"""One channel from -1 to 1: a sequence of numbers (a list, a float `array.array`) or a 1-D float NumPy array."""
+"""One channel of floats from -1 to 1: a sequence (a list, a float `array.array`) or a 1-D float NumPy array."""
 
 DEFAULT_TEMPO_RANGE = TempoRange(min=90, max=180)
 ENGINES: tuple[EngineName, ...] = ("tempogram", "peaks")
@@ -49,19 +48,14 @@ def _is_number(value: object) -> bool:
 
 def _as_channel(samples: Samples) -> NDArray[np.float32]:
     """The samples as 32-bit floats, as the JS library holds them: a float64 input is rounded the same way."""
-    # Integer PCM in a typed container (int16, say) would read as samples far outside -1 to 1, which the peaks
-    # engine misreads: the JS library takes only a Float32Array, so it is refused rather than read unscaled
-    if (isinstance(samples, np.ndarray) and samples.dtype.kind != "f") or (
-        isinstance(samples, array) and samples.typecode not in "fd"
-    ):
-        kind = samples.dtype if isinstance(samples, np.ndarray) else f"array('{samples.typecode}')"
-        raise TypeError(f"samples must be floats from -1 to 1, not {kind}: scale integer PCM first (int16 / 32768)")
     try:
         channel = np.asarray(samples)
     except (TypeError, ValueError) as error:
-        raise TypeError("samples must be a sequence of numbers or a NumPy array") from error
-    if channel.dtype.kind not in "iuf":
-        raise TypeError(f"samples must be numbers, not {channel.dtype}")
+        raise TypeError("samples must be a sequence of floats or a NumPy array") from error
+    # Integer PCM (int16, say) would read as samples far outside -1 to 1, which the peaks engine misreads. The JS
+    # library takes only a Float32Array, so any integer input is refused, whatever holds it, rather than read unscaled
+    if channel.dtype.kind != "f":
+        raise TypeError(f"samples must be floats from -1 to 1, not {channel.dtype}: scale integer PCM first (int16 / 32768)")
     if channel.ndim != 1:
         raise InvalidSamplesError(f"samples must be one channel, a 1-D sequence, not {channel.ndim}-D")
     if channel.size == 0:
@@ -177,11 +171,11 @@ def analyze_channel_data(
     Raises:
         InvalidSamplesError: The samples are empty or not one channel.
         OutOfRangeError: The sample rate is not finite and positive (at least 100 Hz for the tempogram, 2 Hz for
-            peaks), the engine
-            is unknown, a lowpass is given to the tempogram, the tempo range's bounds are not positive and finite or
-            span less than an octave, or a lowpass setting is not finite, its cutoff not between 0 and half the
-            sample rate, or its Q not from -758 to 770 dB.
-        TypeError: An argument has the wrong type, or the samples are integers in a NumPy array or `array.array`.
+            peaks), the engine is unknown, a lowpass is given to the tempogram, the tempo range's bounds are not
+            positive and finite or span less than an octave (or, for the tempogram, max / min overflows), or a
+            lowpass setting is not finite, its cutoff not between 0 and half the sample rate, or its Q not from -758
+            to 770 dB.
+        TypeError: An argument has the wrong type, or the samples are integers.
     """
     channel = _as_channel(samples)
     rate = _sample_rate(sample_rate)

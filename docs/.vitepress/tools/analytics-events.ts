@@ -20,7 +20,7 @@ import { EXTENSION_PLACEMENTS } from './extension-promo.ts'
 import { FRAME_RATES } from './frames.ts'
 import { MIC_ERROR_KINDS, MIC_ERROR_NAMES } from './mic-error.ts'
 import { PLATFORM_LABELS, STATIONS, STREAM_ERROR_MESSAGES, type Platform, type StreamErrorKind } from './stream-input.ts'
-import { TEMPO_SOURCES } from './strobe.ts'
+import { STROBE_SOURCES } from './strobe.ts'
 import { NOTE_DIVISIONS } from './tempo.ts'
 import { freeTools } from './tool-list.ts'
 
@@ -116,10 +116,11 @@ export const PARAMS = {
 
   // ── Added by RBA-237 ─────────────────────────────────────────────────────────────────────
   /**
-   * Where the strobe light's tempo came from. `none`: the readback reads it from the BigQuery
-   * export, which keeps every param, so it needs no Custom definition in GA4.
+   * Where the strobe light's music came from: the demo track, a song, the mic or another tab.
+   * Not `source`, which GA4 reads as the traffic source (RBA-2). `none`: the readback reads it
+   * from the BigQuery export, which keeps every param, so it needs no Custom definition in GA4.
    */
-  tempo_source: { type: 'enum', values: [...TEMPO_SOURCES], scope: 'none' },
+  audio_source: { type: 'enum', values: [...STROBE_SOURCES], scope: 'none' },
 } as const satisfies Record<string, ParamSpec>
 
 export type ParamName = keyof typeof PARAMS
@@ -254,9 +255,9 @@ export const EVENTS = {
     deprecated: { mode: 'time_signature and subdivision' },
   },
   bpm_strobe_started: {
-    params: { tempo_source: 'required', bpm: 'optional' },
+    params: { audio_source: 'required' },
     repeats: 'Each time the strobe light starts.',
-    privacy: 'When you start the strobe light: whether the tempo was typed, tapped or heard through the microphone, and the tempo when it is known at the start. Never the sound.',
+    privacy: 'When you start the strobe light: whether the music is the demo track, your song, the microphone or another tab. Never the sound, and never the song’s name.',
   },
   bpm_tool_link_clicked: {
     params: { bpm: 'optional', mode: 'required', result_source: 'required', tool: 'required' },

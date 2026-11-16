@@ -1,102 +1,159 @@
 <script setup lang="ts">
-// The strobe light (RBA-237). Every safety decision is in tools/strobe.ts, where node --test
-// checks it: this component feeds it frame times, taps and the tempo, and draws what it returns.
-// start() is called from the Start button's click and nowhere else, and every stop path ends in
-// halt(). The library loads with the microphone mode only, never with the page (RBA-123).
+// The strobe light (RBA-237): it flashes on each kick the library hears (its `kick` event,
+// RBA-243), from the built-in demo track, a dropped song, the microphone or another tab's sound,
+// with a spectrogram on which each kick appears. Every safety decision is in tools/strobe.ts,
+// where node --test checks it: this component feeds it kicks and frame times, and draws what it
+// returns. start() is called from the Start button's click and nowhere else, and every stop path
+// ends in halt(), which releases the source. The library loads on Start, never with the page (RBA-123).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Hand, Maximize, Minus, Plus, Square, Zap } from 'lucide-vue-next'
+import { FileAudio, Maximize, Square, Zap } from 'lucide-vue-next'
 import type { BpmAnalyzer } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
 import { openAnalysis } from '../tools/audio-setup'
+import { demoLength, renderDemo } from '../tools/demo-track'
 import { classifyMicError } from '../tools/mic-error'
+import { SPECTROGRAM_HEIGHT, SPECTROGRAM_WIDTH, kickX, paintColumn, rowBins, scrollPixels } from '../tools/spectrogram'
 import {
-  EVERY_OTHER_BEAT_ABOVE_BPM,
+  EVERY_KICK_UP_TO_BPM,
   IDLE,
-  MIN_GAP_MS,
   RESTART_GUARD_MS,
   STAGE_COLOR,
-  alignToTap,
-  beatsPerFlash,
+  addKick,
   flashAnimation,
+  flashTimeFor,
   initialStyle,
   isTooSoonAfterStop,
   start as strobeStart,
   step,
   stop as strobeStop,
-  type FlashKind,
+  type Flash,
   type FlashStyle,
   type Strobe,
-  type TempoSource,
+  type StrobeSource,
 } from '../tools/strobe'
-import { MAX_BPM, MIN_BPM, TAP_TIMEOUT_MS, clampBpm, parseBpmParam, tapToSet } from '../tools/tempo'
 
 const { track } = useAnalytics()
 
-const SOURCES: readonly { id: TempoSource; label: string }[] = [
-  { id: 'typed', label: 'Type' },
-  { id: 'tapped', label: 'Tap' },
-  { id: 'mic', label: 'Microphone' },
-]
 const STYLES: readonly { id: FlashStyle; label: string }[] = [
   { id: 'flash', label: 'Full flash' },
   { id: 'pulse', label: 'Soft pulse' },
 ]
+/** The kicks' marks on the spectrogram: amber, apart from its blues, and far from red. */
+const KICK_MARK = '#ffc940'
+const FFT_SIZE = 2048
+const STAYS_ON_DEVICE = 'your audio stays on your device'
 
-const source = ref<TempoSource>('typed')
-const bpm = ref(120)
-const micBpm = ref<number | null>(null)
-const beatsPerBar = ref(4)
+const source = ref<StrobeSource>('demo')
+const song = ref<File | null>(null)
+const isDragOver = ref(false)
 const style = ref<FlashStyle>('flash')
 const reducedMotion = ref(false)
+const showSpectrogram = ref(true)
 const running = ref(false)
-const micError = ref<string | null>(null)
-const tapTimes = ref<number[]>([])
+const preparing = ref(false)
+const error = ref<string | null>(null)
+const note = ref('')
+const tempo = ref<number | null>(null)
+const every = ref(1)
+const canShareTab = ref(false)
 const canFullscreen = ref(false)
 
 const stage = ref<HTMLElement | null>(null)
 const light = ref<HTMLElement | null>(null)
+const canvas = ref<HTMLCanvasElement | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 const startButton = ref<HTMLButtonElement | null>(null)
 const stopButton = ref<HTMLButtonElement | null>(null)
 
-/** The tempo the grid follows now: the microphone's once it has one, else the typed or tapped one. */
-const tempo = computed<number | null>(() => (source.value === 'mic' ? micBpm.value : bpm.value))
-const halfTime = computed(() => tempo.value !== null && beatsPerFlash(tempo.value) === 2)
+const sources = computed(() => [
+  { id: 'demo' as const, label: 'Demo track' },
+  { id: 'file' as const, label: 'Your song' },
+  { id: 'mic' as const, label: 'Microphone' },
+  ...(canShareTab.value ? [{ id: 'tab' as const, label: 'Another tab' }] : []),
+])
 const status = computed(() => {
-  if (!running.value) return ''
-  if (tempo.value === null) return 'Listening for a steady tempo…'
-  const every = halfTime.value ? ', flashing every second beat' : ''
-  return `${Math.round(tempo.value)} BPM${every}`
+  if (preparing.value) return source.value === 'demo' ? 'Preparing the demo…' : 'Starting…'
+  const reading = tempo.value === null ? 'Listening for the beat' : `${Math.round(tempo.value)} BPM`
+  const ordinal = every.value === 2 ? 'second' : every.value === 3 ? 'third' : `${every.value}th`
+  return every.value > 1 ? `${reading} · flashing on every ${ordinal} kick` : reading
 })
 
+/** What a running strobe holds. halt() releases all of it, whatever has been opened so far. */
+type Session = {
+  context: AudioContext
+  analyzer: BpmAnalyzer | null
+  analyser: AnalyserNode | null
+  stream: MediaStream | null
+  player: AudioBufferSourceNode | null
+}
+
 let strobe: Strobe = IDLE
+let session: Session | null = null
 let frame: number | undefined
 let generation = 0
-let tapBeat = 0
 let stoppedAt: number | null = null
 let wakeLock: WakeLockSentinel | null = null
-let mic: { stream: MediaStream; context: AudioContext; analyzer: BpmAnalyzer } | null = null
-
-function setBpm(value: number) {
-  bpm.value = Math.round(clampBpm(value))
-}
 
 // ── Drawing ───────────────────────────────────────────────────────────────────────────────
 
+let paint: { context: CanvasRenderingContext2D; column: ImageData; levels: Uint8Array<ArrayBuffer>; rows: Uint16Array } | null = null
+let lastDraw = 0
+let scrollCarry = 0
+/** Kick times not yet marked on the spectrogram, in order. */
+let marks: number[] = []
+
 function onFrame(now: number) {
-  const result = step(strobe, { now, bpm: tempo.value, beatsPerBar: beatsPerBar.value })
+  const result = step(strobe, now)
   strobe = result.state
-  if (result.flash && tempo.value !== null) show(result.flash, tempo.value)
+  if (result.flash) show(result.flash)
+  if (every.value !== strobe.every) every.value = strobe.every
+  if (showSpectrogram.value) drawSpectrogram(now)
   frame = requestAnimationFrame(onFrame)
 }
 
 // The Web Animations API runs the flash off the main thread's style work, and cancel() ends it at once.
-function show(kind: FlashKind, at: number) {
-  const interval = Math.max(MIN_GAP_MS, (60_000 / at) * beatsPerFlash(at))
-  const { color, peakOpacity, attackMs, decayMs } = flashAnimation(style.value, kind, interval)
+function show(flash: Flash) {
+  const { color, peakOpacity, attackMs, decayMs } = flashAnimation(style.value, flash.strength, flash.intervalMs)
   const keyframes = attackMs === 0
     ? [{ opacity: peakOpacity, backgroundColor: color }, { opacity: peakOpacity, backgroundColor: color, offset: 0.4 }, { opacity: 0, backgroundColor: color }]
     : [{ opacity: 0, backgroundColor: color }, { opacity: peakOpacity, backgroundColor: color, offset: attackMs / (attackMs + decayMs) }, { opacity: 0, backgroundColor: color }]
   light.value?.animate(keyframes, { duration: attackMs + decayMs, easing: attackMs === 0 ? 'linear' : 'ease-in-out' })
+}
+
+/** Scrolls the spectrogram by the time since the last frame, and marks each kick whose time has come. */
+function drawSpectrogram(now: number) {
+  const analyser = session?.analyser
+  if (!paint || !analyser || !canvas.value) return
+  const { pixels, carry } = scrollPixels(now - lastDraw, scrollCarry)
+  lastDraw = now
+  scrollCarry = carry
+  const { context, column, levels, rows } = paint
+  if (pixels > 0) {
+    context.drawImage(canvas.value, -pixels, 0)
+    analyser.getByteFrequencyData(levels)
+    paintColumn(levels, rows, column.data)
+    for (let x = SPECTROGRAM_WIDTH - pixels; x < SPECTROGRAM_WIDTH; x++) context.putImageData(column, x, 0)
+  }
+  context.fillStyle = KICK_MARK
+  while (marks.length && (marks[0] as number) <= now) {
+    const at = marks.shift() as number
+    context.fillRect(Math.round(kickX(now - at)) - 1, 0, 2, SPECTROGRAM_HEIGHT)
+  }
+}
+
+function prepareSpectrogram(analyser: AnalyserNode, sampleRate: number) {
+  const context = canvas.value?.getContext('2d', { alpha: false })
+  if (!context) return
+  context.fillStyle = STAGE_COLOR
+  context.fillRect(0, 0, SPECTROGRAM_WIDTH, SPECTROGRAM_HEIGHT)
+  paint = {
+    context,
+    column: context.createImageData(1, SPECTROGRAM_HEIGHT),
+    levels: new Uint8Array(analyser.frequencyBinCount),
+    rows: rowBins(SPECTROGRAM_HEIGHT, analyser.fftSize, sampleRate),
+  }
+  lastDraw = performance.now()
+  scrollCarry = 0
 }
 
 // ── Start and stop ────────────────────────────────────────────────────────────────────────
@@ -104,22 +161,198 @@ function show(kind: FlashKind, at: number) {
 /** The only start: the Start button's click, after the warning above it. */
 async function startFromClick(event: MouseEvent) {
   if (running.value || isTooSoonAfterStop(stoppedAt, event.timeStamp)) return
+  error.value = null
+  note.value = ''
+  const chosen = source.value
+  const file = song.value
+  if (chosen === 'file' && !file) {
+    error.value = 'Choose or drop a song first.'
+    return
+  }
   const gen = ++generation
-  micError.value = null
+  // Made in the click, so every browser lets it play; nothing plays until the source is open.
+  const held: Session = { context: new AudioContext(), analyzer: null, analyser: null, stream: null, player: null }
+  session = held
   strobe = strobeStart(strobe)
-  // Taps just before Start say where the beat is; older ones would skew the new run's downbeat.
-  const lastTap = tapTimes.value[tapTimes.value.length - 1]
-  if (lastTap !== undefined && event.timeStamp - lastTap < TAP_TIMEOUT_MS && tempo.value !== null) {
-    strobe = alignToTap(strobe, lastTap, 60_000 / tempo.value, tapBeat)
-  } else tapTimes.value = []
+  marks = []
+  tempo.value = null
   running.value = true
-  track('bpm_strobe_started', { tempo_source: source.value, ...(source.value === 'mic' ? {} : { bpm: bpm.value }) })
+  preparing.value = true
+  track('bpm_strobe_started', { audio_source: chosen })
   frame = requestAnimationFrame(onFrame)
+  // The share and the mic ask the browser first, within the click's user activation.
+  const asking = chosen === 'tab' ? shareTab() : chosen === 'mic' ? openMic() : null
   await nextTick()
   // The stage is fixed to the window, and preventScroll keeps the page behind it where it was.
   stopButton.value?.focus({ preventScroll: true })
   void keepAwake(gen)
-  if (source.value === 'mic') await listen(gen)
+  await openSource(gen, held, chosen, asking, file)
+}
+
+/** Opens the chosen source into `held`, and starts the analyzer, the kicks and the music. */
+async function openSource(gen: number, held: Session, chosen: StrobeSource, asking: Promise<MediaStream> | null, file: File | null) {
+  try {
+    held.stream = asking ? await asking : null
+    if (gen !== generation) return release(held)
+    const buffer = held.stream ? null : chosen === 'demo' ? await renderDemoTrack(held.context.sampleRate) : await decode(held.context, file)
+    if (gen !== generation) return release(held)
+    const { createRealtimeBpmAnalyzer } = await import('realtime-bpm-analyzer')
+    if (gen !== generation) return release(held)
+    const liveInput = held.stream?.getAudioTracks()[0]
+    const { analyzer } = await openAnalysis(
+      () => held.context,
+      (context) => createRealtimeBpmAnalyzer(context, liveInput ? { liveInput } : {}),
+      () => release(held),
+    )
+    held.analyzer = analyzer
+    if (gen !== generation) return release(held)
+    listen(gen, held, chosen, analyzer)
+    connect(gen, held, buffer, liveInput)
+    preparing.value = false
+  } catch (failure) {
+    release(held)
+    if (gen !== generation) return
+    console.error('[StrobeLight] start failed:', failure)
+    await stopWithError(gen, startError(chosen, failure))
+  }
+}
+
+/** The kicks feed the light and the spectrogram; the readings, the tempo beside it. */
+function listen(gen: number, held: Session, chosen: StrobeSource, analyzer: BpmAnalyzer) {
+  analyzer.on('kick', ({ contextTime, strength }) => {
+    if (gen !== generation) return
+    const { context } = held
+    const at = flashTimeFor(chosen, contextTime, { now: performance.now(), currentTime: context.currentTime, baseLatency: context.baseLatency, outputLatency: context.outputLatency })
+    strobe = addKick(strobe, at, strength)
+    marks = [...marks, at].slice(-32)
+  })
+  analyzer.on('reading', (reading) => {
+    if (gen === generation && analyzer.state.status === 'locked') tempo.value = reading.bpm
+  })
+  analyzer.on('statechange', ({ to }) => {
+    if (gen !== generation) return
+    if (to.status === 'locked') tempo.value = to.reading.bpm
+    if (to.status === 'listening' && (to.reason === 'pulse-lost' || to.reason === 'audio-lost')) tempo.value = null
+    if (to.status === 'stopped' && to.error) void stopWithError(gen, 'The analysis stopped. Try again.')
+  })
+}
+
+/** Wires the source to the analyzer and the spectrogram; a song also to the speakers, and plays it. */
+function connect(gen: number, held: Session, buffer: AudioBuffer | null, liveInput: MediaStreamTrack | undefined) {
+  const { context } = held
+  const analyzer = held.analyzer as BpmAnalyzer
+  const analyser = context.createAnalyser()
+  analyser.fftSize = FFT_SIZE
+  analyser.smoothingTimeConstant = 0.3
+  held.analyser = analyser
+  prepareSpectrogram(analyser, context.sampleRate)
+  if (held.stream) {
+    // The mic and the tab are heard in the room already: analysed, never played back.
+    const input = context.createMediaStreamSource(held.stream)
+    input.connect(analyzer.input)
+    input.connect(analyser)
+    liveInput?.addEventListener('ended', () => void stopIf(gen))
+    return
+  }
+  const player = context.createBufferSource()
+  player.buffer = buffer
+  player.connect(context.destination)
+  player.connect(analyzer.input)
+  player.connect(analyser)
+  player.addEventListener('ended', () => void stopIf(gen, 'The track ended.'))
+  held.player = player
+  player.start()
+}
+
+async function renderDemoTrack(sampleRate: number): Promise<AudioBuffer> {
+  const offline = new OfflineAudioContext(2, demoLength(sampleRate), sampleRate)
+  return renderDemo(offline)
+}
+
+async function decode(context: AudioContext, file: File | null): Promise<AudioBuffer> {
+  if (!file) throw new Error('no file')
+  try {
+    return await context.decodeAudioData(await file.arrayBuffer())
+  } catch (failure) {
+    throw new DecodeError(String(failure))
+  }
+}
+
+class DecodeError extends Error {}
+class NoTabSound extends Error {}
+
+/** The microphone, with the voice processing off so music isn't cancelled as echo or flattened. */
+function openMic(): Promise<MediaStream> {
+  return navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    video: false,
+  })
+}
+
+type FocusController = { setFocusBehavior(behavior: 'no-focus-change' | 'focus-captured-surface'): void }
+
+/**
+ * Another tab's sound. The browser's picker needs video too, so its track is stopped at once:
+ * the page only listens. Chrome moves focus to the shared tab by default, which would hide this
+ * one and stop the light (the hidden-tab rule stays), so it is asked to keep this tab in front.
+ */
+async function shareTab(): Promise<MediaStream> {
+  const Controller = (globalThis as { CaptureController?: new () => FocusController }).CaptureController
+  const controller = Controller ? new Controller() : undefined
+  const keepFocus = () => {
+    try {
+      controller?.setFocusBehavior('no-focus-change')
+    } catch {
+      // Too early before Chrome 124, too late after the capture's first task: either way the try is all there is.
+    }
+  }
+  keepFocus()
+  const stream = await navigator.mediaDevices.getDisplayMedia({
+    video: true,
+    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    controller,
+    selfBrowserSurface: 'exclude',
+  } as DisplayMediaStreamOptions)
+  keepFocus()
+  for (const video of stream.getVideoTracks()) {
+    video.stop()
+    stream.removeTrack(video)
+  }
+  if (stream.getAudioTracks().length === 0) {
+    stream.getTracks().forEach((t) => t.stop())
+    throw new NoTabSound()
+  }
+  return stream
+}
+
+function startError(chosen: StrobeSource, failure: unknown): string {
+  if (failure instanceof DecodeError) return 'Your browser couldn’t decode that file. Try MP3, WAV, FLAC, M4A or OGG.'
+  if (failure instanceof NoTabSound) return 'That share has no sound. Pick a browser tab, and leave “Also share tab audio” on.'
+  const denied = failure instanceof DOMException && failure.name === 'NotAllowedError'
+  if (chosen === 'tab') return denied ? 'Sharing was cancelled. Press Start and pick the tab with the music.' : 'Couldn’t share a tab. Try again.'
+  if (chosen === 'mic') {
+    return classifyMicError(failure).error_kind === 'denied'
+      ? 'Microphone access denied. Enable it in your browser settings and try again.'
+      : 'Couldn’t start the microphone. Check your device and try again.'
+  }
+  return 'Couldn’t play the track. Try again.'
+}
+
+/** Releases everything a session holds. Safe on a partial session, and more than once. */
+function release(held: Session) {
+  try {
+    held.player?.stop()
+  } catch {
+    // Never started: nothing to stop.
+  }
+  try {
+    held.analyzer?.stop()
+    held.analyzer?.disconnect()
+  } catch (e) {
+    console.debug('[StrobeLight] analyzer dispose:', e)
+  }
+  held.stream?.getTracks().forEach((t) => t.stop())
+  if (held.context.state !== 'closed') held.context.close().catch((e) => console.debug('[StrobeLight] context close:', e))
 }
 
 /** Stops everything the strobe holds. Safe to call at any time and more than once. */
@@ -131,11 +364,23 @@ function halt() {
   frame = undefined
   light.value?.getAnimations().forEach((animation) => animation.cancel())
   running.value = false
-  micBpm.value = null
+  preparing.value = false
+  tempo.value = null
+  every.value = 1
+  marks = []
+  paint = null
   void wakeLock?.release().catch(() => undefined)
   wakeLock = null
-  closeMic()
+  if (session) release(session)
+  session = null
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined)
+}
+
+/** A source that ends by itself (the song, the mic, the share) stops the light if it is still its run. */
+async function stopIf(gen: number, message = '') {
+  if (gen !== generation) return
+  await stopAndRefocus()
+  note.value = message
 }
 
 /**
@@ -171,6 +416,13 @@ async function stopAndRefocus() {
   startButton.value?.focus()
 }
 
+// Shown once the setup panel is back, so the alert is announced and Start describes it.
+async function stopWithError(gen: number, message: string) {
+  if (gen !== generation) return
+  await stopAndRefocus()
+  error.value = message
+}
+
 // Keeps the screen on while it runs; a refusal or a missing API is harmless.
 async function keepAwake(gen: number) {
   if (!('wakeLock' in navigator)) return
@@ -187,100 +439,29 @@ function enterFullscreen() {
   void stage.value?.requestFullscreen().catch(() => undefined)
 }
 
-// ── Microphone ────────────────────────────────────────────────────────────────────────────
+// ── Your song ─────────────────────────────────────────────────────────────────────────────
 
-async function listen(gen: number) {
-  let stream: MediaStream | null = null
-  try {
-    // Voice processing off, so music from the room isn't cancelled as echo or flattened.
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      video: false,
-    })
-    const opened = stream
-    if (gen !== generation) return opened.getTracks().forEach((t) => t.stop())
-    const { createRealtimeBpmAnalyzer } = await import('realtime-bpm-analyzer')
-    if (gen !== generation) return opened.getTracks().forEach((t) => t.stop())
-    const [input] = opened.getAudioTracks()
-    const { context, analyzer } = await openAnalysis(
-      () => new AudioContext(),
-      (ctx) => createRealtimeBpmAnalyzer(ctx, input ? { liveInput: input } : {}),
-      () => opened.getTracks().forEach((t) => t.stop()),
-    )
-    stream = null
-    if (gen !== generation) return dispose({ stream: opened, context, analyzer })
-    mic = { stream: opened, context, analyzer }
-    // Not connected to the speakers: the sound is analysed and dropped.
-    context.createMediaStreamSource(opened).connect(analyzer.input)
-    // Flashes follow a locked tempo only; a lock can move without a statechange, so readings
-    // update it. Unlocked or following a new tempo, the last one holds and the grid drifts until
-    // the next lock; with no pulse or no input, it goes dark.
-    analyzer.on('reading', (reading) => {
-      if (analyzer.state.status === 'locked') micBpm.value = reading.bpm
-    })
-    analyzer.on('statechange', ({ to }) => {
-      if (to.status === 'locked') micBpm.value = to.reading.bpm
-      if (to.status === 'listening' && (to.reason === 'pulse-lost' || to.reason === 'audio-lost')) micBpm.value = null
-      if (to.status === 'stopped' && to.error) void stopWithError(gen, 'The tempo reading stopped. Check your microphone and try again.')
-    })
-    input?.addEventListener('ended', () => void stopAndRefocus())
-  } catch (error) {
-    stream?.getTracks().forEach((t) => t.stop())
-    if (gen !== generation) return
-    const message = classifyMicError(error).error_kind === 'denied'
-      ? 'Microphone access denied. Enable it in your browser settings and try again.'
-      : 'Couldn’t start the microphone. Check your device and try again.'
-    console.error('[StrobeLight] mic setup failed:', error)
-    await stopWithError(gen, message)
-  }
+function chooseSong(file: File | undefined) {
+  if (!file) return
+  song.value = file
+  source.value = 'file'
+  error.value = null
 }
 
-// Shown once the setup panel is back, so the alert is announced and Start describes it.
-async function stopWithError(gen: number, message: string) {
-  if (gen !== generation) return
-  await stopAndRefocus()
-  micError.value = message
+function openFilePicker() {
+  fileInput.value?.click()
 }
 
-function dispose(held: { stream: MediaStream; context: AudioContext; analyzer: BpmAnalyzer }) {
-  try {
-    held.analyzer.stop()
-    held.analyzer.disconnect()
-  } catch (e) {
-    console.debug('[StrobeLight] analyzer dispose:', e)
-  }
-  held.stream.getTracks().forEach((t) => t.stop())
-  held.context.close().catch((e) => console.debug('[StrobeLight] context close:', e))
+function onFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  chooseSong(input.files?.[0])
+  input.value = ''
 }
 
-function closeMic() {
-  if (mic) dispose(mic)
-  mic = null
-}
-
-// ── Taps ──────────────────────────────────────────────────────────────────────────────────
-
-/**
- * A tap sets the tempo in the Tap mode (from the third tap, as on the metronome) and, while it
- * runs, says where the beat falls: the first tap of a run is the downbeat, and a later one the
- * nearest beat on the grid, so tapping every second beat above the switch stays on the flashes.
- * tapBeat counts the run's taps for a Start that follows them, when there is no grid yet.
- */
-function tap(at: number) {
-  const { taps, bpm: tapped } = tapToSet(tapTimes.value, at)
-  tapBeat = taps.length === 1 ? 0 : tapBeat + 1
-  tapTimes.value = taps
-  if (source.value === 'tapped' && tapped !== null) setBpm(tapped)
-  if (tempo.value !== null) strobe = alignToTap(strobe, at, 60_000 / tempo.value, taps.length === 1 ? 0 : null)
-}
-
-function onTapPointer(event: PointerEvent) {
-  if (event.button === 0) tap(event.timeStamp)
-}
-
-// A keyboard press on the Tap button arrives as a click with no pointer (detail 0).
-function onTapClick(event: MouseEvent) {
-  if (event.detail === 0) tap(event.timeStamp)
+// A song dropped anywhere on the setup is chosen, whatever source was picked. Only Start plays it.
+function onDrop(event: DragEvent) {
+  isDragOver.value = false
+  chooseSong(event.dataTransfer?.files?.[0])
 }
 
 // ── Keys and page events ──────────────────────────────────────────────────────────────────
@@ -289,25 +470,13 @@ function onTapClick(event: MouseEvent) {
 // behind it, such as the site search's / or Ctrl+K, which opened over the light and fought the
 // stage for focus. Default actions still happen, so Enter on Stop and Tab work.
 function onKeyDown(event: KeyboardEvent) {
-  if (running.value) event.stopPropagation()
+  if (!running.value) return
+  event.stopPropagation()
   if (event.metaKey || event.ctrlKey || event.altKey) return
-  const key = event.key
-  if (running.value && (key === 'Escape' || key === ' ')) {
+  if (event.key === 'Escape' || event.key === ' ') {
     event.preventDefault()
     void stopAndRefocus()
-    return
   }
-  const target = event.target instanceof HTMLElement ? event.target : null
-  // A text field elsewhere on the page, such as the search, keeps its keys.
-  if (target?.closest('input, select, textarea, [contenteditable="true"]')) return
-  // While it runs, focus is on Stop or the stage's controls: the keys work from there too.
-  if (!running.value && target?.closest('a, button, input, select, textarea, [contenteditable="true"]')) return
-  const typed = source.value === 'typed'
-  if (key.toLowerCase() === 't' && !event.repeat && (running.value || source.value === 'tapped')) tap(event.timeStamp)
-  else if (typed && (key === 'ArrowUp' || key === 'ArrowRight')) setBpm(bpm.value + (event.shiftKey ? 10 : 1))
-  else if (typed && (key === 'ArrowDown' || key === 'ArrowLeft')) setBpm(bpm.value - (event.shiftKey ? 10 : 1))
-  else return
-  event.preventDefault()
 }
 
 // While it runs the stage covers the page, so Tab can't reach controls hidden behind the light:
@@ -319,6 +488,7 @@ function onFocusIn(event: FocusEvent) {
   next?.focus({ preventScroll: true })
 }
 
+// A hidden tab stops it, the shared tab's included: the visitor starts the music there first.
 function onVisibility() {
   if (document.visibilityState === 'hidden') void stopAndRefocus()
 }
@@ -328,11 +498,20 @@ function onFullscreenChange() {
   if (!document.fullscreenElement && running.value) void stopAndRefocus()
 }
 
+/** A tab's sound can be shared in Chromium on a computer; Firefox and Safari share no tab audio. */
+function tabSoundShareable(): boolean {
+  const agent = (navigator as { userAgentData?: { brands?: { brand: string }[]; mobile?: boolean } }).userAgentData
+  return typeof navigator.mediaDevices?.getDisplayMedia === 'function'
+    && agent?.mobile === false
+    && (agent.brands ?? []).some(({ brand }) => brand === 'Chromium')
+}
+
 onMounted(() => {
-  const fromUrl = parseBpmParam(new URLSearchParams(window.location.search).get('bpm'))
-  if (fromUrl !== null) setBpm(fromUrl)
   style.value = initialStyle(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   reducedMotion.value = style.value === 'pulse'
+  // The spectrogram scrolls, so under reduced motion it is off until asked for, like the full flash.
+  showSpectrogram.value = !reducedMotion.value
+  canShareTab.value = tabSoundShareable()
   canFullscreen.value = document.fullscreenEnabled === true
   window.addEventListener('keydown', onKeyDown, { capture: true })
   document.addEventListener('visibilitychange', onVisibility)
@@ -359,16 +538,20 @@ onBeforeUnmount(() => {
     <div
       v-show="!running"
       class="strobe-setup"
+      :class="{ 'is-drag-over': isDragOver }"
+      @dragover.prevent="isDragOver = true"
+      @dragleave="isDragOver = false"
+      @drop.prevent="onDrop"
     >
       <div class="tt-field">
-        <span class="tt-label">Tempo from</span>
+        <span class="tt-label">Music from</span>
         <div
-          class="tt-segmented"
+          class="tt-segmented strobe-sources"
           role="group"
-          aria-label="Tempo source"
+          aria-label="Music source"
         >
           <button
-            v-for="option in SOURCES"
+            v-for="option in sources"
             :key="option.id"
             type="button"
             :aria-pressed="source === option.id"
@@ -379,109 +562,76 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div
-        v-if="source !== 'mic'"
-        class="strobe-tempo"
+      <p
+        v-if="source === 'demo'"
+        class="strobe-note"
       >
-        <div class="strobe-bpm">
-          <button
-            v-if="source === 'typed'"
-            type="button"
-            class="tt-btn tt-btn-round"
-            aria-label="Slower"
-            @click="setBpm(bpm - 1)"
-          >
-            <Minus :size="18" />
-          </button>
-          <div
-            class="tt-readout"
-            aria-live="polite"
-          >
-            <span class="tt-number">{{ bpm }}</span>
-            <span class="tt-unit">BPM</span>
-          </div>
-          <button
-            v-if="source === 'typed'"
-            type="button"
-            class="tt-btn tt-btn-round"
-            aria-label="Faster"
-            @click="setBpm(bpm + 1)"
-          >
-            <Plus :size="18" />
-          </button>
-        </div>
-        <input
-          v-if="source === 'typed'"
-          :value="bpm"
-          class="tt-range"
-          type="range"
-          :min="MIN_BPM"
-          :max="MAX_BPM"
-          step="1"
-          aria-label="Tempo in BPM"
-          @input="setBpm(Number(($event.target as HTMLInputElement).value))"
+        30 seconds of techno made for this page: a steady kick, a breakdown where the kick and the
+        light stop, then the drop. It plays when you press Start.
+      </p>
+      <div
+        v-else-if="source === 'file'"
+        class="strobe-drop"
+        @click="openFilePicker"
+      >
+        <FileAudio
+          class="strobe-drop-icon"
+          :size="36"
+          :stroke-width="1.5"
+          aria-hidden="true"
         />
-        <template v-else>
-          <button
-            type="button"
-            class="tt-btn strobe-tap"
-            @pointerdown="onTapPointer"
-            @click="onTapClick"
-          >
-            <Hand :size="18" /> Tap the beat
-          </button>
-          <p class="tt-caption">
-            {{ tapTimes.length >= 3 ? `${tapTimes.length} taps` : 'Tap three times or more, or press T' }}
-          </p>
-        </template>
+        <p class="strobe-drop-headline">
+          <template v-if="song">
+            {{ song.name }}
+          </template>
+          <template v-else>
+            <span class="strobe-on-pointer">Drop a song or choose a file</span>
+            <span class="strobe-on-touch">Choose a song</span>
+          </template>
+        </p>
+        <button
+          type="button"
+          class="tt-btn"
+          @click.stop="openFilePicker"
+        >
+          {{ song ? 'Choose another file' : 'Choose a file' }}
+        </button>
+        <p class="tt-caption">
+          MP3, WAV, FLAC, M4A, OGG. It plays in this page, and {{ STAYS_ON_DEVICE }}.
+        </p>
+        <input
+          ref="fileInput"
+          type="file"
+          accept="audio/*"
+          class="strobe-file-input"
+          aria-label="Choose a song"
+          tabindex="-1"
+          @change="onFileChange"
+        />
       </div>
+      <p
+        v-else-if="source === 'mic'"
+        class="strobe-note"
+      >
+        Play music near your device and press Start. The kicks are found in your browser, and
+        {{ STAYS_ON_DEVICE }}.
+      </p>
       <p
         v-else
         class="strobe-note"
       >
-        Press Start to listen. The tempo is read in your browser, and your audio stays on your
-        device. The flashes begin once a steady tempo is found. Tap along to line them up with the beat.
+        Start the music in the other tab first. Then press Start, pick that tab, and leave “Also
+        share tab audio” on. This tab stays in front: switching to the other tab stops the light,
+        as any hidden tab does. The page only listens, and {{ STAYS_ON_DEVICE }}.
+      </p>
+      <p
+        v-if="!canShareTab"
+        class="strobe-note"
+      >
+        Sharing another tab’s sound works in Chrome and Edge on a computer.
       </p>
 
       <div class="strobe-settings">
-        <div class="tt-field">
-          <span
-            id="strobe-bar-label"
-            class="tt-label"
-          >
-            Beats per bar
-          </span>
-          <div
-            class="strobe-stepper"
-            role="group"
-            aria-labelledby="strobe-bar-label"
-          >
-            <button
-              type="button"
-              class="tt-btn tt-btn-round small"
-              aria-label="Fewer beats per bar"
-              :disabled="beatsPerBar <= 1"
-              @click="beatsPerBar--"
-            >
-              <Minus :size="14" />
-            </button>
-            <span
-              class="strobe-stepper-value"
-              aria-live="polite"
-            >
-              {{ beatsPerBar }}
-            </span>
-            <button
-              type="button"
-              class="tt-btn tt-btn-round small"
-              aria-label="More beats per bar"
-              :disabled="beatsPerBar >= 12"
-              @click="beatsPerBar++"
-            >
-              <Plus :size="14" />
-            </button>
-          </div>
-        </div>
         <div class="tt-field">
           <span class="tt-label">Light</span>
           <div
@@ -500,12 +650,36 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </div>
+        <div class="tt-field">
+          <span class="tt-label">Spectrogram</span>
+          <div
+            class="tt-segmented"
+            role="group"
+            aria-label="Spectrogram"
+          >
+            <button
+              type="button"
+              :aria-pressed="showSpectrogram"
+              @click="showSpectrogram = true"
+            >
+              Show
+            </button>
+            <button
+              type="button"
+              :aria-pressed="!showSpectrogram"
+              @click="showSpectrogram = false"
+            >
+              Hide
+            </button>
+          </div>
+        </div>
       </div>
       <p
         v-if="reducedMotion"
         class="strobe-note"
       >
-        Your device asks for reduced motion, so the soft pulse is chosen. Pick Full flash only if you want it.
+        Your device asks for reduced motion, so the soft pulse is chosen and the scrolling
+        spectrogram is hidden. Pick Full flash or Show only if you want them.
       </p>
 
       <div
@@ -514,23 +688,28 @@ onBeforeUnmount(() => {
       >
         <strong>Photosensitivity warning.</strong> This tool flashes the screen, which can trigger
         seizures in people with photosensitive epilepsy. It flashes at most three times a second, and
-        above {{ EVERY_OTHER_BEAT_ABOVE_BPM }} BPM on every second beat. Stop it at any time with Esc, Space, the Stop button or a
+        above {{ EVERY_KICK_UP_TO_BPM }} BPM on every second kick. Stop it at any time with Esc, Space, the Stop button or a
         tap on the light.
       </div>
       <p
-        v-if="micError"
+        v-if="error"
         id="strobe-error"
         class="strobe-error"
         role="alert"
       >
-        {{ micError }}
+        {{ error }}
       </p>
+      <p
+        class="strobe-note"
+        role="status"
+        v-text="note"
+      ></p>
       <div class="tt-row">
         <button
           ref="startButton"
           type="button"
           class="tt-btn tt-btn-primary strobe-start"
-          :aria-describedby="micError ? 'strobe-error strobe-warning' : 'strobe-warning'"
+          :aria-describedby="error ? 'strobe-error strobe-warning' : 'strobe-warning'"
           @keydown.enter="onStartKey"
           @click="startFromClick"
         >
@@ -538,7 +717,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
       <p class="tt-hint">
-        <kbd>Esc</kbd> or <kbd>Space</kbd> stop · <kbd>T</kbd> tap · <kbd>↑</kbd><kbd>↓</kbd> tempo when typed
+        <kbd>Esc</kbd> or <kbd>Space</kbd> stop
       </p>
     </div>
 
@@ -571,6 +750,25 @@ onBeforeUnmount(() => {
         class="strobe-controls"
         @pointerdown.stop
       >
+        <div
+          v-show="showSpectrogram"
+          class="strobe-spectrogram"
+        >
+          <canvas
+            ref="canvas"
+            :width="SPECTROGRAM_WIDTH"
+            :height="SPECTROGRAM_HEIGHT"
+            role="img"
+            aria-label="Spectrogram of the music, with a mark at each kick"
+          ></canvas>
+          <p
+            class="strobe-tempo"
+            aria-hidden="true"
+          >
+            <span class="strobe-tempo-number">{{ tempo === null ? '–' : Math.round(tempo) }}</span>
+            <span class="strobe-tempo-unit">BPM</span>
+          </p>
+        </div>
         <div class="tt-row">
           <button
             ref="stopButton"
@@ -579,32 +777,6 @@ onBeforeUnmount(() => {
             @click="stopAndRefocus"
           >
             <Square :size="20" /> Stop
-          </button>
-          <button
-            type="button"
-            class="tt-btn"
-            @pointerdown="onTapPointer"
-            @click="onTapClick"
-          >
-            <Hand :size="16" /> {{ source === 'tapped' ? 'Tap the beat' : 'Tap to line up' }}
-          </button>
-          <button
-            v-if="source === 'typed'"
-            type="button"
-            class="tt-btn tt-btn-round"
-            aria-label="Slower"
-            @click="setBpm(bpm - 1)"
-          >
-            <Minus :size="16" />
-          </button>
-          <button
-            v-if="source === 'typed'"
-            type="button"
-            class="tt-btn tt-btn-round"
-            aria-label="Faster"
-            @click="setBpm(bpm + 1)"
-          >
-            <Plus :size="16" />
           </button>
           <button
             v-if="canFullscreen"
@@ -624,23 +796,52 @@ onBeforeUnmount(() => {
 .strobe-setup {
   display: grid;
   gap: 1.25rem;
+  border-radius: 12px;
 }
 
-.strobe-tempo { text-align: center; }
+.strobe-setup.is-drag-over { outline: 2px dashed var(--vp-c-brand-1); outline-offset: 6px; }
 
-.strobe-bpm {
+.strobe-sources { flex-wrap: wrap; }
+
+/* The song's drop target, as on the BPM tool's file panel. */
+.strobe-drop {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: clamp(0.75rem, 4vw, 2rem);
+  gap: 0.6rem;
+  padding: 1.5rem 1rem;
+  border: 2px dashed var(--vp-c-divider);
+  border-radius: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-.strobe-tap {
-  min-width: 12rem;
-  margin-top: 0.5rem;
-  padding: 1rem 1.5rem;
+.strobe-drop:hover,
+.is-drag-over .strobe-drop {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+}
+
+.strobe-drop-icon { color: var(--vp-c-brand-1); }
+
+.strobe-drop-headline {
+  margin: 0;
   font-size: 1.05rem;
-  touch-action: manipulation;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.strobe-drop .tt-caption { margin: 0; }
+
+.strobe-file-input { display: none; }
+
+/* A touch screen has nothing to drop: the same check as the BPM tool's. */
+.strobe-on-touch { display: none; }
+
+@media (pointer: coarse) {
+  .strobe-on-pointer { display: none; }
+  .strobe-on-touch { display: inline; }
 }
 
 .strobe-settings {
@@ -649,31 +850,14 @@ onBeforeUnmount(() => {
   gap: 1.25rem 1rem;
 }
 
-.strobe-stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.strobe-stepper-value {
-  min-width: 2ch;
-  font-size: 1.1rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.tt-btn-round.small {
-  width: 2rem;
-  height: 2rem;
-}
-
 .strobe-note,
 .strobe-error {
   margin: 0;
   font-size: 0.9rem;
   color: var(--vp-c-text-2);
 }
+
+.strobe-note:empty { display: none; }
 
 .strobe-error { color: var(--vp-c-danger-1); }
 
@@ -752,6 +936,41 @@ onBeforeUnmount(() => {
   padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
   background: rgb(0 0 0 / 0.85);
   cursor: default;
+}
+
+/* The spectrogram, with the library's tempo beside it. Its canvas is small and CSS stretches it. */
+.strobe-spectrogram {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 48rem;
+  margin: 0 auto 0.75rem;
+}
+
+.strobe-spectrogram canvas {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: clamp(4rem, 14vh, 7rem);
+  border-radius: 6px;
+  background: v-bind(STAGE_COLOR);
+}
+
+.strobe-tempo {
+  display: grid;
+  margin: 0;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.strobe-tempo-number {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.strobe-tempo-unit {
+  font-size: 0.8rem;
+  color: #c8c8c8;
 }
 
 .strobe-controls .tt-row { margin-top: 0; }

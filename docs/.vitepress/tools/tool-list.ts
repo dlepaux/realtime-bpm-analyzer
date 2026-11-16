@@ -27,7 +27,7 @@ export const FREE_TOOL_ROWS: readonly (readonly FreeTool[])[] = [
   [
     { name: 'Video BPM Finder', line: 'Find the BPM of the music in a video file, with one beat in frames for cutting.', link: '/video-bpm', icon: 'video' },
     { name: 'BPM to Frames Calculator', line: 'Frames per beat and per bar at 23.976 to 60 fps, and the drift of a rounded cut.', link: '/bpm-to-frames', icon: 'film' },
-    { name: 'Strobe Light', line: 'Flash the screen on the beat, at a tempo you type, tap or play to the microphone.', link: '/strobe-light', icon: 'zap' },
+    { name: 'Strobe Light', line: 'Flash the screen on each kick of the music: a demo track, your song, the mic or another tab.', link: '/strobe-light', icon: 'zap' },
   ],
 ]
 

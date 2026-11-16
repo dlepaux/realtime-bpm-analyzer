@@ -136,9 +136,10 @@ export function siteGraph(relativePath: string): object[] {
  * sitemap, the sidebar, the search and llms.txt (RBA-122). From v6 the Developers menu
  * links the CLI and MCP guides (RBA-247), and once both packages are on npm, the noindex
  * flip takes them off this list (contributing.md, "First publish of v6"). The Java guide
- * stays on it until the Java port is on Maven Central (RBA-256).
+ * stays on it until the Java port is on Maven Central (RBA-256), the Python guide until the
+ * Python port is on PyPI (RBA-257).
  */
-export const UNPUBLISHED_GUIDES: readonly string[] = ['guide/cli', 'guide/mcp', 'guide/java']
+export const UNPUBLISHED_GUIDES: readonly string[] = ['guide/cli', 'guide/mcp', 'guide/java', 'guide/python']
 
 /** A page's path without its leading slash, `.md` or `.html`: `guide/cli`. */
 function pagePath(urlOrSource: string): string {

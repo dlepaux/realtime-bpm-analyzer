@@ -24,6 +24,7 @@ function site(overrides: Record<string, string> = {}): BuiltSite {
     'guide/cli.html': `${NOINDEX}<a href="/guide/mcp">MCP</a>`,
     'guide/mcp.html': `${NOINDEX}<a href="/guide/cli#formats">CLI</a>`,
     'guide/java.html': `${NOINDEX}<a href="/guide/node">Node.js</a>`,
+    'guide/python.html': NOINDEX,
     'guide/quick-start.html': '<meta http-equiv="refresh" content="0; url=/guide/getting-started">',
     ...Object.fromEntries(GUIDES.map((name) => [`guide/${name}.html`, `${canonical(`/guide/${name}`)}${GUIDE}`])),
     ...overrides,

@@ -349,6 +349,48 @@ jobs:
           ~/hermes-shell/hermes "$RUNNER_TEMP/conformance-hermes.js" | tee "$RUNNER_TEMP/hermes.log"
           grep -qE '^conformance: PASS on Hermes [0-9]' "$RUNNER_TEMP/hermes.log"
 
+  # RBA-257: the Python port against the same vectors. It builds the sdist, and the wheel from it, installs the wheel
+  # in a clean venv per Python and runs the tests there, so they test the package a user would get, not the source
+  # tree. The oldest supported Python runs with the oldest NumPy the package allows, the newest with the newest NumPy
+  # at the lock's date. Every tool comes from a hashed lock in packages/python/ci/. Not in Release's needs, and
+  # nothing publishes the package: it isn't on PyPI yet.
+  conformance-python:
+    name: Conformance (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: |
+            3.11
+            3.15
+
+      - name: Build the sdist and the wheel
+        run: |
+          python3.15 -m venv "$RUNNER_TEMP/build"
+          "$RUNNER_TEMP/build/bin/pip" install --quiet --require-hashes -r packages/python/ci/build.txt
+          # No isolation, so the backend is the lock's hatchling rather than whatever PyPI serves that day
+          "$RUNNER_TEMP/build/bin/python" -m build --no-isolation packages/python --outdir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+          ls "$RUNNER_TEMP"/dist/realtime_bpm_analyzer-*-py3-none-any.whl
+
+      - name: Run the vectors in Python 3.11, with NumPy 1.26.4
+        run: packages/python/scripts/test-wheel.sh python3.11 "$RUNNER_TEMP/py311" "$RUNNER_TEMP/dist" packages/python/ci/test-py311.txt
+
+      - name: Run the vectors in Python 3.15, with NumPy 2.5.5
+        run: packages/python/scripts/test-wheel.sh python3.15 "$RUNNER_TEMP/py315" "$RUNNER_TEMP/dist" packages/python/ci/test-py315.txt
+
+      - name: Type-check (mypy strict)
+        working-directory: packages/python
+        run: '"$RUNNER_TEMP/py315/bin/mypy"'
+
   # RBA-256: the pure-Java port (packages/jvm) held to the same vectors. It builds with JDK 21, Minecraft's Java,
   # for Java 8 bytecode, then runs the same tests on a Java 8 runtime, the oldest the port claims. It reads the
   # sources and the vectors only, so it needs no JS build. Not one of the release's needs: nothing publishes the port.

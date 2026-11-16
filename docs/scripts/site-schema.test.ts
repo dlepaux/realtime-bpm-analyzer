@@ -48,17 +48,18 @@ test('no accuracy figure on the tool pages or in the markup', () => {
 })
 
 test('isNoindexPage: the docs readme and the unpublished guides leave the sitemap', () => {
-  for (const url of ['readme', '/readme.html', 'guide/cli', '/guide/mcp.html', 'guide/java']) assert.ok(isNoindexPage(url), url)
+  for (const url of ['readme', '/readme.html', 'guide/cli', '/guide/mcp.html', 'guide/java', '/guide/python']) assert.ok(isNoindexPage(url), url)
   for (const url of ['', 'guide/readme-tips', 'guide/node', 'guide/client', 'tap-tempo', 'extension/privacy']) {
     assert.ok(!isNoindexPage(url), url)
   }
 })
 
-test('isUnpublishedGuide and isGuidePage: the CLI, MCP and Java guides are not articles until published', () => {
+test('isUnpublishedGuide and isGuidePage: the CLI, MCP, Java and Python guides are not articles until published', () => {
   assert.ok(isUnpublishedGuide('guide/cli.md') && isUnpublishedGuide('/guide/mcp') && isUnpublishedGuide('guide/java.md'))
+  assert.ok(isUnpublishedGuide('guide/python.md'))
   assert.ok(!isUnpublishedGuide('guide/node.md'))
   assert.ok(isGuidePage('guide/node.md') && isGuidePage('guide/beat-detection-web-audio.md'))
-  for (const path of ['guide/cli.md', 'guide/mcp.md', 'guide/java.md', 'index.md', 'bpm-to-frames.md', 'examples/react.md']) {
+  for (const path of ['guide/cli.md', 'guide/mcp.md', 'guide/java.md', 'guide/python.md', 'index.md', 'bpm-to-frames.md', 'examples/react.md']) {
     assert.ok(!isGuidePage(path), path)
   }
 })

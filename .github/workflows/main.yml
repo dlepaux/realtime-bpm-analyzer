@@ -217,6 +217,138 @@ jobs:
         env:
           NODE_OPTIONS: --import ${{ github.workspace }}/bin/node-floor/register-ts.mjs
 
+  # RBA-255: the conformance set the ports in other languages are held to (conformance/readme.md). It checks the
+  # committed vectors against a fresh generation from this build, so they can't drift from the library, then runs
+  # them on the built library in each JS runtime the docs claim: Node at the CLI's floor, Deno and Bun, each through
+  # its own file APIs. Not one of the release's needs: a runtime's regression shouldn't hold a library release.
+  conformance:
+    name: Conformance (Node, Deno, Bun)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # No install: the generator, the runners and their tests import only the build and each runtime's built-ins
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+
+      - name: Download the library build
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: packages/realtime-bpm-analyzer
+
+      - name: Test the comparison rules and the committed set
+        run: node --test 'conformance/tests/*.test.mjs'
+
+      - name: Check the vectors equal a fresh generation
+        run: npm run conformance:check
+
+      - name: Setup Node.js at the floor
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.12.0
+
+      - name: Run the vectors in Node 22.12.0
+        run: node conformance/runner/node.mjs
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.8
+
+      - name: Run the vectors in Deno
+        run: deno run --allow-read=. conformance/runner/deno.mjs
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Run the vectors in Bun
+        run: bun conformance/runner/bun.mjs
+
+  # RBA-255: the same vectors in Hermes, React Native's engine, at the version React Native 0.88 ships
+  # (hermes-compiler 260318099.0.5). Hermes publishes no shell binary since v0.13.0 (2024), so this builds its
+  # `hermes` shell from that tag once and caches it: a cache miss costs the build, a hit a few seconds. The shell
+  # has no file system, so the vectors and the PCM go into one bundled script. Only the engine is proven: live
+  # microphone input in React Native needs a native audio module, which this doesn't touch.
+  conformance-hermes:
+    name: Conformance (Hermes)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      HERMES_TAG: hermes-v260318099.0.5
+      # The tag's commit, so the build can't change under the cache key if the tag moves
+      HERMES_SHA: 9a115f15785851f4ff2747ebb090ddd066fc8ad2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: "npm"
+
+      # For esbuild, which bundles the run
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download the library build
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: packages/realtime-bpm-analyzer
+
+      # The shell links the image's ICU, so a new runner image (ubuntu24 to ubuntu26) needs its own build
+      - name: Name the runner image
+        id: image
+        run: echo "name=$ImageOS" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Hermes shell
+        id: hermes-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/hermes-shell
+          key: ${{ env.HERMES_TAG }}-${{ env.HERMES_SHA }}-${{ steps.image.outputs.name }}-${{ runner.arch }}
+
+      # Hermes's doc/BuildingAndRunning.md, at the tag: a Release build of the `hermes` target only
+      - name: Build the Hermes shell
+        if: steps.hermes-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake ninja-build libicu-dev python3
+          git init --quiet "$RUNNER_TEMP/hermes"
+          git -C "$RUNNER_TEMP/hermes" fetch --quiet --depth 1 https://github.com/meta/hermes.git "$HERMES_SHA"
+          git -C "$RUNNER_TEMP/hermes" checkout --quiet FETCH_HEAD
+          cmake -S "$RUNNER_TEMP/hermes" -B "$RUNNER_TEMP/hermes-build" -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/hermes-build" --target hermes
+          mkdir -p ~/hermes-shell
+          cp "$RUNNER_TEMP/hermes-build/bin/hermes" ~/hermes-shell/
+          ldd ~/hermes-shell/hermes
+
+      - name: Bundle the vectors for Hermes
+        run: node conformance/runner/hermes/build.mjs "$RUNNER_TEMP/conformance-hermes.js"
+
+      # The shell exits 0 when a promise rejects, so the summary line is the verdict
+      - name: Run the vectors in Hermes
+        run: |
+          ~/hermes-shell/hermes -version
+          ~/hermes-shell/hermes "$RUNNER_TEMP/conformance-hermes.js" | tee "$RUNNER_TEMP/hermes.log"
+          grep -qE '^conformance: PASS on Hermes [0-9]' "$RUNNER_TEMP/hermes.log"
+
   # Release to GitHub and npm. release-please keeps one release PR open for all three packages
   # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
   # commits under its path, and node-workspace moving the ranges between them.

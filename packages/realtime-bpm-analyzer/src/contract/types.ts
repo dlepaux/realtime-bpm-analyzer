@@ -325,6 +325,31 @@ export type StateChange = {
 export type Progress = {readonly fraction: number};
 
 /**
+ * Payload of `kick`: one kick drum the analyzer heard, as soon as it heard it, whichever engine runs.
+ *
+ * @remarks
+ * A kick is a sudden rise of energy under 150 Hz: the drum's attack. It is heard, not predicted, so it always
+ * comes after the sound reached the analyzer, 9 to 27 ms after on its own clock, plus the time the message takes
+ * to the main thread. A kick reported before a `reset()` is dropped, as a reading is.
+ */
+export type Kick = {
+  /**
+   * When the kick's attack reached the analyzer, in seconds on the `AudioContext.currentTime` clock, like
+   * {@link AudioSpan.contextTime}. For audio the context plays (a media element, a stream, a buffer), the listener
+   * hears it at `contextTime + baseLatency + outputLatency`. From a mic, the room heard it at about `contextTime`: it
+   * has already passed by the time the event fires.
+   */
+  readonly contextTime: number;
+  /**
+   * From 0 to 1: the kick's peak in the bass over the loudest kick's of the last few seconds, as an amplitude
+   * ratio. 1 is as loud as the loudest recent kick, 0.5 is 6 dB softer. Relative, so the range is the same from a
+   * quiet mic and a loud file. A kick more than 6 dB under that loudest one is not reported, so in practice it
+   * reads from 0.5 to 1. The meaning holds if that gate ever moves, so map the whole 0 to 1.
+   */
+  readonly strength: number;
+};
+
+/**
  * Engine detail, only with `debug: true`. Not part of the contract: its shape changes with any release.
  */
 export type DebugInfo = {readonly engine: EngineName; readonly data: unknown};
@@ -345,6 +370,8 @@ export type DebugInfo = {readonly engine: EngineName; readonly data: unknown};
  * - `progress`: on each analysis step while `listening`, and once right after `reset()`, with 0.
  * - `error`: non-fatal faults. A fatal one is a `statechange` to `stopped` with reason `failed` instead.
  * - `debug`: engine detail, only with `debug: true`.
+ * - `kick`: on each kick drum heard, in `listening`, `settling` and `locked` alike, as soon as it is heard. Apart
+ *   from the steps: it moves no state, and comes between their events, never inside one step's sequence.
  *
  * Reserved for a later 6.x: a `beat` event, on the `AudioContext` clock ({@link AudioSpan.contextTime}). It
  * belongs to the epoch and the stretch of audio it was predicted in: `reset()` and every move to `listening`
@@ -356,6 +383,7 @@ export type AnalyzerEventMap = {
   readonly progress: Progress;
   readonly error: AnalyzerError;
   readonly debug: DebugInfo;
+  readonly kick: Kick;
 };
 
 export type AnalyzerEventType = keyof AnalyzerEventMap;
@@ -366,7 +394,8 @@ export type AnalyzerEvent =
   | {readonly type: 'reading'; readonly detail: Reading}
   | {readonly type: 'progress'; readonly detail: Progress}
   | {readonly type: 'error'; readonly detail: AnalyzerError}
-  | {readonly type: 'debug'; readonly detail: DebugInfo};
+  | {readonly type: 'debug'; readonly detail: DebugInfo}
+  | {readonly type: 'kick'; readonly detail: Kick};
 
 /** Options for `on()`, a subset of `AddEventListenerOptions`. */
 export type ListenOptions = {
@@ -440,7 +469,9 @@ export type WorkletMessage =
   }
   | {readonly type: 'fault'; readonly protocol: ProtocolVersion; readonly epoch: number; readonly fatal: boolean; readonly error: AnalyzerError}
   /** Only sent with `debug: true`: the processor filters, not the reducer. */
-  | {readonly type: 'debug'; readonly protocol: ProtocolVersion; readonly epoch: number; readonly engine: EngineName; readonly data: unknown};
+  | {readonly type: 'debug'; readonly protocol: ProtocolVersion; readonly epoch: number; readonly engine: EngineName; readonly data: unknown}
+  /** One per kick heard, posted in the render quantum that confirmed it. */
+  | {readonly type: 'kick'; readonly protocol: ProtocolVersion; readonly epoch: number; readonly contextTime: number; readonly strength: number};
 
 /**
  * A {@link WorkletMessage} as it crosses the port: the processor stamps each one with the worklet's `currentTime`

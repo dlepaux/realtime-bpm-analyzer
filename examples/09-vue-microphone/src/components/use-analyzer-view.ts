@@ -1,8 +1,11 @@
 import { shallowRef } from 'vue';
-import type { AnalyzerError, AnalyzerState, BpmAnalyzer, Reading, StateChange } from 'realtime-bpm-analyzer';
+import type { AnalyzerError, AnalyzerState, BpmAnalyzer, Kick, Reading, StateChange } from 'realtime-bpm-analyzer';
 
 /** The newest state changes the view keeps: enough to see the order, bounded so a long session stays small. */
 const MAX_CHANGES = 5;
+
+/** The newest kicks the view keeps, for the same reason */
+const MAX_KICKS = 8;
 
 export type AnalyzerView = {
   readonly state: AnalyzerState;
@@ -11,6 +14,10 @@ export type AnalyzerView = {
   /** Newest first */
   readonly changes: readonly StateChange[];
   readonly lastError: AnalyzerError | null;
+  /** Newest first */
+  readonly kicks: readonly Kick[];
+  /** Every kick heard since the analyzer started */
+  readonly kickCount: number;
 };
 
 /**
@@ -28,7 +35,7 @@ export function useAnalyzerView() {
   };
 
   const watchAnalyzer = (analyzer: BpmAnalyzer) => {
-    view.value = { state: analyzer.state, reading: null, changes: [], lastError: null };
+    view.value = { state: analyzer.state, reading: null, changes: [], lastError: null, kicks: [], kickCount: 0 };
 
     // Fires on every change of status, of listening reason or of epoch, and only then
     analyzer.on('statechange', change => update(current => ({
@@ -47,6 +54,12 @@ export function useAnalyzerView() {
 
     // A failed analysis step: the next step runs. A fatal fault is a statechange to stopped instead.
     analyzer.on('error', error => update(() => ({ lastError: error })));
+
+    // Each kick drum heard, as it is heard: its time on the AudioContext clock and its strength, from 0 to 1
+    analyzer.on('kick', kick => update(current => ({
+      kicks: [kick, ...current.kicks].slice(0, MAX_KICKS),
+      kickCount: current.kickCount + 1,
+    })));
   };
 
   return { view, watchAnalyzer };

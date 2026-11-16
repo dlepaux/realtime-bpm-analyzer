@@ -271,6 +271,17 @@ analyzer.on('error', ({ name, message }) => {
 });
 ```
 
+### `kick`
+Emitted on each kick drum heard by a live analyzer, whatever the status, with where the kick started on the AudioContext clock and its `strength`, from 0 to 1, against the loudest kick of the last few seconds:
+
+```typescript
+analyzer.on('kick', ({ contextTime, strength }) => {
+  console.log(`kick at ${contextTime.toFixed(3)} s, strength ${strength.toFixed(2)}`);
+});
+```
+
+It comes 18 to 26 ms after the kick reached the analyzer, in the median. To line a visual up with what the listener hears, and for its limits, see [Kick events](./realtime-bpm-detection.md#kick-events).
+
 ## Best Practices
 
 ### ✅ Do

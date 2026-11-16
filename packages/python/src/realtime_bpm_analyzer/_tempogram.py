@@ -104,7 +104,8 @@ def _onset_strengths(samples: NDArray[np.float64], sample_rate: float, hop: int,
         rows: list[int] = []
         scales: list[float] = []
         for row, total in enumerate(totals.tolist()):
-            # A NaN or infinite sample is no audio: no onset, and the state is kept, as the reference keeps it
+            # A NaN or infinite sample is no audio: no onset, and the state is kept, as the reference keeps it.
+            # analyze_channel_data refuses such samples first (RBA-260); this mirrors the reference's realtime rule
             if not math.isfinite(total):
                 continue
             loudness = max(math.sqrt(float(peaks[row])), loudness * LOUDNESS_DECAY, MINIMUM_LOUDNESS)

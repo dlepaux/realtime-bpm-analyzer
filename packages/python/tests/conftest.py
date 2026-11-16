@@ -52,6 +52,8 @@ def input_samples(input_id: str) -> NDArray[np.float32]:
     values = {"NaN": np.nan, "Infinity": np.inf, "-Infinity": -np.inf}
     for sample in entry.get("nonFinite", []):
         assert set(sample) == {"index", "value"} and sample["value"] in values, f"{input_id}: nonFinite {sample}"
+        # A negative index would wrap in NumPy, where the JS and Java harnesses refuse it
+        assert isinstance(sample["index"], int) and 0 <= sample["index"] < len(samples), f"{input_id}: nonFinite {sample}"
         samples[sample["index"]] = values[sample["value"]]
     samples.setflags(write=False)
     return samples

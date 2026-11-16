@@ -184,24 +184,27 @@ def analyze_channel_data(
         The reading, or None when no tempo was found: silence, noise, or under 1.5 s for the tempogram.
 
     Raises:
-        InvalidSamplesError: The samples are empty or not one channel.
+        InvalidSamplesError: The samples are empty, not one channel, or hold a NaN or infinite sample.
         OutOfRangeError: The sample rate is not finite and positive (at least 100 Hz for the tempogram, 2 Hz for
             peaks), the engine is unknown, a lowpass is given to the tempogram, the tempo range's bounds are not
-            positive and finite or span less than an octave (or, for the tempogram, max / min overflows), or a
+            positive and finite, span less than an octave, put max above 2^31 - 1 or overflow max / min, or a
             lowpass setting is not finite, its cutoff not between 0 and half the sample rate, or its Q not from -758
             to 770 dB.
         TypeError: An argument has the wrong type, or the samples are integers.
     """
     channel = _as_channel(samples)
     rate = _sample_rate(sample_rate)
-    # The engine first, then the range, then the sample rate: the JS library's order, so a call with two faults
-    # fails on the same one
+    # The engine, its lowpass and the peaks floor first, then the range, then the tempogram's sample rate: the JS
+    # library's order, so a call with two faults fails on the same one
     if engine not in ENGINES:
         raise OutOfRangeError(f"Invalid engine: {engine!r}. Use 'tempogram' or 'peaks'.")
     if lowpass is not None:
         if engine != "peaks":
             raise OutOfRangeError("Only the peaks engine takes a lowpass")
         _lowpass(lowpass, rate)
+    # Below 2 Hz the peak search's skip rounds to 0, and the JS library refuses the rate too (RBA-260)
+    if engine == "peaks" and not rate >= PEAKS_MINIMUM_SAMPLE_RATE:
+        raise OutOfRangeError(f"Invalid sample rate: {rate}. The peaks engine needs at least {PEAKS_MINIMUM_SAMPLE_RATE} Hz.")
     resolved_range = _tempo_range(tempo_range)
 
     if engine == "tempogram":
@@ -210,9 +213,6 @@ def analyze_channel_data(
         frequency = q = math.nan
     else:
         frequency, q = _lowpass(lowpass, rate)
-        # Below 2 Hz the peak search's skip rounds to 0, and the JS library refuses the rate too (RBA-260)
-        if rate < PEAKS_MINIMUM_SAMPLE_RATE:
-            raise OutOfRangeError(f"Invalid sample rate: {rate}. The peaks engine needs at least {PEAKS_MINIMUM_SAMPLE_RATE} Hz.")
     # The samples are finite by now. NumPy's invalid and overflow warnings stay off, as before RBA-260: JS's arithmetic
     # has no such warnings, and the engines follow it
     with np.errstate(invalid="ignore", over="ignore"):

@@ -173,8 +173,8 @@ different ways:
 
 - **Rounding.** JS `Math.round` rounds half up, towards +infinity, so `-2.5` gives `-2` and `2.5` gives `3`.
   Java's `Math.round` does the same. Python's `round`, NumPy's `round` and C#'s `Math.Round` round half to even, and
-  Swift's `.rounded()` rounds half away from zero. Use `floor(x + 0.5)`. The peaks engine reads `kick-122.5-44k` at
-  exactly 122.5 BPM, so a port with another rule fails it.
+  Swift's `.rounded()` rounds half away from zero. Use Java's `Math.round`, or `floor(x + 0.5)` for the positive
+  tempos here. The peaks engine reads `kick-122.5-44k` at exactly 122.5 BPM, so a port with another rule fails it.
 - **Order of ties.** The peaks engine groups its tempos in an insertion-ordered map and sorts them by count with a
   stable sort, so tempos with equal counts keep the order in which it first met them, and the vectors depend on it. Use an insertion-ordered map (Java's `LinkedHashMap`, Python's `dict`) and a stable sort (Java's
   `List.sort`, Python's `sorted`). A `HashMap`, or an unstable sort, reorders tied candidates and fails the set.

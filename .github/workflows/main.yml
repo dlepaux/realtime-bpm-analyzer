@@ -117,8 +117,9 @@ jobs:
           retention-days: 1
 
   # The library's browser tests again in Firefox. Gecko reads the audio clock differently from Chromium (the main
-  # thread's currentTime freezes during a long task), and the epoch watchdog's reset anchor depends on it. Kept out
-  # of the release's needs: it is evidence on every PR, and a Gecko-only flake must not hold a release.
+  # thread's currentTime freezes during a long task), and the epoch watchdog's reset anchor depends on it. One of the
+  # release's needs, so a red Firefox run can't publish (RBA-108 DECISION 2026-11-16): a Gecko-only flake holds the
+  # release until "Re-run failed jobs" passes it, which then runs Release too.
   firefox:
     name: Test (Firefox)
     runs-on: ubuntu-latest
@@ -162,7 +163,7 @@ jobs:
   # The CLI and the MCP server declare >=22.12.0 as their floor (engines), in the oldest maintained LTS (DECISION
   # 2026-11-15 on RBA-108), and not 22.0.0, whose worker teardown can deadlock and hang the host (DECISIONs 2026-11-15
   # on RBA-241). Every other job runs 26. This runs the built bins and the library's Node entry on 22.12.0, the floor
-  # itself, so the floor the docs state is one CI tests. Kept out of the release's needs, like Firefox. Renovate leaves
+  # itself, so the floor the docs state is one CI tests. One of the release's needs, like Firefox. Renovate leaves
   # this version alone: raise it and the engines floor together, by hand (packages/cli/tests/node-floor.test.mjs).
   node-floor:
     name: CLI and MCP on Node 22
@@ -218,7 +219,9 @@ jobs:
   # re-run after a failed publish safe: it publishes the missing version, or nothing.
   release:
     name: Release
-    needs: build
+    # Every job that tests what ships: a red one, or one skipped, holds the publish. Each runs on a push to main and
+    # on a dispatch, with no job-level if, so none is skipped there. The docs jobs test the site, not the packages.
+    needs: [build, firefox, node-floor]
     # workflow_dispatch can target any branch; only main ever releases
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest

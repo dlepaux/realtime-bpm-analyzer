@@ -91,7 +91,7 @@ From step 2 to step 5 the site shows v6 while npm's `latest` is still 5.6.1. Tha
    - Run: `gh pr close 279 --delete-branch --comment "Superseded by the combined v6 release PR."`, and the same for `282`.
    - Check: `gh pr view 279 --json state` and `gh pr view 282 --json state` print `"state":"CLOSED"`.
 2. **Merge #323 with a merge commit**, never a squash: release-please reads the `!` markers in its commits.
-   - Run: `gh pr merge 323 --merge`.
+   - Run: `gh pr ready 323`, then `gh pr merge 323 --merge`. #323 is a draft until this step, and GitHub refuses to merge a draft.
    - Check: the Main Pipeline run on `main` goes green, Deploy Documentation included (`gh run list --workflow main.yml --branch main --limit 1`, then `gh run watch <id>`). release-please opens one release PR, from the branch `release-please--branches--main`.
    - If it fails: nothing is published yet. Fix it on `main`; the release PR follows the next push.
 3. **Read the release PR**: `gh pr view <n>` and `gh pr diff <n>`.

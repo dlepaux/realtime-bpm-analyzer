@@ -58,11 +58,8 @@ function unpublishedProblems(site: BuiltSite): string[] {
     if (!isNoindex(site.read(`${page}.html`))) problems.push(`${page}: not noindex`)
     if (sitemap.includes(`${SITE}/${page}<`)) problems.push(`${page}: in the sitemap`)
   }
-  const link = new RegExp(`href="/(${UNPUBLISHED_GUIDES.join('|')})(\\.html)?["#]`)
-  const linking = site.paths
-    .filter((path) => path.endsWith('.html') && !isUnpublished(path))
-    .filter((path) => link.test(site.read(path)))
-  return [...problems, ...linking.map((path) => `${path}: links to an unpublished guide`)]
+  // Links are allowed: the Developers menu links both guides from every page (RBA-247).
+  return problems
 }
 
 function guideProblems(site: BuiltSite): string[] {

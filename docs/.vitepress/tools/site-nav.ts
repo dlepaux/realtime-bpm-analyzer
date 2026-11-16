@@ -3,8 +3,10 @@
 // renders this one list on the desktop bar and in the mobile menu. Only menus moved here:
 // every link is an address the site already had (RBA-66's DECISION, 2026-11-05).
 //
-// The CLI, MCP and "Migrating to v6" entries join Developers on the v6 branch, once their
-// packages are on npm (RBA-122). Until then those guides are noindex and unlinked.
+// The CLI, the MCP server and "Migrating to v6" are in Developers from v6 on (RBA-150, and
+// RBA-240's DECISION of 2026-11-16: no "Apps" menu). The CLI and MCP guides stay noindex,
+// out of the sitemap, the sidebar, the search and llms.txt until both packages are on npm
+// (UNPUBLISHED_GUIDES in site-schema.ts); the theme draws their generic icons (custom.css).
 import type { DefaultTheme } from 'vitepress'
 import { extensionNavItems, extensionPrivacyNavItems } from './extension-promo.ts'
 
@@ -32,6 +34,9 @@ function developersMenu(version: string): DefaultTheme.NavItemWithChildren {
       { text: 'Library guide', link: '/guide/getting-started' },
       { text: 'Examples', link: '/examples/basic-usage' },
       { text: 'API reference', link: '/api/' },
+      { text: 'CLI', link: '/guide/cli' },
+      { text: 'MCP server', link: '/guide/mcp' },
+      { text: 'Migrating to v6', link: '/guide/migration-v6' },
       { text: `v${version}`, items: [{ text: 'Changelog', link: CHANGELOG }] },
     ],
   }

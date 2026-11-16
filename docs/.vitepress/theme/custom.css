@@ -44,6 +44,39 @@
   }
 }
 
+/* ── Developers menu: a generic icon for the CLI and the MCP server ─────── */
+
+/* RBA-240's DECISION of 2026-11-16: no third-party logo, since no terms allow the MCP one,
+   so each gets a plain drawn icon next to its name, in the desktop flyout and the mobile
+   menu. The SVG is only a mask: the icon takes the link's own colour, hover and dark mode
+   included. */
+.VPMenuLink a[href="/guide/cli"]::before,
+.VPMenuLink a[href="/guide/mcp"]::before,
+.VPNavScreenMenuGroupLink[href="/guide/cli"]::before,
+.VPNavScreenMenuGroupLink[href="/guide/mcp"]::before {
+  content: '';
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.45em;
+  vertical-align: -0.2em;
+  background-color: currentColor;
+  -webkit-mask: var(--rba-nav-icon) center / contain no-repeat;
+  mask: var(--rba-nav-icon) center / contain no-repeat;
+}
+
+/* A terminal window with a prompt. */
+.VPMenuLink a[href="/guide/cli"]::before,
+.VPNavScreenMenuGroupLink[href="/guide/cli"]::before {
+  --rba-nav-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='16' rx='2'/%3E%3Cpath d='m7 9 3 3-3 3M13 15h4'/%3E%3C/svg%3E");
+}
+
+/* A plug: a connector, which is what an MCP server is to an assistant. */
+.VPMenuLink a[href="/guide/mcp"]::before,
+.VPNavScreenMenuGroupLink[href="/guide/mcp"]::before {
+  --rba-nav-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0zM12 17v5'/%3E%3C/svg%3E");
+}
+
 /* Enhance code blocks */
 .vp-doc div[class*='language-'] {
   margin: 1.5rem 0;

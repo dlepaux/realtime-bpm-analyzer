@@ -22,10 +22,9 @@ Always check for AudioWorklet support before initializing:
 
 ```typescript
 function isSupported() {
-  return !!(
-    window.AudioContext && 
-    AudioContext.prototype.audioWorklet
-  );
+  // `in`, not a read: reading AudioContext.prototype.audioWorklet throws a TypeError
+  // in every browser that has AudioWorklet, since its getter needs a real context.
+  return !!window.AudioContext && 'audioWorklet' in AudioContext.prototype;
 }
 
 if (isSupported()) {
@@ -269,7 +268,7 @@ Use this snippet to test compatibility:
 function checkBrowserSupport() {
   const report = {
     audioContext: !!window.AudioContext,
-    audioWorklet: !!(window.AudioContext && AudioContext.prototype.audioWorklet),
+    audioWorklet: !!window.AudioContext && 'audioWorklet' in AudioContext.prototype,
     mediaDevices: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
   };
   

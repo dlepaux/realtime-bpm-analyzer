@@ -26,6 +26,9 @@ public final class BpmAnalyzer {
     /**
      * Analyses the samples with the default options: the tempogram engine on 90 to 180 BPM.
      *
+     * @param samples One channel, from -1 to 1. Left untouched
+     * @param sampleRate Their rate in Hz
+     * @return The reading, or null when no tempo was found
      * @see #analyzeChannelData(float[], double, AnalysisOptions)
      */
     public static Reading analyzeChannelData(float[] samples, double sampleRate) {

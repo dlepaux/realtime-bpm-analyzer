@@ -9,17 +9,23 @@
   `release` also refuses any API newer than Java 8. Android lacks a few Java 8 APIs below API level 24 (streams,
   Optional, java.util.function), so the main code uses none of them: loops and arrays only.
 
-  The Maven namespace and the publishing setup wait on David's Maven Central account (RBA-254): this POM
-  publishes nothing, and its groupId is a placeholder until then.
+  Coordinates io.github.dlepaux:realtime-bpm-analyzer, a namespace verified on Maven Central through the GitHub
+  account (RBA-259). The version is the library's major.minor whose conformance vectors the port passes, plus its
+  own patch (6.2.x passes the vectors of JS 6.2), and release-please sets it (release-please-config.json).
+
+  Ordinary builds sign and publish nothing. The central-publish profile adds what Maven Central requires (sources
+  and javadoc jars, a signature on every file) and the Central Portal's plugin; CI runs it only in the Publish
+  (Maven Central) job, on a release from main, and on pull requests with a throwaway key and skipUpload
+  (contributing.md, "First publish of the 6.2 ports").
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.realtimebpmanalyzer</groupId>
+  <groupId>io.github.dlepaux</groupId>
   <artifactId>realtime-bpm-analyzer</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>6.2.0</version>
   <packaging>jar</packaging>
 
   <name>realtime-bpm-analyzer (JVM)</name>
@@ -30,12 +36,29 @@
     <license>
       <name>Apache-2.0</name>
       <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
     </license>
   </licenses>
 
+  <!-- Maven Central requires a developer; a profile URL is accepted in place of an email -->
+  <developers>
+    <developer>
+      <id>dlepaux</id>
+      <name>David Lepaux</name>
+      <url>https://github.com/dlepaux</url>
+    </developer>
+  </developers>
+
   <scm>
-    <url>https://github.com/dlepaux/realtime-bpm-analyzer</url>
+    <connection>scm:git:https://github.com/dlepaux/realtime-bpm-analyzer.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/dlepaux/realtime-bpm-analyzer.git</developerConnection>
+    <url>https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/packages/jvm</url>
   </scm>
+
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/dlepaux/realtime-bpm-analyzer/issues</url>
+  </issueManagement>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -70,7 +93,8 @@
 
   <build>
     <pluginManagement>
-      <!-- Every plugin the build and the tests run, pinned, so a Maven upgrade can't change them. No deploy: nothing publishes -->
+      <!-- Every plugin the build and the tests run, pinned, so a Maven upgrade can't change them. The publishing
+           plugins are pinned in the central-publish profile, the only place they run -->
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -136,11 +160,96 @@
           <archive>
             <manifestEntries>
               <!-- A stable module name for the module path, without a module-info that Java 8 can't read -->
-              <Automatic-Module-Name>com.realtimebpmanalyzer</Automatic-Module-Name>
+              <Automatic-Module-Name>io.github.dlepaux.realtimebpmanalyzer</Automatic-Module-Name>
             </manifestEntries>
           </archive>
         </configuration>
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!--
+      What Maven Central requires on top of the jar, only from Apache and Sonatype plugins, all pinned:
+      - a sources jar and a javadoc jar (maven-source-plugin, maven-javadoc-plugin);
+      - an .asc signature on every file (maven-gpg-plugin, through the gpg binary and the key in GNUPGHOME,
+        pinned by fingerprint with -Dgpg.keyname; the passphrase comes from MAVEN_GPG_PASSPHRASE, never the
+        command line);
+      - the Central Portal's plugin, which replaces deploy: it stages the files, adds the md5, sha1, sha256 and
+        sha512 checksums, zips the bundle and uploads it with the user token of the `central` server in settings.xml.
+      autoPublish with waitUntil published blocks until Central has validated and published the deployment, so a
+      validation failure fails the build instead of leaving a deployment nobody looks at.
+      -Dcentral.skipUpload=true stops after the bundle (target/central-publishing/central-bundle.zip): the pull
+      requests' proof and a local check. The plugin doesn't run on Maven 4, so the wrapper's Maven 3.9 stays.
+    -->
+    <profile>
+      <id>central-publish</id>
+      <properties>
+        <central.skipUpload>false</central.skipUpload>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.4.0</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.12.0</version>
+            <configuration>
+              <!-- The API's Java level, as the compiler's release: links resolve against Java 8's classes -->
+              <release>8</release>
+              <!-- Zero warnings, as the compiler: a broken reference or bad HTML fails the build -->
+              <failOnWarnings>true</failOnWarnings>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.2.8</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.12.0</version>
+            <extensions>true</extensions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <deploymentName>realtime-bpm-analyzer ${project.version}</deploymentName>
+              <autoPublish>true</autoPublish>
+              <waitUntil>published</waitUntil>
+              <skipUpload>${central.skipUpload}</skipUpload>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

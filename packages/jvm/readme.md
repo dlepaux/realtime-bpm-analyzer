@@ -7,8 +7,9 @@ and later, so it fits Minecraft mods (Fabric and Forge), Android and Kotlin.
 
 ## Install
 
-**Not published yet.** No Maven Central release exists, and the coordinates below may still change. Until then,
-build it from this folder and install it into your local Maven repository:
+**Not published yet.** The coordinates are `io.github.dlepaux:realtime-bpm-analyzer`, and the first release on
+Maven Central will be 6.2.0. Until it is there, build it from this folder and install it into your local Maven
+repository:
 
 ```bash
 ./mvnw install
@@ -17,16 +18,21 @@ build it from this folder and install it into your local Maven repository:
 Then depend on it from Gradle (with `mavenLocal()` among the repositories) or Maven:
 
 ```kotlin
-implementation("com.realtimebpmanalyzer:realtime-bpm-analyzer:0.1.0-SNAPSHOT")
+implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")
 ```
 
 The build needs JDK 11 or later; the jar it makes runs on Java 8.
 
+## Versions
+
+The version is the JS library's major and minor whose conformance vectors the port passes, plus its own patch:
+6.2.x reads the same as `realtime-bpm-analyzer` 6.2 on npm. A patch of the port can ship without a JS release.
+
 ## Example
 
 ```java
-import com.realtimebpmanalyzer.BpmAnalyzer;
-import com.realtimebpmanalyzer.Reading;
+import io.github.dlepaux.realtimebpmanalyzer.BpmAnalyzer;
+import io.github.dlepaux.realtimebpmanalyzer.Reading;
 
 float[] samples = decodeMono(file); // your decoder: one channel, -1 to 1
 Reading reading = BpmAnalyzer.analyzeChannelData(samples, 44100);
@@ -47,7 +53,7 @@ if (reading != null) {
 
 ## API
 
-Everything is in the package `com.realtimebpmanalyzer`, and every value is immutable.
+Everything is in the package `io.github.dlepaux.realtimebpmanalyzer`, and every value is immutable.
 
 ### `BpmAnalyzer.analyzeChannelData(float[] samples, double sampleRate[, AnalysisOptions options])`
 

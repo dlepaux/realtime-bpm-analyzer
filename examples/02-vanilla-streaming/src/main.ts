@@ -10,6 +10,11 @@ const statusElement = document.getElementById('status') as HTMLDivElement;
 const bpmDisplay = document.getElementById('bpmDisplay') as HTMLDivElement;
 const bpmValue = document.getElementById('bpmValue') as HTMLDivElement;
 
+// Start on the 128 BPM click track in public/, which this page serves itself, so the example
+// plays with no other server. A stream from another site needs CORS headers on its server, and
+// terms that allow other websites to play it.
+audioUrlInput.value = new URL(`${import.meta.env.BASE_URL}click-128.mp3`, window.location.href).href;
+
 // Create audio context
 const audioContext = new AudioContext();
 

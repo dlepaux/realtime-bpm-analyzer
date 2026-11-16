@@ -87,7 +87,7 @@ export const PROBE_TIMEOUT_MS = 2_500
  *  - one that answers non-OK is an HTTP error (404, 403…);
  *  - one that throws is CORS or network: a no-cors GET that answers (opaque)
  *    proves the server is reachable, so CORS blocked the first.
- * GET, not HEAD: Icecast servers such as SomaFM don't list HEAD as allowed.
+ * GET, not HEAD: some Icecast servers don't allow HEAD.
  * Each request is aborted once headers arrive, so a live stream isn't downloaded.
  */
 export async function diagnoseStreamFailure(
@@ -156,16 +156,27 @@ export interface Station {
   id: string
   name: string
   url: string
+  /**
+   * Where the station's terms were read, and the day (RBA-245). A station joins this list only
+   * once its terms allow other websites to play it: silence is not permission. Terms change, so
+   * re-read every station's whenever the list changes.
+   */
+  terms: { url: string; read: string }
 }
 
 // Each one checked live on 2026-10-29 to answer with Access-Control-Allow-Origin,
 // which the analyser needs to read a cross-origin stream (RBA-4). Radio Paradise
 // also serves http://, which this https page would block, so keep the https URL.
+// Radio Paradise predates the terms rule: its stream-links page offers its URLs "for
+// WiFi Radios & other players" and says nothing about websites, so whether it stays
+// is the ruling pending on RBA-237.
 export const STATIONS: readonly Station[] = [
-  { id: 'somafm_defcon', name: 'SomaFM DEF CON', url: 'https://ice1.somafm.com/defcon-128-mp3' },
-  { id: 'somafm_groovesalad', name: 'Groove Salad', url: 'https://ice1.somafm.com/groovesalad-128-mp3' },
-  { id: 'somafm_beatblender', name: 'Beat Blender', url: 'https://ice2.somafm.com/beatblender-128-mp3' },
-  { id: 'radio_paradise', name: 'Radio Paradise', url: 'https://stream.radioparadise.com/mp3-128' },
+  {
+    id: 'radio_paradise',
+    name: 'Radio Paradise',
+    url: 'https://stream.radioparadise.com/mp3-128',
+    terms: { url: 'https://radioparadise.com/listen/stream-links', read: '2026-11-15' },
+  },
 ]
 
 // ─── Stream analytics ────────────────────────────────────────────────────
@@ -179,8 +190,8 @@ export type StreamEventParams = {
   format: StreamFormat
 }
 
-// Icecast mounts rarely have an extension: SomaFM is `defcon-128-mp3`, Radio
-// Paradise `mp3-128`, so the codec is matched as a whole word in the path.
+// Icecast mounts rarely have an extension (Radio Paradise's is `mp3-128`), so the
+// codec is matched as a whole word in the path.
 const FORMAT_PATTERNS: ReadonlyArray<readonly [StreamFormat, RegExp]> = [
   ['mp3', /\bmp3\b/],
   ['aac', /\b(aac|aacp|m4a|adts)\b/],

@@ -208,6 +208,10 @@ Set `crossOrigin = 'anonymous'` for any stream served from a different
 origin. Without it, the browser refuses to expose the audio data to the
 Web Audio API and the analyzer receives silence.
 
+Read the station's terms before you ship a stream in your app or site. Many
+stations allow personal listening only, and forbid other websites or apps
+from playing their streams.
+
 For HLS or DASH streams, you do **not** integrate the player at the
 network layer. Let `hls.js` or your video framework play the stream, and
 feed the resulting `<audio>` or `<video>` element into the same

@@ -9,7 +9,10 @@ import './bpm-analyzer.css';
 
 function BpmAnalyzer() {
   const [bpm, setBpm] = useState<number | undefined>();
-  const [audioUrl, setAudioUrl] = useState('https://ice1.somafm.com/groovesalad-128-mp3');
+  // Start on the 128 BPM click track in public/, which this page serves itself, so the example
+  // plays with no other server. A stream from another site needs CORS headers on its server, and
+  // terms that allow other websites to play it.
+  const [audioUrl, setAudioUrl] = useState(() => new URL(`${import.meta.env.BASE_URL}click-128.mp3`, window.location.href).href);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();

@@ -285,10 +285,11 @@ export function resolveOfflineEngine(
   }
 
   assertEngineKeys(value, 'offline', engineKeys.offline.peaks);
-  assertPeaksSampleRate(sampleRate);
-  // Checked here, before the costly filtering, with the same rules every lowpass path applies
+  // Checked here, before the costly filtering, with the same rules every lowpass path applies. The floor comes after,
+  // so a call with a lowpass fault fails on it first, as in 6.1.0
   const {lowpass} = value;
   resolveLowpass(lowpass, sampleRate);
+  assertPeaksSampleRate(sampleRate);
   const settings = (lowpass ?? {}) as LowpassOption;
   return {name: 'peaks', lowpass: {frequency: settings.frequency, q: settings.q}};
 }

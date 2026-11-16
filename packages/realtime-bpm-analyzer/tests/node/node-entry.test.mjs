@@ -266,6 +266,8 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
       });
     }
 
+    // A lowpass fault is reported first, as in 6.1.0
+    await assert.rejects(analyzeChannelData(clicks, 1, {engine: {name: 'peaks', lowpass: {frequncy: 0.2}}}), {name: 'TypeError', message: / frequncy/});
     await analyzeChannelData(clicks, 2, {engine: {name: 'peaks', lowpass}});
   });
 

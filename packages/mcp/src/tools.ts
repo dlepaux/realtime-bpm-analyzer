@@ -36,7 +36,7 @@ const analysis = {
   bpm: z.number().nullable().describe('Best tempo, a whole number of BPM, or null when no clear beat was found'),
   bpm_exact: z.number().nullable().describe('The same tempo unrounded, for timing such as a beat grid or markers. Show bpm to people. Null when no clear beat was found'),
   // Keep this text in step with Reading.confidence
-  confidence: z.number().nullable().describe('From 0 to 1, the estimated chance the best tempo is right (within 4% of the true tempo, half or double counting as wrong), calibrated on licence-clean dev data from 90 to 180 BPM, so it means the same for either engine. Null: unmeasured, when bpm is outside 90 to 180 (only a custom min_bpm or max_bpm allows that), since no data measured what the score means there; also null when no clear beat was found'),
+  confidence: z.number().nullable().describe('From 0 to 1, the estimated chance the best tempo is right (within 4% of the true tempo, half or double counting as wrong), calibrated on licence-clean dev data from 90 to 180 BPM, so it means the same for either engine. Null: unmeasured, when bpm is outside 90 to 180 or min_bpm and max_bpm give any other range than 90 to 180 (a missing bound is filled from it), since no data measured what the score means there; also null when no clear beat was found'),
   candidates: z.array(candidate).describe('Tempo candidates, best first'),
   engine: z.enum(['peaks', 'tempogram']).nullable().describe('The engine that measured the tempo, or null when no clear beat was found'),
 };

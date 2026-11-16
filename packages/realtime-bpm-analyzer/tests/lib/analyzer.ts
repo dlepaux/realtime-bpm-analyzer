@@ -76,7 +76,7 @@ describe('Analyzer - Integration tests', () => {
     const reading = await analyzeFullBuffer(audioBuffer, {engine: 'peaks', tempoRange: {min: 50, max: 100}});
     // 125 BPM halved is 62.5; rounding after folding lands on either neighbour
     expect(reading?.bpm).to.be.within(62, 63);
-    // Under 90 BPM, outside the range confidence was measured on: unmeasured, never a number (RBA-147)
+    // A custom range, and under 90 BPM, outside the range confidence was measured on: unmeasured, never a number (RBA-147)
     expect(reading?.confidence).to.equal(null);
   });
 

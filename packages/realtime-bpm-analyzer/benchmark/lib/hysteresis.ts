@@ -113,8 +113,8 @@ export type SweepRow = readonly [number, number, number, number, number, number,
 
 /**
  * A reading shown at a sample time, as [bpm, confidence, raw], or null when the state was listening there. The
- * confidence is the calibrated one the reading carried, null outside the measured tempo range (RBA-147); the raw
- * score is what the calibration maps (RBA-148), so a fit can read it there too
+ * confidence is the calibrated one the reading carried, null outside the measured tempo range or on a custom range
+ * (RBA-147); the raw score is what the calibration maps (RBA-148), so a fit can read it there too
  */
 export type Sample = readonly [number, number | null, number] | null;
 
@@ -259,7 +259,8 @@ export function readingsAt(
 ): Sample[] {
   return timesOf(duration).map(time => {
     const last = lastWhere(points, ({now, bpm}) => now <= time && bpm !== null);
-    // A null confidence is a reading outside the measured range, not a missing one: it keeps its raw score
+    // A null confidence is an unmeasured reading (outside the measured range, or on a custom one), not a missing one:
+    // it keeps its raw score
     return last === undefined || last.bpm === null || last.raw === null
       ? null
       : [last.bpm, last.confidence, last.raw] as const;
@@ -349,7 +350,8 @@ async function observePeaks(pcm: Float32Array, sampleRate: number, row: Hysteres
  * @returns The raw score, once it is the one that confidence maps: a recorded score that is not would make a re-fit wrong
  */
 function rawOf(bpm: number, confidence: number | null, raw: number | null): number {
-  if (raw === null || calibrate('peaks', raw, bpm) !== confidence) {
+  // observePeaks runs on the default range, so the score maps through that range's tables
+  if (raw === null || calibrate('peaks', raw, bpm, resolveTempoRange(undefined)) !== confidence) {
     throw new Error(`peaks: the raw score ${raw} does not map to the reading's confidence ${confidence} at ${bpm} BPM`);
   }
 
@@ -369,7 +371,7 @@ export async function offlineSample(raw: Float32Array, sampleRate: number, engin
   const tempos = engine === 'tempogram'
     ? detectTempogram(raw, sampleRate, tempoRange)
     : await detectTempo(applyLowpass(raw, sampleRate, {}), sampleRate, tempoRange);
-  const reading = toReading(tempos, {from: 0, to: raw.length / sampleRate, contextTime: null}, engine);
+  const reading = toReading(tempos, {from: 0, to: raw.length / sampleRate, contextTime: null}, engine, tempoRange);
   const score = rawScore(tempos);
   return reading === null || score === null ? null : [reading.bpm, reading.confidence, score];
 }

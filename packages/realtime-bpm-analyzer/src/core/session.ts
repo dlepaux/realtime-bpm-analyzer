@@ -114,7 +114,7 @@ export function createSession(options: SessionOptions, clock: () => LockClock | 
     }
 
     // Settling or locked: the tracker only gets there, or stays there, with a reading
-    const reading = toReading(step.candidates, {from: Math.min(seconds, engineStart + step.from), to: seconds, contextTime}, engine.name);
+    const reading = toReading(step.candidates, {from: Math.min(seconds, engineStart + step.from), to: seconds, contextTime}, engine.name, options.tempoRange);
     if (reading === null) {
       return messages;
     }

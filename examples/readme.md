@@ -15,7 +15,7 @@ Nine small apps that use `realtime-bpm-analyzer`: three inputs, each written in 
 Every result is a `Reading`, the same type whether it comes from a file or from live audio. The **reading panel** shows all of it:
 
 - `bpm`, the tempo to display, and `bpmExact`, the same tempo unrounded, for timing work;
-- `confidence`, from 0 to 1, as the library reports it: its estimate of the chance that `bpm` is right, or `null` (unmeasured) for a reading outside 90 to 180 BPM, which only a custom `tempoRange` allows;
+- `confidence`, from 0 to 1, as the library reports it: its estimate of the chance that `bpm` is right, or `null` (unmeasured) for a reading outside 90 to 180 BPM or from an analysis on a custom `tempoRange`;
 - `candidates`, up to five, the reading's own tempo first, each with its `relation` to it: `top`, `half`, `double` or `other`;
 - the `audio` span it was measured on, and the `engine` that measured it.
 

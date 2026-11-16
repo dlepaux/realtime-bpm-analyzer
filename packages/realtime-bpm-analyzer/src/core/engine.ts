@@ -339,9 +339,10 @@ export function createEngine(engine: ResolvedEngine, tempoRange: TempoRange, deb
  * @param tempos The engine's candidates, best first
  * @param audio The audio they cover
  * @param engine The engine that measured them
+ * @param tempoRange The resolved range the analysis ran on, which decides whether the confidence was measured
  * @returns The frozen reading, or null when there is no candidate
  */
-export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: EngineName): Reading | null {
+export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: EngineName, tempoRange: TempoRange): Reading | null {
   const top = tempos[0];
   if (top === undefined) {
     return null;
@@ -355,8 +356,9 @@ export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: En
   return Object.freeze({
     bpm: top.tempo,
     bpmExact: top.exact,
-    // The engine's raw score, mapped to the chance this reading is right, or null outside the measured tempo range
-    confidence: calibrate(engine, top.confidence, top.tempo),
+    // The engine's raw score, mapped to the chance this reading is right, or null when the reading's tempo or the
+    // analysis's range is outside the measured tempo range
+    confidence: calibrate(engine, top.confidence, top.tempo, tempoRange),
     candidates: Object.freeze(candidates),
     audio: Object.freeze({from: audio.from, to: audio.to, contextTime: audio.contextTime}),
     engine,

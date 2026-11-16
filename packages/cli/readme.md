@@ -75,7 +75,8 @@ extensions folder mode picks up.
 
 The confidence is the estimated chance the reading is right, calibrated on licence-clean dev
 data from 90 to 180 BPM, so inside that range it means the same whichever engine measured it.
-`null`: unmeasured, when the tempo is outside 90 to 180 BPM, which only a custom range allows.
+`null`: unmeasured, when the tempo is outside 90 to 180 BPM or when the analysis ran on a custom
+range, since the calibration ran only on the default one.
 
 ## Licence
 

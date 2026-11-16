@@ -232,7 +232,7 @@ export async function traceEngine(
     const step = await engine.analyze(buffer, bufferSize, sampleRate);
     seconds += bufferSize / sampleRate;
     if (step.fresh) {
-      const reading = toReading(step.candidates, {from: 0, to: seconds, contextTime: null}, 'tempogram');
+      const reading = toReading(step.candidates, {from: 0, to: seconds, contextTime: null}, 'tempogram', tempoRange);
       const detail = isTempogramDebug(step.debug) ? step.debug : {frameTempo: 0, leads: false};
       steps.push({
         now: seconds,

@@ -157,7 +157,7 @@ const reading = {
 
 - **bpm**: The tempo to show, a whole number inside the tempo range. Always the first candidate's
 - **bpmExact**: The same tempo before rounding, for timing work such as spacing beat markers
-- **confidence**: From 0 to 1, the estimated chance the reading is right: within 4% of the true tempo, where half or double the tempo counts as wrong. Each engine's raw score is calibrated on licence-clean dev data on the default tempo range, 90 to 180 BPM, so inside that range the value means the same whichever engine measured it, realtime or offline. `null`: unmeasured. A custom `tempoRange` can give a reading outside 90 to 180 BPM, and no data measured what the score means there, so its confidence is `null`. On the default range it is always a number. With a custom `tempoRange`, a reading inside 90 to 180 BPM still gets a number, from tables measured on the default range: an extrapolation, unmeasured for that range
+- **confidence**: From 0 to 1, the estimated chance the reading is right: within 4% of the true tempo, where half or double the tempo counts as wrong. Each engine's raw score is calibrated on licence-clean dev data on the default tempo range, 90 to 180 BPM, so inside that range the value means the same whichever engine measured it, realtime or offline. `null`: unmeasured, when `bpm` is outside 90 to 180 or when the analysis ran on a custom `tempoRange`. The tables were measured only on the default range, and a custom range changes which candidate each engine picks, so on a custom range every reading's confidence is `null`, even one inside 90 to 180 BPM. On the default range it is always a number, and an explicit `{ min: 90, max: 180 }` is the default range
 - **candidates**: Up to 5, the reading's own tempo first, the others in the engine's rank order. Each has a **relation** to the reading's tempo: `top`, `half`, `double` or `other`
 
 The reading's `bpm` is usually the right one. A `half` or `double` candidate is the same beat at another octave.
@@ -210,7 +210,7 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
 - `analyzeFullBuffer(buffer, { tempoRange })` takes the same option
 - Both engines take it: `peaks` folds every tempo into it, the `tempogram` engine searches it and folds nothing
 - It takes `min` and `max` only: any other key is refused with a `TypeError` that names it
-- A custom range can give a reading outside 90 to 180 BPM, the range the confidence was measured on: its `confidence` is then `null` (unmeasured)
+- The confidence was measured only on the default range: on any other range every reading's `confidence` is `null` (unmeasured), whatever its tempo. An explicit `{ min: 90, max: 180 }` is the default and keeps it
 
 ### debug
 - `false` (default): No debug events

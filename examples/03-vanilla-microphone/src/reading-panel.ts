@@ -24,7 +24,7 @@ export function createReadingPanel(): ReadingPanel {
   const audio = addField(fields, 'Audio');
 
   const meaning = element('p', 'confidence-meaning');
-  meaning.textContent = "Confidence is the library's estimate, from 0 to 1, of the chance that this BPM is right. It is unmeasured (null) for a reading outside 90 to 180 BPM, which only a custom tempoRange allows.";
+  meaning.textContent = "Confidence is the library's estimate, from 0 to 1, of the chance that this BPM is right. It is unmeasured (null) for a reading outside 90 to 180 BPM, or from an analysis on a custom tempoRange.";
 
   const panel = element('section', 'reading-panel');
   panel.append(display, fields, meaning);

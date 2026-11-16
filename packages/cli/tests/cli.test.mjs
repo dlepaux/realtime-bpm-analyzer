@@ -160,6 +160,30 @@ describe('realtime-bpm-analyzer CLI', hangLimit, () => {
     }
   });
 
+  it('gives null on any custom range, even for a tempo inside 90 to 180', async () => {
+    // RBA-108's DECISION of 2026-11-16: the tables were fitted only on the default range, and a custom range changes
+    // what each engine picks, so a reading there is unmeasured wherever it lands. 128 is the click's only octave in 80 to 200
+    for (const engine of ['peaks', 'tempogram']) {
+      const {code, results: [result]} = await runJson(['--engine', engine, '--min-bpm', '80', '--max-bpm', '200', clickMp3]);
+      assert.equal(code, 0, engine);
+      assert.equal(result.bpm, 128, engine);
+      assert.equal(result.confidence, null, engine);
+    }
+  });
+
+  it('keeps the number when the flags give the default range, a missing bound filled from it', async () => {
+    const defaults = [[], ['--min-bpm', '90'], ['--max-bpm', '180'], ['--min-bpm', '90', '--max-bpm', '180']];
+    for (const engine of ['peaks', 'tempogram']) {
+      for (const flags of defaults) {
+        const label = `${engine} ${flags.join(' ') || 'with no flags'}`;
+        const {code, results: [result]} = await runJson(['--engine', engine, ...flags, clickMp3]);
+        assert.equal(code, 0, label);
+        assert.equal(result.bpm, 128, label);
+        assert.ok(result.confidence > 0 && result.confidence <= 1, `${label} got ${result.confidence}`);
+      }
+    }
+  });
+
   it('finds the bass-test fixture tempo the browser finds', async () => {
     // The pinned value is peaks' reading, so name peaks: the default engine reads this fixture differently
     const {code, results: [result]} = await runJson(['--engine', 'peaks', bassTest]);

@@ -34,7 +34,7 @@ defineProps<{
     </dl>
 
     <p class="confidence-meaning">
-      Confidence is the library's estimate, from 0 to 1, of the chance that this BPM is right. It is unmeasured (null) for a reading outside 90 to 180 BPM, which only a custom tempoRange allows.
+      Confidence is the library's estimate, from 0 to 1, of the chance that this BPM is right. It is unmeasured (null) for a reading outside 90 to 180 BPM, or from an analysis on a custom tempoRange.
     </p>
   </section>
 </template>

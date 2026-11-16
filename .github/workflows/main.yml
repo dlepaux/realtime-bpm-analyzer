@@ -349,6 +349,43 @@ jobs:
           ~/hermes-shell/hermes "$RUNNER_TEMP/conformance-hermes.js" | tee "$RUNNER_TEMP/hermes.log"
           grep -qE '^conformance: PASS on Hermes [0-9]' "$RUNNER_TEMP/hermes.log"
 
+  # RBA-256: the pure-Java port (packages/jvm) held to the same vectors. It builds with JDK 21, Minecraft's Java,
+  # for Java 8 bytecode, then runs the same tests on a Java 8 runtime, the oldest the port claims. It reads the
+  # sources and the vectors only, so it needs no JS build. Not one of the release's needs: nothing publishes the port.
+  conformance-jvm:
+    name: Conformance (JVM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The last version listed is the default java; the other stays at $JAVA_HOME_8_X64
+      - name: Setup Java 8 and 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: |
+            8
+            21
+          cache: maven
+          cache-dependency-path: packages/jvm/pom.xml
+
+      - name: Build and test on Java 21
+        working-directory: packages/jvm
+        run: |
+          ./mvnw -B verify | tee "$RUNNER_TEMP/jvm-21.log"
+          grep -qE '^conformance: PASS on Java 21\.' "$RUNNER_TEMP/jvm-21.log"
+
+      - name: Test the same classes on Java 8
+        working-directory: packages/jvm
+        run: |
+          ./mvnw -B surefire:test -Djvm="$JAVA_HOME_8_X64/bin/java" | tee "$RUNNER_TEMP/jvm-8.log"
+          grep -qE '^conformance: PASS on Java 1\.8\.' "$RUNNER_TEMP/jvm-8.log"
+
   # Release to GitHub and npm. release-please keeps one release PR open for all three packages
   # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
   # commits under its path, and node-workspace moving the ranges between them.

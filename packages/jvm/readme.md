@@ -1,0 +1,133 @@
+# Realtime BPM Analyzer for Java
+
+A pure-Java port of the library's offline analysis, `analyzeChannelData`, with both engines: the tempogram and
+peaks. It gives the same readings as the JS library, proven by the shared conformance vectors
+([`conformance/`](../../conformance/readme.md)) on every build. It has no runtime dependencies and runs on Java 8
+and later, so it fits Minecraft mods (Fabric and Forge), Android and Kotlin.
+
+## Install
+
+**Not published yet.** No Maven Central release exists, and the coordinates below may still change. Until then,
+build it from this folder and install it into your local Maven repository:
+
+```bash
+./mvnw install
+```
+
+Then depend on it from Gradle (with `mavenLocal()` among the repositories) or Maven:
+
+```kotlin
+implementation("com.realtimebpmanalyzer:realtime-bpm-analyzer:0.1.0-SNAPSHOT")
+```
+
+The build needs JDK 11 or later; the jar it makes runs on Java 8.
+
+## Example
+
+```java
+import com.realtimebpmanalyzer.BpmAnalyzer;
+import com.realtimebpmanalyzer.Reading;
+
+float[] samples = decodeMono(file); // your decoder: one channel, -1 to 1
+Reading reading = BpmAnalyzer.analyzeChannelData(samples, 44100);
+if (reading != null) {
+    System.out.println(reading.bpm() + " BPM, candidates " + reading.candidates());
+}
+```
+
+## Limits
+
+- **Offline only.** It analyses a whole buffer at once, like the JS `analyzeChannelData`. The real-time analyzer,
+  which reads a live stream and locks onto a tempo, is not ported.
+- **No decoding.** You supply the PCM: one channel of floats from -1 to 1, and its sample rate. Mix stereo down
+  first, and divide 16-bit samples by 32768. On Android, `MediaExtractor` and `MediaCodec` decode; on the desktop,
+  `javax.sound.sampled` reads WAV; on Minecraft, LWJGL's STBVorbis, which the game ships, reads OGG.
+- **It takes a while on a long file.** It holds no state and starts no thread, so call it from any thread, but keep
+  it off a game's or an app's main thread.
+
+## API
+
+Everything is in the package `com.realtimebpmanalyzer`, and every value is immutable.
+
+### `BpmAnalyzer.analyzeChannelData(float[] samples, double sampleRate[, AnalysisOptions options])`
+
+Returns a `Reading`, or `null` when no tempo was found (silence, or audio under 1.5 s for the tempogram). It never
+writes to `samples`.
+
+### `AnalysisOptions`
+
+The same options as the JS `analyzeChannelData`, with the same defaults. Start from `AnalysisOptions.DEFAULT`:
+
+```java
+AnalysisOptions options = AnalysisOptions.DEFAULT
+    .withEngine(Engine.peaks(Lowpass.DEFAULT.withFrequency(150)))
+    .withTempoRange(TempoRange.of(80, 170));
+```
+
+| JS option | Java | Default |
+| --- | --- | --- |
+| `engine: 'tempogram'` | `Engine.TEMPOGRAM` | the default engine |
+| `engine: 'peaks'` | `Engine.PEAKS` | lowpass 200 Hz, q 1 |
+| `engine: {name: 'peaks', lowpass: {frequency, q}}` | `Engine.peaks(Lowpass.of(frequency, q))` | `Lowpass.DEFAULT` |
+| `tempoRange: {min, max}` | `TempoRange.of(min, max)` | `TempoRange.DEFAULT`, 90 to 180 BPM |
+
+### `Reading`
+
+| Method | JS field | Meaning |
+| --- | --- | --- |
+| `int bpm()` | `bpm` | The tempo, a whole BPM inside the tempo range |
+| `double bpmExact()` | `bpmExact` | The same tempo, unrounded |
+| `Double confidence()` | `confidence` | The chance the reading is right, 0 to 1. `null` when the range is not the default 90 to 180, or the tempo is outside it: unmeasured, never a small number |
+| `List<Candidate> candidates()` | `candidates` | Up to 5 tempos, best first, each with its `bpm()` and `relation()` to the top one: `TOP`, `HALF`, `DOUBLE` or `OTHER` |
+| `double audioFrom()`, `double audioTo()` | `audio.from`, `audio.to` | The span analysed, in seconds: 0 to the buffer's length |
+| `EngineName engine()` | `engine` | `TEMPOGRAM` or `PEAKS` |
+
+### Errors
+
+| JS | Java | When |
+| --- | --- | --- |
+| `Error` | `IllegalArgumentException` | `samples` is empty |
+| `RangeError` | `OutOfRangeException`, a subclass of `IllegalArgumentException` | The sample rate is not finite, under 100 Hz for the tempogram, or not above twice the lowpass cutoff for peaks; or `TempoRange.of` and `Lowpass.of` get a value out of range |
+| `TypeError` | none | Java's types rule these out |
+
+A `null` argument throws `NullPointerException`. `TempoRange.of` and `Lowpass.of` check their values when they are
+made, where the JS library checks them when it analyses.
+
+## Differences from the JS library
+
+These cover inputs the JS library can't analyse either; on every input it can, the readings are the same.
+
+- `TempoRange.of` refuses a `max` above `Integer.MAX_VALUE`, so `bpm()` fits an `int`.
+- At a sample rate under 2 Hz, the JS peaks engine loops forever (its skip after a peak rounds to 0 samples). The
+  port skips at least one sample. Such a rate needs a lowpass cutoff under 1 Hz.
+- A sample rate from about 66 GHz makes the tempogram's FFT larger than a Java array can hold, and throws
+  `OutOfRangeException`; the JS library throws a `RangeError` on the typed array's allocation.
+
+## How it stays the same as JS
+
+`ConformanceTest` runs every case of `conformance/vectors.json`, the readings the JS library gives on the shared
+inputs, and fails on any difference beyond the file's tolerances, on any key it doesn't map, and on any error case
+that throws another exception. It prints the largest difference from the reference per field. The math keeps the
+JS order of operations, `StrictMath` makes `cos`, `sin`, `exp`, `log` and `pow` the same on every JVM, and the
+buffers the JS library keeps in 32-bit floats are `float[]` here. `JsSourceTest` reads the calibration tables and the defaults
+back from the JS sources.
+
+```bash
+./mvnw verify
+```
+
+CI runs it on Java 21, then the same classes on Java 8 (`Conformance (JVM)` in `.github/workflows/main.yml`).
+
+## Build choices
+
+- **Maven**, through the Maven Wrapper (script only, Maven's version and checksum pinned in
+  `.mvn/wrapper/maven-wrapper.properties`): a declarative build with no build code to run, publishing to Maven
+  Central without a plugin from outside Apache or Sonatype, and coordinates Gradle reads the same way.
+- **Java 8 bytecode** (`--release 8`): Minecraft runs Java 21, older Forge modpacks still run Java 8, and Android
+  reads Java 8 bytecode with any Android Gradle Plugin from 3.0, AGP 8 included. The code uses no API Android lacks below API 24, such as
+  streams or `java.util.function`.
+- **JUnit 5**, the only dependency, in test scope. JUnit 6 needs Java 17 to run, which the Java 8 test run rules out.
+
+## License
+
+Apache-2.0, as the rest of the repository.

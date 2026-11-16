@@ -238,8 +238,8 @@ export default defineConfig({
       : SITE_SHARE_IMAGE
 
     pageData.frontmatter.head ??= []
-    // The CLI and MCP guides stay unindexed until their packages are on npm, then the
-    // noindex flip empties UNPUBLISHED_GUIDES (tools/site-schema.ts).
+    // The guides of packages not yet published stay unindexed until they are
+    // (UNPUBLISHED_GUIDES in tools/site-schema.ts).
     if (isUnpublishedGuide(pageData.relativePath)) {
       pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
     }

@@ -4,9 +4,9 @@
 // every link is an address the site already had (RBA-66's DECISION, 2026-11-05).
 //
 // The CLI, the MCP server and "Migrating to v6" are in Developers from v6 on (RBA-150, and
-// RBA-240's DECISION of 2026-11-16: no "Apps" menu). The CLI and MCP guides stay noindex,
-// out of the sitemap, the sidebar, the search and llms.txt until both packages are on npm
-// (UNPUBLISHED_GUIDES in site-schema.ts); the theme draws their generic icons (custom.css).
+// RBA-240's DECISION of 2026-11-16: no "Apps" menu). The sidebar, the sitemap, the search and
+// llms.txt list the CLI and MCP guides too, since both packages are on npm (the noindex flip);
+// the theme draws their generic icons (custom.css).
 import type { DefaultTheme } from 'vitepress'
 import { extensionNavItems, extensionPrivacyNavItems } from './extension-promo.ts'
 

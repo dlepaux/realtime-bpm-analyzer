@@ -238,8 +238,8 @@ export default defineConfig({
       : SITE_SHARE_IMAGE
 
     pageData.frontmatter.head ??= []
-    // The CLI and MCP guides stay unindexed until their packages are on npm, then the
-    // noindex flip empties UNPUBLISHED_GUIDES (tools/site-schema.ts).
+    // A guide whose package isn't on npm yet stays unindexed (UNPUBLISHED_GUIDES in
+    // tools/site-schema.ts, empty since the CLI and MCP server reached npm).
     if (isUnpublishedGuide(pageData.relativePath)) {
       pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
     }
@@ -312,8 +312,8 @@ export default defineConfig({
             { text: 'Browser Compatibility', link: '/guide/browser-compatibility' },
             { text: 'Strict CSP and Browser Extensions', link: '/guide/strict-csp' },
             { text: 'BPM Detection in Node.js', link: '/guide/node' },
-            // The CLI and MCP guides join this list with the noindex flip, once both packages
-            // are on npm (UNPUBLISHED_GUIDES in tools/site-schema.ts). Developers links them.
+            { text: 'BPM Detection from the Command Line', link: '/guide/cli' },
+            { text: 'MCP Server for AI Assistants', link: '/guide/mcp' },
             { text: 'Migration Guide (v5 → v6)', link: '/guide/migration-v6' },
             { text: 'Migration Guide (v4 → v5)', link: '/guide/migration-v5' }
           ]

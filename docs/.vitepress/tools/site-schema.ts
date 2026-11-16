@@ -133,11 +133,11 @@ export function siteGraph(relativePath: string): object[] {
 
 /**
  * Guides for packages that aren't on npm yet. Their pages are noindex and out of the
- * sitemap, the sidebar, the search and llms.txt (RBA-122). From v6 the Developers menu
- * links them (RBA-247). Once both packages are on npm, the noindex flip empties this
- * list (contributing.md, "First publish of v6").
+ * sitemap, the sidebar, the search and llms.txt (RBA-122). Empty since the CLI and the
+ * MCP server reached npm: the noindex flip (contributing.md, "First publish of v6", step 13)
+ * made their guides articles like every other guide.
  */
-export const UNPUBLISHED_GUIDES: readonly string[] = ['guide/cli', 'guide/mcp']
+export const UNPUBLISHED_GUIDES: readonly string[] = []
 
 /** A page's path without its leading slash, `.md` or `.html`: `guide/cli`. */
 function pagePath(urlOrSource: string): string {

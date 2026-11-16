@@ -90,23 +90,39 @@ class ConformanceTest {
             passed += record(failures, id, problems);
         }
 
-        // The cases share each input array, so a later case catches a write; this catches one in the last case too
+        // The cases share each input array, so a later case catches a write; this catches one in the last case too.
+        // Counted apart from the cases, so "passed" and "failed" add up to the number of cases
+        List<String> inputFailures = new ArrayList<String>();
         for (Map.Entry<String, float[]> input : inputs.entrySet()) {
             if (!Arrays.equals(pristine.get(input.getKey()), input.getValue())) {
-                failures.add("FAIL input " + input.getKey() + ": an analysis wrote into its samples");
+                inputFailures.add("FAIL input " + input.getKey() + ": an analysis wrote into its samples");
             }
         }
 
-        // The deviations come from the cases that passed and failed alike, as the JS runners report them
-        String verdict = failures.isEmpty() && passed > 0 ? "PASS" : "FAIL";
-        System.out.println("conformance: " + verdict + " on Java " + System.getProperty("java.version") + ": "
-            + passed + " passed, " + failures.size() + " failed; largest difference from the reference: bpmExact "
-            + bpmExactDeviation + ", confidence " + confidenceDeviation
-            + "; bpm, candidates, confidence null-ness, audio and engine compared exactly");
-        if (!failures.isEmpty()) {
-            fail(failures.size() + " conformance failures:\n" + String.join("\n", failures));
+        System.out.println(summary(passed, failures.size(), inputFailures.size(), bpmExactDeviation,
+            confidenceDeviation));
+        List<String> all = new ArrayList<String>(failures);
+        all.addAll(inputFailures);
+        if (!all.isEmpty()) {
+            fail(all.size() + " conformance failures:\n" + String.join("\n", all));
         }
         assertTrue(passed > 0, "no case ran");
+    }
+
+    /**
+     * The line CI greps for its verdict. Cases and inputs are counted apart: an input written to fails the run
+     * without counting as a failed case. The deviations come from the cases that passed and failed alike, as the
+     * JS runners report them.
+     */
+    static String summary(int passed, int failed, int inputsWritten, double bpmExactDeviation,
+                          double confidenceDeviation) {
+        String verdict = failed == 0 && inputsWritten == 0 && passed > 0 ? "PASS" : "FAIL";
+        return "conformance: " + verdict + " on Java " + System.getProperty("java.version") + ": "
+            + passed + " passed, " + failed + " failed"
+            + (inputsWritten == 0 ? "" : ", " + inputsWritten + " input" + (inputsWritten == 1 ? "" : "s")
+                + " written to")
+            + "; largest difference from the reference: bpmExact " + bpmExactDeviation + ", confidence "
+            + confidenceDeviation + "; bpm, candidates, confidence null-ness, audio and engine compared exactly";
     }
 
     private static List<String> errorProblems(Class<? extends Throwable> expected, Map<String, float[]> inputs,

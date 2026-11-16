@@ -23,6 +23,7 @@ function site(overrides: Record<string, string> = {}): BuiltSite {
     '404.html': '<h1>Page not found</h1>',
     'guide/cli.html': `${NOINDEX}<a href="/guide/mcp">MCP</a>`,
     'guide/mcp.html': `${NOINDEX}<a href="/guide/cli#formats">CLI</a>`,
+    'guide/java.html': `${NOINDEX}<a href="/guide/node">Node.js</a>`,
     'guide/python.html': NOINDEX,
     'guide/quick-start.html': '<meta http-equiv="refresh" content="0; url=/guide/getting-started">',
     ...Object.fromEntries(GUIDES.map((name) => [`guide/${name}.html`, `${canonical(`/guide/${name}`)}${GUIDE}`])),
@@ -55,6 +56,7 @@ test('seoProblems: the unpublished guides stay noindex and out of the sitemap, l
   assert.deepEqual(seoProblems(linked), [])
   const linkedNotNoindex = site({ 'guide/node.html': `${canonical('/guide/node')}${GUIDE}${menu}`, 'guide/mcp.html': '<p>mcp</p>' })
   assert.match(seoProblems(linkedNotNoindex).join(), /guide\/mcp: not noindex/)
+  assert.match(seoProblems(site({ 'guide/java.html': '<p>java</p>' })).join(), /guide\/java: not noindex/)
 })
 
 test('seoProblems: every other guide is an article with a server-rendered date', () => {

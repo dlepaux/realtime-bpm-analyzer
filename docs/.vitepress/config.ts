@@ -238,7 +238,7 @@ export default defineConfig({
       : SITE_SHARE_IMAGE
 
     pageData.frontmatter.head ??= []
-    // The unpublished guides stay unindexed until their packages are published
+    // The guides of packages not yet published stay unindexed until they are
     // (UNPUBLISHED_GUIDES in tools/site-schema.ts).
     if (isUnpublishedGuide(pageData.relativePath)) {
       pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])

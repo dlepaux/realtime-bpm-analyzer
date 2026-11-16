@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The JVM port of realtime-bpm-analyzer's offline analysis (RBA-256). Pure Java with no runtime dependency: JUnit
+  is the only dependency, and only for the tests.
+
+  Bytecode and API level: Java 8 (`release` 8), so one jar serves every JVM the port is for:
+  - Minecraft's Java 21 runtime, and the Java 8 one that Forge 1.12 to 1.16 modpacks still run on;
+  - Android with any Android Gradle Plugin, which dexes Java 8 bytecode without desugaring limits.
+  `release` also refuses any API newer than Java 8. Android lacks a few Java 8 APIs below API level 24 (streams,
+  Optional, java.util.function), so the main code uses none of them: loops and arrays only.
+
+  The Maven namespace and the publishing setup wait on David's Maven Central account (RBA-254): this POM
+  publishes nothing, and its groupId is a placeholder until then.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.realtimebpmanalyzer</groupId>
+  <artifactId>realtime-bpm-analyzer</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>realtime-bpm-analyzer (JVM)</name>
+  <description>Offline BPM detection of PCM samples in pure Java, with the same readings as the realtime-bpm-analyzer JS library, proven by its shared conformance vectors.</description>
+  <url>https://www.realtime-bpm-analyzer.com/</url>
+
+  <licenses>
+    <license>
+      <name>Apache-2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+
+  <scm>
+    <url>https://github.com/dlepaux/realtime-bpm-analyzer</url>
+  </scm>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <maven.compiler.release>8</maven.compiler.release>
+    <!-- The vectors the tests read, shared with the JS library and every other port -->
+    <conformance.dir>${project.basedir}/../../conformance</conformance.dir>
+    <!-- The JS sources the tests pin the copied constants to: the calibration tables and the defaults -->
+    <js.source.dir>${project.basedir}/../realtime-bpm-analyzer/src</js.source.dir>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <!-- 5.x, not 6.x: JUnit 6 needs Java 17, and CI also runs the tests on Java 8 to prove the bytecode level -->
+        <version>5.14.4</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <pluginManagement>
+      <!-- Every plugin the build and the tests run, pinned, so a Maven upgrade can't change them. No deploy: nothing publishes -->
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-clean-plugin</artifactId>
+          <version>3.5.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.5.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.15.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.5.6</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>3.5.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-install-plugin</artifactId>
+          <version>3.1.4</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <compilerArgs>
+            <!-- Zero warnings. -options only silences JDK 21's notice that release 8 is obsolete: it is chosen above -->
+            <arg>-Xlint:all,-options</arg>
+            <arg>-Werror</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <conformance.dir>${conformance.dir}</conformance.dir>
+            <js.source.dir>${js.source.dir}</js.source.dir>
+          </systemPropertyVariables>
+          <!-- The conformance summary goes to the build log, where CI shows it -->
+          <redirectTestOutputToFile>false</redirectTestOutputToFile>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <!-- A stable module name for the module path, without a module-info that Java 8 can't read -->
+              <Automatic-Module-Name>com.realtimebpmanalyzer</Automatic-Module-Name>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

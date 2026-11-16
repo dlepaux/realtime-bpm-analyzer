@@ -292,6 +292,18 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     assert.equal(reading?.bpm, 120);
   });
 
+  it('refuses a NaN or infinite sample, naming its index, with either engine', async () => {
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const clicks = createClickTrack(120, 44_100, 12);
+      clicks[1234] = value;
+      for (const engine of ['peaks', 'tempogram']) {
+        await assert.rejects(analyzeChannelData(clicks, 44_100, {engine}), {
+          name: 'Error',
+          message: `Invalid channel data: sample 1234 is ${value}, and every sample must be a finite number.`,
+        });
+      }
+    }
+  });
 });
 
 describe('applyLowpass', hangLimit, () => {

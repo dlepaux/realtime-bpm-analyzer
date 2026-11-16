@@ -36,6 +36,9 @@ CANDIDATE_KEYS = {"bpm", "relation"}
 AUDIO_KEYS = {"from", "to", "contextTime"}
 ERROR_CASE_KEYS = {"id", "input", "sampleRate", "options", "expectedError", "why"}
 CASE_KEYS = {"id", "input", "sampleRate", "options", "expected"}
+INPUT_KEYS = {"id", "file", "sampleRate", "samples", "sha256", "description"}
+# A tolerance kind this harness doesn't apply (a relative one, say) must fail rather than be skipped
+TOLERANCE_KEYS = {"absolute", "referenceSpread"}
 
 # Each JS error category maps to exactly one exception type (conformance/readme.md, errorCases)
 ERRORS: dict[str, type[Exception]] = {"Error": InvalidSamplesError, "RangeError": OutOfRangeError}
@@ -96,10 +99,12 @@ def compare(case_id: str, reading: Reading | None, expected: dict[str, Any] | No
         assert reading.confidence is not None, f"{case_id} confidence: null, expected {expected['confidence']}"
         within("confidence", reading.confidence, expected["confidence"], case_id)
 
-    candidates = [(c.bpm, c.relation) for c in reading.candidates]
     for candidate in expected["candidates"]:
         assert_keys(f"{case_id} candidate", candidate, CANDIDATE_KEYS)
-    exact("candidates", candidates, [(c["bpm"], c["relation"]) for c in expected["candidates"]], case_id)
+    assert len(reading.candidates) == len(expected["candidates"]), f"{case_id} candidates: {reading.candidates}"
+    for index, (actual, wanted) in enumerate(zip(reading.candidates, expected["candidates"])):
+        exact(f"candidates[{index}].bpm", actual.bpm, wanted["bpm"], case_id)
+        exact(f"candidates[{index}].relation", actual.relation, wanted["relation"], case_id)
 
     exact("audio.from", reading.audio.start, float(expected["audio"]["from"]), case_id)
     exact("audio.to", reading.audio.end, float(expected["audio"]["to"]), case_id)
@@ -121,10 +126,13 @@ def test_top_level_keys_are_known() -> None:
         "divisor": 32768,
     }
     assert set(vectors()["tolerances"]) == {"bpmExact", "confidence"}
+    for field, tolerance in vectors()["tolerances"].items():
+        assert_keys(f"tolerances.{field}", tolerance, TOLERANCE_KEYS)
 
 
 @pytest.mark.parametrize("entry", vectors()["inputs"], ids=lambda entry: entry["id"])
 def test_input_decodes_to_the_reference_samples(entry: dict[str, Any]) -> None:
+    assert_keys(entry["id"], entry, INPUT_KEYS)
     assert input_sha256(entry["id"]) == entry["sha256"]
     assert len(input_samples(entry["id"])) == entry["samples"]
 

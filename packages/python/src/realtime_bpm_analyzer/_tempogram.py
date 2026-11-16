@@ -17,7 +17,7 @@ from numpy.typing import NDArray
 
 from ._jsmath import js_round
 from ._peaks import Tempo
-from ._types import TempoRange
+from ._types import OutOfRangeError, TempoRange
 
 # The tuning the JS library ships (defaultTempogramTuning), with the half-life whole-input analysis sets
 FRAME_RATE = 100
@@ -56,7 +56,11 @@ class _Grid:
 
 
 def _tempo_grid(tempo_range: TempoRange, frame_rate: float, window_frames: int) -> _Grid:
-    size = math.floor(math.log(tempo_range.max / tempo_range.min) / math.log(GRID_RATIO)) + 1
+    ratio = tempo_range.max / tempo_range.min
+    # An overflowing ratio makes the JS grid an array of Infinity entries, which JS refuses with a RangeError
+    if not math.isfinite(ratio):
+        raise OutOfRangeError(f"tempo_range spans too much: max / min ({tempo_range.max} / {tempo_range.min}) overflows")
+    size = math.floor(math.log(ratio) / math.log(GRID_RATIO)) + 1
     tempos: list[float] = []
     prior: list[float] = []
     lags: list[list[float]] = []

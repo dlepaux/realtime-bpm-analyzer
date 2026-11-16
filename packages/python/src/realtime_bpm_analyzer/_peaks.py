@@ -19,6 +19,8 @@ MIN_VALID_THRESHOLD = 0.2
 THRESHOLD_STEP = 0.05
 MIN_PEAKS = 15
 PEAK_SKIP_SECONDS = 0.25
+# The lowest rate whose skip rounds to at least one sample, js_round(0.25 * 2) == 1
+MINIMUM_SAMPLE_RATE = 2
 MAX_INTERVAL_COMPARISONS = 10
 MAX_CANDIDATES = 5
 _THRESHOLD_DECIMALS = 1e9
@@ -32,7 +34,7 @@ class Tempo:
 
     tempo: int
     exact: float
-    count: float
+    count: int
     confidence: float
 
 

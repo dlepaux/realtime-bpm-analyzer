@@ -82,6 +82,17 @@ def test_silence_reads_nothing() -> None:
     assert analyze_channel_data(np.zeros(RATE * 4, dtype=np.float32), RATE, engine="peaks") is None
 
 
+def test_a_list_of_python_ints_reads_as_floats() -> None:
+    # Plain numbers, unlike typed integer PCM, are values: silence written as zeros is still silence
+    assert analyze_channel_data([0] * (RATE * 4), RATE) is None
+
+
+def test_a_float64_past_float32_range_reads_without_a_warning() -> None:
+    samples = np.zeros(RATE * 4)
+    samples[10] = 1e300
+    assert analyze_channel_data(samples, RATE, engine="peaks") is None
+
+
 def test_non_finite_samples_read_without_raising() -> None:
     # The reference treats a NaN or infinite sample as no audio; it must not crash the analysis
     samples = np.zeros(RATE * 4, dtype=np.float32)
@@ -98,6 +109,10 @@ def test_non_finite_samples_read_without_raising() -> None:
         (np.zeros((2, 100), dtype=np.float32), InvalidSamplesError),
         ("not samples", TypeError),
         ([1j, 2j], TypeError),
+        # Integer PCM must be scaled first: read unscaled, int16 samples make the peaks engine misread
+        (np.full(100, 1000, dtype=np.int16), TypeError),
+        (array("h", [1000] * 100), TypeError),
+        (np.ones(100, dtype=bool), TypeError),
     ],
 )
 def test_unusable_samples_raise(samples: object, error: type[Exception]) -> None:
@@ -117,6 +132,9 @@ def test_unusable_samples_raise(samples: object, error: type[Exception]) -> None
         ({"tempo_range": TempoRange(min=90, max=179)}, RATE),
         ({"tempo_range": TempoRange(min=math.inf, max=math.inf)}, RATE),
         ({}, math.nan),
+        # The JS library loops forever on these two, so the port refuses them; see _analysis.py
+        ({"engine": "peaks", "lowpass": Lowpass(frequency=0.5)}, 1.5),
+        ({"tempo_range": TempoRange(min=1e-10, max=1e308)}, RATE),
         ({}, 99.9),
     ],
 )

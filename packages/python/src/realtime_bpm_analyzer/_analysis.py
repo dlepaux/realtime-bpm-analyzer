@@ -7,6 +7,7 @@ src/core/{offline,engine,tempo,lowpass}.ts.
 from __future__ import annotations
 
 import math
+from array import array
 from collections.abc import Sequence
 from numbers import Real
 from typing import Any, TypeAlias
@@ -15,6 +16,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ._calibration import calibrate
+from ._peaks import MINIMUM_SAMPLE_RATE as PEAKS_MINIMUM_SAMPLE_RATE
 from ._peaks import Tempo, detect_peaks
 from ._tempogram import MINIMUM_SAMPLE_RATE, detect_tempogram
 from ._types import (
@@ -30,8 +32,8 @@ from ._types import (
     TempoRange,
 )
 
-Samples: TypeAlias = Sequence[float] | NDArray[np.floating[Any]] | NDArray[np.integer[Any]]
-"""One channel: a sequence of floats (a list, an `array.array`) or a 1-D NumPy array."""
+Samples: TypeAlias = Sequence[float] | NDArray[np.floating[Any]]
+"""One channel from -1 to 1: a sequence of numbers (a list, a float `array.array`) or a 1-D float NumPy array."""
 
 DEFAULT_TEMPO_RANGE = TempoRange(min=90, max=180)
 ENGINES: tuple[EngineName, ...] = ("tempogram", "peaks")
@@ -47,17 +49,26 @@ def _is_number(value: object) -> bool:
 
 def _as_channel(samples: Samples) -> NDArray[np.float32]:
     """The samples as 32-bit floats, as the JS library holds them: a float64 input is rounded the same way."""
+    # Integer PCM in a typed container (int16, say) would read as samples far outside -1 to 1, which the peaks
+    # engine misreads: the JS library takes only a Float32Array, so it is refused rather than read unscaled
+    if (isinstance(samples, np.ndarray) and samples.dtype.kind != "f") or (
+        isinstance(samples, array) and samples.typecode not in "fd"
+    ):
+        kind = samples.dtype if isinstance(samples, np.ndarray) else f"array('{samples.typecode}')"
+        raise TypeError(f"samples must be floats from -1 to 1, not {kind}: scale integer PCM first (int16 / 32768)")
     try:
-        array = np.asarray(samples)
+        channel = np.asarray(samples)
     except (TypeError, ValueError) as error:
         raise TypeError("samples must be a sequence of numbers or a NumPy array") from error
-    if array.dtype.kind not in "iuf":
-        raise TypeError(f"samples must be numbers, not {array.dtype}")
-    if array.ndim != 1:
-        raise InvalidSamplesError(f"samples must be one channel, a 1-D sequence, not {array.ndim}-D")
-    if array.size == 0:
+    if channel.dtype.kind not in "iuf":
+        raise TypeError(f"samples must be numbers, not {channel.dtype}")
+    if channel.ndim != 1:
+        raise InvalidSamplesError(f"samples must be one channel, a 1-D sequence, not {channel.ndim}-D")
+    if channel.size == 0:
         raise InvalidSamplesError("samples must not be empty")
-    return array.astype(np.float32)
+    # A float64 past float32's range becomes infinite, as a Float32Array stores it: no audio, not an error
+    with np.errstate(over="ignore"):
+        return channel.astype(np.float32)
 
 
 def _sample_rate(value: float) -> float:
@@ -165,11 +176,12 @@ def analyze_channel_data(
 
     Raises:
         InvalidSamplesError: The samples are empty or not one channel.
-        OutOfRangeError: The sample rate is not finite and positive (at least 100 Hz for the tempogram), the engine
+        OutOfRangeError: The sample rate is not finite and positive (at least 100 Hz for the tempogram, 2 Hz for
+            peaks), the engine
             is unknown, a lowpass is given to the tempogram, the tempo range's bounds are not positive and finite or
             span less than an octave, or a lowpass setting is not finite, its cutoff not between 0 and half the
             sample rate, or its Q not from -758 to 770 dB.
-        TypeError: An argument has the wrong type.
+        TypeError: An argument has the wrong type, or the samples are integers in a NumPy array or `array.array`.
     """
     channel = _as_channel(samples)
     rate = _sample_rate(sample_rate)
@@ -189,6 +201,10 @@ def analyze_channel_data(
         frequency = q = math.nan
     else:
         frequency, q = _lowpass(lowpass, rate)
+        # Below 2 Hz the peak search's skip rounds to 0. The JS library has no check and loops forever there, so
+        # this refuses it as the out-of-range value it is (a divergence by necessity: RBA-257's READY)
+        if rate < PEAKS_MINIMUM_SAMPLE_RATE:
+            raise OutOfRangeError(f"Invalid sample rate: {rate}. The peaks engine needs at least {PEAKS_MINIMUM_SAMPLE_RATE} Hz.")
     # A NaN or infinite sample is no audio, as in JS: the engines handle it, so NumPy's warnings about it are noise
     with np.errstate(invalid="ignore", over="ignore"):
         if engine == "tempogram":

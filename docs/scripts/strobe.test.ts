@@ -1,11 +1,13 @@
 // Run with `npm test`. The strobe light's safety rules (RBA-237, WCAG 2.3.1 Three Flashes or Below
-// Threshold), tested where they are decided: tools/strobe.ts. The page only draws what step()
-// returns, so these hold for every tempo source, tap and tempo change the page can produce.
+// Threshold), tested where they are decided: tools/strobe.ts. The light flashes on the library's
+// kick event, so the page can produce any pattern of kicks: these cases are generated, and the
+// rules must hold for all of them, at any screen rate.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  BREAK_MS,
   CAP_MARGIN_MS,
-  EVERY_OTHER_BEAT_ABOVE_BPM,
+  EVERY_KICK_UP_TO_BPM,
   FLASH_COLORS,
   FLASH_WINDOW_MS,
   IDLE,
@@ -13,21 +15,24 @@ import {
   MAX_LATE_MS,
   MIN_GAP_MS,
   RESTART_GUARD_MS,
-  alignToTap,
-  beatsPerFlash,
+  STROBE_SOURCES,
+  addKick,
   flashAnimation,
+  flashTimeFor,
+  heardAt,
   initialStyle,
   isSaturatedRed,
   isTooSoonAfterStop,
+  kicksPerFlash,
   mayFlash,
+  playsInPage,
   start,
   step,
   stop,
-  type FlashKind,
   type Strobe,
 } from '../.vitepress/tools/strobe.ts'
 
-/** A small seeded generator, so a failing run can be replayed. */
+/** A small seeded generator, so a failing case can be replayed from its seed. */
 function random(seed: number) {
   let state = seed >>> 0
   return () => {
@@ -36,435 +41,287 @@ function random(seed: number) {
   }
 }
 
-/** A flash: decided on the frame at `at`, painted on the next frame, `paint`. */
-type Flash = { at: number; kind: FlashKind; paint: number }
+/** A kick as the page sees it: when its event arrives, and when the light should show it. */
+type Kick = { arrives: number; at: number; strength: number }
 
 /**
- * The requirement the margin serves, written here rather than read from the module so the tests
- * state it on their own: any 4 consecutive onsets span at least this, by the frame clock, which
- * keeps the painted flashes under 3 in any second with room for a late frame (see CAP_MARGIN_MS).
+ * Runs the strobe over `kicks` on a screen at `hz`, each frame `jitter` ms late at most, the way
+ * the component does: kicks that arrived before the frame are added, then the frame steps.
  */
-const FOUR_ONSETS_SPAN_MS = 1100
-/** And painted, a frame later on a jittery screen, they still span this much: 1 s with room. */
-const FOUR_PAINTS_SPAN_MS = 1050
-
-type Run = {
-  frames: number[]
-  /** The tempo at a frame's time, or null while the microphone has none. */
-  bpm: (at: number) => number | null
-  beatsPerBar?: number
-  /** Taps that line the grid up, with the beat each one marks (null: the nearest on the grid). */
-  taps?: { at: number; beat: number | null }[]
-}
-
-function run({ frames, bpm, beatsPerBar = 4, taps = [] }: Run, from: Strobe = start()): { flashes: Flash[]; state: Strobe } {
-  let state = from
-  const flashes: Flash[] = []
-  const pending = [...taps].sort((a, b) => a.at - b.at)
-  for (const [i, now] of frames.entries()) {
-    while (pending.length && (pending[0] as { at: number }).at <= now) {
-      const tap = pending.shift() as { at: number; beat: number | null }
-      const tempo = bpm(tap.at)
-      if (tempo !== null) state = alignToTap(state, tap.at, 60_000 / tempo, tap.beat)
+function run(kicks: readonly Kick[], hz: number, rand: () => number, jitter = 2, end?: number) {
+  const until = end ?? (kicks[kicks.length - 1]?.at ?? 0) + 2000
+  let state: Strobe = start()
+  let next = 0
+  const flashes: number[] = []
+  for (let frame = 0, now = 0; now < until; frame++, now = (frame * 1000) / hz + rand() * jitter) {
+    while (next < kicks.length && (kicks[next] as Kick).arrives <= now) {
+      const kick = kicks[next++] as Kick
+      state = addKick(state, kick.at, kick.strength)
     }
-    const result = step(state, { now, bpm: bpm(now), beatsPerBar })
+    const result = step(state, now)
     state = result.state
-    if (result.flash) flashes.push({ at: now, kind: result.flash, paint: frames[i + 1] ?? now + 1000 / 30 })
+    if (result.flash) flashes.push(now)
   }
-  return { flashes, state }
+  return flashes
 }
 
-/** Frame times at `hz` from `from` for `seconds`, with up to `jitterMs` of lateness on each. */
-function frames(seconds: number, hz = 60, jitterMs = 0, seed = 1, from = 0): number[] {
-  const next = random(seed)
-  const period = 1000 / hz
-  return Array.from({ length: Math.floor((seconds * 1000) / period) }, (_, i) => from + i * period + next() * jitterMs)
-}
-
-/** The most flashes inside any half-open window of FLASH_WINDOW_MS. */
-function worstWindow(flashes: readonly Flash[]): number {
-  let worst = 0
-  for (let i = 0; i < flashes.length; i++) {
-    const start = (flashes[i] as Flash).at
-    const inside = flashes.filter((f) => f.at >= start && f.at < start + FLASH_WINDOW_MS).length
-    worst = Math.max(worst, inside)
-  }
-  return worst
-}
-
-function smallestGap(flashes: readonly Flash[]): number {
-  return flashes.slice(1).reduce((gap, f, i) => Math.min(gap, f.at - (flashes[i] as Flash).at), Infinity)
-}
-
-/** The tightest span of MAX_FLASHES_PER_WINDOW + 1 consecutive onsets, by `clock`. */
-function tightestSpan(flashes: readonly Flash[], clock: 'at' | 'paint'): number {
-  const n = MAX_FLASHES_PER_WINDOW
-  return flashes.slice(n).reduce((span, f, i) => Math.min(span, f[clock] - (flashes[i] as Flash)[clock]), Infinity)
-}
-
-/** What breaks the safety rules, or null: the label goes in the sweep's list of failures. */
-function unsafe(flashes: readonly Flash[], label: string): string | null {
-  const worst = worstWindow(flashes)
-  const gap = smallestGap(flashes)
-  const decided = tightestSpan(flashes, 'at')
-  const painted = tightestSpan(flashes, 'paint')
-  if (worst > MAX_FLASHES_PER_WINDOW) return `${label}: ${worst} flashes in one second`
-  if (gap < MIN_GAP_MS) return `${label}: two flashes ${gap.toFixed(1)} ms apart`
-  if (decided < FOUR_ONSETS_SPAN_MS) return `${label}: 4 onsets in ${decided.toFixed(1)} ms`
-  if (painted < FOUR_PAINTS_SPAN_MS) return `${label}: 4 paints in ${painted.toFixed(1)} ms`
-  return null
-}
-
-function assertSafe(flashes: readonly Flash[], label: string) {
-  const failure = unsafe(flashes, label)
-  assert.equal(failure, null, failure ?? '')
-}
-
-// ── At most 3 flash onsets in any one-second window ─────────────────────────────────────────
-
-test('the cap is WCAG 2.3.1\'s, three flashes in any one second, held with a margin', () => {
-  assert.equal(MAX_FLASHES_PER_WINDOW, 3)
-  assert.equal(FLASH_WINDOW_MS, 1000)
-  assert.equal(FLASH_WINDOW_MS + CAP_MARGIN_MS, FOUR_ONSETS_SPAN_MS)
-  // Three frames of a 30 Hz screen, the slowest the tests use: a paint one frame late, a dropped
-  // frame and timer jitter together still leave the painted flashes more than 1 s apart.
-  assert.ok(CAP_MARGIN_MS >= 3 * (1000 / 30), `${CAP_MARGIN_MS} ms`)
-  assert.equal(EVERY_OTHER_BEAT_ABOVE_BPM, 150)
-})
-
-test('mayFlash: a fourth flash inside one second is refused, and allowed once the first leaves the window', () => {
-  assert.ok(mayFlash([], 0))
-  assert.ok(mayFlash([0, 340, 680], FOUR_ONSETS_SPAN_MS))
-  assert.ok(!mayFlash([0, 340, 680], FOUR_ONSETS_SPAN_MS - 1))
-  assert.ok(!mayFlash([0, 340, 680], 1000), 'a fourth exactly one second after the first has no margin')
-  assert.ok(!mayFlash([0, 340, 680], 990))
-  assert.ok(!mayFlash([100], 100 + MIN_GAP_MS - 1), 'too close to the last flash')
-  assert.ok(!mayFlash([500], 400), 'a clock that runs backwards never flashes')
-})
-
-test('every tempo from 20 to 300 BPM stays within the cap and its margin, at 30, 60 and 144 Hz with frame jitter', () => {
-  const failures: string[] = []
-  for (let bpm = 20; bpm <= 300; bpm += 1) {
-    for (const hz of [30, 60, 144]) {
-      const { flashes } = run({ frames: frames(8, hz, 1000 / hz / 2, bpm), bpm: () => bpm })
-      assert.ok(flashes.length >= 2, `${bpm} BPM at ${hz} Hz: ${flashes.length} flashes`)
-      const failure = unsafe(flashes, `${bpm} BPM at ${hz} Hz`)
-      if (failure) failures.push(failure)
-    }
-  }
-  // Every failing tempo is listed, so a red run shows where the margin is missing.
-  assert.deepEqual(failures, [])
-})
-
-test('a steady tempo never loses a flash to the margin: every beat up to the switch, every second beat above', () => {
-  const failures: string[] = []
-  for (let bpm = 20; bpm <= 300; bpm += 1) {
-    for (const hz of [30, 60, 144]) {
-      const times = frames(8, hz, 1000 / hz / 2, bpm)
-      const { flashes } = run({ frames: times, bpm: () => bpm })
-      const period = 60_000 / bpm
-      const every = bpm > EVERY_OTHER_BEAT_ABOVE_BPM ? 2 : 1
-      const origin = times[0] as number
-      const last = times[times.length - 1] as number
-      // The grid starts on the first frame; a beat whose late window ends before the run does must show in it.
-      for (let beat = 0; origin + beat * period + MAX_LATE_MS < last; beat += every) {
-        const due = origin + beat * period
-        if (!flashes.some((f) => f.at >= due && f.at <= due + MAX_LATE_MS)) {
-          failures.push(`${bpm} BPM at ${hz} Hz: beat ${beat} at ${due.toFixed(1)} did not flash`)
-          break
-        }
-      }
-    }
-  }
-  assert.deepEqual(failures, [])
-})
-
-test('above 150 BPM it flashes on every second beat, and up to 150 on every beat', () => {
-  assert.equal(beatsPerFlash(150), 1)
-  assert.equal(beatsPerFlash(150.5), 2)
-  assert.equal(beatsPerFlash(300), 2)
-  assert.equal(beatsPerFlash(20), 1)
-  // Flash counts over 10 s on an uneven 60 Hz screen.
-  const count = (bpm: number) => run({ frames: frames(10, 60, 8, 7), bpm: () => bpm }).flashes.length
-  assert.equal(count(150), 25, `150 BPM: ${count(150)} flashes in 10 s`)
-  assert.ok(count(151) >= 12 && count(151) <= 13, `151 BPM: ${count(151)} flashes in 10 s`)
-  assert.ok(count(179) >= 14 && count(179) <= 15, `179 BPM: ${count(179)} flashes in 10 s`)
-  assert.ok(count(300) >= 24 && count(300) <= 26, `300 BPM: ${count(300)} flashes in 10 s`)
-  assert.ok(count(120) >= 19 && count(120) <= 21, `120 BPM: ${count(120)} flashes in 10 s`)
-})
-
-test('tempo changes on every frame, between any two tempos, never break the cap', () => {
-  for (let seed = 1; seed <= 40; seed++) {
-    const next = random(seed)
-    const changes = Array.from({ length: 40 }, () => ({ at: next() * 10_000, bpm: 20 + next() * 280 })).sort((a, b) => a.at - b.at)
-    const bpm = (at: number) => [...changes].reverse().find((change) => change.at <= at)?.bpm ?? 120
-    for (const hz of [30, 60, 144]) {
-      const { flashes } = run({ frames: frames(10, hz, 1000 / hz / 2, seed), bpm })
-      assertSafe(flashes, `tempo changes at ${hz} Hz, seed ${seed}`)
-    }
-  }
-})
-
-test('the switch to every second beat, crossed back and forth, never breaks the cap', () => {
-  for (let seed = 1; seed <= 20; seed++) {
-    for (const hz of [30, 60, 144]) {
-      const next = random(seed)
-      const bpm = (at: number) => (Math.floor(at / (150 + seed * 10)) % 2 === 0 ? 149 + next() : 151 + next() * 2)
-      const { flashes } = run({ frames: frames(10, hz, 1000 / hz / 2, seed), bpm })
-      assertSafe(flashes, `around the switch at ${hz} Hz, seed ${seed}`)
-    }
-  }
-})
-
-// ── Tapping along never keeps the light dark ────────────────────────────────────────────────
-
-/**
- * Taps every `everyMs` from `from` to `to`, each up to `jitterMs` early or late, as the page sends
- * them: the first of the run is the downbeat, each later one the nearest beat on the grid.
- */
-function steadyTaps(everyMs: number, from: number, to: number, jitterMs: number, seed: number) {
-  const next = random(seed)
-  const count = Math.floor((to - from) / everyMs)
-  return Array.from({ length: count }, (_, i) => ({ at: from + i * everyMs + (next() * 2 - 1) * jitterMs, beat: i === 0 ? 0 : null }))
-}
-
-test('tapping along at the tempo flashes on nearly every beat while the taps go on, within the cap', () => {
-  // A tap is a beat: it flashes on the tap, where moving the grid a period past each tap would
-  // leave every flash due just after the next tap, so the light stayed dark while a visitor tapped.
-  for (const bpm of [60, 90, 120, 150]) {
-    for (const hz of [30, 60, 144]) {
-      for (let seed = 1; seed <= 10; seed++) {
-        const period = 60_000 / bpm
-        const offset = random(seed + 100)() * period
-        const taps = steadyTaps(period, 1000 + offset, 11_000, 25, seed)
-        const { flashes } = run({ frames: frames(12, hz, 1000 / hz / 2, seed), bpm: () => bpm, taps })
-        const label = `taps at ${bpm} BPM, ${hz} Hz, seed ${seed}`
-        const during = flashes.filter((f) => f.at >= 1000 + offset + period && f.at < 11_000)
-        const beats = Math.floor((10_000 - offset - period) / period)
-        assert.ok(during.length >= Math.floor(beats * 0.9), `${label}: ${during.length} flashes for ${beats} beats`)
-        assertSafe(flashes, label)
-      }
-    }
-  }
-})
-
-test('taps at twice the tempo still flash, within the cap', () => {
-  for (const bpm of [60, 90, 120, 150]) {
-    for (const hz of [30, 60, 144]) {
-      for (let seed = 1; seed <= 10; seed++) {
-        const period = 60_000 / bpm
-        const taps = steadyTaps(period / 2, 1000, 11_000, 15, seed)
-        const { flashes } = run({ frames: frames(12, hz, 1000 / hz / 2, seed), bpm: () => bpm, taps })
-        const label = `taps at twice ${bpm} BPM, ${hz} Hz, seed ${seed}`
-        const during = flashes.filter((f) => f.at >= 1000 + period && f.at < 11_000)
-        const beats = Math.floor((10_000 - period) / period)
-        assert.ok(during.length >= Math.floor(beats * 0.9), `${label}: ${during.length} flashes for ${beats} beats`)
-        assertSafe(flashes, label)
-      }
-    }
-  }
-})
-
-test('above the switch, tapping on every second beat flashes on every tap, evenly', () => {
-  // Tapping along with the flashes at a drum and bass tempo: each tap is the nearest beat on the
-  // grid, so it keeps the grid's count and lands on a flashing beat. Counting taps as beats put
-  // every second tap on a beat that doesn't flash, and the light ran 350 ms, 1050 ms, 350 ms...
-  for (const bpm of [151, 170, 174, 220, 300]) {
-    for (const hz of [30, 60, 144]) {
-      for (let seed = 1; seed <= 10; seed++) {
-        const period = 60_000 / bpm
-        const taps = steadyTaps(2 * period, 1000, 11_000, 15, seed)
-        const { flashes } = run({ frames: frames(12, hz, 1000 / hz / 2, seed), bpm: () => bpm, taps })
-        const label = `taps on every second beat at ${bpm} BPM, ${hz} Hz, seed ${seed}`
-        const during = flashes.filter((f) => f.at >= 1000 && f.at < 11_000 - 2 * period)
-        assert.ok(during.length >= taps.length - 2, `${label}: ${during.length} flashes for ${taps.length} taps`)
-        const widest = during.slice(1).reduce((gap, f, i) => Math.max(gap, f.at - (during[i] as Flash).at), 0)
-        assert.ok(widest <= 2 * period + 70, `${label}: a gap of ${widest.toFixed(0)} ms`)
-        assertSafe(flashes, label)
-      }
-    }
-  }
-})
-
-test('a tap marks the nearest beat on the grid, and the first of a run the downbeat', () => {
-  // 120 BPM from 0: beats at 0, 500, 1000... A tap at 1530 is beat 3 (counted from 0), moved to 1530.
-  const running = run({ frames: frames(1.2, 60), bpm: () => 120 }).state
-  const late = alignToTap(running, 1530, 500, null)
-  assert.deepEqual(late.cursor, { tick: 3, time: 1530 })
-  const early = alignToTap(running, 1480, 500, null)
-  assert.deepEqual(early.cursor, { tick: 3, time: 1480 })
-  assert.deepEqual(alignToTap(running, 1530, 500, 0).cursor, { tick: 0, time: 1530 })
-  // No grid yet: the tap starts one, on the beat it marks or the downbeat.
-  assert.deepEqual(alignToTap(start(), 200, 500, null).cursor, { tick: 0, time: 200 })
-})
-
-test('taps that move the phase, however often, never double a flash or break the cap', () => {
-  for (let seed = 1; seed <= 40; seed++) {
-    const next = random(seed)
-    const taps = Array.from({ length: 60 }, (_, i) => ({ at: next() * 10_000, beat: i }))
-    const tempo = 60 + seed * 6
-    for (const hz of [30, 60, 144]) {
-      const { flashes } = run({ frames: frames(10, hz, 1000 / hz / 2, seed), bpm: () => tempo, taps })
-      assertSafe(flashes, `taps at ${tempo} BPM, ${hz} Hz, seed ${seed}`)
-    }
-  }
-})
-
-test('a tap right after a flash pulls the next beat close, and the gate holds it back', () => {
-  // A flash at 0, then a tap at 60 ms that says the beat is there: the next beat on the new grid
-  // is at 60 + 333 ms at 180 BPM, and the window still holds the earlier flashes.
-  const { flashes } = run({
-    frames: frames(4, 60),
-    bpm: () => 180,
-    taps: [100, 150, 200, 250, 300, 1100, 1110, 1120].map((at, beat) => ({ at, beat })),
+/** Kicks at `times`, shown when they arrive (the mic), with a detector delay of 18 to 28 ms. */
+const fromRoom = (times: readonly number[], rand: () => number): Kick[] =>
+  times.map((time) => {
+    const arrives = time + 18 + rand() * 10
+    return { arrives, at: arrives, strength: 0.5 + rand() / 2 }
   })
-  assertSafe(flashes, 'taps right after flashes')
+
+/** Kicks played by the page: the event arrives before the listener hears them, as on Chrome. */
+const fromPage = (times: readonly number[], rand: () => number): Kick[] =>
+  times.map((time) => ({ arrives: time - 5 - rand() * 20, at: time, strength: 0.5 + rand() / 2 }))
+
+function steady(bpm: number, from: number, to: number, rand: () => number, jitter = 3): number[] {
+  const period = 60_000 / bpm
+  const times: number[] = []
+  for (let t = from; t < to; t += period) times.push(t + (rand() - 0.5) * 2 * jitter)
+  return times
+}
+
+/** The cap, read on the flash times: four in a row span the guarded window, and none come too close. */
+function assertCap(flashes: readonly number[], label: string) {
+  for (let i = 3; i < flashes.length; i++) {
+    const span = (flashes[i] as number) - (flashes[i - 3] as number)
+    assert.ok(span >= FLASH_WINDOW_MS + CAP_MARGIN_MS, `${label}: 4 flashes in ${span.toFixed(1)} ms ending at ${flashes[i]}`)
+  }
+  for (let i = 1; i < flashes.length; i++) {
+    assert.ok((flashes[i] as number) - (flashes[i - 1] as number) >= MIN_GAP_MS, `${label}: two flashes ${MIN_GAP_MS} ms apart or less at ${flashes[i]}`)
+  }
+  for (const at of flashes) {
+    const inWindow = flashes.filter((other) => other >= at && other - at < FLASH_WINDOW_MS).length
+    assert.ok(inWindow <= MAX_FLASHES_PER_WINDOW, `${label}: ${inWindow} flashes in the second from ${at}`)
+  }
+}
+
+// ── Generated patterns: the cap holds whatever the kicks do ─────────────────────────────────
+
+const RATES = [30, 60, 120, 144]
+
+/** Each pattern draws its kick times from a seed: the kinds of music, and worse, the event can carry. */
+const PATTERNS: Record<string, (rand: () => number) => number[]> = {
+  'a steady tempo from 40 to 400 BPM': (rand) => steady(40 + rand() * 360, 0, 12_000, rand),
+  'a tempo change at a random point': (rand) => {
+    const cut = 3000 + rand() * 6000
+    return [...steady(60 + rand() * 240, 0, cut, rand), ...steady(60 + rand() * 240, cut, 14_000, rand)]
+  },
+  'bursts and rolls inside a groove': (rand) => {
+    const times: number[] = []
+    for (let t = 0; t < 14_000;) {
+      times.push(t)
+      // A roll: kicks 80 to 150 ms apart, the closest the detector reports, for up to 16 kicks.
+      if (rand() < 0.15) for (let n = Math.floor(rand() * 16); n > 0; n--) times.push((t += 80 + rand() * 70))
+      t += 300 + rand() * 300
+    }
+    return times
+  },
+  'irregular gaps from 80 ms to 2.5 s': (rand) => {
+    const times: number[] = []
+    for (let t = 0; t < 15_000; t += 80 + rand() ** 2 * 2420) times.push(t)
+    return times
+  },
+  'kicks every 80 ms': () => Array.from({ length: 150 }, (_, i) => i * 80),
+  'a breakdown, then the drop': (rand) => [...steady(128, 0, 6000, rand), ...steady(128, 13_000, 20_000, rand)],
+}
+
+for (const [name, pattern] of Object.entries(PATTERNS)) {
+  test(`the cap holds for ${name}, at every screen rate, mic or page timing (60 seeds)`, () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const rand = random(seed)
+      const times = pattern(rand)
+      for (const hz of RATES) {
+        assertCap(run(fromRoom(times, rand), hz, rand), `${name}, seed ${seed}, ${hz} Hz, room`)
+        assertCap(run(fromPage(times, rand), hz, rand), `${name}, seed ${seed}, ${hz} Hz, page`)
+      }
+    }
+  })
+}
+
+test('the cap holds when two kicks carry the same time or arrive out of order', () => {
+  const rand = random(7)
+  const kicks: Kick[] = []
+  for (let t = 0; t < 8000; t += 90) kicks.push({ arrives: t, at: t - (rand() < 0.3 ? 200 : 0), strength: 1 })
+  assertCap(run(kicks, 60, rand), 'out of order')
 })
 
-test('a stalled page never shows the beats it missed, late or in a burst', () => {
-  // 120 BPM, then no frame for 3 s (a busy main thread), then frames again.
-  const before = frames(2, 60)
-  const after = frames(2, 60, 0, 1, 5000)
-  const { flashes } = run({ frames: [...before, ...after], bpm: () => 120 })
-  const resumed = flashes.filter((f) => f.at >= 5000)
-  assert.ok(resumed.length <= 5, `${resumed.length} flashes in the 2 s after the stall`)
-  assertSafe(flashes, 'after a stall')
-  // Every flash is shown within MAX_LATE_MS of its beat on the grid, which starts at 0.
-  for (const flash of flashes) {
-    const late = flash.at % 500
-    assert.ok(late <= MAX_LATE_MS + 1000 / 60, `a flash ${late.toFixed(1)} ms late`)
+// ── Regular at a steady tempo ───────────────────────────────────────────────────────────────
+
+test(`a steady tempo up to ${EVERY_KICK_UP_TO_BPM} BPM flashes on every kick, on the first frame that shows it`, () => {
+  for (let bpm = 40; bpm <= EVERY_KICK_UP_TO_BPM - 2; bpm++) {
+    for (const hz of [30, 60, 144]) {
+      const rand = random(bpm * hz)
+      const times = steady(bpm, 0, 12_000, rand, 2)
+      const flashes = run(fromPage(times, rand), hz, rand, 1)
+      assert.equal(flashes.length, times.length, `${bpm} BPM at ${hz} Hz: ${flashes.length} flashes for ${times.length} kicks`)
+      flashes.forEach((at, i) => {
+        const lag = at - (times[i] as number)
+        assert.ok(lag >= 0 && lag <= 1000 / hz + 1, `${bpm} BPM at ${hz} Hz: flash ${i} ${lag.toFixed(1)} ms after its kick`)
+      })
+    }
   }
 })
 
-test('a faster tempo takes over from the last beat, not after the old tempo\'s next beat', () => {
-  // 20 BPM flashes at the start, then 120 BPM from 1000 ms: the next flash comes on the new grid within
-  // one new period, where waiting for the old next beat would leave the light dark until 3000.
-  const { flashes } = run({ frames: frames(3, 60), bpm: (at) => (at < 1000 ? 20 : 120) })
-  assert.ok((flashes[0]?.at ?? Infinity) < 1000 / 30, 'the first flash, a frame after the start')
-  const first = flashes[1]?.at ?? Infinity
-  assert.ok(first >= 1000 && first < 1000 + 500 + 1000 / 60, `the first flash at the new tempo came at ${first}`)
-  assertSafe(flashes, 'a tempo change')
+test(`above ${EVERY_KICK_UP_TO_BPM} BPM it flashes on every second kick, regularly, to just under 300 BPM, where every third takes over`, () => {
+  for (let bpm = EVERY_KICK_UP_TO_BPM + 2; bpm <= 295; bpm++) {
+    for (const hz of [30, 60, 144]) {
+      const rand = random(bpm * hz)
+      const times = steady(bpm, 0, 12_000, rand, 2)
+      const flashes = run(fromPage(times, rand), hz, rand, 1)
+      // The first two kicks set the count, then every second one shows.
+      assert.ok(Math.abs(flashes.length - times.length / 2) <= 1.5, `${bpm} BPM at ${hz} Hz: ${flashes.length} flashes for ${times.length} kicks`)
+      const gaps = flashes.slice(2).map((at, i) => at - (flashes[i + 1] as number))
+      const period = (2 * 60_000) / bpm
+      for (const gap of gaps) assert.ok(Math.abs(gap - period) <= 1000 / hz + 6, `${bpm} BPM at ${hz} Hz: a gap of ${gap.toFixed(1)} ms, not ${period.toFixed(1)}`)
+    }
+  }
 })
 
-test('the microphone mode shows nothing until it has a tempo', () => {
-  const { flashes } = run({ frames: frames(3, 60), bpm: (at) => (at < 2000 ? null : 128) })
-  assert.ok(flashes.length > 0)
-  assert.ok(flashes.every((f) => f.at >= 2000), 'a flash before the first reading')
+test('a tempo change across the switch moves to every second kick within three kicks, and back', () => {
+  const rand = random(3)
+  const times = [...steady(140, 0, 6000, rand, 1), ...steady(170, 6000, 12_000, rand, 1), ...steady(140, 12_000, 18_000, rand, 1)]
+  const flashes = run(fromPage(times, rand), 60, rand, 1)
+  assertCap(flashes, 'tempo change')
+  const inside = (from: number, to: number) => flashes.filter((at) => at >= from && at < to)
+  assert.equal(inside(1000, 6000).length, times.filter((t) => t >= 1000 && t < 6000).length, 'every kick at 140')
+  const at170 = inside(7300, 12_000)
+  assert.ok(Math.abs(at170.length - times.filter((t) => t >= 7300 && t < 12_000).length / 2) <= 1, 'every second kick at 170')
+  assert.equal(inside(13_500, 18_000).length, times.filter((t) => t >= 13_500 && t < 18_000).length, 'every kick again at 140')
 })
 
-test('the downbeat is the accented flash, every beatsPerBar beats, counted from a tap', () => {
-  const { flashes } = run({ frames: frames(4, 60), bpm: () => 120, beatsPerBar: 4 })
-  assert.deepEqual(flashes.slice(0, 8).map((f) => f.kind), ['accent', 'beat', 'beat', 'beat', 'accent', 'beat', 'beat', 'beat'])
-  const one = run({ frames: frames(2, 60), bpm: () => 120, beatsPerBar: 1 }).flashes
-  assert.ok(one.every((f) => f.kind === 'accent'), 'one beat per bar: every beat is a downbeat')
-  // A tap marking beat 0 at 1250 ms is a downbeat flash itself, and puts the next at 1250 + 4 beats.
-  const tapped = run({ frames: frames(5, 60), bpm: () => 120, taps: [{ at: 1250, beat: 0 }] }).flashes
-  const accents = tapped.filter((f) => f.kind === 'accent' && f.at >= 1250).map((f) => f.at)
-  assert.ok(Math.abs((accents[0] as number) - 1250) <= 1000 / 60 + 1, `the tap's downbeat at ${accents[0]}`)
-  assert.ok(Math.abs((accents[1] as number) - 3250) <= 1000 / 60 + 1, `next downbeat at ${accents[1]}`)
+test('kicksPerFlash: the fewest kicks that keep flashes 400 ms apart, and it waits for room before going back', () => {
+  assert.equal(kicksPerFlash(60_000 / 120, 1), 1)
+  assert.equal(kicksPerFlash(60_000 / EVERY_KICK_UP_TO_BPM, 1), 1)
+  assert.equal(kicksPerFlash(60_000 / 151, 1), 2)
+  assert.equal(kicksPerFlash(60_000 / 300, 1), 2)
+  assert.equal(kicksPerFlash(80, 1), 5)
+  // From every second kick, 148 BPM stays there until the tempo is clearly below the switch.
+  assert.equal(kicksPerFlash(60_000 / 148, 2), 2)
+  assert.equal(kicksPerFlash(60_000 / 140, 2), 1)
+  assert.equal(kicksPerFlash(Number.NaN, 2), 2)
 })
 
-// ── No saturated red ────────────────────────────────────────────────────────────────────────
+test('a breakdown stops the flashes, and the drop\'s first kick flashes at once', () => {
+  const rand = random(11)
+  const times = [...steady(128, 0, 6000, rand, 0), ...steady(128, 13_000, 20_000, rand, 0)]
+  const flashes = run(fromPage(times, rand), 60, rand, 1)
+  const lastBefore = times.filter((t) => t < 6000).pop() as number
+  assert.equal(flashes.filter((at) => at > lastBefore + 20 && at < 13_000).length, 0, 'dark through the breakdown')
+  const first = flashes.find((at) => at >= 13_000) as number
+  assert.ok(first - 13_000 <= 17, `the drop's first kick shows ${first - 13_000} ms late`)
+  assert.ok(BREAK_MS <= 2000)
+})
 
-test('isSaturatedRed follows WCAG: red over 80% of R + G + B, in sRGB or linear light', () => {
-  for (const red of ['#ff0000', '#e00000', '#ff1010', '#cc0000', '#ff3300']) assert.ok(isSaturatedRed(red), red)
-  for (const safe of ['#ffffff', '#000000', '#8fa8ff', '#ff8888', '#808080']) assert.ok(!isSaturatedRed(safe), safe)
+// ── Timing, per source ──────────────────────────────────────────────────────────────────────
+
+test('heardAt is RBA-243\'s recipe: now plus the kick\'s distance from currentTime, plus both latencies', () => {
+  const clock = { now: 10_000, currentTime: 5, baseLatency: 0.01, outputLatency: 0.03 }
+  assert.equal(Math.round(heardAt(4.99, clock)), 10_030)
+  // Safari before 17 has no outputLatency, and a missing value counts as none.
+  assert.equal(Math.round(heardAt(5, { now: 0, currentTime: 5 })), 0)
+})
+
+test('the demo and a file wait until the kick is heard, and flash at once when that has passed; the mic and a tab flash on arrival', () => {
+  assert.deepEqual([...STROBE_SOURCES], ['demo', 'file', 'mic', 'tab'])
+  assert.deepEqual(STROBE_SOURCES.filter(playsInPage), ['demo', 'file'])
+  const clock = { now: 1000, currentTime: 2, baseLatency: 0.005, outputLatency: 0.02 }
+  assert.equal(Math.round(flashTimeFor('demo', 1.99, clock)), 1015)
+  assert.equal(Math.round(flashTimeFor('file', 1.99, clock)), 1015)
+  assert.equal(flashTimeFor('demo', 1.9, clock), 1000, 'already heard: at once')
+  assert.equal(flashTimeFor('mic', 1.99, clock), 1000)
+  assert.equal(flashTimeFor('tab', 1.99, clock), 1000)
+})
+
+test('a kick waiting for its time flashes on the frame it is heard, never before', () => {
+  let state = addKick(start(), 500, 1)
+  for (let now = 0; now < 500; now += 16) {
+    const result = step(state, now)
+    state = result.state
+    assert.equal(result.flash, null, `flashed at ${now}, before its kick`)
+  }
+  assert.ok(step(state, 504).flash)
+})
+
+test('a stalled page skips kicks, it never shows them late or in a burst', () => {
+  let state = start()
+  for (let t = 0; t < 2000; t += 400) state = addKick(state, t, 1)
+  const result = step(state, 2100)
+  assert.equal(result.flash, null, 'every kick is more than MAX_LATE_MS old')
+  assert.equal(step(result.state, 2116).flash, null)
+  assert.ok(MAX_LATE_MS <= 50)
+})
+
+// ── Before the start, and after a stop ──────────────────────────────────────────────────────
+
+test('stopped, it never flashes and ignores kicks, whatever the kicks and the time', () => {
+  for (const state of [IDLE, stop(addKick(start(), 100, 1))]) {
+    let current = state
+    for (let t = 0; t < 5000; t += 50) {
+      current = addKick(current, t, 1)
+      const result = step(current, t)
+      assert.equal(result.flash, null)
+      current = result.state
+    }
+    assert.equal(current.running, false)
+  }
+  assert.ok(Object.isFrozen(IDLE))
+})
+
+test('stopping and starting fast keeps the cap, since the flash history survives a stop (40 seeds)', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const rand = random(seed)
+    let state: Strobe = IDLE
+    const flashes: number[] = []
+    for (let now = 0; now < 10_000; now += 16) {
+      if (rand() < 0.05) state = state.running ? stop(state) : start(state)
+      if (rand() < 0.3) state = addKick(state, now, 1)
+      const result = step(state, now)
+      state = result.state
+      if (result.flash) flashes.push(now)
+    }
+    assertCap(flashes, `seed ${seed}`)
+  }
+})
+
+test('isTooSoonAfterStop refuses a click within the guard, and never before a first stop', () => {
+  assert.equal(isTooSoonAfterStop(null, 0), false)
+  assert.equal(isTooSoonAfterStop(1000, 1000 + RESTART_GUARD_MS - 1), true)
+  assert.equal(isTooSoonAfterStop(1000, 1000 + RESTART_GUARD_MS), false)
+})
+
+test('mayFlash: three in the guarded window, and a minimum gap', () => {
+  assert.equal(mayFlash([], 0), true)
+  assert.equal(mayFlash([0], MIN_GAP_MS - 1), false)
+  assert.equal(mayFlash([0, 400, 800], 1099), false)
+  assert.equal(mayFlash([0, 400, 800], 1100), true)
+})
+
+// ── Colour and motion ───────────────────────────────────────────────────────────────────────
+
+test('no saturated red: the definition, and every colour the light can show', () => {
+  assert.equal(isSaturatedRed('#ff0000'), true)
+  assert.equal(isSaturatedRed('#ff4040'), true, 'red in linear light')
+  assert.equal(isSaturatedRed('#ffffff'), false)
+  for (const color of Object.values(FLASH_COLORS)) assert.equal(isSaturatedRed(color), false, color)
   assert.throws(() => isSaturatedRed('red'), RangeError)
 })
 
-test('no flash colour, in either style, is a saturated red', () => {
-  for (const [kind, color] of Object.entries(FLASH_COLORS)) assert.ok(!isSaturatedRed(color), `${kind}: ${color}`)
-  for (const style of ['flash', 'pulse'] as const) {
-    for (const kind of ['accent', 'beat'] as const) assert.ok(!isSaturatedRed(flashAnimation(style, kind, 500).color))
-  }
-})
-
-// ── prefers-reduced-motion defaults to the soft pulse ───────────────────────────────────────
-
-test('prefers-reduced-motion starts on the soft pulse; otherwise the full flash', () => {
+test('reduced motion starts on the soft pulse, and the pulse is soft and slow', () => {
   assert.equal(initialStyle(true), 'pulse')
   assert.equal(initialStyle(false), 'flash')
-})
-
-test('the soft pulse is soft: a low peak and a gradual rise, where the flash is full and instant', () => {
-  const pulse = flashAnimation('pulse', 'accent', 500)
-  const flash = flashAnimation('flash', 'accent', 500)
-  assert.ok(pulse.peakOpacity <= 0.4 && pulse.attackMs >= 40, JSON.stringify(pulse))
-  assert.equal(flash.peakOpacity, 1)
-  // Each flash is over before the next can start, so a flash never blends into a steady light.
+  for (const strength of [0, 0.5, 1]) {
+    const pulse = flashAnimation('pulse', strength, 500)
+    assert.ok(pulse.peakOpacity <= 0.35 && pulse.attackMs >= 100, JSON.stringify(pulse))
+    const flash = flashAnimation('flash', strength, 500)
+    assert.ok(flash.peakOpacity >= 0.6 && flash.peakOpacity <= 1)
+  }
+  // Each ends before the next flash can start, so the stage is dark between.
   for (const style of ['flash', 'pulse'] as const) {
-    for (const interval of [MIN_GAP_MS, 333, 500, 3000]) {
-      const { attackMs, decayMs } = flashAnimation(style, 'beat', interval)
-      assert.ok(attackMs + decayMs < interval, `${style} at ${interval} ms: ${attackMs + decayMs} ms`)
-    }
+    const { attackMs, decayMs } = flashAnimation(style, 1, MIN_GAP_MS)
+    assert.ok(attackMs + decayMs < MIN_GAP_MS, style)
   }
-})
-
-// ── Nothing flashes before a click ──────────────────────────────────────────────────────────
-
-test('idle never flashes, whatever time passes and whatever tempo there is', () => {
-  const { flashes, state } = run({ frames: frames(10, 60), bpm: () => 120 }, IDLE)
-  assert.deepEqual(flashes, [])
-  assert.equal(state.running, false)
-})
-
-test('a tap while idle lines nothing up and starts nothing', () => {
-  const state = alignToTap(IDLE, 100, 500, 0)
-  assert.deepEqual(state, IDLE)
-  assert.deepEqual(run({ frames: frames(3, 60), bpm: () => 120 }, state).flashes, [])
-})
-
-// ── Every stop path stops it, and nothing restarts it ───────────────────────────────────────
-
-test('stop() leaves it stopped from any state, and nothing after it flashes again', () => {
-  const running = run({ frames: frames(2, 60), bpm: () => 120 }).state
-  assert.equal(running.running, true)
-  const stopped = stop(running)
-  assert.deepEqual({ ...stopped, shown: [] }, { ...IDLE, shown: [] })
-  // It keeps when the last flashes were, so a start right after can't add one to the window.
-  assert.deepEqual(stopped.shown, running.shown)
-  // Time passing, tempo changes and taps: none of them is a start.
-  const after = run({ frames: frames(10, 60, 0, 1, 2000), bpm: (at) => 60 + (at % 200), taps: [{ at: 3000, beat: 0 }] }, stopped)
-  assert.deepEqual(after.flashes, [])
-  assert.equal(after.state.running, false)
-})
-
-test('start() is the only way from stopped to running', () => {
-  assert.equal(start().running, true)
-  assert.equal(start(stop(start())).running, true)
-  assert.equal(IDLE.running, false)
-  assert.ok(Object.isFrozen(IDLE), 'IDLE cannot be changed into a running state')
-})
-
-test('stopping and starting again, however fast, never breaks the cap or the gap', () => {
-  // Holding Enter on Start and Esc, or clicking Start and the light in turn: every start would
-  // flash at once if the history went with the stop.
-  for (let seed = 1; seed <= 120; seed++) {
-    const next = random(seed)
-    let state = start()
-    const flashes: Flash[] = []
-    const tempo = 20 + (seed % 40) * 7
-    const hz = [30, 60, 144][seed % 3] as number
-    const times = frames(10, hz, 1000 / hz / 2, seed)
-    for (const [i, now] of times.entries()) {
-      if (next() < 0.15) state = state.running ? stop(state) : start(state)
-      const result = step(state, { now, bpm: tempo, beatsPerBar: 4 })
-      state = result.state
-      if (result.flash) flashes.push({ at: now, kind: result.flash, paint: times[i + 1] ?? now + 1000 / hz })
-    }
-    assert.ok(flashes.length > 0, `seed ${seed} never flashed`)
-    assertSafe(flashes, `stop and start at ${tempo} BPM, ${hz} Hz, seed ${seed}`)
-  }
-})
-
-test('a click too soon after a stop is not a start: a ghost click or a held key can\'t restart it', () => {
-  // A tap on the light stops it and reveals the Start button under the finger; the browser's
-  // click from that same tap, or a repeating Enter, would start it again.
-  assert.equal(RESTART_GUARD_MS, 500)
-  assert.equal(isTooSoonAfterStop(null, 10), false, 'never stopped: the first start is allowed')
-  assert.equal(isTooSoonAfterStop(1000, 1000), true)
-  assert.equal(isTooSoonAfterStop(1000, 1000 + RESTART_GUARD_MS - 1), true)
-  assert.equal(isTooSoonAfterStop(1000, 1000 + RESTART_GUARD_MS), false)
-  // A click stamped before the stop is earlier than it, so it is not a start either.
-  assert.equal(isTooSoonAfterStop(1000, 900), true)
+  assert.ok(flashAnimation('flash', 1, 500).peakOpacity > flashAnimation('flash', 0.5, 500).peakOpacity, 'a stronger kick is brighter')
 })

@@ -51,9 +51,11 @@ export type {
  * @param audioContext - The AudioContext to run in
  * @param options - The engine (default `tempogram`), the tempo range, `processorUrl` for pages whose CSP refuses `blob:`, `liveInput`
  * for a MediaStream source, and `debug`
- * @returns The analyzer, once its processor has said it is ready
+ * @returns A promise of the analyzer, once its processor has said it is ready. The function itself never throws:
+ * each error below rejects the promise.
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
- * @throws {TypeError} When `processorUrl`, `liveInput` or `debug` has the wrong type, or a 5.x option is set
+ * @throws {TypeError} When `processorUrl`, `liveInput` or `debug` has the wrong type, a 5.x option is set, or the
+ * `engine` object carries a key its engine does not take (see {@link EngineOption})
  * @throws {Error} When the processor fails to load, or sends no `ready` in time (a stale processor file)
  *
  * @example

@@ -7,7 +7,7 @@ description: 'Migrate realtime-bpm-analyzer from 5.x to 6 in two steps: the rena
 
 Version 6 makes two changes, and this page keeps them apart, so an app that breaks on the upgrade can tell which one broke it:
 
-1. **[Renames](#part-1-events-options-and-fields).** The 5.x events become one reading per analysis step and a state you can read at any time, and the options and fields get engine-neutral names. A missed rename fails loudly: TypeScript stops compiling, and a removed option throws.
+1. **[Renames](#part-1-events-options-and-fields).** The 5.x events become one reading per analysis step and a state you can read at any time, and the options and fields get engine-neutral names. A missed rename fails loudly: TypeScript stops compiling, and a removed option is refused with a `TypeError`.
 2. **[The default engine](#part-2-the-default-engine).** The `tempogram` engine replaces `peaks` as the default. Nothing fails: the tempo comes from another engine, with its own timing. `engine: 'peaks'` is the one-line way back.
 
 Do part 1 first, with `engine: 'peaks'` set, and check your app. Then remove that line to move to the new default.
@@ -128,7 +128,7 @@ createRealtimeBpmAnalyzer(audioContext);
 
 #### `frequencyValue` and `qualityValue` moved into `engine`
 
-Only whole-buffer analysis takes lowpass settings. Realtime `peaks` already has a fixed lowpass inside `analyzer.input`, so connect your source there and add no filter of your own.
+Only whole-buffer analysis takes lowpass settings. Realtime `peaks` already has a fixed lowpass inside `analyzer.input`, so connect your source there and add no filter of your own. A realtime `engine` with a `lowpass` key is refused with a `TypeError` that says so.
 
 **Before (5.x):**
 ```typescript
@@ -171,9 +171,19 @@ const settings: LowpassOption = { frequency: 150, q: 1 };
 const filter = getBiquadFilter(audioContext, settings);
 ```
 
-#### A removed option throws
+#### A removed option is refused
 
-v6 refuses every option above by its 5.x name with a `TypeError` that names the replacement, so a missed rename fails at once instead of being ignored. The lowpass settings do the same, wherever they are passed, and refuse any key other than `frequency` and `q`.
+v6 refuses every option above by its 5.x name with a `TypeError` that names the replacement, so a missed rename fails at once instead of being ignored. `createRealtimeBpmAnalyzer`, `analyzeFullBuffer` and `analyzeChannelData` are async, so their promise rejects with it; `getBiquadFilter` and `applyLowpass` throw it. The lowpass settings do the same, wherever they are passed, and refuse any key other than `frequency` and `q`.
+
+The `engine` object is just as strict. It takes `name` and the settings of the engine it names, and nothing else:
+
+| Where | `name` | Its settings |
+| --- | --- | --- |
+| `createRealtimeBpmAnalyzer` | `'peaks'` | `restartAfterSeconds` |
+| `createRealtimeBpmAnalyzer` | `'tempogram'` | `mode` |
+| `analyzeFullBuffer`, `analyzeChannelData` | `'peaks'` | `lowpass` |
+
+Any other key is refused with a `TypeError` that names it, whatever its value, `undefined` included: a realtime `lowpass`, a `restartAfterSeconds` on the tempogram or in whole-buffer analysis, or a typo such as `restartAfterSecond`. 5.x had no `engine` object, so no 5.x call meets this rule: it catches a setting given to an engine or a path that would ignore it, and typos.
 
 ### Events
 

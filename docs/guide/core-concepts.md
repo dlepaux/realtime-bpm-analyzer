@@ -200,13 +200,14 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
 - `'peaks'`: amplitude peaks after a low-pass filter, the 5.x default
 - `{ name: 'peaks', restartAfterSeconds }`: start over every this many seconds of audio. Absent: never restarts
 - `{ name: 'tempogram', mode: 'measured' }`: holds the analyzer to the measured settings, and refuses another `tempoRange`
+- Any other key in the object, such as `lowpass` (realtime `peaks` has a fixed lowpass inside `analyzer.input`) or a typo, is refused with a `TypeError` that names it
 
 <a id="stabilizationtime"></a><a id="mutetimeinindexes"></a>
 
 ### tempoRange
 - Default: `{ min: 90, max: 180 }`
 - It picks the octave: the default reads an 85 BPM hip-hop track as 170, `{ min: 70, max: 140 }` reads it as 85
-- `max` must be at least twice `min`; a narrower range throws a `RangeError`
+- `max` must be at least twice `min`; a narrower range is refused with a `RangeError`
 - Keep the expected tempo away from the bounds: a tempo right on an edge jitters across it and its votes split between the two octaves
 - `analyzeFullBuffer(buffer, { tempoRange })` takes the same option
 - Both engines take it: `peaks` folds every tempo into it, the `tempogram` engine searches it and folds nothing

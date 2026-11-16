@@ -71,9 +71,61 @@ const removedOptions: Readonly<Record<string, string>> = Object.freeze({
   stabilizationTime: "use engine: {name: 'peaks', restartAfterSeconds}",
   muteTimeInIndexes: 'it has no replacement: remove it',
   tempogramMode: "use engine: {name: 'tempogram', mode: 'measured'}",
-  frequencyValue: "use engine: {name: 'peaks', lowpass: {frequency}}",
-  qualityValue: "use engine: {name: 'peaks', lowpass: {q}}",
+  frequencyValue: "realtime peaks has a fixed lowpass inside analyzer.input, and only analyzeFullBuffer and analyzeChannelData take one: engine: {name: 'peaks', lowpass: {frequency}}",
+  qualityValue: "realtime peaks has a fixed lowpass inside analyzer.input, and only analyzeFullBuffer and analyzeChannelData take one: engine: {name: 'peaks', lowpass: {q}}",
 });
+
+/**
+ * The keys each engine's object form takes, realtime and offline: the one list the resolvers check, which
+ * tests/types/public-surface.ts holds equal to the keys of {@link EngineOption} and {@link OfflineEngineOption}, so
+ * the types and the checks can't drift. Any other key throws a `TypeError` that names it, whatever its value, as the
+ * lowpass settings do: refusing a key after 6.1.0 would break callers, while accepting one later would not.
+ */
+export const engineKeys = Object.freeze({
+  realtime: Object.freeze({
+    peaks: Object.freeze(['name', 'restartAfterSeconds'] as const),
+    tempogram: Object.freeze(['name', 'mode'] as const),
+  }),
+  offline: Object.freeze({
+    peaks: Object.freeze(['name', 'lowpass'] as const),
+  }),
+});
+
+/**
+ * What to use instead of a key a caller is likely to reach for, by where it was passed. Any other key, a typo
+ * included, gets the settings that engine takes.
+ */
+const refusedEngineKeys = {
+  realtime: new Map([
+    ['lowpass', 'realtime peaks has a fixed lowpass inside analyzer.input, and only analyzeFullBuffer and analyzeChannelData take one'],
+    ['restartAfterSeconds', "only peaks takes it: the tempogram's memory of past tempos fades on its own, so it follows a tempo change"],
+    ['mode', 'only the tempogram takes it'],
+  ]),
+  offline: new Map([
+    ['restartAfterSeconds', 'whole-buffer analysis reads the buffer once, so nothing restarts'],
+    ['mode', 'only the realtime tempogram takes it'],
+  ]),
+} as const;
+
+/**
+ * Refuses any own key of an engine object outside that engine's set, so a setting the engine would not apply fails at
+ * once instead of being dropped. The keys checked are those `Object.keys` lists, as for the lowpass settings.
+ * @param value The caller's engine object
+ * @param path Realtime or whole-buffer analysis
+ * @param allowed The keys that engine takes there, `name` first
+ * @throws {TypeError} Naming the first key outside `allowed`
+ */
+function assertEngineKeys(value: Readonly<Record<string, unknown>>, path: keyof typeof engineKeys, allowed: readonly string[]): void {
+  const refused = Object.keys(value).find(key => !allowed.includes(key));
+  if (refused === undefined) {
+    return;
+  }
+
+  const settings = allowed.filter(key => key !== 'name');
+  const where = path === 'realtime' ? 'Realtime' : 'Whole-buffer';
+  const advice = refusedEngineKeys[path].get(refused) ?? `it takes only ${settings.join(' and ')}`;
+  throw new TypeError(`${where} engine ${String(value.name)} takes no setting ${refused}: ${advice}.`);
+}
 
 /**
  * Refuses the option names 5.x knew and v6 removed, naming the replacement
@@ -98,6 +150,7 @@ export function assertNoRemovedOptions(options: unknown): void {
  * @param tempoRange The caller's range
  * @returns The engine and the range to run with
  * @throws {RangeError} When the engine, its settings or the range are invalid, or contradict the tempogram's mode
+ * @throws {TypeError} When the engine object carries a key outside {@link engineKeys}`.realtime` for its name
  */
 export function resolveEngine(engine: EngineOption | undefined, tempoRange: TempoRange | undefined): {engine: ResolvedEngine; tempoRange: TempoRange} {
   const range = resolveTempoRange(tempoRange);
@@ -111,6 +164,7 @@ export function resolveEngine(engine: EngineOption | undefined, tempoRange: Temp
     throw new RangeError(`Invalid engine: ${JSON.stringify(value)}. Use 'peaks' or 'tempogram'.`);
   }
 
+  assertEngineKeys(value, 'realtime', engineKeys.realtime[value.name]);
   if (value.name === 'peaks') {
     const {restartAfterSeconds} = value;
     if (restartAfterSeconds === undefined) {
@@ -144,8 +198,8 @@ export function resolveEngine(engine: EngineOption | undefined, tempoRange: Temp
  * @param sampleRate The rate of the samples, which bounds the lowpass frequency
  * @returns The engine name, and the lowpass settings for `peaks`
  * @throws {RangeError} When the engine is unknown, or a lowpass value is out of range (see {@link resolveLowpass})
- * @throws {TypeError} When `lowpass` is not an object, `null` or `undefined`, carries a key other than `frequency`
- * and `q`, or holds a setting that is not a number
+ * @throws {TypeError} When the engine object carries a key other than `name` and `lowpass`, or `lowpass` is not an
+ * object, `null` or `undefined`, carries a key other than `frequency` and `q`, or holds a setting that is not a number
  */
 export function resolveOfflineEngine(
   engine: OfflineEngineOption | undefined,
@@ -161,6 +215,7 @@ export function resolveOfflineEngine(
     throw new RangeError(`Invalid engine: ${JSON.stringify(value)}. Use 'peaks', 'tempogram' or {name: 'peaks', lowpass}.`);
   }
 
+  assertEngineKeys(value, 'offline', engineKeys.offline.peaks);
   // Checked here, before the costly filtering, with the same rules every lowpass path applies
   const {lowpass} = value;
   resolveLowpass(lowpass, sampleRate);

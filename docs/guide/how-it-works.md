@@ -169,7 +169,6 @@ A perfect click track scores about **0.46**, not 1: each peak is paired with the
 With the `peaks` engine, `analyzer.input` puts a low-pass filter in front of the analyzer, the same one `getBiquadFilter()` builds. The default `tempogram` engine needs the full band, so there `.input` holds nothing. The filter:
 - Removes high frequencies (treble)
 - Emphasizes bass frequencies (where beats typically occur)
-- Improves detection accuracy
 
 **Frequency Response:**
 - **Frequency**: 200 Hz cutoff (whole-file analysis can set its own: `engine: { name: 'peaks', lowpass: { frequency, q } }`)
@@ -221,7 +220,7 @@ analyzer.on('statechange', ({ to }) => {
 ```
 
 **Characteristics:**
-- More reliable result
+- Comes once the readings agree long enough
 - Requires sufficient data collection: never before about 11.5 seconds of audio with the default
   `tempogram` engine, or 10 seconds with `peaks` (or a shorter `restartAfterSeconds`)
 - With `peaks`, each lock raises the minimum threshold, so later locks rest on stronger peaks
@@ -237,24 +236,25 @@ AudioWorklet runs on a separate audio rendering thread:
 - **Real-time priority**: Gets CPU time when needed
 - **Low latency**: Processes audio as it arrives
 
-### Memory Management
+### Long Listens
 
-For continuous analysis (streams):
+Memory and the work per chunk stay bounded however long the analyzer listens. The `peaks` engine keeps only the
+newest 256 peaks at each threshold, so its reading follows the latest 50 seconds or more of audio. The default
+`tempogram` engine's memory of past tempos fades with a 16-second half-life.
+
+To have `peaks` follow a tempo change sooner, start it over at a set period:
 ```typescript
 createRealtimeBpmAnalyzer(audioContext, {
-  engine: { name: 'peaks', restartAfterSeconds: 20 }, // Clear data every 20 seconds of audio
+  engine: { name: 'peaks', restartAfterSeconds: 20 }, // Starts over every 20 seconds of audio
 });
 ```
 
-Without it, each threshold keeps only its newest 256 peaks, so memory and the work per chunk stay
-bounded on a long listen, and the reading follows the latest minute or more of audio.
-
 ### Data Buffering
 
-The processor accumulates audio data before analysis:
-- **Minimum requirement**: ~10 seconds at 90 BPM
-- **Better accuracy**: 20+ seconds of data
-- **Trade-off**: Speed vs accuracy
+The processor gathers audio before it reports:
+- **First reading**: after a 4-second warm-up with the default `tempogram` engine; `peaks` waits for 16 peaks at one threshold
+- **Lock**: no sooner than about 11.5 seconds of audio with `tempogram`, 10 seconds with `peaks` (or a shorter `restartAfterSeconds`)
+- **Trade-off**: a shorter `restartAfterSeconds` follows a tempo change sooner, and gives each reading less audio
 
 ## Limitations & Edge Cases
 

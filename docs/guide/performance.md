@@ -1,11 +1,11 @@
 ---
 title: Performance Tips for Browser BPM Detection
-description: 'Optimise realtime-bpm-analyzer for accuracy, latency, and battery life: AudioWorklet, low-pass filtering, threshold tuning and mobile browsers.'
+description: 'Optimise realtime-bpm-analyzer for latency, memory and battery life: AudioWorklet, low-pass filtering, threshold tuning and mobile browsers.'
 ---
 
 # Performance Tips
 
-Tune Realtime BPM Analyzer for speed and reliable readings in your application.
+Tune Realtime BPM Analyzer for speed, memory and battery life in your application.
 
 ## General Best Practices
 
@@ -46,7 +46,7 @@ Pick the mode that matches your use case:
 | Use Case | Mode | Memory | CPU |
 |----------|------|--------|-----|
 | Audio/Video Player | Real-time | Low | Low |
-| Radio Stream | Continuous | Medium | Medium |
+| Radio Stream | Continuous | Low | Low |
 | Local File | Offline | High | High |
 
 #### Real-time Mode
@@ -63,12 +63,12 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
 ```typescript
 const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
-  engine: { name: 'peaks', restartAfterSeconds: 20 }, // Clear data every 20 s of audio
+  engine: { name: 'peaks', restartAfterSeconds: 20 }, // Starts over every 20 s of audio
 });
 ```
 
-- **Memory**: Bounded by `restartAfterSeconds`
-- **CPU**: Periodic spikes during cleanup
+- **Tempo changes**: Followed after the next restart, which starts the reading over
+- **Memory**: Bounded with or without it: `peaks` keeps the newest 256 peaks at each threshold
 - **Use for**: Infinite streams, radio, live input
 
 #### Offline Mode
@@ -85,9 +85,11 @@ const reading = await analyzeFullBuffer(audioBuffer);
 
 ## Memory Management
 
-### Continuous Analysis Settings
+### Long Streams {#continuous-analysis-settings}
 
-For long-running applications (streams, radio, microphone):
+Memory stays bounded however long the analyzer listens: `peaks` keeps the newest 256 peaks at each threshold, and the
+`tempogram` engine works in fixed buffers. On a long stream (radio, microphone), a restart period makes `peaks` follow
+a tempo change sooner:
 
 ```typescript
 createRealtimeBpmAnalyzer(audioContext, {
@@ -313,7 +315,7 @@ createRealtimeBpmAnalyzer(audioContext, {
 
 **Use when:**
 - You want the reading to follow tempo changes sooner
-- A rough BPM is enough
+- You can accept readings that rest on less audio
 
 ### Longer Window
 

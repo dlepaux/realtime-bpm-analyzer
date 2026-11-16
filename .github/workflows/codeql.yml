@@ -19,6 +19,9 @@ on:
   schedule:
     - cron: "39 12 * * 3"
 
+permissions:
+  contents: read
+
 jobs:
   analyze:
     name: Analyze
@@ -29,12 +32,10 @@ jobs:
     # Consider using larger runners for possible analysis time improvements.
     runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
     timeout-minutes: ${{ (matrix.language == 'swift' && 120) || 360 }}
+    # security-events to upload the results, pull requests' included: this job installs nothing and runs
+    # no code from the repo. actions: read is for private repositories only.
     permissions:
-      # required for all workflows
       security-events: write
-
-      # only required for workflows in private repositories
-      actions: read
       contents: read
 
     strategy:

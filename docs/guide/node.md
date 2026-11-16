@@ -155,16 +155,19 @@ the tempo to show, `bpm`, its unrounded value, `bpmExact`, and up to 5
 `candidates`, each with a `bpm` and its `relation` to that tempo. Silence or
 audio without a clear beat resolves to `null`.
 
-It throws when `channelData` is not a non-empty `Float32Array`, and throws a
-`RangeError` for a sample rate that is not positive, a lowpass setting that is
-`NaN` or infinite, a lowpass `frequency` that is not above 0 and below half the
-sample rate, a lowpass `q` that is not from -758 to 770 dB, an invalid
-`tempoRange` or an unknown `engine`. A 5.x option
-(`detector`, `frequencyValue`, `qualityValue`) throws a `TypeError` that names its
-replacement. So do an `engine.lowpass` that is not an object, `null` or
-`undefined` (naming its type), a key in it other than `frequency` and `q` (naming
-the key), and a setting that is not a number. These checks run before any
-filtering, so a bad setting fails at once on a long file.
+Its promise rejects when `channelData` is not a non-empty `Float32Array`, and
+rejects with a `RangeError` for a sample rate that is not positive, a lowpass
+setting that is `NaN` or infinite, a lowpass `frequency` that is not above 0 and
+below half the sample rate, a lowpass `q` that is not from -758 to 770 dB, an
+invalid `tempoRange` or an unknown `engine`. A 5.x option
+(`detector`, `frequencyValue`, `qualityValue`) rejects with a `TypeError` that
+names its replacement. So do an `engine` object with a key other than `name` and
+`lowpass`, whatever its value (naming the key: `restartAfterSeconds` is a
+realtime setting, and a typo such as `lowpas` would otherwise drop your lowpass),
+an `engine.lowpass` that is not an object, `null` or `undefined` (naming its
+type), a key in it other than `frequency` and `q` (naming the key), and a
+setting that is not a number. These checks run before any filtering, so a bad
+setting fails at once on a long file.
 
 ## The filter on its own
 

@@ -39,7 +39,10 @@ export type EngineName = 'peaks' | 'tempogram';
 /**
  * The realtime engine option: a bare name, or a name with the settings only that engine understands.
  * Realtime and offline take different settings, so each has its own type and none is accepted where it does
- * nothing.
+ * nothing. An object takes `name` and that engine's settings only: `restartAfterSeconds` for `peaks`, `mode` for
+ * `tempogram`. Any other key, such as `lowpass` (realtime `peaks` has a fixed lowpass inside `analyzer.input`) or a
+ * typo, makes the factory's promise reject with a `TypeError` that names it, whatever its value. `null` or
+ * `undefined` means the default, `tempogram`.
  */
 export type EngineOption =
   | EngineName
@@ -87,7 +90,12 @@ export type LowpassOption = {
   readonly q?: number;
 };
 
-/** The offline engine option. Realtime `peaks` has a fixed lowpass inside `analyzer.input`, so only offline takes lowpass settings. */
+/**
+ * The offline engine option. Realtime `peaks` has a fixed lowpass inside `analyzer.input`, so only offline takes
+ * lowpass settings. The object form is `peaks` only, and takes `name` and `lowpass` only: any other key, such as
+ * `restartAfterSeconds` or a typo, makes the promise reject with a `TypeError` that names it, whatever its value.
+ * `null` or `undefined` means the default, `tempogram`.
+ */
 export type OfflineEngineOption =
   | EngineName
   | {readonly name: 'peaks'; readonly lowpass?: LowpassOption};
@@ -101,7 +109,10 @@ export type TempoRange = {
   readonly max: number;
 };
 
-/** Options for the realtime analyzer. Invalid values throw a `RangeError` or `TypeError` synchronously. */
+/**
+ * Options for the realtime analyzer. `createRealtimeBpmAnalyzer` checks them before it loads the processor: for an
+ * invalid value, the promise it returns rejects with a `RangeError` or a `TypeError`.
+ */
 export type AnalyzerOptions = {
   /**
    * Default `tempogram`. `peaks` puts a fixed lowpass inside `analyzer.input`; the tempogram takes the full band.

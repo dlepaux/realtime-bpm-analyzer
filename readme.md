@@ -88,7 +88,7 @@ async function bpmOf(file: Blob) {
 
 ### How it works, and its limits
 
-The default engine, the tempogram, measures how the sound changes from moment to moment across several frequency bands, and reads the tempo as the spacing that repeats most in those changes. `engine: 'peaks'`, the 5.x engine, low-passes the audio and counts the intervals between its loudest peaks. Both report the same reading, with a `confidence` that is the chance the reading is right, calibrated on a labelled benchmark.
+The default engine, the tempogram, measures how the sound changes from moment to moment across several frequency bands, and reads the tempo as the spacing that repeats most in those changes. `engine: 'peaks'`, the 5.x engine, low-passes the audio and counts the intervals between its loudest peaks. Both report the same reading, with a `confidence` that is the chance the reading is right, calibrated on a labelled benchmark from 90 to 180 BPM. Outside that range, which only a custom `tempoRange` allows, the confidence is `null`: unmeasured.
 
 Every tempo is reported in a range, 90 to 180 BPM by default. A track outside it reads at double or half its tempo: 70 BPM reads 140, and a track at about 180 BPM or faster can read at half. The `candidates` mark the half and double readings, and `tempoRange` moves the range. Music without a steady beat is the hard case: expect a lower confidence, a wrong reading or none. The [benchmark](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/packages/realtime-bpm-analyzer/benchmark#readme) describes the data, the method and what was measured.
 

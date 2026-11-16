@@ -10,7 +10,7 @@ Analyzes an audio URL live as it plays, with `createRealtimeBpmAnalyzer` and a `
 - `error` events (a failed analysis step) and a fatal fault, which is a move to `stopped` with the error.
 - **Start over** calls `analyzer.reset()`: back to `listening` with reason `reset` and the next epoch. **Stop** calls `analyzer.stop()`, which is final.
 
-The code is in `src/main.ts`, with the panels in `src/reading-panel.ts` and `src/state-panel.ts`. Confidence is shown as the library reports it, from 0 to 1.
+The code is in `src/main.ts`, with the panels in `src/reading-panel.ts` and `src/state-panel.ts`. Confidence is shown as the library reports it, from 0 to 1, or as unmeasured when it is null.
 
 ## The audio it starts on
 

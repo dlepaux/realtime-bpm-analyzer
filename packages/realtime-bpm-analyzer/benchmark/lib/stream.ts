@@ -71,7 +71,8 @@ export async function streamPcm(
   }
 }
 
-export type Reading = readonly [heard: number, tempo: number, confidence: number];
+/** Confidence null outside the measured tempo range (RBA-147), as the library reports it */
+export type Reading = readonly [heard: number, tempo: number, confidence: number | null];
 
 /** Candidates kept from the last reading: enough to see the other metrical level, not the tail */
 const keptCandidates = 5;

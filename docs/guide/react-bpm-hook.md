@@ -350,8 +350,10 @@ This hook is intentionally small. Things you might add for production:
   locks, fall back to a manual tap input.
 - **Confidence display**: show `reading.confidence` next to the tempo.
   It is the estimated chance the reading is right, calibrated on
-  licence-clean dev data, so it means the same whichever engine measured
-  it. Let the move to `locked` decide when a tempo is the answer.
+  licence-clean dev data from 90 to 180 BPM, so inside that range it means
+  the same whichever engine measured it. `null`: unmeasured, for a reading
+  outside 90 to 180 BPM, which only a custom `tempoRange` allows. Let the
+  move to `locked` decide when a tempo is the answer.
 
 Each of these takes a few lines. Keep the hook itself focused; let
 the consuming component compose.

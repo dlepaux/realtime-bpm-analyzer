@@ -145,6 +145,21 @@ describe('realtime-bpm-analyzer CLI', hangLimit, () => {
     assert.match(stdout, /click-128\.mp3: 128 BPM \(peaks, confidence 0\.\d\d\)\n {2}candidates: 128(, |$)/m);
   });
 
+  it('prints an unmeasured confidence as unmeasured in text and null in JSON, never as 0 or NaN', async () => {
+    // 128 BPM on 40 to 80 reads 64, outside the 90 to 180 BPM confidence was measured on (RBA-147)
+    const range = ['--min-bpm', '40', '--max-bpm', '80'];
+    for (const engine of ['peaks', 'tempogram']) {
+      const text = await run(['--engine', engine, ...range, clickMp3]);
+      assert.equal(text.code, 0, engine);
+      assert.match(text.stdout, new RegExp(`click-128\\.mp3: 64 BPM \\(${engine}, confidence unmeasured\\)\n {2}candidates: 64`), engine);
+
+      const {code, results: [result]} = await runJson(['--engine', engine, ...range, clickMp3]);
+      assert.equal(code, 0, engine);
+      assert.equal(result.bpm, 64, engine);
+      assert.equal(result.confidence, null, engine);
+    }
+  });
+
   it('finds the bass-test fixture tempo the browser finds', async () => {
     // The pinned value is peaks' reading, so name peaks: the default engine reads this fixture differently
     const {code, results: [result]} = await runJson(['--engine', 'peaks', bassTest]);

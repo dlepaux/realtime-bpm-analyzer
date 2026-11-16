@@ -1,11 +1,14 @@
 import {expect} from 'chai';
-import {CALIBRATION, calibrate} from '../../../src/core/calibration';
+import {CALIBRATION, MEASURED_TEMPO_RANGE, calibrate} from '../../../src/core/calibration';
 import {toReading} from '../../../src/core/engine';
+import {resolveTempoRange} from '../../../src/core/tempo';
+import {defaultTempogramRange} from '../../../src/core/tempogram';
 import type {EngineName} from '../../../src/contract/types';
 
 /**
  * benchmark/calibration.py's `apply_mapping` on the same tables, at these points: the library must read its tables
- * exactly as the benchmark that fitted and graded them does (RBA-106)
+ * exactly as the benchmark that fitted and graded them does (RBA-106). The rows at 80 and 190 BPM are outside
+ * {@link MEASURED_TEMPO_RANGE}, where the library gives no confidence at all, so only the rows inside it are compared.
  */
 const parity: ReadonlyArray<readonly [EngineName, number, number, number]> = [
   ['tempogram', 0, 80, 0.20051],
@@ -154,9 +157,24 @@ const parity: ReadonlyArray<readonly [EngineName, number, number, number]> = [
   ['peaks', 1, 190, 0.804688],
 ];
 
+/**
+ * @param points A band's table, if the engine has one
+ * @param name The band, for the error
+ * @returns The table
+ */
+function table(points: ReadonlyArray<readonly [number, number]> | undefined, name: string): ReadonlyArray<readonly [number, number]> {
+  if (points === undefined) {
+    throw new Error(`no ${name} table`);
+  }
+
+  return points;
+}
+
 describe('Calibration', () => {
   it('reads its tables as the benchmark does', () => {
-    for (const [engine, raw, bpm, expected] of parity) {
+    const measured = parity.filter(([, , bpm]) => bpm >= MEASURED_TEMPO_RANGE.min && bpm <= MEASURED_TEMPO_RANGE.max);
+    expect(measured.length).to.be.greaterThan(parity.length / 2);
+    for (const [engine, raw, bpm, expected] of measured) {
       expect(calibrate(engine, raw, bpm), `${engine} ${raw} at ${bpm} BPM`).to.be.closeTo(expected, 1e-6);
     }
   });
@@ -177,10 +195,10 @@ describe('Calibration', () => {
 
   it('never ranks a higher raw score lower', () => {
     for (const engine of ['tempogram', 'peaks'] as const) {
-      for (const bpm of [80, 120, 150, 175]) {
+      for (const bpm of [90, 120, 150, 175, 180]) {
         let previous = 0;
         for (let raw = 0; raw <= 1; raw += 0.01) {
-          const chance = calibrate(engine, raw, bpm);
+          const chance = calibrate(engine, raw, bpm) ?? Number.NaN;
           expect(chance).to.be.at.least(previous);
           previous = chance;
         }
@@ -209,17 +227,8 @@ describe('Calibration', () => {
 
   it('starts each band at its lower edge, as calibration.py does', () => {
     const {tempogram, peaks} = CALIBRATION;
-    const table = (points: ReadonlyArray<readonly [number, number]> | undefined, name: string) => {
-      if (points === undefined) {
-        throw new Error(`no ${name} table`);
-      }
-
-      return points;
-    };
-
     // [engine, edge, the table just under it, the table from it]: a raw score on a table point reads that point exactly
     const edges = [
-      ['peaks', 90, peaks.all, table(peaks.bands.from90, 'peaks from90')],
       ['peaks', 140, table(peaks.bands.from90, 'peaks from90'), table(peaks.bands.from140, 'peaks from140')],
       ['peaks', 165, table(peaks.bands.from140, 'peaks from140'), table(peaks.bands.from165, 'peaks from165')],
       ['tempogram', 140, tempogram.all, table(tempogram.bands.from140, 'tempogram from140')],
@@ -233,6 +242,14 @@ describe('Calibration', () => {
       for (const [raw, chance] of [from[4], from[12]]) {
         expect(calibrate(engine, raw, edge), `${engine} ${raw} at ${edge} BPM`).to.equal(chance);
       }
+    }
+  });
+
+  it('starts peaks\' first band at the measured range\'s lower edge, with nothing measured under it', () => {
+    const from90 = table(CALIBRATION.peaks.bands.from90, 'peaks from90');
+    for (const [raw, chance] of [from90[4], from90[12]]) {
+      expect(calibrate('peaks', raw, 90), `peaks ${raw} at 90 BPM`).to.equal(chance);
+      expect(calibrate('peaks', raw, 89), `peaks ${raw} at 89 BPM`).to.equal(null);
     }
   });
 
@@ -256,5 +273,56 @@ describe('Calibration', () => {
 
     expect(toReading([tempo], audio, 'tempogram')?.confidence).to.equal(calibrate('tempogram', 0.3, 150));
     expect(toReading([tempo], audio, 'peaks')?.confidence).to.equal(calibrate('peaks', 0.3, 150));
+  });
+});
+
+// RBA-108's DECISION of 2026-11-16 (RBA-147): a confidence nobody measured would mislead the programs that act on it,
+// so a reading outside the range the tables were fitted on carries null, never the nearest table's number
+describe('Calibration, the measured tempo range', () => {
+  const audio = {from: 0, to: 10, contextTime: 10};
+  const at = (bpm: number) => ({tempo: bpm, exact: bpm, count: 40, confidence: 0.3});
+
+  it('is 90 to 180 BPM, the range every calibration reading was taken on', () => {
+    expect(MEASURED_TEMPO_RANGE).to.deep.equal({min: 90, max: 180});
+    expect(Object.isFrozen(MEASURED_TEMPO_RANGE)).to.equal(true);
+  });
+
+  it('gives a number at both bounds, inclusive, and null just outside each, for either engine', () => {
+    for (const engine of ['tempogram', 'peaks'] as const) {
+      for (const bpm of [90, 90.01, 179.99, 180]) {
+        expect(calibrate(engine, 0.3, bpm), `${engine} at ${bpm} BPM`).to.be.a('number');
+      }
+
+      for (const bpm of [89.99, 89, 60, 180.01, 181, 240]) {
+        expect(calibrate(engine, 0.3, bpm), `${engine} at ${bpm} BPM`).to.equal(null);
+      }
+
+      for (const bpm of [Number.NaN, Number.POSITIVE_INFINITY]) {
+        expect(calibrate(engine, 0.3, bpm), `${engine} at ${bpm} BPM`).to.equal(null);
+      }
+    }
+  });
+
+  it('puts null on a reading outside it, realtime and offline, and keeps its tempo and candidates', () => {
+    // toReading builds the reading on both paths: the worklet's engines and analyzeFullBuffer / analyzeChannelData
+    for (const engine of ['tempogram', 'peaks'] as const) {
+      for (const bpm of [89, 181]) {
+        const reading = toReading([at(bpm)], audio, engine);
+        expect(reading?.confidence, `${engine} at ${bpm} BPM`).to.equal(null);
+        expect(reading?.bpm).to.equal(bpm);
+        expect(reading?.candidates).to.deep.equal([{bpm, relation: 'top'}]);
+      }
+
+      for (const bpm of [90, 180]) {
+        expect(toReading([at(bpm)], audio, engine)?.confidence, `${engine} at ${bpm} BPM`).to.equal(calibrate(engine, 0.3, bpm));
+      }
+    }
+  });
+
+  it('holds the default tempo range inside it, so a default reading always has a number', () => {
+    for (const range of [resolveTempoRange(), defaultTempogramRange]) {
+      expect(range.min).to.be.at.least(MEASURED_TEMPO_RANGE.min);
+      expect(range.max).to.be.at.most(MEASURED_TEMPO_RANGE.max);
+    }
   });
 });

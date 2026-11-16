@@ -113,19 +113,20 @@ export type SweepRow = readonly [number, number, number, number, number, number,
 
 /**
  * A reading shown at a sample time, as [bpm, confidence, raw], or null when the state was listening there. The
- * confidence is the calibrated one the reading carried, the raw score is what the calibration maps (RBA-148)
+ * confidence is the calibrated one the reading carried, null outside the measured tempo range (RBA-147); the raw
+ * score is what the calibration maps (RBA-148), so a fit can read it there too
  */
-export type Sample = readonly [number, number, number] | null;
+export type Sample = readonly [number, number | null, number] | null;
 
 /**
  * The tempogram's fresh steps, one array per field: seconds, top tempo (0 for none), emitted confidence (0 for
- * none), raw score (0 for none), the frame's own tempo, and flags (1 a pulse, 2 the frame leads, 4 the engine
+ * none, null when unmeasured), raw score (0 for none), the frame's own tempo, and flags (1 a pulse, 2 the frame leads, 4 the engine
  * offered a lock)
  */
 export type CompactTrace = {
   readonly now: readonly number[];
   readonly bpm: readonly number[];
-  readonly confidence: readonly number[];
+  readonly confidence: ReadonlyArray<number | null>;
   /** Missing in traces written before RBA-148, which `expandTrace` refuses */
   readonly raw: readonly number[];
   readonly frameTempo: readonly number[];
@@ -258,7 +259,8 @@ export function readingsAt(
 ): Sample[] {
   return timesOf(duration).map(time => {
     const last = lastWhere(points, ({now, bpm}) => now <= time && bpm !== null);
-    return last === undefined || last.bpm === null || last.confidence === null || last.raw === null
+    // A null confidence is a reading outside the measured range, not a missing one: it keeps its raw score
+    return last === undefined || last.bpm === null || last.raw === null
       ? null
       : [last.bpm, last.confidence, last.raw] as const;
   });
@@ -275,7 +277,8 @@ export function compactTrace(steps: readonly EngineTraceStep[]): CompactTrace {
   return {
     now: steps.map(({now}) => now),
     bpm: steps.map(({bpm}) => bpm ?? 0),
-    confidence: steps.map(({confidence}) => rounded(confidence)),
+    // Null stays null: a 0 would read as a calibrated confidence (RBA-147)
+    confidence: steps.map(({bpm, confidence}) => (bpm !== null && confidence === null ? null : rounded(confidence))),
     raw: steps.map(({raw}) => rounded(raw)),
     frameTempo: steps.map(({frameTempo}) => frameTempo),
     flags: steps.map(({pulse, leads, lockOffered}) => (pulse ? 1 : 0) + (leads ? 2 : 0) + (lockOffered ? 4 : 0)),
@@ -341,11 +344,11 @@ async function observePeaks(pcm: Float32Array, sampleRate: number, row: Hysteres
 
 /**
  * @param bpm A reading's tempo
- * @param confidence Its calibrated confidence
+ * @param confidence Its calibrated confidence, null when unmeasured
  * @param raw The raw score recorded for it
  * @returns The raw score, once it is the one that confidence maps: a recorded score that is not would make a re-fit wrong
  */
-function rawOf(bpm: number, confidence: number, raw: number | null): number {
+function rawOf(bpm: number, confidence: number | null, raw: number | null): number {
   if (raw === null || calibrate('peaks', raw, bpm) !== confidence) {
     throw new Error(`peaks: the raw score ${raw} does not map to the reading's confidence ${confidence} at ${bpm} BPM`);
   }

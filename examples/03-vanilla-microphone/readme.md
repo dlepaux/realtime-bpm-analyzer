@@ -12,7 +12,7 @@ Analyzes the microphone live, with `createRealtimeBpmAnalyzer`, `liveInput` and 
 - Each `kick` as it is heard, newest first: its `contextTime` on the AudioContext clock and its `strength`, from 0 to 1, with a count of the kicks heard. The panel lists the newest eight, with nothing that flashes.
 - **Start over** calls `analyzer.reset()`. **Stop** calls `analyzer.stop()`, which is final, and releases the microphone.
 
-The code is in `src/main.ts`, with the panels in `src/reading-panel.ts` and `src/state-panel.ts` and `src/kick-panel.ts`. Confidence is shown as the library reports it, from 0 to 1.
+The code is in `src/main.ts`, with the panels in `src/reading-panel.ts` and `src/state-panel.ts` and `src/kick-panel.ts`. Confidence is shown as the library reports it, from 0 to 1, or as unmeasured when it is null.
 
 ## Run it from a clean clone
 

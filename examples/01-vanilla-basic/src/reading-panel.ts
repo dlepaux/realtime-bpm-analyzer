@@ -24,7 +24,7 @@ export function createReadingPanel(): ReadingPanel {
   const audio = addField(fields, 'Audio');
 
   const meaning = element('p', 'confidence-meaning');
-  meaning.textContent = "Confidence is the library's estimate, from 0 to 1, of the chance that this BPM is right.";
+  meaning.textContent = "Confidence is the library's estimate, from 0 to 1, of the chance that this BPM is right. It is unmeasured (null) for a reading outside 90 to 180 BPM, which only a custom tempoRange allows.";
 
   const panel = element('section', 'reading-panel');
   panel.append(display, fields, meaning);
@@ -38,7 +38,7 @@ export function createReadingPanel(): ReadingPanel {
       label.textContent = status === undefined ? 'BPM' : `BPM · ${status}`;
       display.classList.toggle('settling', status === 'settling');
       exact.textContent = `${reading.bpmExact.toFixed(2)} BPM`;
-      confidence.textContent = reading.confidence.toFixed(2);
+      confidence.textContent = reading.confidence === null ? 'unmeasured' : reading.confidence.toFixed(2);
       // candidates[0] is the reading's own tempo; the others are labelled half, double or other
       candidates.textContent = reading.candidates.map(({ bpm, relation }) => `${bpm} (${relation})`).join(', ');
       audio.textContent = `${reading.audio.from.toFixed(1)} s to ${reading.audio.to.toFixed(1)} s, ${reading.engine} engine`;

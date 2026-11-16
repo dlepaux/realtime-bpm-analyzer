@@ -218,6 +218,14 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     assert.ok(Math.abs(reading.bpm - 87) <= 1, `expected 87, got ${reading.bpm}`);
   });
 
+  it('gives confidence null, unmeasured, for a reading outside 90 to 180 BPM, with either engine', async () => {
+    for (const engine of ['peaks', 'tempogram']) {
+      const reading = await analyzeChannelData(createClickTrack(70), 44_100, {engine, tempoRange: {min: 60, max: 120}});
+      assert.ok(Math.abs(reading.bpm - 70) <= 1, `${engine}: expected 70, got ${reading.bpm}`);
+      assert.equal(reading.confidence, null, engine);
+    }
+  });
+
   it('returns null for silence, with either engine', async () => {
     assert.equal(await analyzeChannelData(new Float32Array(44_100), 44_100, {engine: 'peaks'}), null);
     assert.equal(await analyzeChannelData(new Float32Array(44_100 * 10), 44_100, {engine: 'tempogram'}), null);
@@ -228,6 +236,8 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     await assert.rejects(analyzeChannelData([0.1, 0.2], 44_100), /non-empty Float32Array/);
     await assert.rejects(analyzeChannelData(new Float32Array(10), 0), RangeError);
     await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {tempoRange: {min: 100, max: 150}}), RangeError);
+    await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {engin: 'peaks'}), {name: 'TypeError', message: / engin/});
+    await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {tempoRange: {min: 60, max: 120, mni: 50}}), {name: 'TypeError', message: / mni/});
     await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {engine: {name: 'peaks', lowpass: {frequency: Number.NaN}}}), RangeError);
   });
 });

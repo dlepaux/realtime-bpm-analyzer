@@ -65,6 +65,7 @@ describe('Analyzer - Integration tests', () => {
     const audioBuffer = await loadTestAudio(audioContext);
     const reading = await analyzeFullBuffer(audioBuffer, {engine: 'peaks'});
     expect(reading?.bpm).to.be.equal(125);
+    expect(reading?.confidence).to.be.within(0, 1);
     expect(reading?.engine).to.equal('peaks');
     expect(reading?.audio).to.deep.equal({from: 0, to: audioBuffer.duration, contextTime: null});
   });
@@ -75,7 +76,26 @@ describe('Analyzer - Integration tests', () => {
     const reading = await analyzeFullBuffer(audioBuffer, {engine: 'peaks', tempoRange: {min: 50, max: 100}});
     // 125 BPM halved is 62.5; rounding after folding lands on either neighbour
     expect(reading?.bpm).to.be.within(62, 63);
-    expect(reading?.confidence).to.be.greaterThan(0);
+    // Under 90 BPM, outside the range confidence was measured on: unmeasured, never a number (RBA-147)
+    expect(reading?.confidence).to.equal(null);
+  });
+
+  it('should reject an option it does not take, naming it, rather than throw', async () => {
+    const audioBuffer = await loadTestAudio(audioContext);
+    const refused: Array<[unknown, string]> = [[{engin: 'peaks'}, 'engin'], [{debug: true}, 'debug'], [{tempoRange: {min: 50, max: 100, mni: 40}}, 'mni']];
+    for (const [options, key] of refused) {
+      // The call returns a promise even for a refused option: the docs say it rejects
+      const pending = analyzeFullBuffer(audioBuffer, options as Parameters<typeof analyzeFullBuffer>[1]);
+      let caught: unknown;
+      try {
+        await pending;
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught, JSON.stringify(options)).to.be.instanceOf(TypeError);
+      expect((caught as Error).message).to.contain(` ${key}`);
+    }
   });
 
   it('should reject an invalid tempo range before analysing', async () => {

@@ -85,7 +85,7 @@ Every npm step is the maintainer's (David's). You need:
 - npm signed in as an owner of `realtime-bpm-analyzer`, with two-factor authentication: `npm whoami` prints your user (if it doesn't, `npm login`);
 - Node 22.12 or later.
 
-From step 2 to step 6 the site shows v6 while npm's `latest` is still 5.6.1. That gap lasts minutes to an hour and is accepted (RBA-247). The CLI and MCP guides stay noindex until step 13.
+From step 2 to step 6 the site shows v6 while npm's `latest` is still 5.6.1. That gap lasts minutes to an hour and is accepted (RBA-247). A longer window is accepted too: from step 2 the root readme (on npm's page as well, from step 6) and the CLI and MCP guides tell readers to run `npx realtime-bpm-analyzer-cli` and `npx realtime-bpm-analyzer-mcp`, which answer E404 until step 8 and then get the deprecated 0.0.0 until step 10. The CLI and MCP guides stay noindex until step 13.
 
 **Before the release PR**
 
@@ -95,7 +95,7 @@ From step 2 to step 6 the site shows v6 while npm's `latest` is still 5.6.1. Tha
 2. **Merge #323 with a merge commit**, never a squash: release-please reads the `!` markers in its commits.
    - Run: `gh pr ready 323`, then `gh pr merge 323 --merge`. #323 is a draft until this step, and GitHub refuses to merge a draft.
    - Check: the Main Pipeline run on `main` goes green, Deploy Documentation included (`gh run list --workflow main.yml --branch main --limit 1`, then `gh run watch <id>`). release-please opens one release PR, from the branch `release-please--branches--main`.
-   - If it fails: nothing is published yet. Fix it on `main`; the release PR follows the next push.
+   - If it fails: nothing is published yet. Read the red job's log first. A red Build & Test, Test (Firefox) or CLI and MCP on Node 22 leaves Release *skipped*, so no release PR opens. If the log shows a flake, a failure in the runner or the browser rather than in the code (a timeout, a browser that didn't start, a download that failed), `gh run rerun <id> --failed` re-runs the failed job, then Release, which opens the release PR. A failure in the code is fixed on `main`; the release PR follows the next push.
 3. **Bind the library's trusted publisher to the `npm` environment**, while #323's deploy runs, unless the setting already shows it. `main.yml`'s Release job runs in that environment, which only `main` may deploy to.
    - Why here: npm's [trusted publishing docs](https://docs.npmjs.com/trusted-publishers) list the environment as optional, say every field must match exactly, and say npm checks nothing when you save, so a mismatch shows only when a publish fails. A publisher that names `npm` refuses a token from a job outside that environment, so this setting comes only once `main.yml`'s Release job runs in `npm` on `main`, from step 2 at the latest. In the other order, a release would fail. Step 2's run publishes nothing, since 5.6.1 is already on npm, so step 6 is the first publish through the environment.
    - Run: on npmjs.com, `realtime-bpm-analyzer`'s Settings, Trusted Publisher, edit the GitHub Actions publisher: set Environment to `npm`, lowercase, and leave owner `dlepaux`, repository `realtime-bpm-analyzer` and workflow `main.yml` as they are.
@@ -113,8 +113,9 @@ From step 2 to step 6 the site shows v6 while npm's `latest` is still 5.6.1. Tha
 
 6. **Merge the release PR**, as soon as #323's deploy of step 2 is done.
    - Run: `gh pr merge <n> --squash`.
-   - Check, on the push run's Release job: the run's page shows it deployed to `npm`, and it tags `v6.1.0`, `cli-v0.1.0` and `mcp-v0.1.0` and writes their GitHub releases, publishes the library with provenance through the environment, and logs that `realtime-bpm-analyzer-cli` and `realtime-bpm-analyzer-mcp` are not on npm yet and skips them. Then `npm view realtime-bpm-analyzer dist-tags` shows `latest: '6.1.0'`.
+   - Check, on the push run's Release job: the run's page shows it deployed to `npm`, and it tags `v6.1.0`, `cli-v0.1.0` and `mcp-v0.1.0` and writes their GitHub releases, publishes the library with provenance through the environment, and logs that `realtime-bpm-analyzer-cli` and `realtime-bpm-analyzer-mcp` are not on npm yet and skips them. Then `npm view realtime-bpm-analyzer dist-tags` shows `latest: '6.1.0'`, and `curl -s https://registry.npmjs.org/realtime-bpm-analyzer | jq -r '.readmeFilename, (.readme | split("\n")[0:3] | join("\n"))'` prints `readme.md` and the readme's first lines, not an empty line and "ERROR: No README data found!" (RBA-229).
    - If the Release job fails: `gh run rerun <id> --failed`. It publishes only what npm doesn't have yet, so a re-run is safe.
+   - If Release shows skipped: a job it needs (Build & Test, Test (Firefox) or CLI and MCP on Node 22) failed. Read that job's log, then `gh run rerun <id> --failed` re-runs the failed job, then Release.
    - If the library's publish fails on authentication, the environment doesn't match. `npm publish` ends in `ENEEDAUTH` ("Unable to authenticate", the error npm's docs name), in `E404` with `404 Not Found - PUT https://registry.npmjs.org/realtime-bpm-analyzer`, as others report, or in an OIDC token exchange error. Check that step 3's environment reads `npm` exactly, lowercase, and that the job ran in `npm`: its page names the environment. Correct it and re-run. If it still fails, clear the environment on npmjs.com, which is how 5.6.x published, re-run, and report it: the token stays limited to the Release job, but the npm-side binding is gone until it is fixed.
 
 **Bootstrap the CLI and the MCP server.** Merge nothing into `main` until step 10 has run: that run builds `main`'s head.

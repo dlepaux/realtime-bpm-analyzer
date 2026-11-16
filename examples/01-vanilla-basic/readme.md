@@ -8,7 +8,7 @@ Analyzes an audio or video file offline, with `analyzeFullBuffer`, and shows the
 - The reading: `bpm`, the unrounded `bpmExact`, `confidence` and the `candidates` with their `relation` (`top`, `half`, `double`, `other`), plus the audio span and the engine. It is the same `Reading` the live examples show.
 - `null` when the file has no clear tempo, and a plain message when the browser can't decode it.
 
-The code is in `src/main.ts`, with the panels in `src/reading-panel.ts`. Confidence is shown as the library reports it, from 0 to 1.
+The code is in `src/main.ts`, with the panels in `src/reading-panel.ts`. Confidence is shown as the library reports it, from 0 to 1, or as unmeasured when it is null.
 
 ## Run it from a clean clone
 

@@ -143,14 +143,30 @@ export function identifyIntervals(peaks: readonly number[]): Interval[] {
 }
 
 /**
+ * The keys a tempo range takes. Any other own key throws a `TypeError` that names it, whatever its value, under the
+ * same ruling as the options (RBA-108's DECISION of 2026-11-16): `{min, max, mni}` would otherwise pass for a typo'd
+ * bound. tests/types/public-surface.ts holds it equal to the keys of `TempoRange`.
+ */
+export const tempoRangeKeys = Object.freeze(['min', 'max'] as const);
+
+/**
  * Validate a caller-supplied tempo range, or return the default 90–180 BPM
  * @param tempoRange - Range from the caller's options
  * @returns A range every tempo can be folded into
  * @throws {RangeError} When a bound is not a positive finite number, or the range spans less than one octave
+ * @throws {TypeError} When the range carries a key other than `min` and `max`
  */
 export function resolveTempoRange(tempoRange?: TempoRange): TempoRange {
   if (tempoRange === undefined) {
     return {min: consts.minBpmRange, max: consts.maxBpmRange};
+  }
+
+  const allowed: readonly string[] = tempoRangeKeys;
+  const refused = typeof tempoRange === 'object' && tempoRange !== null && !Array.isArray(tempoRange)
+    ? Object.keys(tempoRange).find(key => !allowed.includes(key))
+    : undefined;
+  if (refused !== undefined) {
+    throw new TypeError(`Invalid tempoRange: it takes only ${tempoRangeKeys.join(' and ')}, not ${refused}.`);
   }
 
   const min: unknown = tempoRange?.min;

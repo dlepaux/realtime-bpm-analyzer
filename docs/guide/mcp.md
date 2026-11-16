@@ -72,7 +72,9 @@ The fields are the library's [reading](./core-concepts#bpm-candidates), named in
 - `bpm`: the tempo, a whole number. `null` when no beat was found, as are the fields below.
 - `bpm_exact`: the same tempo unrounded, for timing (a beat grid, markers).
 - `confidence`: from 0 to 1, the estimated chance the reading is right. It is calibrated on
-  licence-clean dev data, so it means the same whichever engine measured it.
+  licence-clean dev data from 90 to 180 BPM, so inside that range it means the same whichever
+  engine measured it. `null`: unmeasured, when `bpm` is outside 90 to 180 (only `min_bpm` or
+  `max_bpm` allows that), and when no beat was found.
 - `candidates`: each a `bpm` and its `relation` to that tempo (`top`, `half`, `double` or
   `other`). Empty when no beat was found.
 - `engine`: the engine that measured it.

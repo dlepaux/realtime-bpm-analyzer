@@ -38,7 +38,7 @@ const qMax = 770;
  * @param value Any value
  * @returns `null`, `an array`, or the `typeof` with its article, such as `a number`
  */
-function kindOf(value: unknown): string {
+export function kindOf(value: unknown): string {
   if (value === null) {
     return 'null';
   }

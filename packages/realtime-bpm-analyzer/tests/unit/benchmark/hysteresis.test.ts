@@ -347,7 +347,9 @@ describe('the sweep, end to end', function () {
       const shown = [...samples.flatMap(({readings}) => readings), ...offline].filter((sample): sample is NonNullable<Sample> => sample !== null);
       expect(shown.length, engine).to.be.greaterThan(4);
       for (const [bpm, confidence, raw] of shown) {
-        expect(Math.abs(calibrate(engine, raw, bpm) - confidence), engine).to.be.below(1e-5);
+        // Both are numbers: the benchmark reads the default range, where every reading is measured
+        expect(confidence, `${engine} at ${bpm}`).to.be.a('number');
+        expect(Math.abs((calibrate(engine, raw, bpm) ?? Number.NaN) - (confidence ?? Number.NaN)), engine).to.be.below(1e-5);
       }
     }
   });

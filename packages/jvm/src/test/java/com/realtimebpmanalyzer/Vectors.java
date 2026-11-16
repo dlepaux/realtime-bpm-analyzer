@@ -251,6 +251,32 @@ final class Vectors {
         }
     }
 
+    /**
+     * Overwrites the samples an input's {@code nonFinite} names, after decoding: 16-bit PCM holds no NaN or infinity.
+     */
+    static void applyNonFinite(float[] samples, List<Object> entries, String id) {
+        for (Object entry : entries) {
+            Map<String, Object> sample = object(entry, id + ".nonFinite[]");
+            if (!keys("index", "value").equals(sample.keySet())) {
+                throw new Unmappable(id + ": nonFinite entry keys " + sample.keySet());
+            }
+            double index = number(sample.get("index"), id + ".nonFinite[].index");
+            String value = string(sample.get("value"), id + ".nonFinite[].value");
+            if (index != Math.rint(index) || index < 0 || index >= samples.length) {
+                throw new Unmappable(id + ": nonFinite index " + index + " is not a sample index");
+            }
+            if ("NaN".equals(value)) {
+                samples[(int) index] = Float.NaN;
+            } else if ("Infinity".equals(value)) {
+                samples[(int) index] = Float.POSITIVE_INFINITY;
+            } else if ("-Infinity".equals(value)) {
+                samples[(int) index] = Float.NEGATIVE_INFINITY;
+            } else {
+                throw new Unmappable(id + ": nonFinite value " + value + " is not NaN, Infinity or -Infinity");
+            }
+        }
+    }
+
     /** Mono signed 16-bit little-endian PCM, each sample divided by 32768: exact in a 32-bit float. */
     static float[] decodePcm16(byte[] bytes) {
         if (bytes.length % 2 != 0) {

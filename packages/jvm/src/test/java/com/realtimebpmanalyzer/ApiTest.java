@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
@@ -29,8 +30,10 @@ class ApiTest {
         return samples;
     }
 
-    private static void assertThrowsExactly(Class<? extends Throwable> expected, Executable call) {
-        assertSame(expected, assertThrows(expected, call).getClass());
+    private static <T extends Throwable> T assertThrowsExactly(Class<T> expected, Executable call) {
+        T thrown = assertThrows(expected, call);
+        assertSame(expected, thrown.getClass());
+        return thrown;
     }
 
     @Test
@@ -105,6 +108,20 @@ class ApiTest {
     }
 
     @Test
+    void refusesANanOrInfiniteSample() {
+        for (float value : new float[] {Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY}) {
+            float[] samples = new float[1000];
+            samples[999] = value;
+            for (AnalysisOptions options : new AnalysisOptions[] {
+                AnalysisOptions.DEFAULT, AnalysisOptions.DEFAULT.withEngine(Engine.PEAKS)}) {
+                IllegalArgumentException thrown = assertThrowsExactly(IllegalArgumentException.class,
+                    () -> BpmAnalyzer.analyzeChannelData(samples, RATE, options));
+                assertTrue(thrown.getMessage().contains("sample 999"), thrown.getMessage());
+            }
+        }
+    }
+
+    @Test
     void refusesSampleRatesTheEnginesCannotRun() {
         float[] samples = new float[1000];
         AnalysisOptions peaks = AnalysisOptions.DEFAULT.withEngine(Engine.PEAKS);
@@ -125,12 +142,13 @@ class ApiTest {
     void refusesInvalidOptionsWhenTheyAreMade() {
         double[][] ranges = {
             {0, 180}, {-90, 180}, {Double.NaN, 180}, {90, Double.POSITIVE_INFINITY}, {90, 179.9},
-            {1, (double) Integer.MAX_VALUE + 1},
+            {1, (double) Integer.MAX_VALUE + 1}, {1e-306, 1000},
         };
         for (double[] range : ranges) {
             assertThrowsExactly(OutOfRangeException.class, () -> TempoRange.of(range[0], range[1]));
         }
         assertEquals(TempoRange.of(1, Integer.MAX_VALUE).max(), Integer.MAX_VALUE);
+        assertEquals(TempoRange.of(1e-305, 1000).min(), 1e-305);
 
         double[][] lowpasses = {
             {0, 1}, {-1, 1}, {1e-46, 1}, {Double.NaN, 1}, {Double.POSITIVE_INFINITY, 1},
@@ -143,15 +161,20 @@ class ApiTest {
         assertEquals(Lowpass.of(200, 3), Lowpass.DEFAULT.withQ(3));
     }
 
-    /** JS loops forever on a skip of 0 samples; the port skips at least one. */
+    /** Under 2 Hz the skip after a peak rounds to no sample, so the peaks engine refuses the rate, as JS does. */
     @Test
-    void peaksEngineEndsAtATinySampleRate() {
+    void peaksEngineRefusesARateUnderTwoHertz() {
         float[] samples = new float[200];
         for (int i = 0; i < samples.length; i += 2) {
             samples[i] = 0.99f;
         }
-        AnalysisOptions options = AnalysisOptions.DEFAULT.withEngine(Engine.peaks(Lowpass.of(0.4, 1)));
-        assertTimeoutPreemptively(Duration.ofSeconds(10), () -> BpmAnalyzer.analyzeChannelData(samples, 1, options));
+        AnalysisOptions options = AnalysisOptions.DEFAULT.withEngine(Engine.peaks(Lowpass.of(0.2, 1)));
+        for (double rate : new double[] {1.99, 1, 0.5}) {
+            OutOfRangeException thrown = assertThrowsExactly(OutOfRangeException.class,
+                () -> BpmAnalyzer.analyzeChannelData(samples, rate, options));
+            assertTrue(thrown.getMessage().contains("at least 2.0 Hz"), thrown.getMessage());
+        }
+        assertTimeoutPreemptively(Duration.ofSeconds(10), () -> BpmAnalyzer.analyzeChannelData(samples, 2, options));
     }
 
     @Test

@@ -86,8 +86,8 @@ AnalysisOptions options = AnalysisOptions.DEFAULT
 
 | JS | Java | When |
 | --- | --- | --- |
-| `Error` | `IllegalArgumentException` | `samples` is empty |
-| `RangeError` | `OutOfRangeException`, a subclass of `IllegalArgumentException` | The sample rate is not finite, under 100 Hz for the tempogram, or not above twice the lowpass cutoff for peaks; or `TempoRange.of` and `Lowpass.of` get a value out of range |
+| `Error` | `IllegalArgumentException` | `samples` is empty, or holds a NaN or infinite sample |
+| `RangeError` | `OutOfRangeException`, a subclass of `IllegalArgumentException` | The sample rate is not finite, under 100 Hz for the tempogram, or under 2 Hz or not above twice the lowpass cutoff for peaks; or `TempoRange.of` and `Lowpass.of` get a value out of range, such as a `max` above `Integer.MAX_VALUE` or a `max / min` past the largest double |
 | `TypeError` | none | Java's types rule these out |
 
 A `null` argument throws `NullPointerException`. `TempoRange.of` and `Lowpass.of` check their values when they are
@@ -100,9 +100,6 @@ differ in the last bit of a `cos`, `log`, `exp` or `pow`, as two JS runtimes can
 right at a rounding or tie boundary, an exact field such as `bpm()` or the candidates' order can still differ. The
 vectors leave out such fragile inputs on purpose. Beyond that:
 
-- `TempoRange.of` refuses a `max` above `Integer.MAX_VALUE`, so `bpm()` fits an `int`.
-- At a sample rate under 2 Hz, the JS peaks engine loops forever (its skip after a peak rounds to 0 samples). The
-  port skips at least one sample. Such a rate needs a lowpass cutoff under 1 Hz.
 - Java has no `Math.log2`, so the tempogram's FFT size can round the other way at a contrived sample rate such as
   122.97509238026912 Hz, where 0.023 times the rate lies within a bit of 2^(n + 0.5). No whole rate from 100 Hz to
   2 MHz does.

@@ -26,8 +26,9 @@ public final class TempoRange {
      * @return The range
      * @throws OutOfRangeException When a bound is not a positive finite number, or {@code max} is under twice
      * {@code min}: folding moves a tempo by whole octaves, so a narrower range can leave it outside both bounds. Also
-     * when {@code max} is above {@link Integer#MAX_VALUE}, so that a reading's whole BPM fits an {@code int}: the JS
-     * library has no such bound, and no music comes near it.
+     * when {@code max} is above {@link Integer#MAX_VALUE}, so that a reading's whole BPM fits an {@code int}, and when
+     * {@code max / min} is past the largest double, which leaves the tempogram's grid no finite size. The JS library
+     * has both bounds too.
      */
     public static TempoRange of(double min, double max) {
         if (!isPositiveFinite(min) || !isPositiveFinite(max)) {
@@ -41,6 +42,10 @@ public final class TempoRange {
         if (max > Integer.MAX_VALUE) {
             throw new OutOfRangeException("Invalid tempoRange: max (" + max + ") must be at most "
                 + Integer.MAX_VALUE + " BPM, so that a tempo fits an int.");
+        }
+        if (Double.isInfinite(max / min)) {
+            throw new OutOfRangeException("Invalid tempoRange: max / min (" + max + " / " + min
+                + ") is too large, past the largest finite number.");
         }
         return new TempoRange(min, max);
     }

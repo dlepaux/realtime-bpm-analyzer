@@ -74,8 +74,8 @@ type Gain = Node & { gain: Param }
 type Filter = Node & { type: string; frequency: Param; Q: Param }
 type Noise = Scheduled & { buffer: unknown; loop: boolean }
 
-/** The part of an OfflineAudioContext the renderer uses. */
-export type DemoContext = {
+/** The part of an OfflineAudioContext the renderer uses; `R` is what its rendering resolves to. */
+export type DemoContext<R = unknown> = {
   sampleRate: number
   destination: unknown
   createOscillator(): Oscillator
@@ -83,7 +83,7 @@ export type DemoContext = {
   createBiquadFilter(): Filter
   createBufferSource(): Noise
   createBuffer(channels: number, length: number, sampleRate: number): { getChannelData(channel: number): Float32Array }
-  startRendering(): Promise<unknown>
+  startRendering(): Promise<R>
 }
 
 /** The number of samples the track renders to, at `sampleRate`. */
@@ -157,7 +157,7 @@ function synth(context: DemoContext, out: Gain, note: Note, type: string, detune
 }
 
 /** Schedules every event of `score` on `context`; resolves to the rendered track. */
-export function renderDemo<R>(context: DemoContext & { startRendering(): Promise<R> }, score: DemoScore = demoScore()): Promise<R> {
+export function renderDemo<R>(context: DemoContext<R>, score: DemoScore = demoScore()): Promise<R> {
   const master = context.createGain()
   master.gain.value = 0.55
   link(master, context.destination)

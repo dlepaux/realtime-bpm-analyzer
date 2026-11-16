@@ -8,9 +8,13 @@ export type Heard = {readonly at: number; readonly wall: number};
  * `currentTime` is not live everywhere: Firefox updates the main thread's copy through main-thread tasks, so it
  * freezes while a long task runs. Two clocks that do run on are extrapolated with `performance.now()`. One is the
  * output timestamp, a pair of clocks sampled together, plus the output latency, since it is when a sample reaches the
- * output. The other is the last processor message heard: its send time, plus the time since it was received. Each
- * reads early, never late, as a message arrives after it is sent, so the latest of them wins. The output
- * timestamp alone was not enough: in Firefox on CI it stood still through a 1.2 s block too.
+ * output. The other is the last processor message heard: its send time, plus the time since it was received.
+ * `currentTime` and the message read early, never late, as a message arrives after it is sent, so the latest of
+ * the three wins. The output clock can read late, ahead of the render thread: in Firefox it is ahead by the output
+ * latency, 48 ms on CI and 9 ms on a Mac (RBA-246), so contextNow can be too. Its one
+ * reader is the stale-epoch watchdog's start (`staleAfterSeconds`), which a late clock only moves later: a deaf
+ * processor is judged that much later, and a live one is never judged deaf sooner. The output timestamp alone was
+ * not enough: in Firefox on CI it stood still through a 1.2 s block too.
  * Only `currentTime` counts while the context does not run, since a suspended clock stands still.
  * @param context The analyzer's context
  * @param heard The last processor message, or null before any

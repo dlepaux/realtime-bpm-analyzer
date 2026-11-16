@@ -300,14 +300,15 @@ or a pulse.
 ```typescript
 analyzer.on('kick', ({ contextTime, strength }) => {
   // contextTime: where the kick started, on the AudioContext clock, in seconds.
-  // strength: from 0 to 1, against the loudest kick of the last few seconds.
+  // strength: from 0 to 1, against the loudest kick of the last 3.5 s.
   // 0.5 is a kick 6 dB softer than that one.
   console.log(contextTime.toFixed(3), strength.toFixed(2));
 });
 ```
 
-`strength` is the kick's peak under 150 Hz over the loudest recent kick's,
-as an amplitude ratio. A kick more than 6 dB under that one is not
+`strength` is the kick's peak under 150 Hz over the loudest kick's of the
+last 3.5 s, itself included, as an amplitude ratio. A kick more than 6 dB
+under that one is not
 reported, so in practice `strength` reads from 0.5 to 1: map that range to
 a brightness or a size. Its meaning stays the same if that threshold ever
 changes, so code that accepts the whole 0 to 1 keeps working.
@@ -396,22 +397,30 @@ to one update late.
   ahead of time are a separate feature, to come.
 - It hears what is under 150 Hz. Music without a kick drum gives few kicks
   or none, and a bass note as sharp as a kick and within about 6 dB of it
-  counts as one.
+  counts as one. Through a stretch of more than 3.5 s with a bass line and
+  no kick, such bass notes count from about 3.5 s in.
 - Low rumble, such as wind on a microphone or brown noise, gives a false
   kick about once a minute.
 - Two kicks closer than 80 ms count as one.
-- A kick counts against the loudest of the last seconds. When the music
-  drops by 10 dB at once, as a quieter track starts or the volume goes down
-  before the analyzer, no kick counts for about 5 s, and for about 19 s after
-  a 20 dB drop. Call `reset()` when the track changes: the kicks start
-  over at once, and so does the tempo. A paused element may still send
-  silence, which does not start the kicks over the way an input that went
-  away and came back does.
+- A kick counts against the loudest of the last 3.5 s. When the music
+  drops at once, as a quieter track starts or the volume goes down before
+  the analyzer, the quieter kicks count again from about 3.5 s after the
+  last loud one, whatever the drop: no track-change signal is needed. When it
+  rises, the louder kicks count at once. Call `reset()` when you know the
+  track changed: the kicks start over at once, and so does the tempo. A
+  paused element may still send silence, which does not start the kicks
+  over the way an input that went away and came back does.
+- A sample that is not a number, or is infinite, drops the kicks around it
+  for about a tenth of a second, and then they come back by themselves. The tempo
+  readings carry on through it.
 - `strength` is relative, so a quiet track's kicks are as strong as a loud
   one's. It is not a level meter.
 - Tested on synthetic music: kicks alone, kicks under hi-hats, snare and
   bass, a breakdown, a tempo change, silence and noise, at 44.1 and 48 kHz.
   Every kick was heard within 4 ms of where it started, with no false kick.
+  Also tested: drops of 10 and 20 dB, a 20 dB rise, a 12 s breakdown, bars
+  with no kick at 90 BPM, a bass line with no kick, and one sample that is
+  not a number or is infinite.
   Real rooms and phone microphones, which hear little under 100 Hz, are
   harder.
 

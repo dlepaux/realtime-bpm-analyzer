@@ -57,12 +57,13 @@ test('the CLI and MCP guides are out of the sidebar, llms.txt and every other pa
   assert.ok(unpublished.test('[the CLI](/guide/cli)') && unpublished.test('[CLI](./cli#x)'), 'the check must catch a link')
 })
 
-test('llms.txt lists the tutorials and calls the home tool the BPM Finder', () => {
+test('llms.txt lists the tutorials and the v6 migration, and calls the home tool the BPM Finder', () => {
   const llms = read('../public/llms.txt')
   for (const path of ['realtime-bpm-detection', 'bpm-from-microphone', 'react-bpm-hook']) {
     assert.ok(llms.includes(`https://www.realtime-bpm-analyzer.com/guide/${path})`), path)
   }
   assert.ok(llms.includes('- [BPM Finder](https://www.realtime-bpm-analyzer.com/)'))
+  assert.ok(llms.includes('https://www.realtime-bpm-analyzer.com/guide/migration-v6)'), 'the v6 migration guide')
   assert.ok(!/CLI|MCP/.test(llms), 'llms.txt names a package that is not on npm')
 })
 

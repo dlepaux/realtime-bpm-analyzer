@@ -2,6 +2,7 @@
 // and every extension link gated on the store switch like the rest of the promotion.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import type { DefaultTheme } from 'vitepress'
 import { siteNav } from '../.vitepress/tools/site-nav.ts'
 
@@ -57,12 +58,15 @@ test('Free tools keeps its six tools, in order', () => {
   ])
 })
 
-test('Developers holds the library: guide, examples, API, and the changelog under the version', () => {
+test('Developers holds the library, its CLI and MCP server, the v6 migration, and the changelog under the version', () => {
   const developers = menu(siteNav(null, VERSION), 'Developers')
   assert.deepEqual(links(developers.items ?? []), [
     ['Library guide', '/guide/getting-started'],
     ['Examples', '/examples/basic-usage'],
     ['API reference', '/api/'],
+    ['CLI', '/guide/cli'],
+    ['MCP server', '/guide/mcp'],
+    ['Migrating to v6', '/guide/migration-v6'],
     ['Changelog', CHANGELOG],
   ])
   const version = (developers.items ?? []).find((item) => item.items !== undefined)
@@ -119,7 +123,15 @@ test('no page is linked twice', () => {
   }
 })
 
-test('the v6-only pages stay off the nav on main until their npm release (RBA-122)', () => {
-  const nav = hrefs(siteNav(LISTING, VERSION))
-  assert.deepEqual(nav.filter((link) => /cli|mcp|migration-v6/.test(link)), [])
+// RBA-240's DECISION of 2026-11-16: the CLI and the MCP server get a generic icon each, and the
+// MCP server is named in text. No third-party logo: no terms allow the MCP one.
+test('the CLI and MCP entries carry a generic icon, drawn by the theme, in both nav renderings', () => {
+  const css = readFileSync(new URL('../.vitepress/theme/custom.css', import.meta.url), 'utf8')
+  for (const link of ['/guide/cli', '/guide/mcp']) {
+    for (const renderer of ['.VPMenuLink', '.VPNavScreenMenuGroupLink']) {
+      assert.ok(css.includes(`${renderer} a[href="${link}"]::before`) || css.includes(`${renderer}[href="${link}"]::before`),
+        `${link}: no icon in ${renderer}`)
+    }
+  }
+  assert.ok(!/url\((?!["']?data:image\/svg\+xml)/.test(css), 'an icon must be inline SVG, not a fetched logo')
 })

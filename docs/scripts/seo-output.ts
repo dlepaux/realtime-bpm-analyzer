@@ -73,6 +73,9 @@ function guideProblems(site: BuiltSite): string[] {
     const published = DATE('datePublished').exec(html)?.[1]
     const modified = DATE('dateModified').exec(html)?.[1]
     return [
+      // A guide meant to rank: a noindex left on it would also keep it out of the sitemap
+      // without a problem there, so this is where it shows.
+      isNoindex(html) ? `${path}: noindex` : null,
       html.includes('"@type":"TechArticle"') ? null : `${path}: no TechArticle`,
       published ? null : `${path}: no datePublished`,
       modified ? null : `${path}: no dateModified`,

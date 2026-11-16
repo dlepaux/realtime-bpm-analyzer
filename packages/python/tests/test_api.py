@@ -82,19 +82,21 @@ def test_silence_reads_nothing() -> None:
     assert analyze_channel_data(np.zeros(RATE * 4, dtype=np.float32), RATE, engine="peaks") is None
 
 
-def test_a_float64_past_float32_range_reads_without_a_warning() -> None:
+def test_a_float64_past_float32_range_is_refused_as_the_infinity_it_becomes() -> None:
     samples = np.zeros(RATE * 4)
     samples[10] = 1e300
-    assert analyze_channel_data(samples, RATE, engine="peaks") is None
+    with pytest.raises(InvalidSamplesError, match="sample 10 is inf"):
+        analyze_channel_data(samples, RATE, engine="peaks")
 
 
-def test_non_finite_samples_read_without_raising() -> None:
-    # The reference treats a NaN or infinite sample as no audio; it must not crash the analysis
+@pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+@pytest.mark.parametrize("engine", ["tempogram", "peaks"])
+def test_non_finite_samples_raise(value: float, engine: EngineName) -> None:
+    # As JS refuses them since RBA-260: through the peaks lowpass one turned every later sample into NaN
     samples = np.zeros(RATE * 4, dtype=np.float32)
-    samples[100] = np.nan
-    samples[200] = np.inf
-    assert analyze_channel_data(samples, RATE) is None
-    assert analyze_channel_data(samples, RATE, engine="peaks") is None
+    samples[200] = value
+    with pytest.raises(InvalidSamplesError, match="sample 200 is"):
+        analyze_channel_data(samples, RATE, engine=engine)
 
 
 @pytest.mark.parametrize(
@@ -130,9 +132,13 @@ def test_unusable_samples_raise(samples: object, error: type[Exception]) -> None
         ({"tempo_range": TempoRange(min=90, max=179)}, RATE),
         ({"tempo_range": TempoRange(min=math.inf, max=math.inf)}, RATE),
         ({}, math.nan),
-        # Peaks below 2 Hz loops forever in JS, and an overflowing range throws a RangeError there; see _analysis.py
+        # The bounds JS has since RBA-260: peaks under 2 Hz, a max past 2^31 - 1, and a max / min past a double
         ({"engine": "peaks", "lowpass": Lowpass(frequency=0.5)}, 1.5),
         ({"tempo_range": TempoRange(min=1e-10, max=1e308)}, RATE),
+        ({"tempo_range": TempoRange(min=90, max=2**31)}, RATE),
+        ({"engine": "peaks", "tempo_range": TempoRange(min=90, max=2**31)}, RATE),
+        ({"tempo_range": TempoRange(min=1e-306, max=1000)}, RATE),
+        ({"engine": "peaks", "tempo_range": TempoRange(min=1e-306, max=1000)}, RATE),
         ({}, 99.9),
     ],
 )

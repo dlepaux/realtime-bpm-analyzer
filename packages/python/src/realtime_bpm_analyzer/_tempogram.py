@@ -57,7 +57,8 @@ class _Grid:
 
 def _tempo_grid(tempo_range: TempoRange, frame_rate: float, window_frames: int) -> _Grid:
     ratio = tempo_range.max / tempo_range.min
-    # An overflowing ratio makes the JS grid an array of Infinity entries, which JS refuses with a RangeError
+    # _tempo_range refuses an overflowing ratio first, as JS's resolveTempoRange does since RBA-260: this keeps the
+    # grid's size finite for any caller
     if not math.isfinite(ratio):
         raise OutOfRangeError(f"tempo_range spans too much: max / min ({tempo_range.max} / {tempo_range.min}) overflows")
     size = math.floor(math.log(ratio) / math.log(GRID_RATIO)) + 1
@@ -153,10 +154,11 @@ class _Accumulator:
         self.memory = 0.5 ** (UPDATE_SECONDS / HALF_LIFE_SECONDS)
 
     def _correlation_at(self, lag: float) -> float:
-        low = math.floor(lag)
-        # Past the buffer the reference reads undefined, which is NaN: a NaN penalty then counts as none
-        if low + 1 >= len(self.autocorrelation):
+        # Past the buffer the reference reads undefined, which is NaN: a NaN penalty then counts as none. Checked
+        # before the floor, since a tempo near 0 BPM gives an infinite lag, which JS floors and Python can't (RBA-260)
+        if not lag < len(self.autocorrelation) - 1:
             return math.nan
+        low = math.floor(lag)
         values = self.autocorrelation
         return values[low] + ((lag - low) * (values[low + 1] - values[low]))
 

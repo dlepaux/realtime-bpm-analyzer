@@ -35,6 +35,8 @@ Samples: TypeAlias = Sequence[float] | NDArray[np.floating[Any]]
 """One channel of floats from -1 to 1: a sequence (a list, a float `array.array`) or a 1-D float NumPy array."""
 
 DEFAULT_TEMPO_RANGE = TempoRange(min=90, max=180)
+# The largest tempo_range max, JS's maxTempoRangeBpm: 2^31 - 1, so a whole BPM fits a signed 32-bit integer
+MAXIMUM_TEMPO_RANGE_BPM = 2**31 - 1
 ENGINES: tuple[EngineName, ...] = ("tempogram", "peaks")
 # Where 10^(q/20), Web Audio's 32-bit resonance term, is a normal, finite float (the JS library's qMin and qMax)
 Q_MIN = -758
@@ -60,9 +62,16 @@ def _as_channel(samples: Samples) -> NDArray[np.float32]:
         raise InvalidSamplesError(f"samples must be one channel, a 1-D sequence, not {channel.ndim}-D")
     if channel.size == 0:
         raise InvalidSamplesError("samples must not be empty")
-    # A float64 past float32's range becomes infinite, as a Float32Array stores it: no audio, not an error
+    # A float64 past float32's range becomes infinite, as a Float32Array stores it, and is refused below as JS refuses it
     with np.errstate(over="ignore"):
-        return channel.astype(np.float32)
+        channel = channel.astype(np.float32)
+    # A NaN or infinite sample is no PCM: through the peaks lowpass it turns every later sample into NaN. The caller
+    # can fix its decoding, so it is refused, as the JS library refuses it (RBA-260)
+    not_finite = np.flatnonzero(~np.isfinite(channel))
+    if not_finite.size > 0:
+        index = int(not_finite[0])
+        raise InvalidSamplesError(f"Invalid channel data: sample {index} is {channel[index]}, and every sample must be a finite number.")
+    return channel
 
 
 def _sample_rate(value: float) -> float:
@@ -86,6 +95,12 @@ def _tempo_range(tempo_range: TempoRange | None) -> TempoRange:
         raise OutOfRangeError(f"tempo_range min and max must be positive finite numbers (got min={low}, max={high})")
     if high < low * 2:
         raise OutOfRangeError(f"tempo_range max ({high}) must be at least twice min ({low})")
+    # The JS library's two bounds (RBA-260): a whole BPM fits a signed 32-bit integer, and the tempogram's grid has a
+    # finite size, at most 71,333 tempos for any finite max / min
+    if high > MAXIMUM_TEMPO_RANGE_BPM:
+        raise OutOfRangeError(f"tempo_range max ({high}) must be at most {MAXIMUM_TEMPO_RANGE_BPM} BPM")
+    if not math.isfinite(high / low):
+        raise OutOfRangeError(f"tempo_range max / min ({high} / {low}) is too large, past the largest finite number")
     return TempoRange(min=low, max=high)
 
 
@@ -195,11 +210,11 @@ def analyze_channel_data(
         frequency = q = math.nan
     else:
         frequency, q = _lowpass(lowpass, rate)
-        # Below 2 Hz the peak search's skip rounds to 0. The JS library has no check and loops forever there, so
-        # this refuses it as the out-of-range value it is (a divergence by necessity: RBA-257's READY)
+        # Below 2 Hz the peak search's skip rounds to 0, and the JS library refuses the rate too (RBA-260)
         if rate < PEAKS_MINIMUM_SAMPLE_RATE:
             raise OutOfRangeError(f"Invalid sample rate: {rate}. The peaks engine needs at least {PEAKS_MINIMUM_SAMPLE_RATE} Hz.")
-    # A NaN or infinite sample is no audio, as in JS: the engines handle it, so NumPy's warnings about it are noise
+    # The samples are finite by now. NumPy's invalid and overflow warnings stay off, as before RBA-260: JS's arithmetic
+    # has no such warnings, and the engines follow it
     with np.errstate(invalid="ignore", over="ignore"):
         if engine == "tempogram":
             tempos = detect_tempogram(channel, rate, resolved_range)

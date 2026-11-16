@@ -68,8 +68,10 @@ const result = await analyzeFile('song.mp3', {tempoRange: await resolveTempoRang
 // {file, ok: true, bpm, bpmExact, confidence, candidates, engine} or {file, ok: false, error}: it never throws
 ```
 
-`resolveTempoRange(min, max)` fills a missing bound with the default and throws on an
-invalid range. `audioExtensions` is the set of extensions folder mode picks up.
+`analyzeFile`'s options are typed `AnalyzeFileOptions`: `tempoRange`, `engine`, `ffmpegPath`,
+`signal`, `timeoutMs` and `maxDecodedBytes`. `resolveTempoRange(min, max)` fills a missing bound
+with the default, and its promise rejects on an invalid range. `audioExtensions` is the set of
+extensions folder mode picks up.
 
 The confidence is the estimated chance the reading is right, calibrated on licence-clean dev
 data, so it means the same whichever engine measured it.

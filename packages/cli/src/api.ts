@@ -44,7 +44,11 @@ export type NoReading = {
   readonly engine: null;
 };
 
-export type AnalyzeOptions = {
+/**
+ * Options for {@link analyzeFile}. Named for the function, and a different thing from the library's
+ * `AnalyzerOptions`, which configure a realtime analyzer.
+ */
+export type AnalyzeFileOptions = {
   /** Tempo range to fold candidates into, or to search with the tempogram; the library's default when omitted */
   readonly tempoRange?: TempoRange;
   /** Tempo engine; the library's default when omitted, and the result's `engine` says which ran */
@@ -55,20 +59,25 @@ export type AnalyzeOptions = {
   readonly signal?: AbortSignal;
   /** Gives up on a file after this many milliseconds, decode and analysis together (no limit when omitted) */
   readonly timeoutMs?: number;
-  /** Refuse a file whose first channel decodes to more than this (default defaultMaxDecodedBytes) */
+  /** Refuse a file whose first channel decodes to more than this (default {@link defaultMaxDecodedBytes}) */
   readonly maxDecodedBytes?: number;
 };
 
 /**
- * Decoded size refused by default. A 100 MB MP3 at 128 kbps fits, and
- * the process peaks at about 2.1 times this much memory: analysis filters a copy of the samples.
+ * Decoded size refused by default, in bytes: {@link analyzeFile}'s `maxDecodedBytes` when omitted. A 100 MB MP3 at
+ * 128 kbps fits, and the process peaks at about 2.1 times this much memory: analysis filters a copy of the samples.
+ * Exported for `realtime-bpm-analyzer-mcp`, whose tools run on this default.
  */
 export const defaultMaxDecodedBytes = 2 * 1024 * 1024 * 1024;
 
 // Longest delay a Node timer holds: a longer one fires after 1 ms instead
 const maxTimeoutMs = 2 ** 31 - 1;
 
-/** The default limit in the plain words of the refusal, for documentation and tool descriptions */
+/**
+ * {@link defaultMaxDecodedBytes} in the plain words of the refusal, such as "2048 MB of decoded audio (202 minutes at
+ * 44.1 kHz)". `realtime-bpm-analyzer-mcp` puts it in its tools' descriptions, so an assistant knows the limit before
+ * it sends a file.
+ */
 export const decodedLimit: string = describeDecodedLimit(defaultMaxDecodedBytes);
 
 /** Extensions of the audio files this package reads by name: the CLI's folder mode picks files by them */
@@ -105,7 +114,7 @@ function successResult(file: string, reading: OfflineResult): FileResult {
  * @param options Tempo range, engine, ffmpeg binary, abort signal, time limit and decoded size limit
  * @returns The result
  */
-export async function analyzeFile(path: string, options: AnalyzeOptions = {}): Promise<FileResult> {
+export async function analyzeFile(path: string, options: AnalyzeFileOptions = {}): Promise<FileResult> {
   const {timeoutMs} = options;
   if (timeoutMs !== undefined && !(Number.isInteger(timeoutMs) && timeoutMs > 0 && timeoutMs <= maxTimeoutMs)) {
     return {file: path, ok: false, error: `Invalid timeoutMs: ${timeoutMs}. Use a whole number of milliseconds from 1 to ${maxTimeoutMs}.`};

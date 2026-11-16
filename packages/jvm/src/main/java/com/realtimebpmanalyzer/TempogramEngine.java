@@ -75,7 +75,8 @@ final class TempogramEngine {
     /**
      * The FFT size: the power of two nearest 23 ms of samples, on a log scale.
      *
-     * @throws OutOfRangeException When it would not fit in a Java array, from about 66 GHz
+     * @throws OutOfRangeException When it would not fit in a Java array, from about 66 GHz. Defensive: a float[]
+     *     can't hold the 1.5 s the analysis needs at that rate, so {@link #detect} returns no tempo first
      */
     static int fftSize(double sampleRate) {
         long bits = Math.round(log2(0.023 * sampleRate));
@@ -444,8 +445,9 @@ final class TempogramEngine {
 
     /**
      * The base-2 logarithm. Java has none: this is the natural logarithm's quotient, which can differ from JS's
-     * Math.log2 in the last bit. That moves a tempo prior by about 1e-16, far under the tolerances, and rounds the
-     * FFT size the same way, since 0.023 times a sample rate is never a power of two and a half.
+     * Math.log2 in the last bit. That moves a tempo prior by about 1e-16, far under the tolerances. It can also round
+     * the FFT size the other way when 0.023 times the sample rate sits within a bit of 2^(n + 0.5): no whole rate
+     * from 100 Hz to 2 MHz does, but a contrived one such as 122.97509238026912 Hz does (readme, "Differences").
      */
     private static double log2(double value) {
         return StrictMath.log(value) / StrictMath.log(2);

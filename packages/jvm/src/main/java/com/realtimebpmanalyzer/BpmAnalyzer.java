@@ -86,11 +86,18 @@ public final class BpmAnalyzer {
         for (int i = 0; i < Math.min(5, tempos.size()); i++) {
             long bpm = tempos.get(i).tempo;
             Relation relation = i == 0 ? Relation.TOP : relationTo(top.tempo, bpm);
-            // TempoRange caps max at Integer.MAX_VALUE and no engine reads past its range, so this never throws
-            candidates.add(new Candidate(Math.toIntExact(bpm), relation));
+            candidates.add(new Candidate(toInt(bpm), relation));
         }
-        return new Reading(Math.toIntExact(top.tempo), top.exact,
+        return new Reading(toInt(top.tempo), top.exact,
             Calibration.calibrate(engine, top.confidence, top.tempo, range), candidates, 0, audioTo, engine);
+    }
+
+    /** TempoRange caps max at Integer.MAX_VALUE and no engine reads past its range, so this never throws. */
+    private static int toInt(long bpm) {
+        if (bpm < Integer.MIN_VALUE || bpm > Integer.MAX_VALUE) {
+            throw new IllegalStateException("A tempo past the range: " + bpm);
+        }
+        return (int) bpm;
     }
 
     /** A candidate's relation to the top tempo, within 2% of half or double it: contract/transitions.ts. */

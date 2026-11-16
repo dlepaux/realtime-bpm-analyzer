@@ -95,13 +95,17 @@ made, where the JS library checks them when it analyses.
 
 ## Differences from the JS library
 
-These cover inputs the JS library can't analyse either; on every input it can, the readings are the same.
+The readings match the JS library's within the conformance vectors' tolerances. Java's `StrictMath` and V8 can
+differ in the last bit of a `cos`, `log`, `exp` or `pow`, as two JS runtimes can, so on an input whose tempo sits
+right at a rounding or tie boundary, an exact field such as `bpm()` or the candidates' order can still differ. The
+vectors leave out such fragile inputs on purpose. Beyond that:
 
 - `TempoRange.of` refuses a `max` above `Integer.MAX_VALUE`, so `bpm()` fits an `int`.
 - At a sample rate under 2 Hz, the JS peaks engine loops forever (its skip after a peak rounds to 0 samples). The
   port skips at least one sample. Such a rate needs a lowpass cutoff under 1 Hz.
-- A sample rate from about 66 GHz makes the tempogram's FFT larger than a Java array can hold, and throws
-  `OutOfRangeException`; the JS library throws a `RangeError` on the typed array's allocation.
+- Java has no `Math.log2`, so the tempogram's FFT size can round the other way at a contrived sample rate such as
+  122.97509238026912 Hz, where 0.023 times the rate lies within a bit of 2^(n + 0.5). No whole rate from 100 Hz to
+  2 MHz does.
 
 ## How it stays the same as JS
 
@@ -124,8 +128,8 @@ CI runs it on Java 21, then the same classes on Java 8 (`Conformance (JVM)` in `
   `.mvn/wrapper/maven-wrapper.properties`): a declarative build with no build code to run, publishing to Maven
   Central without a plugin from outside Apache or Sonatype, and coordinates Gradle reads the same way.
 - **Java 8 bytecode** (`--release 8`): Minecraft runs Java 21, older Forge modpacks still run Java 8, and Android
-  reads Java 8 bytecode with any Android Gradle Plugin from 3.0, AGP 8 included. The code uses no API Android lacks below API 24, such as
-  streams or `java.util.function`.
+  reads Java 8 bytecode with any Android Gradle Plugin from 3.0, AGP 8 included. The main code uses only Java APIs
+  Android has had since API 21, with no streams, `Optional` or `java.util.function`.
 - **JUnit 5**, the only dependency, in test scope. JUnit 6 needs Java 17 to run, which the Java 8 test run rules out.
 
 ## License

@@ -70,7 +70,7 @@
 
   <build>
     <pluginManagement>
-      <!-- Every plugin of the default lifecycle pinned, so a Maven upgrade can't change the build -->
+      <!-- Every plugin the build and the tests run, pinned, so a Maven upgrade can't change them. No deploy: nothing publishes -->
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

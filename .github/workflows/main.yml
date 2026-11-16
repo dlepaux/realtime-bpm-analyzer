@@ -374,14 +374,17 @@ jobs:
           cache: maven
           cache-dependency-path: packages/jvm/pom.xml
 
+      # shell: bash adds pipefail, so Maven's exit code survives the tee; the grep then checks which java ran
       - name: Build and test on Java 21
         working-directory: packages/jvm
+        shell: bash
         run: |
           ./mvnw -B verify | tee "$RUNNER_TEMP/jvm-21.log"
           grep -qE '^conformance: PASS on Java 21\.' "$RUNNER_TEMP/jvm-21.log"
 
       - name: Test the same classes on Java 8
         working-directory: packages/jvm
+        shell: bash
         run: |
           ./mvnw -B surefire:test -Djvm="$JAVA_HOME_8_X64/bin/java" | tee "$RUNNER_TEMP/jvm-8.log"
           grep -qE '^conformance: PASS on Java 1\.8\.' "$RUNNER_TEMP/jvm-8.log"

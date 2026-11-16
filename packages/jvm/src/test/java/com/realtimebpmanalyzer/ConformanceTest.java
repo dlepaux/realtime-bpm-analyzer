@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,6 +38,10 @@ class ConformanceTest {
         double confidenceTolerance = tolerance(tolerances, "confidence");
 
         Map<String, float[]> inputs = loadInputs(dir, Vectors.array(vectors.get("inputs"), "inputs"));
+        Map<String, float[]> pristine = new HashMap<String, float[]>();
+        for (Map.Entry<String, float[]> input : inputs.entrySet()) {
+            pristine.put(input.getKey(), input.getValue().clone());
+        }
         List<String> failures = new ArrayList<String>();
         double bpmExactDeviation = 0;
         double confidenceDeviation = 0;
@@ -83,6 +88,13 @@ class ConformanceTest {
                 problems.add(e.getMessage());
             }
             passed += record(failures, id, problems);
+        }
+
+        // The cases share each input array, so a later case catches a write; this catches one in the last case too
+        for (Map.Entry<String, float[]> input : inputs.entrySet()) {
+            if (!Arrays.equals(pristine.get(input.getKey()), input.getValue())) {
+                failures.add("FAIL input " + input.getKey() + ": an analysis wrote into its samples");
+            }
         }
 
         // The deviations come from the cases that passed and failed alike, as the JS runners report them

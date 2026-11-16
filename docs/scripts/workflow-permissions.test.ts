@@ -37,6 +37,11 @@ const EXPECTED: Record<string, Record<string, Record<string, string>>> = {
     firefox: { contents: 'read' },
     // checkout. The downloads use the runner's own artifact token.
     'node-floor': { contents: 'read' },
+    // checkout. The download uses the runner's own artifact token; Deno's and Bun's setup actions download public
+    // releases.
+    conformance: { contents: 'read' },
+    // checkout, and the Hermes clone, which is public. actions/cache uses the runner's own token.
+    'conformance-hermes': { contents: 'read' },
     // checkout, and configure-pages on pushes, which reads the Pages site (GET /repos/{owner}/{repo}/pages).
     // upload-pages-artifact is an artifact upload.
     docs: { contents: 'read', pages: 'read' },

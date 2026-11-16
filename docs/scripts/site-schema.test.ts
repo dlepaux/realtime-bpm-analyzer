@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { HOME_FAQ, SCHEMA_WEB_APPLICATION, isGuidePage, isNoindexPage, isUnpublishedGuide, readableDate, siteGraph, techArticle } from '../.vitepress/tools/site-schema.ts'
+import { HOME_FAQ, SCHEMA_WEB_APPLICATION, isGuidePage, isNoindexPage, isUnpublishedGuide, readableDate, siteGraph, techArticle, UNPUBLISHED_GUIDES } from '../.vitepress/tools/site-schema.ts'
 
 const types = (path: string) => siteGraph(path).map((node) => (node as { '@type': string })['@type'])
 
@@ -47,18 +47,21 @@ test('no accuracy figure on the tool pages or in the markup', () => {
   assert.ok(figure.test('accurate within **1–2 BPM**'), 'the check itself must catch the old claim')
 })
 
-test('isNoindexPage: the docs readme and the unpublished guides leave the sitemap', () => {
-  for (const url of ['readme', '/readme.html', 'guide/cli', '/guide/mcp.html']) assert.ok(isNoindexPage(url), url)
-  for (const url of ['', 'guide/readme-tips', 'guide/node', 'guide/client', 'tap-tempo', 'extension/privacy']) {
+test('isNoindexPage: the docs readme leaves the sitemap', () => {
+  for (const url of ['readme', '/readme.html']) assert.ok(isNoindexPage(url), url)
+  for (const url of ['', 'guide/readme-tips', 'guide/node', 'guide/client', 'guide/cli', '/guide/mcp.html', 'tap-tempo', 'extension/privacy']) {
     assert.ok(!isNoindexPage(url), url)
   }
 })
 
-test('isUnpublishedGuide and isGuidePage: the CLI and MCP guides are not articles until v6', () => {
-  assert.ok(isUnpublishedGuide('guide/cli.md') && isUnpublishedGuide('/guide/mcp'))
-  assert.ok(!isUnpublishedGuide('guide/node.md'))
-  assert.ok(isGuidePage('guide/node.md') && isGuidePage('guide/beat-detection-web-audio.md'))
-  for (const path of ['guide/cli.md', 'guide/mcp.md', 'index.md', 'bpm-to-frames.md', 'examples/react.md']) {
+// The noindex flip (contributing.md, "First publish of v6", step 13) made them articles.
+test('isUnpublishedGuide and isGuidePage: the CLI and MCP guides are articles since both packages reached npm', () => {
+  assert.deepEqual(UNPUBLISHED_GUIDES, [])
+  for (const path of ['guide/cli.md', '/guide/mcp', 'guide/node.md']) assert.ok(!isUnpublishedGuide(path), path)
+  for (const path of ['guide/node.md', 'guide/beat-detection-web-audio.md', 'guide/cli.md', 'guide/mcp.md']) {
+    assert.ok(isGuidePage(path), path)
+  }
+  for (const path of ['index.md', 'bpm-to-frames.md', 'examples/react.md']) {
     assert.ok(!isGuidePage(path), path)
   }
 })

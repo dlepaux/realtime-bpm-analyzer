@@ -27,6 +27,8 @@
 - [React BPM hook](https://www.realtime-bpm-analyzer.com/guide/react-bpm-hook): useBpm, a typed hook for file, microphone and stream detection
 - [Beat detection with Web Audio](https://www.realtime-bpm-analyzer.com/guide/beat-detection-web-audio): onsets, tempo and beat tracking compared; the tempo of live audio and of whole files
 - [Node.js](https://www.realtime-bpm-analyzer.com/guide/node): BPM detection outside the browser
+- [Command-line tool](https://www.realtime-bpm-analyzer.com/guide/cli): `npx realtime-bpm-analyzer-cli song.mp3` reads the BPM of MP3, WAV, FLAC, OGG and Opus files on your computer, as text or JSON, one file or a whole folder
+- [MCP server](https://www.realtime-bpm-analyzer.com/guide/mcp): `realtime-bpm-analyzer-mcp`, a local Model Context Protocol server that lets Claude Desktop, Claude Code or any MCP client detect the BPM of audio files on your disk
 - [Strict CSP and browser extensions](https://www.realtime-bpm-analyzer.com/guide/strict-csp): loading the worklet from a URL
 - [Migrating to v6](https://www.realtime-bpm-analyzer.com/guide/migration-v6): what replaced each 5.x option, event and type, with before and after code
 - [API reference](https://www.realtime-bpm-analyzer.com/api/)

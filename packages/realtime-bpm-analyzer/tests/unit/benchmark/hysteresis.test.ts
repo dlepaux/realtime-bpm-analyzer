@@ -20,7 +20,7 @@ import type {Track, TrackResult} from '../../../benchmark/lib/types';
 import {createClickTrack} from '../../fixtures/click-track';
 
 const sampleRate = 44_100;
-// The benchmark's rows set no tempoRange, so their confidence maps through the default range's tables
+// The `peaks` and `tempogram` rows these tests run set no tempoRange, so their confidence maps through the default range's tables
 const defaultRange = resolveTempoRange();
 
 /** Clicks at one tempo, a gap with no pulse, then another tempo: locks, a lost pulse and a new lock */

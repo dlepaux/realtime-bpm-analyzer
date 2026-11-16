@@ -234,6 +234,8 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
       assert.equal(custom.confidence, null, engine);
 
       const explicit = await analyzeChannelData(createClickTrack(128), 44_100, {engine, tempoRange: {min: 90, max: 180}});
+      // typeof first: null >= 0 and null <= 1 are both true
+      assert.equal(typeof explicit.confidence, 'number', `${engine} got ${explicit.confidence}`);
       assert.ok(explicit.confidence >= 0 && explicit.confidence <= 1, `${engine} got ${explicit.confidence}`);
     }
   });

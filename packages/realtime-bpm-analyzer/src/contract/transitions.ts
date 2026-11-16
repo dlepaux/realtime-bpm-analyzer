@@ -270,7 +270,7 @@ const EXACT_TEMPO_SPAN = 1.5;
  * field added by mistake never reaches the public API.
  */
 export function readReading(value: unknown): Reading | null {
-  // Null means unmeasured. Which tempos are measured is not checked here: a later minor may calibrate more of them,
+  // Null means unmeasured. Which tempos or ranges are measured is not checked here: a later minor may calibrate more,
   // and a reading from its processor must not be fatal to this main thread (the protocol DECISION of 2026-11-04)
   if (!isRecord(value) || !isPositive(value.bpm) || !isConfidence(value.confidence)) {
     return null;

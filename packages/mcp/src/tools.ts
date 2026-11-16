@@ -14,9 +14,9 @@ import {createQueue} from './queue';
 
 const tempoArguments = {
   min_bpm: z.number().positive().max(1000).optional()
-    .describe('Lowest tempo to report, in BPM (default 90). The peaks engine folds tempos by octaves into min_bpm..max_bpm, the tempogram searches that range.'),
+    .describe('Lowest tempo to report, in BPM (default 90). The peaks engine folds tempos by octaves into min_bpm..max_bpm, the tempogram searches that range. Any range other than 90 to 180 gives confidence null (unmeasured).'),
   max_bpm: z.number().positive().max(2000).optional()
-    .describe('Highest tempo to report, in BPM (default 180). Must be at least twice min_bpm.'),
+    .describe('Highest tempo to report, in BPM (default 180). Must be at least twice min_bpm. Any range other than 90 to 180 gives confidence null (unmeasured).'),
   engine: z.enum(['peaks', 'tempogram']).optional()
     .describe('Tempo engine (default tempogram). The tempogram searches min_bpm..max_bpm instead of folding into it, so from about twice min_bpm a tempo can read half, as over about 179 BPM does by default. peaks folds tempos into the range.'),
 };

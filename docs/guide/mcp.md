@@ -53,7 +53,7 @@ tracks in ~/Music/house slower than 124 BPM."
 | --------- | ----------------------------------------------------------------- |
 | `path`    | The audio file. Absolute, or starting with `~` for the home folder |
 | `min_bpm` | Lowest tempo reported (default 90)                                |
-| `max_bpm` | Highest tempo reported (default 180, at least 2 × `min_bpm`)      |
+| `max_bpm` | Highest tempo reported (default 180, at least 2 × `min_bpm`). Any range other than 90 to 180 gives `confidence` null |
 | `engine` | `tempogram` (default) or `peaks`. The tempogram searches `min_bpm`..`max_bpm` instead of folding into it: from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default |
 
 ```json

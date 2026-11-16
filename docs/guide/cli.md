@@ -38,7 +38,7 @@ contents sorted by path. A file that fails is reported and the batch goes on.
 | `--json`          | Print one JSON document instead of text                        |
 | `-r, --recursive` | Walk sub-folders                                               |
 | `--min-bpm <bpm>` | Lowest tempo reported (default 90)                             |
-| `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`) |
+| `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`). Any range other than 90 to 180 gives `confidence` null |
 | `--engine <name>` | `tempogram` (default) or `peaks`. The tempogram searches `--min-bpm`..`--max-bpm` instead of folding into it: from about twice `--min-bpm` a tempo can read half, as over about 179 BPM does by default |
 | `-h, --help`      | Show the help                                                  |
 | `-v, --version`   | Show the version                                               |

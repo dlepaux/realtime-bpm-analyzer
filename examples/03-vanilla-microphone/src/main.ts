@@ -1,4 +1,5 @@
 import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
+import { createKickPanel } from './kick-panel';
 import { createReadingPanel } from './reading-panel';
 import { createStatePanel } from './state-panel';
 import './panels.css';
@@ -12,7 +13,8 @@ const panels = document.getElementById('panels') as HTMLDivElement;
 
 const statePanel = createStatePanel();
 const readingPanel = createReadingPanel();
-panels.append(statePanel.element, readingPanel.element);
+const kickPanel = createKickPanel();
+panels.append(statePanel.element, readingPanel.element, kickPanel.element);
 
 // State
 let audioContext: AudioContext | null = null;
@@ -99,6 +101,7 @@ async function handleStream(audioCtx: AudioContext, stream: MediaStream) {
 function watchAnalyzer(analyzer: BpmAnalyzer) {
   statePanel.clear();
   readingPanel.clear();
+  kickPanel.clear();
   statePanel.show(analyzer.state);
 
   // Fires on every change of status, of listening reason or of epoch, and only then
@@ -130,6 +133,9 @@ function watchAnalyzer(analyzer: BpmAnalyzer) {
 
   // A failed analysis step: the next step runs. A fatal fault is a statechange to stopped instead.
   analyzer.on('error', error => statePanel.showError(error));
+
+  // Each kick drum the analyzer hears, in every status, as soon as it hears it: it does not wait for a tempo
+  analyzer.on('kick', kick => kickPanel.add(kick));
 }
 
 // Start over: back to listening with the next epoch, and nothing measured before is reported

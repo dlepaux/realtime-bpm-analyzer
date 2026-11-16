@@ -109,8 +109,9 @@ export async function whenReady(analyzer: BpmAnalyzer, timeoutMs = readyTimeoutM
  *
  * @remarks
  * `state` says what it is doing (`listening`, `settling`, `locked`, `stopped`), and events announce changes and
- * measurements: `statechange`, `reading`, `progress`, `error`, and `debug` with `debug: true`. Each analysis
- * step updates `state` first, then dispatches `statechange` if the status moved, then `reading` or `progress`.
+ * measurements: `statechange`, `reading`, `progress`, `error`, `kick`, and `debug` with `debug: true`. Each
+ * analysis step updates `state` first, then dispatches `statechange` if the status moved, then `reading` or
+ * `progress`. `kick` comes apart from the steps, on each kick drum heard, with a `Kick` payload.
  * A listener added late reads `state`: events are never replayed.
  *
  * @example
@@ -125,6 +126,9 @@ export async function whenReady(analyzer: BpmAnalyzer, timeoutMs = readyTimeoutM
  * });
  * const unsubscribe = analyzer.on('reading', reading => {
  *   console.log(reading.bpm, reading.candidates);
+ * });
+ * analyzer.on('kick', ({contextTime, strength}) => {
+ *   console.log('Kick at', contextTime, 'strength', strength);
  * });
  *
  * analyzer.reset(); // new track: listening again, nothing measured before is reported

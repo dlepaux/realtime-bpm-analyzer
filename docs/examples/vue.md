@@ -33,9 +33,9 @@ Full source: [`examples/08-vue-streaming`](https://github.com/dlepaux/realtime-b
 
 ### Microphone Input
 
-Real-time BPM detection from your microphone, with its track passed as `liveInput`. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
+Real-time BPM detection from your microphone, with its track passed as `liveInput`. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates, and each `kick` as it is heard, with its time and strength.
 
-<ExampleEmbed example="09-vue-microphone" height="950px" />
+<ExampleEmbed example="09-vue-microphone" height="1250px" />
 
 ::: tip View Source
 Full source: [`examples/09-vue-microphone`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/09-vue-microphone)

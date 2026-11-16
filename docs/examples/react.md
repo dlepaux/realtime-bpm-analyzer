@@ -33,9 +33,9 @@ Full source: [`examples/05-react-streaming`](https://github.com/dlepaux/realtime
 
 ### Microphone Input
 
-Real-time BPM detection from your microphone, with its track passed as `liveInput`. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
+Real-time BPM detection from your microphone, with its track passed as `liveInput`. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates, and each `kick` as it is heard, with its time and strength.
 
-<ExampleEmbed example="06-react-microphone" height="950px" />
+<ExampleEmbed example="06-react-microphone" height="1250px" />
 
 ::: tip View Source
 Full source: [`examples/06-react-microphone`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/06-react-microphone)

@@ -349,6 +349,48 @@ jobs:
           ~/hermes-shell/hermes "$RUNNER_TEMP/conformance-hermes.js" | tee "$RUNNER_TEMP/hermes.log"
           grep -qE '^conformance: PASS on Hermes [0-9]' "$RUNNER_TEMP/hermes.log"
 
+  # RBA-257: the Python port against the same vectors. It builds the sdist, and the wheel from it, installs the wheel
+  # in a clean venv per Python and runs the tests there, so they test the package a user would get, not the source
+  # tree. The oldest supported Python runs with the oldest NumPy the package allows, the newest with the newest. Not
+  # in Release's needs, and nothing publishes the package: it isn't on PyPI yet.
+  conformance-python:
+    name: Conformance (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: |
+            3.11
+            3.15
+
+      - name: Build the sdist and the wheel
+        run: |
+          python3.15 -m venv "$RUNNER_TEMP/build"
+          "$RUNNER_TEMP/build/bin/pip" install --quiet build==1.6.1
+          "$RUNNER_TEMP/build/bin/python" -m build packages/python --outdir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+          ls "$RUNNER_TEMP"/dist/realtime_bpm_analyzer-*-py3-none-any.whl
+
+      - name: Run the vectors in Python 3.11, with NumPy 1.26.4
+        run: packages/python/scripts/test-wheel.sh python3.11 "$RUNNER_TEMP/py311" "$RUNNER_TEMP/dist" numpy==1.26.4
+
+      - name: Run the vectors in Python 3.15, with the newest NumPy
+        run: packages/python/scripts/test-wheel.sh python3.15 "$RUNNER_TEMP/py315" "$RUNNER_TEMP/dist" numpy
+
+      - name: Type-check (mypy strict)
+        working-directory: packages/python
+        run: |
+          "$RUNNER_TEMP/py315/bin/pip" install --quiet mypy==2.4.1
+          "$RUNNER_TEMP/py315/bin/mypy"
+
   # Release to GitHub and npm. release-please keeps one release PR open for all three packages
   # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
   # commits under its path, and node-workspace moving the ranges between them.

@@ -42,6 +42,8 @@ const EXPECTED: Record<string, Record<string, Record<string, string>>> = {
     conformance: { contents: 'read' },
     // checkout, and the Hermes clone, which is public. actions/cache uses the runner's own token.
     'conformance-hermes': { contents: 'read' },
+    // checkout. setup-python downloads public releases, pip installs from PyPI without a token.
+    'conformance-python': { contents: 'read' },
     // checkout, and configure-pages on pushes, which reads the Pages site (GET /repos/{owner}/{repo}/pages).
     // upload-pages-artifact is an artifact upload.
     docs: { contents: 'read', pages: 'read' },

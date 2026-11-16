@@ -105,8 +105,9 @@ function kick(context: DemoContext, out: Gain, time: number) {
   body.type = 'sine'
   body.frequency.setValueAtTime(KICK_HZ[0], time)
   body.frequency.exponentialRampToValueAtTime(KICK_HZ[1], time + 0.11)
-  link(body, envelope(context, time, 1, 0.002, time + 0.42))
-  link(body, out)
+  const amp = envelope(context, time, 1, 0.002, time + 0.42)
+  link(body, amp)
+  link(amp, out)
   body.start(time)
   body.stop(time + 0.45)
 }

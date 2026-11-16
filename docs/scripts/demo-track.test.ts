@@ -63,3 +63,48 @@ test('the renderer starts one kick at each of the score\'s times, and no other',
   await renderDemo(context, score)
   assert.deepEqual(context.kicks, score.kicks)
 })
+
+/** A context that records the graph: which node connects to which, and each gain's first set value. */
+function graphContext() {
+  type Made = { kind: string; started: boolean; gain: { value: number; first: number }; edges: Made[] }
+  const nodes: Made[] = []
+  const param = () => {
+    const made = { value: 1, first: Number.NaN, setValueAtTime(value: number) { if (Number.isNaN(made.first)) made.first = value; return made }, linearRampToValueAtTime: () => made, exponentialRampToValueAtTime: () => made }
+    return made
+  }
+  const node = (kind: string) => () => {
+    const made = {
+      kind, started: false, edges: [] as Made[], gain: param(), frequency: param(), Q: param(), detune: param(), type: '', buffer: null, loop: false,
+      connect: (target: Made) => { made.edges.push(target); return target },
+      start: () => { made.started = true },
+      stop: () => undefined,
+    }
+    nodes.push(made)
+    return made
+  }
+  const destination = node('destination')()
+  const context = {
+    sampleRate: 48_000, destination,
+    createOscillator: node('oscillator'), createGain: node('gain'), createBiquadFilter: node('filter'), createBufferSource: node('source'),
+    createBuffer: (_channels: number, length: number) => ({ getChannelData: () => new Float32Array(length) }),
+    startRendering: async () => ({}),
+  } as unknown as DemoContext
+  return { context, nodes, destination }
+}
+
+test('every sound reaches the speakers, and only through an envelope that starts silent: a kick has an attack to hear', async () => {
+  const { context, nodes, destination } = graphContext()
+  await renderDemo(context, score)
+  type Made = (typeof nodes)[number]
+  // Each path from a source to the destination, as the nodes it passes through.
+  const paths = (from: Made, seen: Made[] = []): Made[][] =>
+    from === destination ? [seen] : from.edges.flatMap((to) => paths(to, [...seen, from]))
+  const silentAtFirst = (n: Made) => n.kind === 'gain' && n.gain.first < 1e-3
+  const sources = nodes.filter((n) => n.started)
+  assert.ok(sources.length > score.kicks.length, `${sources.length} sources`)
+  for (const source of sources) {
+    const reaching = paths(source)
+    assert.ok(reaching.length > 0, `a ${source.kind} reaches the destination`)
+    for (const path of reaching) assert.ok(path.some(silentAtFirst), `a ${source.kind} reaches it through ${path.map((n) => n.kind).join(' → ')}, with no envelope`)
+  }
+})

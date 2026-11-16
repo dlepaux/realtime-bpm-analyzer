@@ -4,6 +4,7 @@ import type {EngineName, Hysteresis, WorkletMessage} from '../../../src/contract
 import {calibrate} from '../../../src/core/calibration';
 import {applyLowpass} from '../../../src/core/lowpass';
 import {analyzeSamples} from '../../../src/core/offline';
+import {resolveTempoRange} from '../../../src/core/tempo';
 import {
   baseRowIndex, compactTrace, expandTrace, factorialGrid, hysteresisFields, offlineSample, oneAtATimeGrid, readingsAt, scoreReplay, scoreRow,
   sweepGrids, sweepTrack, tempogramAxes,
@@ -19,6 +20,8 @@ import type {Track, TrackResult} from '../../../benchmark/lib/types';
 import {createClickTrack} from '../../fixtures/click-track';
 
 const sampleRate = 44_100;
+// The `peaks` and `tempogram` rows these tests run set no tempoRange, so their confidence maps through the default range's tables
+const defaultRange = resolveTempoRange();
 
 /** Clicks at one tempo, a gap with no pulse, then another tempo: locks, a lost pulse and a new lock */
 function changingTrack(): Float32Array {
@@ -110,7 +113,7 @@ describe('the hysteresis replay', () => {
     expect(readings.length).to.be.greaterThan(10);
     for (const {bpm, confidence, raw} of readings) {
       expect(raw).to.be.within(0, 1);
-      expect(calibrate('tempogram', raw!, bpm!)).to.equal(confidence);
+      expect(calibrate('tempogram', raw!, bpm!, defaultRange)).to.equal(confidence);
     }
 
     // A score the table maps flat would be lost if the calibrated value were all that was kept
@@ -349,7 +352,7 @@ describe('the sweep, end to end', function () {
       for (const [bpm, confidence, raw] of shown) {
         // Both are numbers: the benchmark reads the default range, where every reading is measured
         expect(confidence, `${engine} at ${bpm}`).to.be.a('number');
-        expect(Math.abs((calibrate(engine, raw, bpm) ?? Number.NaN) - (confidence ?? Number.NaN)), engine).to.be.below(1e-5);
+        expect(Math.abs((calibrate(engine, raw, bpm, defaultRange) ?? Number.NaN) - (confidence ?? Number.NaN)), engine).to.be.below(1e-5);
       }
     }
   });
@@ -365,7 +368,7 @@ describe('offlineSample', function () {
       const sample = await offlineSample(pcm, sampleRate, engine);
       expect(reading).to.not.equal(null);
       expect(sample?.slice(0, 2)).to.deep.equal([reading!.bpm, reading!.confidence]);
-      expect(calibrate(engine, sample![2], sample![0])).to.equal(reading!.confidence);
+      expect(calibrate(engine, sample![2], sample![0], defaultRange)).to.equal(reading!.confidence);
     });
   }
 });
@@ -389,7 +392,7 @@ describe('the session\'s debug detail', function () {
       if (message.type === 'debug') {
         raw = rawScore(debugCandidates(message.data));
       } else if (message.type === 'step' && message.status !== 'listening') {
-        expect(calibrate('peaks', raw!, message.reading.bpm)).to.equal(message.reading.confidence);
+        expect(calibrate('peaks', raw!, message.reading.bpm, defaultRange)).to.equal(message.reading.confidence);
         checked += 1;
       }
     }

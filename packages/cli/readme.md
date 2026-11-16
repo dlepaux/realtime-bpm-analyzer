@@ -32,7 +32,7 @@ realtime-bpm-analyzer -r --min-bpm 70 --max-bpm 140 ./music
 | `--json`          | Print one JSON document instead of text                        |
 | `-r, --recursive` | Walk sub-folders (up to 32 levels)                             |
 | `--min-bpm <bpm>` | Lowest tempo reported (default 90)                             |
-| `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`) |
+| `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`). Any range other than 90 to 180 gives `confidence` null |
 | `--engine <name>` | `tempogram` (default) or `peaks`. The tempogram searches `--min-bpm`..`--max-bpm` instead of folding into it: from about twice `--min-bpm` a tempo can read half, as over about 179 BPM does by default |
 | `-h, --help`      | Show the help                                                  |
 | `-v, --version`   | Show the version                                               |
@@ -75,7 +75,8 @@ extensions folder mode picks up.
 
 The confidence is the estimated chance the reading is right, calibrated on licence-clean dev
 data from 90 to 180 BPM, so inside that range it means the same whichever engine measured it.
-`null`: unmeasured, when the tempo is outside 90 to 180 BPM, which only a custom range allows.
+`null`: unmeasured, when the tempo is outside 90 to 180 BPM or when the analysis ran on a custom
+range, since the calibration ran only on the default one.
 
 ## Licence
 

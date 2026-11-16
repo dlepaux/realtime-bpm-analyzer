@@ -165,7 +165,7 @@ The migration guide builds on this table.
 | `once()` | `on(type, listener, {once: true})` |
 | `Tempo.tempo` | `Reading.bpm`, `Candidate.bpm` |
 | `Tempo.count` | removed |
-| `Tempo.confidence` (per engine) | `Reading.confidence`, calibrated on the benchmark's dev half and checked on its held-out half, on 90 to 180 BPM: the chance the reading is right, or `null` (unmeasured) outside that range |
+| `Tempo.confidence` (per engine) | `Reading.confidence`, calibrated on the benchmark's dev half and checked on its held-out half, on 90 to 180 BPM: the chance the reading is right, or `null` (unmeasured) outside that range or on a custom `tempoRange` |
 | `BpmCandidates.threshold`, `Threshold`, `Peaks` | removed |
 | (none) | `Candidate.relation`: `top`, `half`, `double`, `other` |
 | (none) | `Reading.audio {from, to, contextTime}`, in seconds since the epoch began, anchored to the context clock |

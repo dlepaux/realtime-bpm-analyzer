@@ -53,7 +53,7 @@ tracks in ~/Music/house slower than 124 BPM."
 | --------- | ----------------------------------------------------------------- |
 | `path`    | The audio file. Absolute, or starting with `~` for the home folder |
 | `min_bpm` | Lowest tempo reported (default 90)                                |
-| `max_bpm` | Highest tempo reported (default 180, at least 2 × `min_bpm`)      |
+| `max_bpm` | Highest tempo reported (default 180, at least 2 × `min_bpm`). Any range other than 90 to 180 gives `confidence` null |
 | `engine` | `tempogram` (default) or `peaks`. The tempogram searches `min_bpm`..`max_bpm` instead of folding into it: from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default |
 
 ```json
@@ -73,8 +73,10 @@ The fields are the library's [reading](./core-concepts#bpm-candidates), named in
 - `bpm_exact`: the same tempo unrounded, for timing (a beat grid, markers).
 - `confidence`: from 0 to 1, the estimated chance the reading is right. It is calibrated on
   licence-clean dev data from 90 to 180 BPM, so inside that range it means the same whichever
-  engine measured it. `null`: unmeasured, when `bpm` is outside 90 to 180 (only `min_bpm` or
-  `max_bpm` allows that), and when no beat was found.
+  engine measured it. `null`: unmeasured, when `bpm` is outside 90 to 180 or when `min_bpm` or
+  `max_bpm` set any other range than 90 to 180, since the calibration ran only on that range (a
+  missing bound is filled from it, so `min_bpm: 90` alone keeps the number), and when no beat was
+  found.
 - `candidates`: each a `bpm` and its `relation` to that tempo (`top`, `half`, `double` or
   `other`). Empty when no beat was found.
 - `engine`: the engine that measured it.

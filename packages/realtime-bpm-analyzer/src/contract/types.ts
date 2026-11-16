@@ -102,8 +102,9 @@ export type OfflineEngineOption =
 
 /**
  * Range every tempo is reported in, in BPM. `max` must be at least twice `min`, so every tempo has an octave
- * inside it. Default 90 to 180, the range `Reading.confidence` was measured on. Any key other than `min` and `max`
- * is refused with a `TypeError` that names it.
+ * inside it. Default 90 to 180, the range `Reading.confidence` was measured on: any other range gives every reading
+ * confidence `null`, and an explicit `{min: 90, max: 180}` is the default. Any key other than `min` and `max` is
+ * refused with a `TypeError` that names it.
  */
 export type TempoRange = {
   readonly min: number;
@@ -221,11 +222,11 @@ export type Reading = {
    * (benchmark/results/rba-106-calibration-heldout-verdict.md). Offline readings were not part of that check. Peaks'
    * table was fitted on dev only. Treat the values as an estimate for music like the benchmark's.
    *
-   * `null`: unmeasured. Both halves were read on the default range, 90 to 180 BPM, so the calibration says nothing
-   * about a reading outside it: when `bpm` is under 90 or over 180, which only a custom `tempoRange` allows, the
-   * confidence is `null` rather than a number with no proven meaning. On the default range it is always a number.
-   * With a custom `tempoRange`, a reading inside 90 to 180 BPM gets the default range's table, though the engine
-   * picked it from another range: the number is an extrapolation, unmeasured for that range.
+   * `null`: unmeasured, when `bpm` is outside 90 to 180 or when the analysis ran on a custom tempo range. Both halves
+   * were read by analyses on the default range, 90 to 180 BPM, so the calibration says nothing about any other: a
+   * custom range changes which candidate each engine picks, so even a reading inside 90 to 180 BPM from a 60 to 200
+   * analysis has a score nobody measured. The confidence is then `null` rather than a number with no proven meaning.
+   * On the default range it is always a number, and an explicit `{min: 90, max: 180}` is the default range.
    */
   readonly confidence: number | null;
   /**

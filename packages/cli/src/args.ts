@@ -29,7 +29,8 @@ Options:
   --json             Print one JSON document instead of text
   -r, --recursive    Walk sub-folders of a folder (up to 32 levels)
   --min-bpm <bpm>    Lowest tempo reported (default 90)
-  --max-bpm <bpm>    Highest tempo reported (default 180, at least 2 x min)
+  --max-bpm <bpm>    Highest tempo reported (default 180, at least 2 x min).
+                     Any range other than 90 to 180 gives confidence null
   --engine <name>    tempogram (default) or peaks. The tempogram searches the
                      range instead of folding into it: from about 2 x min a
                      tempo can read half, as over about 179 does by default

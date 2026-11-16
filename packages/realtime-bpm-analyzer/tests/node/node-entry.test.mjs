@@ -226,6 +226,20 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     }
   });
 
+  it('gives confidence null on a custom range even inside 90 to 180 BPM, and a number on an explicit 90 to 180', async () => {
+    // RBA-108's DECISION of 2026-11-16: 128 is the click's only octave in 80 to 200
+    for (const engine of ['peaks', 'tempogram']) {
+      const custom = await analyzeChannelData(createClickTrack(128), 44_100, {engine, tempoRange: {min: 80, max: 200}});
+      assert.equal(custom.bpm, 128, engine);
+      assert.equal(custom.confidence, null, engine);
+
+      const explicit = await analyzeChannelData(createClickTrack(128), 44_100, {engine, tempoRange: {min: 90, max: 180}});
+      // typeof first: null >= 0 and null <= 1 are both true
+      assert.equal(typeof explicit.confidence, 'number', `${engine} got ${explicit.confidence}`);
+      assert.ok(explicit.confidence >= 0 && explicit.confidence <= 1, `${engine} got ${explicit.confidence}`);
+    }
+  });
+
   it('returns null for silence, with either engine', async () => {
     assert.equal(await analyzeChannelData(new Float32Array(44_100), 44_100, {engine: 'peaks'}), null);
     assert.equal(await analyzeChannelData(new Float32Array(44_100 * 10), 44_100, {engine: 'tempogram'}), null);

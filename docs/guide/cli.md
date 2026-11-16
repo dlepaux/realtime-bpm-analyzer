@@ -38,7 +38,7 @@ contents sorted by path. A file that fails is reported and the batch goes on.
 | `--json`          | Print one JSON document instead of text                        |
 | `-r, --recursive` | Walk sub-folders                                               |
 | `--min-bpm <bpm>` | Lowest tempo reported (default 90)                             |
-| `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`) |
+| `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`). Any range other than 90 to 180 gives `confidence` null |
 | `--engine <name>` | `tempogram` (default) or `peaks`. The tempogram searches `--min-bpm`..`--max-bpm` instead of folding into it: from about twice `--min-bpm` a tempo can read half, as over about 179 BPM does by default |
 | `-h, --help`      | Show the help                                                  |
 | `-v, --version`   | Show the version                                               |
@@ -72,8 +72,10 @@ mean the same thing:
 - `bpmExact`: the same tempo unrounded, for timing (a beat grid, markers). Show `bpm`.
 - `confidence`: from 0 to 1, the estimated chance the reading is right. It is calibrated on
   licence-clean dev data from 90 to 180 BPM, so inside that range it means the same whichever
-  engine measured it. `null`: unmeasured, when `bpm` is outside 90 to 180 (only `--min-bpm` or
-  `--max-bpm` allows that). The text output prints it as `confidence unmeasured`.
+  engine measured it. `null`: unmeasured, when `bpm` is outside 90 to 180 or when `--min-bpm` or
+  `--max-bpm` set any other range than 90 to 180, since the calibration ran only on that range. A
+  missing bound is filled from it, so `--min-bpm 90` alone keeps the number. The text output
+  prints it as `confidence unmeasured`.
 - `candidates`: each a `bpm` and its `relation` to the reading's tempo (`top`, `half`,
   `double` or `other`). Empty when no beat was found.
 - `engine`: the engine that measured it.

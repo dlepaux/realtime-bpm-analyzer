@@ -26,9 +26,9 @@ export async function analyzeSamples(
   const audio = {from: 0, to: channelData.length / sampleRate, contextTime: null};
 
   if (engine.name === 'tempogram') {
-    return toReading(detectTempogram(channelData, sampleRate, tempoRange), audio, 'tempogram');
+    return toReading(detectTempogram(channelData, sampleRate, tempoRange), audio, 'tempogram', tempoRange);
   }
 
   const filtered = await lowpass(engine.lowpass);
-  return toReading(await detectTempo(filtered, sampleRate, tempoRange), audio, 'peaks');
+  return toReading(await detectTempo(filtered, sampleRate, tempoRange), audio, 'peaks', tempoRange);
 }

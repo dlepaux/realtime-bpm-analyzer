@@ -17,7 +17,7 @@ export function formatText(result: FileResult): string {
   const candidates = result.candidates
     .map(({bpm, relation}) => (relation === 'top' || relation === 'other' ? `${bpm}` : `${bpm} (${relation})`))
     .join(', ');
-  // Outside the tempo range confidence was measured on, the library gives null: say so, never print 0 or NaN
+  // Outside the tempo range confidence was measured on, or on a custom range, the library gives null: say so, never print 0 or NaN
   const confidence = result.confidence === null ? 'unmeasured' : result.confidence.toFixed(2);
   // The engine sits beside the confidence so the line says what measured the reading
   return `${result.file}: ${result.bpm} BPM (${result.engine}, confidence ${confidence})\n  candidates: ${candidates}`;

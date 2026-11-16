@@ -1,9 +1,10 @@
-import type {EngineName} from '../contract/types';
+import type {EngineName, TempoRange} from '../contract/types';
 
 /**
  * Maps each engine's raw score to the chance its reading is right (within 4% of the true tempo), so a
  * `Reading.confidence` of 0.8 is right about 80% of the time. Fitted on the benchmark's dev half, on the default
- * 90 to 180 range ({@link MEASURED_TEMPO_RANGE}): a reading outside it gets no confidence at all. Readings sampled
+ * 90 to 180 range ({@link MEASURED_TEMPO_RANGE}): a reading outside it, or from an analysis run on any other
+ * range, gets no confidence at all. Readings sampled
  * at 10, 15, 20, 30 and 45 s and at the end of each track, so long tracks do not weigh more; peaks under the
  * shipped HYSTERESIS, the tempogram with `pulseLostAfterSeconds` 3 (the readings are the same, only which were
  * shown differs: see the results file). Results, method and ranges:
@@ -24,13 +25,22 @@ import type {EngineName} from '../contract/types';
 type Point = readonly [number, number];
 
 /**
- * The tempos, in BPM, both bounds included, that the calibration readings covered. Every reading behind the tables was
- * taken on the library's default range, 90 to 180, by the benchmark's `peaks` and `tempogram` rows, which set no
- * `tempoRange` (benchmark/lib/detectors.ts). Both engines report a whole BPM inside that range (peaks folds into it,
- * the tempogram searches it) with both ends reachable, so both bounds are inside what was measured. Outside it no
- * reading measured what a raw score means, so `calibrate` returns null there rather than the nearest table's
- * number: a confidence with no proven meaning would mislead the programs that act on it (RBA-108's DECISIONs of
- * 2026-11-03 and 2026-11-16, RBA-147). Widening it needs readings fitted outside it, not a new number here.
+ * The tempo range, in BPM, both bounds included, that the calibration readings were taken on. Every reading behind the
+ * tables came from the benchmark's `peaks` and `tempogram` rows, which set no `tempoRange`
+ * (benchmark/lib/detectors.ts), so they ran on the library's default range, 90 to 180, and read inside it. Both
+ * engines report a whole BPM inside that range (peaks folds into it, the tempogram searches it) with both ends
+ * reachable, so both bounds are inside what was measured.
+ *
+ * It bounds two things, and `calibrate` returns null outside either rather than the nearest table's number: the
+ * reading's tempo, and the range the analysis ran on. A custom range changes which candidate each engine picks, so
+ * even a reading inside 90 to 180 from a 60 to 200 analysis has a score nobody measured. A confidence with no proven
+ * meaning would mislead the programs that act on it (RBA-108's DECISIONs of 2026-11-03 and 2026-11-16, RBA-147).
+ *
+ * It is a fact about the data, kept apart from the library's default range (`consts.minBpmRange` and
+ * `consts.maxBpmRange`), which is a setting: tying them in one constant would let a change of default relabel the
+ * tables as measured on a range they never saw. tests/unit/analyzer/calibration.test.ts holds the two equal, so a
+ * change of default fails there instead of silently turning every default reading's confidence into null. Widening
+ * it needs readings fitted on the wider range, not a new number here.
  */
 export const MEASURED_TEMPO_RANGE: Readonly<{min: number; max: number}> = Object.freeze({min: 90, max: 180});
 
@@ -137,12 +147,28 @@ function read(table: readonly Point[], raw: number): number {
 }
 
 /**
+ * @param tempoRange The resolved range an analysis ran on
+ * @returns Whether it is the range the tables were fitted on. Compared by value, so an explicit `{min: 90, max: 180}`
+ * is the default range, as RBA-108's DECISION of 2026-11-16 has it
+ */
+export function isMeasuredTempoRange(tempoRange: TempoRange): boolean {
+  return tempoRange.min === MEASURED_TEMPO_RANGE.min && tempoRange.max === MEASURED_TEMPO_RANGE.max;
+}
+
+/**
  * @param engine The engine that scored the reading
  * @param raw Its raw score for the top tempo, 0 to 1
  * @param bpm The reading's tempo
- * @returns The chance the reading is right, 0 to 1, or null when `bpm` is outside {@link MEASURED_TEMPO_RANGE}
+ * @param tempoRange The resolved range the analysis ran on. Required, so that no caller gets a number for a range
+ * nobody measured by leaving it out
+ * @returns The chance the reading is right, 0 to 1, or null when `bpm` is outside {@link MEASURED_TEMPO_RANGE} or the
+ * analysis ran on any other range
  */
-export function calibrate(engine: EngineName, raw: number, bpm: number): number | null {
+export function calibrate(engine: EngineName, raw: number, bpm: number, tempoRange: TempoRange): number | null {
+  if (!isMeasuredTempoRange(tempoRange)) {
+    return null;
+  }
+
   // Written so that a bpm that is not a number fails the test and reads as unmeasured
   if (!(bpm >= MEASURED_TEMPO_RANGE.min && bpm <= MEASURED_TEMPO_RANGE.max)) {
     return null;

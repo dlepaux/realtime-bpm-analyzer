@@ -71,7 +71,7 @@ export async function streamPcm(
   }
 }
 
-/** Confidence null outside the measured tempo range (RBA-147), as the library reports it */
+/** Confidence null outside the measured tempo range or on a custom range (RBA-147), as the library reports it */
 export type Reading = readonly [heard: number, tempo: number, confidence: number | null];
 
 /** Candidates kept from the last reading: enough to see the other metrical level, not the tail */
@@ -232,7 +232,7 @@ export async function traceEngine(
     const step = await engine.analyze(buffer, bufferSize, sampleRate);
     seconds += bufferSize / sampleRate;
     if (step.fresh) {
-      const reading = toReading(step.candidates, {from: 0, to: seconds, contextTime: null}, 'tempogram');
+      const reading = toReading(step.candidates, {from: 0, to: seconds, contextTime: null}, 'tempogram', tempoRange);
       const detail = isTempogramDebug(step.debug) ? step.debug : {frameTempo: 0, leads: false};
       steps.push({
         now: seconds,

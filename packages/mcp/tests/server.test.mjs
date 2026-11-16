@@ -176,7 +176,32 @@ describe('realtime-bpm-analyzer-mcp over stdio', hangLimit, () => {
     const {tools} = await client.listTools();
     // Wherever the schema generator puts the description of a nullable field, the client receives it
     const confidence = JSON.stringify(tools.find(({name}) => name === 'analyze_file').outputSchema.properties.confidence);
-    assert.match(confidence, /Null: unmeasured, when bpm is outside 90 to 180/);
+    assert.match(confidence, /Null: unmeasured, when bpm is outside 90 to 180 or min_bpm and max_bpm give any other range/);
+  });
+
+  it('reports null on any custom range, even for a tempo inside 90 to 180', async () => {
+    // RBA-108's DECISION of 2026-11-16: the tables were fitted only on the default range. 128 is the click's only
+    // octave in 80 to 200
+    for (const engine of ['peaks', 'tempogram']) {
+      const result = await client.callTool({name: 'analyze_file', arguments: {path: 'click-128.mp3', min_bpm: 80, max_bpm: 200, engine}});
+      assert.equal(result.isError, undefined, text(result));
+      assert.equal(result.structuredContent.bpm, 128, engine);
+      assert.equal(result.structuredContent.confidence, null, engine);
+    }
+  });
+
+  it('keeps the number when min_bpm and max_bpm give the default range, a missing bound filled from it', async () => {
+    const defaults = [{}, {min_bpm: 90}, {max_bpm: 180}, {min_bpm: 90, max_bpm: 180}];
+    for (const engine of ['peaks', 'tempogram']) {
+      for (const range of defaults) {
+        const label = `${engine} ${JSON.stringify(range)}`;
+        const result = await client.callTool({name: 'analyze_file', arguments: {path: 'click-128.mp3', ...range, engine}});
+        assert.equal(result.isError, undefined, text(result));
+        assert.equal(result.structuredContent.bpm, 128, label);
+        const {confidence} = result.structuredContent;
+        assert.ok(confidence > 0 && confidence <= 1, `${label} got ${confidence}`);
+      }
+    }
   });
 
   it('reports no beat as null fields that pass the declared output schema', async () => {

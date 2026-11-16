@@ -22,3 +22,7 @@ async function analyse(): Promise<AnalysisReply> {
 }
 
 parentPort?.postMessage(await analyse());
+// The host ends this thread once it has the reply (analyzeOnWorker). Exiting here as well would
+// race its terminate(), which on Node 22.0.0 can deadlock the teardown and hang the host
+// (RBA-241). A listener keeps the port open, so the thread waits for the host instead.
+parentPort?.on('message', () => {});

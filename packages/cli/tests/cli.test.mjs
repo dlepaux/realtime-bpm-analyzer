@@ -15,6 +15,11 @@ import {decodeFile} from '../dist/decode.mjs';
 import {bassTestExpected} from '../../realtime-bpm-analyzer/tests/fixtures/bass-test-expected.ts';
 import {createClickTrack} from '../../realtime-bpm-analyzer/tests/fixtures/click-track.ts';
 
+// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
+// thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
+const hangLimit = {timeout: 60_000};
+
 const cli = fileURLToPath(new URL('../dist/cli.mjs', import.meta.url));
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 const bassTest = fileURLToPath(new URL('../../realtime-bpm-analyzer/tests/fixtures/bass-test.wav', import.meta.url));
@@ -49,7 +54,7 @@ const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
 // root reads any file whatever its mode, so the unreadable-file test needs a regular user
 const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
 
-describe('realtime-bpm-analyzer CLI', () => {
+describe('realtime-bpm-analyzer CLI', hangLimit, () => {
   it('prints help and the package version', async () => {
     const help = await run(['--help']);
     assert.equal(help.code, 0);
@@ -223,11 +228,11 @@ describe('realtime-bpm-analyzer CLI', () => {
 
     before(async () => {
       root = await mkdtemp(join(tmpdir(), 'rba-cli-fmt-'));
-    });
+    }, hangLimit);
 
     after(async () => {
       await rm(root, {recursive: true, force: true});
-    });
+    }, hangLimit);
 
     it('looks behind an ID3 tag before picking a decoder', async () => {
       const flac = join(root, 'tagged.flac');
@@ -287,11 +292,11 @@ describe('realtime-bpm-analyzer CLI', () => {
       await writeFile(join(root, 'notes.txt'), 'not audio');
       // An ID3 header with no MPEG frames behind it: the MP3 decoder yields no samples
       await writeFile(join(root, 'a-broken.mp3'), Buffer.concat([Buffer.from('ID3\x04\0\0\0\0\0\0'), Buffer.alloc(2048, 7)]));
-    });
+    }, hangLimit);
 
     after(async () => {
       await rm(root, {recursive: true, force: true});
-    });
+    }, hangLimit);
 
     it('analyses the folder\'s own files in order, reports a broken one and exits 1', async () => {
       const {code, results} = await runJson([root]);

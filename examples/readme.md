@@ -61,7 +61,17 @@ analyzer.on('error', ({ name, message }) => {
 });
 ```
 
-These examples show the tempo only: nothing in them moves on the beat.
+The microphone examples also list each `kick` as it is heard, with its `contextTime` and `strength`, in a **kick panel** with nothing that flashes:
+
+```typescript
+// Each kick drum heard, 18 to 26 ms after it reached the analyzer: its time on the AudioContext clock, and its
+// strength from 0 to 1 against the loudest kick of the last few seconds
+analyzer.on('kick', ({ contextTime, strength }) => {
+  console.log(contextTime.toFixed(3), strength.toFixed(2));
+});
+```
+
+A kick is reported as it is heard, never ahead of it, so nothing in these examples lands on a beat to come. How to line a visual up with what the listener hears is in the guide, under [Kick events](https://www.realtime-bpm-analyzer.com/guide/realtime-bpm-detection#kick-events).
 
 ## Running an example
 

@@ -4,6 +4,8 @@ Measures what a user gets from the real-time analyzer: decoded audio goes throug
 
 The sections from [Choosing the defaults](#choosing-the-defaults) on are a dated log. Each keeps the names of the version it measured, so the earlier ones say `detector` for v6's `engine` and `bpmStable` for a move to `locked`.
 
+What a live feature may cost is [v6's CPU rule](cpu-rule.md), with each feature's measured cost.
+
 Evaluation only: nothing here trains anything, and no audio or label file is committed, only track ids, their groups and numeric results.
 
 ## Metrics

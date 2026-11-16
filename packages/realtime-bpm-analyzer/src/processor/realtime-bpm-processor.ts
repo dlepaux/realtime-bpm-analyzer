@@ -1,5 +1,7 @@
 import {realtimeBpmProcessorName} from '../core/consts';
 import {chunkAggregator} from '../core/utils';
+import {createKickDetector} from '../core/kick-detector';
+import type {KickDetector, OnKick} from '../core/kick-detector';
 import {createSampleClock} from '../core/sample-clock';
 import type {SampleClock} from '../core/sample-clock';
 import {createSession} from '../core/session';
@@ -72,6 +74,14 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   // Only an analyzer made with `liveInput` reports a clock: from any other, `delivered` is ignored
   liveInput = false;
   silentQuantum = new Float32Array(renderQuantumFrames);
+  // Hears kicks in every quantum of real input, apart from the analysis: the kick event (RBA-243)
+  kickDetector: KickDetector = createKickDetector(sampleRate);
+  // Set while the input has no channels (a source that ended or was disconnected): the kicks start over after it
+  inputGap = false;
+  // Made once, as the detector calls it from inside the render loop
+  onKick: OnKick = (contextTime, strength) => {
+    this.post({type: 'kick', protocol: PROTOCOL, epoch: this.session!.epoch(), contextTime: Math.max(0, contextTime), strength});
+  };
 
   constructor(options: AudioWorkletProcessorParameters) {
     super(options);
@@ -161,6 +171,8 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       this.session!.adopt(epoch).forEach(message => {
         this.post(message);
       });
+      // A reset is a new start for the kicks too: a track that follows a louder one is not judged against it
+      this.kickDetector.reset();
       return;
     }
 
@@ -212,11 +224,23 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
       this.session!.restartForLostAudio().forEach(message => {
         this.post(message);
       });
+      this.kickDetector.reset();
     }
 
     if (!currentChunk) {
+      this.inputGap = true;
       return;
     }
+
+    // After a gap, the audio before it is not the reference for what follows, and a kick it held would be misplaced
+    if (this.inputGap) {
+      this.inputGap = false;
+      this.kickDetector.reset();
+    }
+
+    // Real input only: owed silence stands for audio that never arrived, and has no kick in it. currentTime is the
+    // context time of this quantum's first frame
+    this.kickDetector.process(currentChunk, currentTime, this.onKick);
 
     // One quantum at most: at most one full buffer per call, which the guard in `analyze` would otherwise drop.
     if (owesSilence) {

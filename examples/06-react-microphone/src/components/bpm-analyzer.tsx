@@ -3,6 +3,7 @@ import {
   createRealtimeBpmAnalyzer,
   type BpmAnalyzer as BpmAnalyzerType
 } from 'realtime-bpm-analyzer';
+import KickPanel from './kick-panel';
 import ReadingPanel from './reading-panel';
 import StatePanel from './state-panel';
 import { useAnalyzerView } from './use-analyzer-view';
@@ -171,6 +172,8 @@ function BpmAnalyzer() {
       {view?.reading && (status === 'settling' || status === 'locked') && (
         <ReadingPanel reading={view.reading} status={status} />
       )}
+
+      {view && <KickPanel kicks={view.kicks} count={view.kickCount} />}
     </div>
   );
 }

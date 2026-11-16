@@ -4,6 +4,7 @@ import {
   createRealtimeBpmAnalyzer,
   type BpmAnalyzer
 } from 'realtime-bpm-analyzer';
+import KickPanel from './kick-panel.vue';
 import ReadingPanel from './reading-panel.vue';
 import StatePanel from './state-panel.vue';
 import { useAnalyzerView } from './use-analyzer-view';
@@ -161,6 +162,8 @@ onUnmounted(() => {
     <StatePanel v-if="view" :state="view.state" :changes="view.changes" :last-error="view.lastError" />
 
     <ReadingPanel v-if="liveReading" :reading="liveReading.reading" :status="liveReading.status" />
+
+    <KickPanel v-if="view" :kicks="view.kicks" :count="view.kickCount" />
   </div>
 </template>
 

@@ -54,6 +54,8 @@ describe('createRealtimeBpmAnalyzer', function () {
       const invalid: Array<[unknown, typeof RangeError | typeof TypeError]> = [
         [{engine: 'magic'}, RangeError],
         [{engine: {name: 'peaks', restartAfterSeconds: -1}}, RangeError],
+        [{engine: {name: 'peaks', lowpass: {frequency: 150}}}, TypeError],
+        [{engine: {name: 'tempogram', restartAfterSeconds: 30}}, TypeError],
         [{debug: 'yes'}, TypeError],
       ];
       for (const [options, expected] of invalid) {
@@ -75,8 +77,9 @@ describe('createRealtimeBpmAnalyzer', function () {
         [{stabilizationTime: 20_000}, 'restartAfterSeconds'],
         [{muteTimeInIndexes: 10_000}, 'no replacement'],
         [{tempogramMode: 'extension'}, 'mode'],
-        [{frequencyValue: 200}, 'lowpass'],
-        [{qualityValue: 1}, 'lowpass'],
+        // Realtime peaks' lowpass is fixed: the message must not send the caller to a realtime engine.lowpass
+        [{frequencyValue: 200}, 'analyzer.input'],
+        [{qualityValue: 1}, 'analyzer.input'],
       ];
       for (const [options, replacement] of removed) {
         let caught: unknown;

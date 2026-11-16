@@ -260,7 +260,7 @@ Read its log first. A failed step before the upload published nothing.
    - removes `guide/java` and `guide/python` from `UNPUBLISHED_GUIDES` in `docs/.vitepress/tools/site-schema.ts`;
    - removes `search: false` from `docs/guide/java.md` and `docs/guide/python.md`;
    - adds both guides to the sidebar in `docs/.vitepress/config.ts` and to `docs/public/llms.txt`;
-   - drops the not-published notes from `packages/jvm/readme.md`, `packages/python/readme.md` and both guides, and the comments above `search: false`;
+   - drops the not-published notes from `packages/jvm/readme.md`, `packages/python/readme.md` and both guides, and the comments above `search: false`. The Java guide's note was its only install line, so each guide gets the install line of its live package in its place: `io.github.dlepaux:realtime-bpm-analyzer` for Gradle and Maven, and `pip install realtime-bpm-analyzer`;
    - turns the tests that keep them out (in `docs/scripts/seo-output.test.ts`, `seo-pages.test.ts` and `site-schema.test.ts`) into tests that they are in, as #408 did for the CLI and the MCP server.
    - Check, after its deploy: `/guide/java` and `/guide/python` carry no `noindex`, and both are in `/sitemap.xml`.
 

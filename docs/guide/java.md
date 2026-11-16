@@ -1,6 +1,4 @@
 ---
-# Unpublished until the Java port is on Maven Central (RBA-256): kept out of the local search too.
-search: false
 title: BPM Detection in Java, Kotlin and Android
 description: Detect the BPM of PCM samples in Java, Kotlin, Android or a Minecraft mod with the pure-Java port of analyzeChannelData, with no dependencies.
 ---
@@ -13,8 +11,21 @@ library, proven by the shared conformance vectors on every build. It has no runt
 dependencies, and its jar runs on Java 8 and later: Minecraft mods (Fabric and Forge),
 Android and Kotlin.
 
-It is not published yet. Until it is on Maven Central, build it from `packages/jvm` in the
-repository with `./mvnw install`, and its readme there has the coordinates.
+It is on Maven Central as `io.github.dlepaux:realtime-bpm-analyzer`. With Gradle:
+
+```kotlin
+implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")
+```
+
+Or with Maven:
+
+```xml
+<dependency>
+  <groupId>io.github.dlepaux</groupId>
+  <artifactId>realtime-bpm-analyzer</artifactId>
+  <version>6.2.0</version>
+</dependency>
+```
 
 ```java
 import io.github.dlepaux.realtimebpmanalyzer.BpmAnalyzer;

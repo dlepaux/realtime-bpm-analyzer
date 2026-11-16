@@ -165,7 +165,7 @@ The analyzer has a state you can read at any time, `analyzer.state`. Its `status
 ### `statechange` Event {#bpmstable-event}
 - Emitted on every change of status, with `from`, `to` and a `reason`
 - `to.status === 'locked'` means the readings agree: with the default engine, no sooner than about 11.5 seconds of audio
-- More reliable for final BPM determination
+- Wait for it before you treat a tempo as final
 - The tempo can still move a little while locked, so keep showing the latest reading
 
 When you are done, call `analyzer.stop()`. It is final: create a new analyzer to listen again.

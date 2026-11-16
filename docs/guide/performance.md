@@ -1,11 +1,11 @@
 ---
 title: Performance Tips for Browser BPM Detection
-description: 'Optimise realtime-bpm-analyzer for accuracy, latency, and battery life: AudioWorklet, low-pass filtering, threshold tuning and mobile browsers.'
+description: 'Optimise realtime-bpm-analyzer for latency, memory and battery life: AudioWorklet, low-pass filtering, threshold tuning and mobile browsers.'
 ---
 
 # Performance Tips
 
-Tune Realtime BPM Analyzer for speed and reliable readings in your application.
+Tune Realtime BPM Analyzer for speed, memory and battery life in your application.
 
 ## General Best Practices
 
@@ -63,12 +63,12 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
 ```typescript
 const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
-  engine: { name: 'peaks', restartAfterSeconds: 20 }, // Clear data every 20 s of audio
+  engine: { name: 'peaks', restartAfterSeconds: 20 }, // Starts over every 20 s of audio
 });
 ```
 
-- **Memory**: Bounded by `restartAfterSeconds`
-- **CPU**: Periodic spikes during cleanup
+- **Tempo changes**: Followed within the period, since each restart starts the reading over
+- **Memory**: Bounded with or without it: `peaks` keeps the newest 256 peaks at each threshold
 - **Use for**: Infinite streams, radio, live input
 
 #### Offline Mode

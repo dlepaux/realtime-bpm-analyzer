@@ -15,7 +15,7 @@ The library supports different usage patterns depending on your needs:
 Analyze audio while it's playing:
 
 - Accumulates data throughout playback
-- Provides increasingly accurate results
+- Locks once the readings agree, and keeps reporting while locked
 - No automatic reset
 - Best for: Music players, video players, defined-length audio
 
@@ -89,7 +89,6 @@ The library uses the Web Audio API's node-based architecture:
 With the `peaks` engine, connecting the source to `analyzer.input` puts a low-pass filter in front of it (the same filter `getBiquadFilter()` builds). It:
 - Isolates bass frequencies (typically where the beat is strongest)
 - Reduces noise from high-frequency content
-- Improves peak detection accuracy
 
 To skip it or use your own filter, connect to `analyzer.node` instead, the analyzer with nothing in front of it. The default `tempogram` engine needs the full band, so its `.input` adds no filter. Connect to `analyzer.input` either way, and each engine gets what it needs.
 
@@ -175,7 +174,7 @@ The `peaks` engine uses a **progressive threshold** system:
 
 Benefits:
 - Early results from strong beats
-- Increasing accuracy over time
+- Later locks rest on stronger peaks
 - Filters out weak/noise peaks
 
 ## Configuration Options
@@ -294,7 +293,7 @@ It comes about 20 ms after the kick reached the analyzer in Chromium, and 22 to 
 
 ### ❌ Don't
 - Create `AudioContext` immediately on page load (autoplay restrictions)
-- Assume the first reading is accurate (wait for the lock)
+- Treat the first reading as final (wait for the lock)
 - Ignore the candidates' `relation` (a `half` or `double` is the same beat at another octave)
 - Use continuous analysis for short audio clips
 

@@ -19,7 +19,8 @@ const thisFile = fileURLToPath(import.meta.url)
 // its subdomains (ice1.somafm.com).
 const FORBIDDEN_HOSTS = ['somafm.com']
 
-// The ids the SomaFM presets sent until RBA-245. A page cached before the change can still send one.
+// The ids the SomaFM presets sent until RBA-245. A page cached before the change still sends them
+// through its own old bundle, so GA4 shows a few for a while; this gate must take them calmly too.
 const RETIRED_STATION_IDS = ['somafm_defcon', 'somafm_groovesalad', 'somafm_beatblender']
 
 const isForbidden = (host: string) =>
@@ -31,8 +32,12 @@ test('STATIONS: no station whose terms forbid other websites', () => {
 
 test('STATIONS: each one records where its terms were read, and when', () => {
   const today = new Date().toISOString().slice(0, 10)
-  for (const { id, terms } of STATIONS) {
+  for (const { id, url, terms } of STATIONS) {
     assert.match(terms.url, /^https:\/\//, id)
+    // The terms are the station's own: its stream is on the terms page's domain or a subdomain.
+    const termsHost = new URL(terms.url).hostname.replace(/^www\./, '')
+    const streamHost = new URL(url).hostname
+    assert.ok(streamHost === termsHost || streamHost.endsWith(`.${termsHost}`), `${id}: terms on ${termsHost}, stream on ${streamHost}`)
     assert.match(terms.read, /^\d{4}-\d{2}-\d{2}$/, id)
     assert.ok(!Number.isNaN(Date.parse(terms.read)), `${id}: ${terms.read} is not a date`)
     assert.ok(terms.read <= today, `${id}: ${terms.read} is in the future`)
@@ -46,7 +51,7 @@ test('analytics: the station dimension lists the stations offered and custom, no
   for (const id of RETIRED_STATION_IDS) assert.ok(!spec.values.includes(id), id)
 })
 
-test('analytics: a retired station id, as a cached page may send it, is sent as invalid without throwing', () => {
+test('analytics: a station id no longer listed is sent as invalid, without throwing', () => {
   for (const station of RETIRED_STATION_IDS) {
     let gated: ReturnType<typeof gateEvent> | undefined
     assert.doesNotThrow(() => {
@@ -59,7 +64,7 @@ test('analytics: a retired station id, as a cached page may send it, is sent as 
 
 // Directories the site and the examples ship from, and the files in them that can name a stream.
 const SHIPPED_ROOTS = ['docs', 'examples']
-const SKIPPED_DIRS = new Set(['node_modules', 'dist', 'cache', '.temp', 'api'])
+const SKIPPED_DIRS = new Set(['node_modules', 'dist', 'cache', '.temp'])
 const SOURCE_EXTENSIONS = new Set(['.ts', '.mts', '.tsx', '.vue', '.js', '.md', '.html', '.json'])
 
 /** Every source file under `dir`, skipping dependencies and build output. */

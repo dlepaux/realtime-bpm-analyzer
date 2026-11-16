@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 // CI gate for the ports' publish jobs (RBA-259): publish a port only from the commit release-please released it at,
-// and only when its registry doesn't have that version yet.
+// and, given a registry URL, only when the registry doesn't have that version yet.
 //
 // The npm steps key on the registry alone, because a package.json only names a new version once its release PR has
 // merged. The ports' files said 6.2.0 before their first release, so a registry check alone would publish them on
 // the first push to main that carries them, before any release. So the release tag decides first: it must exist and
 // point at this run's commit. A re-run of that run ("Re-run failed jobs") keeps the commit, so it can still publish
-// what a failed run left out, and the registry check makes it publish nothing twice.
+// what a failed run left out.
 //
-// Usage: node bin/port-publish-gate.mjs <tag> <registry-url>
+// Maven Central takes a version as one bundle, so its job passes the URL of the version's POM: a version there is
+// whole, and a re-run publishes nothing twice. PyPI takes a version file by file, so a version it has can still lack
+// a file a failed run didn't upload: its job passes no URL, and the upload skips the files PyPI already has.
+//
+// Usage: node bin/port-publish-gate.mjs <tag> [registry-url]
 //        node bin/port-publish-gate.mjs --self-test
 // Reads GITHUB_SHA, GITHUB_SERVER_URL and GITHUB_REPOSITORY, and writes publish=true|false to GITHUB_OUTPUT.
 // Exits 1 when the registry answers anything but 200 or 404: an outage must not read as "not published".
@@ -17,12 +21,13 @@ import {execFileSync} from 'node:child_process';
 import {appendFileSync} from 'node:fs';
 
 // The decision, from what the tag and the registry said. tagSha is null for a tag that doesn't exist, and
-// registryStatus is null when the registry wasn't asked, which only a tag elsewhere allows.
+// registryStatus is null when the registry wasn't asked: there is no URL, or the tag is elsewhere.
 export function decide({tag, tagSha, headSha, registryStatus}) {
   if (tagSha === null) return {publish: false, message: `no tag ${tag}: this commit released nothing to publish`};
   if (tagSha !== headSha) {
     return {publish: false, message: `${tag} is at ${tagSha}, not at this commit ${headSha}: nothing to publish here`};
   }
+  if (registryStatus === null) return {publish: true, message: `${tag} is released here: publishing what is missing`};
   if (registryStatus === 200) return {publish: false, message: `${tag} is already on the registry: nothing to publish`};
   if (registryStatus === 404) return {publish: true, message: `${tag} is released here and not on the registry: publishing`};
   throw new Error(`the registry answered ${registryStatus} for ${tag}: only 200 and 404 decide`);
@@ -46,6 +51,7 @@ function selfTest() {
   assert(!decide({...base, tagSha: 'b'.repeat(40), registryStatus: null}).publish, 'a tag elsewhere, no publish');
   assert(!decide({...base, tagSha: head, registryStatus: 200}).publish, 'a version on the registry, no publish');
   assert(decide({...base, tagSha: head, registryStatus: 404}).publish, 'released here and missing: publish');
+  assert(decide({...base, tagSha: head, registryStatus: null}).publish, 'released here, no registry asked: publish');
   for (const status of [500, 403, 301, 0]) {
     let threw = false;
     try { decide({...base, tagSha: head, registryStatus: status}); } catch { threw = true; }
@@ -70,14 +76,14 @@ async function main() {
   if (process.argv.includes('--self-test')) return selfTest();
   const [tag, url] = process.argv.slice(2);
   const {GITHUB_SHA: headSha, GITHUB_SERVER_URL: server, GITHUB_REPOSITORY: repo, GITHUB_OUTPUT: output} = process.env;
-  if (!tag || !url || !headSha || !server || !repo || !output) {
-    throw new Error('usage: port-publish-gate.mjs <tag> <registry-url>, in a GitHub Actions job');
+  if (!tag || !headSha || !server || !repo || !output) {
+    throw new Error('usage: port-publish-gate.mjs <tag> [registry-url], in a GitHub Actions job');
   }
   // Anonymous: the repository is public, and this job's token stays out of git's command line
   const lsRemote = execFileSync('git', ['ls-remote', '--tags', `${server}/${repo}.git`, `refs/tags/${tag}`,
     `refs/tags/${tag}^{}`], {encoding: 'utf8'});
   const tagSha = tagCommit(lsRemote, tag);
-  const status = tagSha === headSha ? await registryStatus(url) : null;
+  const status = tagSha === headSha && url ? await registryStatus(url) : null;
   const {publish, message} = decide({tag, tagSha, headSha, registryStatus: status});
   console.log(message);
   appendFileSync(output, `publish=${publish}\n`);

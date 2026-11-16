@@ -660,12 +660,13 @@ jobs:
         with:
           python-version: "3.15"
 
-      - name: Check whether this commit released a version PyPI lacks
+      # No registry URL: PyPI takes a version file by file, so the publish step skips the files it already has
+      - name: Check whether this commit released the package
         id: unpublished
         run: |
           node bin/port-publish-gate.mjs --self-test
           version=$(python -c "import tomllib; print(tomllib.load(open('packages/python/pyproject.toml', 'rb'))['project']['version'])")
-          node bin/port-publish-gate.mjs "python-v$version" "https://pypi.org/pypi/realtime-bpm-analyzer/$version/json"
+          node bin/port-publish-gate.mjs "python-v$version"
 
       # The same build as Conformance (Python): the lock's hatchling, no isolation
       - name: Build the sdist and the wheel
@@ -707,11 +708,13 @@ jobs:
           name: python-dist
           path: dist
 
-      # Checks the metadata (verify-metadata) before the upload, and uploads a PEP 740 attestation with each file
+      # Checks the metadata (verify-metadata) before the upload, and uploads a PEP 740 attestation with each file.
+      # skip-existing: a re-run after a half-done upload uploads the files PyPI lacks and skips the others
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           attestations: true
+          skip-existing: true
 
   # Maven Central has no trusted publishing, so this job takes the Central Portal token and David's signing key from
   # the maven environment's secrets, which only main may read (Settings > Environments > maven). Each secret is in

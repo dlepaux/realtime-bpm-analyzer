@@ -397,8 +397,9 @@ to one update late.
   ahead of time are a separate feature, to come.
 - It hears what is under 150 Hz. Music without a kick drum gives few kicks
   or none, and a bass note as sharp as a kick and within about 6 dB of it
-  counts as one. Through a stretch of more than 3.5 s with a bass line and
-  no kick, such bass notes count from about 3.5 s in.
+  counts as one. Through a stretch of more than 3.5 s with no kick, a bass
+  line, or any sound under 150 Hz that repeats as sharply as a kick,
+  counts from about 3.5 s in, however soft.
 - Low rumble, such as wind on a microphone or brown noise, gives a false
   kick about once a minute.
 - Two kicks closer than 80 ms count as one.

@@ -261,10 +261,10 @@ describe('Kick detector - when the music changes', () => {
 
 /**
  * A sample that is not finite, once (RBA-246). It used to leave the filters at NaN, and no kick counted again until
- * reset(). Each one lands 23 ms into the full mix's kick at 10.18 s, the hardest place: that kick is being confirmed.
- * The bound: every kick that starts 100 ms or more after it is heard, the 80 ms the detector takes to refill its
- * history and the time it takes to confirm a kick. Measured: every kick of the scene is heard, that one included,
- * as it was confirmed before the sample. The kicks heard before are kept: from 250 ms after the sample on, once the
+ * reset(). Each one lands 23 ms into the full mix's kick at 10.18 s, just after that kick was confirmed. The bound:
+ * every kick that starts 100 ms or more after it is heard, the 80 ms the detector takes to refill its history and
+ * the time it takes to confirm a kick. The scene's next kick starts 461 ms after it, so this pins the recovery, not
+ * the 100 ms itself. Measured: every kick of the scene is heard. The kicks heard before are kept: from 250 ms after the sample on, once the
  * filters have settled, every kick is heard at the same time and with the same strength as without it.
  */
 describe('Kick detector - a sample that is not finite', () => {

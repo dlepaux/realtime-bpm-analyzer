@@ -64,7 +64,7 @@ export type KickTuning = {
  * - `riseDb`: the jump a kick needs, 10.5 dB. A 10 ms mean of a 120 Hz-wide band is a rough estimate of its level, so
  *   noise alone swings it by several dB: under 10 dB, white and pink noise counted several times a minute. A kick
  *   that follows silence or a bass note's tail jumps 20 dB and more.
- * - `gateDb`: a jump counts only if its peak is within 6 dB of the loudest kick's of the last seconds, so a bass note,
+ * - `gateDb`: a jump counts only if its peak is within 6 dB of the loudest kick's of the window (`memorySeconds`), so a bass note,
  *   a fill or a ghost note under the kicks does not. A bass note that starts as sharp and within 6 dB of the kick
  *   counts: in the band, nothing tells them apart.
  * - `memorySeconds`: the loudest kick is the loudest of the last 3.5 s, its window. A 4/4 bar with no kick in it
@@ -73,11 +73,12 @@ export type KickTuning = {
  *   starts, the loud kicks leave the window within 3.5 s whatever the drop, and the quiet ones count again from then
  *   on. A window with no kick in it judges a jump against the last kick heard, however old, and against the jumps the
  *   gate held out in the window: one within 6 dB of either counts. So after a drop, the quiet kicks the gate held out
- *   vouch for the next one as soon as the loud kicks have left the window, while a lone hit in a long breakdown, such
- *   as a snare roll's, matches nothing and stays out. Before any kick, after the start or `reset()`, the gate is open:
+ *   vouch for the next one as soon as the loud kicks have left the window, while a lone hit in a long breakdown
+ *   matches nothing and stays out. Before any kick, after the start or `reset()`, the gate is open:
  *   the first jump that passes the other tests counts, and sets the level. The price of the bound: through a
- *   stretch of more than 3.5 s with no kick but a bass line, a bass note as sharp as a kick and as loud as the notes
- *   before it counts as one. In the band, a quieter track's kicks and a bass line look the same, so a gate that kept
+ *   stretch of more than 3.5 s with no kick, any sound under 150 Hz that repeats as sharply as a kick and within 6 dB
+ *   of itself counts, however soft: a bass line, and likely a snare's or a clap's body on the backbeat (unmeasured).
+ *   In the band, a quieter track's kicks and a bass line look the same, so a gate that kept
  *   the bass out for longer would keep the quiet kicks out as long. It was a decaying peak before, with a 4 s
  *   half-life, which let kicks back in about 5 s after a 10 dB drop, and about 19 s after 20 dB (RBA-246). A level
  *   that rises lets every kick through at once, as each is louder than the window's loudest.

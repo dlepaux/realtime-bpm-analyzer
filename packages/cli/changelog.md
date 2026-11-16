@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/cli-v0.1.0...cli-v0.1.1) (2026-11-16)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * realtime-bpm-analyzer bumped from ^6.1.0 to ^6.2.0
+
 ## 0.1.0 (2026-11-16)
 
 

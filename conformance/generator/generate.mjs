@@ -63,6 +63,7 @@ const errorCases = [
     [`sample-${name}`, `kick-120-${name}-8k`, 8_000, {}, 'Every sample must be a finite number.'],
     [`sample-${name}-peaks`, `kick-120-${name}-8k`, 8_000, {engine: 'peaks'}, 'Every sample must be a finite number.'],
   ]),
+  ['sample-rate-99-tempogram', 'kick-120-tiny-44k', 99, {}, 'The tempogram needs at least 100 Hz: the edge just under its floor.'],
 ];
 
 /** Seeds of the perturbed runs each case is checked against */

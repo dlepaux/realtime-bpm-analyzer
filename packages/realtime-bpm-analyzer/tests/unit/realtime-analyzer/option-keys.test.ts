@@ -76,6 +76,8 @@ describe('option keys', () => {
         assertOptions({[key]: undefined}, path);
       }, key, `${path} ${key}`);
       expect(error.message).to.contain('engine: {name:');
+      // One sentence, one reason: outside the code it quotes, a second colon read as a list of reasons
+      expect(error.message.replace(/engine: \{[^}]*\}/, '').split(': ').length, `${path} ${key}`).to.equal(2);
     }
 
     const realtimeLowpass = expectRefused(() => {

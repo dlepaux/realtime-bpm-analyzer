@@ -225,7 +225,7 @@ export type Reading = {
    * about a reading outside it: when `bpm` is under 90 or over 180, which only a custom `tempoRange` allows, the
    * confidence is `null` rather than a number with no proven meaning. On the default range it is always a number.
    * With a custom `tempoRange`, a reading inside 90 to 180 BPM gets the default range's table, though the engine
-   * picked it from another range, which nothing measured: read it as a rougher estimate.
+   * picked it from another range: the number is an extrapolation, unmeasured for that range.
    */
   readonly confidence: number | null;
   /**

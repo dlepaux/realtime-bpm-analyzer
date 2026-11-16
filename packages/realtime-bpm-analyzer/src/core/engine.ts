@@ -96,11 +96,11 @@ export const optionKeys = Object.freeze({
 const misplacedOptions: Readonly<Record<keyof typeof optionKeys, ReadonlyMap<string, string>>> = Object.freeze({
   realtime: new Map([
     ['lowpass', refusedRealtimeLowpass],
-    ['restartAfterSeconds', "it is a setting of peaks: use engine: {name: 'peaks', restartAfterSeconds}"],
-    ['mode', "it is a setting of the tempogram: use engine: {name: 'tempogram', mode: 'measured'}"],
+    ['restartAfterSeconds', "it is a setting of peaks, given as engine: {name: 'peaks', restartAfterSeconds}"],
+    ['mode', "it is a setting of the tempogram, given as engine: {name: 'tempogram', mode: 'measured'}"],
   ]),
   offline: new Map([
-    ['lowpass', "it is a setting of peaks: use engine: {name: 'peaks', lowpass}"],
+    ['lowpass', "it is a setting of peaks, given as engine: {name: 'peaks', lowpass}"],
     ['processorUrl', 'only createRealtimeBpmAnalyzer takes it'],
     ['liveInput', 'only createRealtimeBpmAnalyzer takes it'],
     ['debug', 'only createRealtimeBpmAnalyzer takes it, since whole-buffer analysis emits no events'],

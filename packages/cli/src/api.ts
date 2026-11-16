@@ -29,8 +29,8 @@ export type FoundReading = {
   /**
    * From 0 to 1, the estimated chance the reading is right (within 4% of the true tempo, half or double
    * counting as wrong). Calibrated on licence-clean dev data from 90 to 180 BPM, so inside that range it means
-   * the same for either engine. `null`: unmeasured. The calibration covers readings from 90 to 180 BPM, the default range, so a reading
-   * outside it, which only a custom tempo range allows, has no confidence.
+   * the same for either engine. `null`: unmeasured. The calibration covers readings from 90 to 180 BPM, the
+   * default range, so a reading outside it, which only a custom tempo range allows, has no confidence.
    */
   // Keep this doc in step with Reading.confidence
   readonly confidence: number | null;

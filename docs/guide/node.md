@@ -28,10 +28,10 @@ usually do.
 ## Same results as the browser
 
 `analyzeChannelData` is the Node counterpart of
-`analyzeFullBuffer`. The browser version
-lowpasses the audio with a Web Audio `BiquadFilterNode`. The Node version uses a
-plain JavaScript biquad with the coefficients the Web Audio specification
-defines for that node, then runs the same peak detection and tempo grouping.
+`analyzeFullBuffer`, and runs the same engine: the default `tempogram`, or
+`peaks`. For `peaks`, the browser version lowpasses the audio with a Web Audio
+`BiquadFilterNode`. The Node version uses a plain JavaScript biquad with the
+coefficients the Web Audio specification defines for that node.
 
 The test suite checks this on every change:
 

@@ -83,6 +83,15 @@ export const legacyRedirects: Readonly<Record<string, string>> = {
   'api/type-aliases/Group.html': '/api/',
   'api/type-aliases/Interval.html': '/api/',
 
+  // TypeDoc markdown pages of v5 whose types v6 removed (RBA-247): the migration guide
+  // says what replaced each one.
+  'api/type-aliases/BpmProgress.html': '/guide/migration-v6',
+  'api/type-aliases/CreateRealtimeBpmAnalyzerOptions.html': '/guide/migration-v6',
+  'api/type-aliases/Detector.html': '/guide/migration-v6',
+  'api/type-aliases/TempogramMode.html': '/guide/migration-v6',
+  'api/type-aliases/BiquadFilterOptions.html': '/guide/migration-v6',
+  'api/type-aliases/AnalyzeFullBufferOptions.html': '/guide/migration-v6',
+
   // TypeDoc v3 (versioned under api/v3, also once published under docs/).
   'api/v3/index.html': '/api/',
   'api/v3/modules.html': '/api/',

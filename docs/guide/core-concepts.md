@@ -280,7 +280,7 @@ analyzer.on('kick', ({ contextTime, strength }) => {
 });
 ```
 
-It comes 18 to 26 ms after the kick reached the analyzer, in the median. To line a visual up with what the listener hears, and for its limits, see [Kick events](./realtime-bpm-detection.md#kick-events).
+It comes about 20 ms after the kick reached the analyzer in Chromium, and 22 to 26 ms in Firefox, in the median on CI. To line a visual up with what the listener hears, and for its limits, see [Kick events](./realtime-bpm-detection.md#kick-events).
 
 ## Best Practices
 

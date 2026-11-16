@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 /**
  * The biquad lowpass the peaks engine reads the bass through: the JS library's {@code engine.lowpass}, with the Web

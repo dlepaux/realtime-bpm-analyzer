@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -105,5 +105,18 @@ class HarnessTest {
         assertEquals(6, parsed.size());
         assertEquals(good(), good());
         assertEquals(good().hashCode(), good().hashCode());
+    }
+
+    // CI's grep reads the verdict from this line, and its counts add up to the cases: a written input is its own count
+    @Test
+    void theSummaryCountsCasesAndWrittenInputsApart() {
+        String pass = ConformanceTest.summary(148, 0, 0, 0, 0);
+        assertTrue(pass.startsWith("conformance: PASS on Java "), pass);
+        assertTrue(pass.contains(": 148 passed, 0 failed; "), pass);
+        String written = ConformanceTest.summary(148, 0, 1, 0, 0);
+        assertTrue(written.startsWith("conformance: FAIL on Java "), written);
+        assertTrue(written.contains(": 148 passed, 0 failed, 1 input written to; "), written);
+        assertTrue(ConformanceTest.summary(140, 8, 2, 0, 0).contains(": 140 passed, 8 failed, 2 inputs written to; "));
+        assertTrue(ConformanceTest.summary(0, 0, 0, 0, 0).startsWith("conformance: FAIL"), "no case ran");
     }
 }

@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;

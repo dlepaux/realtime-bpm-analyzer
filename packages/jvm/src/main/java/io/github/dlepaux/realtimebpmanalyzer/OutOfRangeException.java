@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 /**
  * A value outside its valid range: the sample rate, the tempo range or a lowpass setting. It is the JS library's

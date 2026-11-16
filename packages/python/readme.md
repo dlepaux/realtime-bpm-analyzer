@@ -10,13 +10,19 @@ readings of 140 cases, plus 8 that must fail, and the port's tests compare every
 
 ## Install
 
-> **Not published yet.** The package is not on PyPI. Until it is, build it from a clone of the repository.
-
 ```bash
-pip install ./packages/python
+pip install realtime-bpm-analyzer
 ```
 
+> **Not on PyPI before 6.2.0.** The first release, 6.2.0, reaches PyPI with the JS library's 6.2.0. If `pip` can't
+> find it yet, build it from a clone of the repository with `pip install ./packages/python`.
+
 It needs Python 3.11 or later and NumPy 1.26 or later, and has no native code of its own.
+
+## Versions
+
+The version is the JS library's major and minor whose conformance vectors the port passes, plus its own patch:
+6.2.x reads the same as `realtime-bpm-analyzer` 6.2 on npm. A patch of the port can ship without a JS release.
 
 ## Example
 

@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 /** One engine candidate before it becomes a {@link Reading}: the JS library's internal {@code Tempo}. */
 final class Tempo {

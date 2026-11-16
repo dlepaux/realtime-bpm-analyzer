@@ -15,8 +15,8 @@ const vectors = JSON.parse(readFileSync(new URL('vectors.json', root), 'utf8'));
 const sizeBudget = 5 * 1024 * 1024;
 
 describe('vectors.json', () => {
-  it('has schema version 1 and the documented top-level keys', () => {
-    assert.equal(vectors.schemaVersion, 1);
+  it('has schema version 2 and the documented top-level keys', () => {
+    assert.equal(vectors.schemaVersion, 2);
     assert.deepEqual(Object.keys(vectors).sort(), ['cases', 'errorCases', 'inputs', 'pcm', 'schemaVersion', 'tolerances']);
   });
 

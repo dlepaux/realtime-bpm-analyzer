@@ -2,7 +2,7 @@
 // tests pin them: a rule loosened here would let a broken port pass.
 import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
-import {compareReading, compareError, decodePcm16, runVectors, summary} from '../runner/core.mjs';
+import {applyNonFinite, compareReading, compareError, decodePcm16, runVectors, summary} from '../runner/core.mjs';
 
 const tolerances = {bpmExact: 1e-6, confidence: 1e-6};
 
@@ -117,9 +117,24 @@ describe('decodePcm16', () => {
   });
 });
 
+describe('applyNonFinite', () => {
+  it('overwrites the samples nonFinite names, and nothing else', () => {
+    const samples = applyNonFinite(new Float32Array(4), {id: 'a', nonFinite: [
+      {index: 0, value: 'NaN'}, {index: 1, value: 'Infinity'}, {index: 3, value: '-Infinity'},
+    ]});
+    assert.deepEqual([...samples], [Number.NaN, Number.POSITIVE_INFINITY, 0, Number.NEGATIVE_INFINITY]);
+    assert.deepEqual([...applyNonFinite(new Float32Array(2), {id: 'b'})], [0, 0]);
+  });
+
+  it('refuses an index outside the input, and a value other than NaN or an infinity', () => {
+    assert.throws(() => applyNonFinite(new Float32Array(2), {id: 'a', nonFinite: [{index: 2, value: 'NaN'}]}), /a: nonFinite/);
+    assert.throws(() => applyNonFinite(new Float32Array(2), {id: 'a', nonFinite: [{index: 0, value: '1e400'}]}), /a: nonFinite/);
+  });
+});
+
 describe('runVectors', () => {
   const vectors = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     tolerances: {bpmExact: {absolute: 1e-6}, confidence: {absolute: 1e-6}},
     inputs: [{id: 'a', file: 'inputs/a.s16le.gz', samples: 1}],
     cases: [
@@ -167,7 +182,7 @@ describe('runVectors', () => {
 
   it('refuses another schema version, and an input that decodes to the wrong length', async () => {
     const params = {loadSamples: async () => new Float32Array(1), analyze: async () => null, log() {}};
-    await assert.rejects(runVectors({...params, vectors: {...vectors, schemaVersion: 2}}), /schema version 2/);
+    await assert.rejects(runVectors({...params, vectors: {...vectors, schemaVersion: 1}}), /schema version 1/);
     await assert.rejects(runVectors({...params, vectors, loadSamples: async () => new Float32Array(2)}), /2 samples, expected 1/);
   });
 });

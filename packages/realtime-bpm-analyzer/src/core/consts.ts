@@ -38,12 +38,25 @@ export const minBpmRange = 90;
 export const maxBpmRange = 180;
 
 /**
+ * The largest `tempoRange.max`, in BPM: 2^31 - 1, so that a reading's whole BPM fits a signed 32-bit integer, the
+ * `int` the JVM port and other typed ports return it in (RBA-260). No music comes near it.
+ */
+export const maxTempoRangeBpm = (2 ** 31) - 1;
+
+/**
  * Duration in seconds to skip after detecting a peak
  * @remarks
  * This prevents detecting the same peak multiple times during its decay phase.
  * 0.25 seconds is approximately the minimum time between distinct beats at high tempos.
  */
 export const peakSkipDuration = 0.25;
+
+/**
+ * The lowest sample rate, in Hz, the peaks engine runs at: the lowest at which {@link peakSkipDuration} rounds to at
+ * least one sample (`Math.round(0.25 * 2)` is 1). Under it the skip after a peak is no sample, and 6.1.0's peak
+ * search found the same peak forever (RBA-260).
+ */
+export const peaksMinSampleRate = 2;
 
 /**
  * Maximum number of interval comparisons per peak

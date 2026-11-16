@@ -17,7 +17,7 @@ from numpy.typing import NDArray
 
 # The contract lives at the repo root (conformance/readme.md), read in place and never copied
 CONFORMANCE = Path(__file__).resolve().parents[3] / "conformance"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # Filled by the conformance tests: field -> (largest absolute deviation, case id)
 DEVIATIONS: dict[str, tuple[float, str]] = {}
@@ -47,6 +47,14 @@ def input_samples(input_id: str) -> NDArray[np.float32]:
     if sys.byteorder == "big":
         pcm.byteswap()
     samples = np.asarray(pcm, dtype=np.float32) / np.float32(32768)
+    # 16-bit PCM holds no NaN or infinity, so vectors.json lists those samples for the harness to write in
+    entry = next(item for item in vectors()["inputs"] if item["id"] == input_id)
+    values = {"NaN": np.nan, "Infinity": np.inf, "-Infinity": -np.inf}
+    for sample in entry.get("nonFinite", []):
+        assert set(sample) == {"index", "value"} and sample["value"] in values, f"{input_id}: nonFinite {sample}"
+        # A negative index would wrap in NumPy, where the JS and Java harnesses refuse it
+        assert isinstance(sample["index"], int) and 0 <= sample["index"] < len(samples), f"{input_id}: nonFinite {sample}"
+        samples[sample["index"]] = values[sample["value"]]
     samples.setflags(write=False)
     return samples
 

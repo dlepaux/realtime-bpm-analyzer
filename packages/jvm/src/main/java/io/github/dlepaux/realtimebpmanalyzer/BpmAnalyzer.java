@@ -43,9 +43,9 @@ public final class BpmAnalyzer {
      * @param options The engine and the tempo range
      * @return The reading, or null when no tempo was found
      * @throws NullPointerException When an argument is null
-     * @throws IllegalArgumentException When {@code samples} is empty
-     * @throws OutOfRangeException When the sample rate is not finite, or is under 100 Hz for the tempogram, or not
-     *     above twice the lowpass cutoff for the peaks engine
+     * @throws IllegalArgumentException When {@code samples} is empty, or holds a NaN or infinite sample
+     * @throws OutOfRangeException When the sample rate is not finite, or is under 100 Hz for the tempogram, or under
+     *     2 Hz or not above twice the lowpass cutoff for the peaks engine
      */
     public static Reading analyzeChannelData(float[] samples, double sampleRate, AnalysisOptions options) {
         if (samples == null || options == null) {
@@ -54,6 +54,7 @@ public final class BpmAnalyzer {
         if (samples.length == 0) {
             throw new IllegalArgumentException("Invalid channel data: expected a non-empty float array.");
         }
+        requireFiniteSamples(samples);
 
         Engine engine = options.engine();
         TempoRange range = options.tempoRange();
@@ -63,7 +64,26 @@ public final class BpmAnalyzer {
         }
         Lowpass lowpass = engine.lowpass();
         requireLowpassFits(lowpass, sampleRate);
+        // After the lowpass, as JS checks a {name: 'peaks', lowpass} engine. Engine.PEAKS always carries a lowpass,
+        // so a bare 'peaks' call, which JS checks floor first, fails here on the lowpass: a RangeError either way
+        if (!(sampleRate >= PeaksEngine.MIN_SAMPLE_RATE)) {
+            throw new OutOfRangeException("Invalid sample rate: " + sampleRate + ". The peaks engine needs at least "
+                + PeaksEngine.MIN_SAMPLE_RATE + " Hz, where the skip after a peak is a whole sample.");
+        }
         return toReading(PeaksEngine.detect(samples, sampleRate, lowpass, range), audioTo, EngineName.PEAKS, range);
+    }
+
+    /**
+     * A NaN or infinite sample is no PCM, and through the peaks lowpass it would turn every later sample into NaN. The
+     * caller can fix its decoding, so it is refused, as the JS library refuses it (RBA-260).
+     */
+    private static void requireFiniteSamples(float[] samples) {
+        for (int i = 0; i < samples.length; i++) {
+            if (!Float.isFinite(samples[i])) {
+                throw new IllegalArgumentException("Invalid channel data: sample " + i + " is " + samples[i]
+                    + ", and every sample must be a finite number.");
+            }
+        }
     }
 
     /** The cutoff is stored as a 32-bit float, as Web Audio stores it, and must sit strictly under Nyquist. */

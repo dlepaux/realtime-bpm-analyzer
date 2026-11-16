@@ -26,6 +26,8 @@ final class PeaksEngine {
     private static final int MIN_PEAKS = 15;
     /** Seconds skipped after a peak, past its decay. */
     private static final double PEAK_SKIP_SECONDS = 0.25;
+    /** The lowest rate, in Hz, at which {@link #PEAK_SKIP_SECONDS} rounds to a whole sample: JS's peaksMinSampleRate. */
+    static final double MIN_SAMPLE_RATE = 2;
     /** Each peak is paired with the next ones up to this many places on, this one excluded. */
     private static final int MAX_INTERVAL_COMPARISONS = 10;
     private static final int MAX_CANDIDATES = 5;
@@ -101,9 +103,14 @@ final class PeaksEngine {
     /** The peaks at the highest threshold that has at least {@link #MIN_PEAKS} of them, or none. */
     static int[] findPeaks(float[] data, double sampleRate) {
         long skip = Math.round(PEAK_SKIP_SECONDS * sampleRate);
-        // The JS loop would never advance with a skip of 0, at a rate under 2 Hz (only reachable with a cutoff under
-        // 1 Hz). Skipping at least one sample keeps the loop bounded and changes no rate the library can run at.
-        int step = (int) Math.max(1, Math.min(skip, Integer.MAX_VALUE));
+        // Each pass of findPeaksAtThreshold moves on by at least one sample only while the skip is one sample or more,
+        // which bounds its loop to data.length passes. BpmAnalyzer refuses a rate under 2 Hz, where it is 0, before
+        // this, as the JS library does (RBA-260)
+        if (skip < 1) {
+            throw new OutOfRangeException("Invalid sample rate: " + sampleRate + ". The peaks engine needs at least "
+                + MIN_SAMPLE_RATE + " Hz, where the skip after a peak is a whole sample.");
+        }
+        int step = (int) Math.min(skip, Integer.MAX_VALUE);
         for (double threshold : thresholdLadder()) {
             int[] peaks = findPeaksAtThreshold(data, threshold, step);
             if (peaks.length >= MIN_PEAKS) {

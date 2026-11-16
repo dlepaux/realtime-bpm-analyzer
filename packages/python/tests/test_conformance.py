@@ -132,7 +132,7 @@ def test_top_level_keys_are_known() -> None:
 
 @pytest.mark.parametrize("entry", vectors()["inputs"], ids=lambda entry: entry["id"])
 def test_input_decodes_to_the_reference_samples(entry: dict[str, Any]) -> None:
-    assert_keys(entry["id"], entry, INPUT_KEYS)
+    assert_keys(entry["id"], entry, INPUT_KEYS | {"nonFinite"} if "nonFinite" in entry else INPUT_KEYS)
     assert input_sha256(entry["id"]) == entry["sha256"]
     assert len(input_samples(entry["id"])) == entry["samples"]
 

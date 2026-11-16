@@ -189,7 +189,8 @@ final class TempogramEngine {
                 total += power;
             }
             if (Double.isNaN(total) || Double.isInfinite(total)) {
-                // A NaN or infinite sample is no audio: no onset, and the state is kept
+                // A NaN or infinite sample is no audio: no onset, and the state is kept. BpmAnalyzer refuses such
+                // samples first (RBA-260); this mirrors the reference's realtime rule (RBA-246)
                 return 0;
             }
 

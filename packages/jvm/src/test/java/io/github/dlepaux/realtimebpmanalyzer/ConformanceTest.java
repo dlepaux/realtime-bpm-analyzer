@@ -9,9 +9,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -29,7 +31,7 @@ class ConformanceTest {
         File dir = conformanceDir();
         Map<String, Object> vectors = Vectors.object(Json.parse(Vectors.read(new File(dir, "vectors.json"))), "root");
         assertEquals(Vectors.FILE_KEYS, vectors.keySet(), "vectors.json keys");
-        assertEquals(1.0, vectors.get("schemaVersion"), "this harness reads schema version 1");
+        assertEquals(2.0, vectors.get("schemaVersion"), "this harness reads schema version 2");
         assertPcmIsSixteenBitMono(Vectors.object(vectors.get("pcm"), "pcm"));
 
         Map<String, Object> tolerances = Vectors.object(vectors.get("tolerances"), "tolerances");
@@ -185,13 +187,18 @@ class ConformanceTest {
         Map<String, float[]> inputs = new HashMap<String, float[]>();
         for (Object entry : entries) {
             Map<String, Object> input = Vectors.object(entry, "input");
-            assertEquals(Vectors.INPUT_KEYS, input.keySet(), "input keys");
+            Set<String> keys = new HashSet<String>(input.keySet());
+            Object nonFinite = keys.remove("nonFinite") ? input.get("nonFinite") : null;
+            assertEquals(Vectors.INPUT_KEYS, keys, "input keys");
             String id = Vectors.string(input.get("id"), "input.id");
             byte[] bytes = Vectors.gunzip(new File(dir, Vectors.string(input.get("file"), "input.file")));
             assertEquals(input.get("sha256"), Vectors.sha256(bytes), id + ": decompressed bytes");
             float[] samples = Vectors.decodePcm16(bytes);
             assertEquals(Vectors.number(input.get("samples"), "input.samples"), (double) samples.length,
                 id + ": sample count");
+            if (nonFinite != null) {
+                Vectors.applyNonFinite(samples, Vectors.array(nonFinite, id + ".nonFinite"), id);
+            }
             inputs.put(id, samples);
         }
         return inputs;

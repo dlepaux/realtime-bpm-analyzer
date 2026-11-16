@@ -86,8 +86,8 @@ The options and defaults are the JS library's, in snake case. Two names differ f
 
 | Exception | When |
 |-----------|------|
-| `InvalidSamplesError` (a `ValueError`) | The samples are empty or not one channel |
-| `OutOfRangeError` (a `ValueError`) | A value is out of range: the sample rate, the engine, the tempo range, or the lowpass settings |
+| `InvalidSamplesError` (a `ValueError`) | The samples are empty, not one channel, or hold a NaN or infinite sample (a float64 past float32's range included, which becomes infinite) |
+| `OutOfRangeError` (a `ValueError`) | A value is out of range: the sample rate, the engine, the tempo range (its `max` must be at least twice its `min` and at most 2^31 - 1, and `max / min` must be finite), or the lowpass settings |
 | `TypeError` | An argument has the wrong type, or the samples are integers |
 
 ## Limits

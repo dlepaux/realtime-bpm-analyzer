@@ -17,8 +17,8 @@ It is not published yet. Until it is on Maven Central, build it from `packages/j
 repository with `./mvnw install`, and its readme there has the coordinates.
 
 ```java
-import com.realtimebpmanalyzer.BpmAnalyzer;
-import com.realtimebpmanalyzer.Reading;
+import io.github.dlepaux.realtimebpmanalyzer.BpmAnalyzer;
+import io.github.dlepaux.realtimebpmanalyzer.Reading;
 
 float[] samples = decodeMono(file); // your decoder: one channel, -1 to 1
 Reading reading = BpmAnalyzer.analyzeChannelData(samples, 44100);

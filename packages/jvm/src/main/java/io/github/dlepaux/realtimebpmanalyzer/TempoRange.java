@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 /**
  * The range, in BPM, a tempo is reported in: the JS library's {@code tempoRange}. Immutable.

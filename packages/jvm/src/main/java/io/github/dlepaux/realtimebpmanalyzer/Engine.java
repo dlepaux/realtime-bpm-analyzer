@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 /**
  * The engine option: the JS library's {@code engine}, {@code 'tempogram'}, {@code 'peaks'} or

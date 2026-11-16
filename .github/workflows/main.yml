@@ -112,8 +112,8 @@ jobs:
     # workflow_dispatch can target any branch; only main ever releases
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # The environment only main may deploy to (Settings > Environments > npm). npm's trusted publisher names it
-    # too, so a token from any other job, or from another branch's run, can't publish.
+    # The environment only main may deploy to (Settings > Environments > npm). With the trusted publisher on
+    # npmjs.com set to it as well, a token from any other job, or from another branch's run, can't publish.
     environment: npm
     # release-please: contents (tags, releases, the release branch), pull-requests (the release PR), issues
     # (its labels). id-token: the OIDC token npm's trusted publishing takes, which also signs the provenance.
@@ -165,8 +165,8 @@ jobs:
           # upload-artifact strips the paths' common ancestor (the package folder)
           path: packages/realtime-bpm-analyzer
 
-      # npm's trusted publisher (OIDC, no token) is bound to this workflow file name:
-      # renaming main.yml means redoing the trusted-publisher setup on npmjs.com.
+      # npm's trusted publisher (OIDC, no token) is bound to this workflow file name and the npm environment:
+      # renaming either means redoing the trusted-publisher setup on npmjs.com, or the publish fails.
       # prepack copies the root readme.md and license.md into the package first.
       - name: Publish to npm
         if: steps.unpublished.outputs.publish == 'true'

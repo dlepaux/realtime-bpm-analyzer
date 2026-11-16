@@ -18,6 +18,8 @@ const WEBSITE_SURFACES = [
   '../bpm-to-ms.md',
   '../bpm-to-frames.md',
   '../video-bpm.md',
+  '../strobe-light.md',
+  '../.vitepress/components/StrobeLight.vue',
   '../website-privacy.md',
   '../public/llms.txt',
   '../.vitepress/tools/site-schema.ts',

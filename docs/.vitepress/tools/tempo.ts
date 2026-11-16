@@ -151,3 +151,41 @@ export function clickKind(tick: number, beatsPerBar: number, subdivision: number
   if (tick % subdivision !== 0) return 'sub'
   return Math.floor(tick / subdivision) % beatsPerBar === 0 ? 'accent' : 'beat'
 }
+
+// ── The metronome's beat grid ─────────────────────────────────────────────────────────────────
+
+/** One tick of a beat grid: its index from the start, and when it falls on the caller's clock. */
+export interface TickCursor {
+  readonly tick: number
+  readonly time: number
+}
+
+/** More than any real lookahead needs, so a timer that stalled for minutes books a bounded batch. */
+export const MAX_TICKS_PER_CALL = 256
+
+/**
+ * The ticks due before `horizon`, `step` apart from `cursor`, and the cursor after them. The
+ * metronome books them on the audio clock a little ahead. Units are the caller's (seconds or
+ * ms), as long as all three agree.
+ */
+export function ticksBefore(cursor: TickCursor, horizon: number, step: number): { due: TickCursor[]; next: TickCursor } {
+  if (!(step > 0) || !Number.isFinite(step)) throw new RangeError(`ticksBefore: step must be a positive number, got ${step}`)
+  const due: TickCursor[] = []
+  let next = cursor
+  while (next.time < horizon && due.length < MAX_TICKS_PER_CALL) {
+    due.push(next)
+    next = { tick: next.tick + 1, time: next.time + step }
+  }
+  return { due, next }
+}
+
+/** A run of taps sets the tempo from this many taps on: fewer can't tell a beat from a stray tap. */
+export const TAPS_TO_SET = 3
+
+/** Adds a tap to the run, and once the run is long enough, gives the tempo it sets (rounded, clamped). */
+export function tapToSet(times: readonly number[], at: number): { taps: number[]; bpm: number | null } {
+  const taps = pushTap(times, at)
+  const estimate = estimateTapTempo(taps)
+  if (!estimate || taps.length < TAPS_TO_SET) return { taps, bpm: null }
+  return { taps, bpm: Math.round(clampBpm(estimate.bpm)) }
+}

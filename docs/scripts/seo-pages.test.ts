@@ -45,17 +45,18 @@ test('the guides whose openings answer first still do', () => {
   assert.match(opening('guide/bpm-from-microphone.md'), /^To detect BPM from the microphone/)
 })
 
-test('the CLI and MCP guides are out of the sidebar, llms.txt and the content of every other page', () => {
-  const unpublished = /\/guide\/(cli|mcp)\b|\]\(\.\/(cli|mcp)\b/
+test('the CLI, MCP and Python guides are out of the sidebar, llms.txt and the content of every other page', () => {
+  const unpublished = /\/guide\/(cli|mcp|python)\b|\]\(\.\/(cli|mcp|python)\b/
   assert.ok(!unpublished.test(read('../.vitepress/config.ts')), 'config.ts')
   assert.ok(!unpublished.test(read('../public/llms.txt')), 'llms.txt')
   const pages = ['index.md', 'bpm-to-frames.md', 'video-bpm.md', 'tap-tempo.md', 'bpm-to-ms.md', 'metronome.md', 'strobe-light.md']
   const guides = readdirSync(new URL('../guide/', import.meta.url))
-    .filter((name) => name.endsWith('.md') && name !== 'cli.md' && name !== 'mcp.md')
+    .filter((name) => name.endsWith('.md') && !['cli.md', 'mcp.md', 'python.md'].includes(name))
     .map((name) => `guide/${name}`)
   for (const path of [...pages, ...guides]) assert.ok(!unpublished.test(read(`../${path}`)), path)
-  for (const name of ['cli', 'mcp']) assert.equal(field(read(`../guide/${name}.md`), 'search'), 'false', name)
+  for (const name of ['cli', 'mcp', 'python']) assert.equal(field(read(`../guide/${name}.md`), 'search'), 'false', name)
   assert.ok(unpublished.test('[the CLI](/guide/cli)') && unpublished.test('[CLI](./cli#x)'), 'the check must catch a link')
+  assert.ok(unpublished.test('[Python](/guide/python)') && unpublished.test('[Python](./python)'), 'and a Python link')
 })
 
 test('llms.txt lists the tutorials and the v6 migration, and calls the home tool the BPM Finder', () => {
@@ -66,6 +67,7 @@ test('llms.txt lists the tutorials and the v6 migration, and calls the home tool
   assert.ok(llms.includes('- [BPM Finder](https://www.realtime-bpm-analyzer.com/)'))
   assert.ok(llms.includes('https://www.realtime-bpm-analyzer.com/guide/migration-v6)'), 'the v6 migration guide')
   assert.ok(!/CLI|MCP/.test(llms), 'llms.txt names a package that is not on npm')
+  assert.ok(!/Python|PyPI/.test(llms), 'llms.txt names the Python package, which is not on PyPI')
 })
 
 test('home: one h1, holding only the hero text, at every width', () => {

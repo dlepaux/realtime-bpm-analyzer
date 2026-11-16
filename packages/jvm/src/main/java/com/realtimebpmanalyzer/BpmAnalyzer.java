@@ -61,7 +61,8 @@ public final class BpmAnalyzer {
         }
         Lowpass lowpass = engine.lowpass();
         requireLowpassFits(lowpass, sampleRate);
-        // After the lowpass, as the JS library checks it
+        // After the lowpass, as JS checks a {name: 'peaks', lowpass} engine. Engine.PEAKS always carries a lowpass,
+        // so a bare 'peaks' call, which JS checks floor first, fails here on the lowpass: a RangeError either way
         if (!(sampleRate >= PeaksEngine.MIN_SAMPLE_RATE)) {
             throw new OutOfRangeException("Invalid sample rate: " + sampleRate + ". The peaks engine needs at least "
                 + PeaksEngine.MIN_SAMPLE_RATE + " Hz, where the skip after a peak is a whole sample.");

@@ -1,5 +1,21 @@
 # Changelog
 
+## [6.2.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v6.1.0...v6.2.0) (2026-11-16)
+
+
+### Features
+
+* 6.2, the BPM engine in Java and Python, held to the JS readings by shared conformance vectors ([a040a22](https://github.com/dlepaux/realtime-bpm-analyzer/commit/a040a22eff70aa137050da1bb633d5a1f579592c))
+
+
+### Bug Fixes
+
+* **analyze:** bound tempoRange deliberately, at a finite max / min and a 32-bit max ([d581be8](https://github.com/dlepaux/realtime-bpm-analyzer/commit/d581be89efa0f6cdb2d12a7de367974e880805dc))
+* **analyze:** check the peaks lowpass before the 2 Hz floor, as 6.1.0 ordered its checks ([abc13d7](https://github.com/dlepaux/realtime-bpm-analyzer/commit/abc13d7b803b9194a246cbfceff2f1708141918e))
+* **analyze:** refuse a NaN or infinite sample in whole-buffer analysis ([1728bab](https://github.com/dlepaux/realtime-bpm-analyzer/commit/1728bab05ff57804f781232961a29fc61e9ea347))
+* **peaks:** refuse a sample rate under 2 Hz instead of hanging ([68e240c](https://github.com/dlepaux/realtime-bpm-analyzer/commit/68e240c59a2b5a426bb7913197ac5972bea0120b))
+* refuse peaks under 2 Hz, bound tempoRange, refuse non-finite samples, and pin the edges in the vectors (RBA-260) ([1407ee7](https://github.com/dlepaux/realtime-bpm-analyzer/commit/1407ee7c5d1568bd8ccacf3e14506ad6ebbcdc37))
+
 ## [6.1.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.6.1...v6.1.0) (2026-11-16)
 
 

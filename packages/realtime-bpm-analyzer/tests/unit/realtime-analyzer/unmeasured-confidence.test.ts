@@ -32,21 +32,28 @@ function expectConfidenceMatchesRange(readings: readonly Reading[], label: strin
   }
 }
 
+const outside = (bpm: number): boolean => !measured(bpm);
+
 describe('confidence outside the measured tempo range', () => {
-  // 70 BPM on 60 to 120 has no octave inside 90 to 180 that the range allows, so the engines report it as 70
-  const slow = {min: 60, max: 120};
+  // Each click has no octave both inside 90 to 180 and inside its range, so the engines report it outside 90 to 180
+  const cases = [
+    {side: 'under 90', clickBpm: 70, tempoRange: {min: 60, max: 120}},
+    {side: 'over 180', clickBpm: 200, tempoRange: {min: 120, max: 240}},
+  ] as const;
 
   for (const engine of engines) {
-    it(`is null on a ${engine} reading under 90 BPM, realtime and offline`, async () => {
-      const pcm = createClickTrack(70, sampleRate, 30);
-      const realtime = await realtimeReadings(engine, pcm, slow);
-      const offline = await analyzeChannelData(pcm, sampleRate, {engine, tempoRange: slow});
+    for (const {side, clickBpm, tempoRange} of cases) {
+      it(`is null on a ${engine} reading ${side} BPM, realtime and offline`, async () => {
+        const pcm = createClickTrack(clickBpm, sampleRate, 30);
+        const realtime = await realtimeReadings(engine, pcm, tempoRange);
+        const offline = await analyzeChannelData(pcm, sampleRate, {engine, tempoRange});
 
-      expect(realtime.some(({bpm}) => bpm < MEASURED_TEMPO_RANGE.min), `${engine} realtime read ${realtime.map(({bpm}) => bpm).join(', ')}`).to.equal(true);
-      expectConfidenceMatchesRange(realtime, `${engine} realtime`);
-      expect(offline?.bpm, `${engine} offline`).to.be.below(MEASURED_TEMPO_RANGE.min);
-      expect(offline?.confidence, `${engine} offline`).to.equal(null);
-    });
+        expect(realtime.some(({bpm}) => outside(bpm)), `${engine} realtime read ${realtime.map(({bpm}) => bpm).join(', ')}`).to.equal(true);
+        expectConfidenceMatchesRange(realtime, `${engine} realtime`);
+        expect(outside(offline?.bpm ?? Number.NaN), `${engine} offline read ${offline?.bpm}`).to.equal(true);
+        expect(offline?.confidence, `${engine} offline`).to.equal(null);
+      });
+    }
 
     it(`is a number on every ${engine} reading on the default range, realtime and offline`, async () => {
       const pcm = createClickTrack(128, sampleRate, 30);

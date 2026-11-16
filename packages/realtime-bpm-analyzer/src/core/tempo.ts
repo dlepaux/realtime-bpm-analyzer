@@ -166,7 +166,7 @@ export function resolveTempoRange(tempoRange?: TempoRange): TempoRange {
     ? Object.keys(tempoRange).find(key => !allowed.includes(key))
     : undefined;
   if (refused !== undefined) {
-    throw new TypeError(`Invalid tempoRange: it takes only min and max, not ${refused}.`);
+    throw new TypeError(`Invalid tempoRange: it takes only ${tempoRangeKeys.join(' and ')}, not ${refused}.`);
   }
 
   const min: unknown = tempoRange?.min;

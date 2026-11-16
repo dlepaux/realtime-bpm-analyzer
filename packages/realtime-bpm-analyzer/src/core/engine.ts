@@ -103,7 +103,7 @@ const misplacedOptions: Readonly<Record<keyof typeof optionKeys, ReadonlyMap<str
     ['lowpass', "it is a setting of peaks: use engine: {name: 'peaks', lowpass}"],
     ['processorUrl', 'only createRealtimeBpmAnalyzer takes it'],
     ['liveInput', 'only createRealtimeBpmAnalyzer takes it'],
-    ['debug', 'only createRealtimeBpmAnalyzer takes it: whole-buffer analysis emits no events'],
+    ['debug', 'only createRealtimeBpmAnalyzer takes it, since whole-buffer analysis emits no events'],
   ]),
 });
 
@@ -199,10 +199,10 @@ export function assertOptions(options: unknown, path: keyof typeof optionKeys): 
     return;
   }
 
-  const where = path === 'realtime' ? 'createRealtimeBpmAnalyzer' : 'Whole-buffer analysis';
+  const where = path === 'realtime' ? 'createRealtimeBpmAnalyzer takes' : 'analyzeFullBuffer and analyzeChannelData take';
   const listed = `${allowed.slice(0, -1).join(', ')} and ${allowed[allowed.length - 1]}`;
-  const advice = misplacedOptions[path].get(refused) ?? `its options are ${listed}`;
-  throw new TypeError(`${where} takes no option ${refused}: ${advice}.`);
+  const advice = misplacedOptions[path].get(refused) ?? `${path === 'realtime' ? 'its' : 'their'} options are ${listed}`;
+  throw new TypeError(`${where} no option ${refused}: ${advice}.`);
 }
 
 /**

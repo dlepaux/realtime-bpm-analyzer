@@ -213,8 +213,8 @@ export type Reading = {
   /**
    * The chance, 0 to 1, that `bpm` is within 4% of the true tempo right now: 0.8 is right about 80% of the time.
    * Each engine's raw score (`peaks` the share of interval votes within ±1 BPM, `tempogram` its accumulated
-   * salience) goes through that engine's table in `core/calibration.ts`, so values from either engine, realtime or
-   * offline, mean the same thing. A reading at half or double the tempo counts as wrong.
+   * salience) goes through that engine's table in `core/calibration.ts`, so on the default range values from either
+   * engine, realtime or offline, mean the same thing. A reading at half or double the tempo counts as wrong.
    *
    * Fitted on the benchmark's dev half (benchmark/results/rba-106-calibration-dev.md), then checked once on the
    * real-time readings of its held-out half, which it had not seen: the tempogram's table held there
@@ -224,6 +224,8 @@ export type Reading = {
    * `null`: unmeasured. Both halves were read on the default range, 90 to 180 BPM, so the calibration says nothing
    * about a reading outside it: when `bpm` is under 90 or over 180, which only a custom `tempoRange` allows, the
    * confidence is `null` rather than a number with no proven meaning. On the default range it is always a number.
+   * With a custom `tempoRange`, a reading inside 90 to 180 BPM gets the default range's table, though the engine
+   * picked it from another range, which nothing measured: read it as a rougher estimate.
    */
   readonly confidence: number | null;
   /**

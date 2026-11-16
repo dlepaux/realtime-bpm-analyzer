@@ -3,8 +3,8 @@ import type {EngineName} from '../contract/types';
 /**
  * Maps each engine's raw score to the chance its reading is right (within 4% of the true tempo), so a
  * `Reading.confidence` of 0.8 is right about 80% of the time. Fitted on the benchmark's dev half, on the default
- * 90 to 180 range ({@link MEASURED_TEMPO_RANGE}): a reading outside it gets no confidence at all. Readings sampled at 10, 15, 20, 30 and 45 s and at the end of each track, so long
- * tracks do not weigh more; peaks under the shipped HYSTERESIS, the tempogram with `pulseLostAfterSeconds` 3 (the
+ * 90 to 180 range ({@link MEASURED_TEMPO_RANGE}): a reading outside it gets no confidence at all. Readings sampled
+ * at 10, 15, 20, 30 and 45 s and at the end of each track, so long tracks do not weigh more; peaks under the shipped HYSTERESIS, the tempogram with `pulseLostAfterSeconds` 3 (the
  * readings are the same, only which were shown differs: see the results file). Results, method and ranges:
  * benchmark/results/rba-106-calibration-dev.md. The tempogram's table was then checked once on the held-out half's
  * real-time readings, under the shipped HYSTERESIS, and held:
@@ -25,8 +25,8 @@ type Point = readonly [number, number];
 /**
  * The tempos, in BPM, both bounds included, that the calibration readings covered. Every reading behind the tables was
  * taken on the library's default range, 90 to 180, by the benchmark's `peaks` and `tempogram` rows, which set no
- * `tempoRange` (benchmark/lib/detectors.ts). Both engines report a whole BPM folded into that range with both ends
- * reachable, so both bounds are inside what was measured. Outside it no reading measured what a raw score means, so
+ * `tempoRange` (benchmark/lib/detectors.ts). Both engines report a whole BPM inside that range (peaks folds into it,
+ * the tempogram searches it) with both ends reachable, so both bounds are inside what was measured. Outside it no reading measured what a raw score means, so
  * `calibrate` returns null there rather than the nearest table's number: a confidence with no proven meaning would
  * mislead the programs that act on it (RBA-108's DECISIONs of 2026-11-03 and 2026-11-16, RBA-147). Widening it needs
  * readings fitted outside it, not a new number here.

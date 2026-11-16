@@ -56,8 +56,18 @@ describe('option keys', () => {
       const error = expectRefused(() => {
         assertOptions({[key]: undefined}, 'offline');
       }, key, key);
+      expect(error.message).to.match(/^analyzeFullBuffer and analyzeChannelData take no option /);
       expect(error.message).to.contain('createRealtimeBpmAnalyzer');
+      // One sentence, one reason: a second colon read as a list of reasons
+      expect(error.message.split(': ').length, key).to.equal(2);
     }
+  });
+
+  it('names the function a realtime option went to', () => {
+    const error = expectRefused(() => {
+      assertOptions({engin: 'peaks'}, 'realtime');
+    }, 'engin', 'realtime engin');
+    expect(error.message).to.equal('createRealtimeBpmAnalyzer takes no option engin: its options are engine, tempoRange, processorUrl, liveInput and debug.');
   });
 
   it('points an engine setting given at the top level to engine', () => {
@@ -126,7 +136,8 @@ describe('tempoRange keys', () => {
       [{min: 60, max: 120, step: undefined}, 'step'],
     ];
     for (const [range, key] of refused) {
-      expectRefused(() => resolveTempoRange(range as TempoRange), key, JSON.stringify(range));
+      const error = expectRefused(() => resolveTempoRange(range as TempoRange), key, JSON.stringify(range));
+      expect(error.message).to.equal(`Invalid tempoRange: it takes only min and max, not ${key}.`);
     }
   });
 

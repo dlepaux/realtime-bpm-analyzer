@@ -132,12 +132,13 @@ export function siteGraph(relativePath: string): object[] {
 }
 
 /**
- * Guides for packages that aren't on npm yet. Their pages are noindex and out of the
+ * Guides for packages that aren't published yet. Their pages are noindex and out of the
  * sitemap, the sidebar, the search and llms.txt (RBA-122). From v6 the Developers menu
- * links them (RBA-247). Once both packages are on npm, the noindex flip empties this
- * list (contributing.md, "First publish of v6").
+ * links the CLI and MCP guides (RBA-247), and once both packages are on npm, the noindex
+ * flip takes them off this list (contributing.md, "First publish of v6"). The Java guide
+ * stays on it until the Java port is on Maven Central (RBA-256).
  */
-export const UNPUBLISHED_GUIDES: readonly string[] = ['guide/cli', 'guide/mcp']
+export const UNPUBLISHED_GUIDES: readonly string[] = ['guide/cli', 'guide/mcp', 'guide/java']
 
 /** A page's path without its leading slash, `.md` or `.html`: `guide/cli`. */
 function pagePath(urlOrSource: string): string {

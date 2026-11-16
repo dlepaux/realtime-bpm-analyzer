@@ -157,7 +157,7 @@ From step 2 to step 6 the site shows v6 while npm's `latest` is still 5.6.1. Tha
 
 12. **Remove `release-as`.** A `chore` PR that drops `"release-as": "6.1.0"` from `release-please-config.json`. Merge it before any `feat` or `fix` reaches `main`, or the next release PR proposes 6.1.0 again. Until it merges, every other PR fails "Check release-as is still pending" in Build & Test, since the manifest is already at 6.1.0.
     - Check: the next release PR proposes 6.1.1 or 6.2.0.
-13. **The noindex flip.** Open a PR that empties `UNPUBLISHED_GUIDES` in `docs/.vitepress/tools/site-schema.ts`, removes `search: false` from `docs/guide/cli.md` and `docs/guide/mcp.md`, adds both guides to the sidebar and to `docs/public/llms.txt`, and updates the tests that pin them out.
+13. **The noindex flip.** Open a PR that removes `guide/cli` and `guide/mcp` from `UNPUBLISHED_GUIDES` in `docs/.vitepress/tools/site-schema.ts`, removes `search: false` from `docs/guide/cli.md` and `docs/guide/mcp.md`, adds both guides to the sidebar and to `docs/public/llms.txt`, and updates the tests that pin them out.
     - Check, after its deploy: `/guide/cli` and `/guide/mcp` carry no `noindex`, and both are in `/sitemap.xml`.
 14. **Re-word 6.0.0's deprecation**, which still says "use version 5".
     - Run: `npm deprecate realtime-bpm-analyzer@6.0.0 "Published by mistake. Use 6.1.0 or later."`

@@ -71,8 +71,8 @@ const removedOptions: Readonly<Record<string, string>> = Object.freeze({
   stabilizationTime: "use engine: {name: 'peaks', restartAfterSeconds}",
   muteTimeInIndexes: 'it has no replacement: remove it',
   tempogramMode: "use engine: {name: 'tempogram', mode: 'measured'}",
-  frequencyValue: "realtime peaks has a fixed lowpass inside analyzer.input, and only analyzeFullBuffer and analyzeChannelData take one: engine: {name: 'peaks', lowpass: {frequency}}",
-  qualityValue: "realtime peaks has a fixed lowpass inside analyzer.input, and only analyzeFullBuffer and analyzeChannelData take one: engine: {name: 'peaks', lowpass: {q}}",
+  frequencyValue: "with analyzeFullBuffer or analyzeChannelData, use engine: {name: 'peaks', lowpass: {frequency}}. Only they take one: realtime peaks has a fixed lowpass inside analyzer.input",
+  qualityValue: "with analyzeFullBuffer or analyzeChannelData, use engine: {name: 'peaks', lowpass: {q}}. Only they take one: realtime peaks has a fixed lowpass inside analyzer.input",
 });
 
 /**
@@ -93,19 +93,21 @@ export const engineKeys = Object.freeze({
 
 /**
  * What to use instead of a key a caller is likely to reach for, by where it was passed. Any other key, a typo
- * included, gets the settings that engine takes.
+ * included, gets the settings that engine takes. Maps, not records, so a key such as `constructor` finds nothing.
  */
-const refusedEngineKeys = {
+const refusedEngineKeys: Readonly<Record<keyof typeof engineKeys, ReadonlyMap<string, string>>> = Object.freeze({
   realtime: new Map([
-    ['lowpass', 'realtime peaks has a fixed lowpass inside analyzer.input, and only analyzeFullBuffer and analyzeChannelData take one'],
+    ['lowpass', 'the realtime analyzer takes none. Realtime peaks has a fixed lowpass inside analyzer.input; for '
+      + 'another, connect getBiquadFilter(audioContext, {frequency, q}) to analyzer.node. Only analyzeFullBuffer and '
+      + 'analyzeChannelData take engine.lowpass'],
     ['restartAfterSeconds', "only peaks takes it: the tempogram's memory of past tempos fades on its own, so it follows a tempo change"],
     ['mode', 'only the tempogram takes it'],
   ]),
   offline: new Map([
-    ['restartAfterSeconds', 'whole-buffer analysis reads the buffer once, so nothing restarts'],
+    ['restartAfterSeconds', 'whole-buffer analysis has no stream to follow: it analyses the buffer in one call, so nothing restarts'],
     ['mode', 'only the realtime tempogram takes it'],
   ]),
-} as const;
+});
 
 /**
  * Refuses any own key of an engine object outside that engine's set, so a setting the engine would not apply fails at

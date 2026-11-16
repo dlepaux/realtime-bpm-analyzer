@@ -239,7 +239,7 @@ AudioWorklet runs on a separate audio rendering thread:
 ### Long Listens
 
 Memory and the work per chunk stay bounded however long the analyzer listens. The `peaks` engine keeps only the
-newest 256 peaks at each threshold, so its reading follows the latest minute or more of audio. The default
+newest 256 peaks at each threshold, so its reading follows the latest 50 seconds or more of audio. The default
 `tempogram` engine's memory of past tempos fades with a 16-second half-life.
 
 To have `peaks` follow a tempo change sooner, start it over at a set period:
@@ -253,7 +253,7 @@ createRealtimeBpmAnalyzer(audioContext, {
 
 The processor gathers audio before it reports:
 - **First reading**: after a 4-second warm-up with the default `tempogram` engine; `peaks` waits for 16 peaks at one threshold
-- **Lock**: no sooner than about 11.5 seconds of audio with `tempogram`, 10 seconds with `peaks`
+- **Lock**: no sooner than about 11.5 seconds of audio with `tempogram`, 10 seconds with `peaks` (or a shorter `restartAfterSeconds`)
 - **Trade-off**: a shorter `restartAfterSeconds` follows a tempo change sooner, and gives each reading less audio
 
 ## Limitations & Edge Cases

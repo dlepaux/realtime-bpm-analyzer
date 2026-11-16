@@ -77,13 +77,16 @@ async function tempoRange(min: number | undefined, max: number | undefined): Pro
 
 const ffmpegPath = () => process.env.FFMPEG_PATH || 'ffmpeg';
 
+/** analyzeFile's options with the request's signal, which the queue needs to drop a cancelled file */
+type QueuedOptions = AnalyzeFileOptions & {readonly signal: AbortSignal};
+
 /**
  * @param tempoRange Validated range, or undefined for the default
  * @param engine Engine argument
  * @param signal The request's signal, aborted when the client cancels
  * @returns analyzeFile's options, with the per-file time limit
  */
-const analyzeFileOptions = (tempoRange: TempoRange | undefined, engine: EngineName | undefined, signal: AbortSignal): AnalyzeFileOptions => ({
+const analyzeFileOptions = (tempoRange: TempoRange | undefined, engine: EngineName | undefined, signal: AbortSignal): QueuedOptions => ({
   tempoRange, engine, signal, ffmpegPath: ffmpegPath(), timeoutMs: limits.maxFileSeconds * 1000,
 });
 
@@ -96,7 +99,7 @@ export function createServer(version: string): McpServer {
   const server = new McpServer({name: 'realtime-bpm-analyzer', version});
   const queue = createQueue(limits.maxFilesAtOnce);
   // The per-file time limit starts once the file leaves the queue, so waiting does not use it up
-  const analyzeQueued = (file: string, options: AnalyzeFileOptions) => queue(() => analyzeFile(file, options), options.signal);
+  const analyzeQueued = (file: string, options: QueuedOptions) => queue(() => analyzeFile(file, options), options.signal);
 
   server.registerTool('analyze_file', {
     title: 'Analyse the BPM of an audio file',

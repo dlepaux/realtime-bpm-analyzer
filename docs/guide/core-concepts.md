@@ -28,8 +28,7 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 For long-running or infinite streams:
 
 - Automatically starts over after a set stretch of audio
-- Prevents memory buildup in 24/7 scenarios
-- Follows a change of tempo
+- Follows a change of tempo sooner
 - Best for: Radio streams, live broadcasts, streaming services
 
 ```typescript

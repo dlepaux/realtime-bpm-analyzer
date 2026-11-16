@@ -48,7 +48,10 @@ samples = [value / 32768 for value in pcm]  # or numpy.asarray(pcm, dtype=numpy.
 ```
 
 ```java
-byte[] bytes = new GZIPInputStream(Files.newInputStream(path)).readAllBytes();
+byte[] bytes;
+try (InputStream in = new GZIPInputStream(Files.newInputStream(path))) {
+    bytes = in.readAllBytes();
+}
 ShortBuffer pcm = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
 float[] samples = new float[pcm.remaining()];
 for (int i = 0; i < samples.length; i++) samples[i] = pcm.get(i) / 32768f;
@@ -59,21 +62,26 @@ for (int i = 0; i < samples.length; i++) samples[i] = pcm.get(i) / 32768f;
 holds bit-identical samples. The other option was a generator that each port reimplements from a specified PRNG.
 That costs 0 bytes, but every port, C# and Swift later included, would then carry a second piece of code that has
 to match JS bit for bit. A wrong sample there would show up as a failed reading, a long way from its cause. The
-price of committed files is their size. The inputs total about 4.1 MB, under a budget of 5 MB that
+price of committed files is their size. The inputs total about 4.5 MiB, under a budget of 5 MiB that
 `tests/vectors.test.mjs` enforces. Lengths are kept to what a reading needs, 0.3 to 12 s.
 
 ## vectors.json, schema version 1
 
 | Key | What |
 |---|---|
-| `schemaVersion` | `1`. A harness refuses any other value. It changes only when a field is renamed or removed, or changes meaning. New cases or inputs don't change it. |
+| `schemaVersion` | `1`. A harness refuses any other value. It changes whenever a key is added, renamed or removed anywhere in the file, an `options` or `expected` key included, or a value changes meaning. New cases or inputs, and new values of a known key, don't change it. |
 | `pcm` | The input encoding described above: `{"encoding": "signed 16-bit little-endian", "channels": 1, "compression": "gzip", "divisor": 32768}`. |
-| `tolerances` | `bpmExact` and `confidence`, each `{"absolute": <number>, "referenceSpread": <number>}`. See Tolerances. |
+| `tolerances` | `bpmExact` and `confidence`, each `{"absolute": <number>, "referenceSpread": <number>}`. A harness reads `absolute` from here rather than hard-coding it. See Tolerances. |
 | `inputs` | One entry per input: `id`, `file` (relative to this folder), `sampleRate` (Hz), `samples` (count), `sha256` (of the decompressed bytes), `description`. |
 | `cases` | One entry per analysis: `id`, `input` (an input's `id`), `sampleRate`, `options`, `expected`. |
 | `errorCases` | One entry per call that must fail: `id`, `input`, `sampleRate`, `options`, `expectedError`, `why`. |
 
-`vectors.json` holds one case per line, so a regeneration's diff shows which cases moved.
+`vectors.json` holds one case per line, so a regeneration's diff shows which cases moved. Numbers are compared by
+value, not by their JSON spelling: `"to": 8` is the double 8.0, and a `bpmExact` that happens to be whole is written
+without a fraction.
+
+A harness fails on any key it doesn't know, in `options` above all: a case whose options it can't map to its API is a
+case it can't run, and skipping it is a failure.
 
 ### options
 
@@ -109,9 +117,10 @@ Each input runs under the same seven option sets, named after the `/` in the cas
 
 These calls must fail. `expectedError` is the JS error's name, which gives the category: `Error` for unusable input
 samples (none at all), and `RangeError` for a value outside its valid range (the sample rate, the tempo range or a
-lowpass setting). A port raises its language's idiomatic exception, such as Java's `IllegalArgumentException` or
-Python's `ValueError`, and the harness checks that the call failed. Messages are not part of the contract. Only value
-errors are listed. Type errors, such as an unknown option key, belong to JS's untyped options and have no equivalent
+lowpass setting). A port maps each category to one exception type of its own, chosen deliberately, such as Java's
+`IllegalArgumentException` or Python's `ValueError`, and the harness checks that the call raised that type. Any other
+exception is a failure: a port that crashes on a zero sample rate with a division error has not validated it.
+Messages are not part of the contract. Only value errors are listed. Type errors, such as an unknown option key, belong to JS's untyped options and have no equivalent
 in a typed API.
 
 ## Tolerances
@@ -120,13 +129,13 @@ Every field is compared exactly, except `bpmExact` and a numeric `confidence`:
 
 | Field | Rule | Why |
 |---|---|---|
-| `bpm`, `candidates[].bpm` | exact | Whole numbers: a vote count's winner, or a rounded tempo. Rounding differences can change them only at a tie or a rounding boundary, and the generator refuses any case that sits near one (below). So a mismatch is a bug. |
+| `bpm`, `candidates[].bpm` | exact | Whole numbers: a vote count's winner, or a rounded tempo. Float differences can change them only near a tie or a rounding boundary, and the generator refuses any case whose float path sits near one (below). A tempo computed from whole-sample peak intervals can land exactly on a half, and the rounding rule then decides it: `kick-122.5-44k` pins that rule (see Rounding). So a mismatch is a bug. |
 | `candidates` length, order, `relation` | exact | The same reasoning: a rank order and a label. |
 | `confidence` null or number | exact | `null` means unmeasured. It is never a number near 0, and never equal to one. |
 | `confidence` value | ±1e-6 absolute | It is a calibration table read at the engine's raw score, so it carries that score's float error, multiplied by the table's slope. |
 | `bpmExact` | ±1e-6 BPM absolute | It is an interpolated peak or a weighted mean of float tempos, so a different order of float operations, or a different `exp` or `log`, moves its last digits. |
 | `audio.from`, `audio.contextTime` | exact | Always `0` and `null`. |
-| `audio.to` | exact | One IEEE 754 double division, `samples / sampleRate`, which is correctly rounded in every language. |
+| `audio.to` | exact | One IEEE 754 double division, `samples / sampleRate`, which is correctly rounded in every language. `kick-122.5-44k` lasts 9.3 s, so an integer or 32-bit division fails it. |
 | `engine` | exact | A name. |
 | a `null` reading | exact | No tempo found is a different answer from any reading. |
 
@@ -163,9 +172,12 @@ A few behaviours of the reference that a port must reproduce, and that each lang
 different ways:
 
 - **Rounding.** JS `Math.round` rounds half up, towards +infinity, so `-2.5` gives `-2` and `2.5` gives `3`.
-  Java's `Math.round` does the same. Python's `round` and NumPy's `round` round half to even.
-- **Sorting.** JS `Array.prototype.sort` is stable: equal keys keep their earlier order. Python's `sorted` and
-  Java's `List.sort` are stable too. A hand-written sort, or one on primitive arrays, may not be.
+  Java's `Math.round` does the same. Python's `round`, NumPy's `round` and C#'s `Math.Round` round half to even, and
+  Swift's `.rounded()` rounds half away from zero. Use `floor(x + 0.5)`. The peaks engine reads `kick-122.5-44k` at
+  exactly 122.5 BPM, so a port with another rule fails it.
+- **Order of ties.** The peaks engine groups its tempos in an insertion-ordered map and sorts them by count with a
+  stable sort, so tempos with equal counts keep the order in which it first met them, and the vectors depend on it. Use an insertion-ordered map (Java's `LinkedHashMap`, Python's `dict`) and a stable sort (Java's
+  `List.sort`, Python's `sorted`). A `HashMap`, or an unstable sort, reorders tied candidates and fails the set.
 - **Arithmetic.** All of it is IEEE 754 double, except the input samples, which are 32-bit floats. The lowpass
   output and the tempogram's onset ring are also stored as 32-bit floats, but, as measured above, a port may keep
   them as doubles.

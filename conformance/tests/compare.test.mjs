@@ -75,6 +75,24 @@ describe('compareReading', () => {
   it('fails NaN against any number', () => {
     assert.match(compareReading(reading, withFields({bpmExact: Number.NaN}), tolerances)[0], /bpmExact/);
   });
+
+  it('passes a float exactly at its tolerance, which is inclusive', () => {
+    assert.deepEqual(compareReading(withFields({bpmExact: 1}), withFields({bpmExact: 1 + 2 ** -10}), {...tolerances, bpmExact: 2 ** -10}), []);
+  });
+
+  it('fails a missing field, and an unknown field in audio or a candidate', () => {
+    const missing = structuredClone(reading);
+    delete missing.engine;
+    assert.match(compareReading(reading, missing, tolerances)[0], /reading: keys/);
+    assert.match(compareReading(reading, withFields({audio: {from: 0, to: 8, contextTime: null, channel: 0}}), tolerances)[0], /audio: keys/);
+    const extra = withFields({candidates: [{bpm: 120, relation: 'top', score: 1}, {bpm: 60, relation: 'half'}]});
+    assert.match(compareReading(reading, extra, tolerances)[0], /candidates\[0\]: keys/);
+  });
+
+  it('fails undefined or a non-object instead of throwing', () => {
+    assert.match(compareReading(reading, undefined, tolerances)[0], /reading: undefined/);
+    assert.match(compareReading(null, 120, tolerances)[0], /reading: 120/);
+  });
 });
 
 describe('compareError', () => {
@@ -101,8 +119,9 @@ describe('decodePcm16', () => {
 
 describe('runVectors', () => {
   const vectors = {
+    schemaVersion: 1,
     tolerances: {bpmExact: {absolute: 1e-6}, confidence: {absolute: 1e-6}},
-    inputs: [{id: 'a'}],
+    inputs: [{id: 'a', file: 'inputs/a.s16le.gz', samples: 1}],
     cases: [
       {id: 'a/right', input: 'a', sampleRate: 8000, options: {}, expected: reading},
       {id: 'a/wrong', input: 'a', sampleRate: 8000, options: {}, expected: null},
@@ -144,5 +163,11 @@ describe('runVectors', () => {
     assert.equal(result.failed, 2);
     assert.match(lines[0], /threw Error: broken/);
     assert.match(summary('Test', {passed: 0, failed: 0, deviation: {bpmExact: 0, confidence: 0}}), /FAIL/);
+  });
+
+  it('refuses another schema version, and an input that decodes to the wrong length', async () => {
+    const params = {loadSamples: async () => new Float32Array(1), analyze: async () => null, log() {}};
+    await assert.rejects(runVectors({...params, vectors: {...vectors, schemaVersion: 2}}), /schema version 2/);
+    await assert.rejects(runVectors({...params, vectors, loadSamples: async () => new Float32Array(2)}), /2 samples, expected 1/);
   });
 });

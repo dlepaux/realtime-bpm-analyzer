@@ -79,6 +79,10 @@ function compareExact(expected, actual, path) {
  * @returns {string[]} One message per mismatch, empty on a pass
  */
 export function compareReading(expected, actual, tolerances) {
+  if (actual === undefined || (actual !== null && typeof actual !== 'object')) {
+    return [`reading: ${show(actual)}, expected ${expected === null ? 'null' : 'a reading'}`];
+  }
+
   if (expected === null || actual === null) {
     return expected === actual ? [] : [`reading: ${actual === null ? 'null' : 'a reading'}, expected ${expected === null ? 'null' : 'a reading'}`];
   }
@@ -147,9 +151,18 @@ export function compareError(expectedName, error) {
  * and the largest float difference seen, so each runtime reports how far it is from the reference
  */
 export async function runVectors({vectors, loadSamples, analyze, log}) {
+  if (vectors.schemaVersion !== 1) {
+    throw new Error(`vectors.json has schema version ${vectors.schemaVersion}; this runner reads version 1.`);
+  }
+
   const samples = new Map();
   for (const input of vectors.inputs) {
-    samples.set(input.id, await loadSamples(input));
+    const loaded = await loadSamples(input);
+    if (loaded.length !== input.samples) {
+      throw new Error(`${input.file} decodes to ${loaded.length} samples, expected ${input.samples}.`);
+    }
+
+    samples.set(input.id, loaded);
   }
 
   const tolerances = {

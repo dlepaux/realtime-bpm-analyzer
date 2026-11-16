@@ -217,13 +217,6 @@ jobs:
         env:
           NODE_OPTIONS: --import ${{ github.workspace }}/bin/node-floor/register-ts.mjs
 
-  # Release to GitHub and npm. release-please keeps one release PR open for all three packages
-  # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
-  # commits under its path, and node-workspace moving the ranges between them.
-  # Merging it lands here: release-please tags the release (vX.Y.Z for the library,
-  # cli-vX.Y.Z for the CLI, mcp-vX.Y.Z for the MCP server) and writes the GitHub release, then each publish step ships
-  # whatever version its package.json names that npm does not have yet. Keying on the registry, not on the action's output, makes a
-  # re-run after a failed publish safe: it publishes the missing version, or nothing.
   # RBA-255: the conformance set the ports in other languages are held to (conformance/readme.md). It checks the
   # committed vectors against a fresh generation from this build, so they can't drift from the library, then runs
   # them on the built library in each JS runtime the docs claim: Node at the CLI's floor, Deno and Bun, each through
@@ -296,6 +289,8 @@ jobs:
       contents: read
     env:
       HERMES_TAG: hermes-v260318099.0.5
+      # The tag's commit, so the build can't change under the cache key if the tag moves
+      HERMES_SHA: 9a115f15785851f4ff2747ebb090ddd066fc8ad2
 
     steps:
       - name: Checkout
@@ -317,12 +312,17 @@ jobs:
           name: dist
           path: packages/realtime-bpm-analyzer
 
+      # The shell links the image's ICU, so a new runner image (ubuntu24 to ubuntu26) needs its own build
+      - name: Name the runner image
+        id: image
+        run: echo "name=$ImageOS" >> "$GITHUB_OUTPUT"
+
       - name: Restore the Hermes shell
         id: hermes-cache
         uses: actions/cache@v6
         with:
           path: ~/hermes-shell
-          key: ${{ env.HERMES_TAG }}-${{ runner.os }}-${{ runner.arch }}
+          key: ${{ env.HERMES_TAG }}-${{ env.HERMES_SHA }}-${{ steps.image.outputs.name }}-${{ runner.arch }}
 
       # Hermes's doc/BuildingAndRunning.md, at the tag: a Release build of the `hermes` target only
       - name: Build the Hermes shell
@@ -330,7 +330,9 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq cmake ninja-build libicu-dev python3
-          git clone --quiet --depth 1 --branch "$HERMES_TAG" https://github.com/meta/hermes.git "$RUNNER_TEMP/hermes"
+          git init --quiet "$RUNNER_TEMP/hermes"
+          git -C "$RUNNER_TEMP/hermes" fetch --quiet --depth 1 https://github.com/meta/hermes.git "$HERMES_SHA"
+          git -C "$RUNNER_TEMP/hermes" checkout --quiet FETCH_HEAD
           cmake -S "$RUNNER_TEMP/hermes" -B "$RUNNER_TEMP/hermes-build" -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build "$RUNNER_TEMP/hermes-build" --target hermes
           mkdir -p ~/hermes-shell
@@ -347,6 +349,13 @@ jobs:
           ~/hermes-shell/hermes "$RUNNER_TEMP/conformance-hermes.js" | tee "$RUNNER_TEMP/hermes.log"
           grep -qE '^conformance: PASS on Hermes [0-9]' "$RUNNER_TEMP/hermes.log"
 
+  # Release to GitHub and npm. release-please keeps one release PR open for all three packages
+  # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
+  # commits under its path, and node-workspace moving the ranges between them.
+  # Merging it lands here: release-please tags the release (vX.Y.Z for the library,
+  # cli-vX.Y.Z for the CLI, mcp-vX.Y.Z for the MCP server) and writes the GitHub release, then each publish step ships
+  # whatever version its package.json names that npm does not have yet. Keying on the registry, not on the action's output, makes a
+  # re-run after a failed publish safe: it publishes the missing version, or nothing.
   release:
     name: Release
     # Every job that tests what ships: a red one, or one skipped, holds the publish. Each runs on a push to main and

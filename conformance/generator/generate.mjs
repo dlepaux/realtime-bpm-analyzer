@@ -135,10 +135,15 @@ async function main() {
   const inputs = [];
   const samplesById = new Map();
   const problems = [];
-  mkdirSync(inputsDir, {recursive: true});
+  if (!check) {
+    mkdirSync(inputsDir, {recursive: true});
+  }
+
   for (const signal of signals) {
     const pcm16 = toPcm16(signal.build());
-    const pcm = Buffer.from(pcm16.buffer);
+    // Little-endian whatever the host's byte order, as vectors.json's `pcm` states
+    const pcm = Buffer.alloc(pcm16.length * 2);
+    pcm16.forEach((value, index) => pcm.writeInt16LE(value, index * 2));
     const file = `inputs/${signal.id}.s16le.gz`;
     const path = new URL(file, root);
     // Compared decoded, since gzip's bytes depend on the zlib build: an unchanged signal keeps its committed file
@@ -163,7 +168,8 @@ async function main() {
   }
 
   const expectedFiles = new Set(inputs.map(input => input.file.slice('inputs/'.length)));
-  for (const name of readdirSync(inputsDir).filter(name => !expectedFiles.has(name))) {
+  const present = existsSync(inputsDir) ? readdirSync(inputsDir) : [];
+  for (const name of present.filter(name => !expectedFiles.has(name))) {
     if (check) {
       problems.push(`inputs/${name} is not in the set`);
     } else {

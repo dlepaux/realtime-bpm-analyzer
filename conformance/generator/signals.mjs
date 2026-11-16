@@ -174,6 +174,10 @@ export const signals = [
     {sampleRate: 22_050, seconds: 12, bpm: 75, steps: patterns.rock(0.5), seed: 7}),
   pattern('kick-89-16k', 'Kick on every beat at 89 BPM, just below the default range, 16 kHz, 10 s.',
     {sampleRate: 16_000, seconds: 10, bpm: 89, steps: patterns.fourOnTheFloor(), seed: 8}),
+  // 122.5 BPM is exactly 21600 samples a beat at 44.1 kHz, so the peaks engine's whole-BPM rounding meets a tie
+  // (half up gives 123, half to even 122), and 9.3 s makes audio.to a fraction no float32 or integer division gives
+  pattern('kick-122.5-44k', 'Kick on every beat at 122.5 BPM, 44.1 kHz, 9.3 s: a tempo halfway between two whole BPM, and a length that is not a whole number of seconds.',
+    {sampleRate: 44_100, seconds: 9.3, bpm: 122.5, steps: patterns.fourOnTheFloor(), seed: 21}),
   pattern('kick-200-22k', 'Kick on every beat at 200 BPM, above the default range: read at its half. 22.05 kHz, 8 s.',
     {sampleRate: 22_050, seconds: 8, bpm: 200, steps: patterns.fourOnTheFloor(), seed: 9}),
   pattern('house-92-16k', 'House pattern at 92 BPM, near the bottom of the default range, 16 kHz, 10 s.',

@@ -1,5 +1,6 @@
 // Runs the conformance set in Deno against the built library, with Deno's own APIs and the web's
-// DecompressionStream, not its Node compatibility layer: `deno run --allow-read conformance/runner/deno.mjs`.
+// DecompressionStream, not its Node compatibility layer. From the repo root:
+// `deno run --allow-read=. conformance/runner/deno.mjs`.
 import {analyzeChannelData} from '../../packages/realtime-bpm-analyzer/dist/node.mjs';
 import {decodePcm16, runVectors, summary} from './core.mjs';
 

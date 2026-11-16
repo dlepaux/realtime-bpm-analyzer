@@ -312,7 +312,7 @@ async function shareTab(): Promise<MediaStream> {
     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     controller,
     selfBrowserSurface: 'exclude',
-  } as DisplayMediaStreamOptions)
+  } as Parameters<MediaDevices['getDisplayMedia']>[0])
   keepFocus()
   for (const video of stream.getVideoTracks()) {
     video.stop()

@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 /** Another tempo the engine considered, with how it relates to the reading's tempo. Immutable. */
 public final class Candidate {

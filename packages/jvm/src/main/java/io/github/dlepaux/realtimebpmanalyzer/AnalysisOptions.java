@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 /**
  * The options of {@link BpmAnalyzer#analyzeChannelData}: the JS library's {@code engine} and {@code tempoRange}, with

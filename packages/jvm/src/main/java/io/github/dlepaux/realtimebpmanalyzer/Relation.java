@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 /** How a candidate's tempo relates to the reading's tempo. May grow in a minor release, as in the JS library. */
 public enum Relation {

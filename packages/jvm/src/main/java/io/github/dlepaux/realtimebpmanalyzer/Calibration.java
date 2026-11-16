@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 /**
  * Maps each engine's raw score to the chance its reading is right (within 4% of the true tempo). A copy of the JS

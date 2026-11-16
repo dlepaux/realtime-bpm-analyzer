@@ -1,4 +1,4 @@
-package com.realtimebpmanalyzer;
+package io.github.dlepaux.realtimebpmanalyzer;
 
 /** The two tempo engines, the JS library's {@code 'tempogram'} and {@code 'peaks'}. */
 public enum EngineName {

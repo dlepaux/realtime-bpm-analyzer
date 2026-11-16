@@ -102,6 +102,70 @@ describe('RealTimeBpmProcessor - kicks', () => {
     expect(score.falseKicks).to.equal(0);
   });
 
+  /**
+   * Plays samples through a processor with the real analysis, letting each analysis finish before the next quantum,
+   * as a real audio thread does
+   * @returns Every message it posted
+   */
+  async function analyzeAll(samples: Float32Array, engine?: 'peaks'): Promise<PostedWorkletMessage[]> {
+    (globalThis as any).currentTime = 0;
+    const processor = new RealTimeBpmProcessor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(engine)});
+    for (let index = 0; index * quantum < samples.length; index += 1) {
+      (globalThis as any).currentTime = (index * quantum) / sampleRate;
+      const chunk = new Float32Array(quantum);
+      chunk.set(samples.subarray(index * quantum, (index + 1) * quantum));
+      processor.process([[chunk]], [[]], {});
+      for (let i = 0; processor.analysisInProgress && i < 100_000; i += 1) {
+        await Promise.resolve();
+      }
+    }
+
+    return processor.posted as PostedWorkletMessage[];
+  }
+
+  // RBA-246: one bad sample used to silence the kicks until reset(), and an infinite one could leave the tempogram
+  // deaf for good. Both now start over by themselves. Every step reads the same status, reason and tempo as without
+  // the sample. The tempogram's exact tempo and confidence drift a little for a few seconds, as the frames that hold
+  // the sample count as no onset (measured: up to 2.5e-5 BPM and 1.4e-7)
+  const drifting = new Set(['bpmExact', 'confidence']);
+  const steps = (messages: PostedWorkletMessage[]) => messages.filter(({type}) => type !== 'kick');
+  const numbers = (messages: PostedWorkletMessage[], keep: (key: string) => boolean) => {
+    const found: number[] = [];
+    JSON.stringify(steps(messages), (key, value: unknown) => {
+      if (typeof value === 'number' && keep(key)) {
+        found.push(value);
+      }
+      return value;
+    });
+    return found;
+  };
+  const exactly = (messages: PostedWorkletMessage[]) => JSON.stringify(steps(messages), (key, value: unknown) => (drifting.has(key) ? undefined : value));
+
+  for (const engine of [undefined, 'peaks'] as const) {
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      it(`goes on hearing kicks and reading the tempo after one sample of ${String(bad)} (${engine ?? 'default engine'})`, async function () {
+        this.timeout(60_000);
+        const scene = createKickScene('full-mix');
+        const badAt = 10.2;
+        const samples = scene.samples.slice();
+        samples[Math.round(badAt * sampleRate)] = bad;
+        const clean = await analyzeAll(scene.samples, engine);
+        const posted = await analyzeAll(samples, engine);
+
+        expect(steps(posted).filter(({type}) => type === 'step').length, 'steps').to.be.above(10);
+        expect(exactly(posted)).to.equal(exactly(clean));
+        const before = numbers(clean, key => drifting.has(key));
+        const after = numbers(posted, key => drifting.has(key));
+        expect(after.length).to.equal(before.length);
+        expect(Math.max(0, ...after.map((value, i) => Math.abs(value - before[i])))).to.be.below(1e-3);
+        const kicks = posted.filter((message): message is KickMessage => message.type === 'kick').map(({contextTime}) => contextTime);
+        const score = scoreKicks(scene.kicks.filter(time => time < badAt - 0.03 || time >= badAt + 0.1), kicks, 0.05);
+        expect(score.misses).to.equal(0);
+        expect(scoreKicks(scene.kicks, kicks, 0.05).falseKicks).to.equal(0);
+      });
+    }
+  }
+
   /** Counts the detector's resets, quantum by quantum */
   function countResets(processor: any) {
     const resets: number[] = [];

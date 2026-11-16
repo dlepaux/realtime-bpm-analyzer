@@ -227,12 +227,20 @@ function createOnsetStage(sampleRate: number, frameRate: number, tuning: Tempogr
     fft(re, im);
 
     let peak = 0;
+    let total = 0;
 
     for (let bin = 1; bin < bins; bin += 1) {
       const power = (re[bin] * re[bin]) + (im[bin] * im[bin]);
 
       re[bin] = power;
       peak = power > peak ? power : peak;
+      total += power;
+    }
+
+    if (!Number.isFinite(total)) {
+      // A NaN or infinite sample is no audio: no onset, and the state is kept, since an
+      // infinite loudness would never decay and leave the tempo deaf for good (RBA-246)
+      return 0;
     }
 
     // Relative to a slow loudness reference, so the reading does not depend on the volume

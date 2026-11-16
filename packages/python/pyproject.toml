@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "realtime-bpm-analyzer"
+version = "6.2.0"
+description = "Offline BPM detection with the same readings as the realtime-bpm-analyzer JS library, held to it by shared conformance vectors."
+readme = "readme.md"
+license = "Apache-2.0"
+license-files = ["license.md"]
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26"]
+authors = [{ name = "David Lepaux" }]
+keywords = ["bpm", "tempo", "beat", "tempo detection", "audio", "music", "dj"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://www.realtime-bpm-analyzer.com"
+Documentation = "https://www.realtime-bpm-analyzer.com/guide/python"
+Repository = "https://github.com/dlepaux/realtime-bpm-analyzer"
+Issues = "https://github.com/dlepaux/realtime-bpm-analyzer/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/realtime_bpm_analyzer"]
+
+# The tests read the conformance set at the repo root, so they stay out of the sdist, which couldn't run them
+[tool.hatch.build.targets.sdist]
+include = ["src/realtime_bpm_analyzer", "readme.md", "license.md", "pyproject.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "-ra"]
+filterwarnings = ["error"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+mypy_path = "tests"

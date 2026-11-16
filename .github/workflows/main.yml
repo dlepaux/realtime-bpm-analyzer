@@ -716,14 +716,39 @@ jobs:
           attestations: true
           skip-existing: true
 
-  # Maven Central has no trusted publishing, so this job takes the Central Portal token and David's signing key from
-  # the maven environment's secrets, which only main may read (Settings > Environments > maven). Each secret is in
-  # the env of the one step that uses it. central-publishing-maven-plugin uploads the bundle, publishes it and waits
-  # until Central has (waitUntil: published, up to 30 minutes).
-  maven-publish:
-    name: Publish (Maven Central)
+  # Maven Central has no trusted publishing, so the publish job takes the Central Portal token and David's signing
+  # key from the maven environment's secrets, which only main may read (Settings > Environments > maven). The gate
+  # runs in a job of its own, outside the environment, so a push that releases nothing never enters it.
+  maven-check:
+    name: Check (Maven Central)
     needs: [release, conformance-jvm]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.unpublished.outputs.publish }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check whether this commit released a version Maven Central lacks
+        id: unpublished
+        run: |
+          node bin/port-publish-gate.mjs --self-test
+          version=$(python3 -c "import xml.etree.ElementTree as E; print(E.parse('packages/jvm/pom.xml').getroot().findtext('{http://maven.apache.org/POM/4.0.0}version'))")
+          node bin/port-publish-gate.mjs "jvm-v$version" "https://repo1.maven.org/maven2/io/github/dlepaux/realtime-bpm-analyzer/$version/realtime-bpm-analyzer-$version.pom"
+
+  # Each secret is in the env of the one step that uses it. central-publishing-maven-plugin uploads the bundle,
+  # publishes it and waits until Central has (waitUntil: published, up to 30 minutes).
+  maven-publish:
+    name: Publish (Maven Central)
+    needs: maven-check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.maven-check.outputs.publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment:
@@ -739,15 +764,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check whether this commit released a version Maven Central lacks
-        id: unpublished
-        run: |
-          node bin/port-publish-gate.mjs --self-test
-          version=$(python3 -c "import xml.etree.ElementTree as E; print(E.parse('packages/jvm/pom.xml').getroot().findtext('{http://maven.apache.org/POM/4.0.0}version'))")
-          node bin/port-publish-gate.mjs "jvm-v$version" "https://repo1.maven.org/maven2/io/github/dlepaux/realtime-bpm-analyzer/$version/realtime-bpm-analyzer-$version.pom"
-
       - name: Setup Java 21
-        if: steps.unpublished.outputs.publish == 'true'
         uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -755,7 +772,6 @@ jobs:
 
       # A keyring of its own in the runner's temp, which the last step deletes
       - name: Import the signing key
-        if: steps.unpublished.outputs.publish == 'true'
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
@@ -764,9 +780,9 @@ jobs:
           GNUPGHOME="$RUNNER_TEMP/gnupg" gpg --batch --list-secret-keys --keyid-format long
 
       # The settings file names the credentials by environment variable, so their values never reach a file. The key
-      # is pinned by its fingerprint, the one on the keyservers (contributing.md).
+      # is pinned by its fingerprint, the one on the keyservers (contributing.md). No tests: Conformance (JVM) ran
+      # them on this commit, and they would run with the secrets in their environment.
       - name: Sign, upload and publish to Maven Central
-        if: steps.unpublished.outputs.publish == 'true'
         working-directory: packages/jvm
         env:
           GNUPGHOME: ${{ runner.temp }}/gnupg
@@ -780,10 +796,10 @@ jobs:
             '<password>${env.MAVEN_CENTRAL_PASSWORD}</password>' \
             '</server></servers></settings>' > "$RUNNER_TEMP/central-settings.xml"
           ./mvnw -B -s "$RUNNER_TEMP/central-settings.xml" -P central-publish \
-            -Dgpg.keyname=C3FCF43A0B1FD66C8EE882BBD0446F172A67D3CD deploy
+            -Dgpg.keyname=C3FCF43A0B1FD66C8EE882BBD0446F172A67D3CD -DskipTests deploy
 
       - name: Delete the keyring
-        if: always() && steps.unpublished.outputs.publish == 'true'
+        if: always()
         run: |
           GNUPGHOME="$RUNNER_TEMP/gnupg" gpgconf --kill all || true
           rm -rf "$RUNNER_TEMP/gnupg" "$RUNNER_TEMP/central-settings.xml"

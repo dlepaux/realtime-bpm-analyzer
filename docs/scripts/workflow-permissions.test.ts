@@ -52,6 +52,8 @@ const EXPECTED: Record<string, Record<string, Record<string, string>>> = {
     // pypa/gh-action-pypi-publish's README: id-token for PyPI's trusted publishing and the attestations. No
     // checkout, and the download uses the runner's own artifact token.
     'pypi-publish': { 'id-token': 'write' },
+    // checkout. bin/port-publish-gate.mjs reads the tags anonymously.
+    'maven-check': { contents: 'read' },
     // checkout. Central's token and the signing key are the maven environment's secrets, not GITHUB_TOKEN's.
     'maven-publish': { contents: 'read' },
     // checkout, and configure-pages on pushes, which reads the Pages site (GET /repos/{owner}/{repo}/pages).

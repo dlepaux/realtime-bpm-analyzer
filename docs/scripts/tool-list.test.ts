@@ -4,8 +4,8 @@ import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { FREE_TOOL_ROWS, GRID_COLUMNS, freeTools } from '../.vitepress/tools/tool-list.ts'
 
-test('the tools come in order of use: Tap Tempo, Metronome, BPM to ms, then the video tools', () => {
-  assert.deepEqual(freeTools().map((tool) => tool.link), ['/tap-tempo', '/metronome', '/bpm-to-ms', '/video-bpm', '/bpm-to-frames'])
+test('the tools come in order of use: Tap Tempo, Metronome, BPM to ms, then the video tools and the strobe light', () => {
+  assert.deepEqual(freeTools().map((tool) => tool.link), ['/tap-tempo', '/metronome', '/bpm-to-ms', '/video-bpm', '/bpm-to-frames', '/strobe-light'])
 })
 
 test('every row fills the grid evenly, so no tile is left alone on a row', () => {

@@ -469,6 +469,19 @@ jobs:
       - name: Check the extension switch in both states
         run: npm run verify:extension-switch -w docs
 
+      # A PR's built site, to look at in a browser without building it locally (RBA-240): download
+      # it with `gh run download <run-id> -n docs-site` and serve the folder. It is the same folder
+      # the pages artifact publishes, so it holds nothing the live site doesn't. Hidden files stay
+      # out, as upload-artifact's default.
+      - name: Upload the built site for preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-site
+          path: docs/.vitepress/dist/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5

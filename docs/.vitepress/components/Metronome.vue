@@ -7,11 +7,12 @@ import {
   MIN_BPM,
   clampBpm,
   clickKind,
-  estimateTapTempo,
   parseBpmParam,
-  pushTap,
+  tapToSet,
   tempoMarking,
+  ticksBefore,
   type ClickKind,
+  type TickCursor,
 } from '../tools/tempo'
 
 const { track } = useAnalytics()
@@ -57,7 +58,7 @@ let tick = 0
 let nextTickTime = 0
 let beatNumber = 0
 let lastBeatTime = 0
-const queue: { tick: number; time: number }[] = []
+const queue: TickCursor[] = []
 
 function setBpm(value: number) {
   bpm.value = Math.round(clampBpm(value))
@@ -83,12 +84,13 @@ function playClick(kind: ClickKind, time: number) {
 // Chrome exempts audible tabs. A Worker-driven timer is the upgrade if users report drift.
 function schedule() {
   if (!ctx) return
-  while (nextTickTime < ctx.currentTime + SCHEDULE_AHEAD_S) {
-    playClick(clickKind(tick, beatsPerBar.value, subdivision.value), nextTickTime)
-    queue.push({ tick, time: nextTickTime })
-    nextTickTime += 60 / bpm.value / subdivision.value
-    tick++
+  const { due, next } = ticksBefore({ tick, time: nextTickTime }, ctx.currentTime + SCHEDULE_AHEAD_S, 60 / bpm.value / subdivision.value)
+  for (const booked of due) {
+    playClick(clickKind(booked.tick, beatsPerBar.value, subdivision.value), booked.time)
+    queue.push(booked)
   }
+  tick = next.tick
+  nextTickTime = next.time
 }
 
 // Visuals follow what is audible now, read from the audio clock, never from timers.
@@ -96,7 +98,7 @@ function draw() {
   if (!ctx) return
   const now = ctx.currentTime - (ctx.outputLatency || 0)
   while (queue.length && (queue[0] as { time: number }).time <= now) {
-    const played = queue.shift() as { tick: number; time: number }
+    const played = queue.shift() as TickCursor
     if (played.tick % subdivision.value !== 0) continue
     currentBeat.value = Math.floor(played.tick / subdivision.value) % beatsPerBar.value
     beatFlash.value++
@@ -168,9 +170,9 @@ function toggle() {
 }
 
 function tapTempo(at: number) {
-  tapTimes.value = pushTap(tapTimes.value, at)
-  const estimate = estimateTapTempo(tapTimes.value)
-  if (estimate && tapTimes.value.length >= 3) setBpm(estimate.bpm)
+  const { taps, bpm: tapped } = tapToSet(tapTimes.value, at)
+  tapTimes.value = taps
+  if (tapped !== null) setBpm(tapped)
 }
 
 // A changed bar or grid restarts the count on the next tick, so the downbeat

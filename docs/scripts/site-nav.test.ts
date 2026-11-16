@@ -47,7 +47,7 @@ test('switch on: the extension page and its privacy page are both linked', () =>
   assert.deepEqual(links(menu(nav, 'About').items ?? []).find(([, link]) => link === '/extension/privacy'), ['Extension privacy', '/extension/privacy'])
 })
 
-test('Free tools keeps its six tools, in order', () => {
+test('Free tools keeps its seven tools, in order', () => {
   assert.deepEqual(links(menu(siteNav(LISTING, VERSION), 'Free tools').items ?? []), [
     ['BPM Analyzer', '/'],
     ['Tap Tempo', '/tap-tempo'],
@@ -55,6 +55,7 @@ test('Free tools keeps its six tools, in order', () => {
     ['Video BPM Finder', '/video-bpm'],
     ['BPM to Frames Calculator', '/bpm-to-frames'],
     ['Metronome', '/metronome'],
+    ['Strobe Light', '/strobe-light'],
   ])
 })
 

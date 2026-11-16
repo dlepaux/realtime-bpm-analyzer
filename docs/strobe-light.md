@@ -62,10 +62,10 @@ Want the tempo instead? [Tap it](/tap-tempo), or detect it with the
 ## Limits
 
 - **It reacts to the kick, it doesn't predict it.** With the demo track or
-  your song, the page plays the sound, so the light waits for the moment you
-  hear each kick and lands on it. With the microphone or another tab, the
-  sound reaches you first, and the light comes a moment after it, about 20 to
-  40 ms in our tests: close, but not on the kick.
+  your song, the page plays the sound a moment after it hears it, so the light
+  waits for the moment you hear each kick and lands on it. With the microphone
+  or another tab, the sound reaches you first, and the light comes a moment
+  after it, about 30 to 50 ms in our tests: close, but not on the kick.
 - **Music without a clear kick flashes less, or not at all.** The light follows
   the kick drum, under 150 Hz, not the snare, the hi-hats or the melody.
 - **At most three flashes a second.** Above 150 BPM it flashes on every second

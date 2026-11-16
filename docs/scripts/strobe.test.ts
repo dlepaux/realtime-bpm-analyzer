@@ -19,6 +19,7 @@ import {
   addKick,
   flashAnimation,
   flashTimeFor,
+  SPEAKER_DELAY_MS,
   heardAt,
   initialStyle,
   isSaturatedRed,
@@ -224,15 +225,24 @@ test('heardAt is RBA-243\'s recipe: now plus the kick\'s distance from currentTi
   assert.equal(Math.round(heardAt(5, { now: 0, currentTime: 5 })), 0)
 })
 
-test('the demo and a file wait until the kick is heard, and flash at once when that has passed; the mic and a tab flash on arrival', () => {
+test('the demo and a file wait until the kick is heard, behind the speakers\' hold, and flash at once when that has passed; the mic and a tab flash on arrival', () => {
   assert.deepEqual([...STROBE_SOURCES], ['demo', 'file', 'mic', 'tab'])
   assert.deepEqual(STROBE_SOURCES.filter(playsInPage), ['demo', 'file'])
   const clock = { now: 1000, currentTime: 2, baseLatency: 0.005, outputLatency: 0.02 }
-  assert.equal(Math.round(flashTimeFor('demo', 1.99, clock)), 1015)
-  assert.equal(Math.round(flashTimeFor('file', 1.99, clock)), 1015)
-  assert.equal(flashTimeFor('demo', 1.9, clock), 1000, 'already heard: at once')
+  const held = SPEAKER_DELAY_MS
+  assert.equal(Math.round(flashTimeFor('demo', 1.99, clock)), 1015 + held)
+  assert.equal(Math.round(flashTimeFor('file', 1.99, clock)), 1015 + held)
+  assert.equal(flashTimeFor('demo', 2 - 0.025 - held / 1000 - 0.05, clock), 1000, 'already heard: at once')
   assert.equal(flashTimeFor('mic', 1.99, clock), 1000)
   assert.equal(flashTimeFor('tab', 1.99, clock), 1000)
+})
+
+test('the speakers are held back longer than the kick event takes to arrive, so a song\'s light lands on its kick', () => {
+  // Measured on RBA-237 in Chromium, with the CPU slowed too: the event comes 46 to 62 ms after
+  // the kick, and the light shows it on the next frame. The hold covers both with room to spare,
+  // and stays short enough that Start still feels immediate.
+  assert.ok(SPEAKER_DELAY_MS >= 62 + 17 + 20, `${SPEAKER_DELAY_MS} ms`)
+  assert.ok(SPEAKER_DELAY_MS <= 150, `${SPEAKER_DELAY_MS} ms`)
 })
 
 test('a kick waiting for its time flashes on the frame it is heard, never before', () => {

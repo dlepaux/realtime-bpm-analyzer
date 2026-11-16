@@ -98,9 +98,18 @@ export function heardAt(contextTime: number, clock: AudioClock): number {
   return clock.now + (contextTime + latency - clock.currentTime) * 1000
 }
 
+/**
+ * How long the demo and a song are held back on their way to the speakers, in ms; the analyzer
+ * hears them at once. The library's kick event comes 46 to 62 ms after the kick (measured on
+ * RBA-237), so without the hold the light would always trail the sound. With it the event is early,
+ * and the light waits for the kick to be heard. Long enough for a slower device, short enough that
+ * Start still feels immediate.
+ */
+export const SPEAKER_DELAY_MS = 120
+
 /** When the light should show a kick: when it is heard from the page, at once if that has passed. */
 export function flashTimeFor(source: StrobeSource, contextTime: number, clock: AudioClock): number {
-  return playsInPage(source) ? Math.max(clock.now, heardAt(contextTime, clock)) : clock.now
+  return playsInPage(source) ? Math.max(clock.now, heardAt(contextTime + SPEAKER_DELAY_MS / 1000, clock)) : clock.now
 }
 
 // ── The cap ─────────────────────────────────────────────────────────────────────────────────

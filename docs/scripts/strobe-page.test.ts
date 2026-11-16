@@ -111,9 +111,16 @@ test('the demo and a song wait for the moment the kick is heard; the mic and a t
   assert.match(SCRIPT, /strobe = addKick\(strobe, at, strength\)/)
   // The spectrogram marks each kick at the same time the light shows it.
   assert.match(SCRIPT, /marks = \[\.\.\.marks, at\]/)
-  // The mic and the tab are never played back; the demo and a song go to the speakers.
-  assert.match(SCRIPT, /player\.connect\(context\.destination\)/)
+  // The mic and the tab are never played back. The demo and a song reach the speakers through a
+  // hold of SPEAKER_DELAY_MS, the spectrogram shows them as heard, and the analyzer hears them first.
   assert.doesNotMatch(SCRIPT, /input\.connect\(context\.destination\)/)
+  assert.doesNotMatch(SCRIPT, /player\.connect\(context\.destination\)/)
+  assert.match(SCRIPT, /const speakers = context\.createDelay\(1\)\s+speakers\.delayTime\.value = SPEAKER_DELAY_MS \/ 1000/)
+  assert.match(SCRIPT, /player\.connect\(speakers\)/)
+  assert.match(SCRIPT, /speakers\.connect\(context\.destination\)/)
+  assert.match(SCRIPT, /speakers\.connect\(analyser\)/)
+  assert.match(SCRIPT, /player\.connect\(analyzer\.input\)/)
+  assert.doesNotMatch(SCRIPT, /player\.connect\(analyser\)/)
 })
 
 test('a song dropped anywhere on the setup is chosen, and the drop target has a keyboard way in', () => {

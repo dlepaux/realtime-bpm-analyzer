@@ -17,6 +17,7 @@ import {
   EVERY_KICK_UP_TO_BPM,
   IDLE,
   RESTART_GUARD_MS,
+  SPEAKER_DELAY_MS,
   STAGE_COLOR,
   addKick,
   flashAnimation,
@@ -254,11 +255,16 @@ function connect(gen: number, held: Session, buffer: AudioBuffer | null, liveInp
     liveInput?.addEventListener('ended', () => void stopIf(gen))
     return
   }
+  // The analyzer hears the song first, and the speakers SPEAKER_DELAY_MS later, so each kick's
+  // event arrives before the kick is heard and the light can land on it (see flashTimeFor).
+  const speakers = context.createDelay(1)
+  speakers.delayTime.value = SPEAKER_DELAY_MS / 1000
   const player = context.createBufferSource()
   player.buffer = buffer
-  player.connect(context.destination)
+  player.connect(speakers)
+  speakers.connect(context.destination)
+  speakers.connect(analyser)
   player.connect(analyzer.input)
-  player.connect(analyser)
   player.addEventListener('ended', () => void stopIf(gen, 'The track ended.'))
   held.player = player
   player.start()

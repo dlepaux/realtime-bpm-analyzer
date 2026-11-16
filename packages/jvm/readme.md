@@ -7,21 +7,23 @@ and later, so it fits Minecraft mods (Fabric and Forge), Android and Kotlin.
 
 ## Install
 
-**Not published yet.** The coordinates are `io.github.dlepaux:realtime-bpm-analyzer`, and the first release on
-Maven Central will be 6.2.0. Until it is there, build it from this folder and install it into your local Maven
-repository:
-
-```bash
-./mvnw install
-```
-
-Then depend on it from Gradle (with `mavenLocal()` among the repositories) or Maven:
+It is on Maven Central as `io.github.dlepaux:realtime-bpm-analyzer`. With Gradle:
 
 ```kotlin
 implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")
 ```
 
-The build needs JDK 11 or later; the jar it makes runs on Java 8.
+Or with Maven:
+
+```xml
+<dependency>
+  <groupId>io.github.dlepaux</groupId>
+  <artifactId>realtime-bpm-analyzer</artifactId>
+  <version>6.2.0</version>
+</dependency>
+```
+
+The jar runs on Java 8 and later. Building it from this folder (`./mvnw install`) needs JDK 11 or later.
 
 ## Versions
 

@@ -14,9 +14,6 @@ readings of 140 cases, plus 8 that must fail, and the port's tests compare every
 pip install realtime-bpm-analyzer
 ```
 
-> **Not on PyPI before 6.2.0.** The first release, 6.2.0, reaches PyPI with the JS library's 6.2.0. If `pip` can't
-> find it yet, build it from a clone of the repository with `pip install ./packages/python`.
-
 It needs Python 3.11 or later and NumPy 1.26 or later, and has no native code of its own.
 
 ## Versions

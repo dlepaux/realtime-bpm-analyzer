@@ -239,7 +239,7 @@ export default defineConfig({
 
     pageData.frontmatter.head ??= []
     // A guide whose package isn't published yet stays unindexed (UNPUBLISHED_GUIDES in
-    // tools/site-schema.ts: the Java and Python guides, until their ports are on Maven Central and PyPI).
+    // tools/site-schema.ts, empty since the Java and Python ports reached Maven Central and PyPI).
     if (isUnpublishedGuide(pageData.relativePath)) {
       pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
     }
@@ -314,6 +314,8 @@ export default defineConfig({
             { text: 'BPM Detection in Node.js', link: '/guide/node' },
             { text: 'BPM Detection from the Command Line', link: '/guide/cli' },
             { text: 'MCP Server for AI Assistants', link: '/guide/mcp' },
+            { text: 'BPM Detection in Java, Kotlin and Android', link: '/guide/java' },
+            { text: 'BPM Detection in Python', link: '/guide/python' },
             { text: 'Migration Guide (v5 → v6)', link: '/guide/migration-v6' },
             { text: 'Migration Guide (v4 → v5)', link: '/guide/migration-v5' }
           ]

@@ -133,12 +133,12 @@ export function siteGraph(relativePath: string): object[] {
 
 /**
  * Guides for packages that aren't published yet. Their pages are noindex and out of the
- * sitemap, the sidebar, the search and llms.txt (RBA-122). The CLI and MCP guides left this
- * list when both packages reached npm (contributing.md, "First publish of v6", step 13). The
- * Java guide stays on it until the Java port is on Maven Central (RBA-256), the Python guide
- * until the Python port is on PyPI (RBA-257): contributing.md, "First publish of the 6.2 ports".
+ * sitemap, the sidebar, the search and llms.txt (RBA-122). Empty since the Java and Python
+ * ports reached Maven Central and PyPI (contributing.md, "First publish of the 6.2 ports",
+ * step 8), as the CLI and MCP guides left it when both reached npm ("First publish of v6",
+ * step 13). The machinery stays for a future package whose guide lands before its release.
  */
-export const UNPUBLISHED_GUIDES: readonly string[] = ['guide/java', 'guide/python']
+export const UNPUBLISHED_GUIDES: readonly string[] = []
 
 /** A page's path without its leading slash, `.md` or `.html`: `guide/cli`. */
 function pagePath(urlOrSource: string): string {

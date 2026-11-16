@@ -49,6 +49,7 @@ The examples are organized by framework and use case:
 - Uses `getBiquadFilter()` for audio processing
 - Connection: `source → filter → analyzer.node → destination`
 - Listens for `bpmStable` event
+- Starts on a bundled 128 BPM click track, so it plays from a clean clone. A stream from another site needs CORS headers, and terms that allow other websites to play it
 
 ### 3. Microphone Input (`createRealtimeBpmAnalyzer` + MediaStreamSource)
 

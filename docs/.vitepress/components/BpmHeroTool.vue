@@ -112,7 +112,8 @@ const micStream = shallowRef<MediaStream | null>(null)
 const micAnalyzer = shallowRef<BpmAnalyzer | null>(null)
 
 // ─── Stream ──────────────────────────────────────────────────────────────
-const streamUrl = ref('https://ice1.somafm.com/defcon-128-mp3')
+// Prefilled from the presets, so the default is always a station whose terms were read (RBA-245).
+const streamUrl = ref(STATIONS[0]?.url ?? '')
 const streamStatus = ref<Status>('idle')
 const streamLiveBpm = ref<number | null>(null)
 const streamStableBpm = ref<number | null>(null)
@@ -1060,7 +1061,10 @@ function formatDuration(seconds: number): string {
             >
               Analyse stream
             </button>
-            <div class="bpm-stream-hint">
+            <div
+              v-if="STATIONS.length"
+              class="bpm-stream-hint"
+            >
               Or try a station:
               <template
                 v-for="(station, index) in STATIONS"
@@ -1155,10 +1159,10 @@ function formatDuration(seconds: number): string {
               Try again
             </button>
             <div
-              v-if="streamInput === 'url'"
+              v-if="streamInput === 'url' && STATIONS.length"
               class="bpm-stream-hint"
             >
-              Stations that work here:
+              {{ STATIONS.length === 1 ? 'A station that works here:' : 'Stations that work here:' }}
               <template
                 v-for="(station, index) in STATIONS"
                 :key="station.url"

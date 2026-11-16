@@ -9,7 +9,7 @@ Analyze the BPM of live audio streams like radio stations or online music servic
 
 ## Live Demo
 
-Try the interactive demo below - this is the **actual vanilla JavaScript streaming example** running. Paste any audio stream URL to analyze it!
+Try the interactive demo below - this is the **actual vanilla JavaScript streaming example** running. It starts on a 128 BPM click track that it serves itself. Paste another audio URL to analyze it: its server must send CORS headers, and its terms must allow other websites to play it.
 
 <ExampleEmbed example="02-vanilla-streaming" height="550px" />
 

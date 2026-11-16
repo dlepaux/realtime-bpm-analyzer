@@ -88,8 +88,9 @@ test('every stop path releases its source: the demo, a song, the mic and the sha
   // A device or a buffer that arrives after a stop is released, not kept.
   assert.ok(count(SCRIPT, /if \(gen !== generation\) return release\(held\)/) >= 4, 'checked after each await')
   // A source that ends by itself stops the light: the track's end, the mic unplugged, the share stopped.
-  assert.match(SCRIPT, /player\.addEventListener\('ended', \(\) => void stopIf\(gen, 'The track ended\.'\)\)/)
-  assert.match(SCRIPT, /liveInput\?\.addEventListener\('ended', \(\) => void stopIf\(gen\)\)/)
+  assert.match(SCRIPT, /player\.addEventListener\('ended', \(\) => setTimeout\(\(\) => void stopIf\(gen, 'The track ended\.'\), SPEAKER_DELAY_MS\)\)/)
+  // The live track's end is heard from the moment it opens, before the analyzer is ready.
+  assert.match(SCRIPT, /held\.stream = asking \? await asking : null\n    if \(gen !== generation\) return release\(held\)\n[^\n]*\n    held\.stream\?\.getAudioTracks\(\)\[0\]\?\.addEventListener\('ended', \(\) => void stopIf\(gen, 'The sound stopped\.'\)\)/)
 })
 
 test('another tab: its video is stopped at once, this tab stays in front, and a share with no sound says so', () => {
@@ -107,10 +108,10 @@ test('another tab: its video is stopped at once, this tab stays in front, and a 
 })
 
 test('the demo and a song wait for the moment the kick is heard; the mic and a tab flash on arrival', () => {
-  assert.match(SCRIPT, /const at = flashTimeFor\(chosen, contextTime, \{ now: performance\.now\(\), currentTime: context\.currentTime, baseLatency: context\.baseLatency, outputLatency: context\.outputLatency \}\)/)
-  assert.match(SCRIPT, /strobe = addKick\(strobe, at, strength\)/)
-  // The spectrogram marks each kick at the same time the light shows it.
-  assert.match(SCRIPT, /marks = \[\.\.\.marks, at\]/)
+  assert.match(SCRIPT, /const clock = \{ now: performance\.now\(\), currentTime: context\.currentTime, baseLatency: context\.baseLatency, outputLatency: context\.outputLatency \}/)
+  assert.match(SCRIPT, /strobe = addKick\(strobe, flashTimeFor\(chosen, contextTime, clock\), strength\)/)
+  // The spectrogram marks each kick at its own time on the spectrogram's clock.
+  assert.match(SCRIPT, /marks = \[\.\.\.marks, markTimeFor\(chosen, contextTime, clock\)\]/)
   // The mic and the tab are never played back. The demo and a song reach the speakers through a
   // hold of SPEAKER_DELAY_MS, the spectrogram shows them as heard, and the analyzer hears them first.
   assert.doesNotMatch(SCRIPT, /input\.connect\(context\.destination\)/)
@@ -247,9 +248,9 @@ test('a failed start is announced, and a library fault stops the light and says 
   assert.match(SCRIPT, /if \(chosen === 'file' && !file\) \{\n    error\.value = 'Choose or drop a song first\.'/)
 })
 
-test('a held Enter on Start does not start it again and again', () => {
-  assert.match(TEMPLATE, /ref="startButton"[\s\S]{0,300}@keydown\.enter="onStartKey"/)
-  assert.match(SCRIPT, /function onStartKey\(event: KeyboardEvent\) \{\n  if \(event\.repeat\) event\.preventDefault\(\)/)
+test('a held Enter or Space on Start does not start it again: every key down on Start goes through startKeyHeld', () => {
+  assert.match(TEMPLATE, /ref="startButton"[\s\S]{0,300}@keydown="onStartKey"/)
+  assert.match(SCRIPT, /function onStartKey\(event: KeyboardEvent\) \{\n  if \(startKeyHeld\(event\)\) event\.preventDefault\(\)/)
 })
 
 // ── The page ────────────────────────────────────────────────────────────────────────────────

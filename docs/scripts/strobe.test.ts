@@ -19,6 +19,8 @@ import {
   addKick,
   flashAnimation,
   flashTimeFor,
+  markTimeFor,
+  startKeyHeld,
   SPEAKER_DELAY_MS,
   heardAt,
   initialStyle,
@@ -32,6 +34,7 @@ import {
   stop,
   type Strobe,
 } from '../.vitepress/tools/strobe.ts'
+import { FRAME_BUDGET_MS } from '../.vitepress/tools/spectrogram.ts'
 
 /** A small seeded generator, so a failing case can be replayed from its seed. */
 function random(seed: number) {
@@ -238,10 +241,10 @@ test('the demo and a file wait until the kick is heard, behind the speakers\' ho
 })
 
 test('the speakers are held back longer than the kick event takes to arrive, so a song\'s light lands on its kick', () => {
-  // Measured on RBA-237 in Chromium, with the CPU slowed too: the event comes 46 to 62 ms after
-  // the kick, and the light shows it on the next frame. The hold covers both with room to spare,
-  // and stays short enough that Start still feels immediate.
-  assert.ok(SPEAKER_DELAY_MS >= 62 + 17 + 20, `${SPEAKER_DELAY_MS} ms`)
+  // Measured on RBA-237 in Chromium: the event reaches the page 13 to 18 ms of audio time after
+  // the kick, and the light shows it on a frame (up to 17 ms). The hold covers both several times
+  // over, for a busier device, and stays short enough that Start still feels immediate.
+  assert.ok(SPEAKER_DELAY_MS >= 3 * (18 + 17), `${SPEAKER_DELAY_MS} ms`)
   assert.ok(SPEAKER_DELAY_MS <= 150, `${SPEAKER_DELAY_MS} ms`)
 })
 
@@ -334,4 +337,37 @@ test('reduced motion starts on the soft pulse, and the pulse is soft and slow', 
     assert.ok(attackMs + decayMs < MIN_GAP_MS, style)
   }
   assert.ok(flashAnimation('flash', 1, 500).peakOpacity > flashAnimation('flash', 0.5, 500).peakOpacity, 'a stronger kick is brighter')
+})
+
+test('a key held through a stop never presses Start: the repeats of Enter and Space are refused, a fresh press is not', () => {
+  // Space stops the light and focus returns to Start; the key's repeats then land on Start, and
+  // a button clicks on Space's release, so each repeat must be refused, not only Enter's.
+  assert.equal(startKeyHeld({ key: ' ', repeat: true }), true)
+  assert.equal(startKeyHeld({ key: 'Enter', repeat: true }), true)
+  assert.equal(startKeyHeld({ key: ' ', repeat: false }), false)
+  assert.equal(startKeyHeld({ key: 'Enter', repeat: false }), false)
+  assert.equal(startKeyHeld({ key: 'Tab', repeat: true }), false, 'moving on stays possible')
+})
+
+test('a kick\'s mark sits at its own time: back in the past for the mic and a tab, after the hold for a song', () => {
+  const clock = { now: 1000, currentTime: 2, baseLatency: 0.005, outputLatency: 0.02 }
+  assert.equal(Math.round(markTimeFor('mic', 1.98, clock)), 980)
+  assert.equal(Math.round(markTimeFor('tab', 1.98, clock)), 980)
+  assert.equal(Math.round(markTimeFor('demo', 1.98, clock)), 980 + SPEAKER_DELAY_MS)
+  assert.equal(Math.round(markTimeFor('file', 1.98, clock)), 980 + SPEAKER_DELAY_MS)
+})
+
+test('the light\'s work per frame stays far inside the frame budget, with every queue full', () => {
+  let state = start(IDLE)
+  let at = 0
+  const rounds = 4000
+  const began = performance.now()
+  for (let i = 0; i < rounds; i++) {
+    at += 90 + (i % 7) * 40
+    state = addKick(state, at, 0.8)
+    state = step(state, at + 5).state
+  }
+  const perFrame = (performance.now() - began) / rounds
+  // Five times the cost of a frame's step and kick, still under a tenth of the page's budget.
+  assert.ok(perFrame * 5 < FRAME_BUDGET_MS / 10, `${perFrame.toFixed(4)} ms a frame`)
 })

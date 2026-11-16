@@ -15,6 +15,13 @@ export const DEMO_SECONDS = (INTRO_BARS + BREAKDOWN_BARS + DROP_BARS) * BAR
 /** The reverb-free tail after the last bar, so the last kick and the pad ring out. */
 const TAIL_SECONDS = 1.5
 
+/**
+ * Peak levels before the master gain. The bass shares the kick's band (30 to 150 Hz) on the
+ * offbeats, so it stays well under the kick: the library takes a jump within 6 dB of the loudest
+ * recent kick for a kick, and the score's kicks are the measurement's ground truth.
+ */
+export const DEMO_LEVELS = { kick: 1, bass: 0.32 } as const
+
 /** The kick's pitch sweep: a click at its top, the body at its bottom, all under 150 Hz. */
 export const KICK_HZ = [150, 48] as const
 
@@ -105,7 +112,7 @@ function kick(context: DemoContext, out: Gain, time: number) {
   body.type = 'sine'
   body.frequency.setValueAtTime(KICK_HZ[0], time)
   body.frequency.exponentialRampToValueAtTime(KICK_HZ[1], time + 0.11)
-  const amp = envelope(context, time, 1, 0.002, time + 0.42)
+  const amp = envelope(context, time, DEMO_LEVELS.kick, 0.002, time + 0.42)
   link(body, amp)
   link(amp, out)
   body.start(time)
@@ -171,7 +178,7 @@ export function renderDemo<R>(context: DemoContext<R>, score: DemoScore = demoSc
   for (const time of score.claps) {
     noise(context, buffer, time, 0.25, filter(context, 'bandpass', 1400, 1.2), envelope(context, time, 0.5, 0.004, time + 0.22), master)
   }
-  for (const note of score.bass) synth(context, master, note, 'sawtooth', 0, 420, 0.32, 0.012)
+  for (const note of score.bass) synth(context, master, note, 'sawtooth', 0, 420, DEMO_LEVELS.bass, 0.012)
   for (const note of score.pad) {
     for (const detune of [-9, 9]) synth(context, master, note, 'sawtooth', detune, 1500, 0.05, note.time >= score.breakdown.end ? 0.02 : 0.6)
   }

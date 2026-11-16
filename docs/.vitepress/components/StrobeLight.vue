@@ -24,6 +24,8 @@ import {
   flashTimeFor,
   initialStyle,
   isTooSoonAfterStop,
+  markTimeFor,
+  startKeyHeld,
   start as strobeStart,
   step,
   stop as strobeStop,
@@ -133,7 +135,9 @@ function drawSpectrogram(now: number) {
     context.drawImage(canvas.value, -pixels, 0)
     analyser.getByteFrequencyData(levels)
     paintColumn(levels, rows, column.data)
-    for (let x = SPECTROGRAM_WIDTH - pixels; x < SPECTROGRAM_WIDTH; x++) context.putImageData(column, x, 0)
+    // One column painted, then stretched over the rest: one put and one copy, however long the frame.
+    context.putImageData(column, SPECTROGRAM_WIDTH - 1, 0)
+    if (pixels > 1) context.drawImage(canvas.value, SPECTROGRAM_WIDTH - 1, 0, 1, SPECTROGRAM_HEIGHT, SPECTROGRAM_WIDTH - pixels, 0, pixels - 1, SPECTROGRAM_HEIGHT)
   }
   context.fillStyle = KICK_MARK
   while (marks.length && (marks[0] as number) <= now) {
@@ -195,6 +199,8 @@ async function openSource(gen: number, held: Session, chosen: StrobeSource, aski
   try {
     held.stream = asking ? await asking : null
     if (gen !== generation) return release(held)
+    // From now: the mic unplugged or the share stopped, even while the analyzer still loads.
+    held.stream?.getAudioTracks()[0]?.addEventListener('ended', () => void stopIf(gen, 'The sound stopped.'))
     const buffer = held.stream ? null : chosen === 'demo' ? await renderDemoTrack(held.context.sampleRate) : await decode(held.context, file)
     if (gen !== generation) return release(held)
     const { createRealtimeBpmAnalyzer } = await import('realtime-bpm-analyzer')
@@ -208,7 +214,7 @@ async function openSource(gen: number, held: Session, chosen: StrobeSource, aski
     held.analyzer = analyzer
     if (gen !== generation) return release(held)
     listen(gen, held, chosen, analyzer)
-    connect(gen, held, buffer, liveInput)
+    connect(gen, held, buffer)
     preparing.value = false
   } catch (failure) {
     release(held)
@@ -223,9 +229,9 @@ function listen(gen: number, held: Session, chosen: StrobeSource, analyzer: BpmA
   analyzer.on('kick', ({ contextTime, strength }) => {
     if (gen !== generation) return
     const { context } = held
-    const at = flashTimeFor(chosen, contextTime, { now: performance.now(), currentTime: context.currentTime, baseLatency: context.baseLatency, outputLatency: context.outputLatency })
-    strobe = addKick(strobe, at, strength)
-    marks = [...marks, at].slice(-32)
+    const clock = { now: performance.now(), currentTime: context.currentTime, baseLatency: context.baseLatency, outputLatency: context.outputLatency }
+    strobe = addKick(strobe, flashTimeFor(chosen, contextTime, clock), strength)
+    marks = [...marks, markTimeFor(chosen, contextTime, clock)].slice(-32)
   })
   analyzer.on('reading', (reading) => {
     if (gen === generation && analyzer.state.status === 'locked') tempo.value = reading.bpm
@@ -239,7 +245,7 @@ function listen(gen: number, held: Session, chosen: StrobeSource, analyzer: BpmA
 }
 
 /** Wires the source to the analyzer and the spectrogram; a song also to the speakers, and plays it. */
-function connect(gen: number, held: Session, buffer: AudioBuffer | null, liveInput: MediaStreamTrack | undefined) {
+function connect(gen: number, held: Session, buffer: AudioBuffer | null) {
   const { context } = held
   const analyzer = held.analyzer as BpmAnalyzer
   const analyser = context.createAnalyser()
@@ -252,7 +258,6 @@ function connect(gen: number, held: Session, buffer: AudioBuffer | null, liveInp
     const input = context.createMediaStreamSource(held.stream)
     input.connect(analyzer.input)
     input.connect(analyser)
-    liveInput?.addEventListener('ended', () => void stopIf(gen))
     return
   }
   // The analyzer hears the song first, and the speakers SPEAKER_DELAY_MS later, so each kick's
@@ -265,7 +270,8 @@ function connect(gen: number, held: Session, buffer: AudioBuffer | null, liveInp
   speakers.connect(context.destination)
   speakers.connect(analyser)
   player.connect(analyzer.input)
-  player.addEventListener('ended', () => void stopIf(gen, 'The track ended.'))
+  // The speakers are SPEAKER_DELAY_MS behind the player: the stop waits for them to finish.
+  player.addEventListener('ended', () => setTimeout(() => void stopIf(gen, 'The track ended.'), SPEAKER_DELAY_MS))
   held.player = player
   player.start()
 }
@@ -409,9 +415,9 @@ function stopFromTap() {
   void stopAndRefocus()
 }
 
-// A held Enter repeats onto Start once a stop returns focus there: only a fresh press starts it.
+// A key held through a stop repeats onto Start once focus returns there: only a fresh press starts it.
 function onStartKey(event: KeyboardEvent) {
-  if (event.repeat) event.preventDefault()
+  if (startKeyHeld(event)) event.preventDefault()
 }
 
 /** Every stop path: halts, then gives the keyboard back to the Start button. */
@@ -716,10 +722,10 @@ onBeforeUnmount(() => {
           type="button"
           class="tt-btn tt-btn-primary strobe-start"
           :aria-describedby="error ? 'strobe-error strobe-warning' : 'strobe-warning'"
-          @keydown.enter="onStartKey"
+          @keydown="onStartKey"
           @click="startFromClick"
         >
-          <Zap :size="20" /> Start the strobe
+          <Zap :size="20" aria-hidden="true" /> Start the strobe
         </button>
       </div>
       <p class="tt-hint">
@@ -782,7 +788,7 @@ onBeforeUnmount(() => {
             class="tt-btn tt-btn-primary strobe-stop"
             @click="stopAndRefocus"
           >
-            <Square :size="20" /> Stop
+            <Square :size="20" aria-hidden="true" /> Stop
           </button>
           <button
             v-if="canFullscreen"
@@ -790,7 +796,7 @@ onBeforeUnmount(() => {
             class="tt-btn"
             @click="enterFullscreen"
           >
-            <Maximize :size="16" /> Full screen
+            <Maximize :size="16" aria-hidden="true" /> Full screen
           </button>
         </div>
       </div>
@@ -863,7 +869,9 @@ onBeforeUnmount(() => {
   color: var(--vp-c-text-2);
 }
 
-.strobe-note:empty { display: none; }
+.strobe-note:empty:not([role='status']) { display: none; }
+/* The status line stays in the page while empty, so a screen reader hears it when it fills. */
+.strobe-note[role='status']:empty { margin: 0; }
 
 .strobe-error { color: var(--vp-c-danger-1); }
 

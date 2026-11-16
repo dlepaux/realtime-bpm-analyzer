@@ -4,7 +4,7 @@
 // the renderer plays a kick at each of the score's times and nowhere else.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { DEMO_BPM, DEMO_SECONDS, KICK_HZ, demoScore, renderDemo, type DemoContext } from '../.vitepress/tools/demo-track.ts'
+import { DEMO_BPM, DEMO_LEVELS, DEMO_SECONDS, KICK_HZ, demoScore, renderDemo, type DemoContext } from '../.vitepress/tools/demo-track.ts'
 
 const BEAT = 60 / DEMO_BPM
 const score = demoScore()
@@ -21,7 +21,11 @@ test('about 30 s: an intro with a kick on every beat, a breakdown with none, the
   assert.deepEqual([...score.kicks].sort((a, b) => a - b), [...score.kicks], 'in order')
 })
 
-test('nothing else in the score sits under a kick in the detector\'s band: the bass plays the offbeats', () => {
+test('the bass, the only other part in the detector\'s band, plays the offbeats and stays well under the kick', () => {
+  // A sawtooth's fundamental is 2/π of its peak; the library takes a jump within 6 dB of the
+  // loudest recent kick for a kick, so the bass keeps at least 8 dB under it.
+  const db = 20 * Math.log10((DEMO_LEVELS.bass * 2) / Math.PI / DEMO_LEVELS.kick)
+  assert.ok(db <= -8, `the bass is ${db.toFixed(1)} dB under the kick`)
   for (const note of score.bass) {
     const offbeat = (note.time / BEAT) % 1
     assert.ok(Math.abs(offbeat - 0.5) < 1e-9, `bass at ${note.time}`)

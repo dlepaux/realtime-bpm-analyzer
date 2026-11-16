@@ -152,7 +152,7 @@ export function clickKind(tick: number, beatsPerBar: number, subdivision: number
   return Math.floor(tick / subdivision) % beatsPerBar === 0 ? 'accent' : 'beat'
 }
 
-// ── Shared by the metronome and the strobe light (RBA-237) ─────────────────────────────────────
+// ── The metronome's beat grid ─────────────────────────────────────────────────────────────────
 
 /** One tick of a beat grid: its index from the start, and when it falls on the caller's clock. */
 export interface TickCursor {
@@ -165,8 +165,8 @@ export const MAX_TICKS_PER_CALL = 256
 
 /**
  * The ticks due before `horizon`, `step` apart from `cursor`, and the cursor after them. The
- * metronome books them on the audio clock a little ahead; the strobe reads them on the page's
- * clock each frame. Units are the caller's (seconds or ms), as long as all three agree.
+ * metronome books them on the audio clock a little ahead. Units are the caller's (seconds or
+ * ms), as long as all three agree.
  */
 export function ticksBefore(cursor: TickCursor, horizon: number, step: number): { due: TickCursor[]; next: TickCursor } {
   if (!(step > 0) || !Number.isFinite(step)) throw new RangeError(`ticksBefore: step must be a positive number, got ${step}`)

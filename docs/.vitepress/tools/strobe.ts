@@ -70,6 +70,15 @@ export function isTooSoonAfterStop(stoppedAt: number | null, at: number): boolea
   return stoppedAt !== null && at - stoppedAt < RESTART_GUARD_MS
 }
 
+/**
+ * A key held through a stop: Space or Esc stops the light and focus returns to Start, where the
+ * key's repeats land. A button clicks on Space's release, so every repeat of Space and Enter is
+ * refused there, and only a fresh press starts it.
+ */
+export function startKeyHeld(event: { key: string; repeat: boolean }): boolean {
+  return event.repeat && (event.key === ' ' || event.key === 'Enter')
+}
+
 // ── Sources and timing ──────────────────────────────────────────────────────────────────────
 
 /** Where the music comes from. Analytics counts the starts by these ids. */
@@ -100,12 +109,23 @@ export function heardAt(contextTime: number, clock: AudioClock): number {
 
 /**
  * How long the demo and a song are held back on their way to the speakers, in ms; the analyzer
- * hears them at once. The library's kick event comes 46 to 62 ms after the kick (measured on
- * RBA-237), so without the hold the light would always trail the sound. With it the event is early,
- * and the light waits for the kick to be heard. Long enough for a slower device, short enough that
+ * hears them at once. The library's kick event reaches the page 13 to 18 ms of audio time after
+ * the kick (measured on RBA-237), and a busy main thread adds to that, so without the hold the
+ * light would trail the sound. With it the event comes early, and the light waits for the kick to
+ * be heard: measured, it lands within a frame. Generous for a slower device, and short enough that
  * Start still feels immediate.
  */
 export const SPEAKER_DELAY_MS = 120
+
+/**
+ * Where a kick sits on the spectrogram's clock, in performance.now() ms: when its sound reaches
+ * the analyser that paints it, the hold's output for the demo and a song, the input otherwise.
+ * Earlier than `now` for the mic and a tab: the mark goes back to the kick's own time.
+ */
+export function markTimeFor(source: StrobeSource, contextTime: number, clock: AudioClock): number {
+  const held = playsInPage(source) ? SPEAKER_DELAY_MS / 1000 : 0
+  return clock.now + (contextTime + held - clock.currentTime) * 1000
+}
 
 /** When the light should show a kick: when it is heard from the page, at once if that has passed. */
 export function flashTimeFor(source: StrobeSource, contextTime: number, clock: AudioClock): number {

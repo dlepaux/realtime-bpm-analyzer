@@ -46,6 +46,13 @@ export const maxBpmRange = 180;
 export const peakSkipDuration = 0.25;
 
 /**
+ * The lowest sample rate, in Hz, the peaks engine runs at: the lowest at which {@link peakSkipDuration} rounds to at
+ * least one sample (`Math.round(0.25 * 2)` is 1). Under it the skip after a peak is no sample, and 6.1.0's peak
+ * search found the same peak forever (RBA-260).
+ */
+export const peaksMinSampleRate = 2;
+
+/**
  * Maximum number of interval comparisons per peak
  * @remarks
  * When analyzing intervals between peaks, we compare each peak with the next N peaks.

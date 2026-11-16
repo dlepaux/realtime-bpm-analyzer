@@ -16,6 +16,7 @@ import type {TempogramTuning} from './tempogram';
 import {PeaksEngine} from './peaks-engine';
 import {kindOf, resolveLowpass} from './lowpass';
 import type {Tempo} from './types';
+import * as consts from './consts';
 
 /** What one engine measured in one analysis step, before the tracker turns it into a status */
 export type EngineStep = {
@@ -259,7 +260,8 @@ export function resolveEngine(engine: EngineOption | undefined, tempoRange: Temp
  * @param engine The caller's option, {@link defaultEngine} when absent
  * @param sampleRate The rate of the samples, which bounds the lowpass frequency
  * @returns The engine name, and the lowpass settings for `peaks`
- * @throws {RangeError} When the engine is unknown, or a lowpass value is out of range (see {@link resolveLowpass})
+ * @throws {RangeError} When the engine is unknown, the sample rate is under 2 Hz for `peaks`, or a lowpass value is out
+ * of range (see {@link resolveLowpass})
  * @throws {TypeError} When the engine object carries a key other than `name` and `lowpass`, or `lowpass` is not an
  * object, `null` or `undefined`, carries a key other than `frequency` and `q`, or holds a setting that is not a number
  */
@@ -269,7 +271,12 @@ export function resolveOfflineEngine(
 ): {name: EngineName; lowpass: LowpassOption} {
   const value: unknown = engine ?? defaultEngine;
 
-  if (value === 'peaks' || value === 'tempogram') {
+  if (value === 'tempogram') {
+    return {name: value, lowpass: {}};
+  }
+
+  if (value === 'peaks') {
+    assertPeaksSampleRate(sampleRate);
     return {name: value, lowpass: {}};
   }
 
@@ -278,11 +285,27 @@ export function resolveOfflineEngine(
   }
 
   assertEngineKeys(value, 'offline', engineKeys.offline.peaks);
+  assertPeaksSampleRate(sampleRate);
   // Checked here, before the costly filtering, with the same rules every lowpass path applies
   const {lowpass} = value;
   resolveLowpass(lowpass, sampleRate);
   const settings = (lowpass ?? {}) as LowpassOption;
   return {name: 'peaks', lowpass: {frequency: settings.frequency, q: settings.q}};
+}
+
+/**
+ * The peaks engine's own floor, checked before the costly filtering. The search itself refuses the same rates (see
+ * `findPeaksAtThreshold`), so this only makes the error come first.
+ * @param sampleRate The rate of the samples
+ * @throws {RangeError} When the rate is under {@link consts.peaksMinSampleRate}, `NaN` included
+ */
+function assertPeaksSampleRate(sampleRate: number): void {
+  if (!(sampleRate >= consts.peaksMinSampleRate)) {
+    throw new RangeError(
+      `Invalid sample rate: ${sampleRate}. The peaks engine needs at least ${consts.peaksMinSampleRate} Hz, `
+        + 'where the skip after a peak is a whole sample.',
+    );
+  }
 }
 
 /**

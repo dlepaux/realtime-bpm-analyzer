@@ -254,6 +254,21 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {tempoRange: {min: 60, max: 120, mni: 50}}), {name: 'TypeError', message: / mni/});
     await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {engine: {name: 'peaks', lowpass: {frequency: Number.NaN}}}), RangeError);
   });
+
+  // RBA-260: under 2 Hz the 0.25 s skip after a peak rounds to no sample, and 6.1.0's peak search never advanced
+  it('refuses a sample rate under 2 Hz for peaks, where the skip after a peak rounds to no sample, and runs at 2 Hz', async () => {
+    const clicks = createClickTrack(120, 2, 60);
+    const lowpass = {frequency: 0.2};
+    for (const sampleRate of [1.99, 1, 0.5]) {
+      await assert.rejects(analyzeChannelData(clicks, sampleRate, {engine: {name: 'peaks', lowpass}}), {
+        name: 'RangeError',
+        message: new RegExp(`Invalid sample rate: ${sampleRate}\\. The peaks engine needs at least 2 Hz`),
+      });
+    }
+
+    await analyzeChannelData(clicks, 2, {engine: {name: 'peaks', lowpass}});
+  });
+
 });
 
 describe('applyLowpass', hangLimit, () => {

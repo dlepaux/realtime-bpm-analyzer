@@ -9,7 +9,7 @@ Analyze the BPM of live audio streams like radio stations or online music servic
 
 ## Live Demo
 
-Try the interactive demo below - this is the **actual vanilla JavaScript streaming example** running. Paste any audio stream URL to analyze it! It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
+Try the interactive demo below - this is the **actual vanilla JavaScript streaming example** running. It starts on a 128 BPM click track that it serves itself. Paste another audio URL to analyze it: its server must send CORS headers, and its terms must allow other websites to play it. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
 
 <ExampleEmbed example="02-vanilla-streaming" height="1050px" />
 

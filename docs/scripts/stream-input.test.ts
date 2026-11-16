@@ -25,8 +25,8 @@ test('detectPlatform: YouTube in every shape people paste', () => {
     'https://www.youtube.com/shorts/abc',
     '  https://WWW.YouTube.com/watch?v=x  ',
     'listen to this: https://youtu.be/x',
-    // Pasted onto the end of the prefilled example URL.
-    'https://ice1.somafm.com/defcon-128-mp3https://youtu.be/dQw4w9WgXcQ',
+    // Pasted onto the end of the prefilled station URL.
+    'https://stream.radioparadise.com/mp3-128https://youtu.be/dQw4w9WgXcQ',
   ]) {
     assert.equal(detectPlatform(link), 'youtube', link)
   }
@@ -52,8 +52,8 @@ test('detectPlatform: stream URLs and look-alikes are not platforms', () => {
   for (const input of [
     '',
     '   ',
-    'https://ice1.somafm.com/defcon-128-mp3',
     'https://stream.radioparadise.com/mp3-128',
+    'https://radio.example.org:8000/live-128-mp3',
     'https://notyoutube.com/watch?v=x',
     'https://youtube.com.evil.example/watch',
     'https://example.com/?u=youtube.com',
@@ -148,8 +148,8 @@ test('STATIONS: https only, so the https site can play them', () => {
 })
 
 test('streamEventParams: a curated station sends its id, scheme and format', () => {
-  assert.deepEqual(streamEventParams('https://ice1.somafm.com/defcon-128-mp3'),
-    { station: 'somafm_defcon', scheme: 'https', format: 'mp3' })
+  assert.deepEqual(streamEventParams('https://stream.radioparadise.com/mp3-128'),
+    { station: 'radio_paradise', scheme: 'https', format: 'mp3' })
   assert.deepEqual(streamEventParams(' https://stream.radioparadise.com/mp3-128/?x=1 '),
     { station: 'radio_paradise', scheme: 'https', format: 'mp3' })
   assert.equal(new Set(STATIONS.map(s => s.id)).size, STATIONS.length)
@@ -159,7 +159,8 @@ test('streamEventParams: a curated station sends its id, scheme and format', () 
 test('streamEventParams: anything else is custom, with what the path tells about the codec', () => {
   assert.deepEqual(streamEventParams('http://radio.example.org:8000/live.aac'),
     { station: 'custom', scheme: 'http', format: 'aac' })
-  assert.deepEqual(streamEventParams('https://ice1.somafm.com/defcon-256-ogg'),
+  // Another mount on a listed station's host is not that station.
+  assert.deepEqual(streamEventParams('https://stream.radioparadise.com/live-256-ogg'),
     { station: 'custom', scheme: 'https', format: 'ogg' })
   assert.deepEqual(streamEventParams('https://cdn.example.com/u/secret-token-1234/stream'),
     { station: 'custom', scheme: 'https', format: 'unknown' })

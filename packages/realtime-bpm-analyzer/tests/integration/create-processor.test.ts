@@ -94,6 +94,28 @@ describe('createRealtimeBpmAnalyzer', function () {
       }
     });
 
+    it('rejects any option it does not take, and a tempo range with a key other than min and max, naming the key', async () => {
+      // RBA-108's DECISION of 2026-11-16: a typo would otherwise run the defaults without a word
+      const refused: Array<[Record<string, unknown>, string]> = [
+        [{engin: 'peaks'}, 'engin'],
+        [{tempRange: {min: 60, max: 120}}, 'tempRange'],
+        [{tempoRange: {min: 60, max: 120, mni: 50}}, 'mni'],
+        [{engine: 'tempogram', lowpass: undefined}, 'lowpass'],
+      ];
+      for (const [options, key] of refused) {
+        const pending = createRealtimeBpmAnalyzer(audioContext, options as Parameters<typeof createRealtimeBpmAnalyzer>[1]);
+        let caught: unknown;
+        try {
+          await pending;
+        } catch (error) {
+          caught = error;
+        }
+
+        expect(caught, JSON.stringify(options)).to.be.instanceOf(TypeError);
+        expect((caught as Error).message).to.contain(` ${key}`);
+      }
+    });
+
     it('should accept a tempo range', async () => {
       const processor = await createRealtimeBpmAnalyzer(audioContext, {
         tempoRange: {min: 70, max: 140},

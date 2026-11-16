@@ -38,9 +38,11 @@ export type {
  * below rejects the promise.
  * @throws {Error} When `channelData` is empty or not a Float32Array
  * @throws {RangeError} When the sample rate, `engine` or `tempoRange` is invalid
- * @throws {TypeError} When an option has its 5.x name, the `engine` object carries a key other than `name` and
- * `lowpass`, or `engine.lowpass` is not an object, `null` or `undefined`, carries a key other than `frequency` and
- * `q`, or holds a setting that is not a number
+ * @throws {TypeError} When the options are not an object or carry a key other than `engine` and `tempoRange` (a 5.x
+ * option name included, with its replacement), `tempoRange` carries a key other than `min` and `max`, the `engine`
+ * object carries a key other than `name` and `lowpass`, or `engine.lowpass` is not an object, `null` or `undefined`,
+ * carries a key other than `frequency` and `q`, or holds a setting that is not a number. A key's presence is the
+ * error, whatever its value
  * @throws {RangeError} When an `engine.lowpass` setting is `NaN` or infinite, its frequency is not above 0 and
  * below half the samples' sample rate, or its `q` is not from -758 to 770 dB
  *

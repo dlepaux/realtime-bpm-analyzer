@@ -350,6 +350,15 @@ describe('v6 reading validation and relations', () => {
     expect(Object.isFrozen(read) && Object.isFrozen(read?.candidates) && Object.isFrozen(read?.candidates[0]) && Object.isFrozen(read?.audio)).to.equal(true);
   });
 
+  it('passes a null confidence, which means unmeasured, and refuses a missing one', () => {
+    // A reading at 60 BPM in a 50 to 120 range: outside the range confidence was measured on
+    const unmeasured = {...reading(), bpm: 60, bpmExact: 60.2, candidates: [{bpm: 60, relation: 'top'}], confidence: null};
+    expect(readReading(unmeasured)).to.deep.equal(unmeasured);
+    for (const confidence of [undefined, Number.NaN, '0.8']) {
+      expect(readReading({...reading(), confidence}), String(confidence)).to.equal(null);
+    }
+  });
+
   it('holds a reading to its documented guarantees', () => {
     expect(readReading(reading())).to.deep.equal(reading());
     const invalid = [

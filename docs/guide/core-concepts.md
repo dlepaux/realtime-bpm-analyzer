@@ -157,7 +157,7 @@ const reading = {
 
 - **bpm**: The tempo to show, a whole number inside the tempo range. Always the first candidate's
 - **bpmExact**: The same tempo before rounding, for timing work such as spacing beat markers
-- **confidence**: From 0 to 1, the estimated chance the reading is right: within 4% of the true tempo, where half or double the tempo counts as wrong. Each engine's raw score is calibrated on licence-clean dev data, so the value means the same whichever engine measured it, realtime or offline. It was calibrated on the default tempo range: with a custom `tempoRange`, a reading outside 90 to 180 BPM is less certain to mean that
+- **confidence**: From 0 to 1, the estimated chance the reading is right: within 4% of the true tempo, where half or double the tempo counts as wrong. Each engine's raw score is calibrated on licence-clean dev data on the default tempo range, 90 to 180 BPM, so inside that range the value means the same whichever engine measured it, realtime or offline. `null`: unmeasured. A custom `tempoRange` can give a reading outside 90 to 180 BPM, and no data measured what the score means there, so its confidence is `null`. On the default range it is always a number
 - **candidates**: Up to 5, the reading's own tempo first, the others in the engine's rank order. Each has a **relation** to the reading's tempo: `top`, `half`, `double` or `other`
 
 The reading's `bpm` is usually the right one. A `half` or `double` candidate is the same beat at another octave.
@@ -178,7 +178,7 @@ Benefits:
 
 ## Configuration Options
 
-When creating the analyzer, you can customize behavior:
+When creating the analyzer, you can customize behavior. It takes `engine`, `tempoRange`, `processorUrl`, `liveInput` and `debug`, and refuses any other key with a `TypeError` that names it, whatever its value, so a typo such as `tempRange` fails at once instead of being ignored:
 
 ```typescript
 const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
@@ -209,6 +209,8 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
 - Keep the expected tempo away from the bounds: a tempo right on an edge jitters across it and its votes split between the two octaves
 - `analyzeFullBuffer(buffer, { tempoRange })` takes the same option
 - Both engines take it: `peaks` folds every tempo into it, the `tempogram` engine searches it and folds nothing
+- It takes `min` and `max` only: any other key is refused with a `TypeError` that names it
+- A custom range can give a reading outside 90 to 180 BPM, the range the confidence was measured on: its `confidence` is then `null` (unmeasured)
 
 ### debug
 - `false` (default): No debug events

@@ -164,6 +164,21 @@ describe('realtime-bpm-analyzer-mcp over stdio', hangLimit, () => {
     );
   });
 
+  it('reports an unmeasured confidence as null, which passes the declared output schema, and describes it', async () => {
+    // 128 BPM on 40 to 80 reads 64, outside the 90 to 180 BPM confidence was measured on (RBA-147)
+    for (const engine of ['peaks', 'tempogram']) {
+      const result = await client.callTool({name: 'analyze_file', arguments: {path: 'click-128.mp3', min_bpm: 40, max_bpm: 80, engine}});
+      assert.equal(result.isError, undefined, text(result));
+      assert.equal(result.structuredContent.bpm, 64, engine);
+      assert.equal(result.structuredContent.confidence, null, engine);
+    }
+
+    const {tools} = await client.listTools();
+    // Wherever the schema generator puts the description of a nullable field, the client receives it
+    const confidence = JSON.stringify(tools.find(({name}) => name === 'analyze_file').outputSchema.properties.confidence);
+    assert.match(confidence, /Null: unmeasured, when bpm is outside 90 to 180/);
+  });
+
   it('reports no beat as null fields that pass the declared output schema', async () => {
     // The SDK checks structuredContent against the tool's outputSchema, so a schema that refused these nulls fails the call
     const path = join(scratch, 'silence.wav');

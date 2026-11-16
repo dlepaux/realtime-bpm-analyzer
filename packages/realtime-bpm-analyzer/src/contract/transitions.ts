@@ -239,6 +239,8 @@ function reduceStep(state: ActiveState, data: Record<string, unknown>): ReducerR
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 const isPositive = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0;
 const isFraction = (value: unknown): value is number => typeof value === 'number' && value >= 0 && value <= 1;
+/** A reading's confidence: a fraction, or null when unmeasured */
+const isConfidence = (value: unknown): value is number | null => value === null || isFraction(value);
 const isTime = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 const errorNames: readonly string[] = ['ProtocolError', 'ProcessorError', 'AnalysisError'] satisfies AnalyzerError['name'][];
 
@@ -268,7 +270,9 @@ const EXACT_TEMPO_SPAN = 1.5;
  * field added by mistake never reaches the public API.
  */
 export function readReading(value: unknown): Reading | null {
-  if (!isRecord(value) || !isPositive(value.bpm) || !isFraction(value.confidence)) {
+  // Null means unmeasured. Which tempos are measured is not checked here: a later minor may calibrate more of them,
+  // and a reading from its processor must not be fatal to this main thread (the protocol DECISION of 2026-11-04)
+  if (!isRecord(value) || !isPositive(value.bpm) || !isConfidence(value.confidence)) {
     return null;
   }
 

@@ -102,7 +102,8 @@ export type OfflineEngineOption =
 
 /**
  * Range every tempo is reported in, in BPM. `max` must be at least twice `min`, so every tempo has an octave
- * inside it. Default 90 to 180.
+ * inside it. Default 90 to 180, the range `Reading.confidence` was measured on. Any key other than `min` and `max`
+ * is refused with a `TypeError` that names it.
  */
 export type TempoRange = {
   readonly min: number;
@@ -111,7 +112,8 @@ export type TempoRange = {
 
 /**
  * Options for the realtime analyzer. `createRealtimeBpmAnalyzer` checks them before it loads the processor: for an
- * invalid value, the promise it returns rejects with a `RangeError` or a `TypeError`.
+ * invalid value, the promise it returns rejects with a `RangeError` or a `TypeError`. It takes these keys only: any
+ * other own key, a typo included, rejects with a `TypeError` that names it, whatever its value.
  */
 export type AnalyzerOptions = {
   /**
@@ -130,7 +132,10 @@ export type AnalyzerOptions = {
   readonly debug?: boolean;
 };
 
-/** Options for whole-buffer analysis, in the browser and in Node. */
+/**
+ * Options for whole-buffer analysis, in the browser and in Node. Only these two keys: any other own key, a typo or a
+ * realtime option included, rejects with a `TypeError` that names it, whatever its value.
+ */
 export type OfflineOptions = {
   /** Default `tempogram`, as for the realtime analyzer. Only `peaks` takes lowpass settings. */
   readonly engine?: OfflineEngineOption;
@@ -214,11 +219,13 @@ export type Reading = {
    * Fitted on the benchmark's dev half (benchmark/results/rba-106-calibration-dev.md), then checked once on the
    * real-time readings of its held-out half, which it had not seen: the tempogram's table held there
    * (benchmark/results/rba-106-calibration-heldout-verdict.md). Offline readings were not part of that check. Peaks'
-   * table was fitted on dev only. Treat the values as an estimate for music like the benchmark's. Both halves were
-   * read on the default 90 to 180 range: a reading under 90 BPM, or far over 180 with a custom `tempoRange`, gets the
-   * nearest table, which no reading there measured.
+   * table was fitted on dev only. Treat the values as an estimate for music like the benchmark's.
+   *
+   * `null`: unmeasured. Both halves were read on the default range, 90 to 180 BPM, so the calibration says nothing
+   * about a reading outside it: when `bpm` is under 90 or over 180, which only a custom `tempoRange` allows, the
+   * confidence is `null` rather than a number with no proven meaning. On the default range it is always a number.
    */
-  readonly confidence: number;
+  readonly confidence: number | null;
   /**
    * At most 5, `candidates[0]` first with relation `top`, the rest in the engine's rank order, each labelled with
    * its {@link CandidateRelation} to the top tempo. Never empty.

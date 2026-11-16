@@ -14,7 +14,7 @@ import {resolveTempoRange} from './tempo';
 import {createTempogramDetector, defaultTempogramRange} from './tempogram';
 import type {TempogramTuning} from './tempogram';
 import {PeaksEngine} from './peaks-engine';
-import {resolveLowpass} from './lowpass';
+import {kindOf, resolveLowpass} from './lowpass';
 import type {Tempo} from './types';
 
 /** What one engine measured in one analysis step, before the tracker turns it into a status */
@@ -61,18 +61,50 @@ export const defaultEngine: EngineName = 'tempogram';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
+/** Why a realtime lowpass is refused, as an engine setting or as an option, and what to do instead */
+const refusedRealtimeLowpass = 'the realtime analyzer takes none. Realtime peaks has a fixed lowpass inside analyzer.input; for '
+  + 'another, connect getBiquadFilter(audioContext, {frequency, q}) to analyzer.node. Only analyzeFullBuffer and '
+  + 'analyzeChannelData take engine.lowpass';
+
 /**
  * The 5.x option names v6 removed, with what replaces each. v6 would otherwise ignore them without a word, and
- * `{detector: 'tempogram'}` would quietly run peaks.
+ * `{detector: 'tempogram'}` would quietly run peaks. A map, not a record, so a key such as `constructor` finds nothing.
  */
-const removedOptions: Readonly<Record<string, string>> = Object.freeze({
-  detector: "use engine: 'peaks' or 'tempogram'",
-  continuousAnalysis: "use engine: {name: 'peaks', restartAfterSeconds}",
-  stabilizationTime: "use engine: {name: 'peaks', restartAfterSeconds}",
-  muteTimeInIndexes: 'it has no replacement: remove it',
-  tempogramMode: "use engine: {name: 'tempogram', mode: 'measured'}",
-  frequencyValue: "with analyzeFullBuffer or analyzeChannelData, use engine: {name: 'peaks', lowpass: {frequency}}. Only they take one: realtime peaks has a fixed lowpass inside analyzer.input",
-  qualityValue: "with analyzeFullBuffer or analyzeChannelData, use engine: {name: 'peaks', lowpass: {q}}. Only they take one: realtime peaks has a fixed lowpass inside analyzer.input",
+const removedOptions: ReadonlyMap<string, string> = new Map([
+  ['detector', "use engine: 'peaks' or 'tempogram'"],
+  ['continuousAnalysis', "use engine: {name: 'peaks', restartAfterSeconds}"],
+  ['stabilizationTime', "use engine: {name: 'peaks', restartAfterSeconds}"],
+  ['muteTimeInIndexes', 'it has no replacement: remove it'],
+  ['tempogramMode', "use engine: {name: 'tempogram', mode: 'measured'}"],
+  ['frequencyValue', "with analyzeFullBuffer or analyzeChannelData, use engine: {name: 'peaks', lowpass: {frequency}}. Only they take one: realtime peaks has a fixed lowpass inside analyzer.input"],
+  ['qualityValue', "with analyzeFullBuffer or analyzeChannelData, use engine: {name: 'peaks', lowpass: {q}}. Only they take one: realtime peaks has a fixed lowpass inside analyzer.input"],
+]);
+
+/**
+ * The top-level options each function takes: `createRealtimeBpmAnalyzer`, then `analyzeFullBuffer` and
+ * `analyzeChannelData`. The one list {@link assertOptions} checks, which tests/types/public-surface.ts holds equal to
+ * the keys of `AnalyzerOptions` and `OfflineOptions`. Any other key throws a `TypeError` that names it,
+ * whatever its value, as `engine` and the lowpass settings do (RBA-108's DECISION of 2026-11-16): refusing a key
+ * after 6.1.0 would break callers, while accepting one later would not.
+ */
+export const optionKeys = Object.freeze({
+  realtime: Object.freeze(['engine', 'tempoRange', 'processorUrl', 'liveInput', 'debug'] as const),
+  offline: Object.freeze(['engine', 'tempoRange'] as const),
+});
+
+/** An engine setting given at the top level, where to put it, by function. Any other key gets the list of options. */
+const misplacedOptions: Readonly<Record<keyof typeof optionKeys, ReadonlyMap<string, string>>> = Object.freeze({
+  realtime: new Map([
+    ['lowpass', refusedRealtimeLowpass],
+    ['restartAfterSeconds', "it is a setting of peaks: use engine: {name: 'peaks', restartAfterSeconds}"],
+    ['mode', "it is a setting of the tempogram: use engine: {name: 'tempogram', mode: 'measured'}"],
+  ]),
+  offline: new Map([
+    ['lowpass', "it is a setting of peaks: use engine: {name: 'peaks', lowpass}"],
+    ['processorUrl', 'only createRealtimeBpmAnalyzer takes it'],
+    ['liveInput', 'only createRealtimeBpmAnalyzer takes it'],
+    ['debug', 'only createRealtimeBpmAnalyzer takes it: whole-buffer analysis emits no events'],
+  ]),
 });
 
 /**
@@ -97,9 +129,7 @@ export const engineKeys = Object.freeze({
  */
 const refusedEngineKeys: Readonly<Record<keyof typeof engineKeys, ReadonlyMap<string, string>>> = Object.freeze({
   realtime: new Map([
-    ['lowpass', 'the realtime analyzer takes none. Realtime peaks has a fixed lowpass inside analyzer.input; for '
-      + 'another, connect getBiquadFilter(audioContext, {frequency, q}) to analyzer.node. Only analyzeFullBuffer and '
-      + 'analyzeChannelData take engine.lowpass'],
+    ['lowpass', refusedRealtimeLowpass],
     ['restartAfterSeconds', "only peaks takes it: the tempogram's memory of past tempos fades on its own, so it follows a tempo change"],
     ['mode', 'only the tempogram takes it'],
   ]),
@@ -130,19 +160,49 @@ function assertEngineKeys(value: Readonly<Record<string, unknown>>, path: keyof 
 }
 
 /**
- * Refuses the option names 5.x knew and v6 removed, naming the replacement
+ * Refuses the option names 5.x knew and v6 removed, naming the replacement. The name's presence is the error,
+ * whatever its value, as for every other refused key: `{detector: undefined}` too.
  * @param options The caller's options, realtime or offline
- * @throws {TypeError} When one of them is set
+ * @throws {TypeError} When one of them is an own key
  */
 export function assertNoRemovedOptions(options: unknown): void {
   if (!isRecord(options)) {
     return;
   }
 
-  const name = Object.keys(removedOptions).find(key => options[key] !== undefined);
+  const name = Object.keys(options).find(key => removedOptions.has(key));
   if (name !== undefined) {
-    throw new TypeError(`The option ${name} was removed in v6: ${removedOptions[name]}.`);
+    throw new TypeError(`The option ${name} was removed in v6: ${removedOptions.get(name)}.`);
   }
+}
+
+/**
+ * Checks the shape of the caller's top-level options, before any value: the 5.x names first, so their messages
+ * win, then any own key outside {@link optionKeys}. `null` and `undefined` mean no options.
+ * @param options The caller's options
+ * @param path `createRealtimeBpmAnalyzer`, or whole-buffer analysis
+ * @throws {TypeError} When the options are not an object, carry a 5.x name, or carry a key the function does not take
+ */
+export function assertOptions(options: unknown, path: keyof typeof optionKeys): void {
+  if (options === undefined || options === null) {
+    return;
+  }
+
+  if (!isRecord(options) || Array.isArray(options)) {
+    throw new TypeError(`The options are an object, not ${kindOf(options)}.`);
+  }
+
+  assertNoRemovedOptions(options);
+  const allowed: readonly string[] = optionKeys[path];
+  const refused = Object.keys(options).find(key => !allowed.includes(key));
+  if (refused === undefined) {
+    return;
+  }
+
+  const where = path === 'realtime' ? 'createRealtimeBpmAnalyzer' : 'Whole-buffer analysis';
+  const listed = `${allowed.slice(0, -1).join(', ')} and ${allowed[allowed.length - 1]}`;
+  const advice = misplacedOptions[path].get(refused) ?? `its options are ${listed}`;
+  throw new TypeError(`${where} takes no option ${refused}: ${advice}.`);
 }
 
 /**
@@ -295,7 +355,7 @@ export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: En
   return Object.freeze({
     bpm: top.tempo,
     bpmExact: top.exact,
-    // The engine's raw score, mapped to the chance this reading is right
+    // The engine's raw score, mapped to the chance this reading is right, or null outside the measured tempo range
     confidence: calibrate(engine, top.confidence, top.tempo),
     candidates: Object.freeze(candidates),
     audio: Object.freeze({from: audio.from, to: audio.to, contextTime: audio.contextTime}),

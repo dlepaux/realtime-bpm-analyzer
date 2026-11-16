@@ -41,7 +41,7 @@ Every 5.x name and its v6 form. The sections below show each with before-and-aft
 | `stop()`, said to be restartable | final: `statechange` to `stopped` |
 | `Tempo.tempo` | `Reading.bpm`, and `Candidate.bpm` for the other tempos |
 | `Tempo.count` | removed |
-| `Tempo.confidence` | `Reading.confidence`, now the estimated chance the reading is right |
+| `Tempo.confidence` | `Reading.confidence`, now the estimated chance the reading is right, or `null`: unmeasured, outside 90 to 180 BPM |
 | `BpmCandidates.threshold`, `Threshold`, `Peaks` | removed |
 | `analyzeFullBuffer` and Node's `analyzeChannelData` return `Tempo[]` | return a `Reading`, or `null` when no tempo was found |
 | `createRealTimeBpmProcessor` | removed: use `createRealtimeBpmAnalyzer` |
@@ -184,6 +184,8 @@ The `engine` object is just as strict. It takes `name` and the settings of the e
 | `analyzeFullBuffer`, `analyzeChannelData` | `'peaks'` | `lowpass` |
 
 Any other key is refused with a `TypeError` that names it, whatever its value, `undefined` included: a realtime `lowpass`, a `restartAfterSeconds` on the tempogram or in whole-buffer analysis, or a typo such as `restartAfterSecond`. 5.x had no `engine` object, so no 5.x call meets this rule: it catches a setting given to an engine or a path that would ignore it, and typos.
+
+The options themselves are strict too. `createRealtimeBpmAnalyzer` takes `engine`, `tempoRange`, `processorUrl`, `liveInput` and `debug`; `analyzeFullBuffer` and `analyzeChannelData` take `engine` and `tempoRange`; `tempoRange` takes `min` and `max`. Any other key is refused with a `TypeError` that names it, whatever its value, after the 5.x names above, whose own messages still win. 5.x ignored an unknown key, so a call that passes one, such as a typo or an option the function never read, now rejects. Options that are not an object, `null` or `undefined` are refused the same way, naming their type.
 
 ### Events
 
@@ -461,7 +463,7 @@ v6 makes the `tempogram` engine the default, in realtime and for whole files. It
 - **Timing.** The first reading comes after a 4-second warm-up, and the earliest lock after about 11.5 seconds of audio, where `peaks` gives its first reading once it has 16 peaks (about 8 seconds on a steady kick) and locks from 10 seconds. Readings come twice a second instead of about ten times.
 - **Tempo range.** The tempogram searches `tempoRange` instead of folding every tempo into it. From about twice `min` up, a tempo can read at half: with the default 90 to 180, a track over about 179 BPM reads half. A wider range does not fix that. See [the tempogram engine](/guide/realtime-bpm-detection#the-tempogram-detector).
 - **Restarts.** `restartAfterSeconds` is a `peaks` setting. The tempogram's memory of past tempos fades with a 16-second half-life, so it follows a tempo change on its own.
-- **Confidence.** It is now the estimated chance the reading is right, calibrated on licence-clean dev data, and it means the same under either engine. A cut-off you chose for a 5.x score does not carry over.
+- **Confidence.** It is now the estimated chance the reading is right, calibrated on licence-clean dev data from 90 to 180 BPM, and inside that range it means the same under either engine. `null`: unmeasured. A custom `tempoRange` can give a reading outside 90 to 180 BPM, and its confidence is then `null`, so type it `number | null`. A cut-off you chose for a 5.x score does not carry over.
 - **Locks.** On some tracks the tempogram never locks where `peaks` did. Keep showing the latest `reading` while the analyzer is `settling`.
 
 ### The way back: `engine: 'peaks'`

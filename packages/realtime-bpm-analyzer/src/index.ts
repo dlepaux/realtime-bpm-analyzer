@@ -3,7 +3,7 @@ import realtimeBpmProcessorContent from './generated-processor';
 import {constructAnalyzer, whenReady} from './core/bpm-analyzer';
 import type {BpmAnalyzer} from './core/bpm-analyzer';
 import {getBiquadFilter} from './core/offline-pipeline';
-import {assertNoRemovedOptions, resolveEngine} from './core/engine';
+import {assertOptions, resolveEngine} from './core/engine';
 import {PROTOCOL} from './contract/types';
 import type {AnalyzerOptions} from './contract/types';
 import type {ProcessorOptions} from './core/session';
@@ -54,8 +54,10 @@ export type {
  * @returns A promise of the analyzer, once its processor has said it is ready. The function itself never throws:
  * each error below rejects the promise.
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
- * @throws {TypeError} When `processorUrl`, `liveInput` or `debug` has the wrong type, a 5.x option is set, or the
- * `engine` object carries a key its engine does not take (see {@link EngineOption})
+ * @throws {TypeError} When the options are not an object or carry a key other than `engine`, `tempoRange`,
+ * `processorUrl`, `liveInput` and `debug` (a 5.x option name included, with its replacement), `tempoRange` carries a
+ * key other than `min` and `max`, `processorUrl`, `liveInput` or `debug` has the wrong type, or the `engine` object
+ * carries a key its engine does not take (see {@link EngineOption}). A key's presence is the error, whatever its value
  * @throws {Error} When the processor fails to load, or sends no `ready` in time (a stale processor file)
  *
  * @example
@@ -108,7 +110,7 @@ export async function createRealtimeBpmAnalyzer(
 ): Promise<BpmAnalyzer> {
   // processorUrl and liveInput are main-thread concerns: kept out of the worklet's options, where a URL object
   // or a track would also fail structured cloning.
-  assertNoRemovedOptions(options);
+  assertOptions(options, 'realtime');
   const {processorUrl, liveInput, debug = false} = options ?? {};
   assertProcessorUrl(processorUrl);
   assertLiveInput(liveInput);

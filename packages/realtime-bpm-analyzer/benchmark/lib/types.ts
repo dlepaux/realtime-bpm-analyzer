@@ -50,10 +50,13 @@ export type TrackResult = {
   readonly offline?: number | null;
   /** The last reading's candidates as [bpm, relation to the top], top first. Absent before RBA-106's ensemble run */
   readonly candidates?: ReadonlyArray<readonly [number, CandidateRelation]>;
-  /** The last reading's confidence, null when the detector never gave a reading */
+  /** The last reading's confidence, null when the detector never gave a reading or that reading was unmeasured (RBA-147) */
   readonly confidence?: number | null;
-  /** Each change of the top candidate as [seconds of audio, tempo, its confidence]. Absent before RBA-106's ensemble run */
-  readonly readings?: ReadonlyArray<readonly [number, number, number]>;
+  /**
+   * Each change of the top candidate as [seconds of audio, tempo, its confidence], the confidence null when unmeasured.
+   * Absent before RBA-106's ensemble run
+   */
+  readonly readings?: ReadonlyArray<readonly [number, number, number | null]>;
   /** RBA-106's hysteresis sweep, on its own detectors only */
   readonly hysteresis?: HysteresisRecord;
 };

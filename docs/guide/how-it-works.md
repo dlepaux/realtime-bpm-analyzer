@@ -160,7 +160,7 @@ function getBPMCandidates(groups) {
 }
 ```
 
-A perfect click track scores about **0.46**, not 1: each peak is paired with the next nine, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. Randomly spaced peaks score below 0.1. In plain words: the score says how much the peaks agree on one tempo, and even a perfect beat agrees only about halfway. This raw score is not what a reading reports. The library maps it, through a table calibrated on licence-clean dev data, to the estimated chance the reading is right, and does the same with the `tempogram` engine's own score, so `confidence` means the same whichever engine measured it.
+A perfect click track scores about **0.46**, not 1: each peak is paired with the next nine, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. Randomly spaced peaks score below 0.1. In plain words: the score says how much the peaks agree on one tempo, and even a perfect beat agrees only about halfway. This raw score is not what a reading reports. The library maps it, through a table calibrated on licence-clean dev data from 90 to 180 BPM, to the estimated chance the reading is right, and does the same with the `tempogram` engine's own score, so inside that range `confidence` means the same whichever engine measured it. Outside it, which only a custom `tempoRange` allows, `confidence` is `null`: unmeasured.
 
 ## Signal Processing Features
 

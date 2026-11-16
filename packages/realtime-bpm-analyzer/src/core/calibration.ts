@@ -3,8 +3,7 @@ import type {EngineName} from '../contract/types';
 /**
  * Maps each engine's raw score to the chance its reading is right (within 4% of the true tempo), so a
  * `Reading.confidence` of 0.8 is right about 80% of the time. Fitted on the benchmark's dev half, on the default
- * 90 to 180 range, so dev had no reading under 90 BPM and none far over 180: a reading there gets the nearest
- * table, unmeasured. Readings sampled at 10, 15, 20, 30 and 45 s and at the end of each track, so long
+ * 90 to 180 range ({@link MEASURED_TEMPO_RANGE}): a reading outside it gets no confidence at all. Readings sampled at 10, 15, 20, 30 and 45 s and at the end of each track, so long
  * tracks do not weigh more; peaks under the shipped HYSTERESIS, the tempogram with `pulseLostAfterSeconds` 3 (the
  * readings are the same, only which were shown differs: see the results file). Results, method and ranges:
  * benchmark/results/rba-106-calibration-dev.md. The tempogram's table was then checked once on the held-out half's
@@ -23,19 +22,30 @@ import type {EngineName} from '../contract/types';
 /** [raw, calibrated] */
 type Point = readonly [number, number];
 
-type Band = 'under90' | 'from90' | 'from140' | 'from165';
+/**
+ * The tempos, in BPM, both bounds included, that the calibration readings covered. Every reading behind the tables was
+ * taken on the library's default range, 90 to 180, by the benchmark's `peaks` and `tempogram` rows, which set no
+ * `tempoRange` (benchmark/lib/detectors.ts). Both engines report a whole BPM folded into that range with both ends
+ * reachable, so both bounds are inside what was measured. Outside it no reading measured what a raw score means, so
+ * `calibrate` returns null there rather than the nearest table's number: a confidence with no proven meaning would
+ * mislead the programs that act on it (RBA-108's DECISIONs of 2026-11-03 and 2026-11-16, RBA-147). Widening it needs
+ * readings fitted outside it, not a new number here.
+ */
+export const MEASURED_TEMPO_RANGE: Readonly<{min: number; max: number}> = Object.freeze({min: 90, max: 180});
+
+type Band = 'from90' | 'from140' | 'from165';
 
 type Mapping = {
+  /**
+   * The shared table, read in a band that has none of its own. Peaks has its own in every band of the measured
+   * range, so its shared table is never read: it stays as the benchmark committed it, which a test holds.
+   */
   readonly all: readonly Point[];
   readonly bands: Readonly<Partial<Record<Band, readonly Point[]>>>;
 };
 
-/** The reading's own tempo picks the band: under 90, 90 to 140, 140 to 165, 165 and over */
+/** The reading's own tempo, inside {@link MEASURED_TEMPO_RANGE}, picks the band: up to 140, 140 to 165, 165 and over */
 function bandOf(bpm: number): Band {
-  if (bpm < 90) {
-    return 'under90';
-  }
-
   if (bpm < 140) {
     return 'from90';
   }
@@ -129,9 +139,14 @@ function read(table: readonly Point[], raw: number): number {
  * @param engine The engine that scored the reading
  * @param raw Its raw score for the top tempo, 0 to 1
  * @param bpm The reading's tempo
- * @returns The chance the reading is right, 0 to 1
+ * @returns The chance the reading is right, 0 to 1, or null when `bpm` is outside {@link MEASURED_TEMPO_RANGE}
  */
-export function calibrate(engine: EngineName, raw: number, bpm: number): number {
+export function calibrate(engine: EngineName, raw: number, bpm: number): number | null {
+  // Written so that a bpm that is not a number fails the test and reads as unmeasured
+  if (!(bpm >= MEASURED_TEMPO_RANGE.min && bpm <= MEASURED_TEMPO_RANGE.max)) {
+    return null;
+  }
+
   const mapping = CALIBRATION[engine];
   // A score that is not a number reads as no evidence, not as the top of the table, where every comparison failing would put it
   const score = Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0;

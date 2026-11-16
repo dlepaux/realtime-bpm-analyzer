@@ -17,7 +17,7 @@ export type FileResult =
   | ({readonly file: string; readonly ok: true} & (FoundReading | NoReading))
   | {readonly file: string; readonly ok: false; readonly error: string};
 
-/** A file where a beat was found: every field of the reading is set */
+/** A file where a beat was found: every field of the reading is set, the confidence null when unmeasured */
 export type FoundReading = {
   /** The reading's tempo, a whole number of BPM */
   readonly bpm: number;
@@ -26,9 +26,11 @@ export type FoundReading = {
   /**
    * From 0 to 1, the estimated chance the reading is right (within 4% of the true tempo, half or double
    * counting as wrong). Calibrated on licence-clean dev data, so it means the same for either engine.
+   * `null`: unmeasured. The calibration covers readings from 90 to 180 BPM, the default range, so a reading
+   * outside it, which only a custom tempo range allows, has no confidence.
    */
   // Keep this doc in step with Reading.confidence
-  readonly confidence: number;
+  readonly confidence: number | null;
   /** At most 5, best first, each with its relation to the top one */
   readonly candidates: readonly Candidate[];
   /** The engine that measured the reading */

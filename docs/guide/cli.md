@@ -71,7 +71,9 @@ mean the same thing:
 - `bpm`: the tempo, a whole number. `null` when no beat was found, as are the fields below.
 - `bpmExact`: the same tempo unrounded, for timing (a beat grid, markers). Show `bpm`.
 - `confidence`: from 0 to 1, the estimated chance the reading is right. It is calibrated on
-  licence-clean dev data, so it means the same whichever engine measured it.
+  licence-clean dev data from 90 to 180 BPM, so inside that range it means the same whichever
+  engine measured it. `null`: unmeasured, when `bpm` is outside 90 to 180 (only `--min-bpm` or
+  `--max-bpm` allows that). The text output prints it as `confidence unmeasured`.
 - `candidates`: each a `bpm` and its `relation` to the reading's tempo (`top`, `half`,
   `double` or `other`). Empty when no beat was found.
 - `engine`: the engine that measured it.

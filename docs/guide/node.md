@@ -161,7 +161,9 @@ setting that is `NaN` or infinite, a lowpass `frequency` that is not above 0 and
 below half the sample rate, a lowpass `q` that is not from -758 to 770 dB, an
 invalid `tempoRange` or an unknown `engine`. A 5.x option
 (`detector`, `frequencyValue`, `qualityValue`) rejects with a `TypeError` that
-names its replacement. So do an `engine` object with a key other than `name` and
+names its replacement. So do any other option than `engine` and `tempoRange`
+(naming it, whatever its value), a `tempoRange` key other than `min` and `max`,
+an `engine` object with a key other than `name` and
 `lowpass`, whatever its value (naming the key: `restartAfterSeconds` is a
 realtime setting, and a typo such as `lowpas` would otherwise drop your lowpass),
 an `engine.lowpass` that is not an object, `null` or `undefined` (naming its

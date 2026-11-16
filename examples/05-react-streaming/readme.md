@@ -10,7 +10,7 @@ Analyzes an audio URL live as it plays, with `createRealtimeBpmAnalyzer` and a `
 - `error` events (a failed analysis step) and a fatal fault, which is a move to `stopped` with the error.
 - **Start over** calls `analyzer.reset()`: back to `listening` with reason `reset` and the next epoch. **Stop** calls `analyzer.stop()`, which is final.
 
-The code is in `src/components/bpm-analyzer.tsx`, with the panels in `src/components/reading-panel.tsx`, `src/components/state-panel.tsx` and the `useAnalyzerView` hook in `src/components/use-analyzer-view.ts`. Confidence is shown as the library reports it, from 0 to 1.
+The code is in `src/components/bpm-analyzer.tsx`, with the panels in `src/components/reading-panel.tsx`, `src/components/state-panel.tsx` and the `useAnalyzerView` hook in `src/components/use-analyzer-view.ts`. Confidence is shown as the library reports it, from 0 to 1, or as unmeasured when it is null.
 
 ## The audio it starts on
 

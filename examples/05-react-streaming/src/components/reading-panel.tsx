@@ -24,7 +24,7 @@ function ReadingPanel({ reading, status }: ReadingPanelProps) {
         <dt>Exact tempo</dt>
         <dd>{reading.bpmExact.toFixed(2)} BPM</dd>
         <dt>Confidence</dt>
-        <dd>{reading.confidence.toFixed(2)}</dd>
+        <dd>{reading.confidence === null ? 'unmeasured' : reading.confidence.toFixed(2)}</dd>
         {/* candidates[0] is the reading's own tempo; the others are labelled half, double or other */}
         <dt>Candidates</dt>
         <dd>{reading.candidates.map(({ bpm, relation }) => `${bpm} (${relation})`).join(', ')}</dd>
@@ -35,7 +35,7 @@ function ReadingPanel({ reading, status }: ReadingPanelProps) {
       </dl>
 
       <p className="confidence-meaning">
-        Confidence is the library's estimate, from 0 to 1, of the chance that this BPM is right.
+        Confidence is the library's estimate, from 0 to 1, of the chance that this BPM is right. It is unmeasured (null) for a reading outside 90 to 180 BPM, which only a custom tempoRange allows.
       </p>
     </section>
   );

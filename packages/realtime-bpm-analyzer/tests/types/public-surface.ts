@@ -1,8 +1,9 @@
 // Checked by `npm run typecheck`, never run: each `@ts-expect-error` fails the check once its line compiles
 import type * as entry from '../../src/index';
 import type {BpmAnalyzer} from '../../src/index';
-import type {BpmAnalyzerContract, EngineOption, OfflineEngineOption} from '../../src/contract/types';
-import type {engineKeys} from '../../src/core/engine';
+import type {AnalyzerOptions, BpmAnalyzerContract, EngineOption, OfflineEngineOption, OfflineOptions, TempoRange} from '../../src/contract/types';
+import type {engineKeys, optionKeys} from '../../src/core/engine';
+import type {tempoRangeKeys} from '../../src/core/tempo';
 
 /** Compiles only when `T` satisfies `U` */
 type Satisfies<T extends U, U> = T;
@@ -40,3 +41,9 @@ export type RealtimePeaksKeys = Satisfies<Same<keyof Extract<RealtimeObject, {na
 export type RealtimeTempogramKeys = Satisfies<Same<keyof Extract<RealtimeObject, {name: 'tempogram'}>, Keys['realtime']['tempogram'][number]>, true>;
 export type OfflineEngineNames = Satisfies<Same<OfflineObject['name'], keyof Keys['offline']>, true>;
 export type OfflinePeaksKeys = Satisfies<Same<keyof Extract<OfflineObject, {name: 'peaks'}>, Keys['offline']['peaks'][number]>, true>;
+
+// The same for the top-level options and the tempo range (RBA-108's DECISION of 2026-11-16, strict options): an
+// option added to the type and not to the list, or the other way round, fails this check
+export type RealtimeOptionKeys = Satisfies<Same<keyof AnalyzerOptions, (typeof optionKeys)['realtime'][number]>, true>;
+export type OfflineOptionKeys = Satisfies<Same<keyof OfflineOptions, (typeof optionKeys)['offline'][number]>, true>;
+export type TempoRangeKeys = Satisfies<Same<keyof TempoRange, (typeof tempoRangeKeys)[number]>, true>;

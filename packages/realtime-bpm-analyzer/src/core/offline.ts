@@ -1,5 +1,5 @@
 import type {LowpassOption, OfflineOptions, OfflineResult} from '../contract/types';
-import {assertNoRemovedOptions, resolveOfflineEngine, toReading} from './engine';
+import {assertOptions, resolveOfflineEngine, toReading} from './engine';
 import {resolveTempoRange} from './tempo';
 import {detectTempo} from './detect-tempo';
 import {detectTempogram} from './tempogram';
@@ -20,7 +20,7 @@ export async function analyzeSamples(
   lowpass: (settings: LowpassOption) => Promise<Float32Array>,
 ): Promise<OfflineResult> {
   // Validated before the costly filtering, so a bad option fails fast on long files
-  assertNoRemovedOptions(options);
+  assertOptions(options, 'offline');
   const engine = resolveOfflineEngine(options?.engine, sampleRate);
   const tempoRange = resolveTempoRange(options?.tempoRange);
   const audio = {from: 0, to: channelData.length / sampleRate, contextTime: null};

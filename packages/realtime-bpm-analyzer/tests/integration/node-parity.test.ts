@@ -53,7 +53,12 @@ function expectSameReading(node: OfflineResult, browser: OfflineResult): void {
   expect(node?.bpm).to.equal(browser?.bpm);
   expect(node?.candidates).to.deep.equal(browser?.candidates);
   expect(node?.audio).to.deep.equal(browser?.audio);
-  expect(node?.confidence).to.be.closeTo(browser!.confidence, 1e-9);
+  if (browser!.confidence === null) {
+    expect(node?.confidence).to.equal(null);
+  } else {
+    expect(node?.confidence).to.be.closeTo(browser!.confidence, 1e-9);
+  }
+
   expect(node?.bpmExact).to.be.closeTo(browser!.bpmExact, 1e-9);
 }
 

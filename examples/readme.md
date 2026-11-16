@@ -33,7 +33,7 @@ Every result is a `Reading`, the same type whether it comes from a file or from 
 
 The reading panel shows each `reading` while the state is `settling` (dimmed) or `locked`. **Start over** calls `analyzer.reset()`, and **Stop** calls `analyzer.stop()`, which is final.
 
-- **An audio URL (02, 05, 08)** goes through a `MediaElementAudioSourceNode`, connected to `analyzer.input` and to the speakers.
+- **An audio URL (02, 05, 08)** goes through a `MediaElementAudioSourceNode`, connected to `analyzer.input` and to the speakers. Each one starts on a bundled 128 BPM click track, so it plays from a clean clone. A stream from another site needs CORS headers, and terms that allow other websites to play it.
 - **The microphone (03, 06, 09)** is opened with the voice filters off, and its track goes to the analyzer as `liveInput`. The analyzer then follows the track's clock, and moves to `listening` with reason `audio-lost` while the browser is losing input.
 
 Every live example follows the same pattern:

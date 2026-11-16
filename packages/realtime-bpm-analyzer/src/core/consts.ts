@@ -38,6 +38,12 @@ export const minBpmRange = 90;
 export const maxBpmRange = 180;
 
 /**
+ * The largest `tempoRange.max`, in BPM: 2^31 - 1, so that a reading's whole BPM fits a signed 32-bit integer, the
+ * `int` the JVM port and other typed ports return it in (RBA-260). No music comes near it.
+ */
+export const maxTempoRangeBpm = (2 ** 31) - 1;
+
+/**
  * Duration in seconds to skip after detecting a peak
  * @remarks
  * This prevents detecting the same peak multiple times during its decay phase.

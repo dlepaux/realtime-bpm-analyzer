@@ -269,6 +269,29 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     await analyzeChannelData(clicks, 2, {engine: {name: 'peaks', lowpass}});
   });
 
+  it('refuses a tempo range whose max / min overflows, with either engine, and takes the largest that does not', async () => {
+    const clicks = createClickTrack(120, 44_100, 12);
+    for (const engine of ['peaks', 'tempogram']) {
+      await assert.rejects(analyzeChannelData(clicks, 44_100, {engine, tempoRange: {min: 1e-306, max: 1000}}), {
+        name: 'RangeError',
+        message: /max \/ min \(1000 \/ 1e-306\) is too large/,
+      });
+    }
+
+    const reading = await analyzeChannelData(clicks, 44_100, {engine: 'peaks', tempoRange: {min: 1000 / Number.MAX_VALUE, max: 1000}});
+    assert.equal(reading?.bpm, 120);
+  });
+
+  it('refuses a tempo range max above 2^31 - 1 BPM, so a whole BPM fits a 32-bit integer in every port, and takes it at that', async () => {
+    const clicks = createClickTrack(120, 44_100, 12);
+    await assert.rejects(analyzeChannelData(clicks, 44_100, {engine: 'peaks', tempoRange: {min: 90, max: 2 ** 31}}), {
+      name: 'RangeError',
+      message: /max \(2147483648\) must be at most 2147483647/,
+    });
+    const reading = await analyzeChannelData(clicks, 44_100, {engine: 'peaks', tempoRange: {min: 90, max: (2 ** 31) - 1}});
+    assert.equal(reading?.bpm, 120);
+  });
+
 });
 
 describe('applyLowpass', hangLimit, () => {

@@ -152,10 +152,141 @@ export function toPcm16(mix) {
 const pattern = (id, description, spec) => ({id, description, sampleRate: spec.sampleRate, build: () => render(spec)});
 
 /**
+ * The Web Audio lowpass biquad the peaks engine runs, in the order of operations of the library's applyLowpass
+ * (core/lowpass.ts), with its unrounded double output, which applyLowpass then stores as float32. Only
+ * {@link thresholdEdge} uses it, to place a sample; generate.mjs checks the placement against the library itself.
+ * @param {Float32Array} samples The input
+ * @param {number} sampleRate Hz
+ * @returns {Float64Array} The filtered samples, before their rounding to float32
+ */
+function lowpassUnrounded(samples, sampleRate) {
+  const w0 = Math.PI * (200 / (sampleRate / 2));
+  const cosW0 = Math.cos(w0);
+  const alpha = Math.sin(w0) / (2 * (10 ** (1 / 20)));
+  const a0 = 1 + alpha;
+  const [b0, b1, b2, a1, a2] = [((1 - cosW0) / 2) / a0, (1 - cosW0) / a0, ((1 - cosW0) / 2) / a0, (-2 * cosW0) / a0, (1 - alpha) / a0];
+  const out = new Float64Array(samples.length);
+  let [x1, x2, y1, y2] = [0, 0, 0, 0];
+  for (let i = 0; i < samples.length; i += 1) {
+    const x0 = samples[i];
+    const y0 = (b0 * x0) + (b1 * x1) + (b2 * x2) - (a1 * y1) - (a2 * y2);
+    out[i] = y0;
+    [x2, x1, y2, y1] = [x1, x0, y1, y0];
+  }
+
+  return out;
+}
+
+/** The threshold rung {@link thresholdEdge} sits on: 0.85 rounds up in float32, by 2.4e-8 */
+export const edgeThreshold = 0.85;
+
+/**
+ * The peaks engine compares each lowpassed sample, stored as float32, with its threshold as a double. 15 kicks at
+ * 100 BPM: 14 whose lowpassed peak is 0.875, and a last one whose lowpassed peak rounds to exactly
+ * Math.fround(0.85), which is 2.4e-8 above 0.85. Compared as doubles, as the reference compares, it is over 0.85, so
+ * that rung holds the 15 peaks a reading needs. Compared as float32 it equals the threshold, the rung falls one
+ * short, and the reading comes from the 0.8 rung, where the last kick's crossing lands elsewhere: bpmExact moves by
+ * 0.05. Unrounded, its peak is 2.7e-8 above 0.85 and 2.6e-8 under the next float32 rounding boundary, so a port that
+ * keeps the lowpass output as doubles reads it as the reference does.
+ * @returns {Float64Array} The signal, every sample a whole multiple of 1/32768, so toPcm16 keeps it exactly
+ */
+function thresholdEdge() {
+  const sampleRate = 4_000;
+  const kicks = 15;
+  const kickLength = Math.round(0.3 * sampleRate);
+  const starts = Array.from({length: kicks}, (_, beat) => Math.round(beat * 0.6 * sampleRate));
+  const shape = instruments.kick(sampleRate);
+  const pcm = new Int16Array(starts[kicks - 1] + Math.round(1.1 * sampleRate));
+  const decoded = () => Float32Array.from(pcm, value => value / 32_768);
+  const place = (start, gain) => {
+    for (let i = 0; i < kickLength; i += 1) {
+      pcm[start + i] = Math.max(-32_768, Math.min(32_767, Math.round(gain * shape[i] * 32_768)));
+    }
+  };
+
+  const peakOf = start => {
+    const filtered = lowpassUnrounded(decoded(), sampleRate);
+    let index = start;
+    for (let i = start; i < start + kickLength; i += 1) {
+      index = filtered[i] > filtered[index] ? i : index;
+    }
+
+    return {value: filtered[index], index};
+  };
+
+  // Each gain is scaled until its kick's lowpassed peak converges on the target: 30 rounds is far past convergence
+  const fit = (start, gain, target) => {
+    let fitted = gain;
+    for (let round = 0; round < 30; round += 1) {
+      place(start, fitted);
+      fitted *= target / peakOf(start).value;
+    }
+
+    return fitted;
+  };
+
+  const loud = fit(starts[0], 0.8, 0.875);
+  for (const start of starts.slice(0, -1)) {
+    place(start, loud);
+  }
+
+  // Halfway between 0.85 and the float32 rounding boundary above Math.fround(0.85)
+  const target = (edgeThreshold + Math.fround(edgeThreshold) + (2 ** -25)) / 2;
+  const last = starts[kicks - 1];
+  fit(last, loud * 0.85 / 0.875, target);
+  // Then single samples before the peak, each moved by whole steps of 1/32768, where the filter's response to them
+  // is small enough to land within 2e-9 of the target
+  const impulse = new Float32Array(300);
+  impulse[0] = 1;
+  const response = lowpassUnrounded(impulse, sampleRate);
+  let peak = peakOf(last);
+  for (let round = 0; round < 50 && Math.abs(target - peak.value) > 2e-9; round += 1) {
+    const residual = target - peak.value;
+    let lag = -1;
+    for (let candidate = 1; candidate < response.length && peak.index - candidate >= last; candidate += 1) {
+      const step = Math.abs(response[candidate] / 32_768);
+      if (step > 1e-12 && step <= Math.abs(residual) && (lag < 0 || step > Math.abs(response[lag] / 32_768))) {
+        lag = candidate;
+      }
+    }
+
+    if (lag < 0) {
+      break;
+    }
+
+    const index = peak.index - lag;
+    pcm[index] = Math.max(-32_768, Math.min(32_767, pcm[index] + Math.round(residual / (response[lag] / 32_768))));
+    peak = peakOf(last);
+  }
+
+  return Float64Array.from(pcm, value => value / 32_768);
+}
+
+/**
+ * Kicks one sample long, on the beat: the tempogram's floor is 100 Hz, where a hop is one sample
+ * @param {number} sampleRate Hz
+ * @param {number} bpm Tempo
+ * @param {number} seconds Length
+ * @returns {Float64Array} The signal
+ */
+function impulses(sampleRate, bpm, seconds) {
+  const out = new Float64Array(Math.round(seconds * sampleRate));
+  for (let beat = 0; Math.round(beat * (60 / bpm) * sampleRate) < out.length; beat += 1) {
+    out[Math.round(beat * (60 / bpm) * sampleRate)] = 0.9;
+  }
+
+  return out;
+}
+
+/**
  * The input set. Each id is the file name in ../inputs. Rates vary so that every rate-dependent size in both
  * engines (FFT size, hop, filter coefficients, interval binning) is exercised at more than one value. Lengths are
  * as short as a reading needs, to keep the committed files under their size budget (see ../readme.md).
- * @type {ReadonlyArray<{id: string, description: string, sampleRate: number, build: () => Float64Array}>}
+ * A signal runs under every option set of generate.mjs unless it names its own `optionSets` (none for an input only
+ * error cases use). `nonFinite` lists the samples a harness overwrites after decoding, since 16-bit PCM holds no NaN
+ * or infinity. `perturbation` replaces the generator's relative perturbation, 0 for none, for a case placed on a boundary on purpose.
+ * @type {ReadonlyArray<{id: string, description: string, sampleRate: number, build: () => Float64Array,
+ *   optionSets?: string[], nonFinite?: Array<{index: number, value: string}>, perturbation?: number}>}
  */
 export const signals = [
   pattern('kick-120-22k', 'Four-on-the-floor kick at 120 BPM, 22.05 kHz, 8 s.',
@@ -199,5 +330,37 @@ export const signals = [
   pattern('kick-120-tiny-44k', 'Kick at 120 BPM cut to 0.3 s, a single hit, 44.1 kHz.',
     {sampleRate: 44_100, seconds: 0.3, bpm: 120, steps: patterns.fourOnTheFloor(), seed: 18}),
   {id: 'silence-44k', description: 'Digital silence, 44.1 kHz, 8 s.', sampleRate: 44_100, build: () => new Float64Array(352_800)},
-  {id: 'empty', description: 'No samples at all, for the error case.', sampleRate: 44_100, build: () => new Float64Array(0)},
+  {id: 'empty', description: 'No samples at all, for the error case.', sampleRate: 44_100, build: () => new Float64Array(0), optionSets: []},
+  // RBA-260: the calibration's band edges sit at 140 and 165 BPM, and kick-140-96k reads 140. These read 139, 164
+  // and 165, so moving an edge by one BPM either way changes a confidence. Their low rates are the set's rates under 8 kHz
+  pattern('kick-139-4k', 'Kick on every beat at 139 BPM, a BPM under the calibration band that starts at 140, 4 kHz, 10 s.',
+    {sampleRate: 4_000, seconds: 10, bpm: 139, steps: patterns.fourOnTheFloor(), seed: 22}),
+  pattern('kick-164-2k', 'Kick on every beat at 164 BPM, a BPM under the calibration band that starts at 165, 2 kHz, 10 s.',
+    {sampleRate: 2_000, seconds: 10, bpm: 164, steps: patterns.fourOnTheFloor(), seed: 23}),
+  pattern('kick-165-1k', 'Kick on every beat at 165 BPM, the first BPM of the top calibration band, 1 kHz, 10 s.',
+    {sampleRate: 1_000, seconds: 10, bpm: 165, steps: patterns.fourOnTheFloor(), seed: 24}),
+  {
+    id: 'impulses-120-100hz',
+    description: 'One-sample clicks at 120 BPM, 100 Hz, the lowest rate the tempogram takes (its hop is one sample), 12 s. It reads no tempo: under about 123 Hz the tempogram\'s FFT is 2 points, with no bin above DC.',
+    sampleRate: 100,
+    build: () => impulses(100, 120, 12),
+    // The peaks engine's default lowpass needs more than 400 Hz
+    optionSets: ['default', 'tempogram-90-180', 'range-60-140'],
+  },
+  {
+    id: 'peaks-threshold-edge-4k',
+    description: 'Kicks at 100 BPM whose last lowpassed peak is exactly the float32 nearest 0.85, a peaks threshold: a double comparison counts it, a float32 one does not. 4 kHz, 9.5 s.',
+    sampleRate: 4_000,
+    build: thresholdEdge,
+    optionSets: ['peaks', 'peaks-90-180'],
+    // None: the case sits on a float32 boundary on purpose. Its lowpassed peak is 2.6e-8 from the boundary, about 1e8
+    // times a double's rounding, so any double lowpass keeps it, while a one-step move of a 16-bit input crosses it
+    perturbation: 0,
+  },
+  ...[['nan', 'NaN'], ['infinity', 'Infinity'], ['negative-infinity', '-Infinity']].map(([name, value]) => ({
+    ...pattern(`kick-120-${name}-8k`, `A kick at 120 BPM, 8 kHz, 0.5 s, whose last sample is ${value}, for the error cases.`,
+      {sampleRate: 8_000, seconds: 0.5, bpm: 120, steps: patterns.fourOnTheFloor(), seed: 25}),
+    optionSets: [],
+    nonFinite: [{index: 3_999, value}],
+  })),
 ];

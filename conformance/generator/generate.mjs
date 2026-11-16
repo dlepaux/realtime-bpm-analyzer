@@ -5,8 +5,8 @@
 import {createHash} from 'node:crypto';
 import {existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync} from 'node:fs';
 import {gunzipSync, gzipSync} from 'node:zlib';
-import {analyzeChannelData} from '../../packages/realtime-bpm-analyzer/dist/node.mjs';
-import {noiseSource, signals, toPcm16} from './signals.mjs';
+import {analyzeChannelData, applyLowpass} from '../../packages/realtime-bpm-analyzer/dist/node.mjs';
+import {edgeThreshold, noiseSource, signals, toPcm16} from './signals.mjs';
 
 const root = new URL('../', import.meta.url);
 const inputsDir = new URL('inputs/', root);
@@ -30,8 +30,18 @@ const optionSets = [
   ['peaks-lowpass-150-q3', {engine: {name: 'peaks', lowpass: {frequency: 150, q: 3}}}],
 ];
 
-/** Inputs that are only there for an error case */
-const errorOnlyInputs = new Set(['empty']);
+/**
+ * Cases outside the grid of inputs and option sets, at a rate other than their input's or on a range at a bound
+ * (RBA-260). The two ranges are the widest each bound takes: max at 2^31 - 1, and a max / min of 1e308, just under the
+ * largest finite double.
+ */
+const extraCases = [
+  ['peaks-sample-rate-2', 'kick-120-tiny-44k', 2, {engine: {name: 'peaks', lowpass: {frequency: 0.2}}}],
+  ['peaks-range-max-2147483647', 'kick-120-22k', 22_050, {engine: 'peaks', tempoRange: {min: 90, max: 2_147_483_647}}],
+  ['tempogram-range-max-2147483647', 'kick-120-22k', 22_050, {tempoRange: {min: 90, max: 2_147_483_647}}],
+  ['peaks-range-ratio-1e308', 'kick-120-22k', 22_050, {engine: 'peaks', tempoRange: {min: 1e-305, max: 1000}}],
+  ['tempogram-range-ratio-1e308', 'house-128-short-44k', 44_100, {tempoRange: {min: 1e-305, max: 1000}}],
+];
 
 /** Calls that must fail. Only value errors: type errors such as an unknown key belong to JS's untyped options */
 const errorCases = [
@@ -43,6 +53,16 @@ const errorCases = [
   ['range-min-zero', 'kick-120-tiny-44k', 44_100, {tempoRange: {min: 0, max: 150}}, 'min and max must be positive.'],
   ['lowpass-at-nyquist', 'kick-120-tiny-44k', 44_100, {engine: {name: 'peaks', lowpass: {frequency: 22_050}}}, 'The cutoff must be below half the sample rate.'],
   ['lowpass-q-above-range', 'kick-120-tiny-44k', 44_100, {engine: {name: 'peaks', lowpass: {q: 771}}}, 'q must be from -758 to 770 dB.'],
+  // RBA-260
+  ['sample-rate-1.99-peaks', 'kick-120-tiny-44k', 1.99, {engine: {name: 'peaks', lowpass: {frequency: 0.2}}}, 'The peaks engine needs at least 2 Hz, where its 0.25 s skip after a peak is a whole sample.'],
+  ['range-max-above-2147483647', 'kick-120-tiny-44k', 44_100, {tempoRange: {min: 90, max: 2_147_483_648}}, 'max must be at most 2^31 - 1, so a whole BPM fits a signed 32-bit integer.'],
+  ['range-max-above-2147483647-peaks', 'kick-120-tiny-44k', 44_100, {engine: 'peaks', tempoRange: {min: 90, max: 2_147_483_648}}, 'max must be at most 2^31 - 1, so a whole BPM fits a signed 32-bit integer.'],
+  ['range-ratio-overflow', 'kick-120-tiny-44k', 44_100, {tempoRange: {min: 1e-306, max: 1000}}, 'max / min must be a finite number.'],
+  ['range-ratio-overflow-peaks', 'kick-120-tiny-44k', 44_100, {engine: 'peaks', tempoRange: {min: 1e-306, max: 1000}}, 'max / min must be a finite number.'],
+  ...['nan', 'infinity', 'negative-infinity'].flatMap(name => [
+    [`sample-${name}`, `kick-120-${name}-8k`, 8_000, {}, 'Every sample must be a finite number.'],
+    [`sample-${name}-peaks`, `kick-120-${name}-8k`, 8_000, {engine: 'peaks'}, 'Every sample must be a finite number.'],
+  ]),
 ];
 
 /** Seeds of the perturbed runs each case is checked against */
@@ -56,9 +76,9 @@ const perturbationSeeds = [101, 202, 303];
  * @param {number} seed The noise seed
  * @returns {Float32Array} The perturbed copy
  */
-function perturbed(samples, seed) {
+function perturbed(samples, seed, step = 2 ** -22) {
   const noise = noiseSource(seed);
-  return samples.map(value => Math.fround(value * (1 + (Math.sign(noise()) * (2 ** -22)))));
+  return samples.map(value => Math.fround(value * (1 + (Math.sign(noise()) * step))));
 }
 
 /**
@@ -88,14 +108,15 @@ function plain(reading) {
 
 /**
  * Runs one case and its perturbed copies.
+ * @param {number} [step] The perturbation, relative: 2^-22, or 0 for a case that sits on a boundary on purpose
  * @returns {Promise<{expected: object | null, spread: {bpmExact: number, confidence: number}}>} The reading, and how
  * far the perturbed runs moved its float fields
  */
-async function measure(id, samples, sampleRate, options) {
+async function measure(id, samples, sampleRate, options, step) {
   const expected = plain(await analyzeChannelData(samples, sampleRate, options));
   const spread = {bpmExact: 0, confidence: 0};
   for (const seed of perturbationSeeds) {
-    const moved = plain(await analyzeChannelData(perturbed(samples, seed), sampleRate, options));
+    const moved = plain(await analyzeChannelData(perturbed(samples, seed, step), sampleRate, options));
     if (discreteFields(moved) !== discreteFields(expected)) {
       throw new Error(`${id} is fragile: perturbation ${seed} changes it from ${discreteFields(expected)} to ${discreteFields(moved)}. Change the signal so the reading has a margin.`);
     }
@@ -131,6 +152,21 @@ function format(vectors) {
   ].join('\n');
 }
 
+/**
+ * Refuses to write the set unless peaks-threshold-edge-4k still does what its case is for: exactly one sample of the
+ * library's lowpass output over the 0.85 rung that is not over Math.fround(0.85). signals.mjs placed it with its own
+ * copy of the filter, so this holds that copy to the library's.
+ * @param {Float32Array} samples The input
+ * @param {number} sampleRate Its rate
+ */
+function checkThresholdEdge(samples, sampleRate) {
+  const filtered = applyLowpass(samples, sampleRate);
+  const onEdge = filtered.filter(value => value > edgeThreshold && !(value > Math.fround(edgeThreshold))).length;
+  if (onEdge !== 1) {
+    throw new Error(`peaks-threshold-edge-4k has ${onEdge} lowpassed samples equal to Math.fround(${edgeThreshold}), expected 1: fix thresholdEdge in signals.mjs.`);
+  }
+}
+
 async function main() {
   const inputs = [];
   const samplesById = new Map();
@@ -163,9 +199,17 @@ async function main() {
       samples: pcm.length / 2,
       sha256: createHash('sha256').update(pcm).digest('hex'),
       description: signal.description,
+      ...(signal.nonFinite === undefined ? {} : {nonFinite: signal.nonFinite}),
     });
-    samplesById.set(signal.id, Float32Array.from(pcm16, value => value / 32_768));
+    const samples = Float32Array.from(pcm16, value => value / 32_768);
+    for (const {index, value} of signal.nonFinite ?? []) {
+      samples[index] = Number(value);
+    }
+
+    samplesById.set(signal.id, samples);
   }
+
+  checkThresholdEdge(samplesById.get('peaks-threshold-edge-4k'), 4_000);
 
   const expectedFiles = new Set(inputs.map(input => input.file.slice('inputs/'.length)));
   const present = existsSync(inputsDir) ? readdirSync(inputsDir) : [];
@@ -179,14 +223,15 @@ async function main() {
 
   const cases = [];
   const spread = {bpmExact: 0, confidence: 0};
-  for (const input of inputs.filter(input => !errorOnlyInputs.has(input.id))) {
-    for (const [name, options] of optionSets) {
-      const id = `${input.id}/${name}`;
-      const result = await measure(id, samplesById.get(input.id), input.sampleRate, options);
-      spread.bpmExact = Math.max(spread.bpmExact, result.spread.bpmExact);
-      spread.confidence = Math.max(spread.confidence, result.spread.confidence);
-      cases.push({id, input: input.id, sampleRate: input.sampleRate, options, expected: result.expected});
-    }
+  const grid = signals.flatMap(signal => optionSets
+    .filter(([name]) => signal.optionSets?.includes(name) ?? true)
+    .map(([name, options]) => [`${signal.id}/${name}`, signal.id, signal.sampleRate, options, signal.perturbation]));
+  const extra = extraCases.map(([name, input, sampleRate, options]) => [`extra/${name}`, input, sampleRate, options]);
+  for (const [id, input, sampleRate, options, step] of [...grid, ...extra]) {
+    const result = await measure(id, samplesById.get(input), sampleRate, options, step);
+    spread.bpmExact = Math.max(spread.bpmExact, result.spread.bpmExact);
+    spread.confidence = Math.max(spread.confidence, result.spread.confidence);
+    cases.push({id, input, sampleRate, options, expected: result.expected});
   }
 
   for (const field of ['bpmExact', 'confidence']) {
@@ -212,7 +257,7 @@ async function main() {
   }
 
   const vectors = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     pcm: {encoding: 'signed 16-bit little-endian', channels: 1, compression: 'gzip', divisor: 32_768},
     tolerances: {
       bpmExact: {absolute: tolerances.bpmExact, referenceSpread: spread.bpmExact},

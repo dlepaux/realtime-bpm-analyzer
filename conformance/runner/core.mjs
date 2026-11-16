@@ -26,6 +26,27 @@ export function decodePcm16(bytes) {
   return samples;
 }
 
+/** The values `nonFinite` may name, spelled as JSON cannot hold them */
+const nonFiniteValues = new Map([['NaN', Number.NaN], ['Infinity', Number.POSITIVE_INFINITY], ['-Infinity', Number.NEGATIVE_INFINITY]]);
+
+/**
+ * Overwrites the samples an input's `nonFinite` names, after decoding: 16-bit PCM holds no NaN or infinity.
+ * @param {Float32Array} samples The decoded input, changed in place
+ * @param {{id: string, nonFinite?: Array<{index: number, value: string}>}} input The input's entry in vectors.json
+ * @returns {Float32Array} The same samples
+ */
+export function applyNonFinite(samples, input) {
+  for (const {index, value} of input.nonFinite ?? []) {
+    if (!Number.isInteger(index) || index < 0 || index >= samples.length || !nonFiniteValues.has(value)) {
+      throw new Error(`${input.id}: nonFinite entry {index: ${index}, value: ${value}} is not a sample index and one of NaN, Infinity or -Infinity.`);
+    }
+
+    samples[index] = nonFiniteValues.get(value);
+  }
+
+  return samples;
+}
+
 /**
  * @param {unknown} value Anything
  * @returns {string} The value for a message: JSON, with NaN and the infinities spelled out
@@ -151,8 +172,8 @@ export function compareError(expectedName, error) {
  * and the largest float difference seen, so each runtime reports how far it is from the reference
  */
 export async function runVectors({vectors, loadSamples, analyze, log}) {
-  if (vectors.schemaVersion !== 1) {
-    throw new Error(`vectors.json has schema version ${vectors.schemaVersion}; this runner reads version 1.`);
+  if (vectors.schemaVersion !== 2) {
+    throw new Error(`vectors.json has schema version ${vectors.schemaVersion}; this runner reads version 2.`);
   }
 
   const samples = new Map();
@@ -162,7 +183,7 @@ export async function runVectors({vectors, loadSamples, analyze, log}) {
       throw new Error(`${input.file} decodes to ${loaded.length} samples, expected ${input.samples}.`);
     }
 
-    samples.set(input.id, loaded);
+    samples.set(input.id, applyNonFinite(loaded, input));
   }
 
   const tolerances = {

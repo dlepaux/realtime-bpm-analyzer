@@ -59,12 +59,13 @@ public final class BpmAnalyzer {
         if (engine.name() == EngineName.TEMPOGRAM) {
             return toReading(TempogramEngine.detect(samples, sampleRate, range), audioTo, EngineName.TEMPOGRAM, range);
         }
+        Lowpass lowpass = engine.lowpass();
+        requireLowpassFits(lowpass, sampleRate);
+        // After the lowpass, as the JS library checks it
         if (!(sampleRate >= PeaksEngine.MIN_SAMPLE_RATE)) {
             throw new OutOfRangeException("Invalid sample rate: " + sampleRate + ". The peaks engine needs at least "
                 + PeaksEngine.MIN_SAMPLE_RATE + " Hz, where the skip after a peak is a whole sample.");
         }
-        Lowpass lowpass = engine.lowpass();
-        requireLowpassFits(lowpass, sampleRate);
         return toReading(PeaksEngine.detect(samples, sampleRate, lowpass, range), audioTo, EngineName.PEAKS, range);
     }
 

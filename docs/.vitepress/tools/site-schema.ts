@@ -83,11 +83,11 @@ export const HOME_FAQ = [
   },
   {
     q: 'How does it work?',
-    a: 'The analyzer uses the Web Audio API to decode audio directly in your browser, applies a low-pass filter to isolate the low-frequency transients that usually carry the beat, and counts the intervals between detected peaks. The most frequent interval gives the BPM. The analysis happens on your device.',
+    a: 'The analyzer uses the Web Audio API to decode audio directly in your browser, and measures how the sound changes from moment to moment across several frequency bands. The tempo is the spacing that repeats most in those changes. The analysis happens on your device.',
   },
   {
     q: 'Is my audio sent to a server?',
-    a: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends nothing anywhere. Your audio never leaves your device. The website uses Google Analytics to record how the tool is used, such as the tempo found and, for a file, its size, type and duration. It never records the file, its sound or its name.',
+    a: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends no audio anywhere. Your audio never leaves your device. The website uses Google Analytics to record how the tool is used, such as the tempo found and, for a file, its size, type and duration. It never records the file, its sound or its name.',
   },
   {
     q: 'Which audio formats are supported?',
@@ -132,9 +132,10 @@ export function siteGraph(relativePath: string): object[] {
 }
 
 /**
- * Guides for packages that aren't on npm yet. Their pages stay at the same URLs but are
- * noindex, out of the sitemap, the sidebar, the search and llms.txt, and nothing links
- * to them (RBA-122). They come back with the v6 release, PR #323.
+ * Guides for packages that aren't on npm yet. Their pages are noindex and out of the
+ * sitemap, the sidebar, the search and llms.txt (RBA-122). From v6 the Developers menu
+ * links them (RBA-247). Once both packages are on npm, the noindex flip empties this
+ * list (contributing.md, "First publish of v6").
  */
 export const UNPUBLISHED_GUIDES: readonly string[] = ['guide/cli', 'guide/mcp']
 

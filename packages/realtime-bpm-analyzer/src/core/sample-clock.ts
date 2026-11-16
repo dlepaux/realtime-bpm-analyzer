@@ -9,14 +9,14 @@
  *
  * The reference has to be the input's own clock, not the system clock. When the whole browser loses the CPU the
  * capture slows with the thread, nothing is dropped, and paying the difference to system time makes the tempo
- * read low instead (RBA-97: 150 read 135, marked stable).
+ * read low instead (measured: 150 read 135, marked stable).
  *
  * What the input has delivered reaches this clock late, never early, so a late report can only make the
  * deficit look smaller. A stall the thread recovers from is left alone: it renders what it missed in a burst, so
  * the smallest deficit of a window stays where it was (measured, stalls up to 500 ms).
  *
  * Paid silence puts the beats back on average, not each one: under sustained loss the tempogram still moves a hop
- * or two (RBA-97: 120 read 117 and 118, 150 read 148). Below half speed the clock can't even pay what is lost. So
+ * or two (measured: 120 read 117 and 118, 150 read 148). Below half speed the clock can't even pay what is lost. So
  * while it is behind, a reading is usable but not to be called stable: see `isBehind`.
  */
 
@@ -50,7 +50,7 @@ const windowsToGoBlind = 3;
 
 /**
  * Lost in a spell behind and since the analyzer started over, past this what it heard can't back a lock, so it starts
- * over when the loss ends. Under it a lock read within 1 BPM (RBA-97, simulated: 596 runs, 100 to 174 BPM), and
+ * over when the loss ends. Under it a lock read within 1 BPM (simulated: 596 runs, 100 to 174 BPM), and
  * starting over would cost a capture 11.5 s for one small drop. Above the 0.25 s a healed stall of 1.9 s adds, and
  * below the 0.9 s that first read 143 for 100.
  */
@@ -69,6 +69,8 @@ export type SampleClock = {
   advance: (frames: number) => boolean;
   /** Whether time is being lost now */
   isBehind: () => boolean;
+  /** Whether a lock would be refused now: time is being lost, or the clock has stopped reporting */
+  isLosing: () => boolean;
   /** Asks to publish a lock, and remembers the answer: no while behind or blind, and the analyzer then has to start over */
   offerLock: () => boolean;
   /** Whether the analyzer should start over now, because what it heard was lost. Answers yes once for each loss */
@@ -240,6 +242,7 @@ export function createSampleClock(sampleRate: number): SampleClock {
       return false;
     },
     isBehind: () => behind,
+    isLosing: () => behind || isBlind(),
     offerLock() {
       if (behind || isBlind()) {
         mustStartOver = true;
@@ -290,7 +293,8 @@ export function followTrackClock(track: MediaStreamTrack, report: (deliveredSeco
 
     const duration = (track as TrackWithStats).stats?.totalFramesDuration;
 
-    if (typeof duration === 'number') {
+    // Drop a count that is not finite: the processor fails the analyzer on one
+    if (typeof duration === 'number' && Number.isFinite(duration)) {
       report(duration / 1000);
     }
   }, reportEveryMs);

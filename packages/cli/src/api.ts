@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
-import type {Detector, Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
+import type {Candidate, EngineName, OfflineResult, TempoRange} from 'realtime-bpm-analyzer/node';
 import {analyzeOnWorker} from './analyze';
 import {decodeFile, describeDecodedLimit} from './decode';
 import {errorMessage} from './errors';
@@ -11,44 +11,79 @@ import {errorMessage} from './errors';
 // and analysis path. Its declarations are emitted from this file alone and must stay free
 // of relative imports in type positions: only the library's types may appear in signatures.
 
-export type {Detector, Tempo, TempoRange} from 'realtime-bpm-analyzer/node';
+export type {Candidate, CandidateRelation, EngineName, TempoRange} from 'realtime-bpm-analyzer/node';
 
 export type FileResult =
-  | {
-    readonly file: string;
-    readonly ok: true;
-    /** Top candidate's tempo, or null when no beat was found */
-    readonly bpm: number | null;
-    readonly confidence: number | null;
-    readonly candidates: readonly Tempo[];
-  }
+  | ({readonly file: string; readonly ok: true} & (FoundReading | NoReading))
   | {readonly file: string; readonly ok: false; readonly error: string};
 
-export type AnalyzeOptions = {
+/**
+ * A file where a beat was found: every field of the reading is set, the confidence null when unmeasured. Tell it
+ * from a {@link NoReading} by `bpm`, since both can have a null confidence.
+ */
+export type FoundReading = {
+  /** The reading's tempo, a whole number of BPM */
+  readonly bpm: number;
+  /** The same tempo unrounded, for timing (a beat grid, markers) */
+  readonly bpmExact: number;
+  /**
+   * From 0 to 1, the estimated chance the reading is right (within 4% of the true tempo, half or double
+   * counting as wrong). Calibrated on licence-clean dev data from 90 to 180 BPM, so inside that range it means
+   * the same for either engine. `null`: unmeasured, when `bpm` is outside 90 to 180 or when the analysis ran on a
+   * custom tempo range: the calibration covers only readings from 90 to 180 BPM by analyses on that default range.
+   * A range of exactly 90 to 180 is the default and keeps the number.
+   */
+  // Keep this doc in step with Reading.confidence
+  readonly confidence: number | null;
+  /** At most 5, best first, each with its relation to the top one */
+  readonly candidates: readonly Candidate[];
+  /** The engine that measured the reading */
+  readonly engine: EngineName;
+};
+
+/** A file where no beat was found: the reading's fields are all null and there are no candidates */
+export type NoReading = {
+  readonly bpm: null;
+  readonly bpmExact: null;
+  readonly confidence: null;
+  readonly candidates: readonly [];
+  readonly engine: null;
+};
+
+/**
+ * Options for {@link analyzeFile}. Named for the function, and a different thing from the library's
+ * `AnalyzerOptions`, which configure a realtime analyzer.
+ */
+export type AnalyzeFileOptions = {
   /** Tempo range to fold candidates into, or to search with the tempogram; the library's default when omitted */
   readonly tempoRange?: TempoRange;
-  /** Tempo detector; the library's default (`peaks`) when omitted */
-  readonly detector?: Detector;
+  /** Tempo engine; the library's default when omitted, and the result's `engine` says which ran */
+  readonly engine?: EngineName;
   /** ffmpeg binary for formats without a bundled decoder (default `ffmpeg` on PATH) */
   readonly ffmpegPath?: string;
   /** Stops the decode or the analysis in progress; the result is then `Cancelled.` */
   readonly signal?: AbortSignal;
   /** Gives up on a file after this many milliseconds, decode and analysis together (no limit when omitted) */
   readonly timeoutMs?: number;
-  /** Refuse a file whose first channel decodes to more than this (default defaultMaxDecodedBytes) */
+  /** Refuse a file whose first channel decodes to more than this (default {@link defaultMaxDecodedBytes}) */
   readonly maxDecodedBytes?: number;
 };
 
 /**
- * Decoded size refused by default. A 100 MB MP3 at 128 kbps fits, and
- * the process peaks at about 2.1 times this much memory: analysis filters a copy of the samples.
+ * Decoded size refused by default, in bytes: {@link analyzeFile}'s `maxDecodedBytes` when omitted. A 100 MB MP3 at
+ * 128 kbps fits, and the process peaks at about 2.1 times this much memory: analysis filters a copy of the samples.
+ * Exported for `realtime-bpm-analyzer-mcp`, whose tools run on this default.
  */
 export const defaultMaxDecodedBytes = 2 * 1024 * 1024 * 1024;
 
 // Longest delay a Node timer holds: a longer one fires after 1 ms instead
 const maxTimeoutMs = 2 ** 31 - 1;
 
-/** The default limit in the plain words of the refusal, for documentation and tool descriptions */
+/**
+ * {@link defaultMaxDecodedBytes} in the plain words of the refusal, such as "2048 MB of decoded audio (202 minutes at
+ * 44.1 kHz)". `realtime-bpm-analyzer-mcp` puts it in its tools' descriptions, so an assistant knows the limit before
+ * it sends a file.
+ */
 export const decodedLimit: string = describeDecodedLimit(defaultMaxDecodedBytes);
 
 /** Extensions of the audio files this package reads by name: the CLI's folder mode picks files by them */
@@ -56,29 +91,36 @@ export const audioExtensions: ReadonlySet<string> = new Set([
   '.mp3', '.wav', '.wave', '.flac', '.ogg', '.oga', '.opus', '.m4a', '.aac', '.aif', '.aiff', '.wma',
 ]);
 
-// The library's default tempoRange, the same for both detectors, to fill a missing bound. /node does
+// The library's default tempoRange, the same for both engines, to fill a missing bound. /node does
 // not export it, so tests/cli.test.mjs pins these values to the library's behaviour.
 const defaultTempoRange: TempoRange = {min: 90, max: 180};
 
 /**
  * Builds the result of an analysed file.
  * @param file Path as reported
- * @param candidates Candidates from analyzeChannelData, best first
+ * @param reading What analyzeChannelData read, or null
  * @returns The result
  */
-function successResult(file: string, candidates: readonly Tempo[]): FileResult {
-  const [top] = candidates;
-  return {file, ok: true, bpm: top?.tempo ?? null, confidence: top?.confidence ?? null, candidates};
+function successResult(file: string, reading: OfflineResult): FileResult {
+  // The reading's fields, flat, so a script reads `bpm` whether or not a beat was found. Two are left
+  // out: a file has no analyzer state (the offline result is a reading or null), and `audio` would
+  // only repeat the file's length, with a context time that is always null offline.
+  if (reading === null) {
+    return {file, ok: true, bpm: null, bpmExact: null, confidence: null, candidates: [], engine: null};
+  }
+
+  const {bpm, bpmExact, confidence, candidates, engine} = reading;
+  return {file, ok: true, bpm, bpmExact, confidence, candidates, engine};
 }
 
 /**
  * Decodes and analyses one file. Never throws: a file that cannot be read or decoded
  * comes back as `ok: false` with a one-line message, so a batch keeps going.
  * @param path File to analyse, reported as given
- * @param options Tempo range, detector, ffmpeg binary, abort signal, time limit and decoded size limit
+ * @param options Tempo range, engine, ffmpeg binary, abort signal, time limit and decoded size limit
  * @returns The result
  */
-export async function analyzeFile(path: string, options: AnalyzeOptions = {}): Promise<FileResult> {
+export async function analyzeFile(path: string, options: AnalyzeFileOptions = {}): Promise<FileResult> {
   const {timeoutMs} = options;
   if (timeoutMs !== undefined && !(Number.isInteger(timeoutMs) && timeoutMs > 0 && timeoutMs <= maxTimeoutMs)) {
     return {file: path, ok: false, error: `Invalid timeoutMs: ${timeoutMs}. Use a whole number of milliseconds from 1 to ${maxTimeoutMs}.`};
@@ -93,7 +135,7 @@ export async function analyzeFile(path: string, options: AnalyzeOptions = {}): P
       maxDecodedBytes: options.maxDecodedBytes ?? defaultMaxDecodedBytes,
       signal,
     });
-    return successResult(path, await analyzeOnWorker({...decoded, tempoRange: options.tempoRange, detector: options.detector}, signal));
+    return successResult(path, await analyzeOnWorker({...decoded, tempoRange: options.tempoRange, engine: options.engine}, signal));
   } catch (error: unknown) {
     // Whatever the decoder or the worker threw on abort, the signal that fired first says why
     if (signal?.aborted === true) {

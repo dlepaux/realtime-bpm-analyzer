@@ -3,6 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { checkRedirects, redirectHtml, targetFiles } from './redirects.ts'
+import { legacyRedirects } from './legacy-redirects.ts'
 
 const built = new Set(['index.html', 'api/index.html', 'guide/getting-started.html'])
 const isBuiltPage = (file: string) => built.has(file)
@@ -41,4 +42,12 @@ test('redirectHtml carries refresh, canonical and the JS hop to the same target'
   assert.match(html, /<meta http-equiv="refresh" content="0; url=\/api\/">/)
   assert.match(html, /<link rel="canonical" href="https:\/\/www\.realtime-bpm-analyzer\.com\/api\/">/)
   assert.match(html, /location\.replace\("\/api\/"/)
+})
+
+// v5's API pages for the types v6 removed were live until the v6 release (RBA-247). Each
+// one now lands on the migration guide, which says what replaced it.
+test('the v5 type pages v6 removed redirect to the v6 migration guide', () => {
+  for (const name of ['BpmProgress', 'CreateRealtimeBpmAnalyzerOptions', 'Detector', 'TempogramMode', 'BiquadFilterOptions', 'AnalyzeFullBufferOptions']) {
+    assert.equal(legacyRedirects[`api/type-aliases/${name}.html`], '/guide/migration-v6', name)
+  }
 })

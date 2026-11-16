@@ -1,12 +1,14 @@
 import {expect} from 'chai';
-import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
+import {PeaksEngine} from '../../../src/core/peaks-engine';
+
+const newEngine = (): PeaksEngine => new PeaksEngine({tempoRange: {min: 90, max: 180}});
 
 /**
  * Resolve the exact key string that represents a given threshold
  * (validPeaks/nextIndexPeaks keys are stringified floats with precision artefacts).
  */
 function getThresholdKey(
-  analyzer: RealTimeBpmAnalyzer,
+  analyzer: PeaksEngine,
   threshold: number,
 ): string {
   const target = threshold.toFixed(2);
@@ -21,10 +23,10 @@ function getThresholdKey(
 }
 
 /**
- * Unit tests codifying the resume-offset contract for RealTimeBpmAnalyzer.findPeaks.
+ * Unit tests codifying the resume-offset contract for PeaksEngine.findPeaks.
  * See plan/backlog/lib-bug-next-index-peaks-modulo.md
  */
-describe('RealTimeBpmAnalyzer - findPeaks resume offset', () => {
+describe('PeaksEngine - findPeaks resume offset', () => {
   const bufferSize = 4096;
   const audioSampleRate = 44_100;
 
@@ -32,7 +34,7 @@ describe('RealTimeBpmAnalyzer - findPeaks resume offset', () => {
     // Case C from the ticket: a high-threshold peak fired early, mute-zone ended,
     // then the signal dropped and several chunks passed. nextIndexPeaks[threshold]
     // is now an absolute index in the PAST relative to the current chunk window.
-    const analyzer = new RealTimeBpmAnalyzer();
+    const analyzer = newEngine();
     const currentMinIndex = bufferSize * 4; // 16384
     const currentMaxIndex = currentMinIndex + bufferSize; // 20480
 
@@ -44,14 +46,10 @@ describe('RealTimeBpmAnalyzer - findPeaks resume offset', () => {
     channelData[peakChunkOffset] = 0.95;
 
     await analyzer.findPeaks({
-      audioSampleRate,
+      sampleRate: audioSampleRate,
       channelData,
-      bufferSize,
       currentMinIndex,
       currentMaxIndex,
-      postMessage() {
-        // No-op
-      },
     });
 
     const expectedAbsoluteIndex = currentMinIndex + peakChunkOffset;
@@ -61,7 +59,7 @@ describe('RealTimeBpmAnalyzer - findPeaks resume offset', () => {
   it('should resume from the correct offset when nextIndexPeaks lies inside the chunk', async () => {
     // Case B from the ticket: mute-zone of a recent peak extends into the current chunk.
     // Scan must start at (nextIndex - currentMinIndex) to honour the mute zone.
-    const analyzer = new RealTimeBpmAnalyzer();
+    const analyzer = newEngine();
     const currentMinIndex = bufferSize * 4;
     const currentMaxIndex = currentMinIndex + bufferSize;
 
@@ -74,14 +72,10 @@ describe('RealTimeBpmAnalyzer - findPeaks resume offset', () => {
     channelData[1000] = 0.95; // After mute zone — must be detected
 
     await analyzer.findPeaks({
-      audioSampleRate,
+      sampleRate: audioSampleRate,
       channelData,
-      bufferSize,
       currentMinIndex,
       currentMaxIndex,
-      postMessage() {
-        // No-op
-      },
     });
 
     expect(analyzer.validPeaks[key090]).to.not.include(currentMinIndex + 100);

@@ -12,8 +12,7 @@ const readable = computed(() => readableDate(page.value.lastUpdated))
 
 <template>
   <p class="home-byline">
-    Maintained by <a href="https://david.lepaux.com">David Lepaux</a><template v-if="readable">.
-      Last updated <time :datetime="iso">{{ readable }}</time></template>.
+    Maintained by <a href="https://david.lepaux.com">David Lepaux</a><span v-if="readable">. Last updated <time :datetime="iso">{{ readable }}</time></span>.
   </p>
 </template>
 

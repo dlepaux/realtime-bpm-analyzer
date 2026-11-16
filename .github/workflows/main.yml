@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - main
+  # Every base, so a PR stacked on a long-lived branch (v6 work stacks on #323) gets the same checks.
+  # Release and Deploy run only for main and never for a pull_request event, so no PR publishes or deploys.
   pull_request:
-    branches:
-      - main
   # Manual retry when a release fails after its commit landed (e.g. npm's provenance step).
   workflow_dispatch:
 
@@ -20,6 +20,10 @@ permissions:
 # Pushes to main share one group so releases and Pages deploys never overlap. Each PR
 # gets its own: GitHub keeps one pending run per group, so a shared group silently
 # cancelled the PR runs queued behind a Renovate batch (3 of 5 on 2026-10-15).
+#
+# Every job has a timeout-minutes, at about three times its slowest recent run (5 at least, and Deploy
+# Documentation above deploy-pages' own wait): with cancel-in-progress off, a hung job held its group,
+# and every run behind it, for up to GitHub's 6-hour limit (RBA-241: 72 minutes before a hand cancelled it).
 concurrency:
   group: main-pipeline-${{ github.event_name == 'push' && 'main' || github.ref }}
   cancel-in-progress: false
@@ -29,6 +33,7 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     # It runs every dependency's install scripts, a pull request's too: read only
     permissions:
       contents: read
@@ -56,6 +61,15 @@ jobs:
           node bin/audit-gate.mjs --self-test
           (npm audit --json || true) | node bin/audit-gate.mjs
 
+      # A release-as left after its release would pin every later release PR to a version npm already has.
+      # Pull requests only, and not release-please's own: its PR is the one that brings the manifest to the
+      # release-as version, and on main a red build would hold the very release that just merged
+      - name: Check release-as is still pending
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')
+        run: |
+          node bin/release-as-gate.mjs --self-test
+          node bin/release-as-gate.mjs
+
       - name: Build
         run: npm run build
 
@@ -63,6 +77,11 @@ jobs:
       # dist/*.d.ts, through the workspace link, the way a published install would
       - name: Lint
         run: npm run lint
+
+      # After the build: the tests import the processor the build generates. Includes tests/types, which are
+      # checked here and never run. Types only: the build emits and checks the declarations, for src alone
+      - name: Typecheck the library and its tests
+        run: npm run typecheck -w realtime-bpm-analyzer
 
       - name: Test
         run: npm test
@@ -100,18 +119,120 @@ jobs:
           path: packages/mcp/dist/
           retention-days: 1
 
-  # Release to GitHub and npm. release-please keeps one release PR open per package
-  # (version bump + changelog, from the conventional commits under that package's path).
+  # The library's browser tests again in Firefox. Gecko reads the audio clock differently from Chromium (the main
+  # thread's currentTime freezes during a long task), and the epoch watchdog's reset anchor depends on it. One of the
+  # release's needs, so a red Firefox run can't publish (RBA-108 DECISION 2026-11-16): a Gecko-only flake holds the
+  # release until "Re-run failed jobs" passes it, which then runs Release too.
+  firefox:
+    name: Test (Firefox)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The tests import the generated processor, which the build writes
+      - name: Build the library
+        run: npm run build -w realtime-bpm-analyzer
+
+      # The Firefox this puppeteer pins: a newer stable is not where its launcher looks
+      - name: Install Firefox for puppeteer
+        working-directory: packages/realtime-bpm-analyzer
+        run: npx puppeteer browsers install firefox
+
+      # The runner has no sound card. Chromium fakes one, while Firefox needs a sound server to start an audio graph,
+      # and the tests that run a worklet wait for it. A null sink gives it one that plays to nothing.
+      - name: Start a silent sound server
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=silent
+          pactl set-default-sink silent
+
+      - name: Test in Firefox
+        run: npm run test:firefox -w realtime-bpm-analyzer
+
+  # The CLI and the MCP server declare >=22.12.0 as their floor (engines), in the oldest maintained LTS (DECISION
+  # 2026-11-15 on RBA-108), and not 22.0.0, whose worker teardown can deadlock and hang the host (DECISIONs 2026-11-15
+  # on RBA-241). Every other job runs 26. This runs the built bins and the library's Node entry on 22.12.0, the floor
+  # itself, so the floor the docs state is one CI tests. One of the release's needs, like Firefox. Renovate leaves
+  # this version alone: raise it and the engines floor together, by hand (packages/cli/tests/node-floor.test.mjs).
+  node-floor:
+    name: CLI and MCP on Node 22
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.12.0
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The builds from Build & Test, so what runs here is the code a publish would ship
+      - name: Download the library build
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          # upload-artifact strips the paths' common ancestor (the package folder)
+          path: packages/realtime-bpm-analyzer
+
+      - name: Download the CLI build
+        uses: actions/download-artifact@v8
+        with:
+          name: cli-dist
+          path: packages/cli/dist
+
+      - name: Download the MCP server build
+        uses: actions/download-artifact@v8
+        with:
+          name: mcp-dist
+          path: packages/mcp/dist
+
+      # 22.12.0 can't load the tests' shared .ts fixtures itself: the hook strips their types (test-only, see the file)
+      - name: Test Node entry, CLI and MCP server
+        run: npm run test:node
+        env:
+          NODE_OPTIONS: --import ${{ github.workspace }}/bin/node-floor/register-ts.mjs
+
+  # Release to GitHub and npm. release-please keeps one release PR open for all three packages
+  # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
+  # commits under its path, and node-workspace moving the ranges between them.
   # Merging it lands here: release-please tags the release (vX.Y.Z for the library,
   # cli-vX.Y.Z for the CLI, mcp-vX.Y.Z for the MCP server) and writes the GitHub release, then each publish step ships
   # whatever version its package.json names that npm does not have yet. Keying on the registry, not on the action's output, makes a
   # re-run after a failed publish safe: it publishes the missing version, or nothing.
   release:
     name: Release
-    needs: build
+    # Every job that tests what ships: a red one, or one skipped, holds the publish. Each runs on a push to main and
+    # on a dispatch, with no job-level if, so none is skipped there. The docs jobs test the site, not the packages.
+    needs: [build, firefox, node-floor]
     # workflow_dispatch can target any branch; only main ever releases
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # The environment only main may deploy to (Settings > Environments > npm). With the trusted publisher on
     # npmjs.com set to it as well, a token from any other job, or from another branch's run, can't publish.
     environment: npm
@@ -271,6 +392,7 @@ jobs:
     name: Build Documentation
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # pages: read for configure-pages, which reads the Pages site on pushes
     permissions:
       contents: read
@@ -324,7 +446,7 @@ jobs:
           echo "lean chunks: $lean, pages: $pages"
           test "$pages" -gt 0 && test "$lean" -ge "$pages"
 
-      # One h1 on home, the unpublished guides noindex and unlinked, TechArticle, both
+      # One h1 on home, the unpublished guides noindex, TechArticle, both
       # dates and a server-rendered date on every guide, and the sitemap both ways: what
       # it lists is indexable with its own canonical, and every indexable page is in it
       # apart from NOT_IN_SITEMAP. Things only the built HTML shows.
@@ -347,6 +469,19 @@ jobs:
       - name: Check the extension switch in both states
         run: npm run verify:extension-switch -w docs
 
+      # A PR's built site, to look at in a browser without building it locally (RBA-240): download
+      # it with `gh run download <run-id> -n docs-site` and serve the folder. It is the same folder
+      # the pages artifact publishes, so it holds nothing the live site doesn't. Hidden files stay
+      # out, as upload-artifact's default.
+      - name: Upload the built site for preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-site
+          path: docs/.vitepress/dist/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5
@@ -360,6 +495,7 @@ jobs:
   markers:
     name: Marker files (OpenTimelineIO, FCPXML DTD)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     # It runs code downloaded from PyPI and reads a file fetched from Apple: read access only.
     permissions:
       contents: read
@@ -422,8 +558,11 @@ jobs:
     name: Deploy Documentation
     # A red marker check holds the deploy: branch protection requires no status checks.
     needs: [docs, markers]
-    if: github.event_name != 'pull_request'
+    # main only, as Release: a dispatch on another branch would otherwise publish that branch's site
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Above deploy-pages' own 10-minute wait for the deployment, so a slow Pages day fails in its step
+    timeout-minutes: 12
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

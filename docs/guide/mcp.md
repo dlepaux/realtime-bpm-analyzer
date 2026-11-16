@@ -1,16 +1,152 @@
 ---
 # Unpublished until the v6 release (PR #323): kept out of the local search too.
-# A short notice until then, so the URL keeps answering (RBA-212). The v6 publish
-# reverts this commit to bring back the full guide.
 search: false
 title: BPM Detection for AI Assistants (MCP Server)
-description: The realtime-bpm-analyzer MCP server is not on npm yet. It publishes with v6 of the library.
+description: Let Claude Desktop, Claude Code or any MCP client detect the BPM of audio files on your disk with the local realtime-bpm-analyzer-mcp server. The audio never leaves your machine.
 ---
 
 # BPM Detection for AI Assistants (MCP Server)
 
-The MCP server is not on npm yet. It publishes with v6 of the library, and this guide
-comes back then.
+`realtime-bpm-analyzer-mcp` is a local [Model Context Protocol](https://modelcontextprotocol.io)
+server. An assistant that speaks MCP (Claude Desktop, Claude Code and others) can ask
+it for the tempo of audio files on your computer. It uses the same decoders and
+analysis as the [command-line tool](./cli).
 
-Until then, [BPM Detection in Node.js](./node) shows how to analyse decoded audio with
-the library's Node.js entry point.
+The server runs on your machine and talks to the assistant's app over stdio. It makes
+no network calls and sends no telemetry, so the audio never leaves your computer. The
+assistant only sees the results: paths, tempos and confidences. Its app handles those
+like any other tool result, so they can reach its AI provider. `npx` itself contacts npm
+to fetch the package.
+
+## Install
+
+It needs Node.js 22.12 or later. In **Claude Desktop**, open Settings, Developer, Edit
+Config, add the server to `claude_desktop_config.json` and restart the app:
+
+```json
+{
+  "mcpServers": {
+    "bpm": {
+      "command": "npx",
+      "args": ["-y", "realtime-bpm-analyzer-mcp"]
+    }
+  }
+}
+```
+
+In **Claude Code**:
+
+```bash
+claude mcp add bpm -- npx -y realtime-bpm-analyzer-mcp
+```
+
+Any other MCP client runs `npx -y realtime-bpm-analyzer-mcp` as a stdio server.
+
+Then ask in plain words: "What's the BPM of ~/Music/set/track.mp3?", or "List the
+tracks in ~/Music/house slower than 124 BPM."
+
+## Tools
+
+### `analyze_file`
+
+| Argument  | Meaning                                                           |
+| --------- | ----------------------------------------------------------------- |
+| `path`    | The audio file. Absolute, or starting with `~` for the home folder |
+| `min_bpm` | Lowest tempo reported (default 90)                                |
+| `max_bpm` | Highest tempo reported (default 180, at least 2 × `min_bpm`). Any range other than 90 to 180 gives `confidence` null |
+| `engine` | `tempogram` (default) or `peaks`. The tempogram searches `min_bpm`..`max_bpm` instead of folding into it: from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default |
+
+```json
+{
+  "file": "/Users/me/Music/song.mp3",
+  "bpm": 128,
+  "bpm_exact": 127.96,
+  "confidence": 0.869,
+  "candidates": [{"bpm": 128, "relation": "top"}, {"bpm": 171, "relation": "other"}],
+  "engine": "tempogram"
+}
+```
+
+The fields are the library's [reading](./core-concepts#bpm-candidates), named in snake_case:
+
+- `bpm`: the tempo, a whole number. `null` when no beat was found, as are the fields below.
+- `bpm_exact`: the same tempo unrounded, for timing (a beat grid, markers).
+- `confidence`: from 0 to 1, the estimated chance the reading is right. It is calibrated on
+  licence-clean dev data from 90 to 180 BPM, so inside that range it means the same whichever
+  engine measured it. `null`: unmeasured, when `bpm` is outside 90 to 180 or when `min_bpm` or
+  `max_bpm` set any other range than 90 to 180, since the calibration ran only on that range (a
+  missing bound is filled from it, so `min_bpm: 90` alone keeps the number), and when no beat was
+  found.
+- `candidates`: each a `bpm` and its `relation` to that tempo (`top`, `half`, `double` or
+  `other`). Empty when no beat was found.
+- `engine`: the engine that measured it.
+
+A file that cannot be analysed returns a tool error with a one-line reason.
+
+### `analyze_folder`
+
+| Argument    | Meaning                                                          |
+| ----------- | ---------------------------------------------------------------- |
+| `directory` | The folder                                                       |
+| `recursive` | Also analyse sub-folders (default `false`)                       |
+| `offset`    | First file to analyse, from the previous call's `next_offset`    |
+| `min_bpm`, `max_bpm`, `engine` | As for `analyze_file`                       |
+
+```json
+{
+  "directory": "/Users/me/Music",
+  "results": [
+    {"file": "/Users/me/Music/a.mp3", "ok": true, "bpm": 128, "bpm_exact": 127.96, "confidence": 0.869, "candidates": [{"bpm": 128, "relation": "top"}], "engine": "tempogram"},
+    {"file": "/Users/me/Music/b.mp3", "ok": false, "error": "No audio samples decoded (mp3)."}
+  ],
+  "total": 2,
+  "next_offset": null,
+  "scan_truncated": false
+}
+```
+
+Files are analysed one at a time, in path order. A file that fails carries its
+`error`, and the others go on. A folder without audio files returns an empty
+`results`, not an error.
+
+## Limits and safety
+
+The server reads files on an assistant's request, so it checks every path first.
+These checks prevent surprises; they are not a sandbox. `analyze_file` reads any
+audio file your user account can read, as the command-line tool would.
+
+
+- Only files with an audio extension are read, and only regular files.
+- Files over 100 MB are refused.
+- Audio that decodes to more than 2048 MB is refused, whatever the size of the file:
+  that is the first channel at 32 bits per sample, so 202 minutes at 44.1 kHz (186 at
+  48 kHz in the bundled decoders; ffmpeg always delivers 44.1 kHz). Low-bitrate audio reaches it long before 100 MB. The check runs on
+  the file's headers first and on the decoded samples after, so a file cannot hide
+  its length. See [the CLI guide](/guide/cli) for the memory this means.
+- `analyze_folder` analyses at most 50 files per call, about 3 seconds each, so a call
+  ends before the client gives up. `next_offset` pages through the rest.
+- A recursive walk goes at most 16 levels deep and reads at most 10,000 folder
+  entries; `scan_truncated` says when it stopped early.
+- In a folder, a symbolic link to another folder is never followed (no loops), and a
+  symbolic link to a file outside the folder is refused, so a walk stays inside the
+  folder you named.
+- Errors come back as one plain line, never a stack trace.
+- Audio under 8 kHz is refused: a sample costs more as the rate falls, and recordings
+  that low are rare. See [the CLI guide](/guide/cli).
+- One file may take at most 120 seconds, decode and analysis together. The costliest file
+  the limits let through, 18 hours at 8 kHz with the tempogram, took 74 seconds on an
+  Apple M-series Mac. In a folder, a file over the limit is reported with its error.
+- The server analyses one file at a time, whatever the number of calls an assistant
+  makes at once: the others wait their turn, so the worst-case memory above does not
+  multiply. The 120 seconds start when a file's turn comes.
+- The analysis runs on a worker thread, so the server keeps answering during it. A
+  cancelled call stops the file in progress, decode or analysis, and stops ffmpeg; a
+  cancelled `analyze_folder` call analyses no further file.
+
+## Formats
+
+MP3, WAV, FLAC, OGG Vorbis and Opus decode in pure JavaScript and WebAssembly. M4A/AAC,
+AIFF and WMA go through [ffmpeg](https://ffmpeg.org) when it is installed; to use a
+binary that is not on the `PATH`, set `FFMPEG_PATH` in the server's `env` in the client
+configuration. See [the command-line guide](./cli#formats-and-decoders) for the
+decoders and their licences.

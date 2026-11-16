@@ -1,13 +1,16 @@
-# Streaming Audio Example
+# Vanilla Media Element Example
 
-Demonstrates real-time BPM analysis from streaming audio sources (URLs).
+Analyzes an audio URL live as it plays, with `createRealtimeBpmAnalyzer` and a `MediaElementAudioSourceNode`. Written in vanilla TypeScript, no framework.
 
-## Features
+## What it shows
 
-- Load audio from remote URLs
-- Real-time BPM detection during playback
-- Continuous analysis with confidence scores
-- Play/pause/stop controls
+- `analyzer.state`, read at once and then kept current from the events: `listening` (with its reason and `progress`), `settling`, `locked` and `stopped`.
+- Each `statechange` as `from → to (reason)`, newest first. When no beat is heard for a couple of seconds, the analyzer moves back to `listening` with reason `pulse-lost`.
+- Each `reading` while settling or locked: `bpm`, `bpmExact`, `confidence` and the `candidates`, the same fields as a file analyzed offline.
+- `error` events (a failed analysis step) and a fatal fault, which is a move to `stopped` with the error.
+- **Start over** calls `analyzer.reset()`: back to `listening` with reason `reset` and the next epoch. **Stop** calls `analyzer.stop()`, which is final.
+
+The code is in `src/main.ts`, with the panels in `src/reading-panel.ts` and `src/state-panel.ts`. Confidence is shown as the library reports it, from 0 to 1, or as unmeasured when it is null.
 
 ## The audio it starts on
 
@@ -22,11 +25,14 @@ To analyse a stream from another site instead, paste its URL. Two things must ho
   silence;
 - the station's terms allow other websites or apps to play it. Many allow personal listening only.
 
-## Run Locally
+## Run it from a clean clone
+
+The example uses the library from this repository, not from npm, so the library is built first. From the repository root:
 
 ```bash
-npm install
-npm run dev
+npm ci
+npm run build -w realtime-bpm-analyzer
+npm run dev -w examples/02-vanilla-streaming
 ```
 
-Open [http://localhost:3002](http://localhost:3002) in your browser.
+Then open [http://localhost:3002](http://localhost:3002).

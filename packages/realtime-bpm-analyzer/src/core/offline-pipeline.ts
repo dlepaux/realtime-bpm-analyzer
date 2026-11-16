@@ -1,25 +1,28 @@
-import type {Tempo, BiquadFilterOptions, AnalyzeFullBufferOptions} from './types';
-import * as consts from './consts';
-import {resolveDetector, resolveTempoRange} from './tempo';
-import {detectTempo} from './detect-tempo';
-import {detectTempogram} from './tempogram';
+import type {LowpassOption, OfflineOptions, OfflineResult} from '../contract/types';
+import {resolveLowpass} from './lowpass';
+import {analyzeSamples} from './offline';
 
 /**
  * Creates a biquad lowpass filter for audio processing.
  *
- * This filter helps isolate low-frequency components (bass) from the audio signal,
- * which is useful for detecting rhythmic patterns and beats in BPM analysis.
+ * This filter helps isolate low-frequency components (bass) from the audio signal. The `peaks` engine reads
+ * the bass, so it runs behind this filter; the default `tempogram` engine takes the full band and needs none.
  *
  * @param context - The AudioContext or OfflineAudioContext to create the filter in
- * @param options - Optional configuration for the filter's frequency and quality
+ * @param options - The cutoff and Q, the same settings as the offline `engine: {name: 'peaks', lowpass}`
  * @returns A configured BiquadFilterNode ready to use in an audio graph
+ * @throws {TypeError} When the settings are not an object, `null` or `undefined`, carry a key other than `frequency`
+ * and `q` (such as a 5.x name or the DOM's `Q`), or hold a setting that is not a number
+ * @throws {RangeError} When a setting is `NaN` or infinite, the frequency is not above 0 and below half the
+ * context's sample rate, where Web Audio would clamp it silently, or `q` is not from -758 to 770 dB, where Web
+ * Audio's 32-bit resonance term stops being a normal, finite float
  *
  * @example
  * ```typescript
  * const audioContext = new AudioContext();
  * const filter = getBiquadFilter(audioContext, {
- *   frequencyValue: 150,  // Hz - frequencies above this are attenuated
- *   qualityValue: 1       // Q factor - steepness of the filter
+ *   frequency: 150, // Hz: frequencies above this are attenuated
+ *   q: 1,           // dB: the resonance at the cutoff
  * });
  *
  * // Use in an audio graph
@@ -30,22 +33,23 @@ import {detectTempogram} from './tempogram';
  * @remarks
  * - Default frequency is optimized for detecting bass drum kicks
  * - The lowpass filter attenuates high frequencies while preserving low frequencies
- * - Higher Q values create a steeper filter curve
+ * - A higher `q` raises a resonant peak at the cutoff, and steepens the roll-off just past it
  *
- * @see {@link analyzeFullBuffer} which uses this filter internally
- * @see {@link BiquadFilterOptions} for configuration options
+ * @see {@link analyzeFullBuffer} which uses this filter internally with `engine: 'peaks'`
+ * @see {@link LowpassOption} for the settings and their defaults
  *
  * @group Functions
  */
 export function getBiquadFilter(
   context: OfflineAudioContext | AudioContext,
-  options?: BiquadFilterOptions,
+  options?: LowpassOption,
 ): BiquadFilterNode {
+  const {frequency, q} = resolveLowpass(options, context.sampleRate);
   const lowpass = context.createBiquadFilter();
 
   lowpass.type = 'lowpass';
-  lowpass.frequency.value = options?.frequencyValue ?? consts.frequencyValue;
-  lowpass.Q.value = options?.qualityValue ?? consts.qualityValue;
+  lowpass.frequency.value = frequency;
+  lowpass.Q.value = q;
 
   return lowpass;
 }
@@ -53,13 +57,16 @@ export function getBiquadFilter(
 /**
  * Apply to the source a biquad lowpass filter
  * @param buffer - Audio buffer
- * @param options - Optionnal BiquadFilterOptions
+ * @param options - The lowpass settings, checked at the buffer's sample rate as `getBiquadFilter` checks them
  * @returns A Promise that resolves an AudioBuffer instance
+ * @throws {TypeError} As `getBiquadFilter` does
+ * @throws {RangeError} As `getBiquadFilter` does, the frequency against half the buffer's sample rate, and `q`
+ * outside -758 to 770 dB
  * @internal
  */
 export async function getOfflineLowPassSource(
   buffer: AudioBuffer,
-  options?: BiquadFilterOptions,
+  options?: LowpassOption,
 ): Promise<AudioBuffer> {
   const {length, numberOfChannels, sampleRate} = buffer;
   const offlineAudioContext = new OfflineAudioContext(
@@ -90,101 +97,41 @@ export async function getOfflineLowPassSource(
 }
 
 /**
- * Analyzes a complete audio buffer to detect the BPM (tempo) synchronously.
+ * Detects the tempo of a whole decoded file at once.
  *
- * This function performs offline analysis of an entire audio file to detect
- * its tempo. It's ideal for analyzing pre-recorded audio files where you
- * have the complete audio data available.
- *
- * @param originalBuffer - The AudioBuffer containing the complete audio to analyze
- * @param options - Optional filter configuration, tempo range and detector
- * @returns A promise that resolves to up to 5 tempo candidates, sorted by `count`
- * @throws {RangeError} When `options.tempoRange` or `options.detector` is invalid
- *
- * @example
- * **Analyze an uploaded audio file**
- * ```typescript
- * const audioContext = new AudioContext();
- *
- * // Load audio file
- * const response = await fetch('song.mp3');
- * const arrayBuffer = await response.arrayBuffer();
- * const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
- *
- * // Analyze BPM
- * const tempos = await analyzeFullBuffer(audioBuffer);
- *
- * console.log('Detected BPM:', tempos[0].tempo);
- * console.log('Confidence:', tempos[0].confidence);
- * console.log('Top 5 candidates:', tempos);
- * ```
+ * @param originalBuffer - The decoded audio. Channel 0 is analysed.
+ * @param options - The engine (default `tempogram`; lowpass settings for `peaks`) and the tempo range
+ * @returns A promise of the reading, the same shape as a realtime one, or null when no tempo was found. The function
+ * itself never throws: each error below rejects the promise.
+ * @throws {Error} When the buffer is empty or its sample rate is not positive
+ * @throws {RangeError} When `engine` or `tempoRange` is invalid
+ * @throws {TypeError} When the options are not an object or carry a key other than `engine` and `tempoRange` (a 5.x
+ * option name included, with its replacement), `tempoRange` carries a key other than `min` and `max`, the `engine`
+ * object carries a key other than `name` and `lowpass`, or `engine.lowpass` is not an object, `null` or `undefined`,
+ * carries a key other than `frequency` and `q`, or holds a setting that is not a number. A key's presence is the
+ * error, whatever its value
+ * @throws {RangeError} When an `engine.lowpass` setting is `NaN` or infinite, its frequency is not above 0 and
+ * below half the buffer's sample rate, or its `q` is not from -758 to 770 dB
  *
  * @example
- * **With custom filter settings**
  * ```typescript
- * const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
- *
- * const tempos = await analyzeFullBuffer(audioBuffer, {
- *   frequencyValue: 150,  // Focus on bass frequencies
- *   qualityValue: 1       // Filter steepness
- * });
- *
- * // Get the most likely BPM
- * const mostLikelyBPM = tempos[0].tempo;
- * ```
- *
- * @example
- * **Slow genres: report 85 instead of 170**
- * ```typescript
- * const tempos = await analyzeFullBuffer(audioBuffer, {
- *   tempoRange: {min: 70, max: 140},  // max must be at least 2 × min
- * });
- * ```
- *
- * @example
- * **With the tempogram detector**
- * ```typescript
- * const tempos = await analyzeFullBuffer(audioBuffer, {detector: 'tempogram'});
- * ```
- *
- * @example
- * **Analyze from file input**
- * ```typescript
- * const fileInput = document.querySelector('input[type="file"]');
- *
- * fileInput.addEventListener('change', async (e) => {
- *   const file = e.target.files[0];
- *   const arrayBuffer = await file.arrayBuffer();
- *   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
- *
- *   const tempos = await analyzeFullBuffer(audioBuffer);
- *
- *   if (tempos.length > 0) {
- *     console.log(`Detected BPM: ${tempos[0].tempo} with ${tempos[0].count} matching intervals`);
- *   }
- * });
+ * const audioBuffer = await audioContext.decodeAudioData(await (await fetch('song.mp3')).arrayBuffer());
+ * const reading = await analyzeFullBuffer(audioBuffer);
+ * console.log(reading?.bpm, reading?.candidates);
  * ```
  *
  * @remarks
- * - This is a synchronous/offline analysis method (analyzes complete audio at once)
- * - For real-time streaming audio, use {@link createRealtimeBpmAnalyzer} instead
- * - The function returns up to 5 candidates sorted by `count` (matching intervals)
- * - Analysis applies a lowpass filter to isolate bass frequencies for better beat detection
- * - BPM values are folded into `tempoRange` (default 90-180) by doubling or halving
- * - `confidence` is the share of interval votes within ±1 BPM of the candidate
- * - All of this describes the default `peaks` detector. See {@link Detector} for the `tempogram`
+ * The tempogram searches `tempoRange` (default 90-180); `peaks` folds into it by doubling or halving. `audio` spans
+ * the whole buffer.
  *
- * @see {@link createRealtimeBpmAnalyzer} for real-time streaming audio analysis
- * @see {@link getBiquadFilter} for the lowpass filter used internally
- * @see {@link Tempo} for the structure of returned tempo candidates
- * @see {@link BiquadFilterOptions} for filter configuration options
+ * @see {@link createRealtimeBpmAnalyzer} for live audio
  *
  * @group Functions
  */
 export async function analyzeFullBuffer(
   originalBuffer: AudioBuffer,
-  options?: AnalyzeFullBufferOptions,
-): Promise<Tempo[]> {
+  options?: OfflineOptions,
+): Promise<OfflineResult> {
   if (!originalBuffer || originalBuffer.length === 0) {
     throw new Error('Invalid audio buffer: buffer is empty or undefined.');
   }
@@ -195,14 +142,9 @@ export async function analyzeFullBuffer(
     );
   }
 
-  if (resolveDetector(options?.detector) === 'tempogram') {
-    return detectTempogram(originalBuffer.getChannelData(0), originalBuffer.sampleRate, options?.tempoRange);
-  }
-
-  // Validate before the costly render, so a bad range fails fast
-  const tempoRange = resolveTempoRange(options?.tempoRange);
-
-  const buffer = await getOfflineLowPassSource(originalBuffer, options);
-
-  return detectTempo(buffer.getChannelData(0), buffer.sampleRate, tempoRange);
+  // The lowpass runs in an OfflineAudioContext here, and in plain JS in Node: the rest is shared
+  return analyzeSamples(originalBuffer.getChannelData(0), originalBuffer.sampleRate, options, async lowpass => {
+    const filtered = await getOfflineLowPassSource(originalBuffer, lowpass);
+    return filtered.getChannelData(0);
+  });
 }

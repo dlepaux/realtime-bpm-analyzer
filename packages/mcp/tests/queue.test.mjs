@@ -4,6 +4,11 @@ import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 import {createQueue} from '../dist/queue.mjs';
 
+// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
+// thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
+const hangLimit = {timeout: 60_000};
+
 /**
  * @returns {{promise: Promise<void>, resolve: () => void, reject: (error: Error) => void}} A promise settled from outside
  */
@@ -24,7 +29,7 @@ const tick = async () => new Promise(resolve => {
 // A queue that loses a slot hangs a test instead of failing it, so each has a timeout
 const bounded = {timeout: 5000};
 
-describe('analysis queue', () => {
+describe('analysis queue', hangLimit, () => {
   it('runs one task at a time, in the order they came', bounded, async () => {
     const queue = createQueue(1);
     const signal = new AbortController().signal;

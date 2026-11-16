@@ -22,7 +22,7 @@ const hero = computed(() => frontmatter.value.homeHero as { text: string; taglin
           alt=""
           width="20"
           height="20"
-        >
+        />
         {{ site.title }}
       </p>
       <h1 class="home-title">

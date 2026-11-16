@@ -2,17 +2,15 @@
 import {installWorkletShim} from './page-shim';
 import {analyzeFullBuffer, getBiquadFilter} from '../../src/core/offline-pipeline';
 import {applyLowpass} from '../../src/core/lowpass';
-import {resolveDetector, resolveTempoRange} from '../../src/core/tempo';
-import {assertTempogramMode} from '../../src/core/tempogram';
-import type {Detector, RealTimeBpmAnalyzerParameters} from '../../src/core/types';
-import {timedProcessor, timedProcessorName, quantumKind, type TimingDump} from './timed-processor';
+import type {EngineName} from '../../src/contract/types';
+import {harnessOptions, timedProcessor, timedProcessorName, quantumKind, type TimingDump} from './timed-processor';
 import {drumMix} from './signal';
 import {ofKinds, quantumBudgetMs, quantumFrames, summarise, type Summary} from './stats';
 
 /** Seconds of generated audio, looped for longer runs */
 const loopSeconds = 30;
 
-export type RunOptions = {engine: Detector; sampleRate: number; seconds: number};
+export type RunOptions = {engine: EngineName; sampleRate: number; seconds: number};
 
 export type QuantumReport = {
   clock: string;
@@ -42,19 +40,6 @@ declare global {
     // Exposed by run.ts: collects garbage and reads the page's heap through the DevTools Protocol
     heapSample?: () => Promise<number>;
   }
-}
-
-/**
- * Options as createRealtimeBpmAnalyzer builds them: the 5.5.0 tempogram is the library's default tuning
- * @param engine - Detector
- * @returns The processor options
- */
-function processorOptions(engine: Detector): RealTimeBpmAnalyzerParameters {
-  const options: RealTimeBpmAnalyzerParameters = {detector: engine};
-
-  assertTempogramMode(options);
-
-  return {...options, tempoRange: resolveTempoRange(options.tempoRange), detector: resolveDetector(options.detector)};
 }
 
 function report(dump: TimingDump, sampleRate: number): QuantumReport {
@@ -126,7 +111,7 @@ async function realtime({engine, sampleRate, seconds}: RunOptions) {
 
   await context.audioWorklet.addModule('/worklet.js');
 
-  const node = new AudioWorkletNode(context, timedProcessorName, {processorOptions: processorOptions(engine)});
+  const node = new AudioWorkletNode(context, timedProcessorName, {processorOptions: harnessOptions(engine)});
   const source = new AudioBufferSourceNode(context, {loop: true});
   const pcm = drumMix(sampleRate, loopSeconds);
   const buffer = new AudioBuffer({length: pcm.length, sampleRate, numberOfChannels: 1});
@@ -170,7 +155,7 @@ async function replay({engine, sampleRate, seconds}: RunOptions, heapEverySecond
   // Loaded after the shim, which it reads when it loads
   const {RealTimeBpmProcessor} = await import('../../src/processor/realtime-bpm-processor');
   const Processor = timedProcessor(RealTimeBpmProcessor, () => performance.now(), 'performance.now, main thread');
-  const processor = new Processor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: processorOptions(engine)});
+  const processor = new Processor({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: harnessOptions(engine)});
   const loopFrames = Math.floor((loopSeconds * sampleRate) / quantumFrames) * quantumFrames;
   const generated = drumMix(sampleRate, loopSeconds).subarray(0, loopFrames);
   const pcm = engine === 'peaks' ? applyLowpass(generated, sampleRate) : generated;
@@ -225,10 +210,10 @@ async function offline({engine, sampleRate, seconds}: RunOptions, repeats: numbe
 
   for (let r = 0; r < repeats; r += 1) {
     const start = performance.now();
-    const tempos = await analyzeFullBuffer(buffer, {detector: engine});
+    const reading = await analyzeFullBuffer(buffer, {engine});
 
     timesMs.push(performance.now() - start);
-    tempo = tempos[0]?.tempo ?? null;
+    tempo = reading?.bpm ?? null;
   }
 
   return {engine, sampleRate, seconds, timesMs, tempo};

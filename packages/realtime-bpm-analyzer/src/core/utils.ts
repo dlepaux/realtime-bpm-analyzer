@@ -1,6 +1,5 @@
 import * as consts from './consts';
 import type {
-  Peaks,
   ValidPeaks,
   NextIndexPeaks,
   OnThresholdFunction,
@@ -100,7 +99,7 @@ export function generateValidPeaksModel(
   startThreshold = consts.startThreshold,
   thresholdStep = consts.thresholdStep,
 ): ValidPeaks {
-  return generateThresholdMap<Peaks>(
+  return generateThresholdMap<number[]>(
     () => [],
     minValidThreshold,
     startThreshold,

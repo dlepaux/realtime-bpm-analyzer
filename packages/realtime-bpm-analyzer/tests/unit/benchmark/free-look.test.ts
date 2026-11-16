@@ -87,7 +87,7 @@ describe('the pass bar of RBA-51\'s look at the held-out free mixes', () => {
 
     expect(gate5.isMet).to.equal(true);
     expect(gate5.difference).to.equal(null);
-    expect(options).to.deep.equal({detector: 'tempogram'});
+    expect(options).to.deep.equal({engine: 'tempogram'});
     expect(lowpass).to.equal(false);
     expect(tuning).to.equal(undefined);
   });
@@ -95,7 +95,8 @@ describe('the pass bar of RBA-51\'s look at the held-out free mixes', () => {
   it('scores the library\'s locked 5.5.0 settings, and peaks with its lowpass and default range', () => {
     expect(defaultTempogramRange).to.deep.equal({min: 90, max: 180});
     expect(defaultTempogramTuning).to.include({priorBpm: 80, priorOctaves: 1.7, thirdBeatPenalty: 0.3});
-    expect(detectors[freeReference]).to.deep.include({options: {}, lowpass: true});
+    // Peaks named, with no tempoRange: the default range
+    expect(detectors[freeReference]).to.deep.include({options: {engine: 'peaks'}, lowpass: true});
     expect(freeLookDetectors).to.have.members(['peaks', 'tempogram']);
   });
 

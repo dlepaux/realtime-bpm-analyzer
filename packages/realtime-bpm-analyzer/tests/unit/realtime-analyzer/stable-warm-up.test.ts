@@ -1,33 +1,27 @@
 import {expect} from 'chai';
-import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
+import {createSession} from '../../../src/core/session';
+import type {ResolvedEngine} from '../../../src/core/engine';
 import {minValidThreshold, stableWarmUpSeconds} from '../../../src/core/consts';
 import {createClickTrack} from '../../fixtures/click-track';
-import type {ProcessorOutputEvent, RealTimeBpmAnalyzerParameters} from '../../../src/core/types';
+import {feedSession} from '../../setup';
+import type {TimedMessage} from '../../setup';
 
 const bufferSize = 4096;
 const audioSampleRate = 44_100;
 
-type Heard = {event: ProcessorOutputEvent; at: number};
+/** The peaks engine's debug detail: the rung its candidates came from, and the floor */
+type PeaksDebug = {threshold: number; floor: number};
 
-/**
- * Feed samples to a fresh analyzer chunk by chunk, and note each event with the seconds heard so far
- */
-async function listen(samples: Float32Array, options: RealTimeBpmAnalyzerParameters = {}): Promise<Heard[]> {
-  const analyzer = new RealTimeBpmAnalyzer(options);
-  const heard: Heard[] = [];
+async function listen(samples: Float32Array, engine: ResolvedEngine = {name: 'peaks'}): Promise<TimedMessage[]> {
+  const session = createSession({engine, tempoRange: {min: 90, max: 180}, debug: true});
+  return feedSession(session, samples, audioSampleRate, bufferSize);
+}
 
-  for (let start = 0; start + bufferSize <= samples.length; start += bufferSize) {
-    const at = (start + bufferSize) / audioSampleRate;
+const locks = (heard: readonly TimedMessage[]) => heard.filter(({message}) => message.type === 'step' && message.status === 'locked' && message.reason === 'locked');
 
-    await analyzer.analyzeChunk({
-      audioSampleRate,
-      channelData: samples.subarray(start, start + bufferSize),
-      bufferSize,
-      postMessage: event => heard.push({event, at}),
-    });
-  }
-
-  return heard;
+/** Each step's rung, from the debug message sent right before it */
+function rungs(heard: readonly TimedMessage[]): Array<{at: number; debug: PeaksDebug}> {
+  return heard.flatMap(({message, heard: at}) => (message.type === 'debug' ? [{at, debug: message.data as PeaksDebug}] : []));
 }
 
 /**
@@ -43,48 +37,55 @@ function swellingClicks(seconds: number): Float32Array {
   return samples;
 }
 
-describe('RealTimeBpmAnalyzer - peaks bpmStable waits for the warm-up (RBA-107)', () => {
-  it('locks above the lowest threshold well before the warm-up, yet announces nothing stable until it', async () => {
+describe('peaks engine - the lock waits for the warm-up (RBA-107)', () => {
+  it('reads above the lowest threshold well before the warm-up, yet does not lock until it', async () => {
     const heard = await listen(createClickTrack(120, audioSampleRate, 15));
-    const firstLock = heard.find(({event}) => event.type === 'bpm' && event.data.bpm.length > 0 && event.data.threshold > minValidThreshold);
-    const stable = heard.filter(({event}) => event.type === 'bpmStable');
+    const firstReading = heard.find(({message}) => message.type === 'step' && message.status === 'settling');
+    const firstHighRung = rungs(heard).find(({debug}) => debug.threshold > minValidThreshold);
+    const locked = locks(heard);
 
-    expect(firstLock, 'a lock above the lowest threshold').to.not.equal(undefined);
-    expect(firstLock!.at).to.be.below(stableWarmUpSeconds);
-    expect(stable.length).to.be.greaterThan(0);
-    expect(stable[0].at).to.be.at.least(stableWarmUpSeconds);
+    expect(firstReading, 'a reading before the warm-up').to.not.equal(undefined);
+    expect(firstHighRung!.at).to.be.below(stableWarmUpSeconds);
+    expect(locked).to.have.length(1);
+    expect(locked[0].heard).to.be.at.least(stableWarmUpSeconds);
   });
 
-  it('announces a lock held since early on as soon as the warm-up ends, even on the top threshold', async () => {
+  it('locks on a reading held since early on as soon as the warm-up ends, even on the top threshold', async () => {
     // Clicks loud enough to fill the top threshold first: no higher one is left to fill after the warm-up
     const loud = createClickTrack(120, audioSampleRate, 15).map(sample => sample * 1.2);
     const heard = await listen(loud);
-    const stable = heard.flatMap(({event, at}) => (event.type === 'bpmStable' ? [{at, data: event.data}] : []));
+    const [lock] = locks(heard);
+    const rungAtLock = rungs(heard).filter(({at}) => at === lock.heard).at(-1);
 
-    expect(stable).to.have.length(1);
-    expect(stable[0].data.threshold).to.equal(0.9);
-    expect(stable[0].at).to.be.below(stableWarmUpSeconds + (bufferSize / audioSampleRate));
-    expect(stable[0].data.bpm[0].tempo).to.equal(120);
+    expect(locks(heard)).to.have.length(1);
+    expect(rungAtLock?.debug.threshold).to.equal(0.9);
+    expect(lock.heard).to.be.below(stableWarmUpSeconds + (bufferSize / audioSampleRate));
+    expect(lock.message.type === 'step' && lock.message.status === 'locked' && lock.message.reading.bpm).to.equal(120);
   });
 
-  it('still announces each higher threshold that fills after the warm-up', async () => {
+  it('re-anchors on each higher threshold that fills after the lock, without leaving it', async () => {
     const heard = await listen(swellingClicks(30));
-    const thresholds = heard.flatMap(({event}) => (event.type === 'bpmStable' ? [event.data.threshold] : []));
+    const lockAt = locks(heard)[0].heard;
+    const floors = rungs(heard).filter(({at}) => at >= lockAt).map(({debug}) => debug.floor);
+    const left = heard.filter(({message, heard: at}) => at > lockAt && message.type === 'step' && message.status !== 'locked');
 
-    expect(thresholds.length).to.be.greaterThan(1);
-    for (let i = 1; i < thresholds.length; i++) {
-      expect(thresholds[i]).to.be.greaterThan(thresholds[i - 1]);
+    expect(locks(heard)).to.have.length(1);
+    expect(new Set(floors).size).to.be.greaterThan(1);
+    for (let i = 1; i < floors.length; i++) {
+      expect(floors[i]).to.be.at.least(floors[i - 1]);
     }
+
+    expect(left).to.deep.equal([]);
   });
 
-  it('in continuous analysis, waits only as long as a shorter stabilizationTime, so stable comes before the reset', async () => {
-    // The first lock comes at about 7.5 s, and the reset at 9 s, before the 10 s warm-up
-    const heard = await listen(createClickTrack(120, audioSampleRate, 15), {continuousAnalysis: true, stabilizationTime: 9000});
-    const firstReset = heard.findIndex(({event}) => event.type === 'analyzerReset');
-    const firstStable = heard.findIndex(({event}) => event.type === 'bpmStable');
+  it('with restartAfterSeconds, waits only as long as the restart period, so the lock comes before the restart', async () => {
+    // The first reading comes at about 7.5 s, and the restart at 9 s, before the 10 s warm-up
+    const heard = await listen(createClickTrack(120, audioSampleRate, 15), {name: 'peaks', restartAfterSeconds: 9});
+    const firstRestart = heard.findIndex(({message}) => message.type === 'step' && message.reason === 'tempo-changed');
+    const firstLock = heard.indexOf(locks(heard)[0]);
 
-    expect(firstReset).to.be.greaterThan(-1);
-    expect(firstStable).to.be.greaterThan(-1);
-    expect(firstStable).to.be.below(firstReset);
+    expect(firstRestart).to.be.greaterThan(-1);
+    expect(firstLock).to.be.greaterThan(-1);
+    expect(firstLock).to.be.below(firstRestart);
   });
 });

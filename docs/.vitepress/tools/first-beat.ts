@@ -275,7 +275,7 @@ export function firstBeatOf(curve: OnsetCurve, tempo: GridTempo): number | null 
   return frame === null ? null : Math.max(0, frameTime(curve, frame))
 }
 
-/** The same from the samples, at the whole-number reading, in one go. */
+/** The same from the samples, at the given tempo without a fit, in one go. */
 export function firstBeatSeconds(samples: Float32Array, sampleRate: number, bpm: number): number | null {
   return firstBeatOf(onsetCurve(samples, sampleRate), { bpm, fitted: false })
 }
@@ -301,13 +301,13 @@ export async function onsetCurveInSlices(
   return curve
 }
 
-// The exact tempo (RBA-128). The site's 5.x library reports whole BPM, and a grid at 128 on a
-// 127.6 BPM song is half a second late after 3 minutes. fitTempo measures the beat period from
-// the same onset curve: it finds the strong onsets near a grid within 1 BPM of the reading and
-// fits beat number to onset time by least squares. In v6, fitTempo refines Reading.bpmExact
-// instead of the whole number: it still gives the grid's phase for the first beat.
+// The exact tempo (RBA-128). A grid at the whole-number 128 on a 127.6 BPM song is half a second
+// late after 3 minutes, so the grid never steps at Reading.bpm. fitTempo is seeded with
+// Reading.bpmExact, the engine's unrounded estimate, and refines it from the same onset curve:
+// it finds the strong onsets near a grid within 1 BPM of the seed and fits beat number to onset
+// time by least squares. It also gives the grid's phase for the first beat.
 
-/** How far the fitted tempo may sit from the whole-number reading it refines. */
+/** How far the fitted tempo may sit from the exact reading it refines. */
 const FIT_RANGE_BPM = 1
 /** An onset belongs to a predicted beat when it sits within this many seconds of it. */
 const MATCH_SECONDS = 0.035
@@ -329,8 +329,8 @@ const MIN_FIT_SHARE = 0.5
 /**
  * The tempo the marker grid steps at, in beats per minute and unrounded. It is never shown:
  * people read the whole-number reading. Fitted when measured from the audio, with `phase`, the
- * time in seconds of one beat of the fitted grid; otherwise it is the reading, for lack of a
- * steady fit, and the grid's phase is unknown.
+ * time in seconds of one beat of the fitted grid; otherwise it is the exact reading it was
+ * seeded with, for lack of a steady fit, and the grid's phase is unknown.
  */
 export type GridTempo =
   | { bpm: number; fitted: true; phase: number }
@@ -414,18 +414,18 @@ function lineThrough(points: { beat: number; time: number }[]): Grid | null {
 
 /**
  * The grid over COARSE_SECONDS that lands most beats on onsets, from each of the anchors
- * and every tempo within FIT_RANGE_BPM of the reading. The tempo step keeps a neighbour's drift
+ * and every tempo within FIT_RANGE_BPM of the seed. The tempo step keeps a neighbour's drift
  * over that span under half the match window, so the best is never skipped.
  */
-function coarseGrid(onsets: Onset[], wholeBpm: number): Grid | null {
-  const step = (MATCH_SECONDS * wholeBpm) / (2 * COARSE_SECONDS)
+function coarseGrid(onsets: Onset[], seedBpm: number): Grid | null {
+  const step = (MATCH_SECONDS * seedBpm) / (2 * COARSE_SECONDS)
   const steps = Math.ceil(FIT_RANGE_BPM / step)
   const opening = onsets.slice(0, firstAtOrAfter(onsets, (onsets[0]?.time ?? 0) + COARSE_SECONDS))
   const anchors = opening.sort((a, b) => b.strength - a.strength).slice(0, ANCHOR_TRIES)
   let best: { grid: Grid; score: number } | null = null
   for (const anchor of anchors) {
     for (let index = -steps; index <= steps; index += 1) {
-      const grid = { start: anchor.time, period: 60 / (wholeBpm + (index * FIT_RANGE_BPM) / steps) }
+      const grid = { start: anchor.time, period: 60 / (seedBpm + (index * FIT_RANGE_BPM) / steps) }
       const score = matches(onsets, grid, anchor.time + COARSE_SECONDS).length
       if (best === null || score > best.score) best = { grid, score }
     }
@@ -434,17 +434,18 @@ function coarseGrid(onsets: Onset[], wholeBpm: number): Grid | null {
 }
 
 /**
- * The exact tempo of a steady song from its onset curve, within FIT_RANGE_BPM of `wholeBpm`, the
- * library's whole-number reading. It falls back to `wholeBpm` (fitted: false) when too few beats
- * land on onsets: an unsteady song, a sparse or very short file, or a tempo outside the range.
+ * The exact tempo of a steady song from its onset curve, within FIT_RANGE_BPM of `seedBpm`, the
+ * library's unrounded reading (Reading.bpmExact). It falls back to `seedBpm` (fitted: false) when
+ * too few beats land on onsets: an unsteady song, a sparse or very short file, or a tempo outside
+ * the range.
  */
-export function fitTempo(curve: OnsetCurve, wholeBpm: number): GridTempo {
-  const fallback: GridTempo = { bpm: wholeBpm, fitted: false }
-  if (!(wholeBpm > FIT_RANGE_BPM)) return fallback
+export function fitTempo(curve: OnsetCurve, seedBpm: number): GridTempo {
+  const fallback: GridTempo = { bpm: seedBpm, fitted: false }
+  if (!(seedBpm > FIT_RANGE_BPM)) return fallback
   const threshold = strongThreshold(curve.strength)
   const onsets = strongOnsets(curve, threshold)
   const end = frameTime(curve, curve.strength.length - 1)
-  let grid = coarseGrid(onsets, wholeBpm)
+  let grid = coarseGrid(onsets, seedBpm)
   if (grid === null) return fallback
   // Fit over a horizon that doubles each pass: the line from the shorter span predicts the
   // beats of the longer one well within the match window, so no beat is matched to its neighbour.
@@ -459,9 +460,21 @@ export function fitTempo(curve: OnsetCurve, wholeBpm: number): GridTempo {
   }
   const whole = fromTheStart(grid)
   const bpm = 60 / grid.period
-  if (!isSteady(onsets, whole, end) || Math.abs(bpm - wholeBpm) > FIT_RANGE_BPM) return fallback
+  if (!isSteady(onsets, whole, end) || Math.abs(bpm - seedBpm) > FIT_RANGE_BPM) return fallback
   const opensOnOnset = isStrong(curve.startStrength, threshold)
   return { bpm, fitted: true, phase: onTheBeat(onsets, whole, end, opensOnOnset).start }
+}
+
+/**
+ * The export's line under the download for a grid that is not fitted, or null for a fitted one.
+ * Such a grid steps at the exact reading, which is never shown (RBA-128), so the line names the
+ * whole number people see (`shownBpm`, Reading.bpm) only as the reading it stands for.
+ */
+export function fallbackNote(tempo: GridTempo, shownBpm: number): string | null {
+  if (tempo.fitted) return null
+  return `The beat in this file was not clear enough to refine the tempo, so the markers step at the
+    analyzer's own estimate behind the ${shownBpm} BPM shown, and can slide off the beat on a long song.`
+    .replace(/\s+/g, ' ')
 }
 
 /**

@@ -33,6 +33,10 @@ const EXPECTED: Record<string, Record<string, Record<string, string>>> = {
     // release PR) and issues (its autorelease labels). id-token: npm publish --provenance through npm's trusted
     // publisher, which also signs the provenance.
     release: { 'contents': 'write', 'issues': 'write', 'pull-requests': 'write', 'id-token': 'write' },
+    // checkout. Firefox's install and the sound server need no token.
+    firefox: { contents: 'read' },
+    // checkout. The downloads use the runner's own artifact token.
+    'node-floor': { contents: 'read' },
     // checkout, and configure-pages on pushes, which reads the Pages site (GET /repos/{owner}/{repo}/pages).
     // upload-pages-artifact is an artifact upload.
     docs: { contents: 'read', pages: 'read' },

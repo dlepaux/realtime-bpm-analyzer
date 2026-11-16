@@ -38,8 +38,8 @@ test('a required param that is missing is reported, an optional one is not', () 
 })
 
 test('a boolean must be a boolean, and an undefined value counts as absent', () => {
-  assert.deepEqual(gateEvent('bpm_mic_stable', { bpm: 120, first: true, elapsed_ms: undefined }), { params: { bpm: 120, first: true }, problems: [] })
-  assert.ok(gateEvent('bpm_mic_stable', { bpm: 120, first: 'yes' }).problems.length > 0)
+  assert.deepEqual(gateEvent('bpm_mic_locked', { bpm: 120, engine: 'peaks', first: true, elapsed_ms: undefined }), { params: { bpm: 120, engine: 'peaks', first: true }, problems: [] })
+  assert.ok(gateEvent('bpm_mic_locked', { bpm: 120, engine: 'peaks', first: 'yes' }).problems.length > 0)
 })
 
 test('text is cut to its length, and a shaped text outside its shape is "invalid"', () => {

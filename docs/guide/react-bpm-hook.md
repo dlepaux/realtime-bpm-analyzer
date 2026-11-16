@@ -20,26 +20,25 @@ You can copy it into your project.
 
 ## What you'll get
 
+<!-- typecheck: skip, uses the useBpm hook defined below -->
 ```tsx
 function MyApp() {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const { bpm, stableBpm, state, error, start, stop } = useBpm(audioRef);
+  const { bpm, lockedBpm, state, error, start, stop } = useBpm({ type: 'microphone' });
 
   return (
     <div>
-      <audio ref={audioRef} src="/song.mp3" controls />
       <button onClick={start} disabled={state !== 'idle'}>Start</button>
       <button onClick={stop} disabled={state === 'idle'}>Stop</button>
       <p>Live: {bpm ?? '-'}</p>
-      <p>Stable: {stableBpm ?? '-'}</p>
+      <p>Locked: {lockedBpm ?? '-'}</p>
       {error && <p>Error: {error.message}</p>}
     </div>
   );
 }
 ```
 
-The hook accepts either a ref to an `HTMLAudioElement`, a microphone
-input request, or a stream URL. It returns the live BPM, the stable BPM,
+The hook accepts an `HTMLAudioElement`, a microphone input request, or a
+stream URL. It returns the live BPM, the locked BPM,
 a state machine, an error, and explicit `start`/`stop` controls.
 
 ## Installation
@@ -72,8 +71,8 @@ export type UseBpmState = 'idle' | 'starting' | 'listening' | 'error';
 export interface UseBpmReturn {
   /** Live BPM, updated as the analysis runs. Null until first detection. */
   bpm: number | null;
-  /** Stable BPM, from 10 s of audio at the earliest. Null until then. */
-  stableBpm: number | null;
+  /** Locked BPM, from about 11.5 s of audio at the earliest. Null until then. */
+  lockedBpm: number | null;
   /** Current state. Drives UI affordances. */
   state: UseBpmState;
   /** Error from getUserMedia, audio context, or worklet load. */
@@ -86,7 +85,7 @@ export interface UseBpmReturn {
 
 export function useBpm(source: Source | null): UseBpmReturn {
   const [bpm, setBpm] = useState<number | null>(null);
-  const [stableBpm, setStableBpm] = useState<number | null>(null);
+  const [lockedBpm, setLockedBpm] = useState<number | null>(null);
   const [state, setState] = useState<UseBpmState>('idle');
   const [error, setError] = useState<Error | null>(null);
 
@@ -150,24 +149,31 @@ export function useBpm(source: Source | null): UseBpmReturn {
         sourceNode.connect(audioContext.destination);
       }
 
-      const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+      // With a microphone, `liveInput` lets the analyzer follow the track's
+      // clock, so audio the browser drops doesn't speed the tempo up.
+      const liveInput = streamRef.current?.getAudioTracks()[0];
+      const analyzer = await createRealtimeBpmAnalyzer(audioContext, { liveInput });
       analyzerRef.current = analyzer;
 
-      // `.input` holds the lowpass filter the default detector expects.
+      // `.input` holds what the engine needs in front of it.
       sourceNode.connect(analyzer.input);
 
-      analyzer.on('bpm', ({ bpm: candidates }) => {
-        if (candidates.length > 0) setBpm(candidates[0].tempo);
+      analyzer.on('reading', ({ bpm }) => {
+        setBpm(bpm);
+        // The tempo can still move a little while locked: follow it.
+        if (analyzer.state.status === 'locked') setLockedBpm(bpm);
       });
-      analyzer.on('bpmStable', ({ bpm: candidates }) => {
-        if (candidates.length > 0) setStableBpm(candidates[0].tempo);
+      // Clear it when the lock is lost: the value no longer holds.
+      analyzer.on('statechange', ({ to }) => {
+        setLockedBpm(to.status === 'locked' ? to.reading.bpm : null);
       });
 
       setState('listening');
     } catch (err) {
+      // stop() first: it sets 'idle', which would hide the error if it came last.
+      stop();
       setError(err instanceof Error ? err : new Error(String(err)));
       setState('error');
-      stop();
     }
   }, [source, state, stop]);
 
@@ -180,7 +186,7 @@ export function useBpm(source: Source | null): UseBpmReturn {
     return () => stop();
   }, [stop]);
 
-  return { bpm, stableBpm, state, error, start, stop };
+  return { bpm, lockedBpm, state, error, start, stop };
 }
 ```
 
@@ -190,19 +196,22 @@ cleanup path that releases everything.
 
 ## Usage: file analysis
 
+<!-- typecheck: skip, imports the useBpm hook above from ./useBpm -->
 ```tsx
-import { useRef } from 'react';
+import { useState } from 'react';
 import { useBpm } from './useBpm';
 
 export function FileAnalyzer() {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const { bpm, stableBpm, state, error, start, stop } = useBpm(
-    audioRef.current ? { type: 'audio', element: audioRef.current } : null
+  // A callback ref keeps the element in state, so the hook gets it on the
+  // render after React attaches it.
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const { bpm, lockedBpm, state, error, start, stop } = useBpm(
+    audio ? { type: 'audio', element: audio } : null
   );
 
   return (
     <div>
-      <audio ref={audioRef} src="/song.mp3" controls />
+      <audio ref={setAudio} src="/song.mp3" controls />
       <button onClick={start} disabled={state !== 'idle'}>
         Analyse
       </button>
@@ -210,21 +219,24 @@ export function FileAnalyzer() {
         Stop
       </button>
       <div>Live BPM: {bpm ?? '-'}</div>
-      <div>Stable BPM: {stableBpm ?? '-'}</div>
+      <div>Locked BPM: {lockedBpm ?? '-'}</div>
       {error && <div role="alert">{error.message}</div>}
     </div>
   );
 }
 ```
 
-The `audioRef.current ? ... : null` guard handles the first render: the
-ref is null until React commits the DOM.
+The element is `null` on the first render, before React attaches it, so
+the hook gets `null` until then. Reading `audioRef.current` during render
+instead would hand the hook a stale value: React doesn't re-render when a
+ref changes.
 
 ## Usage: microphone
 
+<!-- typecheck: skip, uses the useBpm hook above -->
 ```tsx
 export function MicAnalyzer() {
-  const { bpm, stableBpm, state, error, start, stop } = useBpm({ type: 'microphone' });
+  const { bpm, lockedBpm, state, error, start, stop } = useBpm({ type: 'microphone' });
 
   return (
     <div>
@@ -235,7 +247,7 @@ export function MicAnalyzer() {
         Stop
       </button>
       <div>Live BPM: {bpm ?? '-'}</div>
-      <div>Stable BPM: {stableBpm ?? '-'}</div>
+      <div>Locked BPM: {lockedBpm ?? '-'}</div>
       {state === 'starting' && <div>Asking for microphone…</div>}
       {error && <div role="alert">{error.message}</div>}
     </div>
@@ -249,15 +261,16 @@ gesture, and the click satisfies that.
 
 ## Usage: streaming URL
 
+<!-- typecheck: skip, uses the useBpm hook above -->
 ```tsx
 export function StreamAnalyzer({ url }: { url: string }) {
-  const { bpm, stableBpm, state, error, start, stop } = useBpm({ type: 'stream', url });
+  const { bpm, lockedBpm, state, error, start, stop } = useBpm({ type: 'stream', url });
 
   return (
     <div>
       <button onClick={start}>Listen to stream</button>
       <button onClick={stop}>Stop</button>
-      <div>BPM: {stableBpm ?? bpm ?? '-'}</div>
+      <div>BPM: {lockedBpm ?? bpm ?? '-'}</div>
     </div>
   );
 }
@@ -307,13 +320,14 @@ Drive the UI from `state`: disable buttons when not in `idle`, show a
 
 The hook is typed. The `Source` union makes the caller pick a mode at
 the type level, so `start` can't be called with an invalid source. The return shape is stable across renders;
-`bpm` and `stableBpm` are `number | null` and never undefined.
+`bpm` and `lockedBpm` are `number | null` and never undefined.
 
 If you want to consume the underlying analyzer events directly, for
-example to read the `confidence` field on each candidate, you can
+example to read each candidate's `relation` to the tempo, you can
 expose an `onAnalyzer` callback in the source object and forward it
 inside `start`:
 
+<!-- typecheck: skip, a fragment of the Source type above -->
 ```tsx
 type Source =
   | { type: 'audio'; element: HTMLAudioElement; onAnalyzer?: (a: BpmAnalyzer) => void }
@@ -328,19 +342,18 @@ return.
 
 This hook is intentionally small. Things you might add for production:
 
-- **Persistent state**: write `stableBpm` to local storage so it survives
+- **Persistent state**: write `lockedBpm` to local storage so it survives
   reload.
 - **Multiple sources**: a "BPM matrix" component that runs four hooks in
   parallel for a four-deck DJ practice tool.
-- **Tap-tempo fallback**: when `state === 'error'` or `bpmStable` never
-  fires, fall back to a manual tap input.
-- **Confidence threshold**: only update `stableBpm` when
-  `candidates[0].confidence` clears a cut-off you measured on your own
-  material. `confidence` is the share of interval votes within ±1 BPM of
-  the candidate: a perfect click track scores about 0.46 and random peaks
-  below 0.1. No cut-off has been calibrated on real music yet. In plain
-  words: confidence never reaches 1, even on a perfect beat, so compare
-  values on your own music rather than expecting a high score.
+- **Tap-tempo fallback**: when `state === 'error'` or the analyzer never
+  locks, fall back to a manual tap input.
+- **Confidence display**: show `reading.confidence` next to the tempo.
+  It is the estimated chance the reading is right, calibrated on
+  licence-clean dev data from 90 to 180 BPM, so inside that range it means
+  the same whichever engine measured it. `null`: unmeasured, for a reading
+  outside 90 to 180 BPM or from an analysis on a custom `tempoRange`. Let the
+  move to `locked` decide when a tempo is the answer.
 
 Each of these takes a few lines. Keep the hook itself focused; let
 the consuming component compose.

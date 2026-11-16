@@ -61,6 +61,19 @@
       "allowedVersions": "<27"
     },
     {
+      "description": "Leave the engines floor of the CLI and the MCP server alone. It is the oldest Node CI tests them on (main.yml's node-floor job) and moves by hand with that job: bumped to each new release, as rangeStrategy bump would, npx warns EBADENGINE to everyone on an older LTS.",
+      "matchDepTypes": ["engines"],
+      "matchPackageNames": ["node"],
+      "enabled": false
+    },
+    {
+      "description": "Leave main.yml's node-floor job on 22.12.0, the engines floor above: a patch bump would test a newer Node than the floor promises. It moves by hand with the floor.",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["node"],
+      "matchCurrentValue": "/^22\\./",
+      "enabled": false
+    },
+    {
       "description": "Hold TypeScript below 7 until ts-node and docs tooling support TS7 (TypeStrong/ts-node#2174, TypeStrong/typedoc#3098).",
       "matchPackageNames": ["typescript"],
       "allowedVersions": "<7"

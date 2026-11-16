@@ -1,7 +1,5 @@
 # realtime-bpm-analyzer-cli
 
-> **Not on npm yet.** This package publishes with v6 of realtime-bpm-analyzer.
-
 Detect the tempo (BPM) of audio files from the command line, with the
 [realtime-bpm-analyzer](https://www.npmjs.com/package/realtime-bpm-analyzer) engine.
 
@@ -14,19 +12,19 @@ npx realtime-bpm-analyzer-cli song.mp3
 ```
 
 ```text
-song.mp3: 128 BPM (confidence 0.46)
-  candidates: 128 (count 157, confidence 0.46), 171 (count 77, confidence 0.23), ...
+song.mp3: 128 BPM (tempogram, confidence 0.87)
+  candidates: 128, 171, 96
 ```
 
-Installed (`npm install -g realtime-bpm-analyzer-cli`), the command is also
-available as `realtime-bpm-analyzer` and `rba`.
+Installed (`npm install -g realtime-bpm-analyzer-cli`), the command is
+`realtime-bpm-analyzer`. It needs Node.js 22.12 or later.
 
 ## Usage
 
 ```bash
-rba song.mp3 other.flac           # several files
-rba --json ./music                # every audio file of a folder, as one JSON document
-rba -r --min-bpm 70 --max-bpm 140 ./music
+realtime-bpm-analyzer song.mp3 other.flac           # several files
+realtime-bpm-analyzer --json ./music                # every audio file of a folder, as one JSON document
+realtime-bpm-analyzer -r --min-bpm 70 --max-bpm 140 ./music
 ```
 
 | Option            | Meaning                                                        |
@@ -34,8 +32,8 @@ rba -r --min-bpm 70 --max-bpm 140 ./music
 | `--json`          | Print one JSON document instead of text                        |
 | `-r, --recursive` | Walk sub-folders (up to 32 levels)                             |
 | `--min-bpm <bpm>` | Lowest tempo reported (default 90)                             |
-| `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`) |
-| `--detector <name>` | `peaks` (default) or `tempogram`, which searches `--min-bpm`..`--max-bpm` instead of folding into it: from about twice `--min-bpm` a tempo can read half, as over about 179 BPM does by default |
+| `--max-bpm <bpm>` | Highest tempo reported (default 180, at least 2 × `--min-bpm`). Any range other than 90 to 180 gives `confidence` null |
+| `--engine <name>` | `tempogram` (default) or `peaks`. The tempogram searches `--min-bpm`..`--max-bpm` instead of folding into it: from about twice `--min-bpm` a tempo can read half, as over about 179 BPM does by default |
 | `-h, --help`      | Show the help                                                  |
 | `-v, --version`   | Show the version                                               |
 
@@ -67,11 +65,18 @@ that want the same decoding (the [MCP server](https://www.npmjs.com/package/real
 import {analyzeFile, resolveTempoRange} from 'realtime-bpm-analyzer-cli';
 
 const result = await analyzeFile('song.mp3', {tempoRange: await resolveTempoRange(70, undefined)});
-// {file, ok: true, bpm, confidence, candidates} or {file, ok: false, error}: it never throws
+// {file, ok: true, bpm, bpmExact, confidence, candidates, engine} or {file, ok: false, error}: it never throws
 ```
 
-`resolveTempoRange(min, max)` fills a missing bound with the default and throws on an
-invalid range. `audioExtensions` is the set of extensions folder mode picks up.
+`analyzeFile`'s options are typed `AnalyzeFileOptions`: `tempoRange`, `engine`, `ffmpegPath`,
+`signal`, `timeoutMs` and `maxDecodedBytes`. `resolveTempoRange(min, max)` fills a missing bound
+with the default, and its promise rejects on an invalid range. `audioExtensions` is the set of
+extensions folder mode picks up.
+
+The confidence is the estimated chance the reading is right, calibrated on licence-clean dev
+data from 90 to 180 BPM, so inside that range it means the same whichever engine measured it.
+`null`: unmeasured, when the tempo is outside 90 to 180 BPM or when the analysis ran on a custom
+range, since the calibration ran only on the default one.
 
 ## Licence
 

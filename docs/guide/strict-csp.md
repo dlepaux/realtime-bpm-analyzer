@@ -40,6 +40,7 @@ versions.
 With Vite, the `?url` suffix copies the file into your build and gives you
 its URL:
 
+<!-- typecheck: skip, the ?url import needs Vite's client types -->
 ```typescript
 import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 import processorUrl from 'realtime-bpm-analyzer/processor?url';
@@ -59,7 +60,7 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
 ```
 
 `processorUrl` accepts a string or a `URL`. It sits next to the usual
-analyzer options (`continuousAnalysis`, `tempoRange` and the rest) and is
+analyzer options (`engine`, `tempoRange` and the rest) and is
 never sent to the worklet.
 
 ## Manifest V3 extensions
@@ -69,6 +70,7 @@ bundler's static-copy step), then resolve its URL with
 `chrome.runtime.getURL` in the offscreen document or extension page that
 creates the `AudioContext`:
 
+<!-- typecheck: skip, chrome.runtime needs the extension's @types/chrome -->
 ```typescript
 import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 

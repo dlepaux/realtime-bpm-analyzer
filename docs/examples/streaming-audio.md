@@ -9,9 +9,9 @@ Analyze the BPM of live audio streams like radio stations or online music servic
 
 ## Live Demo
 
-Try the interactive demo below - this is the **actual vanilla JavaScript streaming example** running. It starts on a 128 BPM click track that it serves itself. Paste another audio URL to analyze it: its server must send CORS headers, and its terms must allow other websites to play it.
+Try the interactive demo below - this is the **actual vanilla JavaScript streaming example** running. It starts on a 128 BPM click track that it serves itself. Paste another audio URL to analyze it: its server must send CORS headers, and its terms must allow other websites to play it. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="02-vanilla-streaming" height="550px" />
+<ExampleEmbed example="02-vanilla-streaming" height="1050px" />
 
 ::: tip View Source Code
 The complete source code for this example is available in the [`examples/02-vanilla-streaming`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/02-vanilla-streaming) directory.
@@ -26,17 +26,22 @@ import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 // 1. Create audio context and analyzer
 const audioContext = new AudioContext();
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  // Start the analysis over every 20 s of audio, so the reading follows
+  // the music as one song gives way to the next
+  engine: { name: 'peaks', restartAfterSeconds: 20 },
+});
 
-// 2. Connect audio element to analyzer
-const audioElement = document.querySelector('audio');
+// 2. Connect the audio element to the analyzer's input, and to the speakers
+const audioElement = document.querySelector('audio')!;
+audioElement.crossOrigin = 'anonymous'; // the stream server must allow CORS
 const source = audioContext.createMediaElementSource(audioElement);
-source.connect(bpmAnalyzer.node);
-bpmAnalyzer.node.connect(audioContext.destination); // Connect to hear the audio
+source.connect(analyzer.input);
+source.connect(audioContext.destination);
 
 // 3. Listen for BPM updates
-bpmAnalyzer.on('bpm', (data) => {
-  console.log('Current BPM:', data.bpm[0].tempo);
+analyzer.on('reading', ({ bpm }) => {
+  console.log('Current BPM:', bpm);
 });
 
 // 4. Start playing the stream
@@ -57,7 +62,6 @@ This approach is ideal for:
 - ✅ Real-time stream analysis
 - ✅ Works with HTTP/HTTPS audio streams
 - ✅ Continuous BPM updates
-- ✅ Low latency detection
 - ✅ Supports common streaming formats (MP3, AAC, etc.)
 
 ## Next Steps

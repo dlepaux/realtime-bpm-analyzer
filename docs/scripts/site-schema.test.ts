@@ -91,8 +91,8 @@ test('WebApplication: names its author and publisher, and the video file source'
 })
 
 test('no unmeasured tolerance or accuracy praise in the guides', () => {
-  // "within ±1 BPM" defines the confidence field, so it stays. A percentage tolerance
-  // or a grade of the accuracy would be a claim, and nothing has measured one.
+  // "within 4% of the true tempo" defines what a right reading is for confidence, so it stays.
+  // A ± tolerance or a grade of the accuracy would be a claim, and nothing has measured one.
   const claim = /±\s*\d+\s*%|excellent accuracy/i
   const dir = new URL('../guide/', import.meta.url)
   const guides = readdirSync(dir).filter((name) => name.endsWith('.md'))

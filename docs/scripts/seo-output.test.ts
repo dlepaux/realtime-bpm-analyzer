@@ -43,12 +43,17 @@ test('seoProblems: home needs one h1 holding only the search phrase, and a dated
   assert.match(seoProblems(undated).join(), /no byline with a date/)
 })
 
-test('seoProblems: the unpublished guides stay noindex, out of the sitemap and unlinked', () => {
+// The Developers menu links the CLI and MCP guides from every page (RBA-247), so a link is
+// no longer a problem. Until both packages are on npm the pages stay noindex and out of the sitemap.
+test('seoProblems: the unpublished guides stay noindex and out of the sitemap, linked or not', () => {
   assert.match(seoProblems(site({ 'guide/cli.html': '<p>cli</p>' })).join(), /guide\/cli: not noindex/)
   const listed = site({ 'sitemap.xml': sitemap([...LISTED, '/guide/mcp']) })
   assert.match(seoProblems(listed).join(), /guide\/mcp: in the sitemap/)
-  const linked = site({ 'guide/node.html': `${canonical('/guide/node')}${GUIDE}<a href="/guide/cli">CLI</a>` })
-  assert.match(seoProblems(linked).join(), /guide\/node\.html: links to an unpublished guide/)
+  const menu = '<a href="/guide/cli">CLI</a><a href="/guide/mcp">MCP server</a>'
+  const linked = site({ 'guide/node.html': `${canonical('/guide/node')}${GUIDE}${menu}` })
+  assert.deepEqual(seoProblems(linked), [])
+  const linkedNotNoindex = site({ 'guide/node.html': `${canonical('/guide/node')}${GUIDE}${menu}`, 'guide/mcp.html': '<p>mcp</p>' })
+  assert.match(seoProblems(linkedNotNoindex).join(), /guide\/mcp: not noindex/)
 })
 
 test('seoProblems: every other guide is an article with a server-rendered date', () => {

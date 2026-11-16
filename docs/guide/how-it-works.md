@@ -271,13 +271,6 @@ The algorithm works best with:
 - **Slight variations**: Votes spread across neighbouring tempos, so the result can be less clear
 - **Major changes**: May report multiple candidates or incorrect BPM
 
-### Audio Quality
-
-- **Clear recordings**: Best results
-- **Compressed/loud**: Works well
-- **Very quiet**: Lower thresholds still find the peaks, down to 0.20
-- **Heavy noise**: Use low-pass filter
-
 ## Further Reading
 
 - [Web Audio API Specification](https://www.w3.org/TR/webaudio/)

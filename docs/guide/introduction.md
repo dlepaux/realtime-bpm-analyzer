@@ -62,10 +62,6 @@ Works in all modern browsers that support:
 - ✅ Web Audio API
 - ✅ AudioWorklet
 
-::: tip
-For older browser support, consider using a polyfill or fallback strategy.
-:::
-
 ## Next Steps
 
 <div class="tip custom-block" style="padding-top: 8px">

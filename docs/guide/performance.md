@@ -30,7 +30,8 @@ import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-// The low-pass filter comes with the input
+// analyzer.input holds what the engine needs in front of it:
+// a low-pass for `peaks`, nothing for the default `tempogram`
 source.connect(analyzer.input);
 ```
 
@@ -54,7 +55,7 @@ Pick the mode that matches your use case:
 const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 ```
 
-- **Memory**: Grows with playback time
+- **Memory**: Bounded: `tempogram`'s history fades with a 16-second half-life, and `peaks` keeps the newest 256 peaks per threshold
 - **CPU**: Consistent low usage
 - **Use for**: Songs with fixed length
 
@@ -95,15 +96,6 @@ createRealtimeBpmAnalyzer(audioContext, {
 ```
 
 The `tempogram` engine has no restart option: its memory of past tempos fades with a 16-second half-life.
-
-**Restart Period Guidelines:**
-
-| Audio Type | Restart After | Reason |
-|------------|------------------|--------|
-| Electronic (EDM) | 15 s | Simple, consistent beats |
-| Pop/Rock | 20 s | Standard complexity |
-| Jazz/Complex | 30 s | Variable rhythms |
-| Classical | 40 s | Tempo changes |
 
 A restart period under 10 s also brings the earliest lock forward to fit before it, as `peaks` otherwise waits 10 s of audio before it locks.
 
@@ -148,17 +140,20 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 // Listen for events over time
 ```
 
-### 2. Buffer Size Considerations
+### 2. Processing Latency
 
-The AudioWorklet automatically uses optimal buffer sizes, but you can check:
+An AudioWorklet always processes audio in blocks of 128 frames. What you can read and tune is the context's latency:
 
 ```typescript
-// Check the AudioContext's buffer size
-console.log('Buffer size:', audioContext.baseLatency);
+// Seconds between the audio graph and the device's output buffer
+console.log('Base latency:', audioContext.baseLatency);
 ```
 
-**Lower buffer** = Lower latency, higher CPU
-**Higher buffer** = Higher latency, lower CPU
+Ask for a longer one when the device glitches under load, and a shorter one for interactive playback:
+
+```typescript
+const playbackContext = new AudioContext({ latencyHint: 'playback' }); // or 'interactive', the default
+```
 
 Most devices default to 128-256 samples, which is optimal.
 
@@ -375,7 +370,7 @@ audioElement.addEventListener('playing', () => {
 
 ## Performance Checklist
 
-- ✅ Connect the source to `analyzer.input`, which holds the low-pass filter
+- ✅ Connect the source to `analyzer.input`, which holds what the engine needs in front of it
 - ✅ Choose appropriate analysis mode
 - ✅ Set a reasonable `restartAfterSeconds` for continuous analysis
 - ✅ Clean up AudioContext and nodes when done

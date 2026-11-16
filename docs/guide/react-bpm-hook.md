@@ -71,7 +71,7 @@ export type UseBpmState = 'idle' | 'starting' | 'listening' | 'error';
 export interface UseBpmReturn {
   /** Live BPM, updated as the analysis runs. Null until first detection. */
   bpm: number | null;
-  /** Locked BPM, from 10 s of audio at the earliest. Null until then. */
+  /** Locked BPM, from about 12 s of audio at the earliest. Null until then. */
   lockedBpm: number | null;
   /** Current state. Drives UI affordances. */
   state: UseBpmState;
@@ -170,9 +170,10 @@ export function useBpm(source: Source | null): UseBpmReturn {
 
       setState('listening');
     } catch (err) {
+      // stop() first: it sets 'idle', which would hide the error if it came last.
+      stop();
       setError(err instanceof Error ? err : new Error(String(err)));
       setState('error');
-      stop();
     }
   }, [source, state, stop]);
 
@@ -197,18 +198,20 @@ cleanup path that releases everything.
 
 <!-- typecheck: skip, imports the useBpm hook above from ./useBpm -->
 ```tsx
-import { useRef } from 'react';
+import { useState } from 'react';
 import { useBpm } from './useBpm';
 
 export function FileAnalyzer() {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  // A callback ref keeps the element in state, so the hook gets it on the
+  // render after React attaches it.
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const { bpm, lockedBpm, state, error, start, stop } = useBpm(
-    audioRef.current ? { type: 'audio', element: audioRef.current } : null
+    audio ? { type: 'audio', element: audio } : null
   );
 
   return (
     <div>
-      <audio ref={audioRef} src="/song.mp3" controls />
+      <audio ref={setAudio} src="/song.mp3" controls />
       <button onClick={start} disabled={state !== 'idle'}>
         Analyse
       </button>
@@ -223,8 +226,10 @@ export function FileAnalyzer() {
 }
 ```
 
-The `audioRef.current ? ... : null` guard handles the first render: the
-ref is null until React commits the DOM.
+The element is `null` on the first render, before React attaches it, so
+the hook gets `null` until then. Reading `audioRef.current` during render
+instead would hand the hook a stale value: React doesn't re-render when a
+ref changes.
 
 ## Usage: microphone
 

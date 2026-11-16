@@ -64,7 +64,7 @@ analyzer.on('error', ({ name, message }) => {
 The microphone examples also list each `kick` as it is heard, with its `contextTime` and `strength`, in a **kick panel** with nothing that flashes:
 
 ```typescript
-// Each kick drum heard, 18 to 26 ms after it reached the analyzer: its time on the AudioContext clock, and its
+// Each kick drum heard, about 20 to 26 ms after it reached the analyzer: its time on the AudioContext clock, and its
 // strength from 0 to 1 against the loudest kick of the last few seconds
 analyzer.on('kick', ({ contextTime, strength }) => {
   console.log(contextTime.toFixed(3), strength.toFixed(2));

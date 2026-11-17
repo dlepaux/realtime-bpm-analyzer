@@ -13,11 +13,17 @@ Android and Kotlin.
 
 It is on Maven Central as `io.github.dlepaux:realtime-bpm-analyzer`. With Gradle:
 
+<!-- x-release-please-start-version -->
+
 ```kotlin
 implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")
 ```
 
+<!-- x-release-please-end -->
+
 Or with Maven:
+
+<!-- x-release-please-start-version -->
 
 ```xml
 <dependency>
@@ -26,6 +32,8 @@ Or with Maven:
   <version>6.2.0</version>
 </dependency>
 ```
+
+<!-- x-release-please-end -->
 
 ```java
 import io.github.dlepaux.realtimebpmanalyzer.BpmAnalyzer;

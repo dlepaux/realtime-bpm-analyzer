@@ -36,8 +36,8 @@ namespace RealtimeBpmAnalyzer
         /// or infinite sample.
         /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// The JS library's <c>RangeError</c>: when the sample rate is not finite, or is under 100 Hz for the
-        /// tempogram, or under 2 Hz or not above twice the lowpass cutoff for the peaks engine.
+        /// The JS library's <c>RangeError</c>: when the sample rate is not finite, or is under 122.97509238026915 Hz
+        /// for the tempogram, the first rate at which its FFT has a bin above DC, or under 2 Hz or not above twice the lowpass cutoff for the peaks engine.
         /// </exception>
         public static Reading? AnalyzeChannelData(float[] samples, double sampleRate, AnalysisOptions? options = null)
         {

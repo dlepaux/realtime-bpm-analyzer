@@ -245,7 +245,7 @@ export default defineConfig({
 
     pageData.frontmatter.head ??= []
     // A guide whose package isn't published yet stays unindexed (UNPUBLISHED_GUIDES in
-    // tools/site-schema.ts).
+    // tools/site-schema.ts, empty since RBA-272).
     if (isUnpublishedGuide(pageData.relativePath)) {
       pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
     }
@@ -328,7 +328,9 @@ export default defineConfig({
             { text: 'BPM Detection from the Command Line', link: '/guide/cli' },
             { text: 'MCP Server for AI Assistants', link: '/guide/mcp' },
             { text: 'BPM Detection in Java, Kotlin and Android', link: '/guide/java' },
-            { text: 'BPM Detection in Python', link: '/guide/python' }
+            { text: 'BPM Detection in Python', link: '/guide/python' },
+            { text: 'BPM Detection in C#, Unity and Godot', link: '/guide/csharp' },
+            { text: 'BPM Detection in Swift', link: '/guide/swift' }
           ]
         },
         {

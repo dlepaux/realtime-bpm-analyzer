@@ -15,6 +15,12 @@ export const PLATFORMS: readonly Platform[] = [
   { name: 'Java', guide: '/guide/java' },
   { name: 'Kotlin', guide: '/guide/java' },
   { name: 'Android', guide: '/guide/java' },
+  { name: 'C#', guide: '/guide/csharp' },
+  { name: 'Unity', guide: '/guide/csharp' },
+  { name: 'Godot', guide: '/guide/csharp' },
+  { name: 'Swift', guide: '/guide/swift' },
+  { name: 'iOS', guide: '/guide/swift' },
+  { name: 'macOS', guide: '/guide/swift' },
 ]
 
 export type LanguageTab = {
@@ -42,4 +48,6 @@ export const LANGUAGE_TABS: readonly LanguageTab[] = [
   { id: 'python', label: 'Python', guide: '/guide/python', guideTitle: 'the Python guide', sources: ['python.md'] },
   { id: 'java', label: 'Java', guide: '/guide/java', guideTitle: 'the Java guide', sources: ['java.md'] },
   { id: 'kotlin', label: 'Kotlin', guide: '/guide/java#from-kotlin', guideTitle: 'the Kotlin section of the Java guide', sources: ['java.md'] },
+  { id: 'csharp', label: 'C#', guide: '/guide/csharp', guideTitle: 'the C# guide', sources: ['csharp.md'] },
+  { id: 'swift', label: 'Swift', guide: '/guide/swift', guideTitle: 'the Swift guide', sources: ['swift.md'] },
 ]

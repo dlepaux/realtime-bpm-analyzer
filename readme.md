@@ -12,7 +12,7 @@
 </div>
 
 <p align="center">
-  <strong>Detects the tempo (BPM) of music in the browser, live as it plays or from a whole file, and in Node.js, Python, Java and Kotlin.</strong>
+  <strong>Detects the tempo (BPM) of music in the browser, live as it plays or from a whole file, and in Node.js, Python, Java, Kotlin, C# and Swift.</strong>
 </p>
 
 <p align="center">
@@ -33,10 +33,12 @@
 | Node.js, Deno and Bun | [`realtime-bpm-analyzer/node`](https://www.npmjs.com/package/realtime-bpm-analyzer) | `npm install realtime-bpm-analyzer` | [Node.js](https://www.realtime-bpm-analyzer.com/guide/node) |
 | Python 3.11+ | [`realtime-bpm-analyzer`](https://pypi.org/project/realtime-bpm-analyzer/) | `pip install realtime-bpm-analyzer` | [Python](https://www.realtime-bpm-analyzer.com/guide/python) |
 | Java 8+, Kotlin and Android | [`io.github.dlepaux:realtime-bpm-analyzer`](https://central.sonatype.com/artifact/io.github.dlepaux/realtime-bpm-analyzer) | `implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")` | [Java and Kotlin](https://www.realtime-bpm-analyzer.com/guide/java) |
+| C# on .NET Standard 2.0: Unity, Godot and .NET | [`RealtimeBpmAnalyzer`](https://www.nuget.org/packages/RealtimeBpmAnalyzer) | `dotnet add package RealtimeBpmAnalyzer` | [C#, Unity and Godot](https://www.realtime-bpm-analyzer.com/guide/csharp) |
+| Swift 5.9+: iOS, macOS and Linux | [`realtime-bpm-analyzer-swift`](https://github.com/dlepaux/realtime-bpm-analyzer-swift) | Swift Package Manager, from `https://github.com/dlepaux/realtime-bpm-analyzer-swift` | [Swift](https://www.realtime-bpm-analyzer.com/guide/swift) |
 
 <!-- x-release-please-end -->
 
-The Python and Java ports run the offline analysis on samples you decode. They give the same readings as the JS library, proven by shared [conformance vectors](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/conformance#readme). Live input from a microphone or a stream is the browser's.
+The Python, Java, C# and Swift ports run the offline analysis on samples you decode. They give the same readings as the JS library, proven by shared [conformance vectors](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/conformance#readme). Live input from a microphone or a stream is the browser's.
 
 ## Features
 

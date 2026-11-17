@@ -269,6 +269,51 @@ if (reading != null) {
 ```
 
 </template>
+<template #csharp>
+
+On .NET Standard 2.0, in Unity, Godot or any .NET app, with no dependencies: the tempo of
+samples from any decoder.
+
+```bash
+dotnet add package RealtimeBpmAnalyzer
+```
+
+```csharp
+using RealtimeBpmAnalyzer;
+
+float[] samples = DecodeMono(file); // your decoder: one channel, -1 to 1
+Reading? reading = BpmAnalyzer.AnalyzeChannelData(samples, 44100);
+if (reading != null)
+{
+    Console.WriteLine($"{reading.Bpm} BPM");
+}
+```
+
+</template>
+<template #swift>
+
+In Swift 5.9 or later, on iOS, macOS and Linux, with no dependencies: the tempo of the samples
+`AVAudioFile` decodes.
+
+```swift
+.package(url: "https://github.com/dlepaux/realtime-bpm-analyzer-swift", from: "6.2.0")
+```
+
+```swift
+import AVFoundation
+import RealtimeBpmAnalyzer
+
+let file = try AVAudioFile(forReading: url)
+guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)),
+      let channels = buffer.floatChannelData else { return }
+try file.read(into: buffer)
+let left = UnsafeBufferPointer(start: channels[0], count: Int(buffer.frameLength))
+if let reading = try analyzeChannelData(left, sampleRate: file.processingFormat.sampleRate) {
+    print(reading.bpm, reading.confidence.map { "confidence \($0)" } ?? "unmeasured confidence")
+}
+```
+
+</template>
 </HomePlatforms>
 
 ## For developers

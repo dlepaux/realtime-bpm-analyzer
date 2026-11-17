@@ -1,6 +1,4 @@
 ---
-# Unpublished until a Swift package is released (RBA-265): kept out of the local search too.
-search: false
 title: BPM Detection in Swift
 description: Detect the BPM of decoded audio in Swift on iOS, macOS and Linux with realtime-bpm-analyzer, the same readings as the JS library, held to them by shared conformance vectors.
 ---
@@ -12,11 +10,19 @@ description: Detect the BPM of decoded audio in Swift on iOS, macOS and Linux wi
 samples of one channel and get a reading back: the tempo, its confidence and the
 other candidate tempos, in the same shape the JS library gives.
 
-::: warning Not published yet
-No Swift package has been released yet. Until one is, add it from a clone of the
-repository, by path: `.package(path: "../realtime-bpm-analyzer/packages/swift")`
-in your `Package.swift`, or **Add Local…** in Xcode's package dialog.
-:::
+Add it with Swift Package Manager, from its release repository
+[dlepaux/realtime-bpm-analyzer-swift](https://github.com/dlepaux/realtime-bpm-analyzer-swift),
+in your `Package.swift`:
+
+```swift
+.package(url: "https://github.com/dlepaux/realtime-bpm-analyzer-swift", from: "6.2.0")
+```
+
+Then add `.product(name: "RealtimeBpmAnalyzer", package: "realtime-bpm-analyzer-swift")` to
+your target's dependencies. In Xcode, paste the same URL in **File › Add Package
+Dependencies…**. The release repository is a copy of `packages/swift`, written by the release
+pipeline and tagged with each version, so issues and pull requests go to
+[dlepaux/realtime-bpm-analyzer](https://github.com/dlepaux/realtime-bpm-analyzer).
 
 It needs Swift 5.9 or later (Xcode 15 or later) and runs on iOS 13 and
 macOS 10.15 or later, and on Linux. It has no dependency and imports Foundation

@@ -37,7 +37,9 @@ export type {
  * @returns A promise of the reading, or null when no tempo was found. The function itself never throws: each error
  * below rejects the promise.
  * @throws {Error} When `channelData` is empty, not a Float32Array, or holds a NaN or infinite sample
- * @throws {RangeError} When the sample rate, `engine` or `tempoRange` is invalid
+ * @throws {RangeError} When the sample rate, `engine` or `tempoRange` is invalid. The tempogram, the default engine,
+ * needs a rate of at least 122.97509238026915 Hz, the first at which its FFT has a bin above DC, and `peaks` at
+ * least 2 Hz and more than twice its lowpass cutoff
  * @throws {TypeError} When the options are not an object or carry a key other than `engine` and `tempoRange` (a 5.x
  * option name included, with its replacement), `tempoRange` carries a key other than `min` and `max`, the `engine`
  * object carries a key other than `name` and `lowpass`, or `engine.lowpass` is not an object, `null` or `undefined`,

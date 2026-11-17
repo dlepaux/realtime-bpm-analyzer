@@ -140,7 +140,11 @@ export type AnalyzerOptions = {
  * realtime option included, rejects with a `TypeError` that names it, whatever its value.
  */
 export type OfflineOptions = {
-  /** Default `tempogram`, as for the realtime analyzer. Only `peaks` takes lowpass settings. */
+  /**
+   * Default `tempogram`, as for the realtime analyzer. Only `peaks` takes lowpass settings. The tempogram needs a
+   * sample rate of at least 122.97509238026915 Hz, the first at which its FFT has a bin above DC, and rejects with a
+   * `RangeError` under it; `peaks` needs at least 2 Hz and a lowpass cutoff under half the rate.
+   */
   readonly engine?: OfflineEngineOption;
   readonly tempoRange?: TempoRange;
 };

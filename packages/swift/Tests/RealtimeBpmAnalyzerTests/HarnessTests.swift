@@ -83,6 +83,15 @@ final class HarnessTests: XCTestCase {
         XCTAssertEqual(try Vectors.options(range).tempoRange, TempoRange(min: 60, max: 140))
     }
 
+    func testRefusesATolerancePastTheReadmes() throws {
+        func tolerances(_ absolute: Double) -> JSON {
+            let entry = JSON.object(["absolute": .number(absolute), "referenceSpread": .number(0)])
+            return .object(["bpmExact": entry, "confidence": entry])
+        }
+        XCTAssertEqual(try Vectors.tolerances(tolerances(1e-6)).bpmExact, 1e-6)
+        XCTAssertThrowsError(try Vectors.tolerances(tolerances(1e-3)))
+    }
+
     func testFailsOnAnOptionNobodyMapped() {
         let unmapped: [JSON] = [
             .object(["debug": .bool(true)]),

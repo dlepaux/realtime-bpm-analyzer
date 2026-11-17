@@ -32,8 +32,11 @@ no dependency and imports Foundation only: no Accelerate, no AVFoundation.
 
 ## Versions
 
-The version is the JS library's major and minor whose conformance vectors the port passes, plus its own patch:
-6.2.x reads the same as `realtime-bpm-analyzer` 6.2 on npm.
+None yet. SwiftPM reads a package's versions from the git tags of the repository whose root holds its
+`Package.swift`, and this repository's root and tags belong to the JS library, so a by-URL dependency can't reach
+`packages/swift` today. How the Swift package gets its own manifest and tags is decided before its first release.
+The other ports' rule is the plan: the JS library's major and minor whose vectors the port passes, plus its own
+patch, so 6.2.x would read the same as `realtime-bpm-analyzer` 6.2 on npm.
 
 ## Example
 

@@ -42,8 +42,10 @@ public func analyzeChannelData(_ samples: UnsafeBufferPointer<Float>, sampleRate
             "Invalid channel data: sample \(index) is \(samples[index]), and every sample must be a finite number.")
     }
 
-    // The engine first, then the range, then the tempogram's sample rate: the JS library's order, so a call with two
-    // faults fails on the same one
+    // The engine first, then the range, then the tempogram's sample rate: the JS library's order for
+    // `{name: 'peaks', lowpass}` and the tempogram. JS's bare 'peaks' checks the range before the lowpass, which this
+    // API can't tell from an explicit default lowpass; every one of these faults is `.outOfRange`, so a call with two
+    // of them fails in the same category either way, only its message can differ
     var lowpass: Lowpass?
     if case .peaks(let settings) = options.engine {
         try checkLowpass(settings, sampleRate: sampleRate)

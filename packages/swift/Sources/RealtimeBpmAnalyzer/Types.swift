@@ -1,5 +1,7 @@
 // The public value types: the JS library's options, its `Reading` and its two error categories, in Swift's casing.
 
+import Foundation
+
 /// The analysis engine, the JS library's `engine` option.
 public enum Engine: Sendable, Hashable {
     /// The default: band-wise onset strength read through a tempogram, over the full band.
@@ -7,7 +9,8 @@ public enum Engine: Sendable, Hashable {
     /// Counts the intervals between bass peaks, read through a biquad lowpass.
     case peaks(lowpass: Lowpass)
 
-    /// The peaks engine with its default lowpass, 200 Hz and 1 dB.
+    /// The peaks engine with its default lowpass, 200 Hz and 1 dB. Being a value, it equals only that lowpass:
+    /// `engine == .peaks` is false for `.peaks(lowpass: custom)`, so test for the engine with ``name`` or `if case`.
     public static var peaks: Engine { .peaks(lowpass: .default) }
 
     /// The name a reading reports.
@@ -125,8 +128,8 @@ public struct Reading: Sendable, Hashable {
     public let bpm: Int
     /// The same tempo, unrounded.
     public let bpmExact: Double
-    /// The chance, 0 to 1, that ``bpm`` is right. `nil` when unmeasured: ``bpm`` is outside 90 to 180, or the
-    /// analysis ran on any tempo range other than 90 to 180.
+    /// The chance, 0 to 1, that ``bpm`` is right. `nil` when unmeasured: when the analysis ran on any tempo range
+    /// other than 90 to 180, the only one the confidence was calibrated on.
     public let confidence: Double?
     /// One to five tempos in the engine's rank order, the first with relation ``CandidateRelation/top``.
     public let candidates: [Candidate]
@@ -145,7 +148,7 @@ public struct Reading: Sendable, Hashable {
 
 /// Why an analysis was refused: one case per category of the JS library's errors. Messages are for people and may
 /// change; the case is the contract.
-public enum AnalysisError: Error, Sendable, Hashable, CustomStringConvertible {
+public enum AnalysisError: Error, Sendable, Hashable, CustomStringConvertible, LocalizedError {
     /// The samples can't be analysed: there are none, or one is NaN or infinite. JS throws an `Error` for these.
     case invalidSamples(String)
     /// A value is outside its valid range: the sample rate, the tempo range or a lowpass setting. JS throws a
@@ -158,4 +161,7 @@ public enum AnalysisError: Error, Sendable, Hashable, CustomStringConvertible {
             return message
         }
     }
+
+    /// The message, so `localizedDescription` shows it rather than Foundation's generic text.
+    public var errorDescription: String? { description }
 }

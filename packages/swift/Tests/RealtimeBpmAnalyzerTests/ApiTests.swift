@@ -109,6 +109,7 @@ final class ApiTests: XCTestCase {
     func testErrorsDescribeThemselves() {
         let error = AnalysisError.outOfRange("Invalid sample rate: 99.0.")
         XCTAssertEqual(error.description, "Invalid sample rate: 99.0.")
+        XCTAssertEqual(error.localizedDescription, "Invalid sample rate: 99.0.")
         XCTAssertNotEqual(AnalysisError.invalidSamples("x"), AnalysisError.outOfRange("x"))
     }
 }

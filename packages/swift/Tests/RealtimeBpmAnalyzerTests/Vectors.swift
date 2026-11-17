@@ -108,13 +108,21 @@ enum Vectors {
         guard missing.isEmpty else { throw HarnessError(description: "\(path) lacks \(missing.sorted())") }
     }
 
+    /// The tolerance conformance/readme.md documents for bpmExact and confidence.
+    static let documentedTolerance = 1e-6
+
     static func tolerances(_ value: JSON?) throws -> Tolerances {
         let tolerances = try object(value, "tolerances")
         try checkKeys(tolerances, allowed: ["bpmExact", "confidence"], "tolerances")
         func absolute(_ field: String) throws -> Double {
             let entry = try object(tolerances[field], "tolerances.\(field)")
             try checkKeys(entry, allowed: ["absolute", "referenceSpread"], "tolerances.\(field)")
-            return try number(entry["absolute"], "tolerances.\(field).absolute")
+            let absolute = try number(entry["absolute"], "tolerances.\(field).absolute")
+            // conformance/readme.md's tolerance: a looser file is a change of contract, not one to follow silently
+            guard absolute >= 0, absolute <= documentedTolerance else {
+                throw HarnessError(description: "tolerances.\(field).absolute is \(absolute), past the readme's \(documentedTolerance)")
+            }
+            return absolute
         }
         return Tolerances(bpmExact: try absolute("bpmExact"), confidence: try absolute("confidence"))
     }

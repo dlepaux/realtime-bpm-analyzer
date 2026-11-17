@@ -29,8 +29,8 @@ const matchesPattern = (pattern: string, value: string) => {
   return regex ? new RegExp(regex[1]).test(value) : pattern === value
 }
 
-// What each field is matched against. A rule with any other match* field doesn't match here, so a hold that
-// relies on one fails this test rather than passing on a field it doesn't read.
+// What each field is matched against. A rule with any other match* field doesn't match here; a test below
+// refuses such a field on any rule that sets enabled, so neither a hold nor a block can pass unread.
 const FIELDS: Record<string, (dep: Dep) => string | undefined> = {
   matchManagers: (dep) => dep.manager,
   matchDepTypes: (dep) => dep.depType,
@@ -107,6 +107,20 @@ test('Renovate leaves the markers job on the Python its hashed wheels are for, a
     `the markers requirements' hashes are for CPython ${markers[0].dep.currentValue}`)
   for (const { where, job, dep } of steps) {
     assert.equal(isHeld(dep), job === 'markers', `${where} runs Python ${dep.currentValue}`)
+  }
+})
+
+// The bump checks above hold only if the matcher reads every rule that can switch a dependency off. A rule on a
+// field it doesn't model (matchUpdateTypes, matchFileNames...) or with a glob, a negation or regex flags would
+// count as "no match" here while Renovate applies it, and the bumps it stops would pass unseen.
+test('every rule that sets enabled uses only the fields and patterns this test models', () => {
+  for (const rule of packageRules.filter((rule) => 'enabled' in rule)) {
+    for (const [key, value] of Object.entries(rule).filter(([key]) => key.startsWith('match'))) {
+      assert.ok(key in FIELDS, `${String(rule.description)}: ${key} isn't modelled`)
+      for (const pattern of [value].flat() as string[]) {
+        assert.ok(/^\/.+\/$/.test(pattern) || !/[*?!{}/]/.test(pattern), `${String(rule.description)}: ${pattern} isn't exact or /regex/`)
+      }
+    }
   }
 })
 

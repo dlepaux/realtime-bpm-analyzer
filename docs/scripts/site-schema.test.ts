@@ -47,8 +47,8 @@ test('no accuracy figure on the tool pages or in the markup', () => {
   assert.ok(figure.test('accurate within **1–2 BPM**'), 'the check itself must catch the old claim')
 })
 
-test('isNoindexPage: the docs readme leaves the sitemap', () => {
-  for (const url of ['readme', '/readme.html']) assert.ok(isNoindexPage(url), url)
+test('isNoindexPage: the docs readme and the unpublished Swift guide leave the sitemap', () => {
+  for (const url of ['readme', '/readme.html', 'guide/swift', '/guide/swift.html']) assert.ok(isNoindexPage(url), url)
   for (const url of ['', 'guide/readme-tips', 'guide/node', 'guide/client', 'guide/cli', '/guide/mcp.html', 'guide/java', '/guide/python.html', 'tap-tempo', 'extension/privacy']) {
     assert.ok(!isNoindexPage(url), url)
   }
@@ -57,7 +57,7 @@ test('isNoindexPage: the docs readme leaves the sitemap', () => {
 // The noindex flips (contributing.md, "First publish of v6", step 13, and "First publish of the
 // 6.2 ports", step 8) made the CLI, MCP, Java and Python guides articles.
 test('isUnpublishedGuide and isGuidePage: the CLI, MCP, Java and Python guides are articles since their packages were published', () => {
-  assert.deepEqual(UNPUBLISHED_GUIDES, ['guide/csharp'])
+  assert.deepEqual(UNPUBLISHED_GUIDES, ['guide/csharp', 'guide/swift'])
   for (const path of ['guide/cli.md', '/guide/mcp', 'guide/java.md', '/guide/python', 'guide/node.md']) assert.ok(!isUnpublishedGuide(path), path)
   for (const path of ['guide/node.md', 'guide/beat-detection-web-audio.md', 'guide/cli.md', 'guide/mcp.md', 'guide/java.md', 'guide/python.md']) {
     assert.ok(isGuidePage(path), path)
@@ -72,6 +72,12 @@ test('isUnpublishedGuide, isGuidePage and isNoindexPage: the C# guide is not an 
   assert.ok(isUnpublishedGuide('guide/csharp.md') && isUnpublishedGuide('/guide/csharp'))
   assert.ok(!isGuidePage('guide/csharp.md'))
   for (const url of ['guide/csharp', '/guide/csharp.html']) assert.ok(isNoindexPage(url), url)
+})
+
+// Until a Swift package is released (RBA-265), the Swift guide is not an article.
+test('isUnpublishedGuide and isGuidePage: the Swift guide is unpublished', () => {
+  assert.ok(isUnpublishedGuide('guide/swift.md') && isUnpublishedGuide('/guide/swift'))
+  assert.ok(!isGuidePage('guide/swift.md'))
 })
 
 test('techArticle: names the author and publisher, and dates only what git knows', () => {

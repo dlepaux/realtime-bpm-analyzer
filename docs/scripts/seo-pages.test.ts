@@ -71,6 +71,19 @@ test('the C# guide is out of the sidebar, llms.txt, the search and the content o
   assert.equal(field(read('../guide/csharp.md'), 'search'), 'false')
 })
 
+// Unpublished until a Swift package is released (RBA-265).
+test('the Swift guide is out of the sidebar, llms.txt, the search and the content of every other page', () => {
+  const unpublished = /\/guide\/swift\b|\]\(\.\/swift\b/
+  assert.ok(unpublished.test('[Swift](/guide/swift)') && unpublished.test('[Swift](./swift)'), 'the pattern finds a link')
+  assert.ok(!unpublished.test(read('../.vitepress/config.ts')), 'config.ts links the Swift guide')
+  assert.ok(!unpublished.test(read('../public/llms.txt')), 'llms.txt links the Swift guide')
+  const pages = readdirSync(new URL('../', import.meta.url), { recursive: true, encoding: 'utf8' })
+    .filter((name) => name.endsWith('.md') && !name.startsWith('node_modules') && name !== 'guide/swift.md')
+  assert.ok(pages.length > 20, `only ${pages.length} pages read`)
+  for (const name of pages) assert.ok(!unpublished.test(read(`../${name}`)), `${name} links the Swift guide`)
+  assert.equal(field(read('../guide/swift.md'), 'search'), 'false')
+})
+
 test('llms.txt lists the tutorials and the v6 migration, and calls the home tool the BPM Finder', () => {
   const llms = read('../public/llms.txt')
   for (const path of ['realtime-bpm-detection', 'bpm-from-microphone', 'react-bpm-hook']) {

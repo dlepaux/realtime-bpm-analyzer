@@ -495,6 +495,41 @@ jobs:
           dotnet test tests/RealtimeBpmAnalyzer.Tests -c Release --no-build --logger 'console;verbosity=detailed' | tee "$RUNNER_TEMP/dotnet.log"
           grep -qE '^\s*conformance: PASS on \.NET ' "$RUNNER_TEMP/dotnet.log"
 
+  # RBA-265: the pure-Swift port (packages/swift) held to the same vectors, built and tested with the oldest Swift its
+  # manifest claims (5.9, Xcode 15's) and the newest, in the Swift project's Linux images, pinned by digest. The library
+  # imports Foundation only, so Linux builds what iOS and macOS build; Apple's libm read the vectors bit-identical too
+  # (RBA-265's READY), so no macOS runner. Nothing publishes it: no release job needs it.
+  conformance-swift:
+    name: Conformance (Swift)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The checkout is mounted read-only, so the build can't write into the tree; -enable-testing lets JsSourceTests
+      # read the internal constants in a release build. shell: bash adds pipefail, so the exit code survives the tee
+      - name: Build and test on Swift 5.9
+        shell: bash
+        run: |
+          docker run --rm -v "$PWD":/src:ro -w /src/packages/swift \
+            swift:5.9-jammy@sha256:006635153a77dfc9d096dfc954b362d9017f1560d74c357100b50429bf5174c7 \
+            swift test -c release -Xswiftc -enable-testing -Xswiftc -warnings-as-errors --scratch-path /tmp/build \
+            | tee "$RUNNER_TEMP/swift-5.9.log"
+          grep -qE '^conformance: PASS, ' "$RUNNER_TEMP/swift-5.9.log"
+
+      - name: Build and test on Swift 6.4.2
+        shell: bash
+        run: |
+          docker run --rm -v "$PWD":/src:ro -w /src/packages/swift \
+            swift:6.4.2-noble@sha256:23d9b28ad97fb1cf1999edc3a0cb265ee915ed42299a9344e7173d5a6d2b05f4 \
+            swift test -c release -Xswiftc -enable-testing -Xswiftc -warnings-as-errors --scratch-path /tmp/build \
+            | tee "$RUNNER_TEMP/swift-6.4.2.log"
+          grep -qE '^conformance: PASS, ' "$RUNNER_TEMP/swift-6.4.2.log"
+
   # Release to GitHub and npm. release-please keeps one release PR open for all five packages
   # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
   # commits under its path, and node-workspace moving the ranges between the npm ones.

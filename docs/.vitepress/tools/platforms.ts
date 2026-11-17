@@ -1,29 +1,20 @@
 // Where the library runs, for the home page's "Where it runs" section (RBA-266). Pure and
 // import-free so `npm test` reads it with node --test.
-//
-// A platform shows a logo only where its owner's terms allow a grey one (see the asset
-// comments in HomePlatforms.vue). Node.js (OpenJS Foundation: no colour variations, no logo
-// on a site that promotes a product without written permission), Bun ("don't recolour
-// without asking"), Python (the PSF asks permission for any colour change) and Kotlin (its
-// logo is for official or pre-approved uses only) show their name alone.
-
-export type PlatformLogo = 'browser' | 'deno' | 'duke' | 'android'
 
 export type Platform = {
   readonly name: string
   readonly guide: string
-  readonly logo?: PlatformLogo
 }
 
 export const PLATFORMS: readonly Platform[] = [
-  { name: 'Browser', guide: '/guide/getting-started', logo: 'browser' },
+  { name: 'Browser', guide: '/guide/getting-started' },
   { name: 'Node.js', guide: '/guide/node' },
-  { name: 'Deno', guide: '/guide/node', logo: 'deno' },
+  { name: 'Deno', guide: '/guide/node' },
   { name: 'Bun', guide: '/guide/node' },
   { name: 'Python', guide: '/guide/python' },
-  { name: 'Java', guide: '/guide/java', logo: 'duke' },
+  { name: 'Java', guide: '/guide/java' },
   { name: 'Kotlin', guide: '/guide/java' },
-  { name: 'Android', guide: '/guide/java', logo: 'android' },
+  { name: 'Android', guide: '/guide/java' },
 ]
 
 export type LanguageTab = {

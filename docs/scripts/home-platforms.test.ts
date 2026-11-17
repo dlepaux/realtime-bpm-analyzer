@@ -81,17 +81,16 @@ test('every platform and every tab links to a guide that exists, and to a headin
   }
 })
 
-test('every logo a platform names is drawn by the component', () => {
+// David's ruling of 2026-11-17 (DECISION x0rf4m34ytgkuhvy3r8w2yqi on RBA-266): the "Runs in" row shows
+// names only. Some owners' terms allow no grey logo (Java's cup, Apple's marks), so a logo row would
+// always mix logos with names; the tabs below show the platforms off. With no logo shown, no
+// trademark credit line either.
+test('the "Runs in" row shows each platform by name, with no logo and no credit line', () => {
   for (const platform of PLATFORMS) {
-    if (platform.logo !== undefined && platform.logo !== 'browser') {
-      assert.match(COMPONENT, new RegExp(`platform\\.logo === '${platform.logo}'`), platform.name)
-    }
+    assert.deepEqual(Object.keys(platform).sort(), ['guide', 'name'], platform.name)
   }
-})
-
-// Android's brand terms ask for this line wherever the robot is shown (CC BY 3.0).
-test('the Android robot carries its attribution', () => {
-  assert.match(COMPONENT.replaceAll(/\s+/g, ' '), /The Android robot is reproduced or modified from work created and shared by Google and used according to terms described in the <a href="https:\/\/creativecommons.org\/licenses\/by\/3.0\/">Creative Commons 3.0 Attribution License<\/a>\./)
+  assert.doesNotMatch(COMPONENT, /<svg|lucide|-logo|-credits/)
+  assert.doesNotMatch(COMPONENT, /trademark/i)
 })
 
 // The readme's Platforms table names the Maven coordinate with its version, as the Java guide does.

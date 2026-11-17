@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/jvm-v6.2.1...jvm-v6.3.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **jvm:** refuse tempogram sample rates under 122.97509238026915 Hz, as the JS library now does (RBA-261) ([abb164c](https://github.com/dlepaux/realtime-bpm-analyzer/commit/abb164c960d59f0dbd3921bbbd9cf638f55106bd))
+* **tempogram:** refuse sample rates under its FFT's floor, 122.97509238026915 Hz, in the library and every port (RBA-261) ([61603fc](https://github.com/dlepaux/realtime-bpm-analyzer/commit/61603fc8cc17b967f303f3f3fbf262bdf10ca593))
+
 ## [6.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/jvm-v6.2.0...jvm-v6.2.1) (2026-11-17)
 
 

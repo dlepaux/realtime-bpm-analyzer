@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/python-v6.2.2...python-v6.3.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **python:** refuse tempogram sample rates under 122.97509238026915 Hz, as the JS library now does (RBA-261) ([63482d2](https://github.com/dlepaux/realtime-bpm-analyzer/commit/63482d279d159c4928c578ab2ea1db3c44e95548))
+* **tempogram:** refuse sample rates under its FFT's floor, 122.97509238026915 Hz, in the library and every port (RBA-261) ([61603fc](https://github.com/dlepaux/realtime-bpm-analyzer/commit/61603fc8cc17b967f303f3f3fbf262bdf10ca593))
+
 ## [6.2.2](https://github.com/dlepaux/realtime-bpm-analyzer/compare/python-v6.2.1...python-v6.2.2) (2026-11-17)
 
 

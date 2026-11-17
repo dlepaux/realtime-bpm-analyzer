@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: external-links
@@ -21,6 +20,10 @@ jobs:
     name: Check external links
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # issues: the one broken-links report, opened, updated and closed below.
+    permissions:
+      contents: read
+      issues: write
 
     steps:
       - name: Checkout

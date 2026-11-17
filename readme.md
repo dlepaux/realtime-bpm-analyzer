@@ -185,7 +185,7 @@ npm run build -w realtime-bpm-analyzer
 npm run dev -w examples/01-vanilla-basic
 ```
 
-Each folder in [`examples/`](examples) is one app, in vanilla JavaScript, React or Vue. [`examples/readme.md`](examples/readme.md#running-an-example) gives each example's port, `npm run examples:dev` to start all nine at once, and why the microphone examples need `localhost` or HTTPS.
+Each folder in [`examples/`](examples/readme.md) is one app, in vanilla JavaScript, React or Vue. [`examples/readme.md`](examples/readme.md#running-an-example) gives each example's port, `npm run examples:dev` to start all nine at once, and why the microphone examples need `localhost` or HTTPS.
 
 ## Privacy & Security
 

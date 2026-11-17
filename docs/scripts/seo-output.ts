@@ -58,11 +58,8 @@ function unpublishedProblems(site: BuiltSite): string[] {
     if (!isNoindex(site.read(`${page}.html`))) problems.push(`${page}: not noindex`)
     if (sitemap.includes(`${SITE}/${page}<`)) problems.push(`${page}: in the sitemap`)
   }
-  const link = new RegExp(`href="/(${UNPUBLISHED_GUIDES.join('|')})(\\.html)?["#]`)
-  const linking = site.paths
-    .filter((path) => path.endsWith('.html') && !isUnpublished(path))
-    .filter((path) => link.test(site.read(path)))
-  return [...problems, ...linking.map((path) => `${path}: links to an unpublished guide`)]
+  // Links are allowed: the Developers menu links both guides from every page (RBA-247).
+  return problems
 }
 
 function guideProblems(site: BuiltSite): string[] {
@@ -76,6 +73,9 @@ function guideProblems(site: BuiltSite): string[] {
     const published = DATE('datePublished').exec(html)?.[1]
     const modified = DATE('dateModified').exec(html)?.[1]
     return [
+      // A guide meant to rank: a noindex left on it would also keep it out of the sitemap
+      // without a problem there, so this is where it shows.
+      isNoindex(html) ? `${path}: noindex` : null,
       html.includes('"@type":"TechArticle"') ? null : `${path}: no TechArticle`,
       published ? null : `${path}: no datePublished`,
       modified ? null : `${path}: no dateModified`,

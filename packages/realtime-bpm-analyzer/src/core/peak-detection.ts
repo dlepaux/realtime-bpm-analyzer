@@ -1,6 +1,5 @@
 import {descendingOverThresholds} from './utils';
 import type {
-  Peaks,
   PeaksAndThreshold,
   AnalyzerFindPeaksOptions,
   AnalyzerFindPeaksAtTheshold,
@@ -39,11 +38,20 @@ export function findPeaksAtThreshold({
     );
   }
 
-  const peaks: Peaks = [];
+  const peaks: number[] = [];
   const skipForwardIndexes = utils.computeIndexesToSkip(
     consts.peakSkipDuration,
     audioSampleRate,
   );
+
+  // Every pass of the loop below moves i on by at least one sample only while the skip is a whole sample or more, so
+  // this bounds the loop to `length` passes. Under 2 Hz the skip rounds to 0 and the same peak would be found forever
+  if (!(skipForwardIndexes >= 1)) {
+    throw new RangeError(
+      `Invalid sample rate: ${audioSampleRate}. The peaks engine needs at least ${consts.peaksMinSampleRate} Hz, `
+        + 'where the skip after a peak is a whole sample.',
+    );
+  }
 
   const {length} = data;
 
@@ -88,7 +96,7 @@ export async function findPeaks({
     throw new Error('Invalid channel data: buffer is empty or undefined.');
   }
 
-  let validPeaks: Peaks = [];
+  let validPeaks: number[] = [];
   let validThreshold = 0;
 
   await descendingOverThresholds(async threshold => {

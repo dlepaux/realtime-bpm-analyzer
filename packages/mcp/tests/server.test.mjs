@@ -11,10 +11,15 @@ import {fileURLToPath} from 'node:url';
 import {Client} from '@modelcontextprotocol/client';
 import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
 // The library the CLI resolves through the workspace, and the CLI's own decoder, to check
-// which detector ran against the library itself
+// which engine ran against the library itself
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import {decodeFile} from '../../cli/dist/decode.mjs';
 import {clickWav} from '../../cli/tests/click-wav.mjs';
+
+// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
+// thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
+const hangLimit = {timeout: 60_000};
 
 const server = fileURLToPath(new URL('../dist/server.mjs', import.meta.url));
 // The CLI's click-track fixtures, read in place
@@ -24,6 +29,8 @@ const megabyte = 1024 * 1024;
 
 /** Process id of each connected client's server */
 const serverPids = new WeakMap();
+/** Every message each connected client's server sent, in the order the client read them */
+const serverMessages = new WeakMap();
 
 /**
  * Starts the server as a child process and connects a client to it.
@@ -36,8 +43,14 @@ async function connect(cwd, home = process.env.HOME ?? '') {
   // A missing ffmpeg, so M4A fails the same way on every machine
   const env = {PATH: process.env.PATH ?? '', HOME: home, FFMPEG_PATH: '/nonexistent/ffmpeg'};
   const transport = new StdioClientTransport({command: process.execPath, args: [server], cwd, env, stderr: 'pipe'});
+  // The SDK keeps a handler set before connect and calls it first, synchronously, for each message
+  // it reads (Protocol.connect, @modelcontextprotocol/core 2.4.0). So this is the order the server
+  // sent them in, before any of the client's own dispatch can drop one.
+  const received = [];
+  transport.onmessage = message => received.push(message);
   await client.connect(transport);
   serverPids.set(client, transport.pid);
+  serverMessages.set(client, received);
   return client;
 }
 
@@ -72,28 +85,28 @@ async function toolError(client, name, args) {
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) <= 1, `expected ${expected} ±1 BPM, got ${actual}`);
 
-describe('realtime-bpm-analyzer-mcp over stdio', () => {
+describe('realtime-bpm-analyzer-mcp over stdio', hangLimit, () => {
   let client;
   let scratch;
 
   before(async () => {
     client = await connect(fixtures);
     scratch = await mkdtemp(join(tmpdir(), 'rba-mcp-'));
-  });
+  }, hangLimit);
 
   after(async () => {
     await client?.close();
     await rm(scratch, {recursive: true, force: true});
-  });
+  }, hangLimit);
 
   it('lists exactly the two tools, read-only, with strict argument schemas', async () => {
     const {tools} = await client.listTools();
     assert.deepEqual(tools.map(tool => tool.name).sort(), ['analyze_file', 'analyze_folder']);
 
     const byName = Object.fromEntries(tools.map(tool => [tool.name, tool]));
-    assert.deepEqual(Object.keys(byName.analyze_file.inputSchema.properties).sort(), ['detector', 'max_bpm', 'min_bpm', 'path']);
+    assert.deepEqual(Object.keys(byName.analyze_file.inputSchema.properties).sort(), ['engine', 'max_bpm', 'min_bpm', 'path']);
     assert.deepEqual(byName.analyze_file.inputSchema.required, ['path']);
-    assert.deepEqual(Object.keys(byName.analyze_folder.inputSchema.properties).sort(), ['detector', 'directory', 'max_bpm', 'min_bpm', 'offset', 'recursive']);
+    assert.deepEqual(Object.keys(byName.analyze_folder.inputSchema.properties).sort(), ['directory', 'engine', 'max_bpm', 'min_bpm', 'offset', 'recursive']);
     assert.deepEqual(byName.analyze_folder.inputSchema.required, ['directory']);
 
     for (const tool of tools) {
@@ -110,7 +123,9 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
   });
 
   for (const [label, args, pattern] of [
-    ['an unknown detector', {path: fixture('click-128.mp3'), detector: 'magic'}, /detector/],
+    ['an unknown engine', {path: fixture('click-128.mp3'), engine: 'magic'}, /engine/],
+    // Renamed engine before the first publish, like the library's option: the old name is refused, not ignored
+    ['the old detector argument', {path: fixture('click-128.mp3'), detector: 'tempogram'}, /detector|unrecognized/i],
     ['a missing path', {}, /path/],
     ['an unknown argument', {path: 'click-128.mp3', file: 'x'}, /file|unrecognized/i],
     ['a negative tempo', {path: 'click-128.mp3', min_bpm: -5}, /min_bpm/],
@@ -131,9 +146,74 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     const output = result.structuredContent;
     assert.equal(output.file, fixture('click-128.mp3'));
     near(output.bpm, 128);
-    assert.equal(output.confidence, output.candidates[0].confidence);
-    assert.deepEqual(Object.keys(output.candidates[0]).sort(), ['confidence', 'count', 'tempo']);
+    assert.deepEqual(Object.keys(output), ['file', 'bpm', 'bpm_exact', 'confidence', 'candidates', 'engine']);
+    assert.ok(Math.abs(output.bpm_exact - output.bpm) <= 1.5, `got ${output.bpm_exact} for ${output.bpm}`);
+    assert.ok(output.confidence > 0 && output.confidence <= 1, `got ${output.confidence}`);
+    assert.deepEqual(output.candidates[0], {bpm: output.bpm, relation: 'top'});
     assert.deepEqual(JSON.parse(text(result)), output);
+  });
+
+  it('runs the library\'s default engine when none is named', async () => {
+    const path = fixture('click-128.mp3');
+    const {structuredContent: output} = await client.callTool({name: 'analyze_file', arguments: {path}});
+    const {channelData, sampleRate} = await decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
+    const reading = await analyzeChannelData(channelData, sampleRate);
+    assert.deepEqual(
+      {bpm: output.bpm, bpm_exact: output.bpm_exact, confidence: output.confidence, candidates: output.candidates, engine: output.engine},
+      {bpm: reading.bpm, bpm_exact: reading.bpmExact, confidence: reading.confidence, candidates: reading.candidates, engine: reading.engine},
+    );
+  });
+
+  it('reports an unmeasured confidence as null, which passes the declared output schema, and describes it', async () => {
+    // 128 BPM on 40 to 80 reads 64, outside the 90 to 180 BPM confidence was measured on (RBA-147)
+    for (const engine of ['peaks', 'tempogram']) {
+      const result = await client.callTool({name: 'analyze_file', arguments: {path: 'click-128.mp3', min_bpm: 40, max_bpm: 80, engine}});
+      assert.equal(result.isError, undefined, text(result));
+      assert.equal(result.structuredContent.bpm, 64, engine);
+      assert.equal(result.structuredContent.confidence, null, engine);
+    }
+
+    const {tools} = await client.listTools();
+    // Wherever the schema generator puts the description of a nullable field, the client receives it
+    const confidence = JSON.stringify(tools.find(({name}) => name === 'analyze_file').outputSchema.properties.confidence);
+    assert.match(confidence, /Null: unmeasured, when bpm is outside 90 to 180 or min_bpm and max_bpm give any other range/);
+  });
+
+  it('reports null on any custom range, even for a tempo inside 90 to 180', async () => {
+    // RBA-108's DECISION of 2026-11-16: the tables were fitted only on the default range. 128 is the click's only
+    // octave in 80 to 200
+    for (const engine of ['peaks', 'tempogram']) {
+      const result = await client.callTool({name: 'analyze_file', arguments: {path: 'click-128.mp3', min_bpm: 80, max_bpm: 200, engine}});
+      assert.equal(result.isError, undefined, text(result));
+      assert.equal(result.structuredContent.bpm, 128, engine);
+      assert.equal(result.structuredContent.confidence, null, engine);
+    }
+  });
+
+  it('keeps the number when min_bpm and max_bpm give the default range, a missing bound filled from it', async () => {
+    const defaults = [{}, {min_bpm: 90}, {max_bpm: 180}, {min_bpm: 90, max_bpm: 180}];
+    for (const engine of ['peaks', 'tempogram']) {
+      for (const range of defaults) {
+        const label = `${engine} ${JSON.stringify(range)}`;
+        const result = await client.callTool({name: 'analyze_file', arguments: {path: 'click-128.mp3', ...range, engine}});
+        assert.equal(result.isError, undefined, text(result));
+        assert.equal(result.structuredContent.bpm, 128, label);
+        const {confidence} = result.structuredContent;
+        assert.ok(confidence > 0 && confidence <= 1, `${label} got ${confidence}`);
+      }
+    }
+  });
+
+  it('reports no beat as null fields that pass the declared output schema', async () => {
+    // The SDK checks structuredContent against the tool's outputSchema, so a schema that refused these nulls fails the call
+    const path = join(scratch, 'silence.wav');
+    // 8-bit PCM is silent at 128: the click file's header over flat samples
+    await writeFile(path, clickWav(44_100, 5 * 44_100).fill(128, 44));
+    for (const engine of ['peaks', 'tempogram', undefined]) {
+      const result = await client.callTool({name: 'analyze_file', arguments: engine === undefined ? {path} : {path, engine}});
+      assert.equal(result.isError, undefined, text(result));
+      assert.deepEqual(result.structuredContent, {file: path, bpm: null, bpm_exact: null, confidence: null, candidates: [], engine: null}, String(engine));
+    }
   });
 
   it('expands ~ to the home folder', async () => {
@@ -147,24 +227,30 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     }
   });
 
-  it('runs the tempogram detector when asked', async () => {
+  it('runs the tempogram engine when asked', async () => {
     const call = (name, args) => client.callTool({name, arguments: args}).then(result => result.structuredContent);
     const path = fixture('click-128.mp3');
-    const tempogram = await call('analyze_file', {path, detector: 'tempogram'});
-    const peaks = await call('analyze_file', {path});
+    const tempogram = await call('analyze_file', {path, engine: 'tempogram'});
+    const peaks = await call('analyze_file', {path, engine: 'peaks'});
 
+    assert.equal(tempogram.engine, 'tempogram');
+    assert.equal(peaks.engine, 'peaks');
     near(tempogram.bpm, 128);
-    // Both read 128: only the candidates show which detector ran. On 5.4.0 the library ignored
-    // the option and ran peaks, so check them against its tempogram on the same samples.
-    assert.notDeepEqual(tempogram.candidates, peaks.candidates);
+    // Both read 128, and `engine` only echoes the label. On 5.4.0 the library ignored the option and
+    // ran peaks, so check the numbers against its tempogram on the same samples.
+    assert.notDeepEqual({confidence: tempogram.confidence, candidates: tempogram.candidates}, {confidence: peaks.confidence, candidates: peaks.candidates});
     const {channelData, sampleRate} = await decodeFile(path, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
-    assert.deepEqual(tempogram.candidates, await analyzeChannelData(channelData, sampleRate, {detector: 'tempogram'}));
+    const reading = await analyzeChannelData(channelData, sampleRate, {engine: 'tempogram'});
+    assert.deepEqual(
+      {bpm_exact: tempogram.bpm_exact, confidence: tempogram.confidence, candidates: tempogram.candidates},
+      {bpm_exact: reading.bpmExact, confidence: reading.confidence, candidates: reading.candidates},
+    );
 
     const directory = dirname(path);
-    const folder = await call('analyze_folder', {directory, detector: 'tempogram'});
+    const folder = await call('analyze_folder', {directory, engine: 'tempogram'});
     const inFolder = folder.results.find(result => result.file === path);
 
-    assert.deepEqual(inFolder.candidates, tempogram.candidates);
+    assert.deepEqual(inFolder, {...tempogram, ok: true});
   });
 
   it('answers while a long file is analysed, and stops it when the client cancels', async () => {
@@ -172,7 +258,7 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     const path = join(scratch, 'long-8k.wav');
     await writeFile(path, clickWav(8000, 40_000_000));
     const cancel = new AbortController();
-    const long = client.callTool({name: 'analyze_file', arguments: {path, detector: 'tempogram'}}, {signal: cancel.signal});
+    const long = client.callTool({name: 'analyze_file', arguments: {path, engine: 'tempogram'}}, {signal: cancel.signal});
     long.catch(() => {});
     await new Promise(resolve => {
       setTimeout(resolve, 1000);
@@ -212,7 +298,7 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
       finished.push(label);
       return result;
     });
-    const long = call('long', {path, detector: 'tempogram'});
+    const long = call('long', {path, engine: 'tempogram'});
     // Long enough for the first call to take the only slot
     await new Promise(resolve => {
       setTimeout(resolve, 300);
@@ -287,10 +373,15 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
   });
 
   it('analyses a folder in path order, with per-file errors that do not fail the batch', async () => {
-    const progress = [];
+    const sent = serverMessages.get(client);
+    const first = sent.length;
+    // onprogress makes the client ask for progress, but what it hears is not the server's doing. The
+    // SDK runs a progress handler a microtask after reading the notification, and the response read
+    // in the same chunk ends the request first, so the last one can be dropped (RBA-241). The test
+    // checks the messages the server sent instead.
     const result = await client.callTool(
       {name: 'analyze_folder', arguments: {directory: fixtures}},
-      {onprogress: update => progress.push(update)},
+      {onprogress: () => {}},
     );
     assert.equal(result.isError, undefined);
     const {directory, results, total, next_offset: nextOffset, scan_truncated: scanTruncated} = result.structuredContent;
@@ -298,7 +389,8 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     assert.equal(total, 5);
     assert.equal(nextOffset, null);
     assert.equal(scanTruncated, false);
-    assert.deepEqual(results.map(entry => entry.file), ['click-100.flac', 'click-128.m4a', 'click-128.mp3', 'click-140.ogg', 'click-140.opus'].map(fixture));
+    const files = ['click-100.flac', 'click-128.m4a', 'click-128.mp3', 'click-140.ogg', 'click-140.opus'].map(fixture);
+    assert.deepEqual(results.map(entry => entry.file), files);
 
     const [flac, m4a, mp3, ogg, opus] = results;
     near(flac.bpm, 100);
@@ -307,8 +399,16 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
     near(opus.bpm, 140);
     assert.equal(m4a.ok, false);
     assert.match(m4a.error, /ffmpeg was not found/);
-    assert.deepEqual(progress.map(update => update.progress), [1, 2, 3, 4, 5]);
-    assert.ok(progress.every(update => update.total === 5));
+
+    // One progress per file, in path order, each sent before the result: a client's request timeout
+    // only hears about a long batch if they come first
+    const call = sent.slice(first);
+    const response = call.findIndex(message => 'id' in message && ('result' in message || 'error' in message));
+    assert.ok(response >= 0, 'the response is among the messages read');
+    const progress = call.map((message, index) => ({message, index}))
+      .filter(({message}) => message.method === 'notifications/progress' && Number(message.params.progressToken) === call[response].id);
+    assert.deepEqual(progress.map(({message}) => [message.params.progress, message.params.total, message.params.message]), files.map((file, index) => [index + 1, 5, file]));
+    assert.ok(progress.every(({index}) => index < response), 'every progress is sent before the result');
   });
 
   describe('folder boundaries', () => {
@@ -331,7 +431,7 @@ describe('realtime-bpm-analyzer-mcp over stdio', () => {
       const big = await open(join(folder, 'g-big.wav'), 'w');
       await big.truncate((100 * megabyte) + 1);
       await big.close();
-    });
+    }, hangLimit);
 
     it('reports broken, outside and oversized files and keeps going', async () => {
       const result = await client.callTool({name: 'analyze_folder', arguments: {directory: folder}});

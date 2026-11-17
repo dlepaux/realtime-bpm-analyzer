@@ -1,4 +1,6 @@
-import type {ProcessorOutputEvent, BpmAnalyzer, BpmAnalyzerEventMap} from '../src';
+import type {AnalyzerEventMap, AnalyzerEventType, BpmAnalyzer} from '../src';
+import type {WorkletMessage} from '../src/contract/types';
+import type {Session} from '../src/core/session';
 
 /**
  * Creates a properly initialized AudioContext for testing.
@@ -30,75 +32,34 @@ export async function closeAudioContext(ctx: AudioContext): Promise<void> {
   }
 }
 
-/**
- * Event collector utility for capturing processor output events.
- * @example
- * ```typescript
- * const collector = createEventCollector();
- *
- * await analyzer.analyzeChunk({
- *   audioSampleRate: 44100,
- *   channelData,
- *   bufferSize: 4096,
- *   postMessage: collector.postMessage,
- * });
- *
- * const bpmEvents = collector.getEventsByType('bpm');
- * expect(bpmEvents.length).to.be.greaterThan(0);
- * ```
- */
-export type EventCollector = {
-  /** Function to pass as postMessage callback */
-  postMessage: (data: ProcessorOutputEvent) => void;
-  /** All collected events */
-  events: ProcessorOutputEvent[];
-  /** Get events filtered by type */
-  getEventsByType: <T extends ProcessorOutputEvent['type']>(
-    type: T
-  ) => Array<Extract<ProcessorOutputEvent, {type: T}>>;
-  /** Clear all collected events */
-  clear: () => void;
-};
+/** A worklet message, with the seconds of audio the session had been fed when it was sent */
+export type TimedMessage = {readonly message: WorkletMessage; readonly heard: number};
 
 /**
- * Creates a mock postMessage function that collects events.
- * @returns An event collector with helper methods
- * @example
- * ```typescript
- * const collector = createEventCollector();
- *
- * // Use in analyzeChunk
- * postMessage: collector.postMessage
- *
- * // Get specific events
- * const bpmEvents = collector.getEventsByType('bpm');
- * const stableEvents = collector.getEventsByType('bpmStable');
- *
- * // Clear for next test
- * collector.clear();
- * ```
+ * Feeds PCM to a session in buffers, as the processor does once its aggregator is full
+ * @param session The session under test
+ * @param pcm The samples
+ * @param sampleRate Their rate
+ * @param bufferSize Samples per analysis, the aggregator's by default
+ * @returns Every message, in order
  */
-export function createEventCollector(): EventCollector {
-  const events: ProcessorOutputEvent[] = [];
+export async function feedSession(session: Session, pcm: Float32Array, sampleRate: number, bufferSize = 4096): Promise<TimedMessage[]> {
+  const messages: TimedMessage[] = [];
+  for (let start = 0; start + bufferSize <= pcm.length; start += bufferSize) {
+    const heard = (start + bufferSize) / sampleRate;
+    const step = await session.analyze(pcm.subarray(start, start + bufferSize), bufferSize, sampleRate);
+    messages.push(...step.map(message => ({message, heard})));
+  }
 
-  const postMessage = (data: ProcessorOutputEvent) => {
-    events.push(data);
-  };
+  return messages;
+}
 
-  const getEventsByType = <T extends ProcessorOutputEvent['type']>(
-    type: T,
-  ): Array<Extract<ProcessorOutputEvent, {type: T}>> => events.filter(e => e.type === type) as Array<Extract<ProcessorOutputEvent, {type: T}>>;
-
-  const clear = () => {
-    events.length = 0;
-  };
-
-  return {
-    postMessage,
-    events,
-    getEventsByType,
-    clear,
-  };
+/**
+ * @param messages What a session sent
+ * @returns The steps among them
+ */
+export function stepsOf(messages: readonly TimedMessage[]): Array<Extract<WorkletMessage, {type: 'step'}>> {
+  return messages.flatMap(({message}) => message.type === 'step' ? [message] : []);
 }
 
 /**
@@ -155,39 +116,26 @@ export function audioBufferToChunks(
 }
 
 /**
- * Waits for a specific event to be emitted from a BpmAnalyzer.
- * @param analyzer - The BpmAnalyzer instance
- * @param eventType - The event type to wait for
- * @param timeout - Maximum time to wait in milliseconds (default: 5000)
- * @returns Promise resolving to the event data
- * @throws Error if timeout is reached before event is emitted
- * @example
- * ```typescript
- * const analyzer = await createRealtimeBpmAnalyzer(audioContext);
- *
- * // Start audio processing...
- * source.connect(analyzer);
- * analyzer.connect(audioContext.destination);
- *
- * // Wait for stable BPM detection
- * const stableData = await waitForEvent(analyzer, 'bpmStable', 10000);
- * console.log('Stable BPM:', stableData.bpm[0].tempo);
- * ```
+ * Waits for one event of an analyzer
+ * @param analyzer - The analyzer
+ * @param eventType - The event to wait for
+ * @param timeout - How long to wait, in milliseconds
+ * @returns The event's payload
  */
-export async function waitForEvent<T extends keyof BpmAnalyzerEventMap>(
+export async function waitForEvent<T extends AnalyzerEventType>(
   analyzer: BpmAnalyzer,
   eventType: T,
   timeout = 5000,
-): Promise<BpmAnalyzerEventMap[T]> {
+): Promise<AnalyzerEventMap[T]> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error(`Timeout waiting for ${eventType} event after ${timeout}ms`));
     }, timeout);
 
-    analyzer.once(eventType, data => {
+    analyzer.on(eventType, data => {
       clearTimeout(timer);
       resolve(data);
-    });
+    }, {once: true});
   });
 }
 

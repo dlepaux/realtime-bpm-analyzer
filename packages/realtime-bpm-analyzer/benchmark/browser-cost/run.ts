@@ -28,7 +28,8 @@ const engines = ['peaks', 'tempogram'] as const;
 const rates = [44_100, 48_000];
 const browserTarget = 'es2020';
 
-async function bundle(entry: string, extra: esbuild.BuildOptions = {}): Promise<esbuild.BuildResult & {metafile: esbuild.Metafile}> {
+// Without metafile in `extra`, the `metafile: true` below types the result's metafile as always there
+async function bundle(entry: string, extra: Omit<esbuild.BuildOptions, 'metafile'> = {}): Promise<esbuild.BuildResult & {metafile: esbuild.Metafile}> {
   return esbuild.build({
     entryPoints: [entry], bundle: true, write: false, format: 'esm', target: browserTarget, metafile: true, logLevel: 'warning', ...extra,
   });
@@ -217,7 +218,7 @@ const withoutTempogram: esbuild.Plugin = {
   setup(build) {
     build.onResolve({filter: /\/tempogram$/}, () => ({path: 'tempogram-stub', namespace: 'stub'}));
     build.onLoad({filter: /.*/, namespace: 'stub'}, () => ({
-      contents: 'export function assertTempogramMode() {}\nexport function createTempogramDetector() { throw new Error("stub"); }\nexport function detectTempogram() { throw new Error("stub"); }\n',
+      contents: 'export const defaultTempogramRange = {min: 90, max: 180};\nexport function createTempogramDetector() { throw new Error("stub"); }\nexport function detectTempogram() { throw new Error("stub"); }\n',
       loader: 'js',
     }));
   },

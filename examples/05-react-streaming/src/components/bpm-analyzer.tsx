@@ -1,24 +1,28 @@
 import { useState, useEffect, useRef } from 'react';
-import { 
-  createRealtimeBpmAnalyzer, 
-  getBiquadFilter, 
-  type BpmAnalyzer as BpmAnalyzerType, 
-  type BpmCandidates 
+import {
+  createRealtimeBpmAnalyzer,
+  type BpmAnalyzer as BpmAnalyzerType
 } from 'realtime-bpm-analyzer';
+import ReadingPanel from './reading-panel';
+import StatePanel from './state-panel';
+import { useAnalyzerView } from './use-analyzer-view';
 import './bpm-analyzer.css';
 
 function BpmAnalyzer() {
-  const [bpm, setBpm] = useState<number | undefined>();
-  const [audioUrl, setAudioUrl] = useState('https://ice1.somafm.com/groovesalad-128-mp3');
+  // Start on the 128 BPM click track in public/, which this page serves itself, so the example
+  // plays with no other server. A stream from another site needs CORS headers on its server, and
+  // terms that allow other websites to play it.
+  const [audioUrl, setAudioUrl] = useState(() => new URL(`${import.meta.env.BASE_URL}click-128.mp3`, window.location.href).href);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  
+  const { view, watchAnalyzer } = useAnalyzerView();
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const bpmAnalyzerRef = useRef<BpmAnalyzerType | null>(null);
-  const biquadFilterRef = useRef<BiquadFilterNode | null>(null);
 
   // Initialize audio context
   useEffect(() => {
@@ -42,18 +46,15 @@ function BpmAnalyzer() {
       mediaSourceRef.current = null;
     }
 
-    if (biquadFilterRef.current) {
-      biquadFilterRef.current.disconnect();
-      biquadFilterRef.current = null;
-    }
-
     if (bpmAnalyzerRef.current) {
+      // stop() is final: the state panel shows the move to stopped, and the next load creates a new analyzer
+      bpmAnalyzerRef.current.stop();
       bpmAnalyzerRef.current.disconnect();
       bpmAnalyzerRef.current = null;
     }
 
+    setIsLoaded(false);
     setIsPlaying(false);
-    setBpm(undefined);
   };
 
   const handleLoad = async () => {
@@ -79,35 +80,26 @@ function BpmAnalyzer() {
       audioElement.crossOrigin = 'anonymous';
       audioElementRef.current = audioElement;
 
-      // Create BPM analyzer
+      // Create BPM analyzer, and show what it reports
       const analyzer = await createRealtimeBpmAnalyzer(audioContext);
       bpmAnalyzerRef.current = analyzer;
-
-      // Create biquad filter
-      const filter = getBiquadFilter(audioContext);
-      biquadFilterRef.current = filter;
-
-      // Listen for BPM stable events
-      analyzer.on('bpmStable', (data: BpmCandidates) => {
-        if (data.bpm.length > 0) {
-          setBpm(data.bpm[0].tempo);
-        }
-      });
+      watchAnalyzer(analyzer);
 
       // Create media source and connect
       const source = audioContext.createMediaElementSource(audioElement);
       mediaSourceRef.current = source;
 
-      source.connect(filter);
-      filter.connect(analyzer.node);
+      // The analyzer's input holds what the engine needs in front of it
+      source.connect(analyzer.input);
       source.connect(audioContext.destination);
 
       // Wait for audio to be ready
       await new Promise<void>((resolve, reject) => {
         audioElement.addEventListener('canplay', () => resolve(), { once: true });
-        audioElement.addEventListener('error', (e) => reject(e), { once: true });
+        audioElement.addEventListener('error', () => reject(new Error('The audio could not be loaded')), { once: true });
       });
 
+      setIsLoaded(true);
       setIsLoading(false);
     } catch (err) {
       console.error('Error loading audio:', err);
@@ -139,10 +131,20 @@ function BpmAnalyzer() {
     setIsPlaying(false);
   };
 
+  // Start over: back to listening with the next epoch, and nothing measured before is reported
+  const handleReset = () => {
+    const analyzer = bpmAnalyzerRef.current;
+    if (analyzer && analyzer.state.status !== 'stopped') {
+      analyzer.reset();
+    }
+  };
+
   const handleStop = () => {
     cleanup();
     setError(undefined);
   };
+
+  const status = view?.state.status;
 
   return (
     <div className="bpm-analyzer">
@@ -156,8 +158,8 @@ function BpmAnalyzer() {
           disabled={isLoading}
           placeholder="https://example.com/stream.mp3"
         />
-        <button 
-          onClick={handleLoad} 
+        <button
+          onClick={handleLoad}
           disabled={isLoading}
           className="load-btn"
         >
@@ -166,22 +168,16 @@ function BpmAnalyzer() {
       </div>
 
       <div className="controls">
-        <button 
-          onClick={handlePlay} 
-          disabled={!audioElementRef.current || isPlaying}
-        >
+        <button onClick={handlePlay} disabled={!isLoaded || isPlaying}>
           ▶ Play
         </button>
-        <button 
-          onClick={handlePause} 
-          disabled={!audioElementRef.current || !isPlaying}
-        >
+        <button onClick={handlePause} disabled={!isLoaded || !isPlaying}>
           ⏸ Pause
         </button>
-        <button 
-          onClick={handleStop} 
-          disabled={!audioElementRef.current}
-        >
+        <button onClick={handleReset} disabled={!isLoaded || status === 'stopped'}>
+          ↺ Start over
+        </button>
+        <button onClick={handleStop} disabled={!isLoaded}>
           ⏹ Stop
         </button>
       </div>
@@ -198,22 +194,17 @@ function BpmAnalyzer() {
         </div>
       )}
 
-      {!error && !isLoading && isPlaying && (
+      {!error && isLoaded && (
         <div className="status playing">
-          Playing and analyzing...
+          {isPlaying ? 'Playing and analyzing...' : 'Audio loaded - ready to play!'}
         </div>
       )}
 
-      {!error && !isLoading && audioElementRef.current && !isPlaying && (
-        <div className="status playing">
-          Audio loaded - ready to play!
-        </div>
-      )}
+      {view && <StatePanel state={view.state} changes={view.changes} lastError={view.lastError} />}
 
-      <div className={`bpm-display ${bpm !== undefined ? 'visible' : ''}`}>
-        <div className="bpm-value">{bpm !== undefined ? Math.round(bpm) : '--'}</div>
-        <div className="bpm-label">BPM</div>
-      </div>
+      {view?.reading && (status === 'settling' || status === 'locked') && (
+        <ReadingPanel reading={view.reading} status={status} />
+      )}
     </div>
   );
 }

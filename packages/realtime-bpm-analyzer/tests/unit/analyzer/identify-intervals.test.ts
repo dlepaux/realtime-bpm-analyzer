@@ -1,6 +1,5 @@
 import {expect} from 'chai';
 import {identifyIntervals} from '../../../src/core/tempo';
-import type {Peaks} from '../../../src/core/types';
 
 /**
  * Unit tests for identifyIntervals function
@@ -12,14 +11,14 @@ import type {Peaks} from '../../../src/core/types';
 describe('analyzer - identifyIntervals', () => {
   describe('empty and minimal inputs', () => {
     it('should return empty array for empty peaks', () => {
-      const peaks: Peaks = [];
+      const peaks: number[] = [];
       const intervals = identifyIntervals(peaks);
       expect(intervals).to.be.an('array');
       expect(intervals).to.have.lengthOf(0);
     });
 
     it('should handle single peak', () => {
-      const peaks: Peaks = [1000];
+      const peaks: number[] = [1000];
       const intervals = identifyIntervals(peaks);
       // A single peak has no pair to form an interval
       expect(intervals).to.be.an('array');
@@ -27,7 +26,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should handle two peaks', () => {
-      const peaks: Peaks = [1000, 2000];
+      const peaks: number[] = [1000, 2000];
       const intervals = identifyIntervals(peaks);
       // Should include the actual interval between the two peaks
       const actualInterval = intervals.find(i => i.interval === 1000);
@@ -38,7 +37,7 @@ describe('analyzer - identifyIntervals', () => {
 
   describe('interval calculation correctness', () => {
     it('should calculate correct interval between two peaks', () => {
-      const peaks: Peaks = [1000, 2500];
+      const peaks: number[] = [1000, 2500];
       const intervals = identifyIntervals(peaks);
 
       // Find the actual interval between the peaks
@@ -50,7 +49,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should calculate multiple intervals correctly', () => {
-      const peaks: Peaks = [1000, 2000, 3000];
+      const peaks: number[] = [1000, 2000, 3000];
       const intervals = identifyIntervals(peaks);
 
       // Equal spacing: should find interval of 1000
@@ -64,7 +63,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should handle non-uniform intervals', () => {
-      const peaks: Peaks = [1000, 1500, 3000];
+      const peaks: number[] = [1000, 1500, 3000];
       const intervals = identifyIntervals(peaks);
 
       const intervalValues = intervals.map(i => i.interval);
@@ -77,7 +76,7 @@ describe('analyzer - identifyIntervals', () => {
   describe('grouping identical intervals', () => {
     it('should group identical intervals and increment count', () => {
       // Regular beat pattern: 4 beats equally spaced
-      const peaks: Peaks = [1000, 2000, 3000, 4000];
+      const peaks: number[] = [1000, 2000, 3000, 4000];
       const intervals = identifyIntervals(peaks);
 
       // All consecutive intervals are 1000, should be grouped
@@ -87,7 +86,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should handle mixed intervals with grouping', () => {
-      const peaks: Peaks = [1000, 2000, 3000, 4500, 6000];
+      const peaks: number[] = [1000, 2000, 3000, 4500, 6000];
       const intervals = identifyIntervals(peaks);
 
       const interval1000 = intervals.find(i => i.interval === 1000);
@@ -100,7 +99,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should deduplicate identical intervals', () => {
-      const peaks: Peaks = [1000, 2000, 3000, 4000, 5000];
+      const peaks: number[] = [1000, 2000, 3000, 4000, 5000];
       const intervals = identifyIntervals(peaks);
 
       // Should find interval 1000 and group all occurrences
@@ -121,7 +120,7 @@ describe('analyzer - identifyIntervals', () => {
       const secondBeat = firstBeat + beatInterval;
       const thirdBeat = secondBeat + beatInterval;
       const fourthBeat = thirdBeat + beatInterval;
-      const peaks: Peaks = [firstBeat, secondBeat, thirdBeat, fourthBeat];
+      const peaks: number[] = [firstBeat, secondBeat, thirdBeat, fourthBeat];
 
       const intervals = identifyIntervals(peaks);
 
@@ -133,7 +132,7 @@ describe('analyzer - identifyIntervals', () => {
 
     it('should handle syncopated rhythm', () => {
       // Syncopation: uneven beat spacing
-      const peaks: Peaks = [1000, 1500, 2500, 3000, 4000];
+      const peaks: number[] = [1000, 1500, 2500, 3000, 4000];
       const intervals = identifyIntervals(peaks);
 
       // Multiple different intervals
@@ -148,7 +147,7 @@ describe('analyzer - identifyIntervals', () => {
 
     it('should handle long audio with many peaks', () => {
       // Simulate 10 seconds at 120 BPM (2 beats per second)
-      const peaks: Peaks = [];
+      const peaks: number[] = [];
       const beatInterval = 22050; // 0.5s at 44100Hz
 
       for (let i = 0; i < 20; i++) {
@@ -167,7 +166,7 @@ describe('analyzer - identifyIntervals', () => {
 
   describe('edge cases', () => {
     it('should handle peaks very close together', () => {
-      const peaks: Peaks = [1000, 1001, 1002];
+      const peaks: number[] = [1000, 1001, 1002];
       const intervals = identifyIntervals(peaks);
 
       // Should have small intervals
@@ -178,7 +177,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should handle peaks very far apart', () => {
-      const peaks: Peaks = [1000, 1_000_000, 2_000_000];
+      const peaks: number[] = [1000, 1_000_000, 2_000_000];
       const intervals = identifyIntervals(peaks);
 
       // Should find the large interval
@@ -187,7 +186,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should handle large number of unique intervals', () => {
-      const peaks: Peaks = [0, 100, 250, 500, 1000, 2000];
+      const peaks: number[] = [0, 100, 250, 500, 1000, 2000];
       const intervals = identifyIntervals(peaks);
 
       // All different spacing creates many unique intervals
@@ -201,7 +200,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should handle zero-based peak indices', () => {
-      const peaks: Peaks = [0, 1000, 2000];
+      const peaks: number[] = [0, 1000, 2000];
       const intervals = identifyIntervals(peaks);
 
       // Should find interval of 1000
@@ -212,7 +211,7 @@ describe('analyzer - identifyIntervals', () => {
 
   describe('return value structure', () => {
     it('should return array of Interval objects', () => {
-      const peaks: Peaks = [1000, 2000, 3000];
+      const peaks: number[] = [1000, 2000, 3000];
       const intervals = identifyIntervals(peaks);
 
       expect(intervals).to.be.an('array');
@@ -225,7 +224,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should have positive interval values for ascending peaks', () => {
-      const peaks: Peaks = [1000, 2000, 3000];
+      const peaks: number[] = [1000, 2000, 3000];
       const intervals = identifyIntervals(peaks);
 
       expect(intervals.length).to.be.greaterThan(0);
@@ -236,7 +235,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should have count >= 1 for all intervals', () => {
-      const peaks: Peaks = [1000, 2000, 3500];
+      const peaks: number[] = [1000, 2000, 3500];
       const intervals = identifyIntervals(peaks);
 
       for (const interval of intervals) {
@@ -247,7 +246,7 @@ describe('analyzer - identifyIntervals', () => {
 
   describe('mathematical properties', () => {
     it('should create multiple interval comparisons per peak', () => {
-      const peaks: Peaks = [100, 200, 300, 400, 500];
+      const peaks: number[] = [100, 200, 300, 400, 500];
       const intervals = identifyIntervals(peaks);
 
       // With maxIntervalComparisons=10, each peak compares with next 10 peaks
@@ -259,7 +258,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should handle peaks in ascending order', () => {
-      const peaks: Peaks = [0, 1000, 2000, 3000];
+      const peaks: number[] = [0, 1000, 2000, 3000];
       const intervals = identifyIntervals(peaks);
 
       expect(intervals.length).to.be.greaterThan(0);
@@ -271,7 +270,7 @@ describe('analyzer - identifyIntervals', () => {
 
     it('should handle peak indices in any order', () => {
       // If peaks are not sorted, intervals can be negative
-      const peaks: Peaks = [3000, 1000, 2000];
+      const peaks: number[] = [3000, 1000, 2000];
       const intervals = identifyIntervals(peaks);
 
       // Should still calculate intervals (including negative ones)
@@ -289,7 +288,7 @@ describe('analyzer - identifyIntervals', () => {
   // and pass after the fix. See plan/backlog/lib-bug-identify-intervals-garbage-values.md
   describe('correctness contract', () => {
     it('should not emit zero intervals from self-comparison', () => {
-      const peaks: Peaks = [100, 300, 500];
+      const peaks: number[] = [100, 300, 500];
       const intervals = identifyIntervals(peaks);
 
       const zeroInterval = intervals.find(i => i.interval === 0);
@@ -301,7 +300,7 @@ describe('analyzer - identifyIntervals', () => {
 
     it('should not emit NaN intervals from out-of-bounds peak reads', () => {
       // Two peaks with maxIntervalComparisons=10 → inner loop attempts peaks[2..11] which are undefined
-      const peaks: Peaks = [100, 300];
+      const peaks: number[] = [100, 300];
       const intervals = identifyIntervals(peaks);
 
       const nanIntervals = intervals.filter(i => Number.isNaN(i.interval));
@@ -312,7 +311,7 @@ describe('analyzer - identifyIntervals', () => {
     });
 
     it('should return empty array for a single peak (no valid pairs)', () => {
-      const peaks: Peaks = [1000];
+      const peaks: number[] = [1000];
       const intervals = identifyIntervals(peaks);
 
       expect(
@@ -324,7 +323,7 @@ describe('analyzer - identifyIntervals', () => {
     it('should emit only the valid pairwise intervals for 3 evenly-spaced peaks', () => {
       // Valid pairs: (0,1)=200, (0,2)=400, (1,2)=200
       // Expected: [{interval: 200, count: 2}, {interval: 400, count: 1}]
-      const peaks: Peaks = [100, 300, 500];
+      const peaks: number[] = [100, 300, 500];
       const intervals = identifyIntervals(peaks);
 
       expect(intervals).to.have.lengthOf(2);

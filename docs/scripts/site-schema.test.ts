@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { HOME_FAQ, SCHEMA_WEB_APPLICATION, isGuidePage, isNoindexPage, isUnpublishedGuide, readableDate, siteGraph, techArticle } from '../.vitepress/tools/site-schema.ts'
+import { HOME_FAQ, SCHEMA_WEB_APPLICATION, isGuidePage, isNoindexPage, isUnpublishedGuide, readableDate, siteGraph, techArticle, UNPUBLISHED_GUIDES } from '../.vitepress/tools/site-schema.ts'
 
 const types = (path: string) => siteGraph(path).map((node) => (node as { '@type': string })['@type'])
 
@@ -47,18 +47,22 @@ test('no accuracy figure on the tool pages or in the markup', () => {
   assert.ok(figure.test('accurate within **1–2 BPM**'), 'the check itself must catch the old claim')
 })
 
-test('isNoindexPage: the docs readme and the unpublished guides leave the sitemap', () => {
-  for (const url of ['readme', '/readme.html', 'guide/cli', '/guide/mcp.html']) assert.ok(isNoindexPage(url), url)
-  for (const url of ['', 'guide/readme-tips', 'guide/node', 'guide/client', 'tap-tempo', 'extension/privacy']) {
+test('isNoindexPage: the docs readme leaves the sitemap', () => {
+  for (const url of ['readme', '/readme.html']) assert.ok(isNoindexPage(url), url)
+  for (const url of ['', 'guide/readme-tips', 'guide/node', 'guide/client', 'guide/cli', '/guide/mcp.html', 'guide/java', '/guide/python.html', 'tap-tempo', 'extension/privacy']) {
     assert.ok(!isNoindexPage(url), url)
   }
 })
 
-test('isUnpublishedGuide and isGuidePage: the CLI and MCP guides are not articles until v6', () => {
-  assert.ok(isUnpublishedGuide('guide/cli.md') && isUnpublishedGuide('/guide/mcp'))
-  assert.ok(!isUnpublishedGuide('guide/node.md'))
-  assert.ok(isGuidePage('guide/node.md') && isGuidePage('guide/beat-detection-web-audio.md'))
-  for (const path of ['guide/cli.md', 'guide/mcp.md', 'index.md', 'bpm-to-frames.md', 'examples/react.md']) {
+// The noindex flips (contributing.md, "First publish of v6", step 13, and "First publish of the
+// 6.2 ports", step 8) made the CLI, MCP, Java and Python guides articles.
+test('isUnpublishedGuide and isGuidePage: the CLI, MCP, Java and Python guides are articles since their packages were published', () => {
+  assert.deepEqual(UNPUBLISHED_GUIDES, [])
+  for (const path of ['guide/cli.md', '/guide/mcp', 'guide/java.md', '/guide/python', 'guide/node.md']) assert.ok(!isUnpublishedGuide(path), path)
+  for (const path of ['guide/node.md', 'guide/beat-detection-web-audio.md', 'guide/cli.md', 'guide/mcp.md', 'guide/java.md', 'guide/python.md']) {
+    assert.ok(isGuidePage(path), path)
+  }
+  for (const path of ['index.md', 'bpm-to-frames.md', 'examples/react.md']) {
     assert.ok(!isGuidePage(path), path)
   }
 })
@@ -91,8 +95,8 @@ test('WebApplication: names its author and publisher, and the video file source'
 })
 
 test('no unmeasured tolerance or accuracy praise in the guides', () => {
-  // "within ±1 BPM" defines the confidence field, so it stays. A percentage tolerance
-  // or a grade of the accuracy would be a claim, and nothing has measured one.
+  // "within 4% of the true tempo" defines what a right reading is for confidence, so it stays.
+  // A ± tolerance or a grade of the accuracy would be a claim, and nothing has measured one.
   const claim = /±\s*\d+\s*%|excellent accuracy/i
   const dir = new URL('../guide/', import.meta.url)
   const guides = readdirSync(dir).filter((name) => name.endsWith('.md'))

@@ -4,22 +4,27 @@ on:
   push:
     branches:
       - main
+  # Every base, so a PR stacked on a long-lived branch (v6 work stacks on #323) gets the same checks.
+  # Release and Deploy run only for main and never for a pull_request event, so no PR publishes or deploys.
   pull_request:
-    branches:
-      - main
   # Manual retry when a release fails after its commit landed (e.g. npm's provenance step).
   workflow_dispatch:
 
+# Read-only by default. Each job names what it needs (RBA-232): npm's trusted publisher accepts an OIDC
+# token from any job of this file, so id-token: write is only on Release, which runs in the npm environment
+# that only main may deploy to, on Publish (PyPI), in the pypi environment that only main may deploy to, and
+# on Deploy Documentation. Pull requests never get a write token here.
+# docs/scripts/workflow-permissions.test.ts pins each job's permissions.
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  id-token: write
-  pages: write
+  contents: read
 
 # Pushes to main share one group so releases and Pages deploys never overlap. Each PR
 # gets its own: GitHub keeps one pending run per group, so a shared group silently
 # cancelled the PR runs queued behind a Renovate batch (3 of 5 on 2026-10-15).
+#
+# Every job has a timeout-minutes, at about three times its slowest recent run (5 at least, and Deploy
+# Documentation above deploy-pages' own wait): with cancel-in-progress off, a hung job held its group,
+# and every run behind it, for up to GitHub's 6-hour limit (RBA-241: 72 minutes before a hand cancelled it).
 concurrency:
   group: main-pipeline-${{ github.event_name == 'push' && 'main' || github.ref }}
   cancel-in-progress: false
@@ -29,6 +34,10 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 12
+    # It runs every dependency's install scripts, a pull request's too: read only
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -53,6 +62,15 @@ jobs:
           node bin/audit-gate.mjs --self-test
           (npm audit --json || true) | node bin/audit-gate.mjs
 
+      # A release-as left after its release would pin every later release PR to a version npm already has.
+      # Pull requests only, and not release-please's own: its PR is the one that brings the manifest to the
+      # release-as version, and on main a red build would hold the very release that just merged
+      - name: Check release-as is still pending
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')
+        run: |
+          node bin/release-as-gate.mjs --self-test
+          node bin/release-as-gate.mjs
+
       - name: Build
         run: npm run build
 
@@ -60,6 +78,11 @@ jobs:
       # dist/*.d.ts, through the workspace link, the way a published install would
       - name: Lint
         run: npm run lint
+
+      # After the build: the tests import the processor the build generates. Includes tests/types, which are
+      # checked here and never run. Types only: the build emits and checks the declarations, for src alone
+      - name: Typecheck the library and its tests
+        run: npm run typecheck -w realtime-bpm-analyzer
 
       - name: Test
         run: npm test
@@ -97,18 +120,374 @@ jobs:
           path: packages/mcp/dist/
           retention-days: 1
 
-  # Release to GitHub and npm. release-please keeps one release PR open per package
-  # (version bump + changelog, from the conventional commits under that package's path).
+  # The library's browser tests again in Firefox. Gecko reads the audio clock differently from Chromium (the main
+  # thread's currentTime freezes during a long task), and the epoch watchdog's reset anchor depends on it. One of the
+  # release's needs, so a red Firefox run can't publish (RBA-108 DECISION 2026-11-16): a Gecko-only flake holds the
+  # release until "Re-run failed jobs" passes it, which then runs Release too.
+  firefox:
+    name: Test (Firefox)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The tests import the generated processor, which the build writes
+      - name: Build the library
+        run: npm run build -w realtime-bpm-analyzer
+
+      # The Firefox this puppeteer pins: a newer stable is not where its launcher looks
+      - name: Install Firefox for puppeteer
+        working-directory: packages/realtime-bpm-analyzer
+        run: npx puppeteer browsers install firefox
+
+      # The runner has no sound card. Chromium fakes one, while Firefox needs a sound server to start an audio graph,
+      # and the tests that run a worklet wait for it. A null sink gives it one that plays to nothing.
+      - name: Start a silent sound server
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=silent
+          pactl set-default-sink silent
+
+      - name: Test in Firefox
+        run: npm run test:firefox -w realtime-bpm-analyzer
+
+  # The CLI and the MCP server declare >=22.12.0 as their floor (engines), in the oldest maintained LTS (DECISION
+  # 2026-11-15 on RBA-108), and not 22.0.0, whose worker teardown can deadlock and hang the host (DECISIONs 2026-11-15
+  # on RBA-241). Every other job runs 26. This runs the built bins and the library's Node entry on 22.12.0, the floor
+  # itself, so the floor the docs state is one CI tests. One of the release's needs, like Firefox. Renovate leaves
+  # this version alone: raise it and the engines floor together, by hand (packages/cli/tests/node-floor.test.mjs).
+  node-floor:
+    name: CLI and MCP on Node 22
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.12.0
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The builds from Build & Test, so what runs here is the code a publish would ship
+      - name: Download the library build
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          # upload-artifact strips the paths' common ancestor (the package folder)
+          path: packages/realtime-bpm-analyzer
+
+      - name: Download the CLI build
+        uses: actions/download-artifact@v8
+        with:
+          name: cli-dist
+          path: packages/cli/dist
+
+      - name: Download the MCP server build
+        uses: actions/download-artifact@v8
+        with:
+          name: mcp-dist
+          path: packages/mcp/dist
+
+      # 22.12.0 can't load the tests' shared .ts fixtures itself: the hook strips their types (test-only, see the file)
+      - name: Test Node entry, CLI and MCP server
+        run: npm run test:node
+        env:
+          NODE_OPTIONS: --import ${{ github.workspace }}/bin/node-floor/register-ts.mjs
+
+  # RBA-255: the conformance set the ports in other languages are held to (conformance/readme.md). It checks the
+  # committed vectors against a fresh generation from this build, so they can't drift from the library, then runs
+  # them on the built library in each JS runtime the docs claim: Node at the CLI's floor, Deno and Bun, each through
+  # its own file APIs. One of the release's needs (DECISION ms7q6jzdghu0prtemkkvdnff on RBA-259): the ports are held
+  # to these vectors, so a library whose readings drift from them must not ship.
+  conformance:
+    name: Conformance (Node, Deno, Bun)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # No install: the generator, the runners and their tests import only the build and each runtime's built-ins
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+
+      - name: Download the library build
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: packages/realtime-bpm-analyzer
+
+      - name: Test the comparison rules and the committed set
+        run: node --test 'conformance/tests/*.test.mjs'
+
+      - name: Check the vectors equal a fresh generation
+        run: npm run conformance:check
+
+      - name: Setup Node.js at the floor
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.12.0
+
+      - name: Run the vectors in Node 22.12.0
+        run: node conformance/runner/node.mjs
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.8
+
+      - name: Run the vectors in Deno
+        run: deno run --allow-read=. conformance/runner/deno.mjs
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Run the vectors in Bun
+        run: bun conformance/runner/bun.mjs
+
+  # RBA-255: the same vectors in Hermes, React Native's engine, at the version React Native 0.88 ships
+  # (hermes-compiler 260318099.0.5). Hermes publishes no shell binary since v0.13.0 (2024), so this builds its
+  # `hermes` shell from that tag once and caches it: a cache miss costs the build, a hit a few seconds. The shell
+  # has no file system, so the vectors and the PCM go into one bundled script. Only the engine is proven: live
+  # microphone input in React Native needs a native audio module, which this doesn't touch.
+  conformance-hermes:
+    name: Conformance (Hermes)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      HERMES_TAG: hermes-v260318099.0.5
+      # The tag's commit, so the build can't change under the cache key if the tag moves
+      HERMES_SHA: 9a115f15785851f4ff2747ebb090ddd066fc8ad2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: "npm"
+
+      # For esbuild, which bundles the run
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download the library build
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: packages/realtime-bpm-analyzer
+
+      # The shell links the image's ICU, so a new runner image (ubuntu24 to ubuntu26) needs its own build
+      - name: Name the runner image
+        id: image
+        run: echo "name=$ImageOS" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the Hermes shell
+        id: hermes-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/hermes-shell
+          key: ${{ env.HERMES_TAG }}-${{ env.HERMES_SHA }}-${{ steps.image.outputs.name }}-${{ runner.arch }}
+
+      # Hermes's doc/BuildingAndRunning.md, at the tag: a Release build of the `hermes` target only
+      - name: Build the Hermes shell
+        if: steps.hermes-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake ninja-build libicu-dev python3
+          git init --quiet "$RUNNER_TEMP/hermes"
+          git -C "$RUNNER_TEMP/hermes" fetch --quiet --depth 1 https://github.com/meta/hermes.git "$HERMES_SHA"
+          git -C "$RUNNER_TEMP/hermes" checkout --quiet FETCH_HEAD
+          cmake -S "$RUNNER_TEMP/hermes" -B "$RUNNER_TEMP/hermes-build" -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/hermes-build" --target hermes
+          mkdir -p ~/hermes-shell
+          cp "$RUNNER_TEMP/hermes-build/bin/hermes" ~/hermes-shell/
+          ldd ~/hermes-shell/hermes
+
+      - name: Bundle the vectors for Hermes
+        run: node conformance/runner/hermes/build.mjs "$RUNNER_TEMP/conformance-hermes.js"
+
+      # The shell exits 0 when a promise rejects, so the summary line is the verdict. shell: bash adds pipefail, so
+      # a shell that crashes fails here rather than leaving tee's exit code
+      - name: Run the vectors in Hermes
+        shell: bash
+        run: |
+          ~/hermes-shell/hermes -version
+          ~/hermes-shell/hermes "$RUNNER_TEMP/conformance-hermes.js" | tee "$RUNNER_TEMP/hermes.log"
+          grep -qE '^conformance: PASS on Hermes [0-9]' "$RUNNER_TEMP/hermes.log"
+
+  # RBA-257: the Python port against the same vectors. It builds the sdist, and the wheel from it, installs the wheel
+  # in a clean venv per Python and runs the tests there, so they test the package a user would get, not the source
+  # tree. The oldest supported Python runs with the oldest NumPy the package allows, the newest with the newest NumPy
+  # at the lock's date. Every tool comes from a hashed lock in packages/python/ci/. Publish (PyPI) needs it.
+  conformance-python:
+    name: Conformance (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: |
+            3.11
+            3.15
+
+      - name: Build the sdist and the wheel
+        run: |
+          python3.15 -m venv "$RUNNER_TEMP/build"
+          "$RUNNER_TEMP/build/bin/pip" install --quiet --require-hashes -r packages/python/ci/build.txt
+          # No isolation, so the backend is the lock's hatchling rather than whatever PyPI serves that day
+          "$RUNNER_TEMP/build/bin/python" -m build --no-isolation packages/python --outdir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+          ls "$RUNNER_TEMP"/dist/realtime_bpm_analyzer-*-py3-none-any.whl
+
+      - name: Run the vectors in Python 3.11, with NumPy 1.26.4
+        run: packages/python/scripts/test-wheel.sh python3.11 "$RUNNER_TEMP/py311" "$RUNNER_TEMP/dist" packages/python/ci/test-py311.txt
+
+      - name: Run the vectors in Python 3.15, with NumPy 2.5.5
+        run: packages/python/scripts/test-wheel.sh python3.15 "$RUNNER_TEMP/py315" "$RUNNER_TEMP/dist" packages/python/ci/test-py315.txt
+
+      - name: Type-check (mypy strict)
+        working-directory: packages/python
+        run: '"$RUNNER_TEMP/py315/bin/mypy"'
+
+  # RBA-256: the pure-Java port (packages/jvm) held to the same vectors. It builds with JDK 21, Minecraft's Java,
+  # for Java 8 bytecode, then runs the same tests on a Java 8 runtime, the oldest the port claims. It reads the
+  # sources and the vectors only, so it needs no JS build. Publish (Maven Central) needs it.
+  conformance-jvm:
+    name: Conformance (JVM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The last version listed is the default java; the other stays at $JAVA_HOME_8_X64
+      - name: Setup Java 8 and 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: |
+            8
+            21
+          cache: maven
+          cache-dependency-path: packages/jvm/pom.xml
+
+      # shell: bash adds pipefail, so Maven's exit code survives the tee; the grep then checks which java ran
+      - name: Build and test on Java 21
+        working-directory: packages/jvm
+        shell: bash
+        run: |
+          ./mvnw -B verify | tee "$RUNNER_TEMP/jvm-21.log"
+          grep -qE '^conformance: PASS on Java 21\.' "$RUNNER_TEMP/jvm-21.log"
+
+      - name: Test the same classes on Java 8
+        working-directory: packages/jvm
+        shell: bash
+        run: |
+          ./mvnw -B surefire:test -Djvm="$JAVA_HOME_8_X64/bin/java" | tee "$RUNNER_TEMP/jvm-8.log"
+          grep -qE '^conformance: PASS on Java 1\.8\.' "$RUNNER_TEMP/jvm-8.log"
+
+      # The publish job's build, signed with a key made here and thrown away, and not uploaded (skipUpload). Run on
+      # every change, so a javadoc warning or a broken profile fails a PR rather than the release on main. The bundle
+      # must hold the jar, the sources, the javadoc and the POM, each with its .asc and four checksums.
+      - name: Build the Maven Central bundle, signed with a throwaway key
+        working-directory: packages/jvm
+        shell: bash
+        env:
+          MAVEN_GPG_PASSPHRASE: throwaway
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/throwaway-gnupg"
+          mkdir -m 700 "$GNUPGHOME"
+          gpg --batch --pinentry-mode loopback --passphrase "$MAVEN_GPG_PASSPHRASE" \
+            --quick-gen-key 'throwaway <throwaway@invalid>' ed25519 sign 1d
+          fpr=$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1 == "fpr" { print $10; exit }')
+          printf '<settings/>\n' > "$RUNNER_TEMP/empty-settings.xml"
+          ./mvnw -B -s "$RUNNER_TEMP/empty-settings.xml" -P central-publish -Dcentral.skipUpload=true \
+            -Dgpg.keyname="$fpr" -DskipTests deploy
+          version=$(python3 -c "import xml.etree.ElementTree as E; print(E.parse('pom.xml').getroot().findtext('{http://maven.apache.org/POM/4.0.0}version'))")
+          dir="io/github/dlepaux/realtime-bpm-analyzer/$version"
+          expected=$(for file in "" -sources -javadoc; do echo "realtime-bpm-analyzer-$version$file.jar"; done
+            echo "realtime-bpm-analyzer-$version.pom")
+          expected=$(for file in $expected; do for ext in "" .asc .md5 .sha1 .sha256 .sha512; do echo "$dir/$file$ext"; done; done | sort)
+          actual=$(unzip -Z1 target/central-publishing/central-bundle.zip | grep -v '/$' | sort)
+          diff <(echo "$expected") <(echo "$actual")
+          gpgconf --kill all
+
+  # Release to GitHub and npm. release-please keeps one release PR open for all five packages
+  # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
+  # commits under its path, and node-workspace moving the ranges between the npm ones.
   # Merging it lands here: release-please tags the release (vX.Y.Z for the library,
-  # cli-vX.Y.Z for the CLI, mcp-vX.Y.Z for the MCP server) and writes the GitHub release, then each publish step ships
+  # cli-vX.Y.Z for the CLI, mcp-vX.Y.Z for the MCP server, jvm-vX.Y.Z and python-vX.Y.Z for the ports, which the
+  # publish jobs below ship) and writes the GitHub release, then each publish step ships
   # whatever version its package.json names that npm does not have yet. Keying on the registry, not on the action's output, makes a
   # re-run after a failed publish safe: it publishes the missing version, or nothing.
   release:
     name: Release
-    needs: build
+    # Every job that tests what ships: a red one, or one skipped, holds the publish. Each runs on a push to main and
+    # on a dispatch, with no job-level if, so none is skipped there. The docs jobs test the site, not the packages.
+    # The ports' conformance jobs hold their own publish jobs instead, so a red port never holds the library.
+    needs: [build, firefox, node-floor, conformance]
     # workflow_dispatch can target any branch; only main ever releases
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The environment only main may deploy to (Settings > Environments > npm). With the trusted publisher on
+    # npmjs.com set to it as well, a token from any other job, or from another branch's run, can't publish.
+    environment: npm
+    # release-please: contents (tags, releases, the release branch), pull-requests (the release PR), issues
+    # (its labels). id-token: the OIDC token npm's trusted publishing takes, which also signs the provenance.
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
 
     steps:
       - name: Release PR, tag and GitHub release
@@ -152,8 +531,8 @@ jobs:
           # upload-artifact strips the paths' common ancestor (the package folder)
           path: packages/realtime-bpm-analyzer
 
-      # npm's trusted publisher (OIDC, no token) is bound to this workflow file name:
-      # renaming main.yml means redoing the trusted-publisher setup on npmjs.com.
+      # npm's trusted publisher (OIDC, no token) is bound to this workflow file name and the npm environment:
+      # renaming either means redoing the trusted-publisher setup on npmjs.com, or the publish fails.
       # prepack copies the root readme.md and license.md into the package first.
       - name: Publish to npm
         if: steps.unpublished.outputs.publish == 'true'
@@ -251,6 +630,180 @@ jobs:
         working-directory: packages/mcp
         run: npm publish --provenance --access public
 
+  # RBA-259: the ports publish from here, after Release has tagged them, and only from the commit their tag names
+  # (bin/port-publish-gate.mjs says why). Each also needs its own conformance job, so a port whose readings drift
+  # from the library's never ships, and a red port never holds the library. First publish: contributing.md,
+  # "First publish of the 6.2 ports".
+  #
+  # PyPI takes the package through trusted publishing (OIDC, no token), with the publisher on pypi.org bound to
+  # this file and the pypi environment. The build runs here, without id-token: the publish job holds the OIDC token
+  # and runs no code of this repository, only the download and pypa's action.
+  pypi-build:
+    name: Build (PyPI)
+    needs: [release, conformance-python]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.unpublished.outputs.publish }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.15"
+
+      # No registry URL: PyPI takes a version file by file, so the publish step skips the files it already has
+      - name: Check whether this commit released the package
+        id: unpublished
+        run: |
+          node bin/port-publish-gate.mjs --self-test
+          version=$(python -c "import tomllib; print(tomllib.load(open('packages/python/pyproject.toml', 'rb'))['project']['version'])")
+          node bin/port-publish-gate.mjs "python-v$version"
+
+      # The same build as Conformance (Python): the lock's hatchling, no isolation
+      - name: Build the sdist and the wheel
+        if: steps.unpublished.outputs.publish == 'true'
+        run: |
+          python -m venv "$RUNNER_TEMP/build"
+          "$RUNNER_TEMP/build/bin/pip" install --quiet --require-hashes -r packages/python/ci/build.txt
+          "$RUNNER_TEMP/build/bin/python" -m build --no-isolation packages/python --outdir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+
+      - name: Upload the distributions
+        if: steps.unpublished.outputs.publish == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-dist
+          path: ${{ runner.temp }}/dist/
+          if-no-files-found: error
+
+  pypi-publish:
+    name: Publish (PyPI)
+    needs: pypi-build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.pypi-build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The environment only main may deploy to (Settings > Environments > pypi), and the one the trusted publisher on
+    # pypi.org names: a token from any other job can't publish
+    environment:
+      name: pypi
+      url: https://pypi.org/project/realtime-bpm-analyzer/
+    # id-token only: the OIDC token PyPI's trusted publishing takes, which also signs the attestations. No contents:
+    # nothing here checks the repository out.
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download the distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: python-dist
+          path: dist
+
+      # Checks the metadata (verify-metadata) before the upload, and uploads a PEP 740 attestation with each file.
+      # skip-existing: a re-run after a half-done upload uploads the files PyPI lacks and skips the others
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          attestations: true
+          skip-existing: true
+
+  # Maven Central has no trusted publishing, so the publish job takes the Central Portal token and David's signing
+  # key from the maven environment's secrets, which only main may read (Settings > Environments > maven). The gate
+  # runs in a job of its own, outside the environment, so a push that releases nothing never enters it.
+  maven-check:
+    name: Check (Maven Central)
+    needs: [release, conformance-jvm]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.unpublished.outputs.publish }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check whether this commit released a version Maven Central lacks
+        id: unpublished
+        run: |
+          node bin/port-publish-gate.mjs --self-test
+          version=$(python3 -c "import xml.etree.ElementTree as E; print(E.parse('packages/jvm/pom.xml').getroot().findtext('{http://maven.apache.org/POM/4.0.0}version'))")
+          node bin/port-publish-gate.mjs "jvm-v$version" "https://repo1.maven.org/maven2/io/github/dlepaux/realtime-bpm-analyzer/$version/realtime-bpm-analyzer-$version.pom"
+
+  # Each secret is in the env of the one step that uses it. central-publishing-maven-plugin uploads the bundle,
+  # publishes it and waits until Central has (waitUntil: published, up to 30 minutes).
+  maven-publish:
+    name: Publish (Maven Central)
+    needs: maven-check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.maven-check.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: maven
+      url: https://central.sonatype.com/artifact/io.github.dlepaux/realtime-bpm-analyzer
+    # checkout. The secrets come from the environment, not from the token.
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # A keyring of its own in the runner's temp, which the last step deletes
+      - name: Import the signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          mkdir -m 700 "$RUNNER_TEMP/gnupg"
+          printf '%s\n' "$GPG_PRIVATE_KEY" | GNUPGHOME="$RUNNER_TEMP/gnupg" gpg --batch --import
+          GNUPGHOME="$RUNNER_TEMP/gnupg" gpg --batch --list-secret-keys --keyid-format long
+
+      # The settings file names the credentials by environment variable, so their values never reach a file. The key
+      # is pinned by its fingerprint, the one on the keyservers (contributing.md). No tests: Conformance (JVM) ran
+      # them on this commit, and they would run with the secrets in their environment.
+      - name: Sign, upload and publish to Maven Central
+        working-directory: packages/jvm
+        env:
+          GNUPGHOME: ${{ runner.temp }}/gnupg
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        run: |
+          # shellcheck disable=SC2016 # Maven, not the shell, expands ${env.…}
+          printf '%s\n' '<settings><servers><server><id>central</id>' \
+            '<username>${env.MAVEN_CENTRAL_USERNAME}</username>' \
+            '<password>${env.MAVEN_CENTRAL_PASSWORD}</password>' \
+            '</server></servers></settings>' > "$RUNNER_TEMP/central-settings.xml"
+          ./mvnw -B -s "$RUNNER_TEMP/central-settings.xml" -P central-publish \
+            -Dgpg.keyname=C3FCF43A0B1FD66C8EE882BBD0446F172A67D3CD -DskipTests deploy
+
+      - name: Delete the keyring
+        if: always()
+        run: |
+          GNUPGHOME="$RUNNER_TEMP/gnupg" gpgconf --kill all || true
+          rm -rf "$RUNNER_TEMP/gnupg" "$RUNNER_TEMP/central-settings.xml"
+
   # Build the docs and all examples on every run, so a dependency PR that breaks them
   # goes red before it merges (#232 merged green, then broke three examples on main:
   # this job used to run on push only). Only the Pages deploy stays push-only.
@@ -258,6 +811,11 @@ jobs:
     name: Build Documentation
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # pages: read for configure-pages, which reads the Pages site on pushes
+    permissions:
+      contents: read
+      pages: read
 
     steps:
       - name: Checkout
@@ -307,18 +865,41 @@ jobs:
           echo "lean chunks: $lean, pages: $pages"
           test "$pages" -gt 0 && test "$lean" -ge "$pages"
 
-      # One h1 on home, the unpublished guides noindex and unlinked, TechArticle, both
+      # One h1 on home, the unpublished guides noindex, TechArticle, both
       # dates and a server-rendered date on every guide, and the sitemap both ways: what
       # it lists is indexable with its own canonical, and every indexable page is in it
       # apart from NOT_IN_SITEMAP. Things only the built HTML shows.
       - name: Check SEO output
         run: npm run verify:seo -w docs
 
+      # The analytics contract in Chrome (RBA-154): the built site, served under its production
+      # hostname, must send one page_view per page and hits carrying exactly their own params.
+      # Every Google Analytics request is aborted and its hosts resolve to the runner itself, so
+      # no real hit is ever sent. Only the gtag.js script is fetched from Google.
+      - name: Check the analytics contract
+        run: |
+          npm run preview -w docs -- --port 4173 > "$RUNNER_TEMP/preview.log" 2>&1 &
+          for attempt in $(seq 1 30); do curl -sf http://localhost:4173/ > /dev/null && break; sleep 1; done
+          CONTRACT_BASE_URL=http://localhost:4173 npm run test:analytics-contract -w docs
+
       # Checks this build against the committed EXTENSION_STORE_URL, then builds the site
       # in the other state and checks that too (RBA-58). Before and after the switch is
       # flipped, both states stay proven. The pages artifact below is this first build.
       - name: Check the extension switch in both states
         run: npm run verify:extension-switch -w docs
+
+      # A PR's built site, to look at in a browser without building it locally (RBA-240): download
+      # it with `gh run download <run-id> -n docs-site` and serve the folder. It is the same folder
+      # the pages artifact publishes, so it holds nothing the live site doesn't. Hidden files stay
+      # out, as upload-artifact's default.
+      - name: Upload the built site for preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-site
+          path: docs/.vitepress/dist/
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload pages artifact
         if: github.event_name != 'pull_request'
@@ -333,8 +914,8 @@ jobs:
   markers:
     name: Marker files (OpenTimelineIO, FCPXML DTD)
     runs-on: ubuntu-latest
-    # It runs code downloaded from PyPI and reads a file fetched from Apple: read access only,
-    # not the workflow's pages and id-token writes.
+    timeout-minutes: 5
+    # It runs code downloaded from PyPI and reads a file fetched from Apple: read access only.
     permissions:
       contents: read
     env:
@@ -396,11 +977,18 @@ jobs:
     name: Deploy Documentation
     # A red marker check holds the deploy: branch protection requires no status checks.
     needs: [docs, markers]
-    if: github.event_name != 'pull_request'
+    # main only, as Release: a dispatch on another branch would otherwise publish that branch's site
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Above deploy-pages' own 10-minute wait for the deployment, so a slow Pages day fails in its step
+    timeout-minutes: 12
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    # deploy-pages: pages to create the deployment, id-token to prove where it comes from
+    permissions:
+      pages: write
+      id-token: write
 
     steps:
       - name: Deploy to GitHub Pages

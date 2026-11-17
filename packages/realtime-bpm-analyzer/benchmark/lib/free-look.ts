@@ -15,7 +15,7 @@ import type {TrackResult} from './types';
  * seed, resampling whole groups, which for the free mixes are artists (`artistKey`).
  */
 
-/** 5.5.0's tempogram as a caller gets it: `detector: 'tempogram'` and nothing else, as on the dev tables */
+/** 5.5.0's tempogram as a caller gets it: `detector: 'tempogram'` and nothing else, as on the dev tables, which v6 spells `engine: 'tempogram'` */
 export const freeCandidate = 'tempogram';
 /** Peaks as measured before: lowpass, its default 90 to 180, no reset timer */
 export const freeReference = 'peaks';
@@ -101,7 +101,7 @@ function falseStable(results: Readonly<Record<string, readonly TrackResult[]>>):
  */
 function noRegression(): FreeCondition {
   const {options, lowpass, tuning} = detectors[freeCandidate];
-  const isSame = JSON.stringify(options) === JSON.stringify({detector: 'tempogram'}) && !lowpass && tuning === undefined;
+  const isSame = JSON.stringify(options) === JSON.stringify({engine: 'tempogram'}) && !lowpass && tuning === undefined;
 
   return {
     gate: 5,

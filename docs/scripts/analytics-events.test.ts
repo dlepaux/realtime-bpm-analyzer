@@ -112,7 +112,18 @@ test('deprecated params are ones the event still sends, each with its replacemen
 })
 
 // Continuity for the RBA-153 and RBA-66 readbacks: these names were live before RBA-154 and are
-// read across the cut-over. Renaming or dropping one breaks the series.
+// read across the cut-over. Renaming or dropping one breaks the series. v6 of the library renamed
+// two on purpose (RBA-108, DECISION 2026-11-03), and GA4's reports follow the new names.
+const RENAMED_IN_V6: Record<string, string> = { bpm_mic_stable: 'bpm_mic_locked', bpm_stream_stable: 'bpm_stream_locked' }
+const current = (name: string): string => RENAMED_IN_V6[name] ?? name
+
+test('v6 renamed the stable events outright, with no alias left behind', () => {
+  for (const [old, renamed] of Object.entries(RENAMED_IN_V6)) {
+    assert.ok(!Object.hasOwn(EVENTS, old), old)
+    assert.ok(Object.hasOwn(EVENTS, renamed), renamed)
+  }
+})
+
 test('every event and param that existed before RBA-154 is still there', () => {
   const before = [
     'bpm_tab_change', 'bpm_file_selected', 'bpm_file_result', 'bpm_file_error', 'bpm_file_restart', 'bpm_mic_clicked',
@@ -122,7 +133,7 @@ test('every event and param that existed before RBA-154 is still there', () => {
     'bpm_tool_link_clicked', 'bpm_markers_exported', 'github_star_clicked', 'extension_uninstall_reason',
     'extension_link_clicked', 'extension_demo_control',
   ]
-  for (const name of before) assert.ok(Object.hasOwn(EVENTS, name), name)
+  for (const name of before) assert.ok(Object.hasOwn(EVENTS, current(name)), name)
   const paramsBefore: Record<string, string[]> = {
     bpm_tab_change: ['mode'],
     bpm_file_selected: ['input_method', 'size_kb', 'extension'],
@@ -148,7 +159,7 @@ test('every event and param that existed before RBA-154 is still there', () => {
     extension_demo_control: ['action'],
   }
   for (const [name, keys] of Object.entries(paramsBefore)) {
-    const declared = (EVENTS as Record<string, EventSpec>)[name]!.params
+    const declared = (EVENTS as Record<string, EventSpec>)[current(name)]!.params
     for (const key of keys) assert.ok(Object.hasOwn(declared, key), `${name}.${key}`)
   }
 })

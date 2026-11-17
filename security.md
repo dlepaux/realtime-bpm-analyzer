@@ -4,11 +4,12 @@
 
 We provide security updates for the following versions:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.x     | :white_check_mark: |
-| < 4.0   | :x:                |
-| < 3.0   | :x:                |
+| Package | Version | Supported          |
+| ------- | ------- | ------------------ |
+| `realtime-bpm-analyzer` | 6.x | :white_check_mark: |
+| `realtime-bpm-analyzer` | 5.x | :white_check_mark: security fixes only |
+| `realtime-bpm-analyzer` | < 5.0 | :x: |
+| `realtime-bpm-analyzer-cli`, `realtime-bpm-analyzer-mcp` | latest 0.x | :white_check_mark: |
 
 ## Reporting a Vulnerability
 

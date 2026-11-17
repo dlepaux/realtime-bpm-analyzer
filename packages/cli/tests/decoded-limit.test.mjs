@@ -11,6 +11,11 @@ import {analyzeFile, decodedLimit, defaultMaxDecodedBytes} from 'realtime-bpm-an
 // Built for these tests and not published: the sample counts are not part of the public API
 import {decodeFile} from '../dist/decode.mjs';
 
+// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
+// thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
+const hangLimit = {timeout: 60_000};
+
 const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
 const tooLong = /^Too long to analyze: the limit is \d+ MB of decoded audio \(\d+ minutes at 44\.1 kHz\)/;
 // Refusing from the header must not cost a decode, however long the file claims to be
@@ -124,7 +129,7 @@ function intWav(bits, channels) {
   return Buffer.concat([header, Buffer.alloc(44_100 * bytes * channels, 1)]);
 }
 
-describe('decoded size limit', () => {
+describe('decoded size limit', hangLimit, () => {
   let root;
 
   /**
@@ -152,11 +157,11 @@ describe('decoded size limit', () => {
 
   before(async () => {
     root = await mkdtemp(join(tmpdir(), 'rba-cli-limit-'));
-  });
+  }, hangLimit);
 
   after(async () => {
     await rm(root, {recursive: true, force: true});
-  });
+  }, hangLimit);
 
   it('states the default limit in plain words', () => {
     assert.equal(defaultMaxDecodedBytes, 2 * 1024 * 1024 * 1024);
@@ -377,7 +382,7 @@ describe('decoded size limit', () => {
     it('asks ffmpeg to stop just past the limit', async () => {
       const argsFile = join(root, 'ffmpeg-args.json');
       const ffmpegPath = await fakeFfmpeg('ffmpeg-args.mjs', `
-        process.getBuiltinModule('node:fs').writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(args));
+        (await import('node:fs')).writeFileSync(${JSON.stringify(argsFile)}, JSON.stringify(args));
         process.exit(1);
       `);
       await analyzeFile(fixture('click-128.m4a'), {ffmpegPath, maxDecodedBytes: 44_100 * 4 * 60});

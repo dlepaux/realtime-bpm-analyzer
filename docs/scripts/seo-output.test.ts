@@ -9,7 +9,7 @@ const TIME = '<time datetime="2026-11-03T10:00:00.000Z" data-v-1>November 3, 202
 const DATES = '"datePublished":"2025-02-01T09:00:00.000Z","dateModified":"2026-11-03T10:00:00.000Z"'
 const GUIDE = `<meta property="og:type" content="article"><script type="application/ld+json">{"@graph":[{"@type":"TechArticle",${DATES}}]}</script><p>Last updated: ${TIME}</p>`
 const NOINDEX = '<meta name="robots" content="noindex">'
-const GUIDES = ['node', 'getting-started', 'how-it-works', 'performance', 'react-bpm-hook']
+const GUIDES = ['node', 'getting-started', 'how-it-works', 'performance', 'react-bpm-hook', 'cli', 'mcp', 'java', 'python']
 const canonical = (url: string) => `<link rel="canonical" href="${SITE}${url}">`
 const sitemap = (urls: readonly string[]) => urls.map((url) => `<url><loc>${SITE}${url}</loc></url>`).join('')
 // The clean URLs of the fixture's indexable pages, all in its sitemap by default.
@@ -21,8 +21,6 @@ function site(overrides: Record<string, string> = {}): BuiltSite {
     'sitemap.xml': sitemap(LISTED),
     'website-privacy.html': `${canonical('/website-privacy')}<p>privacy</p>`,
     '404.html': '<h1>Page not found</h1>',
-    'guide/cli.html': `${NOINDEX}<a href="/guide/mcp">MCP</a>`,
-    'guide/mcp.html': `${NOINDEX}<a href="/guide/cli#formats">CLI</a>`,
     'guide/quick-start.html': '<meta http-equiv="refresh" content="0; url=/guide/getting-started">',
     ...Object.fromEntries(GUIDES.map((name) => [`guide/${name}.html`, `${canonical(`/guide/${name}`)}${GUIDE}`])),
     ...overrides,
@@ -43,12 +41,26 @@ test('seoProblems: home needs one h1 holding only the search phrase, and a dated
   assert.match(seoProblems(undated).join(), /no byline with a date/)
 })
 
-test('seoProblems: the unpublished guides stay noindex, out of the sitemap and unlinked', () => {
-  assert.match(seoProblems(site({ 'guide/cli.html': '<p>cli</p>' })).join(), /guide\/cli: not noindex/)
-  const listed = site({ 'sitemap.xml': sitemap([...LISTED, '/guide/mcp']) })
-  assert.match(seoProblems(listed).join(), /guide\/mcp: in the sitemap/)
-  const linked = site({ 'guide/node.html': `${canonical('/guide/node')}${GUIDE}<a href="/guide/cli">CLI</a>` })
-  assert.match(seoProblems(linked).join(), /guide\/node\.html: links to an unpublished guide/)
+// Since the noindex flip (contributing.md, "First publish of v6", step 13) the CLI and MCP
+// guides are held to every guide's rules: indexable, in the sitemap, an article with its dates.
+test('seoProblems: the CLI and MCP guides are guides like the others', () => {
+  const noindex = site({ 'guide/cli.html': `${NOINDEX}${canonical('/guide/cli')}${GUIDE}`, 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/cli')) })
+  assert.deepEqual(seoProblems(noindex), ['guide/cli.html: noindex'])
+  const undated = site({ 'guide/mcp.html': `${canonical('/guide/mcp')}<meta property="og:type" content="article"><p>mcp</p>` })
+  assert.match(seoProblems(undated).join(), /guide\/mcp\.html: no TechArticle,guide\/mcp\.html: no datePublished/)
+  const unlisted = site({ 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/mcp')) })
+  assert.deepEqual(seoProblems(unlisted), ['guide/mcp.html: indexable but not in the sitemap'])
+})
+
+// Since the 6.2 ports' noindex flip (contributing.md, "First publish of the 6.2 ports", step 8)
+// the Java and Python guides are held to every guide's rules too.
+test('seoProblems: the Java and Python guides are guides like the others', () => {
+  const noindex = site({ 'guide/java.html': `${NOINDEX}${canonical('/guide/java')}${GUIDE}`, 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/java')) })
+  assert.deepEqual(seoProblems(noindex), ['guide/java.html: noindex'])
+  const undated = site({ 'guide/python.html': `${canonical('/guide/python')}<meta property="og:type" content="article"><p>python</p>` })
+  assert.match(seoProblems(undated).join(), /guide\/python\.html: no TechArticle,guide\/python\.html: no datePublished/)
+  const unlisted = site({ 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/python')) })
+  assert.deepEqual(seoProblems(unlisted), ['guide/python.html: indexable but not in the sitemap'])
 })
 
 test('seoProblems: every other guide is an article with a server-rendered date', () => {

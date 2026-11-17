@@ -1,6 +1,4 @@
 ---
-# Unpublished until the v6 release (PR #323): kept out of the local search too.
-search: false
 title: BPM Detection for AI Assistants (MCP Server)
 description: Let Claude Desktop, Claude Code or any MCP client detect the BPM of audio files on your disk with the local realtime-bpm-analyzer-mcp server. The audio never leaves your machine.
 ---
@@ -20,7 +18,7 @@ to fetch the package.
 
 ## Install
 
-It needs Node.js 20 or later. In **Claude Desktop**, open Settings, Developer, Edit
+It needs Node.js 22.12 or later. In **Claude Desktop**, open Settings, Developer, Edit
 Config, add the server to `claude_desktop_config.json` and restart the app:
 
 ```json
@@ -53,20 +51,35 @@ tracks in ~/Music/house slower than 124 BPM."
 | --------- | ----------------------------------------------------------------- |
 | `path`    | The audio file. Absolute, or starting with `~` for the home folder |
 | `min_bpm` | Lowest tempo reported (default 90)                                |
-| `max_bpm` | Highest tempo reported (default 180, at least 2 × `min_bpm`)      |
-| `detector` | `peaks` (default) or `tempogram`, which searches `min_bpm`..`max_bpm` instead of folding into it: from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default |
+| `max_bpm` | Highest tempo reported (default 180, at least 2 × `min_bpm`). Any range other than 90 to 180 gives `confidence` null |
+| `engine` | `tempogram` (default) or `peaks`. The tempogram searches `min_bpm`..`max_bpm` instead of folding into it: from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default |
 
 ```json
 {
   "file": "/Users/me/Music/song.mp3",
   "bpm": 128,
-  "confidence": 0.459,
-  "candidates": [{"tempo": 128, "count": 157, "confidence": 0.459}]
+  "bpm_exact": 127.96,
+  "confidence": 0.869,
+  "candidates": [{"bpm": 128, "relation": "top"}, {"bpm": 171, "relation": "other"}],
+  "engine": "tempogram"
 }
 ```
 
-`bpm` and `confidence` come from the top candidate and are `null` when no beat was
-found. A file that cannot be analysed returns a tool error with a one-line reason.
+The fields are the library's [reading](./core-concepts#bpm-candidates), named in snake_case:
+
+- `bpm`: the tempo, a whole number. `null` when no beat was found, as are the fields below.
+- `bpm_exact`: the same tempo unrounded, for timing (a beat grid, markers).
+- `confidence`: from 0 to 1, the estimated chance the reading is right. It is calibrated on
+  licence-clean dev data from 90 to 180 BPM, so inside that range it means the same whichever
+  engine measured it. `null`: unmeasured, when `bpm` is outside 90 to 180 or when `min_bpm` or
+  `max_bpm` set any other range than 90 to 180, since the calibration ran only on that range (a
+  missing bound is filled from it, so `min_bpm: 90` alone keeps the number), and when no beat was
+  found.
+- `candidates`: each a `bpm` and its `relation` to that tempo (`top`, `half`, `double` or
+  `other`). Empty when no beat was found.
+- `engine`: the engine that measured it.
+
+A file that cannot be analysed returns a tool error with a one-line reason.
 
 ### `analyze_folder`
 
@@ -75,13 +88,13 @@ found. A file that cannot be analysed returns a tool error with a one-line reaso
 | `directory` | The folder                                                       |
 | `recursive` | Also analyse sub-folders (default `false`)                       |
 | `offset`    | First file to analyse, from the previous call's `next_offset`    |
-| `min_bpm`, `max_bpm`, `detector` | As for `analyze_file`                       |
+| `min_bpm`, `max_bpm`, `engine` | As for `analyze_file`                       |
 
 ```json
 {
   "directory": "/Users/me/Music",
   "results": [
-    {"file": "/Users/me/Music/a.mp3", "ok": true, "bpm": 128, "confidence": 0.459, "candidates": []},
+    {"file": "/Users/me/Music/a.mp3", "ok": true, "bpm": 128, "bpm_exact": 127.96, "confidence": 0.869, "candidates": [{"bpm": 128, "relation": "top"}], "engine": "tempogram"},
     {"file": "/Users/me/Music/b.mp3", "ok": false, "error": "No audio samples decoded (mp3)."}
   ],
   "total": 2,

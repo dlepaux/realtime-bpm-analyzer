@@ -42,17 +42,15 @@ examples.forEach((example, index) => {
   }
   
   try {
-    // Install dependencies if needed (skip if node_modules exists)
-    const nodeModulesPath = join(examplePath, 'node_modules');
-    if (!existsSync(nodeModulesPath)) {
-      console.log(`   📦 Installing dependencies...`);
-      execSync('npm install', { cwd: examplePath, stdio: 'inherit' });
-    }
-    
-    // Build the example with the correct base path for production
+    // Each example's own build script, so CI type-checks it (tsc or vue-tsc) before vite bundles
+    // it: vite only strips types, and an example broken by a public rename would otherwise ship.
+    // The root `npm ci` installs every workspace, examples included, so nothing is installed here.
     const basePath = `/examples/${example}/`;
-    execSync(`npx vite build --base ${basePath}`, { cwd: examplePath, stdio: 'pipe' });
-    
+    // Through a shell so npm resolves on Windows too (npm.cmd), as in dev-examples.ts. The path
+    // comes from the fixed list above; the check keeps anything else out of the command line.
+    if (!/^\/examples\/[0-9a-z-]+\/$/.test(basePath)) throw new Error(`unsafe base path: ${basePath}`);
+    execSync(`npm run build -- --base ${basePath}`, { cwd: examplePath, stdio: 'pipe' });
+
     // Copy built files to docs
     const distPath = join(examplePath, 'dist');
     const targetPath = join(outputDir, example);
@@ -67,7 +65,10 @@ examples.forEach((example, index) => {
     }
   } catch (error) {
     console.error(`   ❌ Failed to build ${example}:`);
-    console.error(`   ${(error as Error).message}\n`);
+    // The message carries stderr only, and tsc and vue-tsc print their errors on stdout.
+    const { stdout, message } = error as { stdout?: Buffer; message: string };
+    console.error(`   ${message}`);
+    if (stdout?.length) console.error(stdout.toString());
     failCount++;
   }
 });

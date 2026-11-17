@@ -1,9 +1,9 @@
 // Run with `npm test`. What the page sources must say for search engines and AI readers:
-// the unpublished guides stay out of every list (RBA-122), home has one h1 (RBA-129),
-// and the titles and snippets this repo has tuned stay within what results show.
+// the CLI, MCP, Java and Python guides are in every list since their noindex flips, home has
+// one h1 (RBA-129), and the titles and snippets this repo has tuned stay within what results show.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -23,6 +23,7 @@ const MEASURED = {
   'guide/beat-detection-web-audio.md': { description: true },
   'guide/realtime-bpm-detection.md': { description: true },
   'bpm-to-frames.md': { title: true, description: true },
+  'strobe-light.md': { title: true, description: true },
 } as const
 
 test('titles fit in about 60 characters with the suffix, descriptions in 155', () => {
@@ -44,26 +45,26 @@ test('the guides whose openings answer first still do', () => {
   assert.match(opening('guide/bpm-from-microphone.md'), /^To detect BPM from the microphone/)
 })
 
-test('the CLI and MCP guides are out of the sidebar, llms.txt and every other page', () => {
-  const unpublished = /\/guide\/(cli|mcp)\b|\]\(\.\/(cli|mcp)\b/
-  assert.ok(!unpublished.test(read('../.vitepress/config.ts')), 'config.ts')
-  assert.ok(!unpublished.test(read('../public/llms.txt')), 'llms.txt')
-  const pages = ['index.md', 'bpm-to-frames.md', 'video-bpm.md', 'tap-tempo.md', 'bpm-to-ms.md', 'metronome.md']
-  const guides = readdirSync(new URL('../guide/', import.meta.url))
-    .filter((name) => name.endsWith('.md') && name !== 'cli.md' && name !== 'mcp.md')
-    .map((name) => `guide/${name}`)
-  for (const path of [...pages, ...guides]) assert.ok(!unpublished.test(read(`../${path}`)), path)
-  for (const name of ['cli', 'mcp']) assert.equal(field(read(`../guide/${name}.md`), 'search'), 'false', name)
-  assert.ok(unpublished.test('[the CLI](/guide/cli)') && unpublished.test('[CLI](./cli#x)'), 'the check must catch a link')
+// The noindex flips (contributing.md, "First publish of v6", step 13, and "First publish of the
+// 6.2 ports", step 8): the CLI and MCP server are on npm, the Java port on Maven Central and the
+// Python port on PyPI.
+test('the CLI, MCP, Java and Python guides are in the sidebar, llms.txt and the search', () => {
+  const config = read('../.vitepress/config.ts')
+  const llms = read('../public/llms.txt')
+  for (const name of ['cli', 'mcp', 'java', 'python']) {
+    assert.ok(config.includes(`link: '/guide/${name}' }`), `config.ts: /guide/${name} is not in the sidebar`)
+    assert.ok(llms.includes(`https://www.realtime-bpm-analyzer.com/guide/${name})`), `llms.txt: /guide/${name}`)
+    assert.equal(field(read(`../guide/${name}.md`), 'search'), undefined, `guide/${name}.md: still out of the search`)
+  }
 })
 
-test('llms.txt lists the tutorials and calls the home tool the BPM Finder', () => {
+test('llms.txt lists the tutorials and the v6 migration, and calls the home tool the BPM Finder', () => {
   const llms = read('../public/llms.txt')
   for (const path of ['realtime-bpm-detection', 'bpm-from-microphone', 'react-bpm-hook']) {
     assert.ok(llms.includes(`https://www.realtime-bpm-analyzer.com/guide/${path})`), path)
   }
   assert.ok(llms.includes('- [BPM Finder](https://www.realtime-bpm-analyzer.com/)'))
-  assert.ok(!/CLI|MCP/.test(llms), 'llms.txt names a package that is not on npm')
+  assert.ok(llms.includes('https://www.realtime-bpm-analyzer.com/guide/migration-v6)'), 'the v6 migration guide')
 })
 
 test('home: one h1, holding only the hero text, at every width', () => {

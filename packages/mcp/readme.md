@@ -33,14 +33,14 @@ claude mcp add bpm -- npx -y realtime-bpm-analyzer-mcp
 ```
 
 Any other MCP client: run `npx -y realtime-bpm-analyzer-mcp` as a stdio server. It needs
-Node.js 20 or later.
+Node.js 22.12 or later.
 
 ## Tools
 
 | Tool             | Arguments                                                | Returns |
 | ---------------- | -------------------------------------------------------- | ------- |
-| `analyze_file`   | `path`, optional `min_bpm`, `max_bpm`, `detector`        | `bpm`, `confidence` (0 to 1) and the ranked `candidates` |
-| `analyze_folder` | `directory`, optional `recursive`, `offset`, `min_bpm`, `max_bpm`, `detector` | one result per file, in path order; a file that fails carries its `error` and the others go on |
+| `analyze_file`   | `path`, optional `min_bpm`, `max_bpm`, `engine`        | `bpm`, `bpm_exact`, `confidence` (0 to 1, the estimated chance the reading is right, or null: unmeasured), the ranked `candidates` and the `engine` that ran |
+| `analyze_folder` | `directory`, optional `recursive`, `offset`, `min_bpm`, `max_bpm`, `engine` | one result per file, in path order; a file that fails carries its `error` and the others go on |
 
 Then ask, for example: "What's the BPM of ~/Music/set/track.mp3?" or "Sort the tracks in
 ~/Music/house by tempo."
@@ -48,7 +48,8 @@ Then ask, for example: "What's the BPM of ~/Music/set/track.mp3?" or "Sort the t
 - Formats: MP3, WAV, FLAC, OGG Vorbis and Opus decode in pure JavaScript/WebAssembly.
   M4A/AAC, AIFF and WMA go through [ffmpeg](https://ffmpeg.org) when it is installed (set
   `FFMPEG_PATH` in the server's `env` to point at a binary that is not on the `PATH`).
-- Tempos are folded into `min_bpm`..`max_bpm` (default 90 to 180). With `detector: "tempogram"` that range is searched instead, and a tempo under it reads at the octave inside, and from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default.
+- The default engine, the tempogram, searches `min_bpm`..`max_bpm` (default 90 to 180): a tempo under it reads at the octave inside, and from about twice `min_bpm` a tempo can read half, as over about 179 BPM does by default. With `engine: "peaks"` tempos are folded into the range instead.
+- `confidence` is the estimated chance the reading is right, calibrated on licence-clean dev data from 90 to 180 BPM, so inside that range it means the same whichever engine measured it. Null: unmeasured, when `bpm` is outside 90 to 180 or when `min_bpm` or `max_bpm` set any other range than 90 to 180, since the calibration ran only on that range.
 - Paths are absolute, start with `~`, or are relative to the server's working directory.
 - Limits: files over 100 MB are refused, and so is audio that decodes to more than 2048 MB in
   its first channel: 202 minutes at 44.1 kHz, however small the file (a file that fits peaks at about

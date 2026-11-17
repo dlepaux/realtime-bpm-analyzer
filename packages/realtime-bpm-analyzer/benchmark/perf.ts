@@ -1,10 +1,11 @@
 // CPU per second of audio, per detector and input shape, on one thread. A chunk is 4096 samples,
 // so the worklet sees one about every 93 ms; a render quantum lasts 2.9 ms, and a chunk's work
 // happens inside one `process()` call, so the worst chunk is the number that could glitch audio.
-import {RealTimeBpmAnalyzer} from '../src/core/realtime-bpm-analyzer';
+import {resolveEngine} from '../src/core/engine';
+import {createSession} from '../src/core/session';
+import type {EngineName} from '../src/contract/types';
 import {createTempogramDetector} from '../src/core/tempogram';
 import {applyLowpass} from '../src/core/lowpass';
-import type {RealTimeBpmAnalyzerParameters} from '../src/core/types';
 
 const sampleRate = 44_100;
 const seconds = 60;
@@ -44,17 +45,15 @@ function report(label: string, times: number[]): void {
   console.log(`| ${label} | ${(total / seconds).toFixed(2)} | ${(total / seconds / 10).toFixed(3)}% | ${percentile(sorted, 0.5).toFixed(3)} | ${percentile(sorted, 0.99).toFixed(3)} | ${sorted.at(-1)!.toFixed(3)} |`);
 }
 
-async function timeAnalyzer(pcm: Float32Array, options: RealTimeBpmAnalyzerParameters): Promise<number[]> {
-  const analyzer = new RealTimeBpmAnalyzer(options);
+async function timeAnalyzer(pcm: Float32Array, name: EngineName): Promise<number[]> {
+  const session = createSession({...resolveEngine(name, undefined), debug: false});
   const times: number[] = [];
 
   for (let start = 0; start + chunkSize <= pcm.length; start += chunkSize) {
     const channelData = pcm.subarray(start, start + chunkSize);
     const before = performance.now();
 
-    await analyzer.analyzeChunk({
-      audioSampleRate: sampleRate, channelData, bufferSize: chunkSize, postMessage() {},
-    });
+    await session.analyze(channelData, chunkSize, sampleRate);
     times.push(performance.now() - before);
   }
 
@@ -82,14 +81,14 @@ console.log('| input, detector | ms per s of audio | CPU | chunk p50 ms | chunk 
 async function main(): Promise<void> {
   for (const [name, pcm] of Object.entries(shapes)) {
     // The first pass warms the JIT, the audio thread's steady state is what matters
-    await timeAnalyzer(pcm, {detector: 'tempogram'});
-    report(`${name}, tempogram`, await timeAnalyzer(pcm, {detector: 'tempogram'}));
+    await timeAnalyzer(pcm, 'tempogram');
+    report(`${name}, tempogram`, await timeAnalyzer(pcm, 'tempogram'));
     report(`${name}, tempogram onset stage only`, timeOnsetOnly(pcm));
 
     const lowpassed = applyLowpass(pcm, sampleRate);
 
-    await timeAnalyzer(lowpassed, {});
-    report(`${name}, peaks`, await timeAnalyzer(lowpassed, {}));
+    await timeAnalyzer(lowpassed, 'peaks');
+    report(`${name}, peaks`, await timeAnalyzer(lowpassed, 'peaks'));
   }
 }
 

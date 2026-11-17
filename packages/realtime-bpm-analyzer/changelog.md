@@ -1,5 +1,91 @@
 # Changelog
 
+## [6.2.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v6.1.0...v6.2.0) (2026-11-16)
+
+
+### Features
+
+* 6.2, the BPM engine in Java and Python, held to the JS readings by shared conformance vectors ([a040a22](https://github.com/dlepaux/realtime-bpm-analyzer/commit/a040a22eff70aa137050da1bb633d5a1f579592c))
+
+
+### Bug Fixes
+
+* **analyze:** bound tempoRange deliberately, at a finite max / min and a 32-bit max ([d581be8](https://github.com/dlepaux/realtime-bpm-analyzer/commit/d581be89efa0f6cdb2d12a7de367974e880805dc))
+* **analyze:** check the peaks lowpass before the 2 Hz floor, as 6.1.0 ordered its checks ([abc13d7](https://github.com/dlepaux/realtime-bpm-analyzer/commit/abc13d7b803b9194a246cbfceff2f1708141918e))
+* **analyze:** refuse a NaN or infinite sample in whole-buffer analysis ([1728bab](https://github.com/dlepaux/realtime-bpm-analyzer/commit/1728bab05ff57804f781232961a29fc61e9ea347))
+* **peaks:** refuse a sample rate under 2 Hz instead of hanging ([68e240c](https://github.com/dlepaux/realtime-bpm-analyzer/commit/68e240c59a2b5a426bb7913197ac5972bea0120b))
+* refuse peaks under 2 Hz, bound tempoRange, refuse non-finite samples, and pin the edges in the vectors (RBA-260) ([1407ee7](https://github.com/dlepaux/realtime-bpm-analyzer/commit/1407ee7c5d1568bd8ccacf3e14506ad6ebbcdc37))
+
+## [6.1.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.6.1...v6.1.0) (2026-11-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** BiquadFilterOptions is now LowpassOption, and getBiquadFilter's and applyLowpass's settings are {frequency, q}.
+* carry the exact tempo and the room beat events need in the v6 contract
+* the events `bpm`, `bpmStable` and `analyzerReset` are removed. Listen to `reading` for each measurement, and to `statechange` for listening, settling, locked and stopped; `reset()` is a `statechange` with reason `reset`. the `detector` option is removed: use `engine` ('peaks', 'tempogram', or an object with the engine's settings). `continuousAnalysis`, `stabilizationTime`, `muteTimeInIndexes` and `tempogramMode` are gone with it: `engine: {name: 'peaks', restartAfterSeconds}` and `engine: {name: 'tempogram', mode: 'extension'}` replace the ones that still mean something. `analyzeFullBuffer` and `analyzeChannelData` return an OfflineResult (a Reading, or null) instead of an array of Tempo, and take `engine` with the lowpass settings instead of `frequencyValue`/`qualityValue`/`detector`. the fields `threshold` and `count` and the types `Threshold`, `Peaks`, `BpmCandidates`, `Tempo`, `BpmProgress`, `ProcessorInputEvent`, `ProcessorOutputEvent`, `BpmAnalyzerEventMap`, `RealTimeBpmAnalyzerParameters`, `CreateRealtimeBpmAnalyzerOptions`, `Detector`, `TempogramMode` and `AnalyzeFullBufferOptions` are removed: they described the 5.x events. A reading's candidates carry their `relation` to the top tempo instead. `RealTimeBpmAnalyzer` and the `createRealTimeBpmProcessor` alias are removed, and `once()` is replaced by `on(type, listener, {once: true})`; `on()` now returns its unsubscribe function, and `off()` exists. the factory waits for the processor's `ready` and rejects after 5 s without one, so a processor file from 5.x served through `processorUrl` fails at startup instead of staying silent.
+
+### Features
+
+* **analyzer:** expose the tempogram's frame tempo and lead in debug steps ([6186038](https://github.com/dlepaux/realtime-bpm-analyzer/commit/6186038552ab7963f48812829057d7e5f158b6a5))
+* **analyzer:** make the tempogram the default engine, realtime and offline ([af1f973](https://github.com/dlepaux/realtime-bpm-analyzer/commit/af1f973df70b29b019b42f257f2342c5e715c73f))
+* **analyzer:** report confidence as the chance the reading is right ([e70a4f5](https://github.com/dlepaux/realtime-bpm-analyzer/commit/e70a4f5d8031b7c98750695fbf18fd30cb3baaae))
+* **benchmark:** record the raw score beside the calibrated confidence, and add the held-out calibration check ([edc9403](https://github.com/dlepaux/realtime-bpm-analyzer/commit/edc9403b52996e58d9da32f8574224d31b19b250))
+* carry the exact tempo and the room beat events need in the v6 contract ([2eaa882](https://github.com/dlepaux/realtime-bpm-analyzer/commit/2eaa8822eeeb8cef0a2619232e3af3f87a5eb795))
+* **contract:** version the worklet protocol as major and minor ([27dc828](https://github.com/dlepaux/realtime-bpm-analyzer/commit/27dc8285311616a2047d06cd4bf4ba9c155496a7))
+* **kick:** hear a quieter track's kicks within 3.5 s of a drop, and start over after a sample that is not finite ([d458604](https://github.com/dlepaux/realtime-bpm-analyzer/commit/d458604a776fe7897698223de26dddd16d96907d))
+* report each kick the live analyzer hears, as a kick event (RBA-243) ([b7d7698](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b7d76985af45bdfffdb13aab536068a2df01fbb7))
+* report each kick the live analyzer hears, as a kick event (RBA-243) ([3d2309f](https://github.com/dlepaux/realtime-bpm-analyzer/commit/3d2309f2f54cc28aca580d2af542c41951a44833))
+* run both engines through the v6 contract ([07bf5cc](https://github.com/dlepaux/realtime-bpm-analyzer/commit/07bf5ccd80edd52416b63c822c37e4a2cd663a12))
+
+
+### Bug Fixes
+
+* **analyzer:** anchor reset() on the last message heard, as Firefox froze the output timestamp too ([c393330](https://github.com/dlepaux/realtime-bpm-analyzer/commit/c393330d2d1f74a0367415155488b4466d156b3a))
+* **analyzer:** anchor the epoch watchdog on the output clock, not a frozen currentTime ([7971067](https://github.com/dlepaux/realtime-bpm-analyzer/commit/797106792f8375a198eb0a5d99bf5352048f67d7))
+* **analyzer:** judge stale epochs by send time, and close the review's contract gaps ([bbb418a](https://github.com/dlepaux/realtime-bpm-analyzer/commit/bbb418aaafded985458fae405f7de3490e44f01c))
+* **analyzer:** keep the lock peaks offers while listening ([a767c49](https://github.com/dlepaux/realtime-bpm-analyzer/commit/a767c49b6f5fced72f8cf700fdafdf2333e272c2))
+* **analyzer:** keep v6 locks, relocks and failures true under real timing ([980e78f](https://github.com/dlepaux/realtime-bpm-analyzer/commit/980e78ff8dec000da159c20eb032ce28bc7a9a08))
+* **analyzer:** read a non-number score as no evidence, and pin the calibration tables to the committed results ([e7c0ba2](https://github.com/dlepaux/realtime-bpm-analyzer/commit/e7c0ba24e335870859d2410975d103c4ac8e8cee))
+* **analyzer:** read currentTime while the output timestamp is still zero ([edb98cd](https://github.com/dlepaux/realtime-bpm-analyzer/commit/edb98cda9ea40e4f646083f7d529a7176ace4acf))
+* answer the PR review: keep the MCP's queued signal required, and true messages and docs ([516982f](https://github.com/dlepaux/realtime-bpm-analyzer/commit/516982f55fad9e395cda09a1b83349a9ce67541a))
+* answer the review of the RBA-228 fixes, so the docs claim no more than CI and the benchmark show ([42cf318](https://github.com/dlepaux/realtime-bpm-analyzer/commit/42cf3182174425375a900d82fd681e079ca0035e))
+* **api:** give the lowpass settings one shape, {frequency, q}, typed LowpassOption ([613090e](https://github.com/dlepaux/realtime-bpm-analyzer/commit/613090ec1d4e2100e438f7296b1819e542eaf089))
+* **api:** refuse the DOM's detune in the lowpass settings, since it would move the cutoff without a word, and correct the CLI-major rule ([5d51bbc](https://github.com/dlepaux/realtime-bpm-analyzer/commit/5d51bbc56ca80685faaf78b277e11d357b783182))
+* **api:** refuse the DOM's Q in the lowpass settings, and tighten the tests that pin them ([ad04f18](https://github.com/dlepaux/realtime-bpm-analyzer/commit/ad04f18922faa5c8dd42f1a05aab4264d37717d8))
+* **api:** settle v6's public names and docs before 6.1.0 freezes them ([0101d5c](https://github.com/dlepaux/realtime-bpm-analyzer/commit/0101d5c30097709a467d1f620b96c89d15acf578))
+* **benchmark:** judge only this attempt's verdict, and keep held-out values out of the job's log ([ffc12df](https://github.com/dlepaux/realtime-bpm-analyzer/commit/ffc12dfcfed1659416a6bff9a0383d236d8be3bd))
+* **benchmark:** judge the held-out check at the shipped hysteresis, and never record a refusal as a fail ([29072aa](https://github.com/dlepaux/realtime-bpm-analyzer/commit/29072aac55c93d0fd25aac212b07a84dee1736e9))
+* **benchmark:** name peaks on the peaks reference rows ([c1f0d7b](https://github.com/dlepaux/realtime-bpm-analyzer/commit/c1f0d7b8a925b6173e3e4b3b39ac331d47408948))
+* **benchmark:** read 5.5.0's tempogram off its v6 option in the free look ([12107ab](https://github.com/dlepaux/realtime-bpm-analyzer/commit/12107ab0de7a0327ec9eafd25278cbd125b2895f))
+* **benchmark:** run the browser cost harness on the v6 processor ([324f974](https://github.com/dlepaux/realtime-bpm-analyzer/commit/324f9749e87d3bdc618d3368eb4c159788430367))
+* **build:** give the declaration emit the target the lib already assumes ([f36fbe8](https://github.com/dlepaux/realtime-bpm-analyzer/commit/f36fbe84447747467b60055d662563840959e29e))
+* **cli:** let the host alone end the analysis worker, and bound every Node test and CI job (RBA-241) ([ca5d1de](https://github.com/dlepaux/realtime-bpm-analyzer/commit/ca5d1de8e24238597e2bd50722ce4d5a0e2b85e5))
+* **confidence:** give null on any custom tempo range, since the tables were fitted only on 90 to 180 ([ad1804d](https://github.com/dlepaux/realtime-bpm-analyzer/commit/ad1804dfa2410018135136710c5c068db0cdda38))
+* **confidence:** null on any custom tempo range, and main with [#400](https://github.com/dlepaux/realtime-bpm-analyzer/issues/400) into v6 ([47f488b](https://github.com/dlepaux/realtime-bpm-analyzer/commit/47f488bf50c3ae1a8e8eb15d6ea98df09d90a061))
+* **confidence:** say on each range input that another range gives null, and pin a test to a number ([b144b91](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b144b915b33e82fc1e4851c947eacb274f58ec2d))
+* **contract:** keep the main thread's protocol minor in the processor ([4e33f31](https://github.com/dlepaux/realtime-bpm-analyzer/commit/4e33f31a391b492ba545f810383d55c443bb8182))
+* **engine:** refuse any engine key outside its engine's set, and say the async functions reject ([df57247](https://github.com/dlepaux/realtime-bpm-analyzer/commit/df5724737de739aaf32b0a32e6750304ef92db2c))
+* **engine:** refuse unknown engine keys, and the release review's can-follows 1 to 5 (RBA-108) ([b982801](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b982801cccce62c637b50c43188ec03d3d471f0e))
+* fold the Show HN audit's fix list into v6 (RBA-228) ([58ed033](https://github.com/dlepaux/realtime-bpm-analyzer/commit/58ed033fec81d90aeedb105ce365d13eb68266d6))
+* give v6's lowpass settings one shape, test the Node floor and polish the docs before 6.1.0 (RBA-228) ([06c5e22](https://github.com/dlepaux/realtime-bpm-analyzer/commit/06c5e2262d1b197eca60ccfe1cfe209ed8ace230))
+* **kick:** start the kicks over when the input comes back after a gap ([4f0c1df](https://github.com/dlepaux/realtime-bpm-analyzer/commit/4f0c1dfe8b7c3d09d1eab3646cc669df2e01a24d))
+* **lowpass:** accept only frequency and q, and name any other key ([6c9d7c3](https://github.com/dlepaux/realtime-bpm-analyzer/commit/6c9d7c3cceb0baaa1398f548541159c012417fbb))
+* **lowpass:** refuse a q outside -758 to 770 dB, since outside it Web Audio's 32-bit resonance term is no longer a normal finite float and Chrome renders NaN (RBA-228) ([5b3e365](https://github.com/dlepaux/realtime-bpm-analyzer/commit/5b3e36554b61a0f008c36eb10fc5fa09caef0b9d))
+* **packaging:** publish v6's three packages with the README, one bin and a tested Node floor ([799d484](https://github.com/dlepaux/realtime-bpm-analyzer/commit/799d484af8ccce652cac49e8d29a374f0c2802f3))
+* **peaks:** fold the exact tempo's window across the octave at the range edges ([6f8d7f5](https://github.com/dlepaux/realtime-bpm-analyzer/commit/6f8d7f5804a9184ffed3cff2ecc8d8dd416ab6d0))
+* **processor:** fail on a delivered count that is not a finite number ([a35aff6](https://github.com/dlepaux/realtime-bpm-analyzer/commit/a35aff61cf4ac7a2051c5cd1af551bc436d9bd67))
+* **reading:** answer the review: pin null over 180 end to end, and true messages and docs ([49bce71](https://github.com/dlepaux/realtime-bpm-analyzer/commit/49bce71bfb855b195c7872d9e441ca65576429f0))
+* **reading:** claim nothing unmeasured about custom ranges, and one reason per refusal ([3076d77](https://github.com/dlepaux/realtime-bpm-analyzer/commit/3076d77470d86ad83fd4998d9e98d6b4d96546a8))
+* **reading:** null confidence outside the measured range, and strict options (RBA-108) ([4553c7b](https://github.com/dlepaux/realtime-bpm-analyzer/commit/4553c7b29beee74889a427087e464879e64601b4))
+* **reading:** null confidence outside the measured range, and strict options, before v6 freezes ([86e258d](https://github.com/dlepaux/realtime-bpm-analyzer/commit/86e258da13462751156401ec2551623127fed2ae))
+* **site:** v6 release fixes: the first-publish runbook, the browser check and the Developers menu (RBA-247) ([b7233e9](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b7233e9e5e362352dd7577706cd785d2f99a92a1))
+* **tempogram:** keep reading the tempo after an infinite sample ([cd63cfa](https://github.com/dlepaux/realtime-bpm-analyzer/commit/cd63cfab8f29356228da5571d516f875ec7fee82))
+* **v6:** check the lowpass cutoff as the 32-bit float Web Audio stores, so no value slips past the check and is clamped ([c3e7c10](https://github.com/dlepaux/realtime-bpm-analyzer/commit/c3e7c10dc9c920fac3c6da6969455673d3b2023a))
+* **v6:** check the lowpass values at the boundary ([1d4949b](https://github.com/dlepaux/realtime-bpm-analyzer/commit/1d4949bd46f91bc1e6c5ac4305c508ec1d3ac033))
+* **v6:** name the float32 rounding only when it is what put the cutoff out of range ([48826a7](https://github.com/dlepaux/realtime-bpm-analyzer/commit/48826a7826cec9046fc82a947c938932012cc901))
+* **v6:** refuse lowpass values the filter would clamp or ignore, on every path ([b8803b1](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b8803b1bad7a53fab58b38b3c2dba17257afeb2e))
+
 ## [5.6.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v5.6.0...v5.6.1) (2026-11-03)
 
 

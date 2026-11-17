@@ -3,8 +3,12 @@
 // renders this one list on the desktop bar and in the mobile menu. Only menus moved here:
 // every link is an address the site already had (RBA-66's DECISION, 2026-11-05).
 //
-// The CLI, MCP and "Migrating to v6" entries join Developers on the v6 branch, once their
-// packages are on npm (RBA-122). Until then those guides are noindex and unlinked.
+// The CLI, the MCP server and "Migrating to v6" are in Developers from v6 on (RBA-150, and
+// RBA-240's DECISION of 2026-11-16: no "Apps" menu). The sidebar, the sitemap, the search and
+// llms.txt list the CLI and MCP guides too, since both packages are on npm (the noindex flip);
+// the theme draws their generic icons (custom.css). The Java and Python guides are in the sidebar,
+// the sitemap, the search and llms.txt since their ports reached Maven Central and PyPI, but not
+// in Developers: step 8 of "First publish of the 6.2 ports" (contributing.md) didn't add them.
 import type { DefaultTheme } from 'vitepress'
 import { extensionNavItems, extensionPrivacyNavItems } from './extension-promo.ts'
 
@@ -19,6 +23,7 @@ const FREE_TOOLS: DefaultTheme.NavItemWithChildren = {
     { text: 'Video BPM Finder', link: '/video-bpm' },
     { text: 'BPM to Frames Calculator', link: '/bpm-to-frames' },
     { text: 'Metronome', link: '/metronome' },
+    { text: 'Strobe Light', link: '/strobe-light' },
   ],
 }
 
@@ -32,6 +37,9 @@ function developersMenu(version: string): DefaultTheme.NavItemWithChildren {
       { text: 'Library guide', link: '/guide/getting-started' },
       { text: 'Examples', link: '/examples/basic-usage' },
       { text: 'API reference', link: '/api/' },
+      { text: 'CLI', link: '/guide/cli' },
+      { text: 'MCP server', link: '/guide/mcp' },
+      { text: 'Migrating to v6', link: '/guide/migration-v6' },
       { text: `v${version}`, items: [{ text: 'Changelog', link: CHANGELOG }] },
     ],
   }

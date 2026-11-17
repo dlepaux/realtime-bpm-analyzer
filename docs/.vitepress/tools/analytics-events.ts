@@ -6,7 +6,10 @@
 //
 // Readback continuity (RBA-153, RBA-66): no `bpm_*` event is renamed or removed and no param
 // changes meaning before the day-14 read. Split params ride beside the ones they replace, which
-// are marked `deprecated` and go after DEPRECATED_REMOVE_AFTER.
+// are marked `deprecated` and go after DEPRECATED_REMOVE_AFTER. The one exception is v6 of the
+// library (RBA-108, DECISION 2026-11-03): the analyzer locks rather than stabilises, so
+// bpm_mic_stable and bpm_stream_stable became bpm_mic_locked and bpm_stream_locked, and GA4's
+// reports are changed with it. v6 deploys only after the day-14 read.
 //
 // Pure data: it imports other pure tool modules for their value lists, never Vue, so node --test
 // reads it as it is.
@@ -17,6 +20,7 @@ import { EXTENSION_PLACEMENTS } from './extension-promo.ts'
 import { FRAME_RATES } from './frames.ts'
 import { MIC_ERROR_KINDS, MIC_ERROR_NAMES } from './mic-error.ts'
 import { PLATFORM_LABELS, STATIONS, STREAM_ERROR_MESSAGES, type Platform, type StreamErrorKind } from './stream-input.ts'
+import { STROBE_SOURCES } from './strobe.ts'
 import { NOTE_DIVISIONS } from './tempo.ts'
 import { freeTools } from './tool-list.ts'
 
@@ -88,6 +92,10 @@ export const PARAMS = {
   extension_version: { type: 'text', maxLength: 23, pattern: /^\d{1,5}(\.\d{1,5}){0,3}$/, scope: 'dimension' },
   action: { type: 'enum', values: ['replay', 'pause'], scope: 'dimension' },
 
+  // ── Added by v6 of the library (RBA-108) ─────────────────────────────────────────────────
+  /** The engine that read the tempo: v6 made the tempogram the file default, so a series splits on it. Mirrors the library's EngineName. */
+  engine: { type: 'enum', values: ['peaks', 'tempogram'], scope: 'dimension' },
+
   // ── Added by RBA-154 ─────────────────────────────────────────────────────────────────────
   result_source: { type: 'enum', values: ['file', 'mic', 'stream'], scope: 'dimension' },
   tool: { type: 'enum', values: TOOL_IDS, scope: 'dimension' },
@@ -105,6 +113,14 @@ export const PARAMS = {
   frame_cell: { type: 'enum', values: ['beat', 'bar'], scope: 'dimension' },
   export_format: { type: 'enum', values: MARKER_FORMATS.map((entry) => entry.id), scope: 'dimension' },
   first: { type: 'bool', scope: 'dimension' },
+
+  // ── Added by RBA-237 ─────────────────────────────────────────────────────────────────────
+  /**
+   * Where the strobe light's music came from: the demo track, a song, the mic or another tab.
+   * Not `source`, which GA4 reads as the traffic source (RBA-2). `none`: the readback reads it
+   * from the BigQuery export, which keeps every param, so it needs no Custom definition in GA4.
+   */
+  audio_source: { type: 'enum', values: [...STROBE_SOURCES], scope: 'none' },
 } as const satisfies Record<string, ParamSpec>
 
 export type ParamName = keyof typeof PARAMS
@@ -134,9 +150,9 @@ export const EVENTS = {
     privacy: 'When you choose a file to analyse: whether you dropped it or browsed for it, its size and its extension, never its name or content.',
   },
   bpm_file_result: {
-    params: { input_method: 'required', bpm: 'required', duration_s: 'required', elapsed_ms: 'required' },
+    params: { input_method: 'required', bpm: 'required', engine: 'required', duration_s: 'required', elapsed_ms: 'required' },
     repeats: 'Once per analysed file.',
-    privacy: 'When a file is analysed: whether you dropped or browsed for it, the tempo found, the length of the file and how long the analysis took.',
+    privacy: 'When a file is analysed: whether you dropped or browsed for it, the tempo found, which of the two detection methods found it, the length of the file and how long the analysis took.',
   },
   bpm_file_error: {
     params: { input_method: 'required', error_kind: 'required', extension: 'required', reason: 'required' },
@@ -153,10 +169,10 @@ export const EVENTS = {
     repeats: 'Each time the microphone is started.',
     privacy: 'When you start the microphone, from its tab or from the alternatives offered for a link.',
   },
-  bpm_mic_stable: {
-    params: { bpm: 'required', first: 'required', elapsed_ms: 'optional' },
-    repeats: 'When a steady tempo is found, then again only when it changes.',
-    privacy: 'When the microphone finds a steady tempo: the tempo, whether it is the first one since you started, and for the first one the time it took.',
+  bpm_mic_locked: {
+    params: { bpm: 'required', engine: 'required', first: 'required', elapsed_ms: 'optional' },
+    repeats: 'When a steady tempo is found, then again only when it locks on a different one.',
+    privacy: 'When the microphone finds a steady tempo: the tempo, which of the two detection methods found it, whether it is the first one since you started, and for the first one the time it took.',
   },
   bpm_mic_error: {
     params: { reason: 'required', error_kind: 'required', error_name: 'required' },
@@ -174,10 +190,10 @@ export const EVENTS = {
     repeats: 'Each time a stream is started.',
     privacy: 'When you start a stream: which listed station you picked, or that the stream is your own, with its scheme and audio format, never its address.',
   },
-  bpm_stream_stable: {
-    params: { ...STREAM_URL_PARAMS, input_method: 'required', bpm: 'required', first: 'required', elapsed_ms: 'optional' },
-    repeats: 'When a steady tempo is found, then again only when it changes.',
-    privacy: 'When a stream or a shared tab finds a steady tempo: the tempo, the station details above, whether it is the first one since you started, and for the first one the time it took.',
+  bpm_stream_locked: {
+    params: { ...STREAM_URL_PARAMS, input_method: 'required', bpm: 'required', engine: 'required', first: 'required', elapsed_ms: 'optional' },
+    repeats: 'When a steady tempo is found, then again only when it locks on a different one.',
+    privacy: 'When a stream or a shared tab finds a steady tempo: the tempo, which of the two detection methods found it, the station details above, whether it is the first one since you started, and for the first one the time it took.',
   },
   bpm_stream_error: {
     params: { ...STREAM_URL_PARAMS, input_method: 'required', error_kind: 'required', reason: 'required' },
@@ -237,6 +253,11 @@ export const EVENTS = {
     repeats: 'Each time the metronome starts.',
     privacy: 'When you start the metronome: the tempo, the time signature and the subdivision.',
     deprecated: { mode: 'time_signature and subdivision' },
+  },
+  bpm_strobe_started: {
+    params: { audio_source: 'required' },
+    repeats: 'Each time the strobe light starts.',
+    privacy: 'When you start the strobe light: whether the music is the demo track, your song, the microphone or another tab. Never the sound, and never the song’s name.',
   },
   bpm_tool_link_clicked: {
     params: { bpm: 'optional', mode: 'required', result_source: 'required', tool: 'required' },

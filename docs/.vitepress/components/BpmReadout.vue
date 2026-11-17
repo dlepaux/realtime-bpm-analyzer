@@ -34,7 +34,7 @@ const formatBpm = (bpm: number) => (Number.isInteger(bpm) ? String(bpm) : bpm.to
         :class="{ 'is-beating': period !== null }"
         :style="period !== null ? { '--beat-period': `${period}ms` } : undefined"
         aria-hidden="true"
-      />
+      ></span>
       {{ CHIP_LABEL[state] }}
     </span>
     <p class="bpm-readout-value">

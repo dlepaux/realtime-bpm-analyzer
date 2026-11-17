@@ -25,9 +25,7 @@ async function test(frequencyValue = 200): Promise<{mae: number; rmse: number; a
 
   const response = await fetch('/testing/datasets/manifest.json');
   const json = await response.json() as Manifest;
-  const promises = utils.buildPromises(json, {
-    frequencyValue,
-  });
+  const promises = utils.buildPromises(json, frequencyValue);
   const audioFiles = await utils.batchPromises(promises, 10);
 
   const stats = reporter.log(audioFiles);

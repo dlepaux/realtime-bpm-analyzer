@@ -1,6 +1,6 @@
 {
   "name": "realtime-bpm-analyzer",
-  "version": "5.6.1",
+  "version": "6.2.0",
   "description": "Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first.",
   "author": {
     "name": "David Lepaux",
@@ -68,9 +68,9 @@
   "scripts": {
     "build": "bash bin/build/library.sh",
     "prepack": "cp ../../readme.md ../../license.md .",
-    "postpack": "rm -f readme.md license.md",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit --declaration false -p tsconfig.json",
     "testing:prepare": "ts-node testing/tools/generate-manifest.ts",
     "testing": "web-dev-server",
     "test": "web-test-runner",
@@ -79,7 +79,8 @@
     "test:integration": "web-test-runner --files 'tests/integration/**/*.test.ts'",
     "test:lib": "web-test-runner --files 'tests/lib/**/*.ts'",
     "test:node": "node --test 'tests/node/**/*.test.mjs'",
-    "test:coverage": "web-test-runner --coverage"
+    "test:coverage": "web-test-runner --coverage",
+    "test:firefox": "web-test-runner --config web-test-runner.firefox.config.mjs"
   },
   "homepage": "https://www.realtime-bpm-analyzer.com",
   "repository": {
@@ -98,10 +99,10 @@
     "eslint": "^10.14.0",
     "globals": "^17.14.0",
     "mocha": "^12.0.3",
-    "music-metadata": "^12.3.4",
+    "music-metadata": "^12.3.5",
     "puppeteer": "^25.16.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.2"
   }
 }

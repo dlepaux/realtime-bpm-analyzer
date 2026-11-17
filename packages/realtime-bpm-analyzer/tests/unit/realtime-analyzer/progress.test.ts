@@ -1,83 +1,56 @@
 import {expect} from 'chai';
-import {RealTimeBpmAnalyzer} from '../../../src/core/realtime-bpm-analyzer';
+import {createSession} from '../../../src/core/session';
+import type {ResolvedEngine} from '../../../src/core/engine';
 import {computeProgress} from '../../../src/core/tempo';
 import {requiredPeaks} from '../../../src/core/consts';
 import {createClickTrack} from '../../fixtures/click-track';
-import {createEventCollector} from '../../setup';
-import type {RealTimeBpmAnalyzerParameters} from '../../../src/core/types';
+import {feedSession, stepsOf} from '../../setup';
 
 const bufferSize = 4096;
 const audioSampleRate = 44_100;
 
-/**
- * Feed samples to a fresh analyzer chunk by chunk and collect every posted event
- */
-async function analyze(samples: Float32Array, options: RealTimeBpmAnalyzerParameters = {}) {
-  const analyzer = new RealTimeBpmAnalyzer(options);
-  const collector = createEventCollector();
-
-  for (let start = 0; start + bufferSize <= samples.length; start += bufferSize) {
-    await analyzer.analyzeChunk({
-      audioSampleRate,
-      channelData: samples.subarray(start, start + bufferSize),
-      bufferSize,
-      postMessage: collector.postMessage,
-    });
-  }
-
-  return collector;
+async function analyze(samples: Float32Array, engine: ResolvedEngine = {name: 'peaks'}) {
+  const session = createSession({engine, tempoRange: {min: 90, max: 180}, debug: false});
+  return stepsOf(await feedSession(session, samples, audioSampleRate, bufferSize));
 }
 
-describe('RealTimeBpmAnalyzer - progress toward the first BPM', () => {
-  it('requires one peak more than computeBpm\'s minimum', () => {
-    expect(computeProgress({})).to.deep.equal({peaks: 0, requiredPeaks});
-    expect(computeProgress({0.9: [1, 2], 0.5: [1, 2, 3]})).to.deep.equal({peaks: 3, requiredPeaks});
-    expect(computeProgress({0.9: Array.from({length: 40}, (_, i) => i)}).peaks).to.equal(requiredPeaks);
+describe('peaks engine - progress toward the first reading', () => {
+  it('is the share of the peaks needed, one more than computeBpm\'s minimum', () => {
+    expect(computeProgress({})).to.equal(0);
+    expect(computeProgress({0.9: [1, 2], 0.5: [1, 2, 3]})).to.equal(3 / requiredPeaks);
+    expect(computeProgress({0.9: Array.from({length: 40}, (_, i) => i)})).to.equal(1);
   });
 
-  it('rises on a click track and is full in the chunk that yields the first BPM', async () => {
-    const collector = await analyze(createClickTrack(120, audioSampleRate, 15));
-    const ordered = collector.events.filter(e => e.type === 'progress' || e.type === 'bpm');
-    const progress = collector.getEventsByType('progress').map(e => e.data.peaks);
+  it('rises on a click track, one step per buffer, and gives way to the first reading', async () => {
+    const steps = await analyze(createClickTrack(120, audioSampleRate, 15));
+    const firstReading = steps.findIndex(step => step.status === 'settling');
+    const listening = steps.slice(0, firstReading).map(step => (step.status === 'listening' ? step.progress : -1));
 
-    // One progress per analysed chunk, not one per peak
-    expect(progress).to.have.length(collector.getEventsByType('bpm').length);
-    for (let i = 1; i < progress.length; i++) {
-      expect(progress[i]).to.be.at.least(progress[i - 1]);
+    expect(firstReading).to.be.greaterThan(0);
+    expect(steps[firstReading].reason).to.equal('first-reading');
+    expect(listening.length).to.be.greaterThan(1);
+    for (let i = 1; i < listening.length; i++) {
+      expect(listening[i]).to.be.at.least(listening[i - 1]);
     }
 
-    const firstBpmIndex = ordered.findIndex(e => e.type === 'bpm' && e.data.bpm.length > 0);
-    expect(firstBpmIndex).to.be.greaterThan(0);
-    const before = ordered[firstBpmIndex - 1];
-    expect(before.type).to.equal('progress');
-    expect(before.type === 'progress' && before.data).to.deep.equal({peaks: requiredPeaks, requiredPeaks});
-
-    const earlier = ordered.slice(0, firstBpmIndex - 1).filter(e => e.type === 'progress');
-    expect(earlier.length).to.be.greaterThan(0);
-    for (const event of earlier) {
-      expect(event.type === 'progress' && event.data.peaks).to.be.below(requiredPeaks);
-    }
+    expect(listening.every(progress => progress >= 0 && progress <= 1)).to.equal(true);
   });
 
-  it('stays at 0 on silence', async () => {
-    const collector = await analyze(new Float32Array(audioSampleRate * 5));
-    const progress = collector.getEventsByType('progress');
+  it('stays at 0 on silence, and never leaves listening', async () => {
+    const steps = await analyze(new Float32Array(audioSampleRate * 5));
 
-    expect(progress.length).to.be.greaterThan(0);
-    for (const event of progress) {
-      expect(event.data).to.deep.equal({peaks: 0, requiredPeaks});
+    expect(steps.length).to.be.greaterThan(0);
+    for (const step of steps) {
+      expect(step.status).to.equal('listening');
+      expect(step.status === 'listening' && step.progress).to.equal(0);
     }
   });
 
-  it('drops to 0 right after analyzerReset', async () => {
-    const collector = await analyze(createClickTrack(120, audioSampleRate, 15), {
-      continuousAnalysis: true,
-      stabilizationTime: 10_000,
-    });
-    const resetIndex = collector.events.findIndex(e => e.type === 'analyzerReset');
+  it('drops to 0 when the engine restarts for a tempo change', async () => {
+    const steps = await analyze(createClickTrack(120, audioSampleRate, 15), {name: 'peaks', restartAfterSeconds: 10});
+    const restart = steps.find(step => step.reason === 'tempo-changed');
 
-    expect(resetIndex).to.be.greaterThan(0);
-    const next = collector.events[resetIndex + 1];
-    expect(next.type === 'progress' && next.data).to.deep.equal({peaks: 0, requiredPeaks});
+    expect(restart?.status).to.equal('listening');
+    expect(restart?.status === 'listening' && restart.progress).to.equal(0);
   });
 });

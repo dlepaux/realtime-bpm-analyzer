@@ -63,4 +63,5 @@ automatically with the [BPM Analyzer](/). Setting up a delay to match? Use the
   <a class="tt-tool" href="/"><strong>BPM Analyzer</strong><span>Detect the tempo of a file, the mic or a stream</span></a>
   <a class="tt-tool" href="/tap-tempo"><strong>Tap Tempo</strong><span>Tap along to measure any tempo</span></a>
   <a class="tt-tool" href="/bpm-to-ms"><strong>BPM to ms</strong><span>Delay and reverb times for every note value</span></a>
+  <a class="tt-tool" href="/strobe-light"><strong>Strobe Light</strong><span>Flash the screen on each kick</span></a>
 </div>

@@ -2,7 +2,7 @@ import {expect} from 'chai';
 import {installWorkletShim} from '../../../benchmark/browser-cost/page-shim';
 import {percentile, quantumBudgetMs, summarise, ofKinds} from '../../../benchmark/browser-cost/stats';
 import {drumMix} from '../../../benchmark/browser-cost/signal';
-import {quantumKind, timedProcessor} from '../../../benchmark/browser-cost/timed-processor';
+import {harnessOptions, quantumKind, timedProcessor} from '../../../benchmark/browser-cost/timed-processor';
 
 describe('browser cost harness', () => {
   it('reads nearest-rank percentiles and the quantum budget', () => {
@@ -38,7 +38,7 @@ describe('browser cost harness', () => {
 
     let tick = 0;
     const Timed = timedProcessor(RealTimeBpmProcessor, () => tick++, 'counter');
-    const processor = new Timed({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: {detector: 'tempogram'}});
+    const processor = new Timed({numberOfInputs: 1, numberOfOutputs: 1, processorOptions: harnessOptions('tempogram')});
     const pcm = drumMix(8000, 12);
     const quanta = Math.floor(pcm.length / 128);
 

@@ -8,9 +8,18 @@ entrypoint fetch                                # the data only
 entrypoint dev --detector a,b                         # the data, then those detectors on dev through the real path, into `_job/dev-<commit>.json`. No look
 entrypoint heldout --reason "why" [--detector a,b]   # the data, a dev scoring, then a logged held-out look
 entrypoint free-look --reason "why"                   # RBA-51's one look at RBA-59's held-out free mixes, then its verdict
+entrypoint calibration-heldout --reason "why"         # RBA-106's one held-out check of the confidence calibration
 ```
 
 `free-look` scores peaks and `tempogram` (5.5.0) on `free-mixes` and `free-mixes-contested` held-out, whole, and takes no `--sets` or `--detector`. It has its own log, `_job/free-heldout-log.md`, and one line there spends it. Its files are `_job/free-heldout-<commit>.json` (per track, which stays on the volume), `_job/free-heldout-progress-<commit>.jsonl`, and `_job/free-verdict-<commit>.md` and `.json`, the aggregates `free-verdict.ts` writes. A restart after the look's file only judges it again. The `heldout` mode refuses the free sets.
+
+`calibration-heldout` runs from a built image only, since `RBA_BENCHMARK_SHA` names its files and so the code that judges them. It checks the committed confidence table, `../results/rba-106-calibration-dev.json`, which the image carries, on data it was not fitted on. Its scope is fixed: the `tempogram-hysteresis` detector on `fsld`, `groove`, `guitarset`, `free-mixes` and `free-mixes-contested`, and it takes no `--sets` or `--detector`. It runs in three steps:
+
+1. The tempogram on dev with this image, into `_job/calibration-dev-<commit>.json`, then `calibration.py refit` on its samples, taken at the row the table was fitted at (`pulseLostAfterSeconds` 3). The re-fit must give the committed tables exactly, on as many readings and at the same hysteresis, and every recorded confidence must be the committed table read at its recorded raw score. Otherwise it exits 1 with no look taken. Its report, aggregates only, is `_job/calibration-refit-<commit>.json`.
+2. The look, logged before any label is read in its own `_job/calibration-heldout-log.md`, one line of which spends it. It spends nothing of RBA-51's looks. Results go into `_job/calibration-heldout-<commit>.json`, with progress in `_job/calibration-heldout-progress-<commit>.jsonl`.
+3. `calibration.py heldout` reads the readings shown under the shipped `HYSTERESIS` at 10, 15, 20, 30 and 45 s and at the end, maps the raw scores with the shipped table, and judges them against `HELDOUT_BAR`. The result goes into `_job/calibration-verdict-<commit>.md` and `.json`, and the summary's `verdict.exit` is 0 for a pass and 1 for a fail. Both are a finished check, and the job exits 0. If `calibration.py` refuses its input or breaks, it exits 2 and writes no verdict. The job then fails with no verdict recorded, and a restart judges the same file again.
+
+The per-track files are the run results and `calibration-samples-*`, and they stay on the volume. Only the verdict and the re-fit report leave it. A restart after the look's file only judges it again, until a verdict is recorded. A restart during the look must give the same `--reason`, because the logged line names it, and any other reason is refused as another look.
 
 `--sets a,b` narrows any of them but a look, for a test. A `tune` that narrow says so in `scope`, and proves less. Curves and rows live in `_job/tune-<commit>-<scope>/`, so a test or a new image never mixes with an earlier run. `RBA_JOB_WORKERS` sets the worker count, and a job should set it: a container sees the host's cores, not its own limit. Run one at a time on a volume: two jobs fight over the same part files.
 

@@ -7,15 +7,15 @@ description: BPM detection in Node.js, Bun or Deno with realtime-bpm-analyzer/no
 
 `realtime-bpm-analyzer/node` runs the offline analysis outside the browser, in
 Node.js, Bun or Deno. It needs no Web Audio API and adds no dependency: you
-pass decoded samples and get tempo candidates back.
+pass decoded samples and get a reading back, the same shape the browser gives.
 
 ```typescript
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 
 // channelData: a Float32Array of samples in [-1, 1], from any decoder
-const tempos = await analyzeChannelData(channelData, 44100);
+const reading = await analyzeChannelData(channelData, 44100);
 
-console.log('Detected BPM:', tempos[0]?.tempo);
+console.log('Detected BPM:', reading?.bpm);
 ```
 
 CommonJS works too: `const {analyzeChannelData} = require('realtime-bpm-analyzer/node')`.
@@ -28,10 +28,10 @@ usually do.
 ## Same results as the browser
 
 `analyzeChannelData` is the Node counterpart of
-`analyzeFullBuffer`. The browser version
-lowpasses the audio with a Web Audio `BiquadFilterNode`. The Node version uses a
-plain JavaScript biquad with the coefficients the Web Audio specification
-defines for that node, then runs the same peak detection and tempo grouping.
+`analyzeFullBuffer`, and runs the same engine: the default `tempogram`, or
+`peaks`. For `peaks`, the browser version lowpasses the audio with a Web Audio
+`BiquadFilterNode`. The Node version uses a plain JavaScript biquad with the
+coefficients the Web Audio specification defines for that node.
 
 The test suite checks this on every change:
 
@@ -39,10 +39,20 @@ The test suite checks this on every change:
   `1e-5` per sample (measured at most `1.4e-6`), and its magnitude response matches
   `getFrequencyResponse`
 - on the test fixture and on click tracks from 90 to 174 BPM, both functions
-  return identical candidates: same tempos, counts and confidences
+  return the same reading: same `bpm` and candidates, and the same
+  `bpmExact` and `confidence` within `1e-9`
 
 Pass channel 0 to match `analyzeFullBuffer`, which reads the first channel, or
 a mono downmix of your own.
+
+## Runtimes tested on every change
+
+CI runs the [conformance vectors](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/conformance)
+through `analyzeChannelData` in Node 22.12.0 and 26.12.1, Deno 2.9.8, Bun 1.4.4
+and Hermes, the engine of React Native 0.88. Each run must return the reference
+reading for every case. These runs cover analysing samples you already hold.
+Live microphone input stays browser-only, since React Native needs a native
+audio module for it.
 
 ## Decoding the audio
 
@@ -78,12 +88,13 @@ export async function decode(path) {
 
 Then, with the library installed (`npm install realtime-bpm-analyzer`), `bpm.mjs`:
 
+<!-- typecheck: skip, imports decode.mjs from the block above -->
 ```javascript
 import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
 import {decode, SAMPLE_RATE} from './decode.mjs';
 
-const tempos = await analyzeChannelData(await decode(process.argv[2]), SAMPLE_RATE);
-console.log(tempos[0] ? `${tempos[0].tempo} BPM` : 'no clear beat');
+const reading = await analyzeChannelData(await decode(process.argv[2]), SAMPLE_RATE);
+console.log(reading ? `${reading.bpm} BPM` : 'no clear beat');
 ```
 
 ```bash
@@ -100,6 +111,7 @@ The same decoder over every audio file in a folder, one level deep, printed as o
 JSON array. A file ffmpeg can't read is listed with its error, and the others carry
 on. Save it as `bpm-folder.mjs`:
 
+<!-- typecheck: skip, imports decode.mjs from the block above -->
 ```javascript
 import {readdir} from 'node:fs/promises';
 import {extname, join} from 'node:path';
@@ -113,8 +125,8 @@ const names = (await readdir(folder)).filter((name) => AUDIO.has(extname(name).t
 const results = [];
 for (const name of names) {
   try {
-    const tempos = await analyzeChannelData(await decode(join(folder, name)), SAMPLE_RATE);
-    results.push({file: name, bpm: tempos[0]?.tempo ?? null, candidates: tempos});
+    const reading = await analyzeChannelData(await decode(join(folder, name)), SAMPLE_RATE);
+    results.push({file: name, bpm: reading?.bpm ?? null, candidates: reading?.candidates ?? []});
   } catch (error) {
     results.push({file: name, error: String(error)});
   }
@@ -134,29 +146,48 @@ Files are analysed one after another, so memory holds one decoded file at a time
 
 The third argument takes the same options as `analyzeFullBuffer`:
 
-| Option           | Default         | Meaning                                                   |
-| ---------------- | --------------- | --------------------------------------------------------- |
-| `frequencyValue` | `200`           | Lowpass cutoff in Hz                                      |
-| `qualityValue`   | `1`             | Lowpass Q, in dB as Web Audio reads it                    |
-| `tempoRange`     | `{90, 180}`     | Range the tempos fold into; `max` must be at least 2 × `min` |
-| `detector`       | `'peaks'`       | `'tempogram'` reads spectral flux across bands, with no lowpass |
+| Option       | Default     | Meaning                                                   |
+| ------------ | ----------- | --------------------------------------------------------- |
+| `engine`     | `'tempogram'` | `'tempogram'` reads spectral flux across bands, with no lowpass. `'peaks'` reads amplitude peaks after a lowpass, and `{name: 'peaks', lowpass: {frequency, q}}` sets it, by default 200 Hz and Q 1. `frequency` is the cutoff in Hz, above 0 and below half the sample rate. `q` is the resonance at the cutoff in dB, as Web Audio reads a lowpass `Q` (α = sin(ω0) / (2 × 10^(q/20)), so 0 dB is a linear Q of 1), from -758 to 770 dB, where 10^(q/20) is a normal, finite 32-bit float as Web Audio computes it |
+| `tempoRange` | `{90, 180}` | Range the tempos are reported in: `peaks` folds into it, `tempogram` searches it; `max` must be at least 2 × `min` |
 
 ```typescript
-const tempos = await analyzeChannelData(channelData, sampleRate, {
+import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
+
+const reading = await analyzeChannelData(channelData, sampleRate, {
   tempoRange: {min: 70, max: 140}, // report 87 rather than 174
 });
 ```
 
-It resolves to up to 5 candidates sorted by `count`, each with `tempo`,
-`count` and `confidence` (the `Tempo` type in the [API reference](/api/)). Silence or
-audio without a clear beat resolves to an empty array.
+It resolves to one reading (the `Reading` type in the [API reference](/api/)):
+the tempo to show, `bpm`, its unrounded value, `bpmExact`, and up to 5
+`candidates`, each with a `bpm` and its `relation` to that tempo. Silence or
+audio without a clear beat resolves to `null`.
 
-It throws when `channelData` is not a non-empty `Float32Array`, and throws a
-`RangeError` for a sample rate that is not positive, a filter option that is not
-a finite number, an invalid `tempoRange` or an unknown `detector`.
+Its promise rejects when `channelData` is not a non-empty `Float32Array`, and
+rejects with a `RangeError` for a sample rate that is not positive, a lowpass
+setting that is `NaN` or infinite, a lowpass `frequency` that is not above 0 and
+below half the sample rate, a lowpass `q` that is not from -758 to 770 dB, an
+invalid `tempoRange` or an unknown `engine`. A 5.x option
+(`detector`, `frequencyValue`, `qualityValue`) rejects with a `TypeError` that
+names its replacement. So do any other option than `engine` and `tempoRange`
+(naming it, whatever its value), a `tempoRange` key other than `min` and `max`,
+an `engine` object with a key other than `name` and
+`lowpass`, whatever its value (naming the key: `restartAfterSeconds` is a
+realtime setting, and a typo such as `lowpas` would otherwise drop your lowpass),
+an `engine.lowpass` that is not an object, `null` or `undefined` (naming its
+type), a key in it other than `frequency` and `q` (naming the key), and a
+setting that is not a number. These checks run before any filtering, so a bad
+setting fails at once on a long file.
 
 ## The filter on its own
 
 `applyLowpass(channelData, sampleRate, options?)` is exported too. It returns a
 new `Float32Array` filtered like the browser pipeline, and leaves the input
-untouched.
+untouched. Its `options` are the `{frequency, q}` of `engine.lowpass`, typed
+`LowpassOption`, with the same defaults and the same checks: any other key
+throws a `TypeError` that names it, and a `frequency` that is not above 0 and
+below half `sampleRate`, or a `q` that is not from -758 to 770 dB, throws a
+`RangeError`. 5.x clamped that frequency
+silently, as Web Audio does, so 0 gave silence and 22050 Hz at 44.1 kHz gave
+the input back unfiltered.

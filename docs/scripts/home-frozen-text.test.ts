@@ -60,14 +60,17 @@ const FROZEN_SECTIONS: readonly (readonly [string, string])[] = [
   ['## For developers', 'DEV'],
 ]
 
-// Taken from main at 4c25a8f, before the layout change.
+// Taken from main at 4c25a8f, before the layout change. FAQ and DEV were re-pinned by v6 of the
+// library (RBA-108): the frozen words showed the 5.x API that v6 removes (the bpm and bpmStable
+// events, the stabilisation time) and named peaks' low-pass as how it works, so they could not
+// stay. v6 deploys after the day-14 read. The rendered-text diff is on RBA-108 (2026-11-15).
 const PINS: Readonly<Record<string, string>> = {
   FIND: '118cfd63d08e3898',
   LIMITS: 'f1369c32a1493820',
   WHAT: 'f00c625bf13206bd',
   WHO: '72687c76259beffc',
-  FAQ: 'f966ee01825703c9',
-  DEV: '86d5c6cf2255b976',
+  FAQ: 'c6057cd105138589',
+  DEV: '50450161c5a40ee6',
 }
 
 test('the sections keep every word, wherever the layout puts them', () => {

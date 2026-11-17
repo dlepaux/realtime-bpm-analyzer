@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef, nextTick, type Component } from 'vue'
 import { useAnalytics } from '../composables/useAnalytics'
 import { ADDRESSES, ICONS, SCENES, TEMPO_RANGE, crowdPath } from '../tools/extension-scenes'
-import type { ScenesPlayback } from '../tools/extension-scenes-player'
+import type { ScenesPlayback, playScenes as PlayScenes } from '../tools/extension-scenes-player'
 import ExtensionSceneOverlay from './ExtensionSceneOverlay.vue'
 
 // The demo on the extension's first screens (RBA-58): drawn pages with the overlay on them, no
@@ -35,7 +35,8 @@ const SIDEBAR = [
 ]
 
 let playback: ScenesPlayback | null = null
-let playScenes: typeof import('../tools/extension-scenes-player').playScenes | null = null
+// The player loads on demand (below), so only its type is imported here
+let playScenes: typeof PlayScenes | null = null
 let observer: IntersectionObserver | null = null
 // On screen at all, which keeps it running, and half on screen, which starts it.
 let inView = false

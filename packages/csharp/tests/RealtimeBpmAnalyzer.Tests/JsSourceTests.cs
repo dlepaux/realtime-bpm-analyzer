@@ -37,6 +37,10 @@ public sealed class JsSourceTests
         Assert.Equal(Lowpass.MinQ, Constant(lowpass, "const qMin"));
         Assert.Equal(Lowpass.MaxQ, Constant(lowpass, "const qMax"));
 
+        // The level-relative peaks search (RBA-221): the percentile of the window maxima, and the floor under which it reads silence
+        Assert.Equal(PeaksEngine.LevelPercentile, Constant(consts, "export const levelPercentile"));
+        Assert.Equal(PeaksEngine.SilenceFloor, Constant(consts, "export const silenceFloor"));
+
         Assert.Contains("export const defaultEngine: EngineName = 'tempogram';", Source("core/engine.ts"), StringComparison.Ordinal);
         Assert.Equal(Engine.Tempogram, AnalysisOptions.Default.Engine);
     }

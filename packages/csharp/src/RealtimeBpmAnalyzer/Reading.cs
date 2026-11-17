@@ -90,7 +90,9 @@ namespace RealtimeBpmAnalyzer
         /// <summary>
         /// The chance, from 0 to 1, that <see cref="Bpm"/> is right: a confidence of 0.8 is right about 80% of the
         /// time. <see langword="null"/> when it was not measured: the reading's tempo is outside 90 to 180 BPM, or the
-        /// analysis ran on any tempo range other than 90 to 180. <see langword="null"/> is never a small number.
+        /// analysis ran on any tempo range other than 90 to 180, or the peaks engine found the beats only relative to a
+        /// quiet or bass-light input's own level, which input may hold no beat at all. <see langword="null"/> is never
+        /// a small number.
         /// </summary>
         public double? Confidence { get; }
 

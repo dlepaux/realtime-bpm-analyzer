@@ -81,7 +81,7 @@ var options = new AnalysisOptions(
 | --- | --- | --- |
 | `int Bpm` | `bpm` | The tempo, a whole BPM inside the tempo range |
 | `double BpmExact` | `bpmExact` | The same tempo, unrounded |
-| `double? Confidence` | `confidence` | The chance the reading is right, 0 to 1. `null` when the range is not the default 90 to 180, or the tempo is outside it: unmeasured, never a small number |
+| `double? Confidence` | `confidence` | The chance the reading is right, 0 to 1. `null` when the range is not the default 90 to 180, or the tempo is outside it, or the peaks engine found the beats only relative to a quiet or bass-light input's own level, which input may hold no beat at all: unmeasured, never a small number |
 | `IReadOnlyList<Candidate> Candidates` | `candidates` | Up to 5 tempos, best first, each with its `Bpm` and `Relation` to the top one: `Top`, `Half`, `Double` or `Other` |
 | `double AudioFrom`, `double AudioTo` | `audio.from`, `audio.to` | The span analysed, in seconds: 0 to the buffer's length |
 | `EngineName Engine` | `engine` | `Tempogram` or `Peaks` |

@@ -11,6 +11,7 @@ homeHero:
 
 <script setup>
 import HomeByline from './.vitepress/components/HomeByline.vue'
+import HomePlatforms from './.vitepress/components/HomePlatforms.vue'
 </script>
 
 <HomeByline />
@@ -124,6 +125,141 @@ read at half or double its tempo, so check the number against what you hear.
 
 **Yes.** The analyzer is a zero-dependency TypeScript library published to npm.
 See the **developer docs** below.
+
+## Where it runs
+
+The library reads the tempo in the browser, live or from a file, and from
+decoded samples in Node.js, Deno, Bun, Python, Java, Kotlin and Android. The
+Python and Java ports give the same readings as the JS library, proven by
+shared conformance vectors.
+
+<HomePlatforms>
+<template #javascript>
+
+In the browser: live from the microphone, or the tempo of a decoded file.
+
+```bash
+npm install realtime-bpm-analyzer
+```
+
+```typescript
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
+
+const audioContext = new AudioContext();
+
+// HTTPS is required. getUserMedia only works on secure origins (or localhost).
+const stream = await navigator.mediaDevices.getUserMedia({
+  audio: {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+  },
+});
+
+const source = audioContext.createMediaStreamSource(stream);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+
+source.connect(analyzer.input);
+
+// Do NOT connect to destination: that makes a feedback loop.
+
+analyzer.on('reading', ({ bpm }) => {
+  console.log(`Mic tempo: ${bpm} BPM`);
+});
+```
+
+```typescript
+import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
+
+const arrayBuffer = await (await fetch('/song.mp3')).arrayBuffer();
+const buffer = await audioContext.decodeAudioData(arrayBuffer);
+const reading = await analyzeFullBuffer(buffer);
+console.log('BPM:', reading?.bpm ?? 'no tempo found');
+```
+
+</template>
+<template #node>
+
+In Node.js, Deno and Bun: the tempo of samples from any decoder.
+
+```bash
+npm install realtime-bpm-analyzer
+```
+
+```typescript
+import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
+
+// channelData: a Float32Array of samples in [-1, 1], from any decoder
+const reading = await analyzeChannelData(channelData, 44100);
+
+console.log('Detected BPM:', reading?.bpm);
+```
+
+</template>
+<template #python>
+
+In Python 3.11 or later, with NumPy: the tempo of samples from any decoder.
+
+```bash
+pip install realtime-bpm-analyzer
+```
+
+```python
+import soundfile
+from realtime_bpm_analyzer import analyze_channel_data
+
+samples, sample_rate = soundfile.read("song.wav", dtype="float32", always_2d=True)
+reading = analyze_channel_data(samples[:, 0], sample_rate)
+
+if reading is not None:
+    print(f"{reading.bpm} BPM, confidence {reading.confidence}")
+```
+
+</template>
+<template #java>
+
+On Java 8 or later, with no dependencies: the tempo of samples from any decoder.
+
+```xml
+<dependency>
+  <groupId>io.github.dlepaux</groupId>
+  <artifactId>realtime-bpm-analyzer</artifactId>
+  <version>6.2.0</version>
+</dependency>
+```
+
+```java
+import io.github.dlepaux.realtimebpmanalyzer.BpmAnalyzer;
+import io.github.dlepaux.realtimebpmanalyzer.Reading;
+
+float[] samples = decodeMono(file); // your decoder: one channel, -1 to 1
+Reading reading = BpmAnalyzer.analyzeChannelData(samples, 44100);
+if (reading != null) {
+    System.out.println(reading.bpm() + " BPM");
+}
+```
+
+</template>
+<template #kotlin>
+
+In Kotlin and on Android, with the same jar: the tempo of samples from any decoder.
+
+```kotlin
+implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")
+```
+
+```kotlin
+import io.github.dlepaux.realtimebpmanalyzer.BpmAnalyzer
+
+val samples: FloatArray = decodeMono(file) // your decoder: one channel, -1 to 1
+val reading = BpmAnalyzer.analyzeChannelData(samples, 44100.0)
+if (reading != null) {
+    println("${reading.bpm()} BPM")
+}
+```
+
+</template>
+</HomePlatforms>
 
 ## For developers
 

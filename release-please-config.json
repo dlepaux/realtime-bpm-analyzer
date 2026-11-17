@@ -34,7 +34,7 @@
       "include-component-in-tag": true,
       "changelog-path": "changelog.md",
       "skip-snapshot": true,
-      "extra-files": ["readme.md", "/docs/guide/java.md"],
+      "extra-files": ["readme.md", "/docs/guide/java.md", "/docs/index.md", "/readme.md"],
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
         { "type": "fix", "section": "Bug Fixes" },

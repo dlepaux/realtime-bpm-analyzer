@@ -198,7 +198,8 @@ console.log('Detected BPM:', reading?.bpm);
 </template>
 <template #python>
 
-In Python 3.11 or later, with NumPy: the tempo of samples from any decoder.
+In Python 3.11 or later, with NumPy: the tempo of samples from any decoder. This one reads the file
+with [soundfile](https://pypi.org/project/soundfile/), installed on its own.
 
 ```bash
 pip install realtime-bpm-analyzer

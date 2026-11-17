@@ -54,11 +54,15 @@ test('index.md fills one slot per tab, and no other', () => {
   assert.deepEqual([...slots().keys()], LANGUAGE_TABS.map((tab) => tab.id))
 })
 
+// A shell install command, a Maven dependency, or a Gradle line.
+const INSTALL = /^(```bash\n(npm|pip) install |```xml\n<dependency>|```kotlin\nimplementation\()/
+
 test("every tab has its install line and a sample, each copied from the tab's guides", () => {
   const filled = slots()
   for (const tab of LANGUAGE_TABS) {
     const blocks = fences(filled.get(tab.id) ?? '')
     assert.ok(blocks.length >= 2, `the ${tab.label} tab needs an install line and a sample`)
+    assert.match(blocks[0] ?? '', INSTALL, `the ${tab.label} tab opens with its install line`)
     const guides = tab.sources.map((source) => fences(read(`../guide/${source}`))).flat()
     for (const block of blocks) {
       assert.ok(guides.includes(block), `the ${tab.label} tab shows a block none of ${tab.sources.join(', ')} has:\n${block}`)

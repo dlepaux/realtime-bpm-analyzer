@@ -111,9 +111,9 @@ enum Peaks {
     /// levelReference. The maxima of its 0.25 s windows, each from 0 so only positive samples count, sorted, and the one
     /// at index floor((windows - 1) * 98 / 100), in whole numbers.
     static func levelReference(_ data: [Float], sampleRate: Double) -> Float {
-        if data.isEmpty { return 0 }
-        // At least one sample, and at most the channel
+        // The rate first, as JS checks it: under 2 Hz this traps even on an empty channel, where the window is 0
         let window = skipCount(sampleRate: sampleRate, count: data.count)
+        if data.isEmpty { return 0 }
         // The window is at most the channel, so this can't overflow
         let count = data.count / window + (data.count % window == 0 ? 0 : 1)
         var maxima = [Float](repeating: 0, count: count)

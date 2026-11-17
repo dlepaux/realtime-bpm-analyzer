@@ -143,7 +143,10 @@ def _relation_to(top: int, bpm: int) -> CandidateRelation:
     return "double" if near(top * 2) else "other"
 
 
-def _to_reading(tempos: list[Tempo], audio: AudioSpan, engine: EngineName, tempo_range: TempoRange) -> Reading | None:
+def _to_reading(
+    tempos: list[Tempo], audio: AudioSpan, engine: EngineName, tempo_range: TempoRange, calibrated: bool
+) -> Reading | None:
+    """The reading, its confidence None when `calibrated` is False: a peaks file read relative to its level (RBA-221)."""
     if not tempos:
         return None
     top = tempos[0]
@@ -154,7 +157,7 @@ def _to_reading(tempos: list[Tempo], audio: AudioSpan, engine: EngineName, tempo
     return Reading(
         bpm=top.tempo,
         bpm_exact=top.exact,
-        confidence=calibrate(engine, top.confidence, top.tempo, tempo_range),
+        confidence=calibrate(engine, top.confidence, top.tempo, tempo_range) if calibrated else None,
         candidates=candidates,
         audio=audio,
         engine=engine,
@@ -217,9 +220,9 @@ def analyze_channel_data(
     # has no such warnings, and the engines follow it
     with np.errstate(invalid="ignore", over="ignore"):
         if engine == "tempogram":
-            tempos = detect_tempogram(channel, rate, resolved_range)
+            tempos, calibrated = detect_tempogram(channel, rate, resolved_range), True
         else:
-            tempos = detect_peaks(channel, rate, resolved_range, frequency, q)
+            tempos, calibrated = detect_peaks(channel, rate, resolved_range, frequency, q)
     # One double division, as in JS: the rate is checked by now
     audio = AudioSpan(start=0.0, end=len(channel) / rate)
-    return _to_reading(tempos, audio, engine, resolved_range)
+    return _to_reading(tempos, audio, engine, resolved_range, calibrated)

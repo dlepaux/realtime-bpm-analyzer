@@ -23,6 +23,10 @@ PEAK_SKIP_SECONDS = 0.25
 MINIMUM_SAMPLE_RATE = 2
 MAX_INTERVAL_COMPARISONS = 10
 MAX_CANDIDATES = 5
+# RBA-221: the percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks
+LEVEL_PERCENTILE = 98
+# -70 dBFS: under it the level-relative search reads silence. Written out as JS writes it, the same double
+SILENCE_FLOOR = 0.00031622776601683794
 _THRESHOLD_DECIMALS = 1e9
 # The recursion runs in Python, a block at a time, so the floats it holds stay bounded on long inputs
 _FILTER_BLOCK = 1 << 16
@@ -111,6 +115,43 @@ def find_peaks(data: NDArray[np.float64], sample_rate: float) -> list[int]:
     return []
 
 
+def level_reference(data: NDArray[np.float64], sample_rate: float) -> float:
+    """The level of a channel's loudest beats, which one click or clipped transient can't set (RBA-221).
+
+    The maxima of its 0.25 s windows, each from 0 so only positive samples count (a NaN one never wins, as in JS),
+    sorted, and the one at index floor((windows - 1) * 98 / 100) in whole numbers: not NumPy's interpolating
+    `percentile`, which reads another value (conformance/readme.md, The peaks level).
+    """
+    window = js_round(PEAK_SKIP_SECONDS * sample_rate)
+    assert window >= 1, "the analysis refuses a rate under 2 Hz first"
+    if len(data) == 0:
+        return 0.0
+    # One window past the whole input holds the same maximum, and keeps the padding below bounded
+    window = min(window, len(data))
+    count = -(-len(data) // window)
+    positive = np.zeros(count * window, dtype=np.float64)
+    positive[: len(data)] = np.where(data > 0, data, 0.0)
+    maxima = np.sort(positive.reshape(count, window).max(axis=1))
+    return float(maxima[((count - 1) * LEVEL_PERCENTILE) // 100])
+
+
+def find_peaks_relative_to_level(data: NDArray[np.float64], sample_rate: float) -> list[int]:
+    """The fixed ladder again, every rung scaled by the channel's level (RBA-221): none under the floor or at full scale.
+
+    The level is a Python float, so each product and comparison is in double, as in JS. A NumPy float32 level would
+    keep `rung * level` in float32 under NumPy 2's promotion rules.
+    """
+    level = level_reference(data, sample_rate)
+    if not (level >= SILENCE_FLOOR and level < 1):
+        return []
+    skip = js_round(PEAK_SKIP_SECONDS * sample_rate)
+    for rung in threshold_ladder():
+        peaks = find_peaks_at_threshold(data, rung * level, skip)
+        if len(peaks) >= MIN_PEAKS:
+            return peaks
+    return []
+
+
 def identify_intervals(peaks: list[int]) -> dict[int, int]:
     """How often each interval occurs between a peak and its next 9, in the order first met: ties keep that order."""
     counts: dict[int, int] = {}
@@ -177,10 +218,23 @@ def _with_confidence(groups: dict[int, Votes], across_edge: dict[int, Votes]) ->
     return tempos
 
 
-def detect_peaks(samples: NDArray[np.float32], sample_rate: float, tempo_range: TempoRange, frequency: float, q: float) -> list[Tempo]:
-    """Up to 5 candidates, most votes first, ties in the order they were first met."""
+def detect_peaks(
+    samples: NDArray[np.float32], sample_rate: float, tempo_range: TempoRange, frequency: float, q: float
+) -> tuple[list[Tempo], bool]:
+    """Up to 5 candidates, most votes first, ties in the order they were first met, and whether they are calibrated.
+
+    The flag is False when the peaks were found only relative to the channel's level: the peaks calibration (RBA-106)
+    never saw such a reading, so its confidence is unmeasured.
+    """
     filtered = apply_lowpass(samples.astype(np.float64), sample_rate, frequency, q)
     # Compared as doubles, as JS compares: NumPy would compare a float32 array with a float threshold in float32
-    peaks = find_peaks(filtered.astype(np.float64), sample_rate)
+    as_doubles = filtered.astype(np.float64)
+    peaks = find_peaks(as_doubles, sample_rate)
+    calibrated = True
+    # RBA-221: whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no peaks in
+    # is searched again relative to its level
+    if not peaks:
+        peaks = find_peaks_relative_to_level(as_doubles, sample_rate)
+        calibrated = False
     tempos = group_by_tempo(identify_intervals(peaks), sample_rate, tempo_range)
-    return sorted(tempos, key=lambda tempo: tempo.count, reverse=True)[:MAX_CANDIDATES]
+    return sorted(tempos, key=lambda tempo: tempo.count, reverse=True)[:MAX_CANDIDATES], calibrated

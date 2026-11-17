@@ -371,6 +371,15 @@ describe('offlineSample', function () {
       expect(calibrate(engine, sample![2], sample![0], defaultRange)).to.equal(reading!.confidence);
     });
   }
+
+  it('leaves out a peaks reading found only relative to the input\'s level, which is no sample for the fit', async () => {
+    // At -40 dBFS the fixed ladder finds no peak, so analyzeSamples reads it only through RBA-221's search
+    const pcm = createClickTrack(128, sampleRate, 20).map(sample => sample * 0.01);
+    const reading = await analyzeSamples(pcm, sampleRate, {engine: 'peaks'}, async lowpass => applyLowpass(pcm, sampleRate, lowpass));
+    expect(reading?.bpm).to.equal(128);
+    expect(reading?.confidence).to.equal(null);
+    expect(await offlineSample(pcm, sampleRate, 'peaks')).to.equal(null);
+  });
 });
 
 describe('the session\'s debug detail', function () {

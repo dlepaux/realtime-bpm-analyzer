@@ -63,14 +63,14 @@ def analyze_channel_data(
 - `lowpass`: the peaks engine's filter, `Lowpass(frequency=200, q=1)` by default, with Q in dB. Only `peaks` takes
   one.
 
-It returns `None` when it finds no tempo: silence, noise, or under 1.5 seconds of audio for the tempogram. Otherwise
-it returns a frozen `Reading`:
+It returns `None` when it finds no tempo, as for silence or under 1.5 seconds of audio for the tempogram. Input with
+no beat, such as noise, may still return a reading. Otherwise it returns a frozen `Reading`:
 
 | Field | Type | |
 |-------|------|-|
 | `bpm` | `int` | The tempo, rounded |
 | `bpm_exact` | `float` | The tempo before rounding |
-| `confidence` | `float \| None` | From 0 to 1, calibrated on the default 90 to 180 BPM range. `None` with any other range |
+| `confidence` | `float \| None` | From 0 to 1, calibrated on the default 90 to 180 BPM range. `None` with any other range, for a tempo outside it, or for a peaks reading found only relative to a quiet or bass-light input's own level, which input may hold no beat at all |
 | `candidates` | `tuple[Candidate, ...]` | Up to 5 tempos, best first. Each has a `bpm` and a `relation` to the top one: `"top"`, `"half"`, `"double"` or `"other"` |
 | `audio` | `AudioSpan` | The span read, in seconds: `start` and `end` |
 | `engine` | `str` | The engine that read it |

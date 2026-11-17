@@ -59,7 +59,7 @@ namespace RealtimeBpmAnalyzer
             double audioTo = samples.Length / sampleRate;
             if (engine.Name == EngineName.Tempogram)
             {
-                return ToReading(TempogramEngine.Detect(samples, sampleRate, range), audioTo, EngineName.Tempogram, range);
+                return ToReading(TempogramEngine.Detect(samples, sampleRate, range), audioTo, EngineName.Tempogram, range, true);
             }
 
             // Engine.Peaks and Engine.PeaksWith always carry a lowpass
@@ -74,7 +74,8 @@ namespace RealtimeBpmAnalyzer
                     Invariant($"Invalid sample rate: {sampleRate}. The peaks engine needs at least {PeaksEngine.MinSampleRate} Hz, where the skip after a peak is a whole sample."));
             }
 
-            return ToReading(PeaksEngine.Detect(samples, sampleRate, lowpass, range), audioTo, EngineName.Peaks, range);
+            PeaksEngine.Detection detection = PeaksEngine.Detect(samples, sampleRate, lowpass, range);
+            return ToReading(detection.Tempos, audioTo, EngineName.Peaks, range, detection.Calibrated);
         }
 
         /// <summary>
@@ -114,7 +115,12 @@ namespace RealtimeBpmAnalyzer
             }
         }
 
-        private static Reading? ToReading(List<Tempo> tempos, double audioTo, EngineName engine, TempoRange range)
+        /// <summary>
+        /// The reading of the top candidate. <c>calibrated</c> is false when the calibration never saw readings found
+        /// the way these were, as for a peaks file read relative to its own level (RBA-221): the confidence is then
+        /// null, unmeasured.
+        /// </summary>
+        private static Reading? ToReading(List<Tempo> tempos, double audioTo, EngineName engine, TempoRange range, bool calibrated)
         {
             if (tempos.Count == 0)
             {
@@ -133,7 +139,7 @@ namespace RealtimeBpmAnalyzer
             return new Reading(
                 ToInt(top.Whole),
                 top.Exact,
-                Calibration.Calibrate(engine, top.Score, top.Whole, range),
+                calibrated ? Calibration.Calibrate(engine, top.Score, top.Whole, range) : null,
                 candidates,
                 0,
                 audioTo,

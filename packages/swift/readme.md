@@ -84,13 +84,14 @@ Both read the same; the buffer one saves a copy when the samples are already in 
   - `tempoRange`: `TempoRange(min: 90, max: 180)` by default. `max` must be at least twice `min`, and at most
     2,147,483,647. A tempo outside the range reads at its octave inside.
 
-It returns `nil` when no tempo was found: silence, noise, or under 1.5 seconds for the tempogram. Otherwise a
-`Reading`, a value type like every other here, and `Sendable`:
+It returns `nil` when no tempo was found: silence, or under 1.5 seconds for the tempogram. Input with no beat, such
+as noise, may still return a reading. Otherwise a `Reading`, a value type like every other here, and `Sendable`:
 
 - `bpm`: the tempo, a whole BPM.
 - `bpmExact`: the same tempo before rounding.
 - `confidence`: how likely the reading is right, from 0 to 1, or `nil` where that was never measured: on any range
-  other than 90 to 180 BPM, which the confidence was calibrated on.
+  other than 90 to 180 BPM, which the confidence was calibrated on, or when the peaks engine found the beats only
+  relative to a quiet or bass-light input's own level, which input may hold no beat at all.
 - `candidates`: up to 5 tempos, the reading's first, each with its `relation` to it: `.top`, `.half`, `.double` or
   `.other`. The JS library may add a relation in a minor release, so a `switch` over it should keep a `default`.
 - `audio`: the span analysed, `from` 0 `to` the duration in seconds.

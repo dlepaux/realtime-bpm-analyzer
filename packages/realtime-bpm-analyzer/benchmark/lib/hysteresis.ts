@@ -360,17 +360,23 @@ function rawOf(bpm: number, confidence: number | null, raw: number | null): numb
 
 /**
  * The offline reading, with its raw score: the same detection and the same `toReading` as `analyzeSamples` with
- * only the engine named, which a test holds, so the score is the one the reading's confidence maps
+ * only the engine named, which a test holds, so the score is the one the reading's confidence maps. A peaks reading
+ * found only relative to the input's level (RBA-221) is left out: its confidence is null by design, not by the
+ * tables, so it is no sample for fitting them, and leaving it out keeps the fit's input what it was before RBA-221.
  * @param raw Mono samples, not lowpassed
  * @param sampleRate Their rate
  * @param engine The engine
- * @returns The reading, or null when there is none
+ * @returns The reading, or null when there is none or it is uncalibrated by design
  */
 export async function offlineSample(raw: Float32Array, sampleRate: number, engine: EngineName): Promise<Sample> {
   const tempoRange = resolveTempoRange(undefined);
-  const tempos = engine === 'tempogram'
-    ? detectTempogram(raw, sampleRate, tempoRange)
+  const {tempos, calibrated} = engine === 'tempogram'
+    ? {tempos: detectTempogram(raw, sampleRate, tempoRange), calibrated: true}
     : await detectTempo(applyLowpass(raw, sampleRate, {}), sampleRate, tempoRange);
+  if (!calibrated) {
+    return null;
+  }
+
   const reading = toReading(tempos, {from: 0, to: raw.length / sampleRate, contextTime: null}, engine, tempoRange);
   const score = rawScore(tempos);
   return reading === null || score === null ? null : [reading.bpm, reading.confidence, score];

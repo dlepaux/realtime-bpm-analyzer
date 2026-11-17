@@ -23,13 +23,27 @@ enum Peaks {
     /// Each peak is paired with the next ones up to this many places on, this one excluded.
     static let maxIntervalComparisons = 10
     static let maxCandidates = 5
+    /// The percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks
+    /// (RBA-221): JS's levelPercentile.
+    static let levelPercentile = 98
+    /// -70 dBFS: under it the level-relative search reads silence. Written out as JS writes it, the same double.
+    static let silenceFloor = 0.00031622776601683794
 
-    /// Up to 5 candidates, by votes, empty when no threshold found enough peaks. The rate and the lowpass are checked.
-    static func detect(_ samples: UnsafeBufferPointer<Float>, sampleRate: Double, lowpass: Lowpass, range: TempoRange) -> [Tempo] {
+    /// Up to 5 candidates, by votes, none when no threshold found enough peaks, and whether the confidence calibration
+    /// covers them: JS's detectTempo. The rate and the lowpass are checked.
+    static func detect(_ samples: UnsafeBufferPointer<Float>, sampleRate: Double, lowpass: Lowpass, range: TempoRange) -> (tempos: [Tempo], calibrated: Bool) {
         let filtered = applyLowpass(samples, sampleRate: sampleRate, lowpass: lowpass)
-        let peaks = findPeaks(filtered, sampleRate: sampleRate)
+        var peaks = findPeaks(filtered, sampleRate: sampleRate)
+        var calibrated = true
+        // RBA-221: whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no peaks in
+        // is searched again relative to its level, and the calibration never saw such a reading
+        if peaks.isEmpty {
+            peaks = findPeaksRelativeToLevel(filtered, sampleRate: sampleRate)
+            calibrated = false
+        }
         let tempos = groupByTempo(identifyIntervals(peaks), sampleRate: sampleRate, range: range)
-        return Array(stableSortedByCount(tempos).prefix(maxCandidates)).map { Tempo(tempo: Double($0.tempo), exact: $0.exact, score: $0.score) }
+        let top = Array(stableSortedByCount(tempos).prefix(maxCandidates)).map { Tempo(tempo: Double($0.tempo), exact: $0.exact, score: $0.score) }
+        return (top, calibrated)
     }
 
     /// b0, b1, b2, a1, a2 as the Web Audio spec defines a `lowpass` BiquadFilterNode, with Q in dB.
@@ -73,15 +87,61 @@ enum Peaks {
         return rungs
     }
 
-    /// The peaks at the highest threshold that has at least `minPeaks` of them, or none.
-    static func findPeaks(_ data: [Float], sampleRate: Double) -> [Int] {
-        // At least one sample, as the rate is at least 2 Hz, which bounds each pass to `data.count` steps. A skip past
-        // the end ends the pass after its first peak, so it is capped there rather than converted whole
+    /// The samples skipped after a peak, which is also the window of `levelReference`: 0.25 s, rounded half up as JS's
+    /// Math.round rounds. At least one sample, as the rate is at least 2 Hz, which bounds each pass to `data.count`
+    /// steps. A skip past the end ends the pass after its first peak, and makes one window of the whole channel, so it
+    /// is capped there rather than converted whole.
+    private static func skipCount(sampleRate: Double, count: Int) -> Int {
         let skipSamples = jsRound(peakSkipSeconds * sampleRate)
         precondition(skipSamples >= 1, "a skip of no sample would find the same peak forever")
-        let skip = skipSamples < Double(data.count) ? Int(skipSamples) : data.count
+        return skipSamples < Double(count) ? Int(skipSamples) : count
+    }
+
+    /// The peaks at the highest threshold that has at least `minPeaks` of them, or none.
+    static func findPeaks(_ data: [Float], sampleRate: Double) -> [Int] {
+        let skip = skipCount(sampleRate: sampleRate, count: data.count)
         for threshold in thresholdLadder() {
             let peaks = findPeaks(data, threshold: threshold, skip: skip)
+            if peaks.count >= minPeaks { return peaks }
+        }
+        return []
+    }
+
+    /// The level of a channel's loudest beats, which one click or clipped transient can't set (RBA-221): JS's
+    /// levelReference. The maxima of its 0.25 s windows, each from 0 so only positive samples count, sorted, and the one
+    /// at index floor((windows - 1) * 98 / 100), in whole numbers.
+    static func levelReference(_ data: [Float], sampleRate: Double) -> Float {
+        // The rate first, as JS checks it: under 2 Hz this traps even on an empty channel, where the window is 0
+        let window = skipCount(sampleRate: sampleRate, count: data.count)
+        if data.isEmpty { return 0 }
+        // The window is at most the channel, so this can't overflow
+        let count = data.count / window + (data.count % window == 0 ? 0 : 1)
+        var maxima = [Float](repeating: 0, count: count)
+        for w in 0..<count {
+            let start = w * window
+            let end = Swift.min(data.count, start + window)
+            var maximum: Float = 0
+            // A NaN sample fails the comparison, so it never becomes a maximum, as in JS
+            for i in start..<end where data[i] > maximum {
+                maximum = data[i]
+            }
+            maxima[w] = maximum
+        }
+        maxima.sort()
+        // In 64 bits, so 32-bit platforms don't overflow on a long channel
+        return maxima[Int((Int64(count) - 1) * Int64(levelPercentile) / 100)]
+    }
+
+    /// The fixed ladder run again with every rung scaled by the channel's level, so a quiet or bass-light file is
+    /// searched the way a full-scale one is (RBA-221): JS's findPeaksRelativeToLevel. None under the silence floor, or
+    /// at full scale or above.
+    static func findPeaksRelativeToLevel(_ data: [Float], sampleRate: Double) -> [Int] {
+        // Widened to double here, so the floor comparison and every product below are in double, as in JS
+        let level = Double(levelReference(data, sampleRate: sampleRate))
+        guard level >= silenceFloor, level < 1 else { return [] }
+        let skip = skipCount(sampleRate: sampleRate, count: data.count)
+        for rung in thresholdLadder() {
+            let peaks = findPeaks(data, threshold: rung * level, skip: skip)
             if peaks.count >= minPeaks { return peaks }
         }
         return []

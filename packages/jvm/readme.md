@@ -93,7 +93,7 @@ AnalysisOptions options = AnalysisOptions.DEFAULT
 | --- | --- | --- |
 | `int bpm()` | `bpm` | The tempo, a whole BPM inside the tempo range |
 | `double bpmExact()` | `bpmExact` | The same tempo, unrounded |
-| `Double confidence()` | `confidence` | The chance the reading is right, 0 to 1. `null` when the range is not the default 90 to 180, or the tempo is outside it: unmeasured, never a small number |
+| `Double confidence()` | `confidence` | The chance the reading is right, 0 to 1. `null` when the range is not the default 90 to 180, or the tempo is outside it, or the peaks engine found the beats only relative to a quiet or bass-light input's own level, which input may hold no beat at all: unmeasured, never a small number |
 | `List<Candidate> candidates()` | `candidates` | Up to 5 tempos, best first, each with its `bpm()` and `relation()` to the top one: `TOP`, `HALF`, `DOUBLE` or `OTHER` |
 | `double audioFrom()`, `double audioTo()` | `audio.from`, `audio.to` | The span analysed, in seconds: 0 to the buffer's length |
 | `EngineName engine()` | `engine` | `TEMPOGRAM` or `PEAKS` |

@@ -50,8 +50,9 @@ public final class Reading {
      * The chance, from 0 to 1, that {@link #bpm()} is right: a confidence of 0.8 is right about 80% of the time.
      *
      * @return The chance, or {@code null} when it was not measured: the reading's tempo is outside 90 to 180 BPM, or
-     * the analysis ran on any tempo range other than 90 to 180. {@code null} is never a small number. Kotlin sees a
-     * platform type, so check it for null.
+     * the analysis ran on any tempo range other than 90 to 180, or the peaks engine found the beats only relative to
+     * a quiet or bass-light input's own level, which input may hold no beat at all. {@code null} is never a small
+     * number. Kotlin sees a platform type, so check it for null.
      */
     public Double confidence() {
         return confidence;

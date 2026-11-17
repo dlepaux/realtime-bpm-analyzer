@@ -128,6 +128,13 @@ This ensures the algorithm works with:
 - Quiet, dynamic recordings (low threshold)
 - Everything in between
 
+On a whole file, a channel whose filtered bass rarely or never rises above the lowest threshold, 0.2, such as a quiet
+master or a mix with little bass, can find too few peaks at every one of them. The file path then searches once more, with every
+threshold scaled by the channel's own level: the 98th percentile of its quarter-second maxima, so a single click can't
+set it. Under -70 dBFS that level counts as silence, and nothing is searched. A reading found this way reports
+`confidence: null`: the calibration never saw one, and since noise whose filtered level is above -70 dBFS can read a
+tempo this way, the input may hold no beat at all. The realtime path doesn't run this search.
+
 ### Step 4: Interval Calculation
 
 Once peaks are identified, the algorithm calculates the time intervals between consecutive peaks:
@@ -189,7 +196,7 @@ function getBPMCandidates(groups) {
 }
 ```
 
-A perfect click track scores about **0.46**, not 1: each peak is paired with the next nine, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. Randomly spaced peaks score below 0.1. In plain words: the score says how much the peaks agree on one tempo, and even a perfect beat agrees only about halfway. This raw score is not what a reading reports. The library maps it, through a table calibrated on licence-clean dev data from 90 to 180 BPM, to the estimated chance the reading is right, and does the same with the `tempogram` engine's own score, so inside that range `confidence` means the same whichever engine measured it. Outside it, or on a custom `tempoRange`, which changes what each engine picks, `confidence` is `null`: unmeasured.
+A perfect click track scores about **0.46**, not 1: each peak is paired with the next nine, and only pairs 1, 2, 4 and 8 beats apart fold back onto the beat tempo. Randomly spaced peaks score below 0.1. In plain words: the score says how much the peaks agree on one tempo, and even a perfect beat agrees only about halfway. This raw score is not what a reading reports. The library maps it, through a table calibrated on licence-clean dev data from 90 to 180 BPM, to the estimated chance the reading is right, and does the same with the `tempogram` engine's own score, so inside that range `confidence` means the same whichever engine measured it. Outside it, or on a custom `tempoRange`, which changes what each engine picks, `confidence` is `null`: unmeasured. So it is for a file reading found relative to the file's own level (Step 3), which may come from input with no beat at all.
 
 ## Signal Processing Features
 

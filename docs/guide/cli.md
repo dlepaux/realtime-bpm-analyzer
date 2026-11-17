@@ -72,8 +72,10 @@ mean the same thing:
   licence-clean dev data from 90 to 180 BPM, so inside that range it means the same whichever
   engine measured it. `null`: unmeasured, when `bpm` is outside 90 to 180 or when `--min-bpm` or
   `--max-bpm` set any other range than 90 to 180, since the calibration ran only on that range. A
-  missing bound is filled from it, so `--min-bpm 90` alone keeps the number. The text output
-  prints it as `confidence unmeasured`.
+  missing bound is filled from it, so `--min-bpm 90` alone keeps the number. Also `null` for a
+  `peaks` reading of a quiet or bass-light file, whose beats the engine found only relative to the
+  file's own level: the calibration never saw one, and such a file may hold no beat at all. The
+  text output prints it as `confidence unmeasured`.
 - `candidates`: each a `bpm` and its `relation` to the reading's tempo (`top`, `half`,
   `double` or `other`). Empty when no beat was found.
 - `engine`: the engine that measured it.

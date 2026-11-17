@@ -65,9 +65,10 @@ public func analyzeChannelData(_ samples: UnsafeBufferPointer<Float>, sampleRate
             throw AnalysisError.outOfRange("Invalid sample rate: \(sampleRate). The tempogram needs at least "
                 + "\(Tempogram.minimumSampleRate) Hz.")
         }
-        return reading(Tempogram.detect(samples, sampleRate: sampleRate, range: range), audio, .tempogram, range)
+        return reading(Tempogram.detect(samples, sampleRate: sampleRate, range: range), audio, .tempogram, range, calibrated: true)
     }
-    return reading(Peaks.detect(samples, sampleRate: sampleRate, lowpass: lowpass, range: range), audio, .peaks, range)
+    let detection = Peaks.detect(samples, sampleRate: sampleRate, lowpass: lowpass, range: range)
+    return reading(detection.tempos, audio, .peaks, range, calibrated: detection.calibrated)
 }
 
 /// Folding moves a tempo by octaves, so the range must span one. The JS library's two bounds (RBA-260): a whole BPM
@@ -132,7 +133,9 @@ private func wholeBpm(_ tempo: Double) -> Int {
     return bpm
 }
 
-private func reading(_ tempos: [Tempo], _ audio: AudioSpan, _ engine: EngineName, _ range: TempoRange) -> Reading? {
+/// `calibrated` is false when the calibration never saw readings found the way these were, as for a peaks file read
+/// relative to its own level (RBA-221): the confidence is then nil, unmeasured.
+private func reading(_ tempos: [Tempo], _ audio: AudioSpan, _ engine: EngineName, _ range: TempoRange, calibrated: Bool) -> Reading? {
     guard let top = tempos.first else { return nil }
     let bpm = wholeBpm(top.tempo)
     let candidates = tempos.prefix(maxCandidates).enumerated().map { index, tempo -> Candidate in
@@ -142,7 +145,7 @@ private func reading(_ tempos: [Tempo], _ audio: AudioSpan, _ engine: EngineName
     return Reading(
         bpm: bpm,
         bpmExact: top.exact,
-        confidence: Calibration.calibrate(engine, raw: top.score, bpm: top.tempo, range: range),
+        confidence: calibrated ? Calibration.calibrate(engine, raw: top.score, bpm: top.tempo, range: range) : nil,
         candidates: candidates,
         audio: audio,
         engine: engine

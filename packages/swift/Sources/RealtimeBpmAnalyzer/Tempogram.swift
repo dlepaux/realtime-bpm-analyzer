@@ -8,8 +8,16 @@
 import Foundation
 
 enum Tempogram {
-    /// Under the frame rate a hop rounds to no samples.
-    static let minimumSampleRate: Double = frameRate
+    /// The lowest sample rate, in Hz: the JS library's `tempogramMinSampleRate`, the first double at which the FFT has
+    /// 4 points, so a bin above DC (RBA-261). Under it the FFT has 2, whose bins the onset sums skip, and every reading
+    /// was empty. The rate is compared with this double, not through ``fftSize(sampleRate:)``, as every port does: a
+    /// log2 computed as a ratio of logarithms gives 4 points on the two doubles under it. `consts.ts` derives it.
+    static let minimumSampleRate = 122.97509238026915
+
+    /// The FFT size: the power of two nearest 23 ms of samples, on a log scale.
+    static func fftSize(sampleRate: Double) -> Int {
+        1 << jsRoundToInt(log2(0.023 * sampleRate))
+    }
 
     // The tuning the JS library ships (defaultTempogramTuning), with the infinite half-life whole-input analysis sets
     static let frameRate: Double = 100
@@ -39,8 +47,8 @@ enum Tempogram {
     /// Shorter audio has no two beats to compare at the slowest tempo searched.
     static let shortestRecordingSeconds = 1.5
 
-    /// Up to 5 candidates, best first, empty when no pulse stands out. The rate is at least 100 Hz and the range
-    /// checked.
+    /// Up to 5 candidates, best first, empty when no pulse stands out. The rate is at least ``minimumSampleRate`` and
+    /// the range checked.
     static func detect(_ samples: UnsafeBufferPointer<Float>, sampleRate: Double, range: TempoRange) -> [Tempo] {
         let seconds = Double(samples.count) / sampleRate
         guard seconds >= shortestRecordingSeconds else { return [] }
@@ -113,7 +121,7 @@ private struct OnsetStage {
     private var hasPrevious = false
 
     init(sampleRate: Double, frameRate: Double) {
-        fftSize = 1 << jsRoundToInt(log2(0.023 * sampleRate))
+        fftSize = Tempogram.fftSize(sampleRate: sampleRate)
         fft = Fft(size: fftSize)
         let binCount = fftSize / 2
         bins = binCount

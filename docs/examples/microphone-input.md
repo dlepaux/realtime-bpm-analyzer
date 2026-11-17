@@ -5,7 +5,7 @@ description: Live demo and full source for detecting BPM from a microphone in re
 
 # Microphone Input BPM Detection
 
-Detect BPM in real-time using your device's microphone. Perfect for analyzing music playing around you or for live performance tools.
+Detect BPM in real time with your device's microphone: music playing in the room, or a live performance.
 
 ## Live Demo
 

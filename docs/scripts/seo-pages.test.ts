@@ -22,6 +22,13 @@ const MEASURED = {
   'guide/node.md': { title: true, description: true },
   'guide/beat-detection-web-audio.md': { description: true },
   'guide/realtime-bpm-detection.md': { description: true },
+  // RBA-268's audit: the guides it rewrote or whose titles were cut off in results.
+  'guide/introduction.md': { title: true, description: true },
+  'guide/how-it-works.md': { title: true, description: true },
+  'guide/core-concepts.md': { title: true, description: true },
+  'guide/performance.md': { title: true, description: true },
+  'guide/strict-csp.md': { title: true, description: true },
+  'guide/browser-compatibility.md': { title: true, description: true },
   'bpm-to-frames.md': { title: true, description: true },
   'strobe-light.md': { title: true, description: true },
 } as const

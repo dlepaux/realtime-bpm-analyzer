@@ -1,6 +1,6 @@
 ---
-title: 'Strict CSP and Browser Extensions: Loading the AudioWorklet from a URL'
-description: Use realtime-bpm-analyzer on pages whose Content Security Policy blocks blob scripts, and in Manifest V3 Chrome extensions, by loading the published processor file with the processorUrl option.
+title: Strict CSP and Browser Extensions
+description: 'Run realtime-bpm-analyzer under a strict Content Security Policy and in Manifest V3 extensions, by loading the processor file with processorUrl.'
 ---
 
 # Strict CSP and Browser Extensions

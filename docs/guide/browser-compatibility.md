@@ -1,6 +1,6 @@
 ---
-title: 'Browser Compatibility: Web Audio and AudioWorklet Support'
-description: Which browsers support realtime-bpm-analyzer? Works in any modern browser with the Web Audio API and AudioWorklet. Feature-detection snippet, minimum requirements, and platform notes.
+title: Browser Support for BPM Detection
+description: 'Which browsers run realtime-bpm-analyzer: Web Audio and AudioWorklet support, minimum versions, a feature check and notes for each platform.'
 ---
 
 # Browser Compatibility

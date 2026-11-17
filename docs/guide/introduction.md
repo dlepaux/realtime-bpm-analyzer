@@ -1,75 +1,64 @@
 ---
 title: What is Realtime BPM Analyzer?
-description: A zero-dependency TypeScript library for detecting tempo (BPM) in the browser from files, microphone, and live streams. AudioWorklet-native, framework-agnostic.
+description: 'A zero-dependency TypeScript library that detects the tempo (BPM) of audio in the browser and Node.js, from files, a microphone or a live stream.'
 ---
 
 # What is Realtime BPM Analyzer?
 
-Realtime BPM Analyzer is a dependency-free TypeScript/JavaScript library that enables you to detect the **beats-per-minute (BPM)** or **tempo** of audio and video sources directly in the browser.
+Realtime BPM Analyzer is a TypeScript library that detects the **tempo**, in beats per minute (BPM), of audio
+while it plays: a song in an `<audio>` or `<video>` element, a microphone, a radio stream. It also reads a whole
+file at once. It has no dependencies, and the audio never leaves the device it runs on.
 
-## Key Features
+## What it reads
 
-### 🎵 Real-Time Analysis
-Analyze BPM while audio or video is playing. Get instant feedback with both continuous updates and stable BPM detection events.
+- **A media element**: `<audio>` and `<video>`, as they play
+- **A file**: any format the browser can decode, such as MP3, WAV or FLAC
+- **A microphone**, through `getUserMedia`
+- **A network stream**, such as an internet radio
+- **Any other Web Audio source** you connect to it
 
-### ⚡ Zero Dependencies
-Built entirely on the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) with no external dependencies, so it runs in modern browsers with nothing else to install.
+## What it reports
 
-### 🎯 Two Engines
-- **`tempogram`** (default) - Reads the tempo from an onset tempogram: spectral flux across several bands, and a sliding autocorrelation
-- **`peaks`** - Scans the low-passed signal for amplitude peaks, and groups the intervals between them into tempo candidates
+A live analyzer emits events as it listens:
 
-Both report the same reading, so switching is one option: `engine: 'peaks'`.
+- `reading`: the tempo it hears now, with up to five candidate tempos and how each relates to it: half, double or other
+- `statechange`: from `listening` to `settling`, then to `locked` once the readings agree
+- `progress`: how far it is toward its first reading
+- `kick`: each kick drum, as it hears it
 
-### 🎬 Multiple Input Sources
-Works with various audio sources:
-- HTML `<audio>` and `<video>` elements
-- Local files (MP3, FLAC, WAV)
-- Microphone/getUserMedia streams
-- Network audio streams
-- Any source compatible with Web Audio API
+A whole file gives one reading back, in the same shape.
 
-### 📦 TypeScript Support
-Written in TypeScript with complete type definitions, so your editor autocompletes and type-checks every call.
+## How it finds the tempo
 
-## How It Works
+It runs in an `AudioWorklet`, on the browser's audio thread, so the page stays responsive. It has two engines,
+and both report the same kind of reading:
 
-The library analyzes audio data in real-time using the Web Audio API's `AudioWorkletProcessor`. Here's a simplified flow, with the `peaks` engine:
+- **`tempogram`**, the default, measures how the spectrum changes from moment to moment across several frequency
+  bands, and looks for the tempo that repeats in those changes.
+- **`peaks`**, the engine of version 5, keeps the bass, finds where the signal peaks above a threshold it lowers
+  step by step, and groups the time between those peaks into tempos. Select it with `engine: 'peaks'`.
 
-1. **Audio Input** → Audio is captured from your source
-2. **Filtering** → A low-pass filter isolates bass frequencies (the `tempogram` engine keeps the full band)
-3. **Peak Detection** → Identifies peaks in the audio signal at various threshold levels
-4. **Interval Analysis** → Calculates time intervals between peaks
-5. **BPM Calculation** → Converts intervals to BPM and groups similar tempos
-6. **Result Output** → Emits a reading: the tempo, and up to five candidates with their relation to it
+[How It Works](/guide/how-it-works) goes into each step.
 
-The default `tempogram` engine replaces steps 2 to 5: it measures how the spectrum changes from frame to frame across several bands, and finds the tempo that repeats in it. Both engines end at the same reading.
+## Where it runs
 
-## Use Cases
+- **Browsers** with the Web Audio API and `AudioWorklet`: see [Browser Compatibility](/guide/browser-compatibility)
+- **Node.js**, on decoded audio: [BPM Detection in Node.js](/guide/node)
+- **A terminal**, on files and folders: [the CLI](/guide/cli)
+- **AI assistants** that speak MCP: [the MCP server](/guide/mcp)
+- **Python**: [the Python port](/guide/python)
+- **Java, Kotlin and Android**: [the Java port](/guide/java)
 
-Used for:
+## What people build with it
 
-- 🎧 **DJ Applications** - Auto-sync tracks, beatmatching
-- 🎵 **Music Players** - Display current track tempo
-- 📊 **Audio Visualization** - Sync visuals to detected BPM
-- 💪 **Fitness Apps** - Match workout intensity to music tempo
-- 🎹 **Music Production Tools** - Analyze and catalog track tempos
-- 🎪 **Interactive Experiences** - Create tempo-reactive installations
+- DJ tools that show or match the tempo of a track
+- Music players that display it
+- Visuals and lights that follow the beat
+- Fitness apps that pick music by its tempo
+- Tools that tag a music library with each track's BPM
 
-## Browser Support
+## Next steps
 
-Works in all modern browsers that support:
-- ✅ Web Audio API
-- ✅ AudioWorklet
-
-## Next Steps
-
-<div class="tip custom-block" style="padding-top: 8px">
-
-Ready to get started?
-
-- 📚 [Getting Started](/guide/getting-started) - Install and use the library
-- 🎯 [Core Concepts](/guide/core-concepts) - Understand key concepts
-- 💡 [Examples](/examples/basic-usage) - See practical examples
-
-</div>
+- [Getting Started](/guide/getting-started): install it and read your first tempo
+- [Core Concepts](/guide/core-concepts): the analyzer, its events and its states
+- [Examples](/examples/basic-usage): complete pages to copy from

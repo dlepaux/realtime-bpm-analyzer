@@ -3,6 +3,8 @@
 [![npm](https://img.shields.io/npm/v/realtime-bpm-analyzer.svg)](https://www.npmjs.com/package/realtime-bpm-analyzer)
 [![npm](https://img.shields.io/npm/dm/realtime-bpm-analyzer.svg)](https://www.npmjs.com/package/realtime-bpm-analyzer)
 [![install size](https://packagephobia.com/badge?p=realtime-bpm-analyzer)](https://packagephobia.com/result?p=realtime-bpm-analyzer)
+[![PyPI](https://img.shields.io/pypi/v/realtime-bpm-analyzer.svg)](https://pypi.org/project/realtime-bpm-analyzer/)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.dlepaux/realtime-bpm-analyzer.svg)](https://central.sonatype.com/artifact/io.github.dlepaux/realtime-bpm-analyzer)
 [![Main Pipeline](https://github.com/dlepaux/realtime-bpm-analyzer/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/dlepaux/realtime-bpm-analyzer/actions/workflows/main.yml)
 
 <div align="center">
@@ -10,7 +12,7 @@
 </div>
 
 <p align="center">
-  <strong>Detects the tempo (BPM) of music in the browser, live as it plays or from a whole file, and in Node.js.</strong>
+  <strong>Detects the tempo (BPM) of music in the browser, live as it plays or from a whole file, and in Node.js, Python, Java and Kotlin.</strong>
 </p>
 
 <p align="center">
@@ -20,6 +22,17 @@
 </p>
 
 ---
+
+## Platforms
+
+| Platform | Package | Install | Guide |
+|----------|---------|---------|-------|
+| Browser, live or from a file | [`realtime-bpm-analyzer`](https://www.npmjs.com/package/realtime-bpm-analyzer) | `npm install realtime-bpm-analyzer` | [Getting started](https://www.realtime-bpm-analyzer.com/guide/getting-started) |
+| Node.js, Deno and Bun | [`realtime-bpm-analyzer/node`](https://www.npmjs.com/package/realtime-bpm-analyzer) | `npm install realtime-bpm-analyzer` | [Node.js](https://www.realtime-bpm-analyzer.com/guide/node) |
+| Python 3.11+ | [`realtime-bpm-analyzer`](https://pypi.org/project/realtime-bpm-analyzer/) | `pip install realtime-bpm-analyzer` | [Python](https://www.realtime-bpm-analyzer.com/guide/python) |
+| Java 8+, Kotlin and Android | [`io.github.dlepaux:realtime-bpm-analyzer`](https://central.sonatype.com/artifact/io.github.dlepaux/realtime-bpm-analyzer) | `implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")` | [Java and Kotlin](https://www.realtime-bpm-analyzer.com/guide/java) |
+
+The Python and Java ports run the offline analysis on samples you decode. They give the same readings as the JS library, proven by shared [conformance vectors](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/conformance#readme). Live input from a microphone or a stream is the browser's.
 
 ## Features
 

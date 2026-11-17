@@ -12,8 +12,8 @@ on:
 
 # Read-only by default. Each job names what it needs (RBA-232): npm's trusted publisher accepts an OIDC
 # token from any job of this file, so id-token: write is only on Release, which runs in the npm environment
-# that only main may deploy to, on Publish (PyPI), in the pypi environment that only main may deploy to, and
-# on Deploy Documentation. Pull requests never get a write token here.
+# that only main may deploy to, on Publish (PyPI) and Publish (NuGet), each in its registry's environment that
+# only main may deploy to, and on Deploy Documentation. Pull requests never get a write token here.
 # docs/scripts/workflow-permissions.test.ts pins each job's permissions.
 permissions:
   contents: read
@@ -460,7 +460,8 @@ jobs:
           diff <(echo "$expected") <(echo "$actual")
           gpgconf --kill all
 
-  # The C# port (RBA-264), held to the same vectors. Not in any release's needs: nothing publishes it yet.
+  # The C# port (RBA-264), held to the same vectors. Build (NuGet) needs it, so a port that drifts never ships, and it
+  # packs the package on every pull request, so a broken pack shows in review rather than on release day.
   conformance-dotnet:
     name: Conformance (.NET)
     runs-on: ubuntu-latest
@@ -495,10 +496,22 @@ jobs:
           dotnet test tests/RealtimeBpmAnalyzer.Tests -c Release --no-build --logger 'console;verbosity=detailed' | tee "$RUNNER_TEMP/dotnet.log"
           grep -qE '^\s*conformance: PASS on \.NET ' "$RUNNER_TEMP/dotnet.log"
 
+      # The package Build (NuGet) makes on a release, from the same restore: the readme and the DLL in it, and its id
+      - name: Pack
+        working-directory: packages/csharp
+        shell: bash
+        run: |
+          dotnet pack src/RealtimeBpmAnalyzer -c Release --no-restore -o "$RUNNER_TEMP/nupkg"
+          version=$(python3 -c "import xml.etree.ElementTree as E; print(E.parse('src/RealtimeBpmAnalyzer/RealtimeBpmAnalyzer.csproj').getroot().findtext('PropertyGroup/Version'))")
+          unzip -l "$RUNNER_TEMP/nupkg/RealtimeBpmAnalyzer.$version.nupkg" | tee "$RUNNER_TEMP/nupkg.txt"
+          grep -qE ' readme\.md$' "$RUNNER_TEMP/nupkg.txt"
+          grep -qE ' lib/netstandard2\.0/RealtimeBpmAnalyzer\.dll$' "$RUNNER_TEMP/nupkg.txt"
+
   # RBA-265: the pure-Swift port (packages/swift) held to the same vectors, built and tested with the oldest Swift its
   # manifest claims (5.9, Xcode 15's) and the newest, in the Swift project's Linux images, pinned by digest. The library
   # imports Foundation only, so Linux builds what iOS and macOS build; Apple's libm read the vectors bit-identical too
-  # (RBA-265's READY), so no macOS runner. Nothing publishes it: no release job needs it.
+  # (RBA-265's READY), so no macOS runner. Check (Swift mirror) needs it, and it builds the mirror's tree on every pull
+  # request (bin/swift-mirror.mjs), so a broken mirror shows in review rather than on release day.
   conformance-swift:
     name: Conformance (Swift)
     runs-on: ubuntu-latest
@@ -530,12 +543,23 @@ jobs:
             | tee "$RUNNER_TEMP/swift-6.4.2.log"
           grep -qE '^conformance: PASS, ' "$RUNNER_TEMP/swift-6.4.2.log"
 
-  # Release to GitHub and npm. release-please keeps one release PR open for all five packages
+      # The tree Publish (Swift mirror) pushes, built on its own: mounted alone, a path outside it can't resolve. The
+      # oldest Swift the manifest claims. The runner's Node runs the script, which has no dependency
+      - name: Build the mirror's tree, and build it alone on Swift 5.9
+        shell: bash
+        run: |
+          node --test bin/swift-mirror.test.mjs
+          node bin/swift-mirror.mjs build "$RUNNER_TEMP/swift-mirror"
+          docker run --rm -v "$RUNNER_TEMP/swift-mirror":/src:ro -w /src \
+            swift:5.9-jammy@sha256:006635153a77dfc9d096dfc954b362d9017f1560d74c357100b50429bf5174c7 \
+            swift build -c release -Xswiftc -warnings-as-errors --scratch-path /tmp/build
+
+  # Release to GitHub and npm. release-please keeps one release PR open for all seven packages
   # (separate-pull-requests: false), with each package's version bump and changelog from the conventional
   # commits under its path, and node-workspace moving the ranges between the npm ones.
   # Merging it lands here: release-please tags the release (vX.Y.Z for the library,
-  # cli-vX.Y.Z for the CLI, mcp-vX.Y.Z for the MCP server, jvm-vX.Y.Z and python-vX.Y.Z for the ports, which the
-  # publish jobs below ship) and writes the GitHub release, then each publish step ships
+  # cli-vX.Y.Z for the CLI, mcp-vX.Y.Z for the MCP server, jvm-vX.Y.Z, python-vX.Y.Z, csharp-vX.Y.Z and swift-vX.Y.Z
+  # for the ports, which the publish jobs below ship) and writes the GitHub release, then each publish step ships
   # whatever version its package.json names that npm does not have yet. Keying on the registry, not on the action's output, makes a
   # re-run after a failed publish safe: it publishes the missing version, or nothing.
   release:
@@ -873,6 +897,201 @@ jobs:
         run: |
           GNUPGHOME="$RUNNER_TEMP/gnupg" gpgconf --kill all || true
           rm -rf "$RUNNER_TEMP/gnupg" "$RUNNER_TEMP/central-settings.xml"
+
+  # NuGet takes the C# port through trusted publishing (OIDC, no stored key): the policy on nuget.org, owned by
+  # dlepaux, names this repository, this file and the nuget environment, for the package id RealtimeBpmAnalyzer. The
+  # gate and the pack run here, without id-token: the publish job holds the OIDC token and runs no code of this
+  # repository, only the download, NuGet's login action and `dotnet nuget push`. First publish: contributing.md,
+  # "First publish of C# and Swift".
+  nuget-build:
+    name: Build (NuGet)
+    needs: [release, conformance-dotnet]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    outputs:
+      publish: ${{ steps.unpublished.outputs.publish }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # NuGet takes a version as one package, so the gate asks for the version's nuspec in the flat container, by
+      # the lowercase id. Its index lags a push by minutes, so a re-run in between reaches the push, which skips
+      # a version nuget.org already has (--skip-duplicate)
+      - name: Check whether this commit released a version NuGet lacks
+        id: unpublished
+        run: |
+          node bin/port-publish-gate.mjs --self-test
+          version=$(python3 -c "import xml.etree.ElementTree as E; print(E.parse('packages/csharp/src/RealtimeBpmAnalyzer/RealtimeBpmAnalyzer.csproj').getroot().findtext('PropertyGroup/Version'))")
+          node bin/port-publish-gate.mjs "csharp-v$version" "https://api.nuget.org/v3-flatcontainer/realtimebpmanalyzer/$version/realtimebpmanalyzer.nuspec"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Setup .NET
+        if: steps.unpublished.outputs.publish == 'true'
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: packages/csharp/global.json
+
+      # The same locked restore and pack as Conformance (.NET). CI=true makes the build ContinuousIntegrationBuild,
+      # and the SDK's Source Link writes this commit into the embedded PDB
+      - name: Pack
+        if: steps.unpublished.outputs.publish == 'true'
+        working-directory: packages/csharp
+        env:
+          VERSION: ${{ steps.unpublished.outputs.version }}
+        run: |
+          dotnet restore src/RealtimeBpmAnalyzer --locked-mode
+          dotnet pack src/RealtimeBpmAnalyzer -c Release --no-restore -o "$RUNNER_TEMP/nupkg"
+          ls -l "$RUNNER_TEMP/nupkg"
+          test -f "$RUNNER_TEMP/nupkg/RealtimeBpmAnalyzer.$VERSION.nupkg"
+
+      - name: Upload the package
+        if: steps.unpublished.outputs.publish == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-package
+          path: ${{ runner.temp }}/nupkg/*.nupkg
+          if-no-files-found: error
+
+  nuget-publish:
+    name: Publish (NuGet)
+    needs: nuget-build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.nuget-build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The environment only main may deploy to (Settings > Environments > nuget), and the one the trusted publishing
+    # policy on nuget.org names: a token from any other job can't publish
+    environment:
+      name: nuget
+      url: https://www.nuget.org/packages/RealtimeBpmAnalyzer
+    # id-token only: the OIDC token NuGet/login exchanges for a key that lasts an hour. No contents: nothing here
+    # checks the repository out.
+    permissions:
+      id-token: write
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+
+    steps:
+      - name: Download the package
+        uses: actions/download-artifact@v8
+        with:
+          name: nuget-package
+          path: nupkg
+
+      # Pinned by commit: this step holds the OIDC token. user is the nuget.org account that owns the policy, not a
+      # secret; the key it returns is masked in the log
+      - name: Log in to NuGet
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: dlepaux
+
+      # The runner image's .NET SDK: a push needs no particular one. The key is in this step's env only.
+      # --skip-duplicate: a re-run after a push that landed passes instead of failing on nuget.org's 409
+      - name: Push to NuGet
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push nupkg/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+  # SwiftPM reads a package from a repository's root and its versions from plain semver tags, so each Swift release
+  # copies packages/swift to dlepaux/realtime-bpm-analyzer-swift, a generated, push-only mirror, and tags it with the
+  # bare version (bin/swift-mirror.mjs). The push uses a deploy key with write access to the mirror alone, from the
+  # swift environment's secret, which only main may read (Settings > Environments > swift). The gate runs in a job of
+  # its own, outside the environment, so a push that releases nothing never enters it.
+  swift-check:
+    name: Check (Swift mirror)
+    needs: [release, conformance-swift]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.mirror.outputs.publish }}
+      version: ${{ steps.unpublished.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # No registry: the mirror's tags are its registry, which the next step reads
+      - name: Check whether this commit released the package
+        id: unpublished
+        run: |
+          node bin/port-publish-gate.mjs --self-test
+          version=$(cat packages/swift/version.txt)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::packages/swift/version.txt: '$version' is not x.y.z"; exit 1; }
+          node bin/port-publish-gate.mjs "swift-v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Anonymous, over HTTPS: the mirror is public. A version it already has is done, so a re-run pushes nothing
+      - name: Check whether the mirror lacks the version
+        id: mirror
+        if: steps.unpublished.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.unpublished.outputs.version }}
+        # --exit-code: 0 when the tag is there, 2 when it isn't (an empty mirror included), anything else an error
+        run: |
+          status=0
+          git ls-remote --exit-code --tags https://github.com/dlepaux/realtime-bpm-analyzer-swift.git "refs/tags/$VERSION" || status=$?
+          case "$status" in
+            0) echo "the mirror already has $VERSION: nothing to push"; echo "publish=false" >> "$GITHUB_OUTPUT" ;;
+            2) echo "the mirror lacks $VERSION: pushing"; echo "publish=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::git ls-remote of the mirror failed ($status)"; exit 1 ;;
+          esac
+
+  # The deploy key is in the env of the one step that pushes, which writes it to a 0600 file and unsets it before
+  # running anything else. github.com's host key is pinned from GitHub's published fingerprints, never scanned at
+  # run time, so a spoofed host can't take the key's signature or the push.
+  swift-publish:
+    name: Publish (Swift mirror)
+    needs: swift-check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.swift-check.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: swift
+      url: https://github.com/dlepaux/realtime-bpm-analyzer-swift
+    # checkout. The deploy key is the swift environment's secret, not GITHUB_TOKEN's.
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Build the mirror's tree
+        run: node bin/swift-mirror.mjs build "$RUNNER_TEMP/swift-mirror"
+
+      # github.com's ed25519 host key, as docs.github.com lists it ("GitHub's SSH key fingerprints":
+      # SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU)
+      - name: Commit, tag and push to the mirror
+        env:
+          SWIFT_DEPLOY_KEY: ${{ secrets.SWIFT_DEPLOY_KEY }}
+          VERSION: ${{ needs.swift-check.outputs.version }}
+        run: |
+          (umask 077 && printf '%s\n' "$SWIFT_DEPLOY_KEY" > "$RUNNER_TEMP/swift-deploy-key")
+          unset SWIFT_DEPLOY_KEY
+          printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$RUNNER_TEMP/github-known-hosts"
+          export GIT_SSH_COMMAND="ssh -i '$RUNNER_TEMP/swift-deploy-key' -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile='$RUNNER_TEMP/github-known-hosts'"
+          node bin/swift-mirror.mjs publish "$RUNNER_TEMP/swift-mirror" git@github.com:dlepaux/realtime-bpm-analyzer-swift.git "$VERSION" "$GITHUB_SHA"
+
+      - name: Delete the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/swift-deploy-key" "$RUNNER_TEMP/github-known-hosts"
 
   # Build the docs and all examples on every run, so a dependency PR that breaks them
   # goes red before it merges (#232 merged green, then broke three examples on main:

@@ -239,7 +239,7 @@ export default defineConfig({
 
     pageData.frontmatter.head ??= []
     // A guide whose package isn't published yet stays unindexed (UNPUBLISHED_GUIDES in
-    // tools/site-schema.ts, empty since the Java and Python ports reached Maven Central and PyPI).
+    // tools/site-schema.ts).
     if (isUnpublishedGuide(pageData.relativePath)) {
       pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
     }

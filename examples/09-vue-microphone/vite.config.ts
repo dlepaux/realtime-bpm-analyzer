@@ -5,5 +5,6 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     port: process.env.PORT ? parseInt(process.env.PORT) : 3009,
+    strictPort: true,
   },
 });

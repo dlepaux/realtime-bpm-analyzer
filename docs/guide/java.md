@@ -42,6 +42,21 @@ The reading is `null` when no tempo was found. Otherwise it has the same fields 
 reading: `bpm()`, `bpmExact()`, `confidence()` (`null` off the default 90 to 180 BPM
 range), `candidates()`, `audioFrom()`, `audioTo()` and `engine()`.
 
+## From Kotlin
+
+The same jar, called from Kotlin or an Android app. Kotlin doesn't widen an `Int` to a
+`Double`, so the sample rate is written `44100.0`:
+
+```kotlin
+import io.github.dlepaux.realtimebpmanalyzer.BpmAnalyzer
+
+val samples: FloatArray = decodeMono(file) // your decoder: one channel, -1 to 1
+val reading = BpmAnalyzer.analyzeChannelData(samples, 44100.0)
+if (reading != null) {
+    println("${reading.bpm()} BPM")
+}
+```
+
 ## What it doesn't do
 
 - **No decoding.** You supply the samples: one channel of floats from -1 to 1, and their

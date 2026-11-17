@@ -1,0 +1,18 @@
+// Declarations for the published entry points only, run by bin/build/library.sh; esbuild
+// writes the JavaScript. A config rather than file arguments, because TypeScript 6 refuses
+// files on the command line next to a tsconfig.json (TS5112).
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "target": "es2022",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "sourceMap": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": []
+  },
+  "files": ["src/index.ts", "src/node.ts"],
+  "include": []
+}

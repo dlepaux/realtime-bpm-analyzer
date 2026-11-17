@@ -287,7 +287,7 @@ For this first publish, David granted RBA-COMMANDER the release PR's CI run and 
 
 **Before the release PR**
 
-1. **Merge RBA-272's pull request.** That's RBA-COMMANDER's merge.
+1. **Merge RBA-272's pull request.** That's RBA-COMMANDER's merge. Just before it, check that the NuGet id is still free: `curl -s -o /dev/null -w '%{http_code}\n' https://api.nuget.org/v3-flatcontainer/realtimebpmanalyzer/index.json` prints `404`. If it prints `200`, someone else took the id: hold the merge, since this PR's guides point C# users to it.
    - Check: the Main Pipeline run on `main` goes green. Build (NuGet) logs `no tag csharp-v6.2.0: this commit released nothing to publish`, and Check (Swift mirror) logs the same for `swift-v6.2.0`. Publish (NuGet) and Publish (Swift mirror) show skipped. Release opens or updates the release PR.
 2. **Check that the NuGet policy is active.** On nuget.org, open your account's Trusted Publishing page.
    - Check: the policy for `dlepaux/realtime-bpm-analyzer` shows as active. If it says it is temporarily active until a date, the first publish has to happen before then, or the policy needs activating again on that page.
@@ -363,7 +363,7 @@ Read its log first. A failed step before the push published nothing.
 - **The release commit's run was cancelled**, or a later run tagged the ports: as for the 6.2 ports, re-run the release commit's own run in full.
 - **Build (NuGet) or Publish (NuGet)**: run `gh run rerun <id> --failed` on the release commit's run. `--skip-duplicate` turns NuGet's refusal of a version it already has into a pass, so a re-run after a push that landed, while nuget.org still validates the package, ends green.
   - `NuGet/login` refused: the policy doesn't match the token. It must name `dlepaux/realtime-bpm-analyzer`, `main.yml` and the environment `nuget`, and be active (step 2).
-  - The hash check failed: the artifact isn't the package Build (NuGet) made. Don't re-run the publish alone: find out what replaced it first.
+  - The hash check failed: the artifact isn't the package Build (NuGet) made. `--failed` can't fix it, since a re-run of Publish downloads the same artifact. Find out which job replaced it, then re-run the release commit's run in full, which packs and hashes a new one.
   - The push refused with a 403: the package id `RealtimeBpmAnalyzer` belongs to another account, or the policy's owner isn't `dlepaux`.
 - **Publish (Swift mirror)**: `gh run rerun <id> --failed` is safe. The script does nothing when the mirror has the tag, and the branch and the tag are pushed atomically, so a failed push leaves neither.
   - `Permission denied (publickey)`: the deploy key lacks write access, or `SWIFT_DEPLOY_KEY` isn't its private half.

@@ -933,6 +933,7 @@ jobs:
         run: |
           node bin/port-publish-gate.mjs --self-test
           version=$(python3 -c "import xml.etree.ElementTree as E; print(E.parse('packages/csharp/src/RealtimeBpmAnalyzer/RealtimeBpmAnalyzer.csproj').getroot().findtext('PropertyGroup/Version'))")
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::RealtimeBpmAnalyzer.csproj: Version '$version' is not x.y.z"; exit 1; }
           node bin/port-publish-gate.mjs "csharp-v$version" "https://api.nuget.org/v3-flatcontainer/realtimebpmanalyzer/$version/realtimebpmanalyzer.nuspec"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 

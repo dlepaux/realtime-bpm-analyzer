@@ -1,5 +1,6 @@
 package io.github.dlepaux.realtimebpmanalyzer;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,7 +19,7 @@ class PeaksLevelTest {
 
     @Test
     void takesTheMaximumAtTheFlooredPercentileIndex() {
-        // 100 windows of 1..100: floor(99 * 98 / 100) = 97, the 98th value
+        // 100 windows of 0.001 to 0.100: floor(99 * 98 / 100) = 97, the 98th value
         float[] hundred = new float[100];
         for (int i = 0; i < hundred.length; i++) {
             hundred[i] = (hundred.length - i) / 1000f;
@@ -35,6 +36,36 @@ class PeaksLevelTest {
         assertEquals(0.3f, PeaksEngine.levelReference(new float[] {-0.9f, 0.2f, 0.3f, -0.5f, 0.4f}, 8));
         assertEquals(0f, PeaksEngine.levelReference(new float[] {-0.9f, -0.2f}, 8));
         assertEquals(0f, PeaksEngine.levelReference(new float[0], 8));
+        // A NaN sample never becomes a window's maximum
+        assertEquals(0.2f, PeaksEngine.levelReference(new float[] {Float.NaN, 0.2f}, 8));
+    }
+
+    @Test
+    void comparesEachSampleWithTheScaledRungInDouble() {
+        // conformance/readme.md, "The peaks level": a 32-bit threshold passes every vector, so this pins it. At 4 Hz a
+        // window is one sample. The level is L, the first 32-bit float above 0.01 whose 0.9 * L rounds up when stored;
+        // twelve samples hold that stored 0.9 * L, so they clear the double threshold 0.9 * L and rung 0.9 finds 15
+        // peaks. A 32-bit threshold equals them and finds 3, so the search would go on to 0.85 and take sample 50 too
+        float[] data = new float[100];
+        java.util.Arrays.fill(data, 0, 3, Float.intBitsToFloat(0x3C23D70D));
+        java.util.Arrays.fill(data, 10, 22, Float.intBitsToFloat(0x3C1374BF));
+        data[50] = Float.intBitsToFloat(0x3C0E8A74);
+        assertEquals(Float.intBitsToFloat(0x3C23D70D), PeaksEngine.levelReference(data, 4));
+        assertArrayEquals(new int[] {0, 1, 2, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21},
+            PeaksEngine.findPeaksRelativeToLevel(data, 4));
+    }
+
+    @Test
+    void comparesTheLevelWithTheSilenceFloorInDouble() {
+        // The 32-bit float nearest -70 dBFS is just under the double floor, so it searches nothing; the next one up does
+        float under = Float.intBitsToFloat(0x39A5CB5F);
+        float over = Float.intBitsToFloat(0x39A5CB60);
+        assertTrue(under < PeaksEngine.SILENCE_FLOOR && over > PeaksEngine.SILENCE_FLOOR);
+        float[] quiet = new float[64];
+        java.util.Arrays.fill(quiet, under);
+        assertEquals(0, PeaksEngine.findPeaksRelativeToLevel(quiet, 4).length);
+        java.util.Arrays.fill(quiet, over);
+        assertEquals(64, PeaksEngine.findPeaksRelativeToLevel(quiet, 4).length);
     }
 
     @Test

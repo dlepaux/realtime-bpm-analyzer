@@ -1,7 +1,7 @@
 // Run with `npm test`. The home page's "Where it runs" tabs (RBA-266) show code copied from the
 // guides, so a sample changed in a guide can't be left stale on the home page. code-blocks.test.ts
-// type-checks the JavaScript and TypeScript ones; nothing here runs the Python, Java or Kotlin
-// samples, so this holds each of them to the guide that documents it, character for character.
+// type-checks the JavaScript and TypeScript ones; nothing here runs the Python, Java, Kotlin, C#
+// or Swift samples, so this holds each of them to the guide that documents it, character for character.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
@@ -54,8 +54,8 @@ test('index.md fills one slot per tab, and no other', () => {
   assert.deepEqual([...slots().keys()], LANGUAGE_TABS.map((tab) => tab.id))
 })
 
-// A shell install command, a Maven dependency, or a Gradle line.
-const INSTALL = /^(```bash\n(npm|pip) install |```xml\n<dependency>|```kotlin\nimplementation\()/
+// A shell install command, a Maven dependency, a Gradle line, or a SwiftPM dependency.
+const INSTALL = /^(```bash\n((npm|pip) install|dotnet add package) |```xml\n<dependency>|```kotlin\nimplementation\(|```swift\n\.package\(url: )/
 
 test("every tab has its install line and a sample, each copied from the tab's guides", () => {
   const filled = slots()

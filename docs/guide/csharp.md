@@ -1,6 +1,4 @@
 ---
-# Unpublished until the C# port is on NuGet (RBA-264): kept out of the local search too.
-search: false
 title: BPM Detection in C#, Unity and Godot
 description: Detect the BPM of PCM samples in C#, Unity, Godot or any .NET app with the C# port of analyzeChannelData, with no dependencies.
 ---
@@ -12,7 +10,7 @@ with both engines: the tempogram and peaks. It gives the same readings as the JS
 proven by the shared conformance vectors on every build. It is pure managed code with no
 runtime dependencies, and it targets .NET Standard 2.0: Unity, Godot C# and any .NET app.
 
-It will be on NuGet as `RealtimeBpmAnalyzer`. It isn't published yet.
+It is on NuGet as `RealtimeBpmAnalyzer`:
 
 ```bash
 dotnet add package RealtimeBpmAnalyzer

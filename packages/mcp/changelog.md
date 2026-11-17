@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2](https://github.com/dlepaux/realtime-bpm-analyzer/compare/mcp-v0.1.1...mcp-v0.1.2) (2026-11-17)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * realtime-bpm-analyzer-cli bumped from ^0.1.1 to ^0.1.2
+
 ## [0.1.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/mcp-v0.1.0...mcp-v0.1.1) (2026-11-16)
 
 

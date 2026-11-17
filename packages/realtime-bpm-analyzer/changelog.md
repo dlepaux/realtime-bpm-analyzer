@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v6.2.0...v6.2.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* dead README links, and link checks so they are caught ([bdd1be5](https://github.com/dlepaux/realtime-bpm-analyzer/commit/bdd1be5948cbe424be4a6cea5cb8341b97597d99))
+
 ## [6.2.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v6.1.0...v6.2.0) (2026-11-16)
 
 

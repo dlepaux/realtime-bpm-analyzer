@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/python-v6.2.0...python-v6.2.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **python:** ship PyPI's project page without 6.2.0's "not on PyPI yet" note (RBA-262) ([fef6753](https://github.com/dlepaux/realtime-bpm-analyzer/commit/fef675329126c348836369e0760a6d47d95b19ff))
+
 ## 6.2.0 (2026-11-16)
 
 

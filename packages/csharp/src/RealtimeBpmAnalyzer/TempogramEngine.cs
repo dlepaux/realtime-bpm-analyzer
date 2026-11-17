@@ -79,11 +79,12 @@ namespace RealtimeBpmAnalyzer
             if (double.IsInfinity(sampleRate) || !(sampleRate >= MinSampleRate))
             {
                 // R: .NET Framework's default format keeps 15 digits, which would print the floor as 122.975092380269
+                // and the rate under it as the same
                 throw new ArgumentOutOfRangeException(
                     nameof(sampleRate),
                     string.Format(
                         CultureInfo.InvariantCulture,
-                        "Invalid sample rate: {0}. The tempogram needs at least {1:R} Hz, the lowest rate at which its FFT has a bin above DC.",
+                        "Invalid sample rate: {0:R}. The tempogram needs at least {1:R} Hz, the lowest rate at which its FFT has a bin above DC.",
                         sampleRate,
                         MinSampleRate));
             }

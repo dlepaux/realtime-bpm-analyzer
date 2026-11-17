@@ -129,13 +129,22 @@ export function createFullMix(bpm: number): Float32Array<ArrayBuffer> {
   return master(samples);
 }
 
-/** The generated sources: a click train, a drum loop and a full mix */
-export function generatedSources(): Source[] {
-  return [
-    {name: 'click 120', truth: 120, channels: [createClickTrack(120, sampleRate, seconds)]},
-    {name: 'drum loop 124', truth: 124, channels: [createDrumLoop(124)]},
-    {name: 'full mix 96', truth: 96, channels: [createFullMix(96)]},
-  ];
+/** The generated sources, a click train, a drum loop and a full mix, each built only when asked for */
+const generated: ReadonlyMap<string, () => Source> = new Map([
+  ['click 120', () => ({name: 'click 120', truth: 120, channels: [createClickTrack(120, sampleRate, seconds)]})],
+  ['drum loop 124', () => ({name: 'drum loop 124', truth: 124, channels: [createDrumLoop(124)]})],
+  ['full mix 96', () => ({name: 'full mix 96', truth: 96, channels: [createFullMix(96)]})],
+]);
+
+/** The generated source of that name */
+export function generatedSource(name: string): Source {
+  const build = generated.get(name);
+
+  if (!build) {
+    throw new Error(`No generated source is named ${name}`);
+  }
+
+  return build();
 }
 
 /**

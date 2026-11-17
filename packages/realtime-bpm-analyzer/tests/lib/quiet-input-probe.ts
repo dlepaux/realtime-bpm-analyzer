@@ -4,7 +4,7 @@ import type {OfflineResult} from '../../src/contract/types';
 import {analyzeFullBuffer, getOfflineLowPassSource} from '../../src/core/offline-pipeline';
 import {oracleAnalyzeSamples} from './peaks-file-path-oracle';
 import {
-  classify, decodeLikeTheSite, encodeWav, generatedSources, peakDb, renderVariant, variants,
+  classify, decodeLikeTheSite, encodeWav, generatedSource, peakDb, renderVariant, variants,
   type Source, type Variant,
 } from '../fixtures/quiet-input';
 
@@ -38,17 +38,6 @@ async function oracle(buffer: AudioBuffer): Promise<OfflineResult> {
  */
 function isGraded(source: Source, variant: Variant): boolean {
   return source.truth !== null || variant.highpassHz < 300;
-}
-
-/** The generated source of that name */
-function generatedSource(name: string): Source {
-  const source = generatedSources().find(candidate => candidate.name === name);
-
-  if (!source) {
-    throw new Error(`No generated source is named ${name}`);
-  }
-
-  return source;
 }
 
 /**

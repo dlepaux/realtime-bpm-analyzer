@@ -271,6 +271,29 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     await analyzeChannelData(clicks, 2, {engine: {name: 'peaks', lowpass}});
   });
 
+  // RBA-261: from 100 Hz to just under the floor the tempogram's FFT had 2 points, DC and Nyquist, and 6.2 read null
+  it('refuses a sample rate under the tempogram\'s floor, by default too, reads at the floor, and leaves peaks as it was', async () => {
+    const floor = 122.97509238026915;
+    const under = 122.97509238026913;
+    for (const sampleRate of [100, 110, under]) {
+      const clicks = createClickTrack(120, sampleRate, 12);
+      for (const options of [undefined, {engine: 'tempogram'}, {tempoRange: {min: 60, max: 140}}]) {
+        await assert.rejects(analyzeChannelData(clicks, sampleRate, options), {
+          name: 'RangeError',
+          message: `Invalid sample rate: ${sampleRate}. The tempogram needs at least 122.97509238026915 Hz, the lowest rate at which its FFT has a bin above DC.`,
+        });
+      }
+
+      // The peaks engine's own floor is 2 Hz: with a lowpass under half the rate, it reads as before
+      const peaks = await analyzeChannelData(clicks, sampleRate, {engine: {name: 'peaks', lowpass: {frequency: 20}}});
+      assert.equal(peaks?.bpm, 120);
+    }
+
+    const reading = await analyzeChannelData(createClickTrack(120, floor, 12), floor);
+    assert.equal(reading?.bpm, 120);
+    assert.equal(reading?.engine, 'tempogram');
+  });
+
   it('refuses a tempo range whose max / min overflows, with either engine, and takes the largest that does not', async () => {
     const clicks = createClickTrack(120, 44_100, 12);
     for (const engine of ['peaks', 'tempogram']) {

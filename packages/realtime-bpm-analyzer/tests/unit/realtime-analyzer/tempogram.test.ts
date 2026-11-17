@@ -2,11 +2,28 @@ import {expect} from 'chai';
 import {createClickTrack, createNoise} from '../../fixtures/click-track';
 import {detectors} from '../../../benchmark/lib/detectors';
 import {parseRows, simplestWithinNoise} from '../../../benchmark/lib/sweep';
-import {createTempogramDetector, defaultTempogramRange, defaultTempogramTuning, detectTempogram} from '../../../src/core/tempogram';
+import {createTempogramDetector, defaultTempogramRange, defaultTempogramTuning, detectTempogram, tempogramFftSize} from '../../../src/core/tempogram';
+import {tempogramMinSampleRate} from '../../../src/core/consts';
 import type {TempogramReading, TempogramTuning} from '../../../src/core/tempogram';
 import type {TempoRange} from '../../../src/core/types';
 
 const sampleRate = 44_100;
+
+/**
+ * The double just under a positive finite double
+ */
+function previousDouble(value: number): number {
+  // Low word first, on the little-endian hosts the tests run on: a positive double's bits step down by one
+  const words = new Uint32Array(Float64Array.of(value).buffer);
+
+  if (words[0] === 0) {
+    words[1] -= 1;
+  }
+
+  words[0] -= 1;
+
+  return new Float64Array(words.buffer)[0];
+}
 
 /**
  * Bright clicks on every beat: a click track for a full-band detector
@@ -342,3 +359,41 @@ describe('detectTempogram', () => {
     expect(() => detectTempogram(new Float32Array(10), sampleRate, {min: 100, max: 150})).to.throw(RangeError);
   });
 });
+
+// RBA-261: from 100 Hz to just under this floor the FFT had 2 points, DC and Nyquist, so every reading was null
+describe('the tempogram\'s sample rate floor', () => {
+  const floor = tempogramMinSampleRate;
+  const under = previousDouble(floor);
+
+  it('is the first double at which the FFT has a bin above DC', () => {
+    expect(floor).to.equal(122.97509238026915);
+    expect(floor).to.equal((2 * Math.SQRT2) / 0.023);
+    expect(under).to.equal(122.97509238026913);
+    expect(tempogramFftSize(floor)).to.equal(4);
+    expect(tempogramFftSize(under)).to.equal(2);
+    expect(tempogramFftSize(100)).to.equal(2);
+  });
+
+  for (const rate of [100, 110, 122, under]) {
+    it(`refuses ${rate} Hz, under the floor, before it looks at the audio`, () => {
+      const message = `Invalid sample rate: ${rate}. The tempogram needs at least 122.97509238026915 Hz`;
+
+      expect(() => detectTempogram(createBrightClicks(120, 12, 1, Math.round(rate)), rate)).to.throw(RangeError, message);
+      // Too short for a reading, so the floor is checked first
+      expect(() => detectTempogram(new Float32Array(10), rate)).to.throw(RangeError, message);
+      expect(() => createTempogramDetector({sampleRate: rate})).to.throw(RangeError, message);
+    });
+  }
+
+  it('reads at the floor', () => {
+    const clicks = new Float32Array(Math.round(12 * floor));
+
+    for (let beat = 0; Math.round(beat * 0.5 * floor) < clicks.length; beat += 1) {
+      clicks[Math.round(beat * 0.5 * floor)] = 0.9;
+    }
+
+    expect(createTempogramDetector({sampleRate: floor}).progress()).to.equal(0);
+    expect(detectTempogram(clicks, floor)[0]?.tempo).to.equal(120);
+  });
+});
+

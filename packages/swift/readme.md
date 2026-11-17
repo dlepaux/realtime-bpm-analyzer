@@ -10,33 +10,36 @@ readings, and the calls that must fail, and the port's tests compare every one o
 
 ## Install
 
-> **Not published yet.** No Swift package of it has been released. Until one is, add it from a clone of the
-> repository, by path:
+With Swift Package Manager, from the package's own repository,
+[dlepaux/realtime-bpm-analyzer-swift](https://github.com/dlepaux/realtime-bpm-analyzer-swift):
 
 ```swift
 // Package.swift
 dependencies: [
-    .package(path: "../realtime-bpm-analyzer/packages/swift"),
+    .package(url: "https://github.com/dlepaux/realtime-bpm-analyzer-swift", from: "6.2.0"),
 ],
 targets: [
     .target(name: "MyApp", dependencies: [
-        .product(name: "RealtimeBpmAnalyzer", package: "swift"),
+        .product(name: "RealtimeBpmAnalyzer", package: "realtime-bpm-analyzer-swift"),
     ]),
 ]
 ```
 
-In Xcode, **File > Add Package Dependencies… > Add Local…** and pick `packages/swift`.
+In Xcode, **File > Add Package Dependencies…**, then paste the repository's URL.
 
 It needs Swift 5.9 or later (Xcode 15 or later), and runs on iOS 13 and macOS 10.15 or later, and on Linux. It has
 no dependency and imports Foundation only: no Accelerate, no AVFoundation.
 
 ## Versions
 
-None yet. SwiftPM reads a package's versions from the git tags of the repository whose root holds its
-`Package.swift`, and this repository's root and tags belong to the JS library, so a by-URL dependency can't reach
-`packages/swift` today. How the Swift package gets its own manifest and tags is decided before its first release.
-The other ports' rule is the plan: the JS library's major and minor whose vectors the port passes, plus its own
-patch, so 6.2.x would read the same as `realtime-bpm-analyzer` 6.2 on npm.
+The version is the JS library's major and minor whose conformance vectors the port passes, plus its own patch:
+6.2.x reads the same as `realtime-bpm-analyzer` 6.2 on npm. A patch of the port can ship without a JS release.
+`from: "6.2.0"` takes any later 6.x.
+
+The code lives in [`packages/swift`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/packages/swift) of
+the main repository, where release-please versions it with the other ports. On each Swift release, its pipeline
+copies the package to the root of realtime-bpm-analyzer-swift, which SwiftPM needs, and tags it with the bare
+version, such as `6.2.0`.
 
 ## Example
 
@@ -104,6 +107,8 @@ a message for people; the case is what to match on.
 - No decoding: it takes PCM, never a file.
 - `peaks` keeps a filtered copy of the samples, 4 bytes per sample, for the length of the call.
 
+<!-- swift-mirror: omit start -->
+
 ## Tests
 
 ```bash
@@ -113,6 +118,8 @@ swift test -c release -Xswiftc -enable-testing
 `ConformanceTests` runs every case of `../../conformance/vectors.json` and prints the largest deviation from the JS
 readings; `CONFORMANCE_DIR` points it elsewhere. `JsSourceTests` reads the defaults and the calibration tables back
 from the JS sources, hence `-enable-testing`. XCTest comes with Xcode and with the Swift toolchains for Linux.
+
+<!-- swift-mirror: omit end -->
 
 ## License
 

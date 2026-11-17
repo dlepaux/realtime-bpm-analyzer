@@ -198,14 +198,17 @@ const CREDENTIAL = /\$\{\{\s*(secrets\.(?!GITHUB_TOKEN\b)\w+|steps\.\w+\.outputs
 
 // Each credential reaches the one step that uses it, through that step's env, never through a job's or the
 // workflow's env, a `with`, a `run` line or an `if`: in a run line it would be pasted into the script, and in a job's
-// env every step and every action of the job would get it.
-const CREDENTIAL_STEPS: Record<string, string[]> = {
-  'secrets.GPG_PRIVATE_KEY': ['main.yml/maven-publish/Import the signing key'],
-  'secrets.GPG_PASSPHRASE': ['main.yml/maven-publish/Sign, upload and publish to Maven Central'],
-  'secrets.MAVEN_CENTRAL_USERNAME': ['main.yml/maven-publish/Sign, upload and publish to Maven Central'],
-  'secrets.MAVEN_CENTRAL_PASSWORD': ['main.yml/maven-publish/Sign, upload and publish to Maven Central'],
-  'secrets.SWIFT_DEPLOY_KEY': ['main.yml/swift-publish/Commit, tag and push to the mirror'],
-  'steps.login.outputs.NUGET_API_KEY': ['main.yml/nuget-publish/Push to NuGet'],
+// env every step and every action of the job would get it. Keyed by step, so each credential's name is a value: a
+// credential's name as a key, before a quoted string, reads to secret scanners as a hardcoded password.
+const STEP_CREDENTIALS: Record<string, string[]> = {
+  'main.yml/maven-publish/Import the signing key': ['secrets.GPG_PRIVATE_KEY'],
+  'main.yml/maven-publish/Sign, upload and publish to Maven Central': [
+    'secrets.GPG_PASSPHRASE',
+    'secrets.MAVEN_CENTRAL_PASSWORD',
+    'secrets.MAVEN_CENTRAL_USERNAME',
+  ],
+  'main.yml/nuget-publish/Push to NuGet': ['steps.login.outputs.NUGET_API_KEY'],
+  'main.yml/swift-publish/Commit, tag and push to the mirror': ['secrets.SWIFT_DEPLOY_KEY'],
 }
 
 test('each credential is in the env of the one step that uses it, and nowhere else', () => {
@@ -218,12 +221,16 @@ test('each credential is in the env of the one step that uses it, and nowhere el
       assert.deepEqual(JSON.stringify(outside).match(CREDENTIAL) ?? [], [], `${file} job ${id}: a credential outside a step's env`)
       for (const step of job.steps ?? []) {
         for (const match of JSON.stringify(step.env ?? {}).matchAll(CREDENTIAL)) {
-          (found[match[1] ?? ''] ??= []).push(`${file}/${id}/${step.name}`)
+          (found[`${file}/${id}/${step.name}`] ??= []).push(match[1] ?? '')
         }
       }
     }
   }
-  assert.deepEqual(found, CREDENTIAL_STEPS)
+  for (const credentials of Object.values(found)) credentials.sort()
+  assert.deepEqual(found, STEP_CREDENTIALS)
+  // Each credential in one step only
+  const all = Object.values(found).flat()
+  assert.equal(new Set(all).size, all.length, 'a credential in two steps')
 })
 
 test('CREDENTIAL finds secrets and the NuGet key, and leaves GITHUB_TOKEN to the permissions', () => {

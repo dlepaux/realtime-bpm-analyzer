@@ -383,7 +383,7 @@ The C# and Swift guides left `UNPUBLISHED_GUIDES` in the same pull request as th
 
 RBA-261 makes the tempogram refuse sample rates under 122.97509238026915 Hz, where 6.1 and 6.2 returned `null`, in the library and every port. That changes what they refuse, so it ships as a minor, but its commits are `fix`, which alone would cut 6.2.3 and port patches. The library and the Java, Python, C# and Swift ports therefore get `release-as: 6.3.0` in `release-please-config.json`. The CLI and the MCP server keep their own versions and take only `node-workspace`'s dependency bump. The release PR lists `6.3.0` for the library, and `jvm: 6.3.0`, `python: 6.3.0`, `csharp: 6.3.0` and `swift: 6.3.0`.
 
-**After** the release: remove the five `release-as`, in a `chore` PR, as step 7 of the 6.2 ports did. Until it merges, every other PR fails "Check release-as is still pending", since the manifest is at 6.3.0. Merge it before any `feat` or `fix` reaches `main`.
+**After** the release: the five `release-as` were removed in a `chore` PR once the manifest was at 6.3.0, as step 7 of the 6.2 ports did. Until it merged, every other PR failed "Check release-as is still pending".
 - Check: the next release PR proposes 6.3.1 or 6.4.0 for whatever changed.
 
 ## Privacy Wording

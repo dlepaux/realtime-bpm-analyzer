@@ -22,6 +22,7 @@ function site(overrides: Record<string, string> = {}): BuiltSite {
     'website-privacy.html': `${canonical('/website-privacy')}<p>privacy</p>`,
     '404.html': '<h1>Page not found</h1>',
     'guide/quick-start.html': '<meta http-equiv="refresh" content="0; url=/guide/getting-started">',
+    'guide/csharp.html': `${NOINDEX}<a href="/guide/node">Node.js</a>`,
     ...Object.fromEntries(GUIDES.map((name) => [`guide/${name}.html`, `${canonical(`/guide/${name}`)}${GUIDE}`])),
     ...overrides,
   }
@@ -61,6 +62,12 @@ test('seoProblems: the Java and Python guides are guides like the others', () =>
   assert.match(seoProblems(undated).join(), /guide\/python\.html: no TechArticle,guide\/python\.html: no datePublished/)
   const unlisted = site({ 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/python')) })
   assert.deepEqual(seoProblems(unlisted), ['guide/python.html: indexable but not in the sitemap'])
+})
+
+// The C# guide is unpublished until the C# port is on NuGet (RBA-264).
+test('seoProblems: the C# guide stays noindex and out of the sitemap', () => {
+  assert.match(seoProblems(site({ 'guide/csharp.html': '<p>csharp</p>' })).join(), /guide\/csharp: not noindex/)
+  assert.match(seoProblems(site({ 'sitemap.xml': sitemap([...LISTED, '/guide/csharp']) })).join(), /guide\/csharp: in the sitemap/)
 })
 
 test('seoProblems: every other guide is an article with a server-rendered date', () => {

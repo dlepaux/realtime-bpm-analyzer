@@ -2,11 +2,7 @@
 
 Thanks to everyone who has contributed to `realtime-bpm-analyzer` — through code, issues, ideas, or sponsorship.
 
-## Sponsors
-
-<!-- Sponsors will be listed here as they sign up via https://github.com/sponsors/dlepaux. -->
-
-_No sponsors yet. [Become the first.](https://github.com/sponsors/dlepaux)_
+<!-- A "## Sponsors" section goes here once someone sponsors through https://github.com/sponsors/dlepaux. -->
 
 ## Code contributors
 

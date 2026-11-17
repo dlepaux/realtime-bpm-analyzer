@@ -76,7 +76,7 @@ Both read the same; the buffer one saves a copy when the samples are already in 
 
 - `samples`: one channel, from -1 to 1.
 - `sampleRate`: their rate in Hz. The tempogram needs at least 122.97509238026915 Hz, the first rate at which its FFT
-  has a bin above DC (6.2 and earlier refused under 100 Hz and returned `nil` from there up to this floor); `peaks` at
+  has a bin above DC (releases before this floor refused only under 100 Hz, and returned `nil` from there up to it); `peaks` at
   least 2 Hz, and more than twice its lowpass cutoff.
 - `options`: `AnalysisOptions(engine:tempoRange:)`, every field with the JS library's default.
   - `engine`: `.tempogram`, the default, reads the full band. `.peaks` counts the intervals between bass peaks,

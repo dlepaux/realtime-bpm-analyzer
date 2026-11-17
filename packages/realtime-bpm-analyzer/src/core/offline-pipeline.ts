@@ -105,7 +105,8 @@ export async function getOfflineLowPassSource(
  * itself never throws: each error below rejects the promise.
  * @throws {Error} When the buffer is empty, its sample rate is not positive, or channel 0 holds a NaN or infinite
  * sample
- * @throws {RangeError} When `engine` or `tempoRange` is invalid
+ * @throws {RangeError} When `engine` or `tempoRange` is invalid, or the sample rate is under the engine's lowest: an
+ * `AudioBuffer`'s rate is 3000 Hz or more, above both
  * @throws {TypeError} When the options are not an object or carry a key other than `engine` and `tempoRange` (a 5.x
  * option name included, with its replacement), `tempoRange` carries a key other than `min` and `max`, the `engine`
  * object carries a key other than `name` and `lowpass`, or `engine.lowpass` is not an object, `null` or `undefined`,

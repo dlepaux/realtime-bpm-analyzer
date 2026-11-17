@@ -94,7 +94,7 @@ var options = new AnalysisOptions(
 | JS | C# | When |
 | --- | --- | --- |
 | `Error` | `ArgumentException`, exactly that type | `samples` is empty, or holds a NaN or infinite sample |
-| `RangeError` | `ArgumentOutOfRangeException` | The sample rate is not finite, under 122.97509238026915 Hz for the tempogram (the first rate at which its FFT has a bin above DC; 6.2 and earlier refused under 100 Hz and returned `null` from there up to this floor), or under 2 Hz or not above twice the lowpass cutoff for peaks; or `TempoRange` and `Lowpass` get a value out of range, such as a `max` above `int.MaxValue` or a `max / min` past the largest double |
+| `RangeError` | `ArgumentOutOfRangeException` | The sample rate is not finite, under 122.97509238026915 Hz for the tempogram (the first rate at which its FFT has a bin above DC; releases before this floor refused only under 100 Hz, and returned `null` from there up to it), or under 2 Hz or not above twice the lowpass cutoff for peaks; or `TempoRange` and `Lowpass` get a value out of range, such as a `max` above `int.MaxValue` or a `max / min` past the largest double |
 | `TypeError` | none | C#'s types rule these out |
 
 A `null` argument throws `ArgumentNullException`. `TempoRange` and `Lowpass` check their values when they are made,

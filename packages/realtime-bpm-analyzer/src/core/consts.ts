@@ -83,13 +83,13 @@ export const peaksMinSampleRate = 2;
  * The lowest sample rate, in Hz, the tempogram runs at: the first at which its FFT has a bin above DC (RBA-261).
  * @remarks
  * The onset stage's FFT has `2 ** Math.round(Math.log2(0.023 * rate))` points, the power of two nearest 23 ms. At 2
- * points its bins are DC and Nyquist, which the onset sums skip, so every onset strength is 0 and 6.0 to 6.2 read null
+ * points its bins are DC and Nyquist, which the onset sums skip, so every onset strength is 0 and 6.1 and 6.2 read null
  * from 100 Hz up to here, whatever the audio. 4 points need `log2(0.023 * rate) >= 1.5`, since Math.round takes a half
  * up: a rate of at least 2^1.5 / 0.023 = 122.975092380269... Hz, which is no whole number. The floor is the double
  * `2 * Math.SQRT2 / 0.023`, written out so that every port parses the same double and compares `rate >= floor`:
  * - At the floor, `0.023 * rate` is 2.8284271247461903, the double nearest 2√2, which lies above 2√2. Its log2 is above
  *   1.5 by less than half a step, so a log2 within a step of the truth, Math.log2 and a ratio of logarithms included,
- *   gives at least 1.5: 4 points. A higher rate gives a larger product.
+ *   gives at least 1.5: 4 points. A higher rate gives no smaller product.
  * - The double under it, 122.97509238026913, gives 2.82842712474619, under 2√2, where Math.log2 gives
  *   1.4999999999999998: 2 points. A ratio of logarithms gives 1.5 there, as on the double under that, which is why the
  *   floor is this comparison and not the FFT size each port computes.

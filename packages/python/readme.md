@@ -57,8 +57,8 @@ def analyze_channel_data(
   They are analysed as 32-bit floats, as the JS library holds them, so a float64 array reads like its float32 copy.
   Integers are refused, whatever holds them: scale integer PCM first, for 16-bit samples `pcm / 32768`.
 - `sample_rate`: their rate in Hz. The tempogram needs at least 122.97509238026915 Hz, the first rate at which its FFT
-  has a bin above DC, and `peaks` at least 2 Hz. 6.2 and earlier refused under 100 Hz and returned `None` from there
-  up to that floor.
+  has a bin above DC, and `peaks` at least 2 Hz. Releases before this floor refused only under 100 Hz, and returned `None`
+  from there up to it.
 - `engine`: `"tempogram"`, the default, reads the full band. `"peaks"` counts the intervals between bass peaks.
 - `tempo_range`: `TempoRange(min=90, max=180)` by default. A reading is folded into this range by octaves, so `max`
   must be at least twice `min`.

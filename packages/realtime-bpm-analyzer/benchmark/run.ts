@@ -51,7 +51,7 @@ async function runJob({detector, track, tuning}: Job): Promise<TrackResult> {
 
   const offline = resolveEngine(config.options.engine, undefined).engine.name === 'tempogram'
     ? detectTempogram(pcm, sampleRate)
-    : await detectTempo(pcm, sampleRate, resolveTempoRange()).catch(() => []);
+    : await detectTempo(pcm, sampleRate, resolveTempoRange()).then(({tempos}) => tempos, () => []);
 
   return {...result, offline: offline[0]?.tempo ?? null};
 }

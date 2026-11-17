@@ -17,6 +17,27 @@ export const thresholdStep = 0.05;
  * locks is unchanged too. Past it, the reading follows the latest minute or more of audio.
  */
 export const maxKeptPeaks = 256;
+/**
+ * The percentile of a channel's per-window maxima that the peaks file path takes as the level of its loudest beats,
+ * when its fixed ladder finds no tempo (RBA-221)
+ * @remarks
+ * A window is {@link peakSkipDuration} long, the span one peak occupies. The maximum sorted at index
+ * `Math.floor((n - 1) * 98 / 100)` of the `n` windows is the level: whole-number arithmetic, so every port picks the
+ * same window. At 98 the loudest window never sets the level on a file of two windows or more, and on a 3-minute
+ * file the loudest 15 don't, so one click or clipped transient can't. On RBA-218's generated sources every quiet or
+ * high-passed variant reads its tempo with any percentile from 97 to 100, while 95 and under read a high-passed full
+ * mix at 114 instead of 96, because the ladder then starts under its beats.
+ */
+export const levelPercentile = 98;
+/**
+ * The level, as a sample value, under which the peaks file path's level-relative search reads a channel as silence:
+ * -70 dBFS, `10 ** (-70 / 20)`, written out so every port compares with the same double
+ * @remarks
+ * Under it the scaled ladder would count dither and noise as beats. It is 13 dB under the quietest variant RBA-218
+ * built with a clear beat (a click at -24 dB through a 300 Hz highpass, -56.7 dBFS after the lowpass), and well above
+ * a 16-bit file's quantisation noise after the lowpass.
+ */
+export const silenceFloor = 0.00031622776601683794;
 /** The lowpass defaults, which `LowpassOption` documents */
 export const lowpassFrequency = 200;
 export const lowpassQ = 1;

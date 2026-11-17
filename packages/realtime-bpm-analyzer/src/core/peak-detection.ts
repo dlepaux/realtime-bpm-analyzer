@@ -124,3 +124,94 @@ export async function findPeaks({
     threshold: validThreshold,
   };
 }
+
+/**
+ * The level of a channel's loudest beats, which one click or clipped transient can't set (RBA-221)
+ * @param data Lowpassed PCM samples
+ * @param audioSampleRate Sample rate in Hz, at least {@link consts.peaksMinSampleRate}
+ * @returns The `levelPercentile` of the channel's maxima per `peakSkipDuration` window, 0 for silence
+ * @remarks Only positive samples count, since `findPeaksAtThreshold` compares signed samples. A sample that is NaN is
+ * skipped, since no comparison with it holds, and an infinite one counts: either way the level then finds no beats.
+ */
+export function levelReference(data: Float32Array, audioSampleRate: number): number {
+  const window = utils.computeIndexesToSkip(consts.peakSkipDuration, audioSampleRate);
+
+  // findPeaksAtThreshold refuses such a rate before the file path ever gets here: kept so no window is empty
+  if (!(window >= 1)) {
+    throw new RangeError(`Invalid sample rate: ${audioSampleRate}. The peaks engine needs at least ${consts.peaksMinSampleRate} Hz.`);
+  }
+
+  const count = Math.ceil(data.length / window);
+  // Each maximum is a sample or 0, so 32-bit storage holds it exactly
+  const maxima = new Float32Array(count);
+
+  for (let w = 0; w < count; w += 1) {
+    const end = Math.min(data.length, (w + 1) * window);
+    let maximum = 0;
+
+    for (let i = w * window; i < end; i += 1) {
+      if (data[i] > maximum) {
+        maximum = data[i];
+      }
+    }
+
+    maxima[w] = maximum;
+  }
+
+  if (count === 0) {
+    return 0;
+  }
+
+  maxima.sort();
+
+  return maxima[Math.floor(((count - 1) * consts.levelPercentile) / 100)];
+}
+
+/**
+ * The fixed ladder run again, every rung scaled by the channel's own level, so a quiet or bass-light file is searched
+ * the way a full-scale one is (RBA-221)
+ * @param options - AnalyzerFindPeaksOptions
+ * @param options.audioSampleRate - Sample rate
+ * @param options.channelData - Lowpassed channel data
+ * @returns The peaks of the first scaled rung with enough of them, with that rung's threshold. None when the level is
+ * under `silenceFloor`, or at full scale or above, where the fixed ladder already was this search
+ * @remarks Only `detectTempo` calls it, and only once `findPeaks` found nothing: it is the fallback, not a
+ * replacement, so no reading the fixed ladder finds can change.
+ */
+export async function findPeaksRelativeToLevel({
+  audioSampleRate,
+  channelData,
+}: AnalyzerFindPeaksOptions): Promise<PeaksAndThreshold> {
+  const level = levelReference(channelData, audioSampleRate);
+
+  // Written so a NaN level also finds nothing, instead of scaling every rung to NaN
+  if (!(level >= consts.silenceFloor && level < 1)) {
+    return {peaks: [], threshold: 0};
+  }
+
+  let validPeaks: number[] = [];
+  let validThreshold = 0;
+
+  await descendingOverThresholds(async rung => {
+    // The product stays a double, as the fixed rungs are: findPeaksAtThreshold compares each sample with it in double
+    const {peaks, threshold} = findPeaksAtThreshold({
+      audioSampleRate,
+      data: channelData,
+      threshold: rung * level,
+    });
+
+    if (peaks.length < consts.minPeaks) {
+      return false;
+    }
+
+    validPeaks = peaks;
+    validThreshold = threshold;
+
+    return true;
+  });
+
+  return {
+    peaks: validPeaks,
+    threshold: validThreshold,
+  };
+}

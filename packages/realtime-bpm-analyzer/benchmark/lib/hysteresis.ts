@@ -368,10 +368,10 @@ function rawOf(bpm: number, confidence: number | null, raw: number | null): numb
  */
 export async function offlineSample(raw: Float32Array, sampleRate: number, engine: EngineName): Promise<Sample> {
   const tempoRange = resolveTempoRange(undefined);
-  const tempos = engine === 'tempogram'
-    ? detectTempogram(raw, sampleRate, tempoRange)
+  const {tempos, calibrated} = engine === 'tempogram'
+    ? {tempos: detectTempogram(raw, sampleRate, tempoRange), calibrated: true}
     : await detectTempo(applyLowpass(raw, sampleRate, {}), sampleRate, tempoRange);
-  const reading = toReading(tempos, {from: 0, to: raw.length / sampleRate, contextTime: null}, engine, tempoRange);
+  const reading = toReading(tempos, {from: 0, to: raw.length / sampleRate, contextTime: null}, engine, tempoRange, calibrated);
   const score = rawScore(tempos);
   return reading === null || score === null ? null : [reading.bpm, reading.confidence, score];
 }

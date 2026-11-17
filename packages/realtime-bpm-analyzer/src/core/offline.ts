@@ -32,7 +32,8 @@ export async function analyzeSamples(
   }
 
   const filtered = await lowpass(engine.lowpass);
-  return toReading(await detectTempo(filtered, sampleRate, tempoRange), audio, 'peaks', tempoRange);
+  const {tempos, calibrated} = await detectTempo(filtered, sampleRate, tempoRange);
+  return toReading(tempos, audio, 'peaks', tempoRange, calibrated);
 }
 
 /**

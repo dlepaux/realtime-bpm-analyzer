@@ -364,9 +364,11 @@ export function createEngine(engine: ResolvedEngine, tempoRange: TempoRange, deb
  * @param audio The audio they cover
  * @param engine The engine that measured them
  * @param tempoRange The resolved range the analysis ran on, which decides whether the confidence was measured
+ * @param calibrated False when the calibration never saw readings found the way these were, as for a peaks file
+ * read relative to its own level (RBA-221): the confidence is then null, unmeasured
  * @returns The frozen reading, or null when there is no candidate
  */
-export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: EngineName, tempoRange: TempoRange): Reading | null {
+export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: EngineName, tempoRange: TempoRange, calibrated = true): Reading | null {
   const top = tempos[0];
   if (top === undefined) {
     return null;
@@ -381,8 +383,8 @@ export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: En
     bpm: top.tempo,
     bpmExact: top.exact,
     // The engine's raw score, mapped to the chance this reading is right, or null when the reading's tempo or the
-    // analysis's range is outside the measured tempo range
-    confidence: calibrate(engine, top.confidence, top.tempo, tempoRange),
+    // analysis's range is outside the measured tempo range, or the calibration never saw such a reading
+    confidence: calibrated ? calibrate(engine, top.confidence, top.tempo, tempoRange) : null,
     candidates: Object.freeze(candidates),
     audio: Object.freeze({from: audio.from, to: audio.to, contextTime: audio.contextTime}),
     engine,

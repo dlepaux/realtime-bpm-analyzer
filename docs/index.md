@@ -222,6 +222,8 @@ if reading is not None:
 
 On Java 8 or later, with no dependencies: the tempo of samples from any decoder.
 
+<!-- x-release-please-start-version -->
+
 ```xml
 <dependency>
   <groupId>io.github.dlepaux</groupId>
@@ -229,6 +231,8 @@ On Java 8 or later, with no dependencies: the tempo of samples from any decoder.
   <version>6.2.0</version>
 </dependency>
 ```
+
+<!-- x-release-please-end -->
 
 ```java
 import io.github.dlepaux.realtimebpmanalyzer.BpmAnalyzer;
@@ -246,9 +250,13 @@ if (reading != null) {
 
 In Kotlin and on Android, with the same jar: the tempo of samples from any decoder.
 
+<!-- x-release-please-start-version -->
+
 ```kotlin
 implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")
 ```
+
+<!-- x-release-please-end -->
 
 ```kotlin
 import io.github.dlepaux.realtimebpmanalyzer.BpmAnalyzer

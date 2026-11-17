@@ -9,11 +9,17 @@ and later, so it fits Minecraft mods (Fabric and Forge), Android and Kotlin.
 
 It is on Maven Central as `io.github.dlepaux:realtime-bpm-analyzer`. With Gradle:
 
+<!-- x-release-please-start-version -->
+
 ```kotlin
 implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")
 ```
 
+<!-- x-release-please-end -->
+
 Or with Maven:
+
+<!-- x-release-please-start-version -->
 
 ```xml
 <dependency>
@@ -22,6 +28,8 @@ Or with Maven:
   <version>6.2.0</version>
 </dependency>
 ```
+
+<!-- x-release-please-end -->
 
 The jar runs on Java 8 and later. Building it from this folder (`./mvnw install`) needs JDK 11 or later.
 

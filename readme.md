@@ -25,12 +25,16 @@
 
 ## Platforms
 
+<!-- x-release-please-start-version -->
+
 | Platform | Package | Install | Guide |
 |----------|---------|---------|-------|
 | Browser, live or from a file | [`realtime-bpm-analyzer`](https://www.npmjs.com/package/realtime-bpm-analyzer) | `npm install realtime-bpm-analyzer` | [Getting started](https://www.realtime-bpm-analyzer.com/guide/getting-started) |
 | Node.js, Deno and Bun | [`realtime-bpm-analyzer/node`](https://www.npmjs.com/package/realtime-bpm-analyzer) | `npm install realtime-bpm-analyzer` | [Node.js](https://www.realtime-bpm-analyzer.com/guide/node) |
 | Python 3.11+ | [`realtime-bpm-analyzer`](https://pypi.org/project/realtime-bpm-analyzer/) | `pip install realtime-bpm-analyzer` | [Python](https://www.realtime-bpm-analyzer.com/guide/python) |
 | Java 8+, Kotlin and Android | [`io.github.dlepaux:realtime-bpm-analyzer`](https://central.sonatype.com/artifact/io.github.dlepaux/realtime-bpm-analyzer) | `implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")` | [Java and Kotlin](https://www.realtime-bpm-analyzer.com/guide/java) |
+
+<!-- x-release-please-end -->
 
 The Python and Java ports run the offline analysis on samples you decode. They give the same readings as the JS library, proven by shared [conformance vectors](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/conformance#readme). Live input from a microphone or a stream is the browser's.
 

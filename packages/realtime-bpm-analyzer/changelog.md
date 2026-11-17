@@ -1,5 +1,14 @@
 # Changelog
 
+## [6.2.2](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v6.2.1...v6.2.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **peaks:** keep RBA-221's level-relative readings out of the calibration fit's samples ([b9b57fa](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b9b57fae51803d3f2152cbcacc2becf2729f0fdb))
+* **peaks:** read quiet and bass-light files instead of returning no tempo (RBA-221) ([9ab7612](https://github.com/dlepaux/realtime-bpm-analyzer/commit/9ab761296a6643f668f60ef6379253ba3f8ac354))
+* **peaks:** read quiet and bass-light files that returned no tempo, in the library and its four ports (RBA-221) ([b76386a](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b76386aec8f34895cfd766ecbba522fc05c36e91))
+
 ## [6.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v6.2.0...v6.2.1) (2026-11-17)
 
 

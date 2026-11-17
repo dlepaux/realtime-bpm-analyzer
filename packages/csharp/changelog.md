@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/csharp-v6.2.0...csharp-v6.2.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **peaks:** read quiet and bass-light files that returned no tempo, in the library and its four ports (RBA-221) ([b76386a](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b76386aec8f34895cfd766ecbba522fc05c36e91))
+
 ## 6.2.0 (2026-11-17)
 
 

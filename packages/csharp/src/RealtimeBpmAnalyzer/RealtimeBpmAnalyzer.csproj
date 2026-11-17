@@ -12,7 +12,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <PackageId>RealtimeBpmAnalyzer</PackageId>
-    <Version>6.2.0</Version>
+    <Version>6.2.1</Version>
     <Authors>David Lepaux</Authors>
     <Description>Offline BPM analysis of PCM samples, in pure managed C#: the .NET port of the realtime-bpm-analyzer JS library, with the same readings, which shared conformance vectors check. For Unity, Godot C# and .NET apps.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>

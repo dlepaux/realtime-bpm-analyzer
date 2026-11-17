@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.2.2](https://github.com/dlepaux/realtime-bpm-analyzer/compare/python-v6.2.1...python-v6.2.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **peaks:** read quiet and bass-light files that returned no tempo, in the library and its four ports (RBA-221) ([b76386a](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b76386aec8f34895cfd766ecbba522fc05c36e91))
+* **python:** read quiet and bass-light files with the peaks engine, as the JS library now does (RBA-221) ([233d119](https://github.com/dlepaux/realtime-bpm-analyzer/commit/233d11980e0aa3a6bdfb0b826dcab13cbf271bf1))
+
 ## [6.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/python-v6.2.0...python-v6.2.1) (2026-11-17)
 
 

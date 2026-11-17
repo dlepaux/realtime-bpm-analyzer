@@ -1,6 +1,7 @@
 package io.github.dlepaux.realtimebpmanalyzer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -31,6 +32,13 @@ final class PeaksEngine {
     /** Each peak is paired with the next ones up to this many places on, this one excluded. */
     private static final int MAX_INTERVAL_COMPARISONS = 10;
     private static final int MAX_CANDIDATES = 5;
+    /**
+     * The percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks
+     * (RBA-221): JS's levelPercentile.
+     */
+    static final int LEVEL_PERCENTILE = 98;
+    /** -70 dBFS: under it the level-relative search reads silence. Written out as JS writes it, the same double. */
+    static final double SILENCE_FLOOR = 0.00031622776601683794;
 
     private PeaksEngine() {
     }
@@ -40,14 +48,34 @@ final class PeaksEngine {
      * @param sampleRate Their rate, positive and above twice the cutoff (checked by the caller)
      * @param lowpass The lowpass settings
      * @param range The range tempos are folded into
-     * @return Up to 5 candidates, by votes, empty when no threshold found enough peaks
+     * @return Up to 5 candidates, by votes, none when no threshold found enough peaks, and whether the confidence
+     *     calibration covers them: JS's detectTempo
      */
-    static List<Tempo> detect(float[] samples, double sampleRate, Lowpass lowpass, TempoRange range) {
+    static Detection detect(float[] samples, double sampleRate, Lowpass lowpass, TempoRange range) {
         float[] filtered = applyLowpass(samples, sampleRate, lowpass);
         int[] peaks = findPeaks(filtered, sampleRate);
+        boolean calibrated = true;
+        // RBA-221: whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no peaks
+        // in is searched again relative to its level, and the calibration never saw such a reading
+        if (peaks.length == 0) {
+            peaks = findPeaksRelativeToLevel(filtered, sampleRate);
+            calibrated = false;
+        }
         Map<Integer, Integer> intervals = identifyIntervals(peaks);
         List<Tempo> tempos = groupByTempo(intervals, sampleRate, range);
-        return topCandidates(tempos);
+        return new Detection(topCandidates(tempos), calibrated);
+    }
+
+    /** The candidates of one channel, and whether the peaks calibration (RBA-106) covers them. */
+    static final class Detection {
+        final List<Tempo> tempos;
+        /** False when the peaks were found only relative to the channel's level: the confidence is then unmeasured. */
+        final boolean calibrated;
+
+        Detection(List<Tempo> tempos, boolean calibrated) {
+            this.tempos = tempos;
+            this.calibrated = calibrated;
+        }
     }
 
     /**
@@ -102,17 +130,75 @@ final class PeaksEngine {
 
     /** The peaks at the highest threshold that has at least {@link #MIN_PEAKS} of them, or none. */
     static int[] findPeaks(float[] data, double sampleRate) {
+        int step = skipOf(sampleRate);
+        for (double threshold : thresholdLadder()) {
+            int[] peaks = findPeaksAtThreshold(data, threshold, step);
+            if (peaks.length >= MIN_PEAKS) {
+                return peaks;
+            }
+        }
+        return new int[0];
+    }
+
+    /**
+     * The samples skipped after a peak, which is also the window of {@link #levelReference}: 0.25 s, rounded half up
+     * as JS's Math.round rounds.
+     */
+    private static int skipOf(double sampleRate) {
         long skip = Math.round(PEAK_SKIP_SECONDS * sampleRate);
         // Each pass of findPeaksAtThreshold moves on by at least one sample only while the skip is one sample or more,
-        // which bounds its loop to data.length passes. BpmAnalyzer refuses a rate under 2 Hz, where it is 0, before
-        // this, as the JS library does (RBA-260)
+        // which bounds its loop to data.length passes, and no level window is then empty. BpmAnalyzer refuses a rate
+        // under 2 Hz, where it is 0, before this, as the JS library does (RBA-260)
         if (skip < 1) {
             throw new OutOfRangeException("Invalid sample rate: " + sampleRate + ". The peaks engine needs at least "
                 + MIN_SAMPLE_RATE + " Hz, where the skip after a peak is a whole sample.");
         }
-        int step = (int) Math.min(skip, Integer.MAX_VALUE);
-        for (double threshold : thresholdLadder()) {
-            int[] peaks = findPeaksAtThreshold(data, threshold, step);
+        // A skip past the longest array reaches past its end either way, so the clamp changes no peak or window count
+        return (int) Math.min(skip, Integer.MAX_VALUE);
+    }
+
+    /**
+     * The level of a channel's loudest beats, which one click or clipped transient can't set (RBA-221): JS's
+     * levelReference. The maxima of its 0.25 s windows, each from 0 so only positive samples count, sorted, and the one
+     * at index floor((windows - 1) * 98 / 100), in whole numbers.
+     */
+    static float levelReference(float[] data, double sampleRate) {
+        int window = skipOf(sampleRate);
+        int count = (int) ((data.length + (long) window - 1) / window);
+        if (count == 0) {
+            return 0;
+        }
+        float[] maxima = new float[count];
+        for (int w = 0; w < count; w++) {
+            long start = (long) w * window;
+            long end = Math.min(data.length, start + window);
+            float maximum = 0;
+            for (long i = start; i < end; i++) {
+                // A NaN sample fails the comparison, so it never becomes a maximum, as in JS
+                if (data[(int) i] > maximum) {
+                    maximum = data[(int) i];
+                }
+            }
+            maxima[w] = maximum;
+        }
+        Arrays.sort(maxima);
+        return maxima[(int) (((long) (count - 1) * LEVEL_PERCENTILE) / 100)];
+    }
+
+    /**
+     * The fixed ladder run again with every rung scaled by the channel's level, so a quiet or bass-light file is
+     * searched the way a full-scale one is (RBA-221): JS's findPeaksRelativeToLevel. None under the silence floor, or
+     * at full scale or above.
+     */
+    static int[] findPeaksRelativeToLevel(float[] data, double sampleRate) {
+        // Widened to double here, so the floor comparison and every product below are in double, as in JS
+        double level = levelReference(data, sampleRate);
+        if (!(level >= SILENCE_FLOOR && level < 1)) {
+            return new int[0];
+        }
+        int step = skipOf(sampleRate);
+        for (double rung : thresholdLadder()) {
+            int[] peaks = findPeaksAtThreshold(data, rung * level, step);
             if (peaks.length >= MIN_PEAKS) {
                 return peaks;
             }

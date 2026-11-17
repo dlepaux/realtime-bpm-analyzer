@@ -6,7 +6,9 @@
 // The CLI, the MCP server and "Migrating to v6" are in Developers from v6 on (RBA-150, and
 // RBA-240's DECISION of 2026-11-16: no "Apps" menu). The sidebar, the sitemap, the search and
 // llms.txt list the CLI and MCP guides too, since both packages are on npm (the noindex flip);
-// the theme draws their generic icons (custom.css).
+// the theme draws their generic icons (custom.css). The Java and Python guides are in the sidebar,
+// the sitemap, the search and llms.txt since their ports reached Maven Central and PyPI, but not
+// in Developers: step 8 of "First publish of the 6.2 ports" (contributing.md) didn't add them.
 import type { DefaultTheme } from 'vitepress'
 import { extensionNavItems, extensionPrivacyNavItems } from './extension-promo.ts'
 

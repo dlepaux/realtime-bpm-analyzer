@@ -1,6 +1,4 @@
 ---
-# Unpublished until the package is on PyPI (RBA-257): kept out of the local search too.
-search: false
 title: BPM Detection in Python
 description: Detect the BPM of decoded audio in Python with realtime-bpm-analyzer, the same readings as the JS library, held to them by shared conformance vectors.
 ---
@@ -10,12 +8,11 @@ description: Detect the BPM of decoded audio in Python with realtime-bpm-analyze
 `realtime-bpm-analyzer` for Python is the library's offline analysis,
 [`analyzeChannelData`](./node), ported to Python. You pass the decoded samples
 of one channel and get a reading back: the tempo, its confidence and the other
-candidate tempos, in the same shape the JS library gives.
+candidate tempos, in the same shape the JS library gives. It is on PyPI:
 
-::: warning Not published yet
-The package is not on PyPI yet. Until it is, install it from a clone of the
-repository: `pip install ./packages/python`.
-:::
+```bash
+pip install realtime-bpm-analyzer
+```
 
 It needs Python 3.11 or later and NumPy, and has no native code of its own.
 

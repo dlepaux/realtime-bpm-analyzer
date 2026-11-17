@@ -20,6 +20,15 @@ import java.util.List;
  */
 final class TempogramEngine {
     private static final double FRAME_RATE = 100;
+    /**
+     * The lowest sample rate, in Hz, the tempogram runs at: the JS library's {@code tempogramMinSampleRate}, the
+     * first double at which its FFT has 4 points, so a bin above DC (RBA-261). Under it the FFT has 2, whose bins
+     * the onset sums skip, and every reading was empty. The rate is compared with this double, not through
+     * {@link #fftSize}: this port's {@link #log2} already gives 4 points on the two doubles under it, where JS's
+     * {@code Math.log2} gives 2, so only the comparison makes the ports refuse the same rates. {@code consts.ts}
+     * derives the value.
+     */
+    static final double MIN_SAMPLE_RATE = 122.97509238026915;
     private static final int[] BANDS = {30, 200, 500, 1500, 4000, 10_000};
     private static final double COMPRESSION = 1000;
     private static final double LOCAL_MEAN_SECONDS = 0.5;
@@ -54,12 +63,13 @@ final class TempogramEngine {
      * @param sampleRate Their rate
      * @param range The tempos searched
      * @return Up to 5 candidates, best first, empty when no pulse stands out or the audio is under 1.5 s
-     * @throws OutOfRangeException When the sample rate is not finite or under 100 Hz
+     * @throws OutOfRangeException When the sample rate is not finite or under {@link #MIN_SAMPLE_RATE}, whatever
+     *     the audio's length
      */
     static List<Tempo> detect(float[] samples, double sampleRate, TempoRange range) {
-        if (Double.isNaN(sampleRate) || Double.isInfinite(sampleRate) || sampleRate < FRAME_RATE) {
+        if (Double.isInfinite(sampleRate) || !(sampleRate >= MIN_SAMPLE_RATE)) {
             throw new OutOfRangeException("Invalid sample rate: " + sampleRate + ". The tempogram needs at least "
-                + FRAME_RATE + " Hz.");
+                + MIN_SAMPLE_RATE + " Hz, the lowest rate at which its FFT has a bin above DC.");
         }
         double seconds = samples.length / sampleRate;
         if (seconds < SHORTEST_RECORDING_SECONDS) {
@@ -448,7 +458,8 @@ final class TempogramEngine {
      * The base-2 logarithm. Java has none: this is the natural logarithm's quotient, which can differ from JS's
      * Math.log2 in the last bit. That moves a tempo prior by about 1e-16, far under the tolerances. It can also round
      * the FFT size the other way when 0.023 times the sample rate sits within a bit of 2^(n + 0.5): no whole rate
-     * from 100 Hz to 2 MHz does, but a contrived one such as 122.97509238026912 Hz does (readme, "Differences").
+     * up to 2 MHz does, but a contrived one such as 245.95018476053824 Hz does (readme, "Differences"). At the
+     * lowest such rate, 2^1.5 / 0.023, {@link #MIN_SAMPLE_RATE} decides instead.
      */
     private static double log2(double value) {
         return StrictMath.log(value) / StrictMath.log(2);

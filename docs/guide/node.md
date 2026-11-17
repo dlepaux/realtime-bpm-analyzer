@@ -165,7 +165,9 @@ the tempo to show, `bpm`, its unrounded value, `bpmExact`, and up to 5
 audio without a clear beat resolves to `null`.
 
 Its promise rejects when `channelData` is not a non-empty `Float32Array`, and
-rejects with a `RangeError` for a sample rate that is not positive, a lowpass
+rejects with a `RangeError` for a sample rate under the engine's lowest (122.97509238026915 Hz
+for the tempogram, the first at which its FFT has a bin above DC, and 2 Hz for
+`peaks`), a lowpass
 setting that is `NaN` or infinite, a lowpass `frequency` that is not above 0 and
 below half the sample rate, a lowpass `q` that is not from -758 to 770 dB, an
 invalid `tempoRange` or an unknown `engine`. A 5.x option

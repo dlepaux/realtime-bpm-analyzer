@@ -21,6 +21,18 @@ namespace RealtimeBpmAnalyzer
     internal static class TempogramEngine
     {
         private const double FrameRate = 100;
+
+        /// <summary>
+        /// The lowest sample rate, in Hz, the tempogram runs at: the JS library's <c>tempogramMinSampleRate</c>, the
+        /// first double at which its FFT has 4 points, so a bin above DC (RBA-261). Under it the FFT has 2, whose bins
+        /// the onset sums skip, and every reading was empty.
+        /// </summary>
+        /// <remarks>
+        /// The rate is compared with this double, not through <see cref="FftSize"/>: <see cref="JsMath.Log2"/> is a
+        /// ratio of logarithms, which already gives 4 points on the two doubles under it where JS's <c>Math.log2</c>
+        /// gives 2, so only the comparison makes the ports refuse the same rates. <c>consts.ts</c> derives the value.
+        /// </remarks>
+        internal const double MinSampleRate = 122.97509238026915;
         private const double Compression = 1000;
         private const double LocalMeanSeconds = 0.5;
         private const double WindowSeconds = 8;
@@ -59,14 +71,22 @@ namespace RealtimeBpmAnalyzer
         /// <param name="sampleRate">Their rate.</param>
         /// <param name="range">The tempos searched.</param>
         /// <returns>Up to 5 candidates, best first, empty when no pulse stands out or the audio is under 1.5 s.</returns>
-        /// <exception cref="ArgumentOutOfRangeException">When the sample rate is not finite or under 100 Hz.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// When the sample rate is not finite or under <see cref="MinSampleRate"/>, whatever the audio's length.
+        /// </exception>
         internal static List<Tempo> Detect(float[] samples, double sampleRate, TempoRange range)
         {
-            if (double.IsNaN(sampleRate) || double.IsInfinity(sampleRate) || sampleRate < FrameRate)
+            if (double.IsInfinity(sampleRate) || !(sampleRate >= MinSampleRate))
             {
+                // R: .NET Framework's default format keeps 15 digits, which would print the floor as 122.975092380269
+                // and the rate under it as the same
                 throw new ArgumentOutOfRangeException(
                     nameof(sampleRate),
-                    string.Format(CultureInfo.InvariantCulture, "Invalid sample rate: {0}. The tempogram needs at least {1} Hz.", sampleRate, FrameRate));
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Invalid sample rate: {0:R}. The tempogram needs at least {1:R} Hz, the lowest rate at which its FFT has a bin above DC.",
+                        sampleRate,
+                        MinSampleRate));
             }
 
             double seconds = samples.Length / sampleRate;

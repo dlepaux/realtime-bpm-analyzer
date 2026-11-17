@@ -39,6 +39,7 @@ class JsSourceTest {
         // RBA-221's level-relative search, which only the vectors' quiet inputs reach
         assertEquals(constant(consts, "export const levelPercentile"), PeaksEngine.LEVEL_PERCENTILE);
         assertEquals(constant(consts, "export const silenceFloor"), PeaksEngine.SILENCE_FLOOR);
+        assertEquals(constant(consts, "export const tempogramMinSampleRate"), TempogramEngine.MIN_SAMPLE_RATE);
 
         String lowpass = source("core/lowpass.ts");
         assertEquals(constant(lowpass, "const qMin"), Lowpass.MIN_Q);

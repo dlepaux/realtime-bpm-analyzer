@@ -177,7 +177,8 @@ def analyze_channel_data(
     Args:
         samples: The samples of one channel, from -1 to 1: a list, an `array.array` or a 1-D NumPy array. They are
             analysed as 32-bit floats, as the JS library holds them. Decoding a file is the caller's job.
-        sample_rate: Their rate in Hz. The tempogram needs at least 100 Hz.
+        sample_rate: Their rate in Hz. The tempogram needs at least 122.97509238026915 Hz, the first rate at which its
+            FFT has a bin above DC.
         engine: `"tempogram"` (the default) reads the full band; `"peaks"` counts intervals between bass peaks.
         tempo_range: The tempos a reading is reported in, 90 to 180 BPM by default. Any other range, even one
             holding 90 to 180, leaves `confidence` None: it was calibrated on the default range only.
@@ -188,8 +189,8 @@ def analyze_channel_data(
 
     Raises:
         InvalidSamplesError: The samples are empty, not one channel, or hold a NaN or infinite sample.
-        OutOfRangeError: The sample rate is not finite and positive (at least 100 Hz for the tempogram, 2 Hz for
-            peaks), the engine is unknown, a lowpass is given to the tempogram, the tempo range's bounds are not
+        OutOfRangeError: The sample rate is not finite and positive (at least 122.97509238026915 Hz for the
+            tempogram, 2 Hz for peaks), the engine is unknown, a lowpass is given to the tempogram, the tempo range's bounds are not
             positive and finite, span less than an octave, put max above 2^31 - 1 or overflow max / min, or a
             lowpass setting is not finite, its cutoff not between 0 and half the sample rate, or its Q not from -758
             to 770 dB.
@@ -212,7 +213,10 @@ def analyze_channel_data(
 
     if engine == "tempogram":
         if not (math.isfinite(rate) and rate >= MINIMUM_SAMPLE_RATE):
-            raise OutOfRangeError(f"Invalid sample rate: {rate}. The tempogram needs at least {MINIMUM_SAMPLE_RATE} Hz.")
+            raise OutOfRangeError(
+                f"Invalid sample rate: {rate}. The tempogram needs at least {MINIMUM_SAMPLE_RATE} Hz, "
+                "the lowest rate at which its FFT has a bin above DC."
+            )
         frequency = q = math.nan
     else:
         frequency, q = _lowpass(lowpass, rate)

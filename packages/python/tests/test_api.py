@@ -147,6 +147,48 @@ def test_out_of_range_values_raise(kick: NDArray[np.float32], kwargs: dict[str, 
         analyze_channel_data(kick, rate, **kwargs)  # type: ignore[arg-type]
 
 
+TEMPOGRAM_FLOOR = 122.97509238026915
+CONSTS = PACKAGE.parent / "realtime-bpm-analyzer" / "src" / "core" / "consts.ts"
+
+
+def _clicks(rate: float, seconds: float) -> NDArray[np.float32]:
+    """One-sample clicks at 120 BPM, as the conformance set's impulses inputs: a click a low rate keeps."""
+    samples = np.zeros(js_round(seconds * rate), dtype=np.float32)
+    beat = 0
+    while js_round(beat * 0.5 * rate) < len(samples):
+        samples[js_round(beat * 0.5 * rate)] = 0.9
+        beat += 1
+    return samples
+
+
+def test_the_tempogram_floor_is_the_js_librarys() -> None:
+    match = re.search(r"export const tempogramMinSampleRate = ([0-9.]+);", CONSTS.read_text(encoding="utf-8"))
+    assert match is not None
+    assert float(match.group(1)) == TEMPOGRAM_FLOOR == 2 * math.sqrt(2) / 0.023
+
+
+@pytest.mark.parametrize("seconds", [12, 10 / 100])
+@pytest.mark.parametrize(
+    "rate", [100, 110, 122, math.nextafter(math.nextafter(TEMPOGRAM_FLOOR, 0), 0), math.nextafter(TEMPOGRAM_FLOOR, 0)]
+)
+def test_the_tempogram_refuses_rates_under_its_floor(rate: float, seconds: float) -> None:
+    # Whatever the audio's length: 0.1 s at 100 Hz is 10 samples, which would otherwise read None
+    message = (
+        f"Invalid sample rate: {float(rate)}. The tempogram needs at least 122.97509238026915 Hz, "
+        "the lowest rate at which its FFT has a bin above DC."
+    )
+    with pytest.raises(OutOfRangeError) as raised:
+        analyze_channel_data(_clicks(rate, seconds), rate)
+    assert str(raised.value) == message
+
+
+def test_the_tempogram_reads_at_its_floor() -> None:
+    assert math.nextafter(TEMPOGRAM_FLOOR, 0) == 122.97509238026913
+    reading = analyze_channel_data(_clicks(TEMPOGRAM_FLOOR, 12), TEMPOGRAM_FLOOR)
+    assert reading is not None
+    assert reading.bpm == 120
+
+
 @pytest.mark.parametrize(
     ("kwargs", "rate"),
     [

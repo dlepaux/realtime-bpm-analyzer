@@ -52,6 +52,10 @@ final class JsSourceTests: XCTestCase {
         XCTAssertEqual(constant(consts, "export const lowpassFrequency"), Lowpass.default.frequency)
         XCTAssertEqual(constant(consts, "export const lowpassQ"), Lowpass.default.q)
         XCTAssertEqual(constant(consts, "export const peaksMinSampleRate"), Peaks.minimumSampleRate)
+        // The tempogram's floor (RBA-261): the first double at which the FFT has a bin above DC
+        XCTAssertEqual(constant(consts, "export const tempogramMinSampleRate"), Tempogram.minimumSampleRate)
+        XCTAssertEqual(Tempogram.minimumSampleRate, 2 * 2.0.squareRoot() / 0.023)
+        XCTAssertEqual(Tempogram.fftSize(sampleRate: Tempogram.minimumSampleRate), 4)
         // The level-relative peaks search (RBA-221): the percentile of the window maxima, and the floor under which it
         // reads silence
         XCTAssertEqual(constant(consts, "export const levelPercentile"), Double(Peaks.levelPercentile))

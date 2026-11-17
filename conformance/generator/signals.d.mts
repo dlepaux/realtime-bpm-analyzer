@@ -13,4 +13,5 @@ export type Signal = {
 export function noiseSource(seed: number): () => number;
 export function toPcm16(mix: Float64Array): Int16Array;
 export const edgeThreshold: number;
+export const tempogramFloor: number;
 export const signals: readonly Signal[];

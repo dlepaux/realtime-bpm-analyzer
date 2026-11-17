@@ -84,7 +84,7 @@ final class ApiTests: XCTestCase {
             ("no samples", "invalidSamples", { try analyzeChannelData([], sampleRate: self.sampleRate) }),
             ("a NaN sample", "invalidSamples", { try analyzeChannelData(nan, sampleRate: self.sampleRate) }),
             ("an infinite sample", "invalidSamples", { try analyzeChannelData(infinite, sampleRate: self.sampleRate) }),
-            ("a tempogram rate under 100 Hz", "outOfRange", { try analyzeChannelData(samples, sampleRate: 99) }),
+            ("a tempogram rate under its floor", "outOfRange", { try analyzeChannelData(samples, sampleRate: 99) }),
             ("a NaN rate", "outOfRange", { try analyzeChannelData(samples, sampleRate: .nan) }),
             ("a range under an octave", "outOfRange", {
                 try analyzeChannelData(samples, sampleRate: self.sampleRate, options: AnalysisOptions(tempoRange: TempoRange(min: 100, max: 150)))
@@ -104,6 +104,38 @@ final class ApiTests: XCTestCase {
         }
         // A sample fault comes before an option fault, as in the JS library
         XCTAssertEqual(category { try analyzeChannelData(nan, sampleRate: 1) }, "invalidSamples")
+    }
+
+    /// One-sample clicks at 120 BPM, as the conformance set's impulses inputs: a click a low rate keeps.
+    private func impulses(sampleRate rate: Double, seconds: Double) -> [Float] {
+        // JS Math.round: half up
+        let round = { (x: Double) in Int(x - x.rounded(.down) >= 0.5 ? x.rounded(.up) : x.rounded(.down)) }
+        var samples = [Float](repeating: 0, count: round(seconds * rate))
+        var beat = 0.0
+        while round(beat * 0.5 * rate) < samples.count {
+            samples[round(beat * 0.5 * rate)] = 0.9
+            beat += 1
+        }
+        return samples
+    }
+
+    func testTheTempogramRefusesRatesUnderItsFloorAndReadsAtIt() throws {
+        let floor = 122.97509238026915
+        let under = floor.nextDown
+        XCTAssertEqual(under, 122.97509238026913)
+        // Under the floor whatever the audio's length, and also where a ratio-of-logs log2 would give 4 points
+        for rate in [100, 110, 122, under.nextDown, under] {
+            for samples in [impulses(sampleRate: rate, seconds: 12), [Float](repeating: 0, count: 10)] {
+                do {
+                    _ = try analyzeChannelData(samples, sampleRate: rate)
+                    XCTFail("\(rate) Hz analysed")
+                } catch AnalysisError.outOfRange(let message) {
+                    XCTAssertEqual(message, "Invalid sample rate: \(rate). The tempogram needs at least 122.97509238026915 Hz, "
+                        + "the lowest rate at which its FFT has a bin above DC.")
+                }
+            }
+        }
+        XCTAssertEqual(try analyzeChannelData(impulses(sampleRate: floor, seconds: 12), sampleRate: floor)?.bpm, 120)
     }
 
     func testErrorsDescribeThemselves() {

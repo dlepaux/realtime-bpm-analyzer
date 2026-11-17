@@ -158,6 +158,46 @@ public sealed class ApiTests
         Assert.Equal(1024, TempogramEngine.FftSize(Rate));
     }
 
+    /// <summary>One-sample clicks at 120 BPM, as the conformance set's impulses inputs: a click a low rate keeps.</summary>
+    private static float[] Clicks(double rate, double seconds)
+    {
+        var samples = new float[(int)JsMath.Round(seconds * rate)];
+        for (int beat = 0; JsMath.Round(beat * 0.5 * rate) < samples.Length; beat++)
+        {
+            samples[(int)JsMath.Round(beat * 0.5 * rate)] = 0.9f;
+        }
+
+        return samples;
+    }
+
+    [Fact]
+    public void Tempogram_refuses_rates_under_its_floor_and_reads_at_it()
+    {
+        const double floor = TempogramEngine.MinSampleRate;
+        double under = Math.BitDecrement(floor);
+        Assert.Equal(floor, 2 * Math.Sqrt(2) / 0.023);
+        Assert.Equal(122.97509238026913, under);
+        Assert.Equal(4, TempogramEngine.FftSize(floor));
+
+        // Under the floor whatever the audio's length, and also where this port's Log2 alone would give 4 points
+        foreach (double rate in new[] { 100, 110, 122, Math.BitDecrement(under), under })
+        {
+            foreach (float[] samples in new[] { Clicks(rate, 12), new float[10] })
+            {
+                var thrown = Assert.Throws<ArgumentOutOfRangeException>(() => BpmAnalyzer.AnalyzeChannelData(samples, rate));
+                string expected = string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    "Invalid sample rate: {0}. The tempogram needs at least 122.97509238026915 Hz, the lowest rate at which its FFT has a bin above DC.",
+                    rate);
+                Assert.StartsWith(expected, thrown.Message, StringComparison.Ordinal);
+            }
+        }
+
+        Reading? reading = BpmAnalyzer.AnalyzeChannelData(Clicks(floor, 12), floor);
+        Assert.NotNull(reading);
+        Assert.Equal(120, reading.Bpm);
+    }
+
     [Theory]
     [InlineData(0, 180)]
     [InlineData(-90, 180)]

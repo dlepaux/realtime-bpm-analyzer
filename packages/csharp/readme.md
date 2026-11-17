@@ -94,7 +94,7 @@ var options = new AnalysisOptions(
 | JS | C# | When |
 | --- | --- | --- |
 | `Error` | `ArgumentException`, exactly that type | `samples` is empty, or holds a NaN or infinite sample |
-| `RangeError` | `ArgumentOutOfRangeException` | The sample rate is not finite, under 100 Hz for the tempogram, or under 2 Hz or not above twice the lowpass cutoff for peaks; or `TempoRange` and `Lowpass` get a value out of range, such as a `max` above `int.MaxValue` or a `max / min` past the largest double |
+| `RangeError` | `ArgumentOutOfRangeException` | The sample rate is not finite, under 122.97509238026915 Hz for the tempogram (the first rate at which its FFT has a bin above DC; releases before this floor refused only under 100 Hz, and returned `null` from there up to it), or under 2 Hz or not above twice the lowpass cutoff for peaks; or `TempoRange` and `Lowpass` get a value out of range, such as a `max` above `int.MaxValue` or a `max / min` past the largest double |
 | `TypeError` | none | C#'s types rule these out |
 
 A `null` argument throws `ArgumentNullException`. `TempoRange` and `Lowpass` check their values when they are made,
@@ -108,8 +108,9 @@ so on an input whose tempo sits right at a rounding or tie boundary, an exact fi
 order can still differ. The vectors leave out such fragile inputs on purpose. Beyond that:
 
 - .NET Standard 2.0 has no `Math.Log2`, so the tempogram's FFT size can round the other way at a contrived sample
-  rate such as 122.97509238026912 Hz, where 0.023 times the rate lies within a bit of 2^(n + 0.5). No whole rate
-  from 100 Hz to 2 MHz does.
+  rate such as 245.95018476053824 Hz, where 0.023 times the rate lies within a bit of 2^(n + 0.5). No whole rate up
+  to 2 MHz does. At the lowest such rate the floor decides instead: every port compares the rate with
+  122.97509238026915, so they refuse the same rates.
 - CI runs the vectors on .NET 10 on Linux x64. Unity's Mono and IL2CPP, Godot and .NET Framework run the same code
   but aren't run against the vectors, and a 32-bit .NET Framework JIT may keep `float` intermediates at a higher
   precision, which can move a reading near a boundary.

@@ -41,7 +41,10 @@ MINIMUM_LOUDNESS = 0.05
 SMOOTHING_WEIGHTS = (1 / 9, 2 / 9, 3 / 9, 2 / 9, 1 / 9)
 MAX_CANDIDATES = 5
 SHORTEST_RECORDING_SECONDS = 1.5
-MINIMUM_SAMPLE_RATE = FRAME_RATE
+# The JS library's tempogramMinSampleRate, which consts.ts derives: the first double at which the FFT below has 4
+# points, so a bin above DC (RBA-261). Under it the FFT has 2, whose bins the onset sums skip, and every reading was
+# None. The rate is compared with this double, not through the FFT size, as every port does
+MINIMUM_SAMPLE_RATE = 122.97509238026915
 # Frames transformed at once: bounds the memory a long input takes, about 8 MB at 44.1 kHz
 _FRAME_BLOCK = 1024
 
@@ -234,7 +237,7 @@ class _Accumulator:
 
 
 def detect_tempogram(samples: NDArray[np.float32], sample_rate: float, tempo_range: TempoRange) -> list[Tempo]:
-    """Up to 5 candidates, best first, empty when no pulse stands out. The sample rate is at least 100 Hz."""
+    """Up to 5 candidates, best first, empty when no pulse stands out. The sample rate is at least MINIMUM_SAMPLE_RATE."""
     seconds = len(samples) / sample_rate
     # Shorter audio has no two beats to compare at the slowest tempo searched
     if seconds < SHORTEST_RECORDING_SECONDS:

@@ -18,8 +18,8 @@ import Foundation
 ///
 /// - Parameters:
 ///   - samples: One channel, from -1 to 1. Left untouched.
-///   - sampleRate: Their rate in Hz: at least 100 for the tempogram; for peaks at least 2, and above twice the
-///     lowpass cutoff.
+///   - sampleRate: Their rate in Hz: at least 122.97509238026915 for the tempogram, the first rate at which its FFT
+///     has a bin above DC; for peaks at least 2, and above twice the lowpass cutoff.
 ///   - options: The engine and the tempo range. The defaults are the tempogram on 90 to 180 BPM.
 /// - Returns: The reading, or `nil` when no tempo was found: silence, noise, or under 1.5 s for the tempogram.
 /// - Throws: An ``AnalysisError``, and no other error: ``AnalysisError/invalidSamples(_:)`` when there are no
@@ -63,7 +63,7 @@ public func analyzeChannelData(_ samples: UnsafeBufferPointer<Float>, sampleRate
     guard let lowpass else {
         guard sampleRate.isFinite, sampleRate >= Tempogram.minimumSampleRate else {
             throw AnalysisError.outOfRange("Invalid sample rate: \(sampleRate). The tempogram needs at least "
-                + "\(Tempogram.minimumSampleRate) Hz.")
+                + "\(Tempogram.minimumSampleRate) Hz, the lowest rate at which its FFT has a bin above DC.")
         }
         return reading(Tempogram.detect(samples, sampleRate: sampleRate, range: range), audio, .tempogram, range, calibrated: true)
     }

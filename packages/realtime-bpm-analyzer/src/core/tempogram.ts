@@ -1,4 +1,5 @@
 import {resolveTempoRange} from './tempo';
+import {tempogramMinSampleRate} from './consts';
 import type {Tempo, TempoRange} from './types';
 import {HYSTERESIS} from '../contract/types';
 
@@ -207,8 +208,32 @@ function createFft(size: number) {
   };
 }
 
+/**
+ * The onset stage's FFT size: the power of two nearest 23 ms of samples, on a log scale
+ * @param sampleRate Sample rate in Hz
+ * @returns The number of points, 4 or more from {@link tempogramMinSampleRate} up
+ */
+export function tempogramFftSize(sampleRate: number): number {
+  return 2 ** Math.round(Math.log2(0.023 * sampleRate));
+}
+
+/**
+ * Refuses a rate the tempogram can't analyse, so that it never reads null by construction
+ * @param sampleRate Sample rate in Hz
+ * @throws {RangeError} When the rate is not a finite number of at least {@link tempogramMinSampleRate} Hz, NaN and a
+ * string included, as the lowpass refuses them
+ */
+function assertTempogramSampleRate(sampleRate: number): void {
+  if (!Number.isFinite(sampleRate) || !(sampleRate >= tempogramMinSampleRate)) {
+    throw new RangeError(
+      `Invalid sample rate: ${sampleRate}. The tempogram needs at least ${tempogramMinSampleRate} Hz, `
+        + 'the lowest rate at which its FFT has a bin above DC.',
+    );
+  }
+}
+
 function createOnsetStage(sampleRate: number, frameRate: number, tuning: TempogramTuning): OnsetStage {
-  const fftSize = 2 ** Math.round(Math.log2(0.023 * sampleRate));
+  const fftSize = tempogramFftSize(sampleRate);
   const bins = fftSize / 2;
   const fft = createFft(fftSize);
   const re = new Float64Array(fftSize);
@@ -341,6 +366,8 @@ function isLocalPeak(values: Float64Array, i: number): boolean {
  * @param options.tempoRange - Tempos searched, when the caller limits them
  * @param options.tuning - Overrides, for the benchmark's tuning runs
  * @returns The detector
+ * @throws {RangeError} When the sample rate is under {@link tempogramMinSampleRate}. Web Audio's rates start at 3 kHz,
+ * so the worklet never meets one
  */
 export function createTempogramDetector({
   sampleRate,
@@ -351,6 +378,7 @@ export function createTempogramDetector({
   tempoRange?: TempoRange;
   tuning?: Partial<TempogramTuning>;
 }): TempogramDetector {
+  assertTempogramSampleRate(sampleRate);
   const tuning = {...defaultTempogramTuning, ...overrides};
   const hop = Math.round(sampleRate / tuning.frameRate);
   const frameRate = sampleRate / hop;
@@ -658,16 +686,14 @@ const shortestRecordingSeconds = 1.5;
  * @param sampleRate Sample rate in Hz
  * @param tempoRange Tempos searched (default: 90 to 180 BPM)
  * @returns Up to 5 tempo candidates, best first, empty when no pulse stands out
- * @throws {RangeError} When `tempoRange` or the sample rate is invalid
+ * @throws {RangeError} When `tempoRange` is invalid, or the sample rate is under {@link tempogramMinSampleRate}
  */
 export function detectTempogram(channelData: Float32Array, sampleRate: number, tempoRange?: TempoRange): Tempo[] {
   const range = resolveTempoRange(tempoRange);
   const {frameRate, warmupSeconds} = defaultTempogramTuning;
 
-  // Under the frame rate a hop rounds to no samples. A string is refused too, as the lowpass refuses it
-  if (!Number.isFinite(sampleRate) || sampleRate < frameRate) {
-    throw new RangeError(`Invalid sample rate: ${sampleRate}. The tempogram needs at least ${frameRate} Hz.`);
-  }
+  // Before the length: a rate under the floor fails whatever the audio
+  assertTempogramSampleRate(sampleRate);
 
   const seconds = channelData.length / sampleRate;
 

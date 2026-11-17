@@ -23,6 +23,44 @@ export function parseBpmParam(raw: string | null): number | null {
   return clampBpm(Math.round(bpm * 100) / 100)
 }
 
+/**
+ * The page's query string with `bpm` set to the tempo, through parseBpmParam so the URL never
+ * holds a tempo the page would refuse on load, or without `bpm` when there is no valid tempo.
+ * Other params (a campaign tag) stay. "" when nothing is left.
+ */
+export function withBpmParam(search: string, bpm: number | null): string {
+  const params = new URLSearchParams(search)
+  const valid = bpm === null ? null : parseBpmParam(String(bpm))
+  if (valid === null) params.delete('bpm')
+  else params.set('bpm', String(valid))
+  const query = params.toString()
+  return query === '' ? '' : `?${query}`
+}
+
+/** The parts of `window` writeBpmToUrl touches, so a test can hand it a fake. */
+export interface UrlWindow {
+  location: { pathname: string, search: string, hash: string }
+  history: { state: unknown, replaceState: (state: unknown, unused: string, url: string) => void }
+}
+
+/**
+ * Puts the tempo in the address with replaceState, so a copied link opens on it and no Back
+ * step is added. Call it once the tempo settles, not on every input: Safari throws past about
+ * 100 calls per 30 s. Returns false when the browser refused, which leaves the page working and
+ * the link behind until the next change.
+ */
+export function writeBpmToUrl(win: UrlWindow, bpm: number | null): boolean {
+  const search = withBpmParam(win.location.search, bpm)
+  if (search === win.location.search) return true
+  const { pathname, hash } = win.location
+  try {
+    win.history.replaceState(win.history.state, '', `${pathname}${search}${hash}`)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Appends a tap, starting a new sequence after a pause and keeping the last MAX_TAPS. */
 export function pushTap(times: readonly number[], now: number): number[] {
   const last = times[times.length - 1]
@@ -112,4 +150,42 @@ export type ClickKind = 'accent' | 'beat' | 'sub'
 export function clickKind(tick: number, beatsPerBar: number, subdivision: number): ClickKind {
   if (tick % subdivision !== 0) return 'sub'
   return Math.floor(tick / subdivision) % beatsPerBar === 0 ? 'accent' : 'beat'
+}
+
+// ── The metronome's beat grid ─────────────────────────────────────────────────────────────────
+
+/** One tick of a beat grid: its index from the start, and when it falls on the caller's clock. */
+export interface TickCursor {
+  readonly tick: number
+  readonly time: number
+}
+
+/** More than any real lookahead needs, so a timer that stalled for minutes books a bounded batch. */
+export const MAX_TICKS_PER_CALL = 256
+
+/**
+ * The ticks due before `horizon`, `step` apart from `cursor`, and the cursor after them. The
+ * metronome books them on the audio clock a little ahead. Units are the caller's (seconds or
+ * ms), as long as all three agree.
+ */
+export function ticksBefore(cursor: TickCursor, horizon: number, step: number): { due: TickCursor[]; next: TickCursor } {
+  if (!(step > 0) || !Number.isFinite(step)) throw new RangeError(`ticksBefore: step must be a positive number, got ${step}`)
+  const due: TickCursor[] = []
+  let next = cursor
+  while (next.time < horizon && due.length < MAX_TICKS_PER_CALL) {
+    due.push(next)
+    next = { tick: next.tick + 1, time: next.time + step }
+  }
+  return { due, next }
+}
+
+/** A run of taps sets the tempo from this many taps on: fewer can't tell a beat from a stray tap. */
+export const TAPS_TO_SET = 3
+
+/** Adds a tap to the run, and once the run is long enough, gives the tempo it sets (rounded, clamped). */
+export function tapToSet(times: readonly number[], at: number): { taps: number[]; bpm: number | null } {
+  const taps = pushTap(times, at)
+  const estimate = estimateTapTempo(taps)
+  if (!estimate || taps.length < TAPS_TO_SET) return { taps, bpm: null }
+  return { taps, bpm: Math.round(clampBpm(estimate.bpm)) }
 }

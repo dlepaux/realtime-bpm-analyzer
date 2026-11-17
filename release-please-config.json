@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "separate-pull-requests": false,
+  "plugins": [
+    {
+      "type": "node-workspace"
+    }
+  ],
+  "packages": {
+    "packages/realtime-bpm-analyzer": {
+      "package-name": "realtime-bpm-analyzer",
+      "component": "realtime-bpm-analyzer",
+      "include-component-in-tag": false,
+      "changelog-path": "changelog.md"
+    },
+    "packages/cli": {
+      "package-name": "realtime-bpm-analyzer-cli",
+      "component": "cli",
+      "include-component-in-tag": true,
+      "changelog-path": "changelog.md",
+      "initial-version": "0.1.0"
+    },
+    "packages/mcp": {
+      "package-name": "realtime-bpm-analyzer-mcp",
+      "component": "mcp",
+      "include-component-in-tag": true,
+      "changelog-path": "changelog.md",
+      "initial-version": "0.1.0"
+    },
+    "packages/jvm": {
+      "release-type": "maven",
+      "component": "jvm",
+      "include-component-in-tag": true,
+      "changelog-path": "changelog.md",
+      "initial-version": "6.2.0",
+      "skip-snapshot": true
+    },
+    "packages/python": {
+      "release-type": "python",
+      "package-name": "realtime-bpm-analyzer",
+      "component": "python",
+      "include-component-in-tag": true,
+      "changelog-path": "changelog.md"
+    }
+  }
+}

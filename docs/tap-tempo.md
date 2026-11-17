@@ -14,7 +14,7 @@ faq:
   - q: How do I find the BPM of a song by tapping?
     a: Play the song and tap the pad, or press Space, on every beat. After four taps the BPM settles; keep tapping for eight to sixteen beats for a precise reading. The steadiness score tells you how even your taps are.
   - q: How accurate is tap tempo?
-    a: It is as accurate as your timing. With sixteen steady taps the estimate is usually within 1 BPM, because the tool fits a line through every tap instead of trusting the last interval, so one early or late tap barely moves the result.
+    a: It is as accurate as your timing. The tool fits a line through every tap instead of trusting the last interval, so with sixteen steady taps one early or late tap barely moves the result.
   - q: Why does my BPM come out half or double?
     a: You tapped every other beat, or every off-beat as well. Both are valid readings of the same tempo. Most dance music sits between 90 and 180 BPM, so halve or double into that range if the number looks off.
   - q: How do I start over?
@@ -26,6 +26,7 @@ faq:
 <script setup>
 import TapTempo from './.vitepress/components/TapTempo.vue'
 import ToolFaq from './.vitepress/components/ToolFaq.vue'
+import ExtensionMention from './.vitepress/components/ExtensionMention.vue'
 </script>
 
 # Tap Tempo
@@ -51,6 +52,8 @@ is rock steady.
 Prefer not to tap? The [BPM Analyzer](/) finds the tempo automatically from a
 file, your microphone or a radio stream.
 
+<ExtensionMention lead="Music playing in a Chrome or Edge tab?" tail="shows its tempo right on the page, with no tapping." />
+
 ## Frequently asked questions
 
 <ToolFaq />
@@ -61,4 +64,5 @@ file, your microphone or a radio stream.
   <a class="tt-tool" href="/"><strong>BPM Analyzer</strong><span>Detect the tempo of a file, the mic or a stream</span></a>
   <a class="tt-tool" href="/bpm-to-ms"><strong>BPM to ms</strong><span>Delay and reverb times for every note value</span></a>
   <a class="tt-tool" href="/metronome"><strong>Metronome</strong><span>Accents, subdivisions and tap to set</span></a>
+  <a class="tt-tool" href="/strobe-light"><strong>Strobe Light</strong><span>Flash the screen on each kick</span></a>
 </div>

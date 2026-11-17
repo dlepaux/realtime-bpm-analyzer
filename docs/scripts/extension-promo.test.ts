@@ -1,0 +1,276 @@
+// Run with `npm test`. The switch's logic, and the claims rule on the page's own text.
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { EXTENSION_EDGE_URL, EXTENSION_STORE_URL } from '../.vitepress/tools/extension-config.ts'
+import { TEMPO_RANGE } from '../.vitepress/tools/extension-scenes.ts'
+import {
+  EXTENSION_HERO_TAGLINE,
+  EXTENSION_LLMS_LINE,
+  EXTENSION_SHARE_IMAGE,
+  excludedSources,
+  extensionCovers,
+  extensionHomeHero,
+  llmsWithExtension,
+  sharePageLink,
+  extensionNavItems,
+  extensionPageSchema,
+  installRequirement,
+  installTargets,
+  listingUrls,
+  storeLink,
+  resolveEdgeUrl,
+  resolveStoreUrl,
+} from '../.vitepress/tools/extension-promo.ts'
+
+const LISTING = `https://chromewebstore.google.com/detail/live-bpm-detector/${'a'.repeat(32)}`
+const EDGE_LISTING = `https://microsoftedge.microsoft.com/addons/detail/${'c'.repeat(32)}`
+
+// Markdown down to the words a reader sees, on one line.
+function plainText(markdown: string): string {
+  return markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\*\*/g, '')
+    .replace(/\s+/g, ' ')
+}
+
+const BANNED_CLAIMS = [
+  /accura/i, /benchmark/i, /\d\s*%/, /\bbest\b/i, /\bfastest\b/i, /\bperfect/i, /\bguarantee/i,
+  /coming soon/i, /\bsoon\b/i, /\bPro\b/, /pric(e|ing)/i, /\bforever\b/i, /\bpaid\b/i, /aggregateRating/, /testimonial/i, /\d\S*\s+installs\b/i, /\busers\b/i,
+  /GroovePeek/, /BPM Finder/, /BPM Counter/, /Spotify/, /Deezer/, /Vimeo/, /Firefox/, /Opera/, /Brave/, /Vivaldi/, /Safari/,
+  /collects no data/i,
+  /—/, /–/,
+]
+
+const pageSource = readFileSync(new URL('../extension/index.md', import.meta.url), 'utf8')
+const page = plainText(pageSource)
+const policySource = readFileSync(new URL('../extension/privacy.md', import.meta.url), 'utf8')
+
+test('resolveStoreUrl: null stays off, a listing passes, without its query', () => {
+  assert.equal(resolveStoreUrl(null), null)
+  assert.equal(resolveStoreUrl(LISTING), LISTING)
+  assert.equal(resolveStoreUrl(`${LISTING}/`), LISTING)
+  assert.equal(resolveStoreUrl(`${LISTING}?hl=en&authuser=0`), LISTING)
+  const noSlug = `https://chromewebstore.google.com/detail/${'b'.repeat(32)}`
+  assert.equal(resolveStoreUrl(noSlug), noSlug)
+})
+
+test('resolveStoreUrl: anything else fails the build rather than ship a dead link', () => {
+  for (const raw of [
+    '', ' ', '#', 'TODO', 'null', '/extension/', 'https://example.com',
+    'http://chromewebstore.google.com/detail/live-bpm-detector/' + 'a'.repeat(32),
+    'https://chromewebstore.google.com/detail/live-bpm-detector',
+    'https://chromewebstore.google.com/detail/live-bpm-detector/placeholder',
+    'https://chromewebstore.google.com.evil.example/detail/' + 'a'.repeat(32),
+    'javascript:alert(1)',
+  ]) {
+    assert.throws(() => resolveStoreUrl(raw), /EXTENSION_STORE_URL/, raw)
+  }
+})
+
+test('resolveEdgeUrl: null stays off, an Edge listing passes, without its query', () => {
+  assert.equal(resolveEdgeUrl(null), null)
+  assert.equal(resolveEdgeUrl(EDGE_LISTING), EDGE_LISTING)
+  assert.equal(resolveEdgeUrl(`${EDGE_LISTING}/?hl=fr`), EDGE_LISTING)
+  const withSlug = `https://microsoftedge.microsoft.com/addons/detail/live-bpm-detector/${'d'.repeat(32)}`
+  assert.equal(resolveEdgeUrl(withSlug), withSlug)
+})
+
+test('resolveEdgeUrl: a Chrome listing, a placeholder or a lookalike host fails the build', () => {
+  for (const raw of [
+    '', 'TODO', LISTING,
+    'http://microsoftedge.microsoft.com/addons/detail/' + 'a'.repeat(32),
+    'https://microsoftedge.microsoft.com/addons/detail/live-bpm-detector',
+    'https://microsoftedge.microsoft.com/addons/detail/' + 'z'.repeat(32),
+    'https://microsoftedge.microsoft.com.evil.example/addons/detail/' + 'a'.repeat(32),
+    'https://microsoftedge.microsoft.com/detail/' + 'a'.repeat(32),
+  ]) {
+    assert.throws(() => resolveEdgeUrl(raw), /EXTENSION_EDGE_URL must be a Microsoft Edge Add-ons listing/, raw)
+  }
+  assert.throws(() => resolveStoreUrl(EDGE_LISTING), /EXTENSION_STORE_URL/, 'Chrome refuses an Edge listing')
+})
+
+test('the committed values are off or real listings', () => {
+  assert.doesNotThrow(() => resolveStoreUrl(EXTENSION_STORE_URL))
+  assert.doesNotThrow(() => resolveEdgeUrl(EXTENSION_EDGE_URL))
+})
+
+test('switch off: nothing to render, and the page is left out of the build', () => {
+  assert.deepEqual(installTargets(null, null, 'extension_hero'), [])
+  assert.deepEqual(installTargets(null, EDGE_LISTING, 'extension_hero'), [], 'Edge alone has no page to sit on')
+  assert.deepEqual(listingUrls(null, EDGE_LISTING), [])
+  assert.deepEqual(extensionNavItems(null), [])
+  assert.deepEqual(excludedSources(null), ['extension/index.md'])
+})
+
+test('switch on: every install link is the listing, and the page is built', () => {
+  const targets = installTargets(LISTING, null, 'extension_hero')
+  assert.ok(targets.length > 0)
+  for (const target of targets) assert.equal(target.href, storeLink(LISTING, 'extension_hero'))
+  assert.deepEqual(excludedSources(LISTING), [])
+  assert.deepEqual(extensionNavItems(LISTING).map((item) => item.link), ['/extension/'])
+})
+
+test('Edge joins as a second target, after Chrome, with its own tagged listing link', () => {
+  assert.deepEqual(installTargets(LISTING, null, 'extension_hero').map((target) => target.browser), ['Chrome'])
+  const targets = installTargets(LISTING, EDGE_LISTING, 'extension_hero')
+  assert.deepEqual(targets.map((target) => target.id), ['chrome', 'edge'])
+  assert.deepEqual(targets.map((target) => target.browser), ['Chrome', 'Edge'])
+  assert.deepEqual(targets.map((target) => target.label), ['Add to Chrome', 'Add to Edge'])
+  assert.deepEqual(targets.map((target) => target.store), ['Chrome Web Store', 'Edge Add-ons'])
+  assert.deepEqual(targets.map((target) => target.storeInText), ['the Chrome Web Store', 'Edge Add-ons'], 'the article goes where a sentence names the store')
+  assert.equal(targets[1]?.href, storeLink(EDGE_LISTING, 'extension_hero'))
+  assert.deepEqual(listingUrls(LISTING, EDGE_LISTING), [LISTING, EDGE_LISTING])
+})
+
+test('installTargets tags every store link with the place it sits, so goodbye reinstalls are told apart', () => {
+  const targets = installTargets(LISTING, EDGE_LISTING, 'goodbye')
+  assert.deepEqual(targets.map((target) => target.href), [storeLink(LISTING, 'goodbye'), storeLink(EDGE_LISTING, 'goodbye')])
+})
+
+test('installRequirement: one line naming every browser and the extension\'s minimum', () => {
+  assert.equal(installRequirement(installTargets(LISTING, null, 'goodbye')), 'Free. For Chrome 150 or later, on a computer.')
+  assert.equal(installRequirement(installTargets(LISTING, EDGE_LISTING, 'goodbye')), 'Free. For Chrome or Edge 150 or later, on a computer.')
+})
+
+test('structured data: names the listing and says it is free, with no rating or review', () => {
+  const schema = extensionPageSchema(LISTING, 'https://x/extension/', 'Description')
+  assert.equal(schema.installUrl, LISTING)
+  assert.equal(schema.offers.price, '0')
+  for (const key of ['aggregateRating', 'review', 'browserRequirements']) assert.ok(!(key in schema), key)
+  // Operating systems, not browsers: the browsers are in softwareRequirements.
+  assert.equal(schema.operatingSystem, 'Windows, macOS, Linux, ChromeOS')
+  const both = extensionPageSchema(LISTING, 'https://x/extension/', 'Description', EDGE_LISTING)
+  assert.deepEqual(both.installUrl, [LISTING, EDGE_LISTING])
+  assert.equal(both.softwareRequirements, 'Chrome or Microsoft Edge 150 or later, on a computer')
+})
+
+test('the analyzer only suggests the extension for links to sites the listing names', () => {
+  for (const platform of ['youtube', 'soundcloud', 'bandcamp']) assert.ok(extensionCovers(platform), platform)
+  for (const platform of ['spotify', 'apple_music', 'deezer', null]) assert.ok(!extensionCovers(platform), String(platform))
+})
+
+// The page carries only this much of the policy, so musicians reach the install button,
+// and links to the rest. Headings are written at the policy's level.
+const KEPT_FROM_POLICY = [
+  '## Your audio never leaves your device',
+  'When you click the extension\'s button on a tab, it listens to that tab\'s audio and works out the tempo on your computer. The audio is not recorded, stored or sent anywhere. Nobody, including us, can hear it or receive it.',
+  '## What the extension sends',
+  'The extension makes no network request of its own, contains no analytics and has no account, install id or advertising. We don\'t sell or share your audio or tab information: it never reaches us.',
+  '## The website pages it opens',
+  'The pages are part of the website, which uses Google Analytics as described in Website Privacy, so a visit to one of them is measured like any other visit.',
+]
+const POLICY_LINK = 'Read the full extension privacy policy.'
+
+test('page: every kept privacy sentence is word for word in the policy', () => {
+  const policy = plainText(policySource)
+  for (const kept of KEPT_FROM_POLICY) assert.ok(policy.includes(kept), `not in the policy: ${kept}`)
+})
+
+test('page: the privacy section is exactly the kept sentences and the link to the policy', () => {
+  const start = page.indexOf('## Your audio never leaves your device')
+  const end = page.indexOf('## Questions')
+  assert.ok(start > 0 && end > start)
+  const section = page.slice(start, end)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/#+ /g, '## ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  assert.equal(section, [...KEPT_FROM_POLICY, POLICY_LINK].join(' '))
+  assert.ok(pageSource.includes('[extension privacy policy](/extension/privacy)'), 'the link to the full policy is gone')
+})
+
+test('page: states the listing\'s limits', () => {
+  for (const limit of [
+    'It looks for tempos from 90 to 180 BPM. Faster music reads at half and slower music at double: 200 shows as 100, 70 as 140.',
+    'the old tempo can stay on screen, still marked stable, for about 20 seconds after the music changes.',
+    'The new tempo can take longer again to settle, and may be wrong at first.',
+    'Stable means the reading has settled, not that it is certainly right.',
+    'Once it has one, that number stays on screen through a pause or silence, and a stable one stays marked stable.',
+    'This extension is independent, and is not affiliated with or endorsed by any of these services.',
+    'Chrome\'s install prompt says "Read and change all your data on all websites"',
+  ]) {
+    assert.ok(page.includes(limit), limit)
+  }
+})
+
+test('page: the range it states is the extension\'s, wherever it states one', () => {
+  const stated = [...pageSource.matchAll(/from (\d+) to (?:about )?(\d+)/g)]
+  assert.ok(stated.length >= 3, 'the limit, its heading and the FAQ')
+  for (const [match, min, max] of stated) assert.deepEqual([Number(min), Number(max)], [TEMPO_RANGE.min, TEMPO_RANGE.max], match)
+  assert.ok(!/about 1\d\d/.test(pageSource), 'no rounded range beside the constant')
+})
+
+test('page: names exactly the sites the player matrix and the listing prove', () => {
+  const sites = [...pageSource.matchAll(/<li>([^<]+)<\/li>/g)].map((match) => match[1])
+  assert.deepEqual(new Set(sites), new Set(['YouTube', 'YouTube Music', 'Twitch', 'SoundCloud', 'Bandcamp', 'Mixcloud']))
+})
+
+test('page: makes no claim the evidence does not carry', () => {
+  for (const banned of [...BANNED_CLAIMS, /\$/]) assert.ok(!banned.test(page), `the page matches ${banned}`)
+})
+
+test('the promotion outside the page makes the same claims only', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  // Copy only: the template, because the script holds comments, without its style bindings.
+  const copy = (path: string) => read(path).slice(read(path).indexOf('<template>')).replace(/:style="[^"]*"/g, '')
+  const lines = (path: string) => read(path).split('\n').filter((line) => line.includes('ExtensionMention lead')).join(' ')
+  const surfaces = {
+    band: copy('../.vitepress/components/ExtensionHomeBand.vue'),
+    install: copy('../.vitepress/components/ExtensionInstall.vue'),
+    scenes: copy('../.vitepress/components/ExtensionScenes.vue'),
+    scenesRest: copy('../.vitepress/components/ExtensionScenesRest.vue'),
+    overlay: copy('../.vitepress/components/ExtensionSceneOverlay.vue'),
+    resultPrompt: copy('../.vitepress/components/ExtensionResultPrompt.vue'),
+    tap: lines('../tap-tempo.md'),
+    metronome: lines('../metronome.md'),
+    tagline: EXTENSION_HERO_TAGLINE,
+    llms: EXTENSION_LLMS_LINE,
+    shareAlt: EXTENSION_SHARE_IMAGE.alt,
+  }
+  assert.ok(surfaces.tap.includes('Chrome or Edge tab') && surfaces.metronome.includes('Chrome or Edge tab'), 'the mentions moved')
+  for (const [name, text] of Object.entries(surfaces)) {
+    for (const banned of BANNED_CLAIMS) assert.ok(!banned.test(text), `${name} matches ${banned}`)
+  }
+})
+
+test('storeLink: labels the place on the site and nothing about the visitor', () => {
+  const url = new URL(storeLink(LISTING, 'goodbye'))
+  assert.equal(`${url.origin}${url.pathname}`, LISTING)
+  assert.deepEqual(Object.fromEntries(url.searchParams), {
+    utm_source: 'realtime-bpm-analyzer',
+    utm_medium: 'website',
+    utm_campaign: 'live-bpm-detector',
+    utm_content: 'goodbye',
+  })
+})
+
+test('extensionHomeHero: off leaves the hero as written, on changes only the tagline', () => {
+  const hero = { tagline: 'As written', actions: [{ text: 'Developer Docs' }] }
+  assert.equal(extensionHomeHero(hero, null), hero)
+  const on = extensionHomeHero(hero, LISTING)
+  assert.deepEqual(on.actions, hero.actions)
+  assert.equal(on.tagline, EXTENSION_HERO_TAGLINE)
+  assert.equal(hero.tagline, 'As written', 'the source hero is not mutated')
+})
+
+test('llmsWithExtension: the real file gains the extension ahead of the library', () => {
+  const llms = readFileSync(new URL('../public/llms.txt', import.meta.url), 'utf8')
+  const result = llmsWithExtension(llms)
+  assert.ok(result.indexOf(EXTENSION_LLMS_LINE) < result.indexOf('## Library'))
+  assert.ok(result.split('\n')[2].includes('extension for Chrome and Edge'), 'the summary names it')
+  assert.throws(() => llmsWithExtension('# moved'))
+})
+
+test('sharePageLink: falls back to the link, ignores a closed sheet, mails on a failure', async () => {
+  let mailed = 0
+  const mail = () => { mailed += 1 }
+  assert.equal(sharePageLink(undefined, mail), false)
+  assert.equal(sharePageLink(() => Promise.resolve(), mail), true)
+  assert.equal(sharePageLink(() => Promise.reject(Object.assign(new Error('x'), { name: 'AbortError' })), mail), true)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(mailed, 0)
+  sharePageLink(() => Promise.reject(new Error('blocked')), mail)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(mailed, 1)
+})

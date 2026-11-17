@@ -1,30 +1,74 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import {
   FileAudio,
   Mic,
+  MonitorUp,
   Radio,
   Volume2,
   VolumeX,
-  ShieldCheck,
 } from 'lucide-vue-next'
 import {
   analyzeFullBuffer,
   createRealtimeBpmAnalyzer,
   type BpmAnalyzer,
-  type BpmCandidates,
 } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
+import { fileExtensionParam } from '../tools/analytics-params'
+import { classifyMicError } from '../tools/mic-error'
+import { decodeAndClose, openAnalysis } from '../tools/audio-setup'
+import {
+  PLATFORM_LABELS,
+  STATIONS,
+  STREAM_ERROR_MESSAGES,
+  classifyTabCaptureError,
+  detectPlatform,
+  diagnoseStreamFailure,
+  streamEventParams,
+  supportsTabAudio,
+  type NavigatorLike,
+  type StreamEventParams,
+  type StreamErrorKind,
+  type TabCaptureFailure,
+} from '../tools/stream-input'
 import GithubStarSupport from './GithubStarSupport.vue'
 import ResultToolLinks from './ResultToolLinks.vue'
+import ExtensionResultPrompt from './ExtensionResultPrompt.vue'
+import BeatMarkerExport from './BeatMarkerExport.vue'
+import BpmReadout from './BpmReadout.vue'
+import BpmSourceSwitch from './BpmSourceSwitch.vue'
+import { STORE_URL } from '../tools/extension-live'
+import { EXTENSION_PAGE, extensionCovers } from '../tools/extension-promo'
 
 type Mode = 'file' | 'mic' | 'stream'
 type Status = 'idle' | 'analysing' | 'result' | 'error'
 
 // Magic numbers — named for grep-ability.
-const STREAM_STABILIZATION_MS = 20_000
+const STREAM_RESTART_SECONDS = 20
 const GAIN_UNMUTED = 1
 const GAIN_MUTED = 0
+
+// `video` frames the file panel for a video (the /video-bpm page): same analysis,
+// since the browser decodes a video's sound track like any audio file.
+const props = withDefaults(defineProps<{ variant?: 'audio' | 'video' }>(), { variant: 'audio' })
+// A touch screen has nothing to drop, so it gets the short line; CSS picks it with
+// (pointer: coarse), so the server's HTML and the hydrated page agree.
+const FILE_COPY = {
+  audio: {
+    headline: 'Drop a song or choose a file',
+    touchHeadline: 'Choose a song',
+    formats: 'MP3, WAV, FLAC, M4A, OGG',
+    decodeError: 'Your browser couldn’t decode that file. Try MP3, WAV, FLAC, M4A or OGG.',
+  },
+  video: {
+    headline: 'Drop a video or choose a file',
+    touchHeadline: 'Choose a video',
+    formats: 'MP4, WebM, MOV and audio files',
+    decodeError: 'Your browser couldn’t decode the sound of that file. Try MP4 or WebM, or export the audio as WAV.',
+  },
+} as const
+const STAYS_ON_DEVICE = 'Audio stays on your device'
+const fileCopy = computed(() => FILE_COPY[props.variant])
 
 const { track } = useAnalytics()
 
@@ -47,6 +91,14 @@ const fileBpm = ref<number | null>(null)
 const fileDuration = ref<number | null>(null)
 const fileElapsedMs = ref<number | null>(null)
 const fileError = ref<string | null>(null)
+// For the beat marker export (RBA-127): the reading's unrounded bpmExact, which seeds the
+// export's tempo fit, since a grid on the whole fileBpm drifts on long tracks (RBA-128), and the
+// first channel, the one analyzeFullBuffer reads. The export measures the first beat and refines
+// the tempo in it only if it is opened, and the channel is released once that has run, or when
+// the result is cleared. An unopened result keeps it until then.
+const fileTempo = ref<number | null>(null)
+const fileSamples = shallowRef<Float32Array | null>(null)
+const fileSampleRate = ref<number | null>(null)
 
 // ─── Mic ─────────────────────────────────────────────────────────────────
 const micStatus = ref<Status>('idle')
@@ -60,7 +112,8 @@ const micStream = shallowRef<MediaStream | null>(null)
 const micAnalyzer = shallowRef<BpmAnalyzer | null>(null)
 
 // ─── Stream ──────────────────────────────────────────────────────────────
-const streamUrl = ref('https://ice1.somafm.com/defcon-128-mp3')
+// Prefilled from the presets, so the default is always a station whose terms were read (RBA-245).
+const streamUrl = ref(STATIONS[0]?.url ?? '')
 const streamStatus = ref<Status>('idle')
 const streamLiveBpm = ref<number | null>(null)
 const streamStableBpm = ref<number | null>(null)
@@ -71,36 +124,55 @@ const streamAudioEl = shallowRef<HTMLAudioElement | null>(null)
 const streamAnalyzer = shallowRef<BpmAnalyzer | null>(null)
 const streamGain = shallowRef<GainNode | null>(null)
 const streamErrorHandler = shallowRef<((event: Event) => void) | null>(null)
+// What feeds the live stream panel: a URL through an <audio> element, or another
+// tab's audio shared through getDisplayMedia (RBA-23).
+const streamInput = ref<'url' | 'tab'>('url')
+const streamTabCapture = shallowRef<MediaStream | null>(null)
+// The user pressed Chrome's "Stop sharing" after a stable reading: keep the BPM on screen.
+const tabSharingEnded = ref(false)
+// Decided on mount, not during SSR, because it reads `navigator`.
+const tabAudioSupported = ref(false)
 
-const modes: readonly { id: Mode; label: string }[] = [
-  { id: 'file', label: 'File' },
-  { id: 'mic', label: 'Mic' },
-  { id: 'stream', label: 'Stream' },
-] as const
+// A YouTube, Spotify… link can never play here: those sites stream through their
+// own player and send no CORS headers. Detect it as the user pastes, before any request.
+const linkPlatform = computed(() => detectPlatform(streamUrl.value))
+const linkPlatformLabel = computed(() => (linkPlatform.value ? PLATFORM_LABELS[linkPlatform.value] : ''))
 
-const iconForMode = {
-  file: FileAudio,
-  mic: Mic,
-  stream: Radio,
-} as const
+// Lane privacy rule: only the platform name, never the link or any part of it.
+// Once per platform per page view, so clearing and re-pasting doesn't count twice.
+const reportedPlatforms = new Set<string>()
+watch(linkPlatform, (platform) => {
+  if (!platform || reportedPlatforms.has(platform)) return
+  reportedPlatforms.add(platform)
+  track('bpm_link_detected', { platform })
+})
 
-// Strip query + hash from a URL before sending it to analytics — prevents
-// leakage of signed tokens, session IDs, or any other query-encoded secrets.
-function sanitiseUrl(rawUrl: string): string {
-  try {
-    const parsed = new URL(rawUrl)
-    return parsed.origin + parsed.pathname
-  } catch {
-    return ''
-  }
-}
+const modes = [
+  { id: 'file', label: 'File', icon: FileAudio },
+  { id: 'mic', label: 'Mic', icon: Mic },
+  { id: 'stream', label: 'Stream', icon: Radio },
+] as const satisfies readonly { id: Mode; label: string; icon: unknown }[]
 
 // ─── Mode switching (with teardown) ──────────────────────────────────────
 function setMode(next: Mode) {
   if (mode.value === next) return
   invalidate()
-  if (mode.value === 'mic') teardownMic()
-  if (mode.value === 'stream') teardownStream()
+  // Leaving a mode stops its audio, so only a finished mic result may stay on
+  // screen. A live panel or a pending "Checking why…" would show nothing running.
+  if (mode.value === 'mic') {
+    teardownMic()
+    if (micStatus.value !== 'result') {
+      micStatus.value = 'idle'
+      micLiveBpm.value = null
+      micError.value = null
+    }
+  }
+  if (mode.value === 'stream') {
+    teardownStream()
+    streamStatus.value = 'idle'
+    resetStreamReadings()
+  }
+  announce('')
   mode.value = next
   track('bpm_tab_change', { mode: next })
 }
@@ -142,10 +214,13 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
   fileStatus.value = 'analysing'
   fileError.value = null
   fileBpm.value = null
+  fileTempo.value = null
+  fileSamples.value = null
+  fileSampleRate.value = null
   fileDuration.value = null
   fileElapsedMs.value = null
 
-  const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+  const extension = fileExtensionParam(file.name)
   track('bpm_file_selected', {
     input_method: inputMethod,
     size_kb: Math.round(file.size / 1024),
@@ -159,16 +234,14 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
 
   try {
     const arrayBuffer = await file.arrayBuffer()
-    const audioContext = new AudioContext()
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+    const audioBuffer = await decodeAndClose(new AudioContext(), arrayBuffer)
     stage = 'analyse'
-    const candidates = await analyzeFullBuffer(audioBuffer)
-    audioContext.close().catch((e) => console.debug('[BpmHeroTool] file context close:', e))
+    const reading = await analyzeFullBuffer(audioBuffer)
 
-    const top = candidates?.[0]?.tempo
-    if (top === undefined) throw new Error('No BPM candidate returned')
+    if (reading === null) throw new Error('No BPM candidate returned')
 
-    fileBpm.value = Math.round(top)
+    fileBpm.value = reading.bpm
+    fileTempo.value = reading.bpmExact
     fileDuration.value = audioBuffer.duration
     fileElapsedMs.value = Math.round(performance.now() - started)
     fileStatus.value = 'result'
@@ -176,13 +249,17 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
     track('bpm_file_result', {
       input_method: inputMethod,
       bpm: fileBpm.value,
+      // Which engine read it: the v6 default moved to the tempogram, and the series splits on this (RBA-108)
+      engine: reading.engine,
       duration_s: Math.round(fileDuration.value),
       elapsed_ms: fileElapsedMs.value,
     })
+    fileSamples.value = audioBuffer.getChannelData(0)
+    fileSampleRate.value = audioBuffer.sampleRate
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown'
     fileError.value = stage === 'decode'
-      ? 'Your browser couldn’t decode that file. Try MP3, WAV, FLAC, M4A or OGG.'
+      ? fileCopy.value.decodeError
       : 'No clear beat found in that file. Try a section with drums or bass.'
     fileStatus.value = 'error'
     track('bpm_file_error', {
@@ -197,6 +274,9 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
 
 function restartFile() {
   track('bpm_file_restart')
+  fileTempo.value = null
+  fileSamples.value = null
+  fileSampleRate.value = null
   fileStatus.value = 'idle'
   fileName.value = null
   fileBpm.value = null
@@ -206,10 +286,11 @@ function restartFile() {
 }
 
 // ─── Mic flow ────────────────────────────────────────────────────────────
-async function startMic() {
+async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
   if (micStatus.value !== 'idle') return
 
-  track('bpm_mic_clicked')
+  track('bpm_mic_clicked', { input_method: entry })
+  const clickedAt = performance.now()
 
   micError.value = null
   micLiveBpm.value = null
@@ -234,11 +315,11 @@ async function startMic() {
     })
     if (gen !== generation) return disposeLocalMic(localStream, null, null)
 
-    const localContext = new AudioContext()
-    await localContext.resume()
-    if (gen !== generation) return disposeLocalMic(localStream, localContext, null)
-
-    const localAnalyzer = await createRealtimeBpmAnalyzer(localContext)
+    const { context: localContext, analyzer: localAnalyzer } = await openAnalysis(
+      () => new AudioContext(),
+      context => createRealtimeBpmAnalyzer(context),
+      () => localStream.getTracks().forEach(t => t.stop()),
+    )
     if (gen !== generation) return disposeLocalMic(localStream, localContext, localAnalyzer)
 
     // Commit the locals to component state only after all awaits succeed.
@@ -247,37 +328,39 @@ async function startMic() {
     micAnalyzer.value = localAnalyzer
 
     const source = localContext.createMediaStreamSource(localStream)
-    source.connect(localAnalyzer.node)
+    source.connect(localAnalyzer.input)
     // Intentionally do NOT connect to destination — avoids mic feedback.
 
-    localAnalyzer.on('bpm', (data: BpmCandidates) => {
-      const top = data.bpm?.[0]?.tempo
-      if (top === undefined) return
-      micLiveBpm.value = Math.round(top)
+    // The state is current inside a reading listener. A lock can move without a
+    // statechange (peaks relocks on a fuller rung), so the locked BPM follows every reading.
+    localAnalyzer.on('reading', reading => {
+      micLiveBpm.value = Math.round(reading.bpm)
+      if (localAnalyzer.state.status === 'locked') micStableBpm.value = micLiveBpm.value
     })
 
-    localAnalyzer.on('bpmStable', (data: BpmCandidates) => {
-      const top = data.bpm?.[0]?.tempo
-      if (top === undefined) return
-      const bpm = Math.round(top)
-      // bpmStable repeats on every qualifying chunk (~1/s): report a tempo once, and
-      // again only when it changes (RBA-5).
-      if (bpm !== micStableBpm.value) track('bpm_mic_stable', { bpm })
+    localAnalyzer.on('statechange', ({ to }) => {
+      if (to.status !== 'locked') return
+      const bpm = Math.round(to.reading.bpm)
+      // The analyzer can lock again after it unlocks or loses the pulse: report a tempo only
+      // when it differs from the locked tempo last shown, which readings keep current while locked,
+      // so a relock on the same tempo sends nothing (RBA-5). The first one also says how long it took.
+      if (bpm !== micStableBpm.value) {
+        track('bpm_mic_locked', { ...stableReading(bpm, micStableBpm.value === null, clickedAt), engine: to.reading.engine })
+      }
       micStableBpm.value = bpm
       micStatus.value = 'result'
     })
   } catch (error) {
     if (gen !== generation) return // invalidated during setup — bail quietly
     const reason = error instanceof Error ? error.message : 'unknown'
-    const denied = error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')
-    micError.value = denied
+    const micFailure = classifyMicError(error)
+    micError.value = micFailure.error_kind === 'denied'
       ? 'Microphone access denied. Enable it in your browser settings and try again.'
       : 'Couldn’t start the microphone. Check your device and try again.'
     micStatus.value = 'error'
-    track('bpm_mic_error', { reason })
+    track('bpm_mic_error', { reason, ...micFailure })
     console.error('[BpmHeroTool] mic setup failed:', error)
-    // Nothing was committed to component state, and locals are out of scope
-    // here; teardownMic() is a no-op safety net for anything that did land.
+    // openAnalysis released what it opened. This covers what was already committed.
     teardownMic()
   }
 }
@@ -318,28 +401,86 @@ function stopMic() {
 }
 
 // ─── Stream flow ─────────────────────────────────────────────────────────
-// Note: with `continuousAnalysis: true` the analyzer keeps running after the
-// first stable detection — a live radio stream has no natural "end". We
+// Note: with a restart period the analyzer keeps running after the
+// first lock: a live radio stream has no natural "end". We
 // therefore stay in the `'analysing'` status and surface the stable reading
 // as a prominent pill inside the same panel, rather than transitioning to
 // `'result'` (which would imply the session is finished).
-async function startStream() {
-  if (streamStatus.value !== 'idle') return
-  const url = streamUrl.value.trim()
-  if (!url) return
-
-  const sanitised = sanitiseUrl(url)
-  track('bpm_stream_clicked', { url: sanitised })
-
+function resetStreamReadings() {
   streamError.value = null
   streamLiveBpm.value = null
   streamStableBpm.value = null
+  tabSharingEnded.value = false
+}
+
+// A locked reading's params: the tempo, whether it is the first since the click, and for the
+// first one how long it took (RBA-154: time to first result).
+function stableReading(bpm: number, first: boolean, clickedAt: number) {
+  return first ? { bpm, first, elapsed_ms: Math.round(performance.now() - clickedAt) } : { bpm, first }
+}
+
+type UrlStreamParams = StreamEventParams & { input_method: 'url' }
+
+function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: UrlStreamParams | { input_method: 'tab' }, clickedAt: number) {
+  // The state is current inside a reading listener. A lock can move without a
+  // statechange (peaks relocks on a fuller rung), so the locked BPM follows every reading.
+  analyzer.on('reading', reading => {
+    streamLiveBpm.value = Math.round(reading.bpm)
+    if (analyzer.state.status === 'locked') streamStableBpm.value = streamLiveBpm.value
+  })
+
+  analyzer.on('statechange', ({ to }) => {
+    if (to.status !== 'locked') return
+    const bpm = Math.round(to.reading.bpm)
+    if (bpm !== streamStableBpm.value) {
+      track('bpm_stream_locked', {
+        ...stableParams,
+        ...stableReading(bpm, streamStableBpm.value === null, clickedAt),
+        engine: to.reading.engine,
+      })
+    }
+    streamStableBpm.value = bpm
+  })
+}
+
+// The <audio> element only says "error". Show the failure at once, then ask the
+// server why (cors / network / decode / http / insecure) and send the one report
+// with that reason. The caller guarantees this runs once per attempt (RBA-4).
+async function reportStreamFailure(gen: number, url: string, eventParams: UrlStreamParams, reason: string, knownKind?: StreamErrorKind) {
+  teardownStream()
+  streamError.value = 'Couldn’t play that stream. Checking why…'
+  streamStatus.value = 'error'
+  const kind = knownKind ?? await diagnoseStreamFailure(url, window.location.protocol, (u, init) => fetch(u, init))
+  track('bpm_stream_error', { ...eventParams, reason, error_kind: kind })
+  // The user may have moved on while the probe ran: report, but leave their new state alone.
+  if (gen !== generation) return
+  streamError.value = STREAM_ERROR_MESSAGES[kind]
+}
+
+async function startStream() {
+  if (streamStatus.value !== 'idle') return
+  const url = streamUrl.value.trim()
+  // A platform link gets the alternatives instead, and never reaches analytics.
+  if (!url || linkPlatform.value) return
+
+  // Station, scheme and format, never the URL itself (RBA-35).
+  const eventParams: UrlStreamParams = { ...streamEventParams(url), input_method: 'url' }
+  track('bpm_stream_clicked', eventParams)
+  const clickedAt = performance.now()
+
+  resetStreamReadings()
+  streamInput.value = 'url'
   streamStatus.value = 'analysing'
 
   const gen = ++generation
   // A source that answers but fails (404, CORS) fires the element's `error` event
   // AND rejects play(): whichever comes first reports it, once (RBA-4).
   let reported = false
+  const fail = (reason: string, knownKind?: StreamErrorKind) => {
+    if (reported) return
+    reported = true
+    void reportStreamFailure(gen, url, eventParams, reason, knownKind)
+  }
 
   try {
     const localAudioEl = new Audio()
@@ -347,69 +488,157 @@ async function startStream() {
     localAudioEl.src = url
     localAudioEl.preload = 'auto'
 
-    const localContext = new AudioContext()
-    await localContext.resume()
-    if (gen !== generation) return disposeLocalStream(localAudioEl, localContext, null, null)
-
-    const localAnalyzer = await createRealtimeBpmAnalyzer(localContext, {
-      continuousAnalysis: true,
-      stabilizationTime: STREAM_STABILIZATION_MS,
-    })
+    const { context: localContext, analyzer: localAnalyzer } = await openAnalysis(
+      () => new AudioContext(),
+      context => createRealtimeBpmAnalyzer(context, {
+        engine: { name: 'peaks', restartAfterSeconds: STREAM_RESTART_SECONDS },
+      }),
+      () => disposeLocalStream(localAudioEl, null, null, null),
+    )
     if (gen !== generation) return disposeLocalStream(localAudioEl, localContext, localAnalyzer, null)
+
+    // Committed before anything else can throw, so that a failure below is torn down with the rest.
+    streamAudioEl.value = localAudioEl
+    streamContext.value = localContext
+    streamAnalyzer.value = localAnalyzer
 
     const source = localContext.createMediaElementSource(localAudioEl)
     // Analyzer is a sink — it consumes audio for BPM detection and produces no
     // output. Branch two parallel chains from the source so audio still reaches
     // the speakers while we analyse:
-    //   source → analyzer.node                    (analysis path)
+    //   source → analyzer.input                   (analysis path)
     //   source → gainNode → destination           (audio playback, mutable)
-    source.connect(localAnalyzer.node)
+    source.connect(localAnalyzer.input)
     const localGain = localContext.createGain()
     localGain.gain.value = streamMuted.value ? GAIN_MUTED : GAIN_UNMUTED
     source.connect(localGain)
     localGain.connect(localContext.destination)
 
-    // Commit to component state.
-    streamAudioEl.value = localAudioEl
-    streamContext.value = localContext
-    streamAnalyzer.value = localAnalyzer
     streamGain.value = localGain
 
-    localAnalyzer.on('bpm', (data: BpmCandidates) => {
-      const top = data.bpm?.[0]?.tempo
-      if (top === undefined) return
-      streamLiveBpm.value = Math.round(top)
-    })
+    listenToStreamAnalyzer(localAnalyzer, eventParams, clickedAt)
 
-    localAnalyzer.on('bpmStable', (data: BpmCandidates) => {
-      const top = data.bpm?.[0]?.tempo
-      if (top === undefined) return
-      const bpm = Math.round(top)
-      if (bpm !== streamStableBpm.value) track('bpm_stream_stable', { bpm, url: sanitised })
-      streamStableBpm.value = bpm
-    })
-
-    const handler = (): void => {
-      reported = true
-      streamError.value = 'Stream failed to load. URL may be unreachable or blocked by CORS.'
-      streamStatus.value = 'error'
-      track('bpm_stream_error', { url: sanitised, reason: 'audio_error' })
-      teardownStream()
-    }
+    const handler = (): void => fail('audio_error')
     streamErrorHandler.value = handler
     localAudioEl.addEventListener('error', handler)
 
     await localAudioEl.play()
   } catch (error) {
     if (gen !== generation) return // invalidated during setup — bail quietly
-    if (reported) return
-    const reason = error instanceof Error ? error.message : 'unknown'
-    streamError.value = 'Couldn’t play that stream. CORS or network may be blocking it.'
-    streamStatus.value = 'error'
-    track('bpm_stream_error', { url: sanitised, reason })
     console.error('[BpmHeroTool] stream setup failed:', error)
-    teardownStream()
+    // play() runs after two awaits, and Safari can drop the click's user gesture
+    // in between: that's a playback block, not a server problem, so skip the probe.
+    const blocked = error instanceof DOMException && error.name === 'NotAllowedError'
+    fail(error instanceof Error ? error.message : 'unknown', blocked ? 'autoplay' : undefined)
   }
+}
+
+function playStation(url: string) {
+  invalidate()
+  teardownStream()
+  streamStatus.value = 'idle'
+  streamUrl.value = url
+  startStream()
+}
+
+// ─── Tab audio flow ──────────────────────────────────────────────────────
+// For links we can't read (YouTube…): the user plays the track in another tab
+// and shares that tab's audio. Desktop Chrome and Edge only (supportsTabAudio).
+
+// Chrome's own hint, not yet in lib.dom: keep this tab out of the picker, since
+// sharing the analyser's own (silent) tab is never what the user meant.
+type TabCaptureOptions = NonNullable<Parameters<MediaDevices['getDisplayMedia']>[0]> & { selfBrowserSurface?: 'include' | 'exclude' }
+
+const TAB_CAPTURE_MESSAGES: Record<Exclude<TabCaptureFailure, 'cancelled'>, string> = {
+  no_audio: 'That share had no sound. Pick a Chrome tab and keep “Share tab audio” on.',
+  unsupported: 'This browser can’t share tab audio. Play the track next to your mic instead.',
+  error: 'Couldn’t start tab sharing. Try again, or play the track next to your mic.',
+}
+
+function failTabCapture(reason: TabCaptureFailure) {
+  track('bpm_tab_capture_failed', { reason })
+  // Cancelling the picker is a choice, not an error: leave the alternatives on screen.
+  if (reason === 'cancelled') return
+  streamError.value = TAB_CAPTURE_MESSAGES[reason]
+  streamStatus.value = 'error'
+}
+
+async function startTabCapture() {
+  if (streamStatus.value !== 'idle') return
+  resetStreamReadings()
+  const gen = ++generation
+  // From the click, like the other inputs: the time in the browser's picker is part of the wait.
+  const clickedAt = performance.now()
+
+  let captured: MediaStream
+  try {
+    const options: TabCaptureOptions = {
+      video: { displaySurface: 'browser' },
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      selfBrowserSurface: 'exclude',
+    }
+    captured = await navigator.mediaDevices.getDisplayMedia(options)
+  } catch (error) {
+    if (gen !== generation) return
+    console.debug('[BpmHeroTool] tab capture refused:', error)
+    return failTabCapture(classifyTabCaptureError(error))
+  }
+
+  // Only the sound is analysed: stop the video at once so Chrome stops capturing frames.
+  captured.getVideoTracks().forEach(t => t.stop())
+  const audioTrack = captured.getAudioTracks()[0]
+  if (gen !== generation || !audioTrack) {
+    captured.getTracks().forEach(t => t.stop())
+    if (gen === generation) failTabCapture('no_audio')
+    return
+  }
+
+  streamInput.value = 'tab'
+  streamStatus.value = 'analysing'
+  let localContext: AudioContext | null = null
+  let localAnalyzer: BpmAnalyzer | null = null
+  try {
+    localContext = new AudioContext()
+    await localContext.resume()
+    localAnalyzer = await createRealtimeBpmAnalyzer(localContext, {
+      engine: { name: 'peaks', restartAfterSeconds: STREAM_RESTART_SECONDS },
+    })
+    if (gen !== generation) throw new Error('superseded')
+
+    // Analysis only, never to the speakers: the shared tab already plays its own sound.
+    localContext.createMediaStreamSource(captured).connect(localAnalyzer.input)
+    streamTabCapture.value = captured
+    streamContext.value = localContext
+    streamAnalyzer.value = localAnalyzer
+    listenToStreamAnalyzer(localAnalyzer, { input_method: 'tab' }, clickedAt)
+    audioTrack.addEventListener('ended', () => onTabSharingEnded(gen))
+    track('bpm_tab_capture_started')
+  } catch (error) {
+    captured.getTracks().forEach(t => t.stop())
+    disposeLocalStream(null, localContext, localAnalyzer, null)
+    if (gen !== generation) return
+    console.error('[BpmHeroTool] tab capture setup failed:', error)
+    failTabCapture('error')
+  }
+}
+
+// The user pressed the browser's "Stop sharing". Keep a stable reading on screen;
+// without one there is nothing to show, so go back to the input.
+function onTabSharingEnded(gen: number) {
+  if (gen !== generation) return
+  invalidate()
+  teardownStream()
+  if (streamStableBpm.value !== null) {
+    tabSharingEnded.value = true
+    return
+  }
+  streamStatus.value = 'idle'
+  resetStreamReadings()
+}
+
+function useMicInstead() {
+  setMode('mic')
+  startMic('link_fallback')
 }
 
 function disposeLocalStream(
@@ -452,6 +681,8 @@ function teardownStream() {
     audioEl.load()
     streamAudioEl.value = null
   }
+  streamTabCapture.value?.getTracks().forEach(t => t.stop())
+  streamTabCapture.value = null
   streamContext.value?.close().catch((e) => console.debug('[BpmHeroTool] teardownStream context:', e))
   streamContext.value = null
 }
@@ -461,7 +692,9 @@ function toggleStreamMute() {
   if (streamGain.value) {
     streamGain.value.gain.value = streamMuted.value ? GAIN_MUTED : GAIN_UNMUTED
   }
-  track(streamMuted.value ? 'bpm_stream_muted' : 'bpm_stream_unmuted')
+  // Two literal calls, so the call-site test can check each name against the catalogue.
+  if (streamMuted.value) track('bpm_stream_muted')
+  else track('bpm_stream_unmuted')
 }
 
 function stopStream() {
@@ -469,10 +702,12 @@ function stopStream() {
   invalidate()
   teardownStream()
   streamStatus.value = 'idle'
-  streamLiveBpm.value = null
-  streamStableBpm.value = null
-  streamError.value = null
+  resetStreamReadings()
 }
+
+onMounted(() => {
+  tabAudioSupported.value = supportsTabAudio(navigator as NavigatorLike)
+})
 
 // ─── Cleanup on unmount ──────────────────────────────────────────────────
 onBeforeUnmount(() => {
@@ -482,10 +717,24 @@ onBeforeUnmount(() => {
 })
 
 // ─── UI helpers ──────────────────────────────────────────────────────────
-const dropZoneClasses = computed(() => ({
-  'bpm-drop-zone-inner': true,
-  'is-drag-over': isDragOver.value,
-}))
+// One line under the tool: the formats where a file is chosen, and where the audio goes.
+const metaLine = computed(() => (mode.value === 'file' ? `${fileCopy.value.formats} · ${STAYS_ON_DEVICE}` : STAYS_ON_DEVICE))
+
+// What screen readers hear: a settled reading only, once, as it arrives. A live number changes
+// about once a second, and reading each one out would talk over the music. The readings are
+// watched rather than the mode, so going back to a tab that still shows an old result says nothing.
+const announcement = ref('')
+const announce = (text: string) => { announcement.value = text }
+watch(() => (fileStatus.value === 'result' ? fileBpm.value : null), (bpm) => announce(bpm === null ? '' : `${bpm} BPM`))
+watch([micStableBpm, streamStableBpm], ([mic, stream], [oldMic]) => {
+  const bpm = mic !== oldMic ? mic : stream
+  announce(bpm === null ? '' : `Stable at ${bpm} BPM`)
+})
+
+const streamLiveLabel = computed(() => {
+  if (streamInput.value === 'tab') return tabSharingEnded.value ? 'Sharing stopped' : 'Listening to tab'
+  return streamMuted.value ? 'Analysing (muted)' : 'Playing'
+})
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -496,29 +745,12 @@ function formatDuration(seconds: number): string {
 
 <template>
   <div class="bpm-hero-tool">
-    <div
-      class="bpm-tabs"
-      role="tablist"
-      aria-label="Audio source"
-    >
-      <button
-        v-for="m in modes"
-        :key="m.id"
-        type="button"
-        role="tab"
-        :aria-selected="mode === m.id"
-        :class="['bpm-tab', { 'is-active': mode === m.id }]"
-        @click="setMode(m.id)"
-      >
-        <component
-          :is="iconForMode[m.id]"
-          :size="16"
-          :stroke-width="1.75"
-          aria-hidden="true"
-        />
-        <span>{{ m.label }}</span>
-      </button>
-    </div>
+    <slot name="heading" />
+    <BpmSourceSwitch
+      :options="modes"
+      :selected="mode"
+      @select="setMode"
+    />
 
     <div class="bpm-tool-body">
       <!-- FILE MODE -->
@@ -527,35 +759,33 @@ function formatDuration(seconds: number): string {
         class="bpm-mode bpm-mode-file"
       >
         <template v-if="fileStatus === 'idle'">
+          <!-- The whole zone takes a drop or a click; the button is the way in for a keyboard,
+               a screen reader and a touch screen, so the zone itself isn't a second control. -->
           <div
-            :class="dropZoneClasses"
-            role="button"
-            tabindex="0"
-            aria-label="Drop an audio file or click to browse"
+            class="bpm-drop-zone"
+            :class="{ 'is-drag-over': isDragOver }"
             @click="openFilePicker"
-            @keydown.enter.prevent="openFilePicker"
-            @keydown.space.prevent="openFilePicker"
             @dragover="onDragOver"
             @dragleave="onDragLeave"
             @drop="onDrop"
           >
-            <div
+            <FileAudio
               class="bpm-icon"
+              :size="40"
+              :stroke-width="1.5"
               aria-hidden="true"
+            />
+            <p class="bpm-headline">
+              <span class="bpm-on-pointer">{{ fileCopy.headline }}</span>
+              <span class="bpm-on-touch">{{ fileCopy.touchHeadline }}</span>
+            </p>
+            <button
+              type="button"
+              class="bpm-primary-btn"
+              @click.stop="openFilePicker"
             >
-              <FileAudio
-                :size="52"
-                :stroke-width="1.5"
-              />
-            </div>
-            <div class="bpm-copy">
-              <div class="bpm-headline">
-                Drop audio file
-              </div>
-              <div class="bpm-sub">
-                or click to browse
-              </div>
-            </div>
+              Choose a file
+            </button>
           </div>
           <input
             ref="fileInput"
@@ -564,16 +794,10 @@ function formatDuration(seconds: number): string {
             class="bpm-file-input"
             @change="onFileChange"
           />
-          <div class="bpm-formats">
-            MP3, WAV, FLAC, M4A, OGG &amp; more
-          </div>
         </template>
 
         <template v-else-if="fileStatus === 'analysing'">
-          <div
-            class="bpm-state bpm-state-analysing"
-            aria-live="polite"
-          >
+          <div class="bpm-state bpm-state-analysing">
             <div
               class="bpm-spinner"
               aria-hidden="true"
@@ -588,14 +812,11 @@ function formatDuration(seconds: number): string {
         </template>
 
         <template v-else-if="fileStatus === 'result'">
-          <div
-            class="bpm-state bpm-state-result"
-            aria-live="polite"
-          >
-            <div class="bpm-result-bpm">
-              <span class="bpm-result-number">{{ fileBpm }}</span>
-              <span class="bpm-result-unit">BPM</span>
-            </div>
+          <div class="bpm-state bpm-state-result">
+            <BpmReadout
+              :bpm="fileBpm"
+              state="final"
+            />
             <div class="bpm-state-name">
               {{ fileName }}
             </div>
@@ -607,6 +828,17 @@ function formatDuration(seconds: number): string {
               v-if="fileBpm !== null"
               :bpm="fileBpm"
               source="file"
+              :video="variant === 'video'"
+            />
+            <BeatMarkerExport
+              v-if="fileTempo !== null && fileBpm !== null && fileDuration !== null && fileName !== null && fileSampleRate !== null"
+              :file-name="fileName"
+              :tempo="fileTempo"
+              :bpm="fileBpm"
+              :duration="fileDuration"
+              :samples="fileSamples"
+              :sample-rate="fileSampleRate"
+              @searched="fileSamples = null"
             />
             <div class="bpm-result-actions">
               <button
@@ -618,7 +850,7 @@ function formatDuration(seconds: number): string {
               </button>
               <GithubStarSupport
                 variant="inline"
-                placement="demo-file-result"
+                placement="demo_file_result"
               />
             </div>
           </div>
@@ -656,7 +888,7 @@ function formatDuration(seconds: number): string {
             type="button"
             class="bpm-mic-button"
             aria-label="Detect BPM from microphone"
-            @click="startMic"
+            @click="startMic()"
           >
             <Mic
               :size="48"
@@ -675,23 +907,14 @@ function formatDuration(seconds: number): string {
         </template>
 
         <template v-else-if="micStatus === 'analysing'">
-          <div
-            class="bpm-state bpm-state-analysing bpm-state-live"
-            aria-live="polite"
-          >
-            <div
-              class="bpm-live-indicator"
-              aria-hidden="true"
-            >
-              <span class="bpm-live-dot"></span>
-              Listening
-            </div>
-            <div class="bpm-result-bpm">
-              <span class="bpm-result-number">{{ micLiveBpm ?? '—' }}</span>
-              <span class="bpm-result-unit">BPM</span>
-            </div>
+          <div class="bpm-state bpm-state-live">
+            <BpmReadout
+              :bpm="micLiveBpm"
+              state="settling"
+              listening
+            />
             <div class="bpm-state-label">
-              Stabilising…
+              Listening to your microphone
             </div>
             <button
               type="button"
@@ -704,22 +927,21 @@ function formatDuration(seconds: number): string {
         </template>
 
         <template v-else-if="micStatus === 'result'">
-          <div
-            class="bpm-state bpm-state-result"
-            aria-live="polite"
-          >
-            <div class="bpm-result-bpm">
-              <span class="bpm-result-number">{{ micStableBpm }}</span>
-              <span class="bpm-result-unit">BPM</span>
-            </div>
+          <div class="bpm-state bpm-state-result">
+            <BpmReadout
+              :bpm="micStableBpm"
+              state="stable"
+              listening
+            />
             <div class="bpm-state-label">
-              Stable from microphone
+              Listening to your microphone
             </div>
             <ResultToolLinks
               v-if="micStableBpm !== null"
               :bpm="micStableBpm"
               source="mic"
             />
+            <ExtensionResultPrompt source="mic" />
             <div class="bpm-result-actions">
               <button
                 type="button"
@@ -730,7 +952,7 @@ function formatDuration(seconds: number): string {
               </button>
               <GithubStarSupport
                 variant="inline"
-                placement="demo-mic-stable"
+                placement="demo_mic_stable"
               />
             </div>
           </div>
@@ -774,51 +996,113 @@ function formatDuration(seconds: number): string {
             spellcheck="false"
             autocomplete="off"
           />
-          <button
-            type="button"
-            class="bpm-stream-btn"
-            @click="startStream"
-          >
-            Analyse stream
-          </button>
-          <div class="bpm-stream-hint">
-            Example from <a
-              href="https://somafm.com/defcon/"
-              target="_blank"
-              rel="noopener"
-            >SomaFM DEF CON Radio</a>
-          </div>
+          <!-- A platform link swaps the primary action for the alternative that
+               works here: tab audio on desktop Chrome/Edge, the mic elsewhere. -->
+          <template v-if="linkPlatform">
+            <div
+              class="bpm-link-note"
+              role="status"
+            >
+              {{ linkPlatformLabel }} plays only inside its own player, so this page can’t read the link.
+            </div>
+            <template v-if="tabAudioSupported">
+              <button
+                type="button"
+                class="bpm-stream-btn bpm-btn-with-icon bpm-btn-centered"
+                @click="startTabCapture"
+              >
+                <MonitorUp
+                  :size="16"
+                  :stroke-width="1.75"
+                  aria-hidden="true"
+                />
+                <span>Share this tab’s audio</span>
+              </button>
+              <div class="bpm-stream-hint">
+                Open the link in another tab, press play, then pick that tab.
+                Or <button
+                  type="button"
+                  class="bpm-text-btn"
+                  @click="useMicInstead"
+                >
+                  play it next to your mic
+                </button>.
+              </div>
+              <!-- Only here, where tab audio works: the extension needs a desktop
+                   browser, and this is the moment its job is exactly what's wanted. -->
+              <div
+                v-if="STORE_URL && extensionCovers(linkPlatform)"
+                class="bpm-stream-hint"
+              >
+                Skip the sharing next time. <a
+                  class="bpm-text-btn"
+                  :href="EXTENSION_PAGE"
+                  @click="track('extension_link_clicked', { placement: 'stream_hint', target: 'page' })"
+                >Live BPM Detector</a> for Chrome and Edge shows the tempo on the page.
+              </div>
+            </template>
+            <template v-else>
+              <button
+                type="button"
+                class="bpm-stream-btn bpm-btn-with-icon bpm-btn-centered"
+                @click="useMicInstead"
+              >
+                <Mic
+                  :size="16"
+                  :stroke-width="1.75"
+                  aria-hidden="true"
+                />
+                <span>Play it next to your mic</span>
+              </button>
+              <div class="bpm-stream-hint">
+                Play the track out loud on any device and hold it near this one.
+              </div>
+            </template>
+          </template>
+          <template v-else>
+            <button
+              type="button"
+              class="bpm-stream-btn"
+              @click="startStream"
+            >
+              Analyse stream
+            </button>
+            <div
+              v-if="STATIONS.length"
+              class="bpm-stream-hint"
+            >
+              Or try a station:
+              <template
+                v-for="(station, index) in STATIONS"
+                :key="station.url"
+              >
+                <button
+                  type="button"
+                  class="bpm-text-btn"
+                  @click="playStation(station.url)"
+                >
+                  {{ station.name }}
+                </button><span v-if="index < STATIONS.length - 1"> · </span>
+              </template>
+            </div>
+          </template>
         </template>
 
         <template v-else-if="streamStatus === 'analysing'">
-          <div
-            class="bpm-state bpm-state-analysing bpm-state-live"
-            aria-live="polite"
-          >
-            <div
-              class="bpm-live-indicator"
-              aria-hidden="true"
-            >
-              <span class="bpm-live-dot"></span>
-              {{ streamMuted ? 'Analysing (muted)' : 'Playing' }}
-            </div>
-            <div class="bpm-result-bpm">
-              <span class="bpm-result-number">{{ streamLiveBpm ?? '—' }}</span>
-              <span class="bpm-result-unit">BPM</span>
-            </div>
-            <div
-              v-if="streamStableBpm !== null"
-              class="bpm-stable-pill"
-              aria-live="polite"
-            >
-              <span
-                class="bpm-stable-dot"
-                aria-hidden="true"
-              ></span>
-              Stable at {{ streamStableBpm }} BPM
+          <div class="bpm-state bpm-state-live">
+            <!-- A stream has no end, so the analysis keeps running after a stable reading: once
+                 there is one, it is the number shown, and later readings only refine it. -->
+            <BpmReadout
+              :bpm="streamStableBpm ?? streamLiveBpm"
+              :state="streamStableBpm === null ? 'settling' : 'stable'"
+              :listening="!tabSharingEnded"
+            />
+            <div class="bpm-state-label">
+              {{ streamLiveLabel }}
             </div>
             <div class="bpm-stream-actions">
               <button
+                v-if="streamInput === 'url'"
                 type="button"
                 class="bpm-restart-btn bpm-btn-with-icon"
                 :aria-pressed="streamMuted"
@@ -850,12 +1134,16 @@ function formatDuration(seconds: number): string {
             >
               <GithubStarSupport
                 variant="inline"
-                placement="demo-stream-stable"
+                placement="demo_stream_stable"
               />
             </div>
             <ResultToolLinks
               v-if="streamStableBpm !== null"
               :bpm="streamStableBpm"
+              source="stream"
+            />
+            <ExtensionResultPrompt
+              v-if="streamStableBpm !== null"
               source="stream"
             />
           </div>
@@ -876,262 +1164,193 @@ function formatDuration(seconds: number): string {
             >
               Try again
             </button>
+            <div
+              v-if="streamInput === 'url' && STATIONS.length"
+              class="bpm-stream-hint"
+            >
+              {{ STATIONS.length === 1 ? 'A station that works here:' : 'Stations that work here:' }}
+              <template
+                v-for="(station, index) in STATIONS"
+                :key="station.url"
+              >
+                <button
+                  type="button"
+                  class="bpm-text-btn"
+                  @click="playStation(station.url)"
+                >
+                  {{ station.name }}
+                </button><span v-if="index < STATIONS.length - 1"> · </span>
+              </template>
+            </div>
           </div>
         </template>
       </div>
     </div>
 
-    <div class="bpm-badge">
-      <ShieldCheck
-        :size="12"
-        :stroke-width="2"
-        aria-hidden="true"
-      />
-      Audio stays in your browser
-    </div>
+    <p class="bpm-meta">
+      {{ metaLine }}
+    </p>
+    <p
+      class="bpm-announce"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      {{ announcement }}
+    </p>
   </div>
 </template>
 
 <style scoped>
+/* The tool is a raised card: the one object on the page that does something (RBA-66). The body's
+   height is the tallest state's, a file result with its alternate reading, so idle, listening and a result all take the same
+   room and a result arriving seconds after the click moves nothing below (CLS). */
 .bpm-hero-tool {
-  width: 100%;
-  max-width: 440px;
-  margin: 0 auto;
+  --bpm-body-min-height: 24rem;
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.75rem;
-  position: relative;
-  z-index: 2;
-}
-
-.bpm-tabs {
-  display: flex;
-  gap: 0.25rem;
-  padding: 0.25rem;
-  background: var(--vp-c-bg-soft);
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 999px;
+  gap: 1rem;
   width: 100%;
-}
-
-.bpm-tab {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--vp-c-text-2);
-  background: transparent;
-  border: none;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.bpm-tab:hover:not(.is-active) { color: var(--vp-c-text-1); }
-.bpm-tab.is-active {
+  padding: 1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 20px;
   background: var(--vp-c-bg);
-  color: var(--vp-c-brand-1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 16px 40px -20px rgb(40 30 90 / 0.28);
 }
 
-.bpm-tab > :deep(svg) { flex-shrink: 0; }
+:global(.dark) .bpm-hero-tool {
+  background: var(--vp-c-bg-soft);
+  box-shadow: 0 16px 40px -20px rgb(0 0 0 / 0.6);
+}
 
 .bpm-tool-body {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  min-height: var(--bpm-body-min-height);
 }
 
 .bpm-mode {
-  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
+  width: 100%;
 }
 
-.bpm-mode-file { gap: 0.5rem; }
-
-.bpm-drop-zone-inner {
+/* ── File ── */
+.bpm-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
   width: 100%;
-  padding: 1.75rem 1.25rem;
+  min-height: var(--bpm-body-min-height);
+  padding: 1.5rem 1rem;
   border: 2px dashed var(--vp-c-divider);
-  border-radius: 16px;
-  background: var(--vp-c-bg-soft);
+  border-radius: 14px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
-  outline: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-.bpm-drop-zone-inner:hover,
-.bpm-drop-zone-inner:focus-visible {
+.bpm-drop-zone:hover,
+.bpm-drop-zone.is-drag-over {
   border-color: var(--vp-c-brand-1);
-  background: var(--vp-c-bg-alt);
+  background: var(--vp-c-brand-soft);
 }
 
-.bpm-drop-zone-inner.is-drag-over {
-  border-color: var(--vp-c-brand-1);
-  background: var(--vp-c-bg-alt);
-  transform: scale(1.01);
-}
-
-.bpm-icon {
-  color: var(--vp-c-brand-1);
-  margin-bottom: 0.5rem;
-  display: flex;
-  justify-content: center;
-  /* Subtle downward float — signals "you can drop something here" without
-     grabbing attention. 3s cycle, 4px travel. Pauses on hover / drag-over. */
-  animation: bpm-icon-float 3s ease-in-out infinite;
-}
-
-.bpm-drop-zone-inner:hover .bpm-icon,
-.bpm-drop-zone-inner:focus-visible .bpm-icon,
-.bpm-drop-zone-inner.is-drag-over .bpm-icon {
-  animation-play-state: paused;
-}
-
-@keyframes bpm-icon-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(4px); }
-}
+.bpm-icon { color: var(--vp-c-brand-1); }
 
 .bpm-headline {
-  font-size: 1.2rem;
+  margin: 0;
+  font-size: 1.125rem;
   font-weight: 600;
+  line-height: 1.4;
   color: var(--vp-c-text-1);
-  letter-spacing: -0.01em;
 }
 
-.bpm-sub {
-  font-size: 0.9rem;
-  color: var(--vp-c-text-2);
-  margin-top: 0.2rem;
-}
+/* The one device check, as everywhere on the site: a touch screen has nothing to drop. */
+.bpm-on-touch { display: none; }
 
-.bpm-copy-centered { text-align: center; }
+@media (pointer: coarse) {
+  .bpm-on-pointer { display: none; }
+  .bpm-on-touch { display: inline; }
+}
 
 .bpm-file-input { display: none; }
 
-.bpm-formats {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
-  text-align: center;
+/* The card's one filled action, in the AA-safe action colours (tokens.css). */
+.bpm-primary-btn,
+.bpm-stream-btn {
+  min-height: 44px;
+  padding: 0 1.4rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--rba-action);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-/* Shared state card */
+.bpm-primary-btn:hover,
+.bpm-stream-btn:hover { background: var(--rba-action-hover); }
+
+.bpm-stream-btn { width: 100%; border-radius: 10px; }
+
+/* ── States ── */
 .bpm-state {
-  width: 100%;
-  padding: 1.25rem 1rem;
-  background: var(--vp-c-bg-soft);
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 16px;
-  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.6rem;
+  width: 100%;
+  text-align: center;
 }
 
 .bpm-state-name {
-  font-size: 0.85rem;
+  max-width: 100%;
+  font-size: 0.875rem;
   color: var(--vp-c-text-2);
   word-break: break-all;
-  max-width: 100%;
 }
 
 .bpm-state-label {
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   color: var(--vp-c-text-2);
 }
 
-/* Live indicator */
-.bpm-live-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--vp-c-danger-1, #f43f5e);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.bpm-live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--vp-c-danger-1, #f43f5e);
-  box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.45);
-  animation: bpm-pulse 1.2s ease-out infinite;
-}
-
-@keyframes bpm-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.45); }
-  70% { box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
-}
-
-/* Spinner */
 .bpm-spinner {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
   border: 3px solid var(--vp-c-divider);
   border-top-color: var(--vp-c-brand-1);
+  border-radius: 50%;
   animation: bpm-spin 0.8s linear infinite;
 }
 
 @keyframes bpm-spin { to { transform: rotate(360deg); } }
 
-/* Result */
-.bpm-result-bpm {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.5rem;
-  line-height: 1;
-}
-
-.bpm-result-number {
-  font-size: 4rem;
-  font-weight: 700;
-  color: var(--vp-c-brand-1);
-  letter-spacing: -0.04em;
-  font-variant-numeric: tabular-nums;
-  min-width: 3.2ch;
-}
-
-.bpm-result-unit {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--vp-c-text-2);
-  letter-spacing: 0.05em;
-}
-
 .bpm-result-meta {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
   display: flex;
   gap: 0.4rem;
   justify-content: center;
+  font-size: 0.875rem;
+  color: var(--vp-c-text-2);
 }
 
 .bpm-restart-btn {
-  margin-top: 0.4rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
+  min-height: 44px;
+  padding: 0 1.1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 999px;
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--vp-c-text-1);
   background: var(--vp-c-bg);
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 999px;
   cursor: pointer;
   transition: border-color 0.2s ease, color 0.2s ease;
 }
@@ -1141,136 +1360,79 @@ function formatDuration(seconds: number): string {
   color: var(--vp-c-brand-1);
 }
 
-/* Action row pairing the primary restart/stop button with the inline
-   GithubStarSupport CTA in success states (file-result, mic-stable, and
-   stream stability). The row owns the top margin so the restart button drops
-   its own (avoids double-stacking when nested here). */
-.bpm-result-actions {
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 0.4rem;
-}
-
-.bpm-result-actions .bpm-restart-btn {
-  margin-top: 0;
-}
-
+/* The restart button and the star link share a row in the success states. */
+.bpm-result-actions,
 .bpm-stream-actions {
   display: flex;
-  gap: 0.5rem;
-  justify-content: center;
   flex-wrap: wrap;
-}
-
-/* Stable pill shown inside stream analysing panel — signals the analyser has
-   stabilised while the stream continues playing (continuousAnalysis=true). */
-.bpm-stable-pill {
-  display: inline-flex;
+  gap: 0.6rem;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.7rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--vp-c-green-1, #10b981);
-  background: color-mix(in srgb, var(--vp-c-green-1, #10b981) 12%, transparent);
-  border-radius: 999px;
-  letter-spacing: 0.02em;
+  justify-content: center;
 }
 
-.bpm-stable-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
+.bpm-state-error .bpm-error-msg {
+  font-size: 0.9375rem;
+  color: var(--vp-c-danger-1);
 }
 
-.bpm-state-error { border-color: var(--vp-c-danger-1, #f43f5e); }
-.bpm-error-msg {
-  font-size: 0.9rem;
-  color: var(--vp-c-danger-1, #f43f5e);
-}
-
-/* Mic */
+/* ── Mic ── */
 .bpm-mic-button {
-  width: 148px;
-  height: 148px;
-  border-radius: 50%;
-  border: none;
-  background: var(--vp-c-bg-soft);
-  color: var(--vp-c-brand-1);
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(100, 108, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
-  margin-top: 0.5rem;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.2s ease;
 }
 
-.bpm-mic-button:hover {
-  transform: scale(1.03);
-  box-shadow: 0 12px 32px rgba(100, 108, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  background: var(--vp-c-bg-alt);
-}
-
+.bpm-mic-button:hover { transform: scale(1.03); }
 .bpm-mic-button:active { transform: scale(0.98); }
 
-/* Stream */
-.bpm-mode-stream {
-  gap: 0.6rem;
-  padding: 0.25rem 0.25rem 0;
-  width: 100%;
+.bpm-copy-centered { text-align: center; }
+
+.bpm-copy .bpm-headline { font-size: 1.125rem; }
+
+.bpm-sub {
+  margin-top: 0.2rem;
+  font-size: 0.9375rem;
+  color: var(--vp-c-text-2);
 }
 
+/* ── Stream ── */
+.bpm-mode-stream { gap: 0.6rem; }
+
 .bpm-stream-label {
-  font-size: 0.8rem;
+  align-self: flex-start;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--vp-c-text-2);
-  align-self: flex-start;
 }
 
 .bpm-stream-input {
   width: 100%;
-  padding: 0.7rem 0.9rem;
-  font-size: 0.9rem;
-  color: var(--vp-c-text-1);
-  background: var(--vp-c-bg-soft);
+  min-height: 44px;
+  padding: 0 0.9rem;
   border: 1px solid var(--vp-c-divider);
   border-radius: 10px;
-  outline: none;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.bpm-stream-input:focus {
-  border-color: var(--vp-c-brand-1);
+  font-size: 1rem;
+  color: var(--vp-c-text-1);
   background: var(--vp-c-bg);
+  transition: border-color 0.2s ease;
 }
 
-.bpm-stream-btn {
+.bpm-stream-input:focus { border-color: var(--vp-c-brand-1); }
+
+.bpm-stream-hint,
+.bpm-link-note {
   width: 100%;
-  padding: 0.65rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--vp-c-bg);
-  background: var(--vp-c-brand-1);
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.1s ease;
-}
-
-.bpm-stream-btn:hover { background: var(--vp-c-brand-2); }
-.bpm-stream-btn:active { transform: translateY(1px); }
-
-.bpm-stream-hint {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2);
   text-align: center;
-  width: 100%;
 }
 
 .bpm-stream-hint a {
@@ -1279,20 +1441,18 @@ function formatDuration(seconds: number): string {
   text-underline-offset: 2px;
 }
 
-.bpm-badge {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  align-self: center;
-  margin-top: 0.25rem;
+/* Inline actions inside hint text (stations, the mic fallback): styled as links, so the filled
+   button stays the only primary action. Inline in a sentence, so exempt from the target size. */
+.bpm-text-btn {
+  padding: 0;
+  font: inherit;
+  color: var(--vp-c-text-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 
-.bpm-badge > :deep(svg) {
-  color: var(--vp-c-green-1, #10b981);
-  flex-shrink: 0;
-}
+.bpm-text-btn:hover { color: var(--vp-c-brand-1); }
 
 .bpm-btn-with-icon {
   display: inline-flex;
@@ -1300,20 +1460,46 @@ function formatDuration(seconds: number): string {
   gap: 0.35rem;
 }
 
+.bpm-btn-centered { justify-content: center; }
+
 .bpm-btn-with-icon > :deep(svg) { flex-shrink: 0; }
 
-@media (max-width: 640px) {
-  .bpm-drop-zone-inner { padding: 1.25rem 1rem; }
-  .bpm-headline { font-size: 1.05rem; }
-  .bpm-mic-button { width: 128px; height: 128px; }
-  .bpm-result-number { font-size: 3.25rem; }
+/* ── Under the card's body ── */
+.bpm-meta {
+  /* Two lines: the file mode's line wraps on a phone, the others don't, and the card keeps one height. */
+  min-height: 3em;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2);
+  text-align: center;
+}
+
+/* Heard, not seen: the settled reading for screen readers. */
+.bpm-announce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:is(.bpm-primary-btn, .bpm-stream-btn, .bpm-restart-btn, .bpm-mic-button, .bpm-text-btn):focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+@media (min-width: 640px) {
+  .bpm-hero-tool { --bpm-body-min-height: 21rem; padding: 1.5rem; }
+  .bpm-meta { min-height: 0; }
+  .bpm-mic-button { width: 148px; height: 148px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .bpm-spinner { animation: none; }
-  .bpm-live-dot { animation: none; }
-  .bpm-icon { animation: none; }
-  .bpm-drop-zone-inner.is-drag-over { transform: none; }
-  .bpm-mic-button:hover { transform: none; }
+  .bpm-mic-button:hover,
+  .bpm-mic-button:active { transform: none; }
 }
 </style>

@@ -3,11 +3,12 @@
 // ALLOWLIST below, which have no fix anyone can install yet.
 //
 // Why not plain `npm audit --audit-level=high`: in 2026-10 four advisories
-// reached main's dev tooling with no installable fix (braces has no patched
-// release; undici, http-cache-semantics and brace-expansion are bundled inside
-// npm 11, which @semantic-release/npm requires). The plain gate then failed
+// reached main's dev tooling with no installable fix (braces had no patched
+// release; undici, http-cache-semantics and brace-expansion were bundled inside
+// npm 11, which @semantic-release/npm required). The plain gate then failed
 // every PR whatever it changed. The library ships no runtime dependencies, so
-// none of these reach consumers.
+// none of these reach consumers. The list is empty since release-please replaced
+// semantic-release (RBA-37) and took the bundled npm out of the tree.
 //
 // Each entry is scoped to one advisory in one package, optionally only under a
 // path prefix, and stops suppressing after `until`. CI then goes red again and
@@ -16,13 +17,7 @@
 // Usage: (npm audit --json || true) | node bin/audit-gate.mjs   (npm audit exits 1 whenever it finds anything)
 //        node bin/audit-gate.mjs --self-test
 
-const ALLOWLIST = [
-  { ghsa: 'GHSA-vfj7-8cjw-p6xm', pkg: 'braces', until: '2026-11-15', why: 'no patched braces release exists' },
-  { ghsa: 'GHSA-rfgv-xxqx-mfg5', pkg: 'undici', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11; npm 11.21.0 still ships 6.28.0' },
-  { ghsa: 'GHSA-ch52-4w7c-c8xp', pkg: 'http-cache-semantics', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11' },
-  { ghsa: 'GHSA-qhr7-859c-m2p7', pkg: 'brace-expansion', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11' },
-  { ghsa: 'GHSA-6j4f-fj2g-mc7p', pkg: 'brace-expansion', under: 'node_modules/npm/', until: '2026-11-15', why: 'bundled in npm 11' },
-];
+const ALLOWLIST = [];
 
 const BLOCKING = new Set(['high', 'critical']);
 

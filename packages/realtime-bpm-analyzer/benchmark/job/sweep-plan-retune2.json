@@ -1,0 +1,32 @@
+{
+  "ranges": [{"min": 90, "max": 180}],
+  "guard": {
+    "floors": {"140-165": 0.6816143497757847, "165+": 0.4046997389033943},
+    "tracks": {"140-165": 1338, "165+": 383}
+  },
+  "stages": [
+    {"name": "baseline", "axes": {}},
+    {
+      "name": "prior-and-third",
+      "axes": {
+        "priorBpm": [50, 60, 70, 80, 90, 100, 110, 120, 130, 140],
+        "priorOctaves": [0.7, 0.85, 1, 1.3, 1.7, 2.4, 3.4],
+        "thirdBeatPenalty": [0, 0.1, 0.2, 0.3, 0.4, 0.5]
+      }
+    },
+    {
+      "name": "other-knobs",
+      "oneAtATime": true,
+      "axes": {
+        "combBeats": [2, 3, 5, 6],
+        "halfLifeSeconds": [8, 12, 24, 32],
+        "windowSeconds": [6, 10, 12],
+        "stableSeconds": [6, 10],
+        "stableAgreement": [0.7, 0.9],
+        "stableSalience": [0.1, 0.2, 0.25],
+        "stableMargin": [1.1, 1.5],
+        "halfBeatPenalty": [0.15, 0.3]
+      }
+    }
+  ]
+}

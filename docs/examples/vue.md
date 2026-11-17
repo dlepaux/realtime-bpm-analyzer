@@ -11,11 +11,11 @@ How to integrate Realtime BPM Analyzer in Vue 3 applications using the Compositi
 
 We've built complete Vue 3 examples demonstrating different use cases. Each is a fully functional application you can interact with:
 
-### Basic File Upload
+### Basic File Analysis
 
-Upload and analyze audio files to detect their BPM.
+Pick an audio or video file and analyze it in the browser to detect its BPM. It shows every field of the reading the file gives: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="07-vue-basic" height="500px" />
+<ExampleEmbed example="07-vue-basic" height="720px" />
 
 ::: tip View Source
 Full source: [`examples/07-vue-basic`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/07-vue-basic)
@@ -23,9 +23,9 @@ Full source: [`examples/07-vue-basic`](https://github.com/dlepaux/realtime-bpm-a
 
 ### Streaming Audio
 
-Analyze BPM from live audio streams or URLs.
+Analyze BPM from live audio streams or URLs. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="08-vue-streaming" height="600px" />
+<ExampleEmbed example="08-vue-streaming" height="1050px" />
 
 ::: tip View Source
 Full source: [`examples/08-vue-streaming`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/08-vue-streaming)
@@ -33,9 +33,9 @@ Full source: [`examples/08-vue-streaming`](https://github.com/dlepaux/realtime-b
 
 ### Microphone Input
 
-Real-time BPM detection from your microphone.
+Real-time BPM detection from your microphone, with its track passed as `liveInput`. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates, and each `kick` as it is heard, with its time and strength.
 
-<ExampleEmbed example="09-vue-microphone" height="500px" />
+<ExampleEmbed example="09-vue-microphone" height="1250px" />
 
 ::: tip View Source
 Full source: [`examples/09-vue-microphone`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/09-vue-microphone)
@@ -51,38 +51,41 @@ npm install realtime-bpm-analyzer
 
 ### 1. Use Refs for Reactive State
 
-Store BPM and analyzer state in Vue refs:
+Store the BPM in a Vue ref. The audio context and the analyzer are resources,
+not state to render, so plain variables do:
 
+<!-- typecheck: skip, a fragment of the pattern below -->
 ```typescript
 import { ref } from 'vue';
 
-const bpm = ref<number>(0);
-const audioContext = ref<AudioContext | null>(null);
-const bpmAnalyzer = ref<BpmAnalyzer | null>(null);
+const bpm = ref<number | null>(null);
+let audioContext: AudioContext | null = null;
+let analyzer: BpmAnalyzer | null = null;
 ```
 
 ### 2. Cleanup with onUnmounted
 
-Always cleanup audio nodes when component unmounts:
+Always release the analyzer and the audio context when the component unmounts.
+`stop()` is final, so the next start creates a new analyzer:
 
+<!-- typecheck: skip, a fragment of the pattern below -->
 ```typescript
 import { onUnmounted } from 'vue';
 
 onUnmounted(() => {
-  bpmAnalyzer.value?.disconnect();
-  audioContext.value?.close();
+  analyzer?.stop();
+  audioContext?.close();
 });
 ```
 
 ### 3. Handle Events with Ref Updates
 
-Convert BPM events to reactive updates:
+Convert analyzer events to reactive updates:
 
+<!-- typecheck: skip, a fragment of the pattern below -->
 ```typescript
-bpmAnalyzer.value?.on('bpmStable', (data) => {
-  if (data.bpm.length > 0) {
-    bpm.value = data.bpm[0].tempo;
-  }
+analyzer.on('reading', ({ bpm: value }) => {
+  bpm.value = value;
 });
 ```
 
@@ -95,38 +98,40 @@ Here's the essential pattern for Vue integration using Composition API:
 import { ref, onUnmounted } from 'vue';
 import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
 
-const bpm = ref<number>(0);
-const audioContext = ref<AudioContext | null>(null);
-const bpmAnalyzer = ref<BpmAnalyzer | null>(null);
+const bpm = ref<number | null>(null);
+const locked = ref(false);
+let audioContext: AudioContext | null = null;
+let analyzer: BpmAnalyzer | null = null;
 
 const startAnalysis = async () => {
   // Create audio context
-  audioContext.value = new AudioContext();
-  await audioContext.value.resume();
+  audioContext = new AudioContext();
+  await audioContext.resume();
 
   // Create analyzer
-  bpmAnalyzer.value = await createRealtimeBpmAnalyzer(audioContext.value);
+  analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
   // Listen for BPM
-  bpmAnalyzer.value.on('bpmStable', (data) => {
-    if (data.bpm.length > 0) {
-      bpm.value = data.bpm[0].tempo;
-    }
+  analyzer.on('reading', ({ bpm: value }) => {
+    bpm.value = value;
+  });
+  analyzer.on('statechange', ({ to }) => {
+    locked.value = to.status === 'locked';
   });
 
-  // Connect your audio source here...
+  // Connect your audio source to analyzer.input here...
 };
 
 onUnmounted(() => {
-  bpmAnalyzer.value?.disconnect();
-  audioContext.value?.close();
+  analyzer?.stop();
+  audioContext?.close();
 });
 </script>
 
 <template>
   <div>
     <button @click="startAnalysis">Start Analysis</button>
-    <div v-if="bpm">BPM: {{ bpm }}</div>
+    <div v-if="bpm !== null">BPM: {{ bpm }}{{ locked ? ' (locked)' : '' }}</div>
   </div>
 </template>
 ```
@@ -141,32 +146,37 @@ import { ref, onUnmounted } from 'vue';
 import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
 
 export function useBpmAnalyzer() {
-  const bpm = ref<number>(0);
+  const bpm = ref<number | null>(null);
   const isAnalyzing = ref(false);
-  
-  let audioContext: AudioContext | null = null;
-  let analyzer: BpmAnalyzer | null = null;
 
-  const start = async (audioSource: AudioNode) => {
-    audioContext = new AudioContext();
+  let analyzer: BpmAnalyzer | null = null;
+  let wired: AudioNode | null = null;
+
+  // The source must belong to the same audio context: the caller owns both.
+  const start = async (audioContext: AudioContext, source: AudioNode) => {
     analyzer = await createRealtimeBpmAnalyzer(audioContext);
-    
-    audioSource.connect(analyzer.node);
-    
-    analyzer.on('bpmStable', (data) => {
-      bpm.value = data.bpm[0]?.tempo || 0;
+    source.connect(analyzer.input);
+    wired = source;
+
+    analyzer.on('reading', ({ bpm: value }) => {
+      bpm.value = value;
     });
-    
+
     isAnalyzing.value = true;
   };
 
-  const stop = async () => {
-    analyzer?.disconnect();
-    await audioContext?.close();
+  // stop() is final: the next start creates a new analyzer.
+  const stop = () => {
+    if (analyzer) {
+      wired?.disconnect(analyzer.input);
+      analyzer.stop();
+    }
+    analyzer = null;
+    wired = null;
     isAnalyzing.value = false;
   };
 
-  onUnmounted(() => stop());
+  onUnmounted(stop);
 
   return { bpm, isAnalyzing, start, stop };
 }
@@ -177,7 +187,7 @@ export function useBpmAnalyzer() {
 The library is fully typed. Import types as needed:
 
 ```typescript
-import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer, Reading, AnalyzerState } from 'realtime-bpm-analyzer';
 ```
 
 ## Next Steps

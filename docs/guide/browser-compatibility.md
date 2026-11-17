@@ -1,5 +1,5 @@
 ---
-title: Browser Compatibility — Web Audio + AudioWorklet Support
+title: 'Browser Compatibility: Web Audio and AudioWorklet Support'
 description: Which browsers support realtime-bpm-analyzer? Works in any modern browser with the Web Audio API and AudioWorklet. Feature-detection snippet, minimum requirements, and platform notes.
 ---
 
@@ -22,10 +22,9 @@ Always check for AudioWorklet support before initializing:
 
 ```typescript
 function isSupported() {
-  return !!(
-    window.AudioContext && 
-    AudioContext.prototype.audioWorklet
-  );
+  // `in`, not a read: reading AudioContext.prototype.audioWorklet throws a TypeError
+  // in every browser that has AudioWorklet, since its getter needs a real context.
+  return !!window.AudioContext && 'audioWorklet' in AudioContext.prototype;
 }
 
 if (isSupported()) {
@@ -42,10 +41,8 @@ if (isSupported()) {
 
 ### Chrome / Chromium
 
-✅ **Best Performance**
-- Excellent AudioWorklet implementation
-- Lowest latency
-- Best mobile support
+✅ **Supported** (66+)
+- AudioWorklet since Chrome 66
 
 **Notes:**
 - Requires HTTPS or localhost for AudioContext
@@ -53,7 +50,7 @@ if (isSupported()) {
 
 ### Firefox
 
-✅ **Excellent Support**
+✅ **Supported**
 - Reliable AudioWorklet implementation
 - Good performance
 
@@ -92,7 +89,7 @@ if (isSupported()) {
 3. **File Size Limits**
    - iOS Safari has memory limits for audio decoding
    - Large files (>50MB) may fail
-   - Recommend limiting file uploads to <30MB
+   - Recommend limiting file size to <30MB
 
 4. **Stream Support**
    - Works well with streaming audio
@@ -101,7 +98,7 @@ if (isSupported()) {
 
 ### Edge (Chromium-based)
 
-✅ **Excellent Support** (79+)
+✅ **Supported** (79+)
 - Same engine as Chrome
 - Identical performance and compatibility
 
@@ -110,14 +107,13 @@ if (isSupported()) {
 ### Mobile Browsers
 
 #### Android Chrome
-✅ **Excellent Support**
+✅ **Supported**
 - Full feature parity with desktop Chrome
-- Good battery efficiency
-- Reliable AudioWorkletcreateRealTimeBpmProcessor
+- Reliable AudioWorklet
 
 **Tips:**
 - Test battery impact on target devices
-- Use `continuousAnalysis` for streams to manage memory
+- For long streams, `engine: { name: 'peaks', restartAfterSeconds }` starts the analysis over at that period, so the reading follows tempo changes
 
 #### iOS Safari
 ✅ **Good Support** (14.5+)
@@ -129,8 +125,9 @@ if (isSupported()) {
 
 **Best Practices:**
 ```typescript
-// iOS-specific initialization
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+// iOS-specific initialization. Safari 14.1+, the first with AudioWorklet,
+// has the unprefixed AudioContext.
+const audioContext = new AudioContext();
 
 // Always resume after user interaction
 await audioContext.resume();
@@ -161,16 +158,16 @@ The library works with any format supported by the browser's audio decoder:
 ```typescript
 import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
 
-async function analyzeFile(file) {
+async function analyzeFile(file: File) {
   const audioContext = new AudioContext();
   
   try {
     const arrayBuffer = await file.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    const bpm = await analyzeFullBuffer(audioBuffer);
-    return bpm;
+    const reading = await analyzeFullBuffer(audioBuffer);
+    return reading?.bpm ?? null;
   } catch (error) {
-    if (error.name === 'EncodingError') {
+    if (error instanceof DOMException && error.name === 'EncodingError') {
       throw new Error('Unsupported audio format');
     }
     throw error;
@@ -230,7 +227,7 @@ button.addEventListener('click', async () => {
   const audioContext = new AudioContext();
   await audioContext.resume(); // May be required
   
-  const audio = document.getElementById('track');
+  const audio = document.getElementById('track') as HTMLAudioElement;
   await audio.play(); // Now allowed
 });
 ```
@@ -249,7 +246,7 @@ The library works, but test your implementation in private mode.
 ✅ **Fully Compatible**
 
 The library works great in PWAs:
-- Offline analysis (service workers)
+- Analysis with no connection, once your service worker has cached your app (the library makes no network call of its own)
 - Background processing
 - Install prompts supported
 
@@ -271,9 +268,8 @@ Use this snippet to test compatibility:
 function checkBrowserSupport() {
   const report = {
     audioContext: !!window.AudioContext,
-    audioWorklet: !!(window.AudioContext && AudioContext.prototype.audioWorklet),
+    audioWorklet: !!window.AudioContext && 'audioWorklet' in AudioContext.prototype,
     mediaDevices: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
-    webAudio: !!(window.AudioContext || window.webkitAudioContext),
   };
   
   console.table(report);

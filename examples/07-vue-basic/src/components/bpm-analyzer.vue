@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
+import { ref, shallowRef, onMounted, onUnmounted } from 'vue';
+import { analyzeFullBuffer, type Reading } from 'realtime-bpm-analyzer';
+import ReadingPanel from './reading-panel.vue';
 
-const bpm = ref<number | undefined>();
-const isAnalyzing = ref(false);
+const reading = shallowRef<Reading | null>(null);
+const progressText = ref<string | undefined>();
 const error = ref<string | undefined>();
 
 let audioContext: AudioContext | null = null;
@@ -21,41 +22,40 @@ const handleFileChange = async (event: Event) => {
   const file = target.files?.[0];
   if (!file) return;
 
-  try {
-    isAnalyzing.value = true;
-    error.value = undefined;
-    bpm.value = undefined;
+  reading.value = null;
+  error.value = undefined;
 
+  try {
     if (!audioContext) throw new Error('Audio context not initialized');
 
-    // Resume audio context if suspended
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
+    // Decode the file, or a video's sound track. A format the browser can't decode rejects here, with an EncodingError.
+    progressText.value = 'Decoding...';
+    const audioBuffer = await audioContext.decodeAudioData(await file.arrayBuffer());
 
-    // Read and decode audio file
-    const arrayBuffer = await file.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    // Analyze the whole buffer at once: the same reading a live analyzer reports, or null when no tempo was found
+    progressText.value = 'Analyzing...';
+    const result = await analyzeFullBuffer(audioBuffer);
 
-    // Analyze the full buffer to get BPM candidates
-    const tempos = await analyzeFullBuffer(audioBuffer);
-
-    // Get the top BPM candidate
-    const topTempo = tempos[0];
-
-    if (topTempo) {
-      bpm.value = topTempo.tempo;
-      isAnalyzing.value = false;
+    if (result === null) {
+      error.value = 'No clear tempo found in this file';
     } else {
-      error.value = 'Could not detect BPM';
-      isAnalyzing.value = false;
+      reading.value = result;
     }
   } catch (err) {
     console.error('Error analyzing audio:', err);
-    error.value = err instanceof Error ? err.message : 'Failed to analyze audio';
-    isAnalyzing.value = false;
+    error.value = describeError(err);
+  } finally {
+    progressText.value = undefined;
   }
 };
+
+function describeError(err: unknown): string {
+  if (err instanceof DOMException && err.name === 'EncodingError') {
+    return 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file. For a video, try MP4 or WebM, or export its sound as WAV.';
+  }
+
+  return err instanceof Error ? err.message : 'Failed to analyze audio';
+}
 </script>
 
 <template>
@@ -63,29 +63,31 @@ const handleFileChange = async (event: Event) => {
     <div class="file-input-wrapper">
       <input
         type="file"
-        accept="audio/*"
+        accept="audio/*,video/*"
+        aria-label="Audio or video file"
+        aria-describedby="file-formats"
         @change="handleFileChange"
-        :disabled="isAnalyzing"
+        :disabled="progressText !== undefined"
         class="file-input"
       />
+      <p id="file-formats" class="file-formats">
+        Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS. The whole file is read into memory, so for a long video, export the sound or a shorter clip.
+      </p>
     </div>
 
     <div v-if="error" class="status error">
       {{ error }}
     </div>
 
-    <div v-if="isAnalyzing" class="status analyzing">
-      Analyzing audio...
+    <div v-if="progressText" class="status analyzing">
+      {{ progressText }}
     </div>
 
-    <div v-if="!error && !isAnalyzing && bpm !== undefined" class="status success">
+    <div v-if="reading" class="status success">
       Analysis complete!
     </div>
 
-    <div class="bpm-display" :class="{ visible: bpm !== undefined }">
-      <div class="bpm-value">{{ bpm !== undefined ? Math.round(bpm) : '--' }}</div>
-      <div class="bpm-label">BPM</div>
-    </div>
+    <ReadingPanel v-if="reading" :reading="reading" />
   </div>
 </template>
 
@@ -119,6 +121,13 @@ const handleFileChange = async (event: Event) => {
   cursor: not-allowed;
 }
 
+.file-formats {
+  margin-top: 8px;
+  color: #666;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .status {
   padding: 15px;
   border-radius: 10px;
@@ -145,32 +154,4 @@ const handleFileChange = async (event: Event) => {
   border: 1px solid #f5c6cb;
 }
 
-.bpm-display {
-  text-align: center;
-  padding: 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 15px;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.5s ease;
-}
-
-.bpm-display.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.bpm-value {
-  font-size: 64px;
-  font-weight: bold;
-  color: white;
-  margin-bottom: 5px;
-}
-
-.bpm-label {
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.9);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
 </style>

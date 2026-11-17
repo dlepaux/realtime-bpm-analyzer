@@ -1,8 +1,21 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig, type HeadConfig } from 'vitepress'
 import { createRequire } from 'module'
+import { execFile } from 'node:child_process'
+import { copyFileSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
+import { isUsersOnlyExtensionPage } from './tools/extension-pages'
+import { isGuidePage, isNoindexPage, isUnpublishedGuide, SCHEMA_WEB_APPLICATION, siteGraph, techArticle, toolFaqPage } from './tools/site-schema'
+import { EDGE_URL, STORE_URL } from './tools/extension-live'
+import { siteNav } from './tools/site-nav'
+import { EXTENSION_SHARE_IMAGE, excludedSources, extensionHomeHero, extensionPageSchema, llmsWithExtension } from './tools/extension-promo'
+import { gaLoaderScript } from './tools/analytics-loader'
+import { SITE_URL } from './tools/site-url'
 
 const require = createRequire(import.meta.url)
-const pkg = require('../../package.json')
+// The library's version, through its workspace link (packages/realtime-bpm-analyzer)
+const pkg = require('realtime-bpm-analyzer/package.json')
 
 // ── Build-time GitHub star count fetch ─────────────────────────────────────
 // Runs once when `vitepress dev` or `vitepress build` boots. The value is
@@ -35,8 +48,20 @@ async function fetchStarCount(): Promise<number | null> {
 
 const GITHUB_STAR_COUNT = await fetchStarCount()
 
-// GTM container for analytics. Change here if the container is ever rotated.
-const GTM_CONTAINER_ID = 'GTM-WF758H3P'
+// When a page first landed in git, for a guide's datePublished. VitePress gives the last
+// change (pageData.lastUpdated, which the sitemap's lastmod uses too) but not the first.
+// Any git failure means the date is unknown, and the schema leaves it out.
+const DOCS_DIR = fileURLToPath(new URL('..', import.meta.url))
+async function firstCommitTime(file: string): Promise<number | undefined> {
+  try {
+    const { stdout } = await promisify(execFile)(
+      'git', ['log', '--diff-filter=A', '--follow', '--format=%aI', '--', file], { cwd: DOCS_DIR })
+    const first = stdout.trim().split('\n').pop()
+    return first ? Date.parse(first) : undefined
+  } catch {
+    return undefined
+  }
+}
 
 // Copyright year range — first commit landed in 2015. End year auto-updates
 // on every build so deployed docs always show the current year.
@@ -46,133 +71,34 @@ const COPYRIGHT_YEARS = COPYRIGHT_END_YEAR > COPYRIGHT_START_YEAR
   ? `${COPYRIGHT_START_YEAR}–${COPYRIGHT_END_YEAR}`
   : `${COPYRIGHT_START_YEAR}`
 
-// ── Schema.org structured data ─────────────────────────────────────────────
-// Three schemas, scoped to where they're factually accurate:
-//
-//   - SoftwareSourceCode: describes the open-source library. Accurate on every
-//     page (the lib is what the whole site is about), so it ships globally
-//     via transformPageData.
-//   - WebApplication:     describes the free online BPM tool. Only accurate
-//     on the home page (that's where the tool actually lives). Home-only;
-//     the other tool pages build their own from frontmatter (see
-//     transformPageData).
-//   - FAQPage:            the 7 Q&A pairs in the home page's FAQ section.
-//     Home-only — emitting it on /api/* or /guide/* would be technically
-//     invalid (Google Rich Results) and could suppress eligibility.
-//
-// `sameAs` links resolve the project's identity across platforms — GitHub,
-// npm, LinkedIn — so AI engines and search crawlers treat them as one
-// entity rather than three independent strings.
-const SCHEMA_SOFTWARE_SOURCE_CODE = {
-  '@type': 'SoftwareSourceCode',
-  name: 'Realtime BPM Analyzer',
-  description: 'Zero-dependency TypeScript library for detecting beats-per-minute (BPM) of audio or video sources in real time in the browser.',
-  url: 'https://www.realtime-bpm-analyzer.com',
-  codeRepository: 'https://github.com/dlepaux/realtime-bpm-analyzer',
-  sameAs: [
-    'https://www.npmjs.com/package/realtime-bpm-analyzer',
-  ],
-  programmingLanguage: ['TypeScript', 'JavaScript'],
-  runtimePlatform: 'Browser',
-  license: 'https://spdx.org/licenses/Apache-2.0',
-  author: {
-    '@type': 'Person',
-    name: 'David Lepaux',
-    url: 'https://david.lepaux.com',
-    sameAs: [
-      'https://github.com/dlepaux',
-      'https://www.npmjs.com/~dlepaux',
-      'https://www.linkedin.com/in/david-lepaux',
-    ],
-  },
-}
-
-const SCHEMA_WEB_APPLICATION = {
-  '@type': 'WebApplication',
-  name: 'Realtime BPM Analyzer',
-  description: 'Free online BPM analyzer — find the tempo of any song directly in your browser from a file, your microphone, or a live radio stream. Your audio never leaves your device, and no account is needed.',
-  url: 'https://www.realtime-bpm-analyzer.com',
-  applicationCategory: 'MultimediaApplication',
-  operatingSystem: 'Web Browser',
-  browserRequirements: 'Requires Web Audio API support (any modern browser).',
-  inLanguage: 'en',
-  isAccessibleForFree: true,
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'USD',
-  },
-  featureList: [
-    'Analyze audio files (MP3, WAV, FLAC, M4A, OGG)',
-    'Detect BPM from microphone input',
-    'Detect BPM from a live radio stream',
-    'Audio processed locally in the browser — never uploaded',
-  ],
-}
-
-const SCHEMA_FAQ_PAGE = {
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'What is BPM?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'BPM stands for beats per minute — the tempo of a piece of music. It is the count of the underlying beats in one minute. A typical house track runs at 120–130 BPM, drum and bass at 160–180, ambient and downtempo below 100.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'How does the BPM analyzer work?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'The analyzer uses the Web Audio API to decode audio directly in your browser, applies a low-pass filter to isolate the low-frequency transients that usually carry the beat, and counts the intervals between detected peaks. The most frequent interval gives the BPM.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Is my audio sent to a server?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'No. Files you drop, microphone input and stream audio are all analysed in your browser by the open-source library, which sends nothing anywhere. Your audio never leaves your device.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Which audio formats are supported?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'MP3, WAV, FLAC, M4A and OGG, and in general any audio your browser can play, including the sound of a video file. Microphone input and live streams have no format constraint.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Does it work on mobile?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes. The tool works on modern mobile browsers (iOS Safari and Android Chrome). Choosing a file, microphone permission and stream playback all work on touch devices.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'How accurate is the BPM detection?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'For most modern music with a steady beat, detection is accurate within 1–2 BPM. Ambient, rubato, or beatless tracks are harder and may not produce a confident result. The analyzer always returns the top candidates so you can compare.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Can I use this as a library in my own app?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes. Install realtime-bpm-analyzer from npm. It is zero-dependency, written in TypeScript, and works with vanilla JS, React, Vue, or any modern framework. See the developer docs for integration examples.',
-      },
-    },
-  ],
+type ShareImage = { readonly file: string; readonly width: number; readonly height: number; readonly alt: string }
+const SITE_SHARE_IMAGE: ShareImage = {
+  file: 'realtime-bpm-analyzer-share.png',
+  width: 1280,
+  height: 640,
+  alt: 'The Realtime BPM Analyzer logo and name',
 }
 
 // https://vitepress.dev/reference/site-config
+/** What a page tells link previews and crawlers about itself. */
+function shareHead(url: string, title: string, description: string, image: ShareImage): HeadConfig[] {
+  const imageUrl = `${SITE_URL}/${image.file}`
+  return [
+    ['link', { rel: 'canonical', href: url }],
+    ['meta', { property: 'og:url', content: url }],
+    ['meta', { property: 'og:title', content: title }],
+    ['meta', { property: 'og:description', content: description }],
+    ['meta', { name: 'twitter:title', content: title }],
+    ['meta', { name: 'twitter:description', content: description }],
+    ['meta', { property: 'og:image', content: imageUrl }],
+    ['meta', { property: 'og:image:width', content: String(image.width) }],
+    ['meta', { property: 'og:image:height', content: String(image.height) }],
+    ['meta', { property: 'og:image:alt', content: image.alt }],
+    ['meta', { name: 'twitter:image', content: imageUrl }],
+    ['meta', { name: 'twitter:image:alt', content: image.alt }],
+  ]
+}
+
 export default defineConfig({
   title: "Realtime BPM Analyzer",
   titleTemplate: ":title | Realtime BPM Analyzer",
@@ -189,9 +115,18 @@ export default defineConfig({
 
   // Sitemap generation
   sitemap: {
-    hostname: 'https://www.realtime-bpm-analyzer.com',
+    hostname: SITE_URL,
+    // The pages the browser extension opens (RBA-38) are for its users only and
+    // carry noindex, so they stay out of the sitemap too. The /extension/ page itself
+    // goes in once it is built (see srcExclude). A sitemap lists what should appear in
+    // results, so a noindex page has no place in it.
+    transformItems: (items) => items.filter((item) => !isUsersOnlyExtensionPage(item.url) && !isNoindexPage(item.url)),
   },
   
+  // The /extension/ page exists only once the extension has a store listing (RBA-58).
+  // Left out of the build, it has no route, no sitemap entry and no search entry.
+  srcExclude: excludedSources(STORE_URL),
+
   // Ignore dead links for pages we haven't created yet
   ignoreDeadLinks: [],
 
@@ -202,14 +137,26 @@ export default defineConfig({
     define: {
       __GITHUB_STAR_COUNT__: JSON.stringify(GITHUB_STAR_COUNT),
     },
+    resolve: {
+      alias: [
+        // VitePress fills the "Last updated" date in only after the page mounts, so the
+        // prerendered HTML has an empty <time>. Ours renders the date on the server.
+        {
+          find: /^.*\/VPDocFooterLastUpdated\.vue$/,
+          replacement: fileURLToPath(new URL('./theme/LastUpdated.vue', import.meta.url)),
+        },
+      ],
+    },
   },
 
-  // Inject the GTM noscript fallback right after <body>
-  transformHtml(code) {
-    return code.replace(
-      /<body([^>]*)>/,
-      `<body$1>\n<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>`
-    )
+  // What goes live with the extension but can't be a page: public/ would publish the
+  // image while the switch is off, and llms.txt is a static file.
+  buildEnd({ outDir }) {
+    if (!STORE_URL) return
+    const assets = fileURLToPath(new URL('./assets/extension/', import.meta.url))
+    copyFileSync(join(assets, EXTENSION_SHARE_IMAGE.file), join(outDir, EXTENSION_SHARE_IMAGE.file))
+    const llms = join(outDir, 'llms.txt')
+    writeFileSync(llms, llmsWithExtension(readFileSync(llms, 'utf8')))
   },
 
   // Per-page canonical + og:url + per-page og/twitter title/description.
@@ -225,11 +172,11 @@ export default defineConfig({
   // global `head:` array — OpenGraph crawlers use the first occurrence of
   // a property, so a duplicate would pin every inner page to the home-page
   // value and defeat the per-page descriptions.
-  transformPageData(pageData) {
+  async transformPageData(pageData) {
     const slug = pageData.relativePath
       .replace(/(^|\/)index\.md$/, '$1')
       .replace(/\.md$/, '')
-    const canonical = `https://www.realtime-bpm-analyzer.com/${slug}`
+    const canonical = `${SITE_URL}/${slug}`
 
     const SITE_NAME = 'Realtime BPM Analyzer'
     const DEFAULT_OG_TITLE = 'Realtime BPM Analyzer — Web Audio BPM Detection Library'
@@ -238,20 +185,18 @@ export default defineConfig({
     const pageTitle = pageData.frontmatter.title as string | undefined
     const pageDesc = pageData.frontmatter.description as string | undefined
 
-    const ogTitle = pageTitle
+    // A page that opts out of the title template has already written its full title.
+    const ogTitle = pageTitle && pageData.frontmatter.titleTemplate === false
+      ? pageTitle
+      : pageTitle
       ? `${pageTitle} | ${SITE_NAME}`
       : DEFAULT_OG_TITLE
     const ogDesc = pageDesc ?? DEFAULT_DESCRIPTION
 
-    // Schema.org @graph — SoftwareSourceCode everywhere (the lib is the
-    // subject of every page); add WebApplication + FAQPage on the home
-    // page only (those describe the consumer tool and its FAQ, which both
-    // live on /). Single <script> tag per page — Google reads @graph
-    // members independently.
+    // Schema.org @graph, one <script> tag per page: see tools/site-schema.ts for what
+    // goes where. Google reads @graph members independently.
     const isHome = pageData.relativePath === 'index.md'
-    const graph: object[] = isHome
-      ? [SCHEMA_SOFTWARE_SOURCE_CODE, SCHEMA_WEB_APPLICATION, SCHEMA_FAQ_PAGE]
-      : [SCHEMA_SOFTWARE_SOURCE_CODE]
+    const graph: object[] = siteGraph(pageData.relativePath)
 
     // Tool pages (tap tempo, BPM to ms, metronome) describe themselves in
     // frontmatter: `tool:` becomes their WebApplication and `faq:` their
@@ -268,65 +213,68 @@ export default defineConfig({
         featureList: tool.featureList,
       })
     }
-    if (faq?.length) {
-      graph.push({
-        '@type': 'FAQPage',
-        mainEntity: faq.map(({ q, a }) => ({
-          '@type': 'Question',
-          name: q,
-          acceptedAnswer: { '@type': 'Answer', text: a },
-        })),
-      })
+    if (faq?.length) graph.push(toolFaqPage(faq))
+
+    const isGuide = isGuidePage(pageData.relativePath)
+    if (isGuide) {
+      graph.push(techArticle({
+        headline: pageTitle ?? pageData.title,
+        description: ogDesc,
+        url: canonical,
+        modified: pageData.lastUpdated,
+        published: await firstCommitTime(pageData.filePath),
+      }))
     }
 
+    if (STORE_URL && pageData.relativePath === 'extension/index.md') {
+      graph.push(extensionPageSchema(STORE_URL, canonical, ogDesc, EDGE_URL))
+    }
+    if (isHome) pageData.frontmatter.homeHero = extensionHomeHero(pageData.frontmatter.homeHero, STORE_URL)
+
+    // Emitted per page, not from `head:` below: crawlers use the first occurrence, so a
+    // global tag would pin every page to the site's image.
+    const shareImage = STORE_URL && pageData.relativePath === 'extension/index.md'
+      ? EXTENSION_SHARE_IMAGE
+      : SITE_SHARE_IMAGE
+
     pageData.frontmatter.head ??= []
+    // A guide whose package isn't published yet stays unindexed (UNPUBLISHED_GUIDES in
+    // tools/site-schema.ts, empty since the Java and Python ports reached Maven Central and PyPI).
+    if (isUnpublishedGuide(pageData.relativePath)) {
+      pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
+    }
+    // Emitted per page, not from `head:` below: crawlers use the first occurrence.
     pageData.frontmatter.head.push(
-      ['link', { rel: 'canonical', href: canonical }],
-      ['meta', { property: 'og:url', content: canonical }],
-      ['meta', { property: 'og:title', content: ogTitle }],
-      ['meta', { property: 'og:description', content: ogDesc }],
-      ['meta', { name: 'twitter:title', content: ogTitle }],
-      ['meta', { name: 'twitter:description', content: ogDesc }],
-      ['script', { type: 'application/ld+json' }, JSON.stringify({
+      ['meta', { property: 'og:type', content: isGuide ? 'article' : 'website' }],
+      ...shareHead(canonical, ogTitle, ogDesc, shareImage),
+    )
+    // A page with nothing to describe gets no script, rather than an empty @graph.
+    if (graph.length) {
+      pageData.frontmatter.head.push(['script', { type: 'application/ld+json' }, JSON.stringify({
         '@context': 'https://schema.org',
         '@graph': graph,
-      })],
-    )
+      })])
+    }
   },
   
   head: [
-    // Warm the connection to GTM before its loader script fires — saves the
-    // DNS + TLS round-trip on first paint. Paired with the GTM snippet below.
-    ['link', { rel: 'preconnect', href: 'https://www.googletagmanager.com', crossorigin: '' }],
-    // LCP candidate — the home hero image. Tells the preload scanner to start
-    // fetching before VitePress's CSS finishes parsing.
-    ['link', { rel: 'preload', as: 'image', href: '/logo.svg', type: 'image/svg+xml' }],
-    // Google Tag Manager — container loads GA4 + any future tags from the GTM dashboard.
-    // GA4 measurement ID G-S911G9WQTM must be configured as a tag inside GTM.
-    ['script', {}, `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_CONTAINER_ID}');`],
+    // Google Analytics 4 through gtag.js, on the production host only (RBA-154): see
+    // tools/analytics-loader.ts for the internal-traffic flag and the page_view rule.
+    ['script', {}, gaLoaderScript()],
     ['meta', { name: 'theme-color', content: '#646cff' }],
-    ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:locale', content: 'en' }],
+    ['meta', { property: 'og:locale', content: 'en_US' }],
     ['meta', { property: 'og:site_name', content: 'Realtime BPM Analyzer' }],
-    // og:url, og:title, og:description, twitter:title, twitter:description
-    // are injected per-page via transformPageData so each URL is
+    // og:url, og:title, og:description, og:image, twitter:title,
+    // twitter:description and twitter:image are injected per-page via transformPageData so each URL is
     // self-canonical and each page surfaces its own meta.
-    ['meta', { property: 'og:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
-    ['meta', { property: 'og:image:width', content: '1280' }],
-    ['meta', { property: 'og:image:height', content: '640' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-    ['meta', { name: 'twitter:image', content: 'https://www.realtime-bpm-analyzer.com/realtime-bpm-analyzer-share.png' }],
     ['link', { rel: 'icon', type: 'image/png', href: '/favicon/favicon-96x96.png', sizes: '96x96' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon/favicon.svg' }],
     ['link', { rel: 'shortcut icon', href: '/favicon/favicon.ico' }],
     ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/favicon/apple-touch-icon.png' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: 'Realtime BPM Analyzer' }],
     ['link', { rel: 'manifest', href: '/favicon/site.webmanifest'}],
-    // Structured data is injected per-page from transformPageData. The
-    // global library schema (SoftwareSourceCode) ships on every page, while
-    // FAQPage and WebApplication are home-only — see SCHEMA_* constants
-    // above. Keeping the schema out of this global array is what lets the
-    // home-only schemas stay home-only.
+    // Structured data is injected per-page from transformPageData: see tools/site-schema.ts.
   ],
 
 
@@ -334,31 +282,8 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     logo: '/logo.svg',
     
-    nav: [
-      {
-        text: 'Free Tools',
-        items: [
-          { text: 'BPM Analyzer', link: '/' },
-          { text: 'Tap Tempo', link: '/tap-tempo' },
-          { text: 'BPM to ms Calculator', link: '/bpm-to-ms' },
-          { text: 'Metronome', link: '/metronome' },
-        ],
-      },
-      { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'Examples', link: '/examples/basic-usage' },
-      { text: 'API Reference', link: '/api/' },
-      { 
-        text: `v${pkg.version}`,
-        items: [
-          { text: 'Changelog', link: 'https://github.com/dlepaux/realtime-bpm-analyzer/blob/main/changelog.md' },
-          { text: 'Contributing', link: '/contributing' },
-          { text: 'Code of Conduct', link: '/code-of-conduct' },
-          { text: 'Security', link: '/security' },
-          { text: 'Library Privacy', link: '/privacy' },
-          { text: 'Website Privacy', link: '/website-privacy' }
-        ]
-      }
-    ],
+    // Built from data in tools/site-nav.ts, gated on the extension switch (RBA-66).
+    nav: siteNav(STORE_URL, pkg.version),
 
     sidebar: {
       '/guide/': [
@@ -375,6 +300,7 @@ export default defineConfig({
           items: [
             { text: 'Realtime BPM Detection in the Browser', link: '/guide/realtime-bpm-detection' },
             { text: 'Detect BPM from a Microphone', link: '/guide/bpm-from-microphone' },
+            { text: 'Beat Detection with Web Audio', link: '/guide/beat-detection-web-audio' },
             { text: 'useBpm — A React Hook for BPM Detection', link: '/guide/react-bpm-hook' }
           ]
         },
@@ -384,6 +310,13 @@ export default defineConfig({
             { text: 'How It Works', link: '/guide/how-it-works' },
             { text: 'Performance Tips', link: '/guide/performance' },
             { text: 'Browser Compatibility', link: '/guide/browser-compatibility' },
+            { text: 'Strict CSP and Browser Extensions', link: '/guide/strict-csp' },
+            { text: 'BPM Detection in Node.js', link: '/guide/node' },
+            { text: 'BPM Detection from the Command Line', link: '/guide/cli' },
+            { text: 'MCP Server for AI Assistants', link: '/guide/mcp' },
+            { text: 'BPM Detection in Java, Kotlin and Android', link: '/guide/java' },
+            { text: 'BPM Detection in Python', link: '/guide/python' },
+            { text: 'Migration Guide (v5 → v6)', link: '/guide/migration-v6' },
             { text: 'Migration Guide (v4 → v5)', link: '/guide/migration-v5' }
           ]
         }

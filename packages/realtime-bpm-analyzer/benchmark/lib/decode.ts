@@ -1,0 +1,52 @@
+import {spawnSync} from 'node:child_process';
+import {existsSync, mkdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs';
+import {dirname, join} from 'node:path';
+import {threadId} from 'node:worker_threads';
+import {cacheStem} from './cache-name';
+import {dataRoot} from './datasets';
+import {assertDecoded} from './look';
+import {repeatTo} from './stream';
+import type {Track} from './types';
+
+export const sampleRate = 44_100;
+
+/**
+ * A kill must never leave a short file under the final name: the caches trust what they find. Two
+ * workers can write the same path, when two detectors read one track, hence the thread id.
+ * @param path Final path
+ * @param data The content
+ */
+export function writeAtomic(path: string, data: Uint8Array): void {
+  const temporary = `${path}.${threadId}.tmp`;
+
+  writeFileSync(temporary, data);
+  renameSync(temporary, path);
+}
+
+/**
+ * Decodes a track to what a worklet reads: `process()` takes `inputs[0][0]`, the left channel, so
+ * this keeps the left channel instead of a downmix. ffmpeg writes to a pipe, nothing is played.
+ * @param track The track
+ * @returns Mono PCM at {@link sampleRate}, cached outside git
+ */
+export function decode(track: Track): Float32Array {
+  // An excerpt is another file than the whole track, so its length names the folder
+  const folder = track.excerptSeconds === undefined ? track.set : `${track.set}-${track.excerptSeconds}s`;
+  const cachePath = join(dataRoot, 'pcm', folder, `${cacheStem(track.id)}.f32`);
+  const excerpt = track.excerptSeconds === undefined ? [] : ['-t', String(track.excerptSeconds)];
+
+  if (!existsSync(cachePath)) {
+    const {status, stdout, stderr} = spawnSync('ffmpeg', [
+      '-v', 'error', '-i', track.audioPath, ...excerpt, '-af', 'pan=mono|c0=c0', '-ar', String(sampleRate), '-f', 'f32le', 'pipe:1',
+    ], {maxBuffer: 2 ** 30});
+
+    assertDecoded(track.audioPath, status, stdout.length, stderr.toString());
+    mkdirSync(dirname(cachePath), {recursive: true});
+    writeAtomic(cachePath, stdout);
+  }
+
+  const bytes = readFileSync(cachePath);
+  const pcm = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4).slice();
+
+  return track.loopToSeconds === undefined ? pcm : repeatTo(pcm, track.loopToSeconds * sampleRate);
+}

@@ -1,60 +1,60 @@
 ---
-title: Realtime BPM Detection in the Browser
-description: A practical guide to detecting BPM in real time using the Web Audio API and AudioWorklet — files, microphone, and streams. The modern replacement for the 2014 ScriptProcessorNode tutorials.
+title: Detect BPM in Real Time with JavaScript
+description: "Detect BPM in real time with JavaScript: the tempo of an audio or video element, the microphone or a live stream, with Web Audio and an AudioWorklet."
 head:
   - - meta
     - name: keywords
-      content: realtime bpm javascript, web audio bpm, bpm detection javascript, audioworklet bpm, javascript beat detection, detect tempo browser
+      content: realtime bpm javascript, web audio bpm, bpm detection javascript, audioworklet bpm, detect tempo browser, detect bpm javascript
 ---
 
-# Realtime BPM Detection in the Browser
+# Detect BPM in Real Time with JavaScript
 
-Most BPM-detection tutorials on the web were written in 2014. They use
-`ScriptProcessorNode`, which has been deprecated since 2019, and they assume
-you only ever want to analyse a file you already have on disk. Real
-applications — DJ tools, music games, fitness trackers, visualizers — need
-to detect tempo **as audio is playing**, from a microphone, an `<audio>`
-element, or a live HTTP stream, with no glitches and on a separate audio
-thread.
+To detect BPM in real time, connect the audio source to
+`realtime-bpm-analyzer`'s AudioWorklet node and read the tempo from its
+`reading` events, and when it is sure, from its `statechange` to `locked`. The source can be an `<audio>` or `<video>` element,
+a microphone or a live HTTP stream. The analysis runs on the audio thread, so
+the page's own work can't stall it.
 
-This guide is the modern version. It uses the **AudioWorklet API**, which
-runs your analysis off the main thread on a real-time audio rendering
-thread. It works the same way across files, microphone input, and streaming
-sources, because it operates on `AudioNode` graphs — the universal
-abstraction the Web Audio API gives you.
+Only need the BPM of a song, not code? The [free tool on the home page](/)
+reads a file, a radio stream URL or the microphone.
+
+The pattern below runs on the audio thread through an `AudioWorklet`, not
+the deprecated `ScriptProcessorNode`, and works the same way for every
+source, because it works on `AudioNode` graphs. To analyse a whole file at
+once instead, see
+[Beat detection in the browser](/guide/beat-detection-web-audio#tempo-of-a-whole-file).
 
 ## The shape of the problem
 
-Detecting BPM in the browser is three concerns in a trench coat:
+Detecting BPM in the browser comes down to three tasks:
 
 1. **Get audio samples** into a place where you can read them. The Web
    Audio API does this with `AudioContext` and a graph of `AudioNode`s.
-2. **Find the beats** in those samples. This is signal processing —
-   filtering, peak detection, interval analysis.
-3. **Stay out of the way of the UI thread.** Audio analysis on the main
-   thread will glitch playback the moment React re-renders or the GC
-   pauses.
+2. **Find the beats** in those samples. This is signal processing:
+   onset detection and tempo estimation.
+3. **Stay off the UI thread.** Audio analysis on the main thread glitches
+   playback whenever React re-renders or the garbage collector pauses.
 
-`realtime-bpm-analyzer` handles (2) and (3) for you. You provide (1) — an
-`AudioNode` connected to a source. The rest is library territory.
+`realtime-bpm-analyzer` handles (2) and (3). You provide (1): an
+`AudioNode` connected to a source.
 
 ## Why AudioWorklet matters
 
 The Web Audio API used to expose `ScriptProcessorNode`, which let you read
 samples from the audio graph in JavaScript. But it ran on the **main
-thread**, in fixed-size chunks, with no real-time guarantees. As soon as
-your page did anything else — render a frame, run a layout, garbage
-collect — playback would stutter and BPM detection would miss beats.
+thread**, in fixed-size chunks, with no real-time guarantees. Whenever the
+page did anything else (render a frame, run a layout, collect garbage),
+playback could stutter and BPM detection could miss beats.
 
-`AudioWorklet`, shipped in Chrome 66 (2018) and Safari 14.1 (2021), fixes
-this by running your processor on the **audio rendering thread**. Samples
-arrive in 128-frame quanta with hard real-time deadlines. Nothing the main
+`AudioWorklet`, shipped in Chrome 66 (2018) and Safari 14.1 (2021), runs
+your processor on the **audio rendering thread** instead. Samples arrive
+in 128-frame quanta with hard real-time deadlines, and nothing the main
 thread does can stall it.
 
-`realtime-bpm-analyzer` is AudioWorklet-native. The processor is shipped
-inline as part of the bundle and registered for you when you call
-`createRealtimeBpmAnalyzer(audioContext)` — no separate hosted file to
-configure, no `audioWorklet.addModule` plumbing in your application code.
+`realtime-bpm-analyzer` ships its processor inline in the bundle and
+registers it when you call `createRealtimeBpmAnalyzer(audioContext)`, so
+there is no separate file to host and no `audioWorklet.addModule` call in
+your application code.
 
 ## Installation
 
@@ -62,44 +62,51 @@ configure, no `audioWorklet.addModule` plumbing in your application code.
 npm install realtime-bpm-analyzer
 ```
 
-Browser requirements: any browser with AudioWorklet support — Chrome 66+,
-Firefox 76+, Safari 14.1+, Edge 79+. No Internet Explorer, no legacy
-fallback. See [Browser Compatibility](/guide/browser-compatibility) for
-details.
+Browser requirements: a browser with AudioWorklet support, which means
+Chrome 66+, Firefox 76+, Safari 14.1+ or Edge 79+. There is no Internet
+Explorer support and no legacy fallback. See
+[Browser Compatibility](/guide/browser-compatibility) for details.
 
 ## The pattern, in one screen
 
-The shape of every realtime BPM integration is identical. Three lines do
-the work:
+Every realtime integration has the same shape:
 
 ```typescript
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 const audioContext = new AudioContext();
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
-const lowpass = getBiquadFilter(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-// Build the source — file, mic, or stream. See sections below.
-const source = /* an AudioNode you create */;
+// Build the source: an element, the mic or a stream. See the sections below.
+const source = audioContext.createMediaElementSource(audioElement);
 
-// Wire the analysis chain. Filter into analyzer; everything is parallel.
-source.connect(lowpass).connect(bpmAnalyzer.node);
+// Connect the source to the analyzer's input.
+source.connect(analyzer.input);
 
 // Listen.
-bpmAnalyzer.on('bpm', ({ bpm }) => console.log('candidate:', bpm[0]?.tempo));
-bpmAnalyzer.on('bpmStable', ({ bpm }) => console.log('stable:', bpm[0]?.tempo));
+analyzer.on('reading', (reading) => console.log('tempo:', reading.bpm));
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') {
+    console.log('locked:', to.reading.bpm);
+  }
+});
 ```
+
+`analyzer.input` is the node a source connects to. It holds what the
+engine needs in front of it: nothing for the default `tempogram` engine,
+and the 200 Hz lowpass filter for `peaks`. So the wiring stays the same
+whichever engine you choose.
 
 The only thing that changes between use cases is **how you build the
 source node**. Three patterns follow.
 
 ## Pattern A: an `<audio>` or `<video>` element
 
-The most common case — you have a media element on the page and want to
-read its tempo while it plays.
+You have a media element on the page and want to read its tempo while it
+plays.
 
 ```typescript
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 const audioContext = new AudioContext();
 const audioElement = document.querySelector('audio')!;
@@ -108,39 +115,34 @@ const audioElement = document.querySelector('audio')!;
 await audioContext.resume();
 
 const source = audioContext.createMediaElementSource(audioElement);
-const lowpass = getBiquadFilter(audioContext);
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-// Analysis chain — into the analyzer.
-source.connect(lowpass).connect(bpmAnalyzer.node);
+// Analysis chain: into the analyzer.
+source.connect(analyzer.input);
 
-// Playback chain — straight to the speakers, in parallel.
+// Playback chain: straight to the speakers, in parallel.
 source.connect(audioContext.destination);
 
-bpmAnalyzer.on('bpmStable', ({ bpm }) => {
-  if (bpm.length > 0) {
-    console.log(`Stable tempo: ${bpm[0].tempo} BPM`);
-  }
+analyzer.on('reading', ({ bpm }) => {
+  console.log(`Tempo: ${bpm} BPM`);
 });
 ```
 
 Two things to notice:
 
-1. The source is connected **twice** — once to the analyzer (through the
-   filter), once to `destination` so the user actually hears the audio.
-   These are independent paths in the audio graph; signal flows down
-   both.
-2. `createMediaElementSource` **takes ownership** of the element's
-   audio. If you do not connect the source to `destination`, you will
-   hear nothing. This is a common first-encounter trap.
+1. The source is connected **twice**: once to the analyzer and once to
+   `destination`, so the user hears the audio. These are independent
+   paths in the audio graph, and the signal flows down both.
+2. `createMediaElementSource` **takes over** the element's audio. If you
+   do not connect the source to `destination`, you hear nothing.
 
 ## Pattern B: microphone (`MediaStream`)
 
-You want to detect BPM from whatever the user's microphone hears — a song
+You want the tempo of whatever the user's microphone hears: a song
 playing in the room, a live performer, a metronome.
 
 ```typescript
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 const audioContext = new AudioContext();
 
@@ -154,37 +156,33 @@ const stream = await navigator.mediaDevices.getUserMedia({
 });
 
 const source = audioContext.createMediaStreamSource(stream);
-const lowpass = getBiquadFilter(audioContext);
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-source.connect(lowpass).connect(bpmAnalyzer.node);
+source.connect(analyzer.input);
 
-// Do NOT connect to destination — feedback loop.
+// Do NOT connect to destination: that makes a feedback loop.
 
-bpmAnalyzer.on('bpmStable', ({ bpm }) => {
-  if (bpm.length > 0) {
-    console.log(`Mic tempo: ${bpm[0].tempo} BPM`);
-  }
+analyzer.on('reading', ({ bpm }) => {
+  console.log(`Mic tempo: ${bpm} BPM`);
 });
 ```
 
-Critically: do **not** connect the microphone source to
-`audioContext.destination`. The mic captures audio from the speakers,
-which then plays through the speakers, which the mic captures again.
-Howls, runaway gain, unhappy users. Keep the mic source plugged into the
-analyzer only.
+Do **not** connect the microphone source to `audioContext.destination`.
+The speakers would play what the microphone hears, the microphone would
+pick it up again, and the loop builds into loud feedback. Keep the
+microphone source connected to the analyzer only.
 
-For a deeper look at mic-specific concerns — permissions, mobile, ambient
-detection — see the dedicated guide:
+For permissions, mobile browsers and ambient rooms, see the dedicated
+guide:
 [How to Detect BPM from a Microphone in JavaScript](/guide/bpm-from-microphone).
 
 ## Pattern C: HTTP audio stream (radio, internet streams)
 
-You have a URL — say, an internet radio stream or a long-running shoutcast
-URL — and want to monitor its tempo over time.
+You have a URL, such as an internet radio stream or a long-running
+Shoutcast URL, and want to follow its tempo over time.
 
 ```typescript
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 const audioContext = new AudioContext();
 await audioContext.resume();
@@ -196,138 +194,470 @@ audio.crossOrigin = 'anonymous'; // required if the stream sets CORS headers
 audio.play();
 
 const source = audioContext.createMediaElementSource(audio);
-const lowpass = getBiquadFilter(audioContext);
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-source.connect(lowpass).connect(bpmAnalyzer.node);
+source.connect(analyzer.input);
 source.connect(audioContext.destination);
 
-bpmAnalyzer.on('bpmStable', ({ bpm }) => {
-  console.log(`Stream tempo: ${bpm[0]?.tempo} BPM`);
+analyzer.on('reading', ({ bpm }) => {
+  console.log(`Stream tempo: ${bpm} BPM`);
 });
 ```
 
-`crossOrigin = 'anonymous'` is the default-correct choice for any stream
-served from a different origin. Without it, browsers will refuse to expose
-the audio data to the Web Audio API and the analyzer will see silence.
+Set `crossOrigin = 'anonymous'` for any stream served from a different
+origin. Without it, the browser refuses to expose the audio data to the
+Web Audio API and the analyzer receives silence.
+
+Read the station's terms before you ship a stream in your app or site. Many
+stations allow personal listening only, and forbid other websites or apps
+from playing their streams.
 
 For HLS or DASH streams, you do **not** integrate the player at the
-network layer — let `hls.js` or your video framework do its job, and feed
-the resulting `<audio>` or `<video>` element into the same
-`createMediaElementSource` pattern as above. The library doesn't care
-where the bytes came from; it only sees the decoded samples.
+network layer. Let `hls.js` or your video framework play the stream, and
+feed the resulting `<audio>` or `<video>` element into the same
+`createMediaElementSource` pattern as above. The library only sees the
+decoded samples, wherever they came from.
 
 ## What the events mean
 
-`realtime-bpm-analyzer` emits two BPM-related events. They serve different
-purposes and you usually want both.
+The analyzer has a state you can read at any time, `analyzer.state`, and
+events that tell you when something happens. Its `status` is one of four:
+
+- `listening`: no reading yet. `progress` runs from 0 to 1 toward the first
+  one.
+- `settling`: readings are coming, but they have not agreed long enough to
+  trust.
+- `locked`: the readings agree. The tempo can still move a little while
+  locked, so keep showing the latest reading.
+- `stopped`: after `stop()`, or after a fatal error. It is final.
 
 ```typescript
-bpmAnalyzer.on('bpm', ({ bpm }) => {
-  // Fires roughly every chunk (~once per second).
-  // Always available — even early, before detection has settled.
-  // Use for a live-updating UI display.
+analyzer.on('statechange', ({ from, to, reason }) => {
+  // Fires on every change of status, and only then.
+  // listening to settling: the first reading (reason 'first-reading').
+  // settling to locked: the readings agreed (reason 'locked').
+  // Back to listening: the pulse was lost, or the analyzer started over.
+  console.log(`${from.status} to ${to.status} (${reason})`);
 });
 
-bpmAnalyzer.on('bpmStable', ({ bpm }) => {
-  // Fires when the algorithm has high confidence in a value.
-  // Slower to fire — usually 5–15 seconds in.
-  // Use for "the answer" — pinning the BPM into application state.
+analyzer.on('reading', (reading) => {
+  // Fires on every analysis step outside listening: every half second
+  // with the default tempogram engine, about ten times a second with peaks.
+  // Use it for a live display.
+  bpmDisplay.textContent = `${reading.bpm} BPM`;
+});
+
+analyzer.on('progress', ({ fraction }) => {
+  // Fires on every step while listening, from 0 to 1 toward the first reading.
+  console.log(`listening: ${Math.round(fraction * 100)}%`);
 });
 ```
 
-The `bpm` array is sorted by confidence. `bpm[0]` is the top candidate;
-`bpm[1]` and beyond are alternatives. For tracks where the algorithm is
-torn between (say) 120 BPM and its half-time alias 60 BPM, both will
-appear, ranked. This is useful — you can render "120 BPM (or 60)" in the
-UI rather than guessing.
+When things happen, in seconds of audio:
 
-The library normalises results to the **90–180 BPM** range by halving or
-doubling outliers. This is the convention for dance and pop music. If you
-need to detect BPM outside this range — drum & bass at 175, ambient at 60,
-classical accelerando — see [How It Works](/guide/how-it-works) for
-details on tuning.
+| Engine | First reading | Earliest lock |
+| --- | --- | --- |
+| `tempogram` (default) | 4 s, after its warm-up | About 11.5 s |
+| `peaks` | Once it has 16 peaks at one level: about 8 s on a steady kick at 120 BPM | 10 s |
 
-## The lowpass filter — why it's there
+In plain words: you get a running tempo within seconds, and the analyzer
+locks no sooner than about ten seconds in, once it is willing to stand
+behind a value. A listener added late reads `analyzer.state`: events are
+never replayed.
 
-Every example above includes `getBiquadFilter(audioContext)` between the
-source and the analyzer. This is a 200 Hz low-pass filter with `Q = 1`.
+A reading carries one tempo, `bpm`, a whole number to show people, and up
+to five `candidates`, the top one first. Each candidate has a `bpm` and its
+`relation` to the reading's tempo: `top`, `half`, `double` or `other`.
+`bpmExact` is the same tempo before rounding, for timing work such as
+spacing beat markers. Keep showing `bpm`.
 
-The reason: most beats live in the **low-frequency transients** of the
-signal — kick drums, basslines, the thump on the floor. By stripping
-everything above 200 Hz before peak detection, you make the kick the
-dominant signal in the analyser's input. Without the filter, vocals,
-hi-hats, and synth leads add competing peaks and accuracy drops on
-genre-non-EDM material.
+The library reports every tempo in the **90 to 180 BPM** range: the
+`tempogram` engine searches it, and `peaks` folds into it by halving or
+doubling. This is the convention for dance and pop music, but it reads an
+85 BPM hip-hop track as 170. A tempo and its double usually land on the
+same value, so you cannot pick the octave from the candidates. Pick it with
+the `tempoRange` option instead (the tempogram has its limits here, see
+[the tempogram engine](#the-tempogram-detector)):
 
-The filter is a `BiquadFilterNode` from the Web Audio API — standard,
-free, no overhead. You can omit it if you know your audio is already
-low-frequency-only (for example, a kick-only stem) or if you want to
-experiment with detection on full-spectrum signal.
+```typescript
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  tempoRange: { min: 70, max: 140 }, // hip-hop, R&B, downtempo
+});
+```
+
+`max` must be at least twice `min`, so that every tempo has an octave
+inside the range; anything narrower is refused with a `RangeError`. Keep your
+music's tempo away from the edges: a tempo sitting right on a bound (140
+in a 70 to 140 range) jitters across it, and its votes split between 140
+and 70, which weakens it against the other candidates. In plain words: choose a
+range whose middle is where your music usually sits. See
+[How It Works](/guide/how-it-works) for the algorithm.
+
+## Kick events
+
+The live analyzer also reports each kick drum it hears, as it hears it,
+with the `kick` event. It runs beside the tempo, in the same audio thread,
+on every live input: a media element, a stream, a tab's audio, the
+microphone. Use it for a visual that reacts to the music, such as a light
+or a pulse.
+
+```typescript
+analyzer.on('kick', ({ contextTime, strength }) => {
+  // contextTime: where the kick started, on the AudioContext clock, in seconds.
+  // strength: from 0 to 1, against the loudest kick of the last 3.5 s.
+  // 0.5 is a kick 6 dB softer than that one.
+  console.log(contextTime.toFixed(3), strength.toFixed(2));
+});
+```
+
+`strength` is the kick's peak under 150 Hz over the loudest kick's of the
+last 3.5 s, itself included, as an amplitude ratio. A kick more than 6 dB
+under that one is not
+reported, so in practice `strength` reads from 0.5 to 1: map that range to
+a brightness or a size. Its meaning stays the same if that threshold ever
+changes, so code that accepts the whole 0 to 1 keeps working.
+
+The payload is frozen and holds only these two fields. Kicks come whatever
+the status, from the first tenth of a second of audio, and a kick heard before
+`reset()` is dropped like a stale reading. After `stop()` none come.
+`analyzeFullBuffer` reports none: it has no clock to put them on. Like the
+tempo, kicks are found on your device: your audio never leaves it.
+
+**When it arrives.** The analyzer needs about 11 ms of audio after a kick
+starts, 17 to 19 ms under a bass line, to tell it from a bass note or a hi-hat. Then the event crosses to
+the main thread. Measured on CI's Linux runners from the kick reaching the
+analyzer to your listener, on kicks under a bass line, hi-hats and a pad, the
+median for each source:
+
+| Browser | Buffer | Media element | Tab stream | `liveInput` microphone |
+|---------|--------|---------------|------------|------------------------|
+| Chromium | 19.8 ms | 20.1 ms | 20.3 ms | 20.3 ms |
+| Firefox | 22.2 ms | 25.9 ms | 22.5 ms | 23.2 ms |
+
+These are read on the context clock, as `currentTime` gives it to the page.
+Firefox's `currentTime` stands still between its updates, so on CI it is
+a test worklet's last posted reading plus the time since. That reads one
+message's crossing early, so Firefox's numbers may be a little low.
+
+A busy main thread adds its own delay, as it does to every event.
+
+**Lining a visual up with what the listener hears.** `contextTime` is when
+the kick reached the analyzer, not when the listener hears it:
+
+- **From the speakers** (a file, a stream, anything the page plays through
+  the context), the listener hears the kick when the speakers play that sample,
+  `baseLatency + outputLatency` after it, often 10 to 50 ms and over 150 ms
+  on Bluetooth.
+  The event usually arrives before that moment, so wait for it.
+- **From the microphone**, the room heard the kick before the analyzer did.
+  Show it at once.
+
+```typescript
+/** When the listener hears a context time, in performance.now() milliseconds */
+function heardAt(contextTime: number): number {
+  // currentTime is about where the analyzer is now, and the speakers play it
+  // baseLatency + outputLatency later. Safari before 17 has no outputLatency.
+  const latency = audioContext.baseLatency + (audioContext.outputLatency || 0);
+  return performance.now() + ((contextTime + latency - audioContext.currentTime) * 1000);
+}
+
+/** Your visual: keep it calm, see "A visual that flashes" below */
+function showKick(): void {
+  bpmDisplay.classList.add('kick');
+  setTimeout(() => bpmDisplay.classList.remove('kick'), 100);
+}
+
+analyzer.on('kick', ({ contextTime }) => {
+  const wait = heardAt(contextTime) - performance.now();
+  // Already heard, or within a frame: show it now. Otherwise when the listener hears it.
+  if (wait < 16) {
+    showKick();
+  } else {
+    setTimeout(showKick, wait);
+  }
+});
+```
+
+For a page that animates in `requestAnimationFrame`, keep `heardAt`'s time
+and show the kick in the first frame at or after it instead. For the
+microphone, skip `heardAt` and show each kick at once.
+
+`getOutputTimestamp()` would be the exact way, and it is in Chromium. Firefox
+returns both of its times `outputLatency` early, though (measured in Firefox
+132 and 158), so a visual timed by it comes that much before the sound: 9 ms
+on a Mac's speakers, 48 ms on a Linux sound server. The recipe above is off
+by little. In Chrome 157 on a Mac, `currentTime` ran 19.5 ms ahead of the
+sample `getOutputTimestamp()` said was playing, where `baseLatency +
+outputLatency` was 21.3 ms, so the visual came about 2 ms after the sound. In
+Firefox `currentTime` stands still between updates, so the visual comes up
+to one update late.
+
+**Its limits:**
+
+- It reacts and never predicts: a visual can be on time for the listener
+  only when the output's delay is longer than the event's. Beats predicted
+  ahead of time are a separate feature, to come.
+- It hears what is under 150 Hz. Music without a kick drum gives few kicks
+  or none, and a bass note as sharp as a kick and within about 6 dB of it
+  counts as one. Through a stretch of more than 3.5 s with no kick, a bass
+  line, or any sound under 150 Hz that repeats as sharply as a kick,
+  counts from about 3.5 s in, however soft.
+- Low rumble, such as wind on a microphone or brown noise, gives a false
+  kick about once a minute.
+- Two kicks closer than 80 ms count as one.
+- A kick counts against the loudest of the last 3.5 s. When the music
+  drops at once, as a quieter track starts or the volume goes down before
+  the analyzer, the quieter kicks count again from about 3.5 s after the
+  last loud one, whatever the drop: no track-change signal is needed. When it
+  rises, the louder kicks count at once. Call `reset()` when you know the
+  track changed: the kicks start over at once, and so does the tempo. A
+  paused element may still send silence, which does not start the kicks
+  over the way an input that went away and came back does.
+- A sample that is not a number, or is infinite, drops the kicks around it
+  for about a tenth of a second, and then they come back by themselves. The tempo
+  readings carry on through it.
+- `strength` is relative, so a quiet track's kicks are as strong as a loud
+  one's. It is not a level meter.
+- Tested on synthetic music: kicks alone, kicks under hi-hats, snare and
+  bass, a breakdown, a tempo change, silence and noise, at 44.1 and 48 kHz.
+  Every kick was heard within 4 ms of where it started, with no false kick.
+  Also tested: drops of 10 and 20 dB, a 20 dB rise, a 12 s breakdown, bars
+  with no kick at 90 BPM, a bass line with no kick, and one sample that is
+  not a number or is infinite.
+  Real rooms and phone microphones, which hear little under 100 Hz, are
+  harder.
+
+**A visual that flashes.** A kick can come several times a second. A light
+that flashes on each one can trigger seizures: [WCAG
+2.3.1](https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html)
+allows no more than three flashes a second over a large area. Keep the
+visual small, or let the page limit and soften it. The
+[examples](/examples/microphone-input) list the kicks with nothing that
+flashes.
+
+## The tempogram engine {#the-tempogram-detector}
+
+The default engine reads the tempo from an onset tempogram rather than
+from peaks in low-passed audio. It weighs tempos with a prior instead of
+folding them, and it only locks once the tempo agreed over several seconds
+and clearly leads its rivals. Connect the source to `analyzer.input`: for
+the tempogram, `.input` adds no filter, because it needs the full frequency
+band. Don't put `getBiquadFilter` in front of it. Naming it, as below, keeps
+it whatever a later default becomes.
+
+```typescript
+const source = audioContext.createMediaElementSource(audioElement);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  engine: 'tempogram',
+});
+
+source.connect(analyzer.input);
+```
+
+`analyzeFullBuffer` and `analyzeChannelData` in Node run it on whole files
+too. `engine: 'peaks'` selects the 5.x engine, in realtime and offline.
+
+It searches 90 to 180 BPM, and a tempo outside that reads at the octave
+inside: over about 179 BPM reads half, so a 200 BPM track reads 100, and a
+70 BPM track reads 140. In plain words: very fast or very slow music comes
+back at half or double its real tempo.
+
+`tempoRange` changes what is searched, but nothing is folded into it. A
+tempo from about twice `min` up can read at half or a quarter, whatever
+`max` is, so a lower `min` halves more music and a higher `max` does not
+reach faster music. On a range wider than one octave, which of those
+tempos halve varies from one to the next. On clean click tracks:
+
+| `tempoRange` | Reads as itself | Reads at half |
+| --- | --- | --- |
+| 60 to 180 | 116, 140 | 120 as 60, 160 as 80 |
+| 70 to 140 | 130 | 140 as 70 |
+| 90 to 240 | 170 | 180 as 90 |
+
+In plain words: with the tempogram, widening `tempoRange` does not make it
+read faster music correctly, and it can make some tempos read at half, so
+keep the default unless you have tested your range on your own music.
+
+These settings were measured on real-time analysis at 90 to 180 only, and
+whole files run the same settings without having been scored at them.
+The tempogram has no restart option: its memory of past tempos fades with
+a 16-second half-life, so it follows a tempo change on its own.
+
+### `mode: 'measured'` {#tempogrammode-extension}
+
+For a page that wants to be sure it runs the settings that were measured,
+such as a browser extension listening to a tab. It reads exactly as
+`engine: 'tempogram'` does, and refuses what would leave those settings:
+a `tempoRange` other than 90 to 180. So over 180 BPM still reads half. It
+applies to real-time analysis only.
+
+```typescript
+const source = audioContext.createMediaElementSource(audioElement);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  engine: { name: 'tempogram', mode: 'measured' },
+});
+
+source.connect(analyzer.input);
+```
+
+### `liveInput` for a MediaStream
+
+A MediaStream arrives in real time whatever the audio thread does. When the
+thread stays behind, the browser drops part of the stream, and the analyzer
+reads a tempo as high as it lost: 150 BPM reads 167 at 10% lost, and
+locks on it. In plain words: if the browser drops a tenth of the audio, the
+tempo comes out about a tenth too fast, and the analyzer still locks.
+
+Given the track, the analyzer follows the track's clock and counts what was
+lost as silence. That brings the number close to the tempo and no more than
+that: under sustained loss in Chrome, tab capture read 148 for 150, and 117
+and 118 for 120. In plain words: with `liveInput`, a reading under heavy
+loss lands within a few BPM of the real tempo, but not exactly on it.
+
+So what it mostly guards is the lock:
+
+- While about 5% or more is being lost, `reading` events keep coming but
+  the analyzer does not lock. The edge is soft, because the clock moves in steps: in
+  simulation 96% render was behind for part of the time, and a lock could
+  come late. Smaller loss is paid the same way and can lock. In plain
+  words: while the browser drops a noticeable share of the audio, you get
+  live readings but no lock.
+- When the loss ends, about 3 s later, the analyzer starts over, with a
+  `statechange` to `listening` and reason `audio-lost`, if a lock was held back, or if it lost 0.3 s or more and
+  had published no lock 3 s or more before the loss showed. It then locks
+  on what it hears from there, about 11 s later with the tempogram. In
+  simulation every lock after that was right, across loss of 0.3 s to 3 s
+  and 100 to 174 BPM. A smaller drop doesn't start it over: those locks
+  read within 1 BPM. In plain words: after a real dropout, the lock
+  comes back about 14 seconds after the dropout ends, and in
+  simulation it was right every time.
+- A loss takes up to 3 s of audio to show, so a lock published within 3 s
+  before it shows may have heard some of it. When 0.3 s or more is lost,
+  that lock is withdrawn: the analyzer starts over as above. A lock
+  published earlier stands, and nothing tells the main thread it has since
+  heard less. In plain words: a lock that arrived just before a
+  dropout is taken back; an older one is kept.
+- While reports of the track's clock stop for about 3 s, as they can on a
+  hidden page whose timers are throttled, a lock is held back too: the
+  clock can't vouch for it, and a window with no report doesn't count as
+  clean.
+- Under loss that never ends it never locks.
+
+Limits, since this is only as good as what was measured:
+
+- `MediaStreamTrack.stats` is specified for `getUserMedia` tracks. A track
+  from `captureStream`, a remote peer or a `MediaStreamAudioDestinationNode`
+  may have no stats, and then, as in a browser without them, this does
+  nothing and says nothing.
+- The specification says these frame counters lack Working Group
+  consensus, so a browser could change them.
+- Loss was measured on Chrome tab capture on Linux, and in simulation. A
+  microphone, Windows and a laptop on battery were not measured.
+- When the whole browser loses the CPU, the track slows with the thread and
+  this clock sees no loss. Only the track against the system clock shows
+  that.
+
+The clock follows the track until the track ends or `stop()` is called, so
+call `stop()` before closing the context.
+
+```typescript
+const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+const [track] = stream.getAudioTracks();
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  engine: 'tempogram',
+  liveInput: track,
+});
+
+audioContext.createMediaStreamSource(stream).connect(analyzer.input);
+```
+
+A media element or a buffer has no such track: those wait for the thread
+and lose nothing.
+
+## The lowpass filter: why it's there {#the-lowpass-filter-—-why-it-s-there}
+
+With the `peaks` engine, `analyzer.input` puts a 200 Hz
+low-pass filter with `Q = 1` between the source and the analyzer. It is
+the same filter `getBiquadFilter(audioContext)` builds.
+
+Most beats live in the **low-frequency transients** of the signal: kick
+drums, basslines. Removing everything above 200 Hz before peak detection
+makes the kick the strongest signal the engine sees. Without the filter,
+vocals, hi-hats and synth leads add competing peaks, and readings get less
+reliable on music without a strong kick.
+
+To use a filter of your own (a different cutoff, or a high-pass in front),
+connect your chain to `analyzer.node`, which is the analyzer itself
+with nothing in front of it. The
+[microphone guide](/guide/bpm-from-microphone#tuning-for-ambient-detection)
+shows an example.
 
 ## Stopping cleanly
 
-Always tear down the audio graph when you're done. Otherwise you leak
-audio threads, hold microphones open, and surprise the user the next time
-they navigate.
+Tear down the audio graph when you're done. Otherwise the audio thread
+keeps running, the microphone stays open, and the browser keeps showing
+its recording indicator.
 
 ```typescript
-// Disconnect and free the analyzer.
-bpmAnalyzer.disconnect();
+// Stop the analysis. This also stops following a liveInput track.
+// stop() is final: create a new analyzer to listen again.
+analyzer.stop();
 
-// Close the audio context — releases the audio thread.
+// Close the audio context. This releases the audio thread.
 await audioContext.close();
 
 // If you're using a microphone, also stop the MediaStream tracks.
 stream.getTracks().forEach((track) => track.stop());
 ```
 
-In a single-page application, run the disconnect path on route change or
-component unmount. Browsers will eventually reclaim everything when the
-page is closed, but eventually is not soon enough — Safari in particular
-keeps the orange microphone indicator lit until you stop the tracks.
+In a single-page application, run this on route change or component
+unmount. The browser reclaims everything when the page closes, but not
+before, and Safari keeps its orange microphone indicator lit until you
+stop the tracks.
 
 ## Edge cases worth knowing
 
-**Silence.** The analyzer will emit no `bpmStable` event when there is no
-detectable rhythm. Show a "still listening…" UI rather than waiting
-forever; if no stable BPM arrives in 20 seconds with audible audio, the
-material is probably ambient or beatless.
+**Silence.** The analyzer does not lock when there is no detectable
+rhythm, and once the pulse has been gone for 2 seconds it goes back to
+`listening` with reason `pulse-lost`. Show a "still listening" state
+rather than waiting forever; if no lock comes in 20 seconds of audible
+audio, the material is probably ambient or has no beat.
 
-**Very short clips.** Below ~5 seconds the algorithm has too few peaks to
-form a stable interval distribution. For one-shot file analysis on short
-samples, results are best treated as approximate.
+**Very short clips.** The first reading comes after a 4-second warm-up, and
+the earliest lock after about 11.5 seconds of audio. For shorter samples, treat
+the reading as approximate.
 
-**Tempo changes.** The analyzer adapts but lags. A track that ramps from
-120 to 140 BPM mid-song will surface both candidates in the `bpm` event;
-the `bpmStable` event will eventually retarget. For DJ tools that need
-sample-accurate tempo tracking through transitions, you may want to call
-`bpmAnalyzer.reset()` on the transition boundary.
+**Tempo changes.** The analyzer adapts, with a delay. A track that ramps
+from 120 to 140 BPM mid-song will show both tempos among the reading's
+candidates, and the lock follows later. For DJ tools that need to follow
+the tempo through a transition, call `analyzer.reset()` at the transition.
+With the `peaks` engine, `engine: { name: 'peaks', restartAfterSeconds: 20 }`
+starts over every 20 seconds of audio instead. The default `tempogram` engine
+follows a change on its own, as its memory of past tempos fades.
 
-**Non-4/4 time signatures.** All time-domain BPM detection algorithms
-struggle with irregular meters — jazz, classical, hip-hop with off-beats.
-This library is no exception. Confidence will be lower; alternative
-candidates more interesting. Use `bpm[0].confidence` to decide whether to
-display the result or fall back to a "tap tempo" UI.
+**Meters other than 4/4.** Irregular meters (jazz, some classical music,
+hip-hop with off-beats) give more competing candidates, and the analyzer
+may never lock. A track that stays in `settling` is a cue to offer a tap
+tempo input instead.
 
 **iOS Safari.** The audio context **must** be created or resumed inside a
-user gesture handler — a click, a touch. Browsers will silently keep the
-context in the `suspended` state otherwise and you will read zero
-samples.
+user gesture handler, such as a click or a touch. Otherwise the browser
+keeps the context `suspended` without an error, and the analyzer receives
+no samples.
 
 ## What's next
 
-- The [Microphone tutorial](/guide/bpm-from-microphone) covers permissions,
-  mobile gotchas, and ambient detection in depth.
+- The [Microphone tutorial](/guide/bpm-from-microphone) covers
+  permissions, mobile browsers and ambient detection in depth.
 - The [React hook tutorial](/guide/react-bpm-hook) wraps everything above
   in a typed `useBpm` hook with StrictMode-safe cleanup.
-- The [How It Works guide](/guide/how-it-works) opens the algorithm —
-  threshold scanning, peak detection, interval grouping, confidence
-  scoring.
+- The [How It Works guide](/guide/how-it-works) opens the algorithm:
+  the tempogram, the peaks engine's threshold scanning and interval
+  grouping, and how the engines lock.
 - The [API reference](/api/) has the full type signatures.
 - The [examples directory](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples)
   has nine runnable apps across vanilla JS, React, and Vue.
 
-If this library helped, **give it a star on
-[GitHub](https://github.com/dlepaux/realtime-bpm-analyzer)** — it's the
-single most useful thing you can do to support continued development.
+If this library helps you, a star on
+[GitHub](https://github.com/dlepaux/realtime-bpm-analyzer) helps other
+developers find it.

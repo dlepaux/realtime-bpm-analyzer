@@ -9,9 +9,9 @@ Detect BPM in real-time using your device's microphone. Perfect for analyzing mu
 
 ## Live Demo
 
-Try the interactive demo below - this is the **actual vanilla JavaScript microphone example** running. Click "Start" and allow microphone access!
+Try the interactive demo below - this is the **actual vanilla JavaScript microphone example** running. Click "Start Recording" and allow microphone access! It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates, and each `kick` as it is heard, with its time and strength. The microphone's track goes to the analyzer as `liveInput`, so lost input shows as `listening` with reason `audio-lost`.
 
-<ExampleEmbed example="03-vanilla-microphone" height="500px" />
+<ExampleEmbed example="03-vanilla-microphone" height="1250px" />
 
 ::: warning Microphone Permission Required
 Your browser will ask for microphone access. This demo works best when music is playing nearby.
@@ -37,22 +37,33 @@ const stream = await navigator.mediaDevices.getUserMedia({
   },
 });
 
-// 2. Create audio context and analyzer
+// 2. Create audio context and analyzer. `liveInput` lets the analyzer
+//    follow the track's clock, so audio the browser drops doesn't speed
+//    the tempo up.
+const [track] = stream.getAudioTracks();
 const audioContext = new AudioContext();
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, { liveInput: track });
 
-// 3. Connect microphone to analyzer
+// 3. Connect the microphone to the analyzer's input, which holds what
+//    the engine needs in front of it. Not to the speakers: that would
+//    make a feedback loop.
 const source = audioContext.createMediaStreamSource(stream);
-source.connect(bpmAnalyzer.node);
+source.connect(analyzer.input);
 
 // 4. Listen for BPM updates
-bpmAnalyzer.on('bpm', (data) => {
-  console.log('Current BPM:', data.bpm[0].tempo);
+analyzer.on('reading', ({ bpm }) => {
+  console.log('Current BPM:', bpm);
 });
 
-bpmAnalyzer.on('bpmStable', (data) => {
-  console.log('Stable BPM detected:', data.bpm[0].tempo);
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') {
+    console.log('Locked BPM:', to.reading.bpm);
+  }
 });
+
+// 5. When done: stop() is final, and the tracks release the microphone
+// analyzer.stop();
+// stream.getTracks().forEach((t) => t.stop());
 ```
 
 ## Use Cases
@@ -67,19 +78,21 @@ This approach is ideal for:
 ## Key Features
 
 - ✅ Real-time microphone analysis
-- ✅ Low latency detection (< 100ms typical)
-- ✅ Continuous BPM updates
+- ✅ Continuous BPM updates, every half second once the first reading is in
 - ✅ Works with any audio source (music, instruments, etc.)
-- ✅ No recording or storage (privacy-friendly)
-- ✅ Event-based API for stable BPM detection
+- ✅ No recording or storage
+- ✅ A `statechange` event when the tempo locks
+- ✅ A `kick` event on each kick drum heard, as it is heard: see [Kick events](/guide/realtime-bpm-detection#kick-events)
 
 ## Privacy & Security
 
 The microphone analysis:
 - **Does not record** audio - only processes it in real-time
 - **Does not store** any audio data
-- **Runs entirely in the browser** - no data sent to servers
+- **Runs entirely in the browser**: the library sends no audio anywhere
 - Requires explicit user permission via browser prompt
+
+That covers the analysis. The page around this demo is part of the website, which measures its own pages as [Website Privacy](/website-privacy) describes.
 
 ## Next Steps
 

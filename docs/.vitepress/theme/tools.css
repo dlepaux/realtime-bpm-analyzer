@@ -218,6 +218,9 @@
   outline-offset: 2px;
 }
 
+/* The home analyzer placed inside a doc page (video-bpm.md). */
+.video-bpm-tool { margin: 1.5rem 0; }
+
 /* "More free tools" strip at the foot of each tool page. */
 .tt-tools {
   display: grid;

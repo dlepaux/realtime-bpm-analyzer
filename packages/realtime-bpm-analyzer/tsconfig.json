@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "esnext",
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "skipLibCheck": true,
+    "declaration": true,
+    "strict": true,
+    "moduleResolution": "bundler",
+    "sourceMap": true,
+    "types": ["mocha"]
+  },
+  "include": [
+    "tests/**/*.ts",
+    "testing/**/*.ts",
+    "github-pages/*.ts",
+    "types/*.ts",
+    "src/*.ts",
+    "processor/*.ts",
+    "benchmark/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

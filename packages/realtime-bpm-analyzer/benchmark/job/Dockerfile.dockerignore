@@ -1,0 +1,14 @@
+# Allowlist: the workspace manifests npm ci needs, the library source, and the benchmark
+**
+!package.json
+!package-lock.json
+!packages/*/package.json
+!docs/package.json
+!examples/*/package.json
+!packages/realtime-bpm-analyzer/src/**
+!packages/realtime-bpm-analyzer/benchmark/**
+**/node_modules
+packages/realtime-bpm-analyzer/benchmark/results
+# The committed calibration tables, aggregates only: the held-out calibration check judges them
+!packages/realtime-bpm-analyzer/benchmark/results/rba-106-calibration-dev.json
+packages/realtime-bpm-analyzer/benchmark/dist

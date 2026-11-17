@@ -1,0 +1,124 @@
+name: Browser cost
+
+# RBA-51: what each engine costs in a real browser, before David rules on the default. On demand only:
+# the pull_request trigger fires for changes to the harness itself, and nothing else runs it.
+on:
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: Seconds of audio per realtime run
+        default: "64"
+      memory_seconds:
+        description: Seconds of the realtime memory run
+        default: "600"
+  pull_request:
+    paths:
+      - packages/realtime-bpm-analyzer/benchmark/browser-cost/**
+      - .github/workflows/browser-cost.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-cost-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COST_SECONDS: ${{ inputs.seconds || '64' }}
+  MEMORY_SECONDS: ${{ inputs.memory_seconds || '600' }}
+  HARNESS: packages/realtime-bpm-analyzer/benchmark/browser-cost/run.sh
+
+jobs:
+  # One job for every throttle level: GitHub's runners differ in CPU from job to job (an AMD EPYC
+  # 9V45 and an Intel Xeon 6975P on the same run), so levels compared across jobs would compare machines
+  cost:
+    name: Cost, CPU throttle 1x, 4x and 6x
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: npm
+      - run: npm ci
+      - name: Runner CPU
+        run: lscpu
+      - name: Measure
+        run: $HARNESS run cost --throttle 1,4,6 --seconds "$COST_SECONDS" --out cost.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: browser-cost-cost
+          path: cost.json
+
+  memory:
+    name: Memory, ${{ matrix.engine }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [peaks, tempogram]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: npm
+      - run: npm ci
+      - name: Runner CPU
+        run: lscpu
+      - name: Measure
+        run: $HARNESS run memory --engine ${{ matrix.engine }} --seconds "$MEMORY_SECONDS" --out "memory-${{ matrix.engine }}.json"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: browser-cost-memory-${{ matrix.engine }}
+          path: memory-${{ matrix.engine }}.json
+
+  bundle:
+    name: Bundle size
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: npm
+      - run: npm ci
+      - name: Measure
+        run: $HARNESS run bundle --out bundle.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: browser-cost-bundle
+          path: bundle.json
+
+  report:
+    name: Report
+    needs: [cost, memory, bundle]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: browser-cost-*
+          merge-multiple: true
+          path: results
+      - name: Tables
+        run: |
+          set -o pipefail
+          $HARNESS report results/*.json | tee report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: browser-cost-report
+          path: |
+            report.md
+            results/*.json

@@ -1,11 +1,11 @@
 ---
 title: Performance Tips for Browser BPM Detection
-description: Optimise realtime-bpm-analyzer for accuracy, latency, and battery life — AudioWorklet, low-pass filtering, threshold tuning, mobile gotchas. Practical recommendations.
+description: 'Optimise realtime-bpm-analyzer for latency, memory and battery life: AudioWorklet, low-pass filtering, threshold tuning and mobile browsers.'
 ---
 
 # Performance Tips
 
-Optimize Realtime BPM Analyzer for the best performance and accuracy in your application.
+Tune Realtime BPM Analyzer for speed, memory and battery life in your application.
 
 ## General Best Practices
 
@@ -23,109 +23,100 @@ No configuration needed - this is handled automatically by `createRealtimeBpmAna
 
 ### 2. Apply Low-Pass Filtering
 
-Always use the optional low-pass filter for better accuracy:
+Connect the source to `analyzer.input`. With the default `tempogram` engine it holds nothing, since that engine needs the full band; with `peaks` it holds the 200 Hz low-pass filter (the one `getBiquadFilter` builds):
 
 ```typescript
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
-const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
-const lowpass = getBiquadFilter(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 
-// Connect with filter
-source.connect(lowpass).connect(bpmAnalyzer.node);
+// analyzer.input holds what the engine needs in front of it:
+// a low-pass for `peaks`, nothing for the default `tempogram`
+source.connect(analyzer.input);
 ```
 
-**Benefits:**
-- 🎯 Better beat detection (isolates bass frequencies)
-- ⚡ Faster processing (less data to analyze)
-- 🎵 More accurate results (fewer false positives)
-
-**Performance Impact:** Negligible (~0.1% CPU overhead)
+**What it does:**
+- 🎯 Keeps the kick and bass, where most beats sit
+- 🎵 Fewer false peaks from vocals, hi-hats and other high sounds
 
 ### 3. Choose the Right Analysis Mode
 
 Pick the mode that matches your use case:
 
-| Use Case | Mode | Memory | CPU | Accuracy |
-|----------|------|--------|-----|----------|
-| Audio/Video Player | Real-time | Low | Low | High |
-| Radio Stream | Continuous | Medium | Medium | Medium |
-| File Upload | Offline | High | High | Highest |
+| Use Case | Mode | Memory | CPU |
+|----------|------|--------|-----|
+| Audio/Video Player | Real-time | Low | Low |
+| Radio Stream | Continuous | Low | Low |
+| Local File | Offline | High | High |
 
 #### Real-time Mode
 
 ```typescript
-const analyzerNode = await createRealtimeBpmAnalyzer(audioContext);
+const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 ```
 
-- **Memory**: Grows with playback time
+- **Memory**: Bounded: `tempogram`'s history fades with a 16-second half-life, and `peaks` keeps the newest 256 peaks per threshold
 - **CPU**: Consistent low usage
-- **Best for**: Songs with fixed length
+- **Use for**: Songs with fixed length
 
 #### Continuous Mode
 
 ```typescript
-const analyzerNode = await createRealtimeBpmAnalyzer(audioContext, {
-  continuousAnalysis: true,
-  stabilizationTime: 20000 // Clear data every 20s
+const analyzer = await createRealtimeBpmAnalyzer(audioContext, {
+  engine: { name: 'peaks', restartAfterSeconds: 20 }, // Starts over every 20 s of audio
 });
 ```
 
-- **Memory**: Bounded by stabilizationTime
-- **CPU**: Periodic spikes during cleanup
-- **Best for**: Infinite streams, radio, live input
+- **Tempo changes**: Followed after the next restart, which starts the reading over
+- **Memory**: Bounded with or without it: `peaks` keeps the newest 256 peaks at each threshold
+- **Use for**: Infinite streams, radio, live input
 
 #### Offline Mode
 
 ```typescript
 import { analyzeFullBuffer } from 'realtime-bpm-analyzer';
 
-const bpm = await analyzeFullBuffer(audioBuffer);
+const reading = await analyzeFullBuffer(audioBuffer);
 ```
 
 - **Memory**: Entire file in memory
 - **CPU**: One-time burst
-- **Best for**: File analysis, batch processing
+- **Use for**: File analysis, batch processing
 
 ## Memory Management
 
-### Continuous Analysis Settings
+### Long Streams {#continuous-analysis-settings}
 
-For long-running applications (streams, radio, microphone):
+Memory stays bounded however long the analyzer listens: `peaks` keeps the newest 256 peaks at each threshold, and the
+`tempogram` engine works in fixed buffers. On a long stream (radio, microphone), a restart period makes `peaks` follow
+a tempo change sooner:
 
 ```typescript
 createRealtimeBpmAnalyzer(audioContext, {
-  continuousAnalysis: true,
-  stabilizationTime: 20000, // Adjust based on needs
+  engine: { name: 'peaks', restartAfterSeconds: 20 }, // Adjust based on needs
 });
 ```
 
-**Stabilization Time Guidelines:**
+The `tempogram` engine has no restart option: its memory of past tempos fades with a 16-second half-life.
 
-| Audio Type | Recommended Time | Reason |
-|------------|------------------|--------|
-| Electronic (EDM) | 15,000 ms | Simple, consistent beats |
-| Pop/Rock | 20,000 ms | Standard complexity |
-| Jazz/Complex | 30,000 ms | Variable rhythms |
-| Classical | 40,000 ms | Tempo changes |
+A restart period under 10 s also brings the earliest lock forward to fit before it, as `peaks` otherwise waits 10 s of audio before it locks.
 
-**Memory Impact:**
-- Lower = Less memory, less accurate
-- Higher = More memory, more accurate
+**What the period changes:**
+- Lower = less audio to settle on, follows tempo changes sooner
+- Higher = more audio to settle on, follows tempo changes later
 
 ### Clean Up Resources
 
 Always clean up when done:
 
 ```typescript
-// Stop analysis
-await audioContext.suspend();
+// Stop analysis. stop() is final: create a new analyzer to listen again
+analyzer.stop();
 
-// Disconnect nodes
+// Disconnect the source
 source.disconnect();
-analyzerNode.disconnect();
 
-// Close context if no longer needed
+// Close the context if no longer needed
 await audioContext.close();
 ```
 
@@ -138,7 +129,7 @@ Don't create multiple analyzers for the same source:
 ❌ **Bad:**
 ```typescript
 // Creating analyzers in a loop
-setInterval(() => {
+setInterval(async () => {
   const analyzer = await createRealtimeBpmAnalyzer(audioContext);
   // ...
 }, 1000);
@@ -151,29 +142,30 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 // Listen for events over time
 ```
 
-### 2. Buffer Size Considerations
+### 2. Processing Latency
 
-The AudioWorklet automatically uses optimal buffer sizes, but you can check:
+An AudioWorklet always processes audio in blocks of 128 frames. What you can read and tune is the context's latency:
 
 ```typescript
-// Check the AudioContext's buffer size
-console.log('Buffer size:', audioContext.baseLatency);
+// Seconds between the audio graph and the device's output buffer
+console.log('Base latency:', audioContext.baseLatency);
 ```
 
-**Lower buffer** = Lower latency, higher CPU
-**Higher buffer** = Higher latency, lower CPU
+Ask for a longer one when the device glitches under load, and a shorter one for interactive playback:
 
-Most devices default to 128-256 samples, which is optimal.
+```typescript
+const playbackContext = new AudioContext({ latencyHint: 'playback' }); // or 'interactive', the default
+```
 
 ### 3. Throttle UI Updates
 
-Don't update the UI on every BPM event:
+Don't update the UI on every reading:
 
 ❌ **Bad:**
 ```typescript
-analyzerNode.on('bpm', (data) => {
+analyzer.on('reading', (reading) => {
   // Updates too frequently!
-  document.getElementById('bpm').textContent = data.bpm[0].tempo;
+  bpmDisplay.textContent = String(reading.bpm);
 });
 ```
 
@@ -181,18 +173,20 @@ analyzerNode.on('bpm', (data) => {
 ```typescript
 let lastUpdate = 0;
 
-analyzerNode.on('bpm', (data) => {
+analyzer.on('reading', (reading) => {
   const now = Date.now();
-  
+
   if (now - lastUpdate > 1000) {
-    document.getElementById('bpm').textContent = data.bpm[0].tempo;
+    bpmDisplay.textContent = String(reading.bpm);
     lastUpdate = now;
   }
 });
 
-// Always update on stable BPM
-analyzerNode.on('bpmStable', (data) => {
-  document.getElementById('bpm').textContent = data.bpm[0].tempo;
+// Always update when the analyzer locks
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') {
+    bpmDisplay.textContent = String(to.reading.bpm);
+  }
 });
 ```
 
@@ -202,11 +196,13 @@ analyzerNode.on('bpmStable', (data) => {
 
 On mobile devices, audio processing consumes battery. Optimize by:
 
-1. **Use `bpmStable` instead of continuous `bpm` updates:**
+1. **Render on state changes instead of every reading:**
 ```typescript
-// Only act on stable BPM to reduce processing
-analyzerNode.on('bpmStable', (data) => {
-  handleBPMUpdate(data.bpm);
+// Only render when the status changes, to reduce UI work
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') {
+    bpmDisplay.textContent = String(to.reading.bpm);
+  }
 });
 ```
 
@@ -222,12 +218,11 @@ document.addEventListener('visibilitychange', () => {
 });
 ```
 
-3. **Use lower stabilization times:**
+3. **Bound memory on long sessions:**
 ```typescript
-// Faster results = less battery drain
+// Less history kept in memory
 createRealtimeBpmAnalyzer(audioContext, {
-  continuousAnalysis: true,
-  stabilizationTime: 15000 // Lower than default
+  engine: { name: 'peaks', restartAfterSeconds: 15 },
 });
 ```
 
@@ -240,6 +235,8 @@ createRealtimeBpmAnalyzer(audioContext, {
 Always create AudioContext in response to user action:
 
 ```typescript
+const button = document.querySelector('button')!;
+
 button.addEventListener('click', async () => {
   const audioContext = new AudioContext();
   await audioContext.resume(); // Important for iOS
@@ -255,16 +252,16 @@ When analyzing multiple files, process sequentially to avoid memory issues:
 
 ✅ **Good:**
 ```typescript
-async function analyzeFiles(files) {
+async function analyzeFiles(files: File[]) {
   const results = [];
-  
+
   for (const file of files) {
     const audioContext = new AudioContext();
     const arrayBuffer = await file.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    const bpm = await analyzeFullBuffer(audioBuffer);
-    
-    results.push({ file: file.name, bpm });
+    const reading = await analyzeFullBuffer(audioBuffer);
+
+    results.push({ file: file.name, bpm: reading?.bpm ?? null });
     
     // Clean up
     await audioContext.close();
@@ -279,7 +276,7 @@ async function analyzeFiles(files) {
 For very large files (>10MB):
 
 ```typescript
-async function analyzeLargeFile(file) {
+async function analyzeLargeFile(file: File) {
   const audioContext = new AudioContext();
   
   try {
@@ -288,11 +285,11 @@ async function analyzeLargeFile(file) {
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
     
     // Analyze
-    const bpm = await analyzeFullBuffer(audioBuffer);
-    
-    return bpm;
+    const reading = await analyzeFullBuffer(audioBuffer);
+
+    return reading?.bpm ?? null;
   } catch (error) {
-    if (error.name === 'QuotaExceededError') {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       // Handle memory limit
       throw new Error('File too large to analyze');
     }
@@ -303,38 +300,40 @@ async function analyzeLargeFile(file) {
 }
 ```
 
-## Accuracy vs Speed Trade-offs
+## Window Length Trade-offs {#accuracy-vs-speed-trade-offs}
 
-### Fast Detection (Lower Accuracy)
+In continuous analysis, `restartAfterSeconds` sets how much audio the
+`peaks` engine keeps before it starts over.
+
+### Shorter Window
 
 ```typescript
 createRealtimeBpmAnalyzer(audioContext, {
-  stabilizationTime: 10000 // Faster, less accurate
+  engine: { name: 'peaks', restartAfterSeconds: 10 }, // Starts over every 10 s
 });
 ```
 
 **Use when:**
-- Speed is critical
-- Approximate BPM is acceptable
-- Real-time feedback needed
+- You want the reading to follow tempo changes sooner
+- You can accept readings that rest on less audio
 
-### High Accuracy (Slower Detection)
+### Longer Window
 
 ```typescript
 createRealtimeBpmAnalyzer(audioContext, {
-  stabilizationTime: 30000 // Slower, more accurate
+  engine: { name: 'peaks', restartAfterSeconds: 30 }, // Keeps 30 s of audio before starting over
 });
 ```
 
 **Use when:**
-- Accuracy is critical
-- BPM changes need detection
-- Complex music (jazz, classical)
+- The tempo is steady and you want the reading to move less
+- The music is busy (jazz, classical) and needs more audio to settle
 
 ## Monitoring Performance
 
 ### Track Memory Usage
 
+<!-- typecheck: skip, performance.memory is Chrome only and not in TypeScript's DOM types -->
 ```typescript
 if (performance.memory) {
   console.log('Heap size:', performance.memory.usedJSHeapSize);
@@ -348,9 +347,11 @@ if (performance.memory) {
 // Use Performance API
 const start = performance.now();
 
-analyzerNode.on('bpmStable', (data) => {
-  const duration = performance.now() - start;
-  console.log('Time to BPM:', duration);
+analyzer.on('statechange', ({ to }) => {
+  if (to.status === 'locked') {
+    const duration = performance.now() - start;
+    console.log('Time to lock:', duration);
+  }
 });
 ```
 
@@ -369,12 +370,12 @@ audioElement.addEventListener('playing', () => {
 
 ## Performance Checklist
 
-- ✅ Use `getBiquadFilter()` for better detection
+- ✅ Connect the source to `analyzer.input`, which holds what the engine needs in front of it
 - ✅ Choose appropriate analysis mode
-- ✅ Set reasonable `stabilizationTime` for continuous analysis
+- ✅ Set a reasonable `restartAfterSeconds` for continuous analysis
 - ✅ Clean up AudioContext and nodes when done
 - ✅ Throttle UI updates to 1 update/second
-- ✅ Use `bpmStable` events when possible
+- ✅ Render on `statechange` when possible
 - ✅ Create AudioContext in response to user gesture (mobile)
 - ✅ Process files sequentially, not in parallel
 - ✅ Monitor memory on long-running applications

@@ -7,20 +7,22 @@ import {
   MIN_BPM,
   clampBpm,
   clickKind,
-  estimateTapTempo,
   parseBpmParam,
-  pushTap,
+  tapToSet,
   tempoMarking,
+  ticksBefore,
   type ClickKind,
+  type TickCursor,
 } from '../tools/tempo'
 
 const { track } = useAnalytics()
 
+// `id` is what analytics sends (RBA-154), `label` what the button shows.
 const SUBDIVISIONS = [
-  { value: 1, label: 'Quarters' },
-  { value: 2, label: 'Eighths' },
-  { value: 3, label: 'Triplets' },
-  { value: 4, label: '16ths' },
+  { value: 1, label: 'Quarters', id: 'quarters' },
+  { value: 2, label: 'Eighths', id: 'eighths' },
+  { value: 3, label: 'Triplets', id: 'triplets' },
+  { value: 4, label: '16ths', id: 'sixteenths' },
 ] as const
 const PITCH: Record<ClickKind, number> = { accent: 1760, beat: 1320, sub: 880 }
 const SWING_DEG = 28
@@ -56,7 +58,7 @@ let tick = 0
 let nextTickTime = 0
 let beatNumber = 0
 let lastBeatTime = 0
-const queue: { tick: number; time: number }[] = []
+const queue: TickCursor[] = []
 
 function setBpm(value: number) {
   bpm.value = Math.round(clampBpm(value))
@@ -82,12 +84,13 @@ function playClick(kind: ClickKind, time: number) {
 // Chrome exempts audible tabs. A Worker-driven timer is the upgrade if users report drift.
 function schedule() {
   if (!ctx) return
-  while (nextTickTime < ctx.currentTime + SCHEDULE_AHEAD_S) {
-    playClick(clickKind(tick, beatsPerBar.value, subdivision.value), nextTickTime)
-    queue.push({ tick, time: nextTickTime })
-    nextTickTime += 60 / bpm.value / subdivision.value
-    tick++
+  const { due, next } = ticksBefore({ tick, time: nextTickTime }, ctx.currentTime + SCHEDULE_AHEAD_S, 60 / bpm.value / subdivision.value)
+  for (const booked of due) {
+    playClick(clickKind(booked.tick, beatsPerBar.value, subdivision.value), booked.time)
+    queue.push(booked)
   }
+  tick = next.tick
+  nextTickTime = next.time
 }
 
 // Visuals follow what is audible now, read from the audio clock, never from timers.
@@ -95,7 +98,7 @@ function draw() {
   if (!ctx) return
   const now = ctx.currentTime - (ctx.outputLatency || 0)
   while (queue.length && (queue[0] as { time: number }).time <= now) {
-    const played = queue.shift() as { tick: number; time: number }
+    const played = queue.shift() as TickCursor
     if (played.tick % subdivision.value !== 0) continue
     currentBeat.value = Math.floor(played.tick / subdivision.value) % beatsPerBar.value
     beatFlash.value++
@@ -131,7 +134,14 @@ async function start() {
   schedule()
   schedulerTimer = window.setInterval(schedule, LOOKAHEAD_MS)
   frame = requestAnimationFrame(draw)
-  track('bpm_metronome_started', { bpm: bpm.value, mode: `${beatsPerBar.value}/4 ${SUBDIVISIONS.find((s) => s.value === subdivision.value)?.label ?? ''}`.trim() })
+  const chosen = SUBDIVISIONS.find((s) => s.value === subdivision.value) ?? SUBDIVISIONS[0]
+  // `mode` keeps its old form for the readback; time_signature and subdivision split it (RBA-154).
+  track('bpm_metronome_started', {
+    bpm: bpm.value,
+    mode: `${beatsPerBar.value}/4 ${chosen.label}`,
+    time_signature: `${beatsPerBar.value}/4`,
+    subdivision: chosen.id,
+  })
 
   // Keeps a phone's screen on during practice; refusal is harmless.
   try {
@@ -150,6 +160,8 @@ function stop() {
   angle.value = 0
   void wakeLock?.release().catch(() => undefined)
   wakeLock = null
+  // A running context holds the output device with nothing playing. start() resumes it (RBA-93).
+  void ctx?.suspend().catch(() => undefined)
 }
 
 function toggle() {
@@ -158,9 +170,9 @@ function toggle() {
 }
 
 function tapTempo(at: number) {
-  tapTimes.value = pushTap(tapTimes.value, at)
-  const estimate = estimateTapTempo(tapTimes.value)
-  if (estimate && tapTimes.value.length >= 3) setBpm(estimate.bpm)
+  const { taps, bpm: tapped } = tapToSet(tapTimes.value, at)
+  tapTimes.value = taps
+  if (tapped !== null) setBpm(tapped)
 }
 
 // A changed bar or grid restarts the count on the next tick, so the downbeat

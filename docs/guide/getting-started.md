@@ -1,5 +1,5 @@
 ---
-title: Getting Started — Install realtime-bpm-analyzer
+title: 'Getting Started: Install realtime-bpm-analyzer'
 description: Install realtime-bpm-analyzer via npm, yarn, or pnpm and detect BPM from audio files, microphone, and streams in the browser. Zero dependencies, full TypeScript types.
 ---
 
@@ -37,7 +37,7 @@ You can also use the library directly from a CDN:
 
 ```html
 <script type="module">
-  import { createRealtimeBpmAnalyzer } from 'https://cdn.jsdelivr.net/npm/realtime-bpm-analyzer@5/+esm';
+  import { createRealtimeBpmAnalyzer } from 'https://cdn.jsdelivr.net/npm/realtime-bpm-analyzer@6/+esm';
 </script>
 ```
 
@@ -57,6 +57,7 @@ Create an audio element:
 </head>
 <body>
   <audio id="track" src="your-audio-file.mp3" controls></audio>
+  <button id="start">Start</button>
   <div id="bpm">BPM: --</div>
   
   <script type="module" src="./app.js"></script>
@@ -67,58 +68,51 @@ Create an audio element:
 ### 2. JavaScript Implementation
 
 ```javascript
-import { createRealtimeBpmAnalyzer, getBiquadFilter } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 async function setupBPMAnalyzer() {
   // Create audio context
   const audioContext = new AudioContext();
-  
-  // Create the BPM analyzer (returns event emitter wrapping AudioWorkletNode)
-  const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
-  
+
+  // Create the BPM analyzer (an event target around an AudioWorkletNode)
+  const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+
   // Get audio element
-  const audioElement = document.getElementById('track');
-  
+  const audioElement = document.querySelector('audio');
+
   // Create media source from audio element
   const source = audioContext.createMediaElementSource(audioElement);
-  
-  // Create and configure low-pass filter (helps isolate bass frequencies)
-  const lowpass = getBiquadFilter(audioContext);
-  
-  // Connect the audio graph - use .node to connect the AudioWorkletNode
-  source.connect(lowpass);
-  lowpass.connect(bpmAnalyzer.node);
+
+  // Connect the source to the analyzer's input, which holds what the engine
+  // needs in front of it: nothing for the default tempogram, a low-pass for peaks
+  source.connect(analyzer.input);
   source.connect(audioContext.destination);
-  
-  // Listen for BPM events using the event emitter API
-  bpmAnalyzer.on('bpm', (data) => {
-    // Continuous BPM updates
-    console.log('Current BPM candidates:', data.bpm);
-    updateDisplay(data.bpm);
+
+  // Every analysis step after the first reading: show the tempo
+  analyzer.on('reading', (reading) => {
+    updateDisplay(reading.bpm, analyzer.state.status === 'locked');
   });
-  
-  bpmAnalyzer.on('bpmStable', (data) => {
-    // Stable BPM detected (more confident result)
-    console.log('Stable BPM:', data.bpm);
-    updateDisplay(data.bpm, true);
+
+  // The analyzer locked: the readings agree
+  analyzer.on('statechange', ({ to }) => {
+    if (to.status === 'locked') {
+      console.log('Locked BPM:', to.reading.bpm);
+      updateDisplay(to.reading.bpm, true);
+    }
   });
-  
-  // Start playback when user clicks play
+
+  // Start playback: allowed, since this runs from a click
   audioElement.play();
 }
 
-function updateDisplay(bpmCandidates, isStable = false) {
+function updateDisplay(bpm, isLocked = false) {
   const bpmDisplay = document.getElementById('bpm');
-  
-  if (bpmCandidates && bpmCandidates.length > 0) {
-    const topBPM = bpmCandidates[0].tempo;
-    bpmDisplay.textContent = `BPM: ${topBPM}${isStable ? ' ✓' : ''}`;
-    bpmDisplay.style.color = isStable ? 'green' : 'orange';
-  }
+  bpmDisplay.textContent = `BPM: ${bpm}${isLocked ? ' ✓' : ''}`;
+  bpmDisplay.style.color = isLocked ? 'green' : 'orange';
 }
 
-// Initialize when page loads
-setupBPMAnalyzer();
+// Browsers start audio only after a user gesture, so set up on a click
+document.getElementById('start').addEventListener('click', setupBPMAnalyzer, { once: true });
 ```
 
 ## TypeScript Example
@@ -126,61 +120,61 @@ setupBPMAnalyzer();
 For TypeScript projects, you get full type safety:
 
 ```typescript
-import { 
-  createRealtimeBpmAnalyzer, 
-  getBiquadFilter,
-  type BpmCandidates
+import {
+  createRealtimeBpmAnalyzer,
+  type Reading,
 } from 'realtime-bpm-analyzer';
 
 async function setupBPMAnalyzer(): Promise<void> {
   const audioContext = new AudioContext();
-  const bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
-  
+  const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+
   const audioElement = document.getElementById('track') as HTMLAudioElement;
   const source = audioContext.createMediaElementSource(audioElement);
-  const lowpass = getBiquadFilter(audioContext);
-  
-  source.connect(lowpass).connect(bpmAnalyzer.node);
+
+  source.connect(analyzer.input);
   source.connect(audioContext.destination);
-  
-  bpmAnalyzer.on('bpm', (data: BpmCandidates) => {
-    handleBPMUpdate(data, false);
+
+  analyzer.on('reading', (reading: Reading) => {
+    handleBPMUpdate(reading, analyzer.state.status === 'locked');
   });
-  
-  bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
-    handleBPMUpdate(data, true);
+
+  analyzer.on('statechange', ({ to }) => {
+    if (to.status === 'locked') {
+      handleBPMUpdate(to.reading, true);
+    }
   });
 }
 
-function handleBPMUpdate(data: BpmCandidates, isStable: boolean): void {
-  if (data.bpm.length > 0) {
-    const topCandidate = data.bpm[0];
-    console.log(`Detected BPM: ${topCandidate.tempo} (count: ${topCandidate.count})`);
-  }
+function handleBPMUpdate(reading: Reading, isLocked: boolean): void {
+  const others = reading.candidates.slice(1).map(({ bpm, relation }) => `${bpm} (${relation})`);
+  console.log(`Detected BPM: ${reading.bpm}${isLocked ? ', locked' : ''}. Others: ${others.join(', ')}`);
 }
 ```
 
 ## Understanding the Events
 
-The analyzer emits two main types of BPM events:
+The analyzer has a state you can read at any time, `analyzer.state`. Its `status` moves from `listening` to `settling` at the first reading, then to `locked` once the readings agree. Two events matter most:
 
-### `bpm` Event
-- Emitted frequently during analysis
-- Contains multiple BPM candidates with confidence scores
+### `reading` Event {#bpm-event}
+- Emitted on every analysis step once the first reading is in
+- Carries one tempo, `bpm`, and up to 5 `candidates`, the top one first, each with its `relation` to that tempo
 - Values may fluctuate as more data is analyzed
 - Use for real-time display or progressive analysis
 
-### `bpmStable` Event
-- Emitted when a stable, confident BPM is detected
-- Indicates the analyzer has gathered enough data
-- More reliable for final BPM determination
-- Threshold increases over time for better accuracy
+### `statechange` Event {#bpmstable-event}
+- Emitted on every change of status, with `from`, `to` and a `reason`
+- `to.status === 'locked'` means the readings agree: with the default engine, no sooner than about 11.5 seconds of audio
+- Wait for it before you treat a tempo as final
+- The tempo can still move a little while locked, so keep showing the latest reading
+
+When you are done, call `analyzer.stop()`. It is final: create a new analyzer to listen again.
 
 ## Next Steps
 
 Now that you have the basics, check out practical examples:
 
-- [Basic Usage](/examples/basic-usage) - File upload and offline analysis
+- [Basic Usage](/examples/basic-usage) - Whole-file analysis of a local file
 - [Streaming Audio](/examples/streaming-audio) - Real-time stream analysis
 - [Microphone Input](/examples/microphone-input) - Real-time audio from microphone
 - [React Integration](/examples/react) - React hooks and patterns
@@ -191,5 +185,5 @@ Always create the `AudioContext` in response to a user action (like a button cli
 :::
 
 <div style="margin-top: 3rem; max-width: 480px; margin-left: auto; margin-right: auto;">
-  <GithubStarSupport variant="block" placement="getting-started-end" />
+  <GithubStarSupport variant="block" placement="getting_started_end" />
 </div>

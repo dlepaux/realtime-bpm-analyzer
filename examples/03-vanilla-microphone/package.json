@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "realtime-bpm-analyzer": "file:../.."
+    "realtime-bpm-analyzer": "*"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
-    "vite": "^8.3.4"
+    "vite": "^8.3.7"
   }
 }

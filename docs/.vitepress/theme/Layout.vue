@@ -1,37 +1,25 @@
 <script setup lang="ts">
 import DefaultTheme from 'vitepress/theme'
-import { useData } from 'vitepress'
-import BpmHeroTool from '../components/BpmHeroTool.vue'
+import HomeHero from '../components/HomeHero.vue'
+import HomeToolGrid from '../components/HomeToolGrid.vue'
+import HomeComputerCard from '../components/HomeComputerCard.vue'
+import { STORE_URL } from '../tools/extension-live'
 
 const { Layout } = DefaultTheme
-const { frontmatter } = useData()
+// `ext-home` styles nothing now: scripts/extension-switch.ts reads it as the marker that the built
+// home has the extension's layout.
 </script>
 
 <template>
-  <Layout>
-    <template #home-hero-image>
-      <!-- Mobile-only headline block (name + text): appears above the tool so the
-           identity + value prop reads as one unit, then the tool follows as demo.
-           On desktop this block is `display: none` (see custom.css) and the
-           VitePress-rendered `.VPHero .main .name` + `.text` take over.
-           On mobile the VitePress originals are `display: none` — which removes
-           them from the a11y tree — so screen readers see this block as the
-           page's primary heading. No `aria-hidden` here. -->
-      <div class="bpm-mobile-hero-head">
-        <div
-          v-if="frontmatter.hero?.name"
-          class="bpm-mobile-hero-name"
-        >
-          {{ frontmatter.hero.name }}
-        </div>
-        <div
-          v-if="frontmatter.hero?.text"
-          class="bpm-mobile-hero-text"
-        >
-          {{ frontmatter.hero.text }}
-        </div>
-      </div>
-      <BpmHeroTool />
+  <Layout :class="{ 'ext-home': STORE_URL }">
+    <!-- The home's hero is ours, not VitePress's (see HomeHero.vue). These slots render on
+         the home layout only. -->
+    <template #home-hero-before>
+      <HomeHero />
+    </template>
+    <template #home-features-before>
+      <HomeToolGrid />
+      <HomeComputerCard v-if="STORE_URL" />
     </template>
   </Layout>
 </template>

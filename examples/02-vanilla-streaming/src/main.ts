@@ -1,14 +1,26 @@
-import { createRealtimeBpmAnalyzer, getBiquadFilter, type BpmAnalyzer, type BpmCandidates } from 'realtime-bpm-analyzer';
+import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
+import { createReadingPanel } from './reading-panel';
+import { createStatePanel } from './state-panel';
+import './panels.css';
 
 // Get DOM elements
 const audioUrlInput = document.getElementById('audioUrl') as HTMLInputElement;
 const loadBtn = document.getElementById('loadBtn') as HTMLButtonElement;
 const playBtn = document.getElementById('playBtn') as HTMLButtonElement;
 const pauseBtn = document.getElementById('pauseBtn') as HTMLButtonElement;
+const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement;
 const stopBtn = document.getElementById('stopBtn') as HTMLButtonElement;
 const statusElement = document.getElementById('status') as HTMLDivElement;
-const bpmDisplay = document.getElementById('bpmDisplay') as HTMLDivElement;
-const bpmValue = document.getElementById('bpmValue') as HTMLDivElement;
+const panels = document.getElementById('panels') as HTMLDivElement;
+
+const statePanel = createStatePanel();
+const readingPanel = createReadingPanel();
+panels.append(statePanel.element, readingPanel.element);
+
+// Start on the 128 BPM click track in public/, which this page serves itself, so the example
+// plays with no other server. A stream from another site needs CORS headers on its server, and
+// terms that allow other websites to play it.
+audioUrlInput.value = new URL(`${import.meta.env.BASE_URL}click-128.mp3`, window.location.href).href;
 
 // Create audio context
 const audioContext = new AudioContext();
@@ -17,7 +29,6 @@ const audioContext = new AudioContext();
 let audioElement: HTMLAudioElement | null = null;
 let mediaSource: MediaElementAudioSourceNode | null = null;
 let bpmAnalyzer: BpmAnalyzer | null = null;
-let biquadFilter: BiquadFilterNode | null = null;
 
 // Load audio from URL
 loadBtn.addEventListener('click', async () => {
@@ -26,6 +37,9 @@ loadBtn.addEventListener('click', async () => {
     showStatus('Please enter a valid URL', 'error');
     return;
   }
+
+  // One load at a time: a second click while this one awaits would attach a second analyzer
+  loadBtn.disabled = true;
 
   try {
     // Clean up previous audio
@@ -43,32 +57,21 @@ loadBtn.addEventListener('click', async () => {
     audioElement.crossOrigin = 'anonymous';
 
     // Create BPM analyzer
-    bpmAnalyzer = await createRealtimeBpmAnalyzer(audioContext);
-
-    // Create biquad filter for better audio processing
-    biquadFilter = getBiquadFilter(audioContext);
-
-    // Listen for BPM stable events
-    bpmAnalyzer.on('bpmStable', (data: BpmCandidates) => {
-      if (data.bpm.length > 0) {
-        const primaryBpm = data.bpm[0].tempo;
-        displayBpm(primaryBpm);
-        showStatus(`Stable BPM detected: ${Math.round(primaryBpm)}`, 'playing');
-      }
-    });
+    const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+    bpmAnalyzer = analyzer;
+    watchAnalyzer(analyzer);
 
     // Create media source and connect the audio graph
     mediaSource = audioContext.createMediaElementSource(audioElement);
-    
-    // Connect: source → filter → analyzer → destination
-    mediaSource.connect(biquadFilter);
-    biquadFilter.connect(bpmAnalyzer.node);
+
+    // Connect: source → analyzer (its input holds what the engine needs) and source → destination
+    mediaSource.connect(analyzer.input);
     mediaSource.connect(audioContext.destination);
 
     // Wait for audio to be ready
     await new Promise<void>((resolve, reject) => {
       audioElement!.addEventListener('canplay', () => resolve(), { once: true });
-      audioElement!.addEventListener('error', (e) => reject(e), { once: true });
+      audioElement!.addEventListener('error', () => reject(new Error('the audio could not be loaded')), { once: true });
     });
 
     showStatus('Audio loaded - ready to play!', 'playing');
@@ -80,8 +83,50 @@ loadBtn.addEventListener('click', async () => {
       'error'
     );
     cleanup();
+  } finally {
+    loadBtn.disabled = false;
   }
 });
+
+/**
+ * Shows what the analyzer reports. Its state can be read at any time, and events are never replayed, so the
+ * panel starts from `analyzer.state` and then follows the events.
+ */
+function watchAnalyzer(analyzer: BpmAnalyzer) {
+  statePanel.clear();
+  readingPanel.clear();
+  statePanel.show(analyzer.state);
+
+  // Fires on every change of status, of listening reason or of epoch, and only then
+  analyzer.on('statechange', change => {
+    statePanel.addChange(change);
+    statePanel.show(change.to);
+    // A reading belongs to settling and locked: back to listening, the last one may no longer hold
+    if (change.to.status === 'listening' || change.to.status === 'stopped') {
+      readingPanel.clear();
+    }
+    // stop() is final, whether the page or a fatal fault called it: there is nothing to start over
+    if (change.to.status === 'stopped') {
+      resetBtn.disabled = true;
+    }
+  });
+
+  // While listening: how close the analyzer is to its first reading, from 0 to 1
+  analyzer.on('progress', () => statePanel.show(analyzer.state));
+
+  // Outside listening, every analysis step that measured something. The state is already current inside a
+  // listener, so it says whether this reading is settling or locked. A lock can move without a statechange,
+  // so the panel shows every reading, not only the one of the move to locked.
+  analyzer.on('reading', reading => {
+    const { status } = analyzer.state;
+    if (status === 'settling' || status === 'locked') {
+      readingPanel.show(reading, status);
+    }
+  });
+
+  // A failed analysis step: the next step runs. A fatal fault is a statechange to stopped instead.
+  analyzer.on('error', error => statePanel.showError(error));
+}
 
 // Play audio
 playBtn.addEventListener('click', async () => {
@@ -106,12 +151,17 @@ pauseBtn.addEventListener('click', () => {
   showStatus('Paused', 'analyzing');
 });
 
+// Start over: back to listening with the next epoch, and nothing measured before is reported
+resetBtn.addEventListener('click', () => {
+  if (bpmAnalyzer?.state.status !== 'stopped') {
+    bpmAnalyzer?.reset();
+  }
+});
+
 // Stop audio
 stopBtn.addEventListener('click', () => {
   cleanup();
-  showStatus('Stopped', 'analyzing');
-  hideBpm();
-  enableControls(false);
+  hideStatus();
 });
 
 // Example URL clicks
@@ -128,19 +178,15 @@ function showStatus(message: string, type: 'analyzing' | 'playing' | 'error') {
   statusElement.className = `status visible ${type}`;
 }
 
-function displayBpm(bpm: number) {
-  bpmValue.textContent = Math.round(bpm).toString();
-  bpmDisplay.classList.add('visible');
-}
-
-function hideBpm() {
-  bpmDisplay.classList.remove('visible');
-  bpmValue.textContent = '--';
+function hideStatus() {
+  statusElement.className = 'status';
 }
 
 function enableControls(enabled: boolean) {
   playBtn.disabled = !enabled;
   pauseBtn.disabled = !enabled;
+  // A fatal fault can stop the analyzer before the audio is ready: then there is nothing to start over
+  resetBtn.disabled = !enabled || bpmAnalyzer?.state.status === 'stopped';
   stopBtn.disabled = !enabled;
 }
 
@@ -156,15 +202,14 @@ function cleanup() {
     mediaSource = null;
   }
 
-  if (biquadFilter) {
-    biquadFilter.disconnect();
-    biquadFilter = null;
-  }
-
   if (bpmAnalyzer) {
+    // stop() is final: the state panel shows the move to stopped, and the next load creates a new analyzer
+    bpmAnalyzer.stop();
     bpmAnalyzer.disconnect();
     bpmAnalyzer = null;
   }
+
+  enableControls(false);
 }
 
 // Cleanup on page unload

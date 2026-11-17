@@ -1,106 +1,80 @@
 /* Custom styles for documentation */
 
-/* ── Hero right-column overrides for BpmHeroTool ───────────────────────── */
+/* ── Navbar: no horizontal scroll from 320px up ─────────────────────────── */
 
-/* Hide the decorative blurred background circle at all sizes —
-   it's just noise behind an interactive tool. */
-.VPHero .image-bg {
-  display: none !important;
-}
+/* VitePress never lets the title shrink, so below ~340px the logo + site name
+   push the hamburger off-screen. Let it shrink and ellipsize the name instead.
+   Phones only: from 960px a sidebar page gives the title a fixed width a few
+   pixels short of the name, and the ellipsis cut it to "Realtime BPM Analy…". */
+@media (max-width: 767px) {
+  .VPNavBar .container > .title {
+    flex-shrink: 1;
+    min-width: 0;
+  }
 
-/* Base overrides that apply at every breakpoint:
-   let our tool own the image slot with auto height + full width of the slot,
-   no fixed square, no padding/background/transform tricks. */
-.VPHero .image-container {
-  width: 100% !important;
-  height: auto !important;
-  padding: 0 !important;
-  background: transparent !important;
-  transform: none !important;
-  margin: 0 auto !important;
-  aspect-ratio: auto !important;
-}
+  .VPNavBar .container > .title .title > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-.VPHero .image-src {
-  display: none !important;
-}
-
-/* Desktop: the tool sits on the right, vertically centered against the copy. */
-@media (min-width: 960px) {
-  .VPHero .image {
+  .VPNavBar .container > .title .title > .logo {
     flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .VPHero .image-container {
-    max-width: 440px;
   }
 }
 
-/* Mobile-only headline block shown ABOVE the tool (see Layout.vue). Hidden on
-   desktop where the VitePress-rendered .VPHero .main copy is visible on the left. */
-.bpm-mobile-hero-head {
-  display: none;
-}
-
-/* Mobile: VitePress default applies negative margins (-76px top, -24px sides,
-   -48px bottom) on .VPHero .image, which drags the tool under the navbar and
-   into the copy below. Reset those — our tool owns its own spacing. */
-@media (max-width: 959px) {
-  .VPHero .image {
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100%;
-  }
-  .VPHero .image-container {
-    max-width: 420px;
-    margin: 0 auto 2rem !important;
-  }
-
-  /* Hide the original hero name + text on mobile — we render them above the tool instead. */
-  .VPHero .main .name,
-  .VPHero .main .text {
+/* VitePress shows the full menu from 768px, but our nav (4 entries + version
+   flyout + extras) needs ~920px, so tablets scrolled sideways. Keep the
+   hamburger and the nav screen up to the 960px sidebar breakpoint instead.
+   Known VitePress quirk kept as is: its resize handler closes an open nav
+   screen when a resize event fires at outerWidth >= 768 (e.g. rotation). */
+@media (min-width: 768px) and (max-width: 959px) {
+  .VPNavBar .content-body .VPNavBarMenu,
+  .VPNavBar .content-body .VPNavBarExtra {
     display: none;
   }
 
-  .bpm-mobile-hero-head {
+  .VPNavBar .content-body .VPNavBarHamburger {
+    display: flex;
+  }
+
+  .VPNav .VPNavScreen {
     display: block;
-    text-align: center;
-    max-width: 100%;
-    margin: 0 auto 1.75rem;
-  }
-
-  /* Mobile hero name — brand-colored, matches VitePress native .name sizing. */
-  .bpm-mobile-hero-name {
-    font-size: 32px;
-    line-height: 40px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--vp-home-hero-name-color, var(--vp-c-brand-1));
-    background: var(--vp-home-hero-name-background);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: var(--vp-home-hero-name-color, transparent);
-  }
-
-  /* Mobile hero text — the pitch line, paired right under the name. */
-  .bpm-mobile-hero-text {
-    font-size: 32px;
-    line-height: 40px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--vp-c-text-1);
-    margin-top: 0.25rem;
   }
 }
 
-@media (min-width: 640px) and (max-width: 959px) {
-  .bpm-mobile-hero-name,
-  .bpm-mobile-hero-text {
-    font-size: 56px;
-    line-height: 64px;
-  }
+/* ── Developers menu: a generic icon for the CLI and the MCP server ─────── */
+
+/* RBA-240's DECISION of 2026-11-16: no third-party logo, since no terms allow the MCP one,
+   so each gets a plain drawn icon next to its name, in the desktop flyout and the mobile
+   menu. The SVG is only a mask: the icon takes the link's own colour, hover and dark mode
+   included. */
+.VPMenuLink a[href="/guide/cli"]::before,
+.VPMenuLink a[href="/guide/mcp"]::before,
+.VPNavScreenMenuGroupLink[href="/guide/cli"]::before,
+.VPNavScreenMenuGroupLink[href="/guide/mcp"]::before {
+  content: '';
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.45em;
+  vertical-align: -0.2em;
+  background-color: currentColor;
+  -webkit-mask: var(--rba-nav-icon) center / contain no-repeat;
+  mask: var(--rba-nav-icon) center / contain no-repeat;
+}
+
+/* A terminal window with a prompt. */
+.VPMenuLink a[href="/guide/cli"]::before,
+.VPNavScreenMenuGroupLink[href="/guide/cli"]::before {
+  --rba-nav-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='16' rx='2'/%3E%3Cpath d='m7 9 3 3-3 3M13 15h4'/%3E%3C/svg%3E");
+}
+
+/* A plug: a connector, which is what an MCP server is to an assistant. */
+.VPMenuLink a[href="/guide/mcp"]::before,
+.VPNavScreenMenuGroupLink[href="/guide/mcp"]::before {
+  --rba-nav-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0zM12 17v5'/%3E%3C/svg%3E");
 }
 
 /* Enhance code blocks */

@@ -44,7 +44,7 @@ function report(sequence: readonly number[]) {
   const result = estimateTapTempo(sequence)
   if (sequence.length < 4 || !result || first === reportedSequenceStart) return
   reportedSequenceStart = first ?? null
-  track('bpm_tap_measured', { bpm: Math.round(result.bpm), mode: `${sequence.length} taps` })
+  track('bpm_tap_measured', { bpm: Math.round(result.bpm), mode: `${sequence.length} taps`, tap_count: sequence.length })
 }
 
 function tap(at: number) {

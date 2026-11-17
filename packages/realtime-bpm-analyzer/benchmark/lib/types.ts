@@ -1,0 +1,82 @@
+import type {CandidateRelation} from '../../src/contract/types';
+import type {HysteresisRecord} from './hysteresis';
+
+/**
+ * One labelled recording of an evaluation set
+ */
+export type Track = {
+  readonly set: string;
+  readonly id: string;
+  readonly genre: string;
+  /** Published global tempo in BPM */
+  readonly bpm: number;
+  /** Recordings that must stay on the same side of the split: album, recording or progression */
+  readonly group: string;
+  readonly audioPath: string;
+  /** SPDX id read from the item's source, or `evaluationOnly`. See lib/licences.ts */
+  readonly licence: string;
+  /** A loop shorter than this repeats up to it, in seconds: a player looping it is what a listener hears */
+  readonly loopToSeconds?: number;
+  /** Only this many seconds from the start are decoded and scored: see lib/free-mixes.ts */
+  readonly excerptSeconds?: number;
+  /** How the tempo label was reached, where a set grades its labels: RBA-59's `confidence` */
+  readonly label?: string;
+};
+
+export type Split = 'dev' | 'heldout';
+
+/**
+ * What a listener got from one detector on one track
+ */
+export type TrackResult = {
+  readonly set: string;
+  readonly id: string;
+  readonly genre: string;
+  /** The track's group, for error ranges that know such tracks are not independent. Absent before RBA-51's second look */
+  readonly group?: string;
+  /** The track's label grade, on sets that have one */
+  readonly label?: string;
+  readonly truth: number;
+  readonly duration: number;
+  /** Top candidate of the last `bpm` event, null when the detector never gave a reading */
+  readonly final: number | null;
+  /** Seconds of audio heard before the first reading */
+  readonly firstReadingAt: number | null;
+  /** Seconds of audio heard before the first reading within ±4% */
+  readonly firstCorrectAt: number | null;
+  /** Each move to `locked` as [seconds of audio, its bpm] (5.x: each `bpmStable`) */
+  readonly stable: ReadonlyArray<readonly [number, number]>;
+  /** Top candidate of the offline path, on detectors that have one */
+  readonly offline?: number | null;
+  /** The last reading's candidates as [bpm, relation to the top], top first. Absent before RBA-106's ensemble run */
+  readonly candidates?: ReadonlyArray<readonly [number, CandidateRelation]>;
+  /** The last reading's confidence, null when the detector never gave a reading or that reading was unmeasured (RBA-147) */
+  readonly confidence?: number | null;
+  /**
+   * Each change of the top candidate as [seconds of audio, tempo, its confidence], the confidence null when unmeasured.
+   * Absent before RBA-106's ensemble run
+   */
+  readonly readings?: ReadonlyArray<readonly [number, number, number | null]>;
+  /** RBA-106's hysteresis sweep, on its own detectors only */
+  readonly hysteresis?: HysteresisRecord;
+};
+
+export type Summary = {
+  readonly tracks: number;
+  readonly acc1: number;
+  readonly acc2: number;
+  /** Over every track: a track never read correctly sorts last, so this reads null past 50% misses */
+  readonly medianFirstCorrect: number | null;
+  /** Share of tracks read correctly at some point */
+  readonly everCorrect: number;
+  /** Share of all locks (5.x: `bpmStable`) outside ±4% */
+  readonly falseStable: number | null;
+  /** Same, keeping only the first lock of each track, so chatty tracks do not dominate */
+  readonly falseFirstStable: number | null;
+  /** Share of tracks with at least one lock: a detector that never locks has no false stables */
+  readonly stableCoverage: number;
+  readonly stableReadings: number;
+  /** Offline path accuracy, when the detector has one */
+  readonly offlineAcc1?: number;
+  readonly offlineAcc2?: number;
+};

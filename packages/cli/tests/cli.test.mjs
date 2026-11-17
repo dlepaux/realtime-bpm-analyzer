@@ -1,0 +1,396 @@
+// Runs the built bin (dist/cli.mjs) as a child process, the way `npx realtime-bpm-analyzer-cli`
+// runs it. Needs `npm run build` at the repo root first: it builds the library this package
+// imports through the workspace, then the CLI.
+import {describe, it, before, after} from 'node:test';
+import assert from 'node:assert/strict';
+import {execFile, spawnSync} from 'node:child_process';
+import {chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {analyzeChannelData} from 'realtime-bpm-analyzer/node';
+// Built for the tests and not published
+import {decodeFile} from '../dist/decode.mjs';
+// The library's own fixtures, so the pinned bass-test values have a single source
+import {bassTestExpected} from '../../realtime-bpm-analyzer/tests/fixtures/bass-test-expected.ts';
+import {createClickTrack} from '../../realtime-bpm-analyzer/tests/fixtures/click-track.ts';
+
+// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
+// thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
+const hangLimit = {timeout: 60_000};
+
+const cli = fileURLToPath(new URL('../dist/cli.mjs', import.meta.url));
+const fixture = name => fileURLToPath(new URL(`fixtures/${name}`, import.meta.url));
+const bassTest = fileURLToPath(new URL('../../realtime-bpm-analyzer/tests/fixtures/bass-test.wav', import.meta.url));
+const clickMp3 = fixture('click-128.mp3');
+const clickFlac = fixture('click-100.flac');
+
+/**
+ * Runs the CLI and never rejects, so tests can assert on failing exit codes.
+ * @param {string[]} args Command-line arguments
+ * @param {Record<string, string>} [env] Extra environment variables
+ * @returns {Promise<{code: number, stdout: string, stderr: string}>}
+ */
+function run(args, env = {}) {
+  return new Promise(resolve => {
+    execFile(process.execPath, [cli, ...args], {env: {...process.env, ...env}}, (error, stdout, stderr) => {
+      resolve({code: error ? error.code : 0, stdout, stderr});
+    });
+  });
+}
+
+/**
+ * @param {string[]} args Arguments, --json is added
+ * @param {Record<string, string>} [env] Extra environment variables
+ * @returns {Promise<{code: number, results: object[]}>}
+ */
+async function runJson(args, env) {
+  const {code, stdout} = await run(['--json', ...args], env);
+  return {code, results: JSON.parse(stdout).results};
+}
+
+const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
+// root reads any file whatever its mode, so the unreadable-file test needs a regular user
+const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+
+describe('realtime-bpm-analyzer CLI', hangLimit, () => {
+  it('prints help and the package version', async () => {
+    const help = await run(['--help']);
+    assert.equal(help.code, 0);
+    assert.match(help.stdout, /^Usage: realtime-bpm-analyzer/);
+
+    const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+    const version = await run(['--version']);
+    assert.equal(version.code, 0);
+    assert.equal(version.stdout.trim(), manifest.version);
+  });
+
+  it('has one bin, so npx realtime-bpm-analyzer-cli can pick it', async () => {
+    // npx runs the bin named after the package, or, when none is, the only file every bin
+    // points to. This package has no bin named after it, so a second bin pointing elsewhere
+    // would leave npx unable to choose.
+    const {bin} = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+    assert.deepEqual(bin, {'realtime-bpm-analyzer': 'dist/cli.mjs'});
+  });
+
+  for (const [label, args, pattern] of [
+    ['no path', [], /Missing a file or folder/],
+    ['an unknown option', ['--bogus', bassTest], /Unknown option '--bogus'/],
+    ['a range narrower than an octave', ['--min-bpm', '100', '--max-bpm', '150', bassTest], /at least twice min/],
+    ['a non-numeric tempo', ['--min-bpm', 'fast', bassTest], /positive finite/],
+  ]) {
+    it(`exits 2 on ${label}`, async () => {
+      const {code, stdout, stderr} = await run(args);
+      assert.equal(code, 2);
+      assert.equal(stdout, '');
+      assert.match(stderr, pattern);
+    });
+  }
+
+  it('keeps the decoders out of the library\'s browser bundles and /node entry', async () => {
+    // Resolved like any consumer resolves it: the workspace link to the in-repo library
+    const library = new URL('./', import.meta.resolve('realtime-bpm-analyzer/package.json'));
+    for (const bundle of ['index.esm.js', 'index.js', 'node.mjs', 'node.cjs', 'realtime-bpm-processor.js']) {
+      const code = await readFile(new URL(`dist/${bundle}`, library), 'utf8');
+      assert.doesNotMatch(code, /@audio\/decode|child_process/, bundle);
+    }
+  });
+
+  it('fills a missing --min-bpm or --max-bpm with the library\'s default range', async () => {
+    // The CLI copies the defaults (90, 180): the library rejects a range built from wrong ones
+    assert.match((await run(['--max-bpm', '179', bassTest])).stderr, /max \(179\) must be at least twice min \(90\)/);
+    assert.match((await run(['--min-bpm', '91', bassTest])).stderr, /max \(180\) must be at least twice min \(91\)/);
+
+    // ...and they are the library's own: tempos on both edges fold the same way with and without them
+    for (const bpm of [89, 90, 180, 181]) {
+      const channelData = createClickTrack(bpm, 22_050, 20);
+      assert.deepEqual(
+        await analyzeChannelData(channelData, 22_050, {tempoRange: {min: 90, max: 180}}),
+        await analyzeChannelData(channelData, 22_050),
+        `${bpm} BPM`,
+      );
+    }
+  });
+
+  it('runs the engine named by --engine, on the same default range as peaks', async () => {
+    const {results: [peaks]} = await runJson(['--engine', 'peaks', fixture('click-140.ogg')]);
+    const {results: [tempogram]} = await runJson(['--engine', 'tempogram', fixture('click-140.ogg')]);
+
+    assert.equal(peaks.engine, 'peaks');
+    assert.equal(tempogram.engine, 'tempogram');
+    assert.ok(Math.abs(tempogram.bpm - 140) <= 2, `got ${tempogram.bpm}`);
+    assert.notDeepEqual({confidence: tempogram.confidence, candidates: tempogram.candidates}, {confidence: peaks.confidence, candidates: peaks.candidates});
+    // A lone --min-bpm is measured against 180: the first pick's 240 would let this through
+    assert.match((await run(['--engine', 'tempogram', '--min-bpm', '91', bassTest])).stderr, /max \(180\) must be at least twice min \(91\)/);
+  });
+
+  it('refuses the old --detector flag rather than run peaks without a word', async () => {
+    const {code, stderr} = await run(['--detector', 'tempogram', bassTest]);
+
+    assert.equal(code, 2);
+    assert.match(stderr, /--detector/);
+  });
+
+  it('refuses an unknown engine', async () => {
+    const {code, stderr} = await run(['--engine', 'magic', bassTest]);
+
+    assert.equal(code, 2);
+    assert.match(stderr, /Invalid engine: magic/);
+  });
+
+  it('prints the BPM, engine, confidence and candidates as text by default', async () => {
+    const {code, stdout} = await run(['--engine', 'peaks', clickMp3]);
+    assert.equal(code, 0);
+    assert.match(stdout, /click-128\.mp3: 128 BPM \(peaks, confidence 0\.\d\d\)\n {2}candidates: 128(, |$)/m);
+  });
+
+  it('prints an unmeasured confidence as unmeasured in text and null in JSON, never as 0 or NaN', async () => {
+    // 128 BPM on 40 to 80 reads 64, outside the 90 to 180 BPM confidence was measured on (RBA-147)
+    const range = ['--min-bpm', '40', '--max-bpm', '80'];
+    for (const engine of ['peaks', 'tempogram']) {
+      const text = await run(['--engine', engine, ...range, clickMp3]);
+      assert.equal(text.code, 0, engine);
+      assert.match(text.stdout, new RegExp(`click-128\\.mp3: 64 BPM \\(${engine}, confidence unmeasured\\)\n {2}candidates: 64`), engine);
+
+      const {code, results: [result]} = await runJson(['--engine', engine, ...range, clickMp3]);
+      assert.equal(code, 0, engine);
+      assert.equal(result.bpm, 64, engine);
+      assert.equal(result.confidence, null, engine);
+    }
+  });
+
+  it('gives null on any custom range, even for a tempo inside 90 to 180', async () => {
+    // RBA-108's DECISION of 2026-11-16: the tables were fitted only on the default range, and a custom range changes
+    // what each engine picks, so a reading there is unmeasured wherever it lands. 128 is the click's only octave in 80 to 200
+    for (const engine of ['peaks', 'tempogram']) {
+      const {code, results: [result]} = await runJson(['--engine', engine, '--min-bpm', '80', '--max-bpm', '200', clickMp3]);
+      assert.equal(code, 0, engine);
+      assert.equal(result.bpm, 128, engine);
+      assert.equal(result.confidence, null, engine);
+    }
+  });
+
+  it('keeps the number when the flags give the default range, a missing bound filled from it', async () => {
+    const defaults = [[], ['--min-bpm', '90'], ['--max-bpm', '180'], ['--min-bpm', '90', '--max-bpm', '180']];
+    for (const engine of ['peaks', 'tempogram']) {
+      for (const flags of defaults) {
+        const label = `${engine} ${flags.join(' ') || 'with no flags'}`;
+        const {code, results: [result]} = await runJson(['--engine', engine, ...flags, clickMp3]);
+        assert.equal(code, 0, label);
+        assert.equal(result.bpm, 128, label);
+        assert.ok(result.confidence > 0 && result.confidence <= 1, `${label} got ${result.confidence}`);
+      }
+    }
+  });
+
+  it('finds the bass-test fixture tempo the browser finds', async () => {
+    // The pinned value is peaks' reading, so name peaks: the default engine reads this fixture differently
+    const {code, results: [result]} = await runJson(['--engine', 'peaks', bassTest]);
+    assert.equal(code, 0);
+    assert.equal(result.bpm, bassTestExpected.tempo);
+  });
+
+  for (const [name, bpm] of [['bass-test.wav', bassTestExpected.tempo], ['click-128.mp3', 128], ['click-100.flac', 100], ['click-140.ogg', 140], ['click-140.opus', 140]]) {
+    it(`decodes ${name} with the bundled decoder`, async () => {
+      // An unusable FFMPEG_PATH proves no ffmpeg was involved
+      // bass-test's pinned value is peaks' reading; the click tracks read the same on the default engine
+      const args = name === 'bass-test.wav' ? ['--engine', 'peaks', bassTest] : [fixture(name)];
+      const {code, results: [result]} = await runJson(args, {FFMPEG_PATH: '/nonexistent/ffmpeg'});
+      assert.equal(code, 0);
+      assert.equal(result.bpm, bpm);
+    });
+  }
+
+  it('runs the library\'s default engine when --engine is not given', async () => {
+    // Through the bin, so a default pinned in the argument parser fails here: analyzeFile alone never sees it
+    const {code, results: [result]} = await runJson([clickMp3]);
+    assert.equal(code, 0);
+    const {channelData, sampleRate} = await decodeFile(clickMp3, {ffmpegPath: '/nonexistent/ffmpeg', maxDecodedBytes: 2 ** 31});
+    const reading = await analyzeChannelData(channelData, sampleRate);
+    const fields = ({bpm, bpmExact, confidence, candidates, engine}) => ({bpm, bpmExact, confidence, candidates, engine});
+    assert.deepEqual(fields(result), fields(reading));
+  });
+
+  it('prints a stable JSON shape', async () => {
+    const {results: [result]} = await runJson([clickFlac]);
+    assert.deepEqual(Object.keys(result), ['file', 'ok', 'bpm', 'bpmExact', 'confidence', 'candidates', 'engine']);
+    assert.equal(result.file, clickFlac);
+    assert.equal(result.ok, true);
+    assert.ok(Math.abs(result.bpmExact - result.bpm) <= 1.5, `got ${result.bpmExact} for ${result.bpm}`);
+    assert.ok(['peaks', 'tempogram'].includes(result.engine), result.engine);
+    assert.ok(result.confidence > 0 && result.confidence <= 1, `got ${result.confidence}`);
+    assert.ok(result.candidates.length > 0 && result.candidates.length <= 5);
+    assert.deepEqual(result.candidates[0], {bpm: result.bpm, relation: 'top'});
+
+    for (const candidate of result.candidates) {
+      assert.deepEqual(Object.keys(candidate), ['bpm', 'relation']);
+      assert.ok(['top', 'half', 'double', 'other'].includes(candidate.relation), candidate.relation);
+    }
+  });
+
+  it('folds tempos into --min-bpm/--max-bpm', async () => {
+    const {results: [result]} = await runJson(['--min-bpm', '50', '--max-bpm', '100', fixture('click-140.ogg')]);
+    assert.equal(result.bpm, 70);
+  });
+
+  it('hands M4A to ffmpeg, and says so when ffmpeg is missing', async () => {
+    const {code, results: [result]} = await runJson([fixture('click-128.m4a')], {FFMPEG_PATH: '/nonexistent/ffmpeg'});
+    assert.equal(code, 1);
+    assert.equal(result.ok, false);
+    assert.match(result.error, /ffmpeg was not found/);
+  });
+
+  it('decodes M4A through ffmpeg when it is installed', {skip: hasFfmpeg ? false : 'ffmpeg not installed'}, async () => {
+    const {code, results: [result]} = await runJson([fixture('click-128.m4a')]);
+    assert.equal(code, 0);
+    assert.equal(result.bpm, 128);
+  });
+
+  describe('format detection and ffmpeg', () => {
+    let root;
+    // An ID3v2.4 tag of 256 padding bytes, as taggers put in front of FLAC or ADTS AAC too
+    const id3Tag = Buffer.concat([Buffer.from([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 2, 0]), Buffer.alloc(256)]);
+
+    /**
+     * Writes an executable stand-in for ffmpeg that records its arguments.
+     * @param {string} name File name
+     * @param {string} body Script body; `args` holds the arguments
+     * @returns {Promise<string>} Its path
+     */
+    async function fakeFfmpeg(name, body) {
+      const path = join(root, name);
+      await writeFile(path, `#!/usr/bin/env node\nconst args = process.argv.slice(2);\n${body}\n`);
+      await chmod(path, 0o755);
+      return path;
+    }
+
+    before(async () => {
+      root = await mkdtemp(join(tmpdir(), 'rba-cli-fmt-'));
+    }, hangLimit);
+
+    after(async () => {
+      await rm(root, {recursive: true, force: true});
+    }, hangLimit);
+
+    it('looks behind an ID3 tag before picking a decoder', async () => {
+      const flac = join(root, 'tagged.flac');
+      await writeFile(flac, Buffer.concat([id3Tag, await readFile(clickFlac)]));
+      // ADTS AAC (sync word, layer bits 00) behind the tag must not reach the MP3 decoder
+      const aac = join(root, 'tagged.aac');
+      await writeFile(aac, Buffer.concat([id3Tag, Buffer.from([0xFF, 0xF1, 0x50, 0x80]), Buffer.alloc(512)]));
+
+      const {results} = await runJson([flac, aac], {FFMPEG_PATH: '/nonexistent/ffmpeg'});
+      assert.equal(results[0].bpm, 100);
+      assert.equal(results[1].ok, false);
+      assert.match(results[1].error, /bundled decoders do not read this format.*ffmpeg was not found/);
+    });
+
+    it('reads float PCM from ffmpeg and passes the file with a file: prefix', async () => {
+      const argsLog = join(root, 'args.json');
+      // 20 s of 60 Hz clicks at 120 BPM and 44.1 kHz, the rate the CLI asks ffmpeg for
+      const ffmpeg = await fakeFfmpeg('ffmpeg-ok.mjs', `
+        import {writeFileSync} from 'node:fs';
+        writeFileSync(${JSON.stringify(argsLog)}, JSON.stringify(args));
+        const rate = 44100, pcm = Buffer.alloc(rate * 20 * 4);
+        for (let i = 0; i < rate * 20; i += 1) {
+          const t = (i % (rate / 2)) / rate;
+          pcm.writeFloatLE(t < 0.08 ? 0.9 * Math.exp(-t * 40) * Math.sin(2 * Math.PI * 60 * t) : 0, i * 4);
+        }
+        process.stdout.write(pcm);`);
+
+      const {code, results: [result]} = await runJson([fixture('click-128.m4a')], {FFMPEG_PATH: ffmpeg});
+      assert.equal(code, 0);
+      assert.equal(result.bpm, 120);
+      const args = JSON.parse(await readFile(argsLog, 'utf8'));
+      assert.equal(args[args.indexOf('-i') + 1], `file:${fixture('click-128.m4a')}`);
+      assert.deepEqual(args.slice(-5), ['-f', 'f32le', '-ar', '44100', 'pipe:1']);
+    });
+
+    it('reports the last line ffmpeg printed when it fails', async () => {
+      const ffmpeg = await fakeFfmpeg('ffmpeg-fail.mjs', `
+        process.stderr.write('banner\\nInvalid data found when processing input\\n');
+        process.exitCode = 1;`);
+
+      const {code, results: [result]} = await runJson([fixture('click-128.m4a')], {FFMPEG_PATH: ffmpeg});
+      assert.equal(code, 1);
+      assert.equal(result.error, 'ffmpeg could not decode the file: Invalid data found when processing input');
+    });
+  });
+
+  describe('folder mode', () => {
+    let root;
+
+    before(async () => {
+      root = await mkdtemp(join(tmpdir(), 'rba-cli-'));
+      await mkdir(join(root, 'sub', 'deeper'), {recursive: true});
+      await mkdir(join(root, 'empty'));
+      await copyFile(clickMp3, join(root, 'b-click.mp3'));
+      await copyFile(clickFlac, join(root, 'sub', 'a-click.flac'));
+      await copyFile(fixture('click-140.opus'), join(root, 'sub', 'deeper', 'c-click.opus'));
+      await writeFile(join(root, 'notes.txt'), 'not audio');
+      // An ID3 header with no MPEG frames behind it: the MP3 decoder yields no samples
+      await writeFile(join(root, 'a-broken.mp3'), Buffer.concat([Buffer.from('ID3\x04\0\0\0\0\0\0'), Buffer.alloc(2048, 7)]));
+    }, hangLimit);
+
+    after(async () => {
+      await rm(root, {recursive: true, force: true});
+    }, hangLimit);
+
+    it('analyses the folder\'s own files in order, reports a broken one and exits 1', async () => {
+      const {code, results} = await runJson([root]);
+      assert.equal(code, 1);
+      assert.deepEqual(results.map(result => result.file), [join(root, 'a-broken.mp3'), join(root, 'b-click.mp3')]);
+      assert.equal(results[0].ok, false);
+      assert.match(results[0].error, /No audio samples decoded/);
+      assert.equal(results[1].bpm, 128);
+    });
+
+    it('walks sub-folders with --recursive', async () => {
+      const {results} = await runJson(['--recursive', root]);
+      assert.deepEqual(results.map(result => result.file), [
+        join(root, 'a-broken.mp3'),
+        join(root, 'b-click.mp3'),
+        join(root, 'sub', 'a-click.flac'),
+        join(root, 'sub', 'deeper', 'c-click.opus'),
+      ]);
+      assert.deepEqual(results.slice(2).map(result => result.bpm), [100, 140]);
+    });
+
+    it('exits 0 when every file is analysed', async () => {
+      const {code, stdout, stderr} = await run([join(root, 'sub')]);
+      assert.equal(code, 0);
+      assert.match(stdout, /a-click\.flac: 100 BPM/);
+      assert.equal(stderr, '');
+    });
+
+    it('fails a folder with no audio files', async () => {
+      const {code, results} = await runJson([join(root, 'empty')]);
+      assert.equal(code, 1);
+      assert.deepEqual(results, [{file: join(root, 'empty'), ok: false, error: 'No audio files found.'}]);
+    });
+
+    it('reports an unreadable file and keeps going', {skip: isRoot ? 'root reads any file' : false}, async () => {
+      const locked = join(root, 'locked.wav');
+      await copyFile(bassTest, locked);
+      await chmod(locked, 0o000);
+
+      try {
+        const {code, stderr, stdout} = await run([locked, clickMp3]);
+        assert.equal(code, 1);
+        assert.match(stderr, /locked\.wav: error: EACCES/);
+        assert.match(stdout, /click-128\.mp3: 128 BPM/);
+      } finally {
+        await rm(locked, {force: true});
+      }
+    });
+
+    it('reports a missing path without stopping the batch', async () => {
+      const {code, results} = await runJson([join(root, 'missing.mp3'), clickMp3]);
+      assert.equal(code, 1);
+      assert.equal(results[0].ok, false);
+      assert.match(results[0].error, /ENOENT/);
+      assert.equal(results[1].bpm, 128);
+    });
+  });
+});

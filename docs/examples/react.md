@@ -1,6 +1,6 @@
 ---
 title: React BPM Detection — Hook and Live Examples
-description: React integration examples for realtime-bpm-analyzer — file upload, streaming audio, microphone input. Live demos with full source and TypeScript types.
+description: React integration examples for realtime-bpm-analyzer, with file analysis, streaming audio and microphone input. Live demos with full source and TypeScript types.
 ---
 
 # React Integration
@@ -11,11 +11,11 @@ How to integrate Realtime BPM Analyzer in React applications with hooks and best
 
 We've built complete React examples demonstrating different use cases. Each is a fully functional application you can interact with:
 
-### Basic File Upload
+### Basic File Analysis
 
-Upload and analyze audio files to detect their BPM.
+Pick an audio or video file and analyze it in the browser to detect its BPM. It shows every field of the reading the file gives: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="04-react-basic" height="500px" />
+<ExampleEmbed example="04-react-basic" height="720px" />
 
 ::: tip View Source
 Full source: [`examples/04-react-basic`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/04-react-basic)
@@ -23,9 +23,9 @@ Full source: [`examples/04-react-basic`](https://github.com/dlepaux/realtime-bpm
 
 ### Streaming Audio
 
-Analyze BPM from live audio streams or URLs.
+Analyze BPM from live audio streams or URLs. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, and every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates.
 
-<ExampleEmbed example="05-react-streaming" height="600px" />
+<ExampleEmbed example="05-react-streaming" height="1050px" />
 
 ::: tip View Source
 Full source: [`examples/05-react-streaming`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/05-react-streaming)
@@ -33,9 +33,9 @@ Full source: [`examples/05-react-streaming`](https://github.com/dlepaux/realtime
 
 ### Microphone Input
 
-Real-time BPM detection from your microphone.
+Real-time BPM detection from your microphone, with its track passed as `liveInput`. It shows the analyzer's state as it changes (`listening` with its progress, `settling`, `locked`), each `statechange` with its reason, every field of each reading: `bpm`, `bpmExact`, `confidence` and the candidates, and each `kick` as it is heard, with its time and strength.
 
-<ExampleEmbed example="06-react-microphone" height="500px" />
+<ExampleEmbed example="06-react-microphone" height="1250px" />
 
 ::: tip View Source
 Full source: [`examples/06-react-microphone`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/examples/06-react-microphone)
@@ -49,83 +49,83 @@ npm install realtime-bpm-analyzer
 
 ## Key Concepts for React
 
-### 1. Use State for Audio Context
+### 1. Keep the Audio Context in a Ref {#_1-use-state-for-audio-context}
 
-Create and store the audio context in component state to reuse it:
+The audio context and the analyzer are resources, not something to render.
+Keep them in refs, so the cleanup sees the current ones:
 
+<!-- typecheck: skip, a fragment of the pattern below -->
 ```typescript
-const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
-const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer | null>(null);
+const audioContextRef = useRef<AudioContext | null>(null);
+const analyzerRef = useRef<BpmAnalyzer | null>(null);
 ```
 
 ### 2. Cleanup in useEffect
 
-Always cleanup audio nodes when component unmounts:
+Always release the analyzer and the audio context when the component unmounts.
+`stop()` is final, so the next start creates a new analyzer:
 
+<!-- typecheck: skip, a fragment of the pattern below -->
 ```typescript
 useEffect(() => {
   return () => {
-    bpmAnalyzer?.disconnect();
-    audioContext?.close();
+    analyzerRef.current?.stop();
+    audioContextRef.current?.close();
   };
 }, []); // Empty deps - cleanup only on unmount
 ```
 
 ### 3. Handle Events with State Updates
 
-Convert BPM events to React state updates:
+Convert analyzer events to React state updates:
 
+<!-- typecheck: skip, a fragment of the pattern below -->
 ```typescript
-bpmAnalyzer.on('bpmStable', (data) => {
-  if (data.bpm.length > 0) {
-    setCurrentBpm(data.bpm[0].tempo);
-  }
-});
+analyzer.on('reading', ({ bpm }) => setBpm(bpm));
+analyzer.on('statechange', ({ to }) => setLocked(to.status === 'locked'));
 ```
 
 ## Basic Pattern
 
 Here's the essential pattern for any React integration:
 
-```typescript
-import { createRealtimeBpmAnalyzer } from 'realtime-bpm-analyzer';
-import { useState, useEffect } from 'react';
+```tsx
+import { createRealtimeBpmAnalyzer, type BpmAnalyzer } from 'realtime-bpm-analyzer';
+import { useState, useEffect, useRef } from 'react';
 
 function BPMAnalyzer() {
   const [bpm, setBpm] = useState<number | null>(null);
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
-  const [bpmAnalyzer, setBpmAnalyzer] = useState<BpmAnalyzer | null>(null);
+  const [locked, setLocked] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyzerRef = useRef<BpmAnalyzer | null>(null);
 
   const startAnalysis = async () => {
     // Create audio context
-    const ctx = new AudioContext();
-    setAudioContext(ctx);
+    const audioContext = new AudioContext();
+    audioContextRef.current = audioContext;
 
     // Create analyzer
-    const analyzer = await createRealtimeBpmAnalyzer(ctx);
-    setBpmAnalyzer(analyzer);
+    const analyzer = await createRealtimeBpmAnalyzer(audioContext);
+    analyzerRef.current = analyzer;
 
     // Listen for BPM
-    analyzer.on('bpmStable', (data) => {
-      if (data.bpm.length > 0) {
-        setBpm(data.bpm[0].tempo);
-      }
-    });
+    analyzer.on('reading', ({ bpm }) => setBpm(bpm));
+    analyzer.on('statechange', ({ to }) => setLocked(to.status === 'locked'));
 
-    // Connect your audio source here...
+    // Connect your audio source to analyzer.input here...
   };
 
   useEffect(() => {
     return () => {
-      bpmAnalyzer?.disconnect();
-      audioContext?.close();
+      analyzerRef.current?.stop();
+      audioContextRef.current?.close();
     };
   }, []); // Cleanup only on unmount
 
   return (
     <div>
       <button onClick={startAnalysis}>Start Analysis</button>
-      {bpm && <div>BPM: {bpm}</div>}
+      {bpm !== null && <div>BPM: {bpm}{locked ? ' (locked)' : ''}</div>}
     </div>
   );
 }
@@ -136,7 +136,7 @@ function BPMAnalyzer() {
 The library is fully typed. Import types as needed:
 
 ```typescript
-import type { BpmAnalyzer, BpmCandidates } from 'realtime-bpm-analyzer';
+import type { BpmAnalyzer, Reading, AnalyzerState } from 'realtime-bpm-analyzer';
 ```
 
 ## Next Steps

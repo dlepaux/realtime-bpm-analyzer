@@ -17,7 +17,7 @@ node_modules/
 contributing.md
 code-of-conduct.md
 security.md
-privacy.md
+/privacy.md
 
 # Generated assets
 # Note: public/favicon/ is committed (pre-generated) so the docs build does not

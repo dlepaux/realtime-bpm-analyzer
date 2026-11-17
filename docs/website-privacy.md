@@ -3,28 +3,46 @@ title: Website Privacy
 description: What realtime-bpm-analyzer.com measures, with which tools, and what it never collects. Your audio never leaves your device.
 ---
 
+<script setup>
+import AnalyticsEventList from './.vitepress/components/AnalyticsEventList.vue'
+</script>
+
 # Website Privacy
 
 This page covers the website **realtime-bpm-analyzer.com**. The open-source
-library that runs the analysis has its own page: [Library Privacy](/privacy).
+library that runs the analysis has its own page: [Library Privacy](/privacy), and
+so does the browser extension: [Extension Privacy](/extension/privacy).
 
 ## Your audio never leaves your device
 
 Files you choose, microphone input and stream audio are analysed in your
 browser by the library. The website never receives your audio, your files or
-their names.
+their names. That is about your audio only: the pages themselves are measured, as
+the next section describes.
 
 ## What the website measures
 
-The website uses **Google Analytics 4**, loaded through **Google Tag Manager**,
-to understand how the tools are used and what to improve. Google Analytics sets
+The website uses **Google Analytics 4**, loaded directly with Google's tag (gtag.js) on
+every page, to understand how the tools are used and what to improve. Google Analytics sets
 cookies in your browser and receives:
 
 - the pages you visit, your approximate location, your device and browser type,
   and how you arrived on the site;
-- how you use the tools, as anonymous events: the tempo found, the length,
-  size and extension of an analysed file (never its name or content), the
-  address of a stream without its query string, and error types.
+- the version numbers in the address of the pages the browser extension opens:
+  its version when you install it or remove it, its new and previous versions
+  when it updates;
+- what Google Analytics measures by itself on any site that uses it: how long a page
+  stays open, scrolling to the bottom of a page, clicks on links to other sites with
+  the address of that link, file downloads, and use of forms and site search;
+- how you use the tools, as events tied to the random ID in the Google Analytics
+  cookie, not to your name. Each event below is sent only when you do what it
+  describes, and carries only what it lists, followed by its name in Google Analytics:
+
+<AnalyticsEventList />
+
+Links to the extension's Chrome Web Store and Edge Add-ons listings carry a label naming this site
+and the place on it the link was, so the store can report which link brought an
+install. The label holds nothing about you.
 
 Google Analytics does not store IP addresses. Its event data is kept for at most
 14 months. Google processes it as described in
@@ -53,4 +71,4 @@ linked to your name.
 The site is run by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 20 October 2026._
+_Last updated: 8 November 2026._

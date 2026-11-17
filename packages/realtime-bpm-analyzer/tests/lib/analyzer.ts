@@ -1,0 +1,112 @@
+import {expect} from 'chai';
+import {analyzeFullBuffer} from '../../src/core/offline-pipeline';
+import {data as assertIntervals} from '../fixtures/bass-test-intervals';
+import {findPeaks} from '../../src/core/peak-detection';
+import {identifyIntervals, getTopCandidate, computeBpm} from '../../src/core/tempo';
+import * as utils from '../../src/core/utils';
+import {createTestAudioContext, closeAudioContext, loadTestAudio} from '../setup';
+
+const assertPeaksBassSample = [12962, 23459, 35776, 46244, 58593, 69041, 82686, 105130, 115632, 127947, 138418, 150759, 161199, 174832, 197297, 207805, 220128, 230605, 242947, 253382, 266950, 289455, 299456, 312334, 322814, 335783, 358605];
+
+describe('Analyzer - Unit tests', () => {
+  let audioContext: AudioContext;
+
+  beforeEach(() => {
+    audioContext = createTestAudioContext();
+  });
+
+  afterEach(async () => {
+    await closeAudioContext(audioContext);
+  });
+
+  it('should not find peaks from empty channel data', async () => {
+    const channelData = new Float32Array([0, 0, 0, 0]);
+    const {peaks, threshold} = await findPeaks({audioSampleRate: audioContext.sampleRate, channelData});
+    expect(threshold).to.be.equal(0);
+    expect(peaks.length).to.be.equal(0);
+  });
+
+  it('should identify intervals from given peaks', async () => {
+    const intervals = identifyIntervals(assertPeaksBassSample);
+    expect(JSON.stringify(intervals)).to.be.equal(JSON.stringify(assertIntervals));
+  });
+
+  it('should trigger an error while getting candidate from empty array', async () => {
+    const {minPeaks} = await import('../../src/core/consts');
+    expect(() => {
+      getTopCandidate([]);
+    }).to.throw(/no candidates found/);
+    expect(() => {
+      getTopCandidate([]);
+    }).to.throw(String(minPeaks));
+  });
+
+  it('should not compute BPM from empty array of peaks', async () => {
+    const validPeaks = utils.generateValidPeaksModel();
+    const {threshold, bpm} = await computeBpm({audioSampleRate: audioContext.sampleRate, data: validPeaks});
+    expect(threshold).to.be.equal(0.2);
+    expect(bpm.length).to.be.equal(0);
+  });
+});
+
+describe('Analyzer - Integration tests', () => {
+  let audioContext: AudioContext;
+
+  beforeEach(() => {
+    audioContext = createTestAudioContext();
+  });
+
+  afterEach(async () => {
+    await closeAudioContext(audioContext);
+  });
+
+  it('should be able to detect the BPM from an AudioBuffer', async function () {
+    this.timeout(30 * 1000);
+    const audioBuffer = await loadTestAudio(audioContext);
+    const reading = await analyzeFullBuffer(audioBuffer, {engine: 'peaks'});
+    expect(reading?.bpm).to.be.equal(125);
+    expect(reading?.confidence).to.be.within(0, 1);
+    expect(reading?.engine).to.equal('peaks');
+    expect(reading?.audio).to.deep.equal({from: 0, to: audioBuffer.duration, contextTime: null});
+  });
+
+  it('should fold the detected BPM into a caller-supplied tempo range', async function () {
+    this.timeout(30 * 1000);
+    const audioBuffer = await loadTestAudio(audioContext);
+    const reading = await analyzeFullBuffer(audioBuffer, {engine: 'peaks', tempoRange: {min: 50, max: 100}});
+    // 125 BPM halved is 62.5; rounding after folding lands on either neighbour
+    expect(reading?.bpm).to.be.within(62, 63);
+    // A custom range, and under 90 BPM, outside the range confidence was measured on: unmeasured, never a number (RBA-147)
+    expect(reading?.confidence).to.equal(null);
+  });
+
+  it('should reject an option it does not take, naming it, rather than throw', async () => {
+    const audioBuffer = await loadTestAudio(audioContext);
+    const refused: Array<[unknown, string]> = [[{engin: 'peaks'}, 'engin'], [{debug: true}, 'debug'], [{tempoRange: {min: 50, max: 100, mni: 40}}, 'mni']];
+    for (const [options, key] of refused) {
+      // The call returns a promise even for a refused option: the docs say it rejects
+      const pending = analyzeFullBuffer(audioBuffer, options as Parameters<typeof analyzeFullBuffer>[1]);
+      let caught: unknown;
+      try {
+        await pending;
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(caught, JSON.stringify(options)).to.be.instanceOf(TypeError);
+      expect((caught as Error).message).to.contain(` ${key}`);
+    }
+  });
+
+  it('should reject an invalid tempo range before analysing', async () => {
+    const audioBuffer = await loadTestAudio(audioContext);
+    let caught: unknown;
+    try {
+      await analyzeFullBuffer(audioBuffer, {tempoRange: {min: 90, max: 170}});
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).to.be.instanceOf(RangeError);
+  });
+});

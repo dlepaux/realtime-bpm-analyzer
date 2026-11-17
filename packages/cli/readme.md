@@ -76,7 +76,9 @@ extensions folder mode picks up.
 The confidence is the estimated chance the reading is right, calibrated on licence-clean dev
 data from 90 to 180 BPM, so inside that range it means the same whichever engine measured it.
 `null`: unmeasured, when the tempo is outside 90 to 180 BPM or when the analysis ran on a custom
-range, since the calibration ran only on the default one.
+range, since the calibration ran only on the default one. Also `null` for a `peaks` reading of a
+quiet or bass-light file, whose beats the engine found only relative to the file's own level: the
+calibration never saw one, and such a file may hold no beat at all.
 
 ## Licence
 

@@ -232,8 +232,8 @@ export type Reading = {
    *
    * Also `null` on the default range for one kind of reading: the offline peaks engine's, when it found the beats only
    * relative to a quiet or bass-light file's own level, after its fixed thresholds found none (RBA-221). The tables
-   * never saw such a reading, and the file may hold no beat at all, since noise above -70 dBFS can read a tempo this
-   * way. Every other reading on the default range has a number.
+   * never saw such a reading, and the file may hold no beat at all, since noise whose level after the engine's lowpass
+   * filter is above -70 dBFS can read a tempo this way. Every other reading on the default range has a number.
    */
   readonly confidence: number | null;
   /**

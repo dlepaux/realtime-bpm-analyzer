@@ -128,12 +128,12 @@ This ensures the algorithm works with:
 - Quiet, dynamic recordings (low threshold)
 - Everything in between
 
-On a whole file, a channel whose filtered bass never rises above the lowest threshold, 0.2, such as a quiet master or a
-mix with little bass, finds too few peaks at every one of them. The file path then searches once more, with every
+On a whole file, a channel whose filtered bass rarely or never rises above the lowest threshold, 0.2, such as a quiet
+master or a mix with little bass, can find too few peaks at every one of them. The file path then searches once more, with every
 threshold scaled by the channel's own level: the 98th percentile of its quarter-second maxima, so a single click can't
 set it. Under -70 dBFS that level counts as silence, and nothing is searched. A reading found this way reports
-`confidence: null`: the calibration never saw one, and since noise above -70 dBFS can read a tempo this way, the input
-may hold no beat at all. The realtime path doesn't run this search.
+`confidence: null`: the calibration never saw one, and since noise whose filtered level is above -70 dBFS can read a
+tempo this way, the input may hold no beat at all. The realtime path doesn't run this search.
 
 ### Step 4: Interval Calculation
 

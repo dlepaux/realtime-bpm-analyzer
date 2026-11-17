@@ -219,15 +219,21 @@ different ways:
   4. If the level is under `0.00031622776601683794` (-70 dBFS, written out so every port compares with the same
      double), or is 1 or more, there is no second search, and the reading is `null`.
   5. Otherwise each threshold is `rung * level`, the rung (0.9 down to 0.2, as above) times the level, in double,
-     and each sample is compared with it in double, as above. The level is a 32-bit sample value: widen it to
-     double before the product and before the comparison with the floor. In NumPy 2, a `float32` times a Python
-     `float` stays `float32`, so convert it first.
+     and each sample is compared with it in double, as above. The level is one of the stored lowpass samples, a
+     32-bit float wherever they are stored as 32-bit floats: widen it to double before the product and before the
+     comparison with the floor. In NumPy 2, a `float32` times a Python `float` stays `float32`, so convert it first.
 
   Measured on 2026-11-17 by running the vectors through altered copies of this search: an interpolated percentile,
   a nearest-rank one, a rounded index, the loudest window, absolute values and a missing floor each fail 4 to 12
-  cases. Two mistakes pass every case, so a port's review has to check them: windows of `floor(0.25 * sampleRate)`
-  samples, since moving a window's edge by one sample rarely changes the level, and a threshold rounded to 32 bits,
-  since no input places a sample within a 32-bit step of a scaled threshold.
+  cases. Two mistakes pass every case: windows of `floor(0.25 * sampleRate)` samples, since moving a window's edge by
+  one sample rarely changes the level, and a threshold rounded to 32 bits, since no input places a sample within a
+  32-bit step of a scaled threshold. Rounding the window half to even passes too, as no input that reaches this search
+  has a rate where `0.25 * sampleRate` ends in .5; the skip after a peak, which every port computes the same way, is
+  pinned by the 22,050 Hz cases. A floor compared in 32 bits would pass for the same reason as the threshold. So a
+  port's review checks the window's rounding, and each port's unit tests pin the two 32-bit traps with exact inputs:
+  a level whose `0.9 * level` rounds up when stored, and the 32-bit floats either side of the floor. Those floor tests
+  also pin the floor's value to one 32-bit step, which the vectors don't: they catch a missing floor, and each port
+  checks its constant against `consts.ts`.
 
 ## Regenerating
 

@@ -163,7 +163,8 @@ function onKeydown(event: KeyboardEvent, index: number) {
 
 .home-platforms-tab:hover { color: var(--vp-c-text-1); }
 
-/* Five tabs fit a 390px phone at the tighter padding; wider screens get more room. */
+/* Five tabs fit a 390px phone at the tighter padding, and the strip scrolls sideways past them;
+   wider screens get more room. */
 @media (min-width: 640px) {
   .home-platforms-tab { padding: 0 1rem; }
 }

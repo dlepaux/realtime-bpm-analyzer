@@ -10,7 +10,7 @@ const TIME = '<time datetime="2026-11-03T10:00:00.000Z" data-v-1>November 3, 202
 const DATES = '"datePublished":"2025-02-01T09:00:00.000Z","dateModified":"2026-11-03T10:00:00.000Z"'
 const GUIDE = `<meta property="og:type" content="article"><script type="application/ld+json">{"@graph":[{"@type":"TechArticle",${DATES}}]}</script><p>Last updated: ${TIME}</p>`
 const NOINDEX = '<meta name="robots" content="noindex">'
-const GUIDES = ['node', 'getting-started', 'how-it-works', 'performance', 'react-bpm-hook', 'cli', 'mcp', 'java', 'python']
+const GUIDES = ['node', 'getting-started', 'how-it-works', 'performance', 'react-bpm-hook', 'cli', 'mcp', 'java', 'python', 'csharp', 'swift']
 const canonical = (url: string) => `<link rel="canonical" href="${SITE}${url}">`
 const description = (text: string) => `<meta name="description" content="${text}">`
 const sitemap = (urls: readonly string[]) => urls.map((url) => `<url><loc>${SITE}${url}</loc></url>`).join('')
@@ -23,9 +23,7 @@ function site(overrides: Record<string, string> = {}): BuiltSite {
     'sitemap.xml': sitemap(LISTED),
     'website-privacy.html': `${canonical('/website-privacy')}${description('What the site measures')}<p>privacy</p>`,
     '404.html': '<h1>Page not found</h1>',
-    'guide/swift.html': NOINDEX,
     'guide/quick-start.html': '<meta http-equiv="refresh" content="0; url=/guide/getting-started">',
-    'guide/csharp.html': `${NOINDEX}<a href="/guide/node">Node.js</a>`,
     ...Object.fromEntries(GUIDES.map((name) => [`guide/${name}.html`, `${canonical(`/guide/${name}`)}${description(`The ${name} guide`)}${GUIDE}`])),
     ...overrides,
   }
@@ -67,17 +65,14 @@ test('seoProblems: the Java and Python guides are guides like the others', () =>
   assert.deepEqual(seoProblems(unlisted), ['guide/python.html: indexable but not in the sitemap'])
 })
 
-// The C# guide is unpublished until the C# port is on NuGet (RBA-264).
-test('seoProblems: the C# guide stays noindex and out of the sitemap', () => {
-  assert.match(seoProblems(site({ 'guide/csharp.html': '<p>csharp</p>' })).join(), /guide\/csharp: not noindex/)
-  assert.match(seoProblems(site({ 'sitemap.xml': sitemap([...LISTED, '/guide/csharp']) })).join(), /guide\/csharp: in the sitemap/)
-})
-
-// Until a Swift package is released (RBA-265), the Swift guide stays noindex and out of the sitemap.
-test('seoProblems: the unpublished Swift guide stays noindex and out of the sitemap', () => {
-  assert.match(seoProblems(site({ 'guide/swift.html': '<p>swift</p>' })).join(), /guide\/swift: not noindex/)
-  const listed = site({ 'sitemap.xml': sitemap([...LISTED, '/guide/swift']) })
-  assert.match(seoProblems(listed).join(), /guide\/swift: in the sitemap/)
+// Since their publish flip (RBA-272) the C# and Swift guides are held to every guide's rules too.
+test('seoProblems: the C# and Swift guides are guides like the others', () => {
+  const noindex = site({ 'guide/csharp.html': `${NOINDEX}${canonical('/guide/csharp')}${GUIDE}`, 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/csharp')) })
+  assert.deepEqual(seoProblems(noindex), ['guide/csharp.html: noindex'])
+  const undated = site({ 'guide/swift.html': `${canonical('/guide/swift')}<meta property="og:type" content="article"><p>swift</p>` })
+  assert.match(seoProblems(undated).join(), /guide\/swift\.html: no TechArticle,guide\/swift\.html: no datePublished/)
+  const unlisted = site({ 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/swift')) })
+  assert.deepEqual(seoProblems(unlisted), ['guide/swift.html: indexable but not in the sitemap'])
 })
 
 test('seoProblems: every other guide is an article with a server-rendered date', () => {

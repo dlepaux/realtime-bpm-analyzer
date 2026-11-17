@@ -2,21 +2,24 @@
 
 A C# port of the library's offline analysis, `analyzeChannelData`, with both engines: the tempogram and peaks. It
 gives the same readings as the JS library, proven by the shared conformance vectors
-([`conformance/`](../../conformance/readme.md)) on every build. It is pure managed code with no runtime
-dependencies, and it targets .NET Standard 2.0, so it fits Unity, Godot C# and any .NET app.
+([`conformance/`](https://github.com/dlepaux/realtime-bpm-analyzer/tree/main/conformance#readme)) on every build.
+It is pure managed code with no runtime dependencies, and it targets .NET Standard 2.0, so it fits Unity, Godot C#
+and any .NET app.
 
 ## Install
 
-**Not yet published.** The package will be `RealtimeBpmAnalyzer` on NuGet:
+The package is [`RealtimeBpmAnalyzer`](https://www.nuget.org/packages/RealtimeBpmAnalyzer) on NuGet:
 
 ```bash
 dotnet add package RealtimeBpmAnalyzer
 ```
 
-Until then, build it from this folder with the .NET SDK that `global.json` pins: `dotnet build -c Release
-src/RealtimeBpmAnalyzer` makes `RealtimeBpmAnalyzer.dll`, which a Unity project takes as a plugin in its `Assets`
-folder, and `dotnet pack -c Release src/RealtimeBpmAnalyzer` makes the package that a Godot 4 C# or any .NET project
-can reference from a local feed.
+A Godot 4 C# project takes it the same way. Unity has no NuGet client of its own: download the `.nupkg` from
+nuget.org (it is a zip), and copy `lib/netstandard2.0/RealtimeBpmAnalyzer.dll` into the project's `Assets` folder as
+a plugin. The package has no dependencies, so that one file is all of it.
+
+To build it from source instead, use the .NET SDK that `global.json` pins: `dotnet pack -c Release
+src/RealtimeBpmAnalyzer` makes the package, and `dotnet build -c Release src/RealtimeBpmAnalyzer` the DLL.
 
 ## Versions
 

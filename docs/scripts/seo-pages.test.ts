@@ -1,9 +1,9 @@
 // Run with `npm test`. What the page sources must say for search engines and AI readers:
-// the CLI, MCP, Java and Python guides are in every list since their noindex flips, home has
+// the CLI, MCP, Java, Python, C# and Swift guides are in every list since their noindex flips, home has
 // one h1 (RBA-129), and the titles and snippets this repo has tuned stay within what results show.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -53,42 +53,16 @@ test('the guides whose openings answer first still do', () => {
 })
 
 // The noindex flips (contributing.md, "First publish of v6", step 13, and "First publish of the
-// 6.2 ports", step 8): the CLI and MCP server are on npm, the Java port on Maven Central and the
-// Python port on PyPI.
-test('the CLI, MCP, Java and Python guides are in the sidebar, llms.txt and the search', () => {
+// 6.2 ports", step 8, and RBA-272): the CLI and MCP server are on npm, the Java port on Maven
+// Central, the Python port on PyPI, and the C# and Swift ports publish from the release pipeline.
+test('the CLI, MCP, Java, Python, C# and Swift guides are in the sidebar, llms.txt and the search', () => {
   const config = read('../.vitepress/config.ts')
   const llms = read('../public/llms.txt')
-  for (const name of ['cli', 'mcp', 'java', 'python']) {
+  for (const name of ['cli', 'mcp', 'java', 'python', 'csharp', 'swift']) {
     assert.ok(config.includes(`link: '/guide/${name}' }`), `config.ts: /guide/${name} is not in the sidebar`)
     assert.ok(llms.includes(`https://www.realtime-bpm-analyzer.com/guide/${name})`), `llms.txt: /guide/${name}`)
     assert.equal(field(read(`../guide/${name}.md`), 'search'), undefined, `guide/${name}.md: still out of the search`)
   }
-})
-
-// Unpublished until the C# port is on NuGet (RBA-264).
-test('the C# guide is out of the sidebar, llms.txt, the search and the content of every other page', () => {
-  const unpublished = /\/guide\/csharp\b|\]\(\.\/csharp\b/
-  assert.ok(unpublished.test('[C#](/guide/csharp)') && unpublished.test('[C#](./csharp)'), 'the pattern finds a link')
-  assert.ok(!unpublished.test(read('../.vitepress/config.ts')), 'config.ts links the C# guide')
-  assert.ok(!unpublished.test(read('../public/llms.txt')), 'llms.txt links the C# guide')
-  const pages = readdirSync(new URL('../', import.meta.url), { recursive: true, encoding: 'utf8' })
-    .filter((name) => name.endsWith('.md') && !name.startsWith('node_modules') && name !== 'guide/csharp.md')
-  assert.ok(pages.length > 20, `only ${pages.length} pages read`)
-  for (const name of pages) assert.ok(!unpublished.test(read(`../${name}`)), `${name} links the C# guide`)
-  assert.equal(field(read('../guide/csharp.md'), 'search'), 'false')
-})
-
-// Unpublished until a Swift package is released (RBA-265).
-test('the Swift guide is out of the sidebar, llms.txt, the search and the content of every other page', () => {
-  const unpublished = /\/guide\/swift\b|\]\(\.\/swift\b/
-  assert.ok(unpublished.test('[Swift](/guide/swift)') && unpublished.test('[Swift](./swift)'), 'the pattern finds a link')
-  assert.ok(!unpublished.test(read('../.vitepress/config.ts')), 'config.ts links the Swift guide')
-  assert.ok(!unpublished.test(read('../public/llms.txt')), 'llms.txt links the Swift guide')
-  const pages = readdirSync(new URL('../', import.meta.url), { recursive: true, encoding: 'utf8' })
-    .filter((name) => name.endsWith('.md') && !name.startsWith('node_modules') && name !== 'guide/swift.md')
-  assert.ok(pages.length > 20, `only ${pages.length} pages read`)
-  for (const name of pages) assert.ok(!unpublished.test(read(`../${name}`)), `${name} links the Swift guide`)
-  assert.equal(field(read('../guide/swift.md'), 'search'), 'false')
 })
 
 test('llms.txt lists the tutorials and the v6 migration, and calls the home tool the BPM Finder', () => {

@@ -3,5 +3,7 @@
   "packages/cli": "0.1.2",
   "packages/mcp": "0.1.2",
   "packages/jvm": "6.2.0",
-  "packages/python": "6.2.1"
+  "packages/python": "6.2.1",
+  "packages/csharp": "0.0.0",
+  "packages/swift": "0.0.0"
 }

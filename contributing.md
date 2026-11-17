@@ -30,6 +30,8 @@ The repository is an npm workspaces monorepo. The root is private and publishes 
 | `packages/mcp` | The local MCP server, `npx -y realtime-bpm-analyzer-mcp` | to npm, as `realtime-bpm-analyzer-mcp` |
 | `packages/jvm` | The Java port of the offline analysis | to Maven Central, as `io.github.dlepaux:realtime-bpm-analyzer` |
 | `packages/python` | The Python port of the offline analysis | to PyPI, as `realtime-bpm-analyzer` |
+| `packages/csharp` | The C# port of the offline analysis | to NuGet, as `RealtimeBpmAnalyzer` |
+| `packages/swift` | The Swift port of the offline analysis | to its mirror, [`dlepaux/realtime-bpm-analyzer-swift`](https://github.com/dlepaux/realtime-bpm-analyzer-swift), which SwiftPM reads |
 | `docs` | The documentation site (VitePress) | to GitHub Pages |
 | `examples/*` | The example apps embedded in the docs | no |
 
@@ -51,19 +53,19 @@ Releases are automated by [release-please](https://github.com/googleapis/release
 
 1. Every push to `main` updates an open release PR for each package that has releasable commits under its folder: `fix` gives a patch, `feat` a minor, and a breaking change (`!` or `BREAKING CHANGE:`) a major. `chore`, `docs`, `refactor`, `test`, `build`, `ci` and `style` commits never release on their own. A commit that touches no file in a package's folder never releases that package, so `site`- and `ci`-scope work in `docs/`, `examples/` or `.github/` cannot bump the library.
 2. The release PR bumps the package's `package.json` version and prepends its changelog (`packages/<name>/changelog.md`). Merging it is the decision to release.
-3. The pipeline that runs on that merge (`.github/workflows/main.yml`) tags the commit, writes the GitHub release and publishes to npm with provenance. The library keeps its `vX.Y.Z` tags; the CLI's read `cli-vX.Y.Z` and the MCP server's `mcp-vX.Y.Z`. The ports' tags read `jvm-vX.Y.Z` and `python-vX.Y.Z`, and their own jobs publish them to Maven Central and PyPI (First publish of the 6.2 ports, below). A port's `pom.xml` or `pyproject.toml` takes the version bump where an npm package's `package.json` does.
+3. The pipeline that runs on that merge (`.github/workflows/main.yml`) tags the commit, writes the GitHub release and publishes to npm with provenance. The library keeps its `vX.Y.Z` tags; the CLI's read `cli-vX.Y.Z` and the MCP server's `mcp-vX.Y.Z`. The ports' tags read `jvm-vX.Y.Z`, `python-vX.Y.Z`, `csharp-vX.Y.Z` and `swift-vX.Y.Z`, and their own jobs publish them to Maven Central, PyPI, NuGet and the Swift mirror (First publish of the 6.2 ports, and First publish of C# and Swift, below). A port's `pom.xml`, `pyproject.toml`, `RealtimeBpmAnalyzer.csproj` (its `<Version>`) or `packages/swift/version.txt` takes the version bump where an npm package's `package.json` does.
 
 The tarball's `readme.md` and `license.md` come from the repo root, outside the package folder, so a commit that only touches them releases nothing: they ship with the next library release.
 
 The ports keep the same rule through their `changelog-sections` in `release-please-config.json`, which hide `docs` as the other non-releasing types are hidden. release-please's maven and python strategies list `docs` by default, and it releases a package whenever the package's changelog entry has a line, so without that setting a readme typo would cut a port patch. A port's version is the library's major and minor plus its own patch, and the patch should mean the package changed. PyPI shows `packages/python/readme.md` as the project's page, so a readme change users should see there goes in as `fix(python):`, which releases it. A `docs:` change waits for the port's next release. The Java port's readme doesn't ship in its jar or its POM, whose metadata is what Maven Central lists, so it never needs a release of its own.
 
-The install lines that give a port's version by hand, in `packages/jvm/readme.md`, `docs/guide/java.md`, the home page's Java and Kotlin tabs (`docs/index.md`) and the Platforms table of the root `readme.md`, sit between `<!-- x-release-please-start-version -->` and `<!-- x-release-please-end -->`. All four files are in the Java port's `extra-files`, so a jvm release bumps them in the release PR along with `pom.xml`, and a release of any other package leaves them alone. The comments don't show on the site, on GitHub or on npm. The Python port's readme and guide give no version, since `pip install` takes the latest. The C# and Swift ports aren't released by release-please yet. When they are, any version line in their readmes or guides needs the same markers.
+The install lines that give a port's version by hand, in `packages/jvm/readme.md`, `docs/guide/java.md`, the home page's Java and Kotlin tabs (`docs/index.md`) and the Platforms table of the root `readme.md`, sit between `<!-- x-release-please-start-version -->` and `<!-- x-release-please-end -->`. All four files are in the Java port's `extra-files`, so a jvm release bumps them in the release PR along with `pom.xml`, and a release of any other package leaves them alone. The comments don't show on the site, on GitHub or on npm. The Python and C# ports' readmes and guides give no version, since `pip install` and `dotnet add package` take the latest. The Swift install lines give `from: "6.2.0"`, a lower bound every 6.x release meets, so they carry no markers and change only at the next major. Markers wouldn't work there anyway: release-please bumps every marked block of a file in a component's `extra-files`, so the Swift component listing `readme.md` or `docs/index.md` would rewrite the Java lines with the Swift version, and the Java component the Swift lines with its own.
 
 The release PR is opened with the workflow's `GITHUB_TOKEN`, so GitHub runs no checks on it. Run them before merging it, with `gh workflow run main.yml --ref release-please--branches--main`; the full pipeline also runs on `main` before anything is published. To retry a failed publish, re-run the pipeline: it publishes the version in each package's `package.json` only when npm does not have it yet.
 
 npm's trusted publisher is bound to the workflow file name, `main.yml`, and to the GitHub environment `npm`. Renaming either means redoing the trusted-publisher setup on npmjs.com.
 
-Only the Release job can publish to npm. It holds `id-token: write`, the permission that lets a job ask GitHub for the OIDC token npm's trusted publishing takes, and it runs in the `npm` environment (Settings, Environments), whose deployment branch policy allows `main` only. Publish (PyPI) and the Pages deploy hold `id-token: write` too, in environments of their own. A token minted anywhere else names no environment or another one, and a job that names `npm` on any other branch is refused by GitHub before it starts, so npm, whose trusted publishers name `npm`, refuses the publish. That includes a pull request's run, even one that edits `main.yml`. `docs/scripts/workflow-permissions.test.ts` pins each job's permissions.
+Only the Release job can publish to npm. It holds `id-token: write`, the permission that lets a job ask GitHub for the OIDC token npm's trusted publishing takes, and it runs in the `npm` environment (Settings, Environments), whose deployment branch policy allows `main` only. Publish (PyPI), Publish (NuGet) and the Pages deploy hold `id-token: write` too, in environments of their own. A token minted anywhere else names no environment or another one, and a job that names `npm` on any other branch is refused by GitHub before it starts, so npm, whose trusted publishers name `npm`, refuses the publish. That includes a pull request's run, even one that edits `main.yml`. `docs/scripts/workflow-permissions.test.ts` pins each job's permissions.
 
 ### Adding a package
 
@@ -269,6 +271,113 @@ Read its log first. A failed step before the upload published nothing.
    - Check, after its deploy: `/guide/java` and `/guide/python` carry no `noindex`, and both are in `/sitemap.xml`.
 
 Commercial-use note: Sonatype's [publisher tiers](https://central.sonatype.org/news/20260908_publisher_tiers_commercial_use/) require Publisher Pro, from 2026-10-01, for artifacts of a commercial nature. Publishing community open source, as this Apache-2.0 port is, stays free.
+
+### First publish of C# and Swift
+
+The C# port goes to NuGet as `RealtimeBpmAnalyzer`, and the Swift port to [`dlepaux/realtime-bpm-analyzer-swift`](https://github.com/dlepaux/realtime-bpm-analyzer-swift), the mirror SwiftPM installs it from (RBA-272). Both start at 6.2.0 through `initial-version` in `release-please-config.json`, from `0.0.0` in the manifest: their `simple` strategy honours it, unlike the python one, so neither needs `release-as`. The csproj's `<Version>` and `packages/swift/version.txt` already say 6.2.0. Merging the release PR that lists them tags `csharp-v6.2.0` and `swift-v6.2.0`, and the pipeline publishes each from its own pair of jobs:
+
+- **Build (NuGet)** then **Publish (NuGet)**. Build runs `bin/port-publish-gate.mjs` against NuGet's flat container, packs the port from a `--locked-mode` restore and uploads the `.nupkg`, with its SHA-256 as a job output. Publish runs in the `nuget` environment with `id-token: write` and nothing else, checks nothing out, and refuses a downloaded package whose hash isn't Build's. `NuGet/login` trades the job's OIDC token for an API key that lasts an hour, for the user `dlepaux`, and `dotnet nuget push --skip-duplicate` sends the package.
+- **Check (Swift mirror)** then **Publish (Swift mirror)**. Check runs the gate on `swift-v6.2.0`, then asks the mirror over HTTPS whether it has the tag `6.2.0`. Publish runs in the `swift` environment: `bin/swift-mirror.mjs` builds the mirror's tree, commits it as the whole of the mirror's `main` with the source commit in the message, tags it `6.2.0` (annotated, no `v`, as SwiftPM reads versions), and pushes the branch and the tag together. The push uses the deploy key in the environment's `SWIFT_DEPLOY_KEY`, with github.com's host key pinned in `main.yml`.
+
+SwiftPM reads a package from the root of a repository and its versions from plain semver tags, and this repository's root and its `vX.Y.Z` tags are the JS library's, so the Swift package ships from a mirror. Nothing is changed there by hand: the code changes in `packages/swift` here. The mirror holds no test target, since the tests read the conformance vectors and the JS sources in this repository. Conformance (Swift) runs them on the same commit, and on every pull request it also builds the mirror's tree alone on Swift 5.9.
+
+Already done (RBA-272's setup): the `nuget` and `swift` environments exist, and only `main` may deploy to either. The trusted publishing policy on nuget.org, owned by `dlepaux`, names this repository, `main.yml` and the environment `nuget`, with the package glob `RealtimeBpmAnalyzer`. The mirror exists, empty, with a deploy key, "realtime-bpm-analyzer CI", that may write. The `swift` environment holds its private half as `SWIFT_DEPLOY_KEY`, and `nuget` holds no secret.
+
+For this first publish, David granted RBA-COMMANDER the release PR's CI run and its merge (DECISIONs of 2026-11-17 on RBA-272); otherwise every step is the maintainer's. You need the GitHub CLI signed in with write access to the repository, and for the checks the .NET SDK 8 or later and Swift 5.9 or later.
+
+**Before the release PR**
+
+1. **Merge RBA-272's pull request.** That's RBA-COMMANDER's merge. Just before it, check that the NuGet id is still free: `curl -s -o /dev/null -w '%{http_code}\n' https://api.nuget.org/v3-flatcontainer/realtimebpmanalyzer/index.json` prints `404`. If it prints `200`, someone else took the id: hold the merge, since this PR's guides point C# users to it.
+   - Check: the Main Pipeline run on `main` goes green. Build (NuGet) logs `no tag csharp-v6.2.0: this commit released nothing to publish`, and Check (Swift mirror) logs the same for `swift-v6.2.0`. Publish (NuGet) and Publish (Swift mirror) show skipped. Release opens or updates the release PR.
+2. **Check that the NuGet policy is active.** On nuget.org, open your account's Trusted Publishing page.
+   - Check: the policy for `dlepaux/realtime-bpm-analyzer` shows as active. If it says it is temporarily active until a date, the first publish has to happen before then, or the policy needs activating again on that page.
+3. **Wait until the release PR lists both ports.** Each needs a `feat` or `fix` under its folder since it has no tag, and `main` has several: RBA-264's and RBA-265's ports, and RBA-272's `feat(csharp)` and `feat(swift)`.
+   - Check: `gh pr view <n>` lists `csharp: 6.2.0` and `swift: 6.2.0`. `gh pr diff <n>` adds `packages/csharp/changelog.md` and `packages/swift/changelog.md`, and sets both in `.release-please-manifest.json` to 6.2.0. The csproj and `version.txt` stay unchanged, since they already say 6.2.0. Other packages may come along with their own commits.
+   - If either is missing: don't merge. Find which commit should have released it.
+4. **Run CI on the release PR**: `gh workflow run main.yml --ref release-please--branches--main`.
+   - Check: the run is green, with the four jobs above skipped.
+
+**The release**
+
+5. **Merge the release PR**: `gh pr merge <n> --squash`.
+   - Push nothing to `main` until this merge's run has started, for the reason in the 6.2 ports' step 5.
+   - Check, on the push run: Release tags `csharp-v6.2.0` and `swift-v6.2.0`. Build (NuGet) logs `csharp-v6.2.0 is released here and not on the registry: publishing`, and Publish (NuGet) deploys to `nuget` and logs `Your package was pushed.` Check (Swift mirror) logs `the mirror lacks 6.2.0: pushing`, and Publish (Swift mirror) logs `swift-mirror: pushed main and 6.2.0 (the first commit of an empty mirror)`.
+6. **Check each package from outside the repository**, in a new directory:
+   ```bash
+   mkdir -p ~/.cache/rba-release-checks
+   cd "$(mktemp -d ~/.cache/rba-release-checks/6.2.0-XXXX)"
+   ```
+   - NuGet takes a few minutes to an hour to validate and index a new package before `dotnet add package` finds it.
+     ```bash
+     dotnet new console -o nuget-smoke
+     cd nuget-smoke
+     dotnet add package RealtimeBpmAnalyzer --version 6.2.0
+     cat > Program.cs <<'CS'
+     using RealtimeBpmAnalyzer;
+
+     const int rate = 44100;
+     var clicks = new float[rate * 20];
+     for (int start = 0; start < clicks.Length; start += rate / 2)
+     {
+         for (int i = start; i < Math.Min(start + 200, clicks.Length); i++) clicks[i] = 0.9f;
+     }
+     Console.WriteLine(BpmAnalyzer.AnalyzeChannelData(clicks, rate)?.Bpm);
+     CS
+     dotnet run
+     cd ..
+     ```
+     It prints `120`. https://www.nuget.org/packages/RealtimeBpmAnalyzer shows the readme.
+   - The Swift mirror:
+     ```bash
+     mkdir -p swift-smoke/Sources/Smoke
+     cd swift-smoke
+     cat > Package.swift <<'SWIFT'
+     // swift-tools-version:5.9
+     import PackageDescription
+
+     let package = Package(
+         name: "Smoke",
+         dependencies: [.package(url: "https://github.com/dlepaux/realtime-bpm-analyzer-swift", from: "6.2.0")],
+         targets: [.executableTarget(name: "Smoke", dependencies: [.product(name: "RealtimeBpmAnalyzer", package: "realtime-bpm-analyzer-swift")])]
+     )
+     SWIFT
+     cat > Sources/Smoke/main.swift <<'SWIFT'
+     import RealtimeBpmAnalyzer
+
+     let rate = 44_100
+     var clicks = [Float](repeating: 0, count: rate * 20)
+     for start in stride(from: 0, to: clicks.count, by: rate / 2) {
+         for i in start..<min(start + 200, clicks.count) { clicks[i] = 0.9 }
+     }
+     print(try analyzeChannelData(clicks, sampleRate: Double(rate))?.bpm ?? 0)
+     SWIFT
+     swift run
+     swift package show-dependencies
+     ```
+     `swift run` prints `120`, and `show-dependencies` lists `realtime-bpm-analyzer-swift<https://github.com/dlepaux/realtime-bpm-analyzer-swift@6.2.0>`. On GitHub, the mirror's `main` has one commit, "Release 6.2.0", naming this repository's release commit, and GitHub shows its licence as Apache-2.0.
+
+**If a publish job fails**
+
+Read its log first. A failed step before the push published nothing.
+
+- **The release commit's run was cancelled**, or a later run tagged the ports: as for the 6.2 ports, re-run the release commit's own run in full.
+- **Build (NuGet) or Publish (NuGet)**: run `gh run rerun <id> --failed` on the release commit's run. `--skip-duplicate` turns NuGet's refusal of a version it already has into a pass, so a re-run after a push that landed, while nuget.org still validates the package, ends green.
+  - `NuGet/login` refused: the policy doesn't match the token. It must name `dlepaux/realtime-bpm-analyzer`, `main.yml` and the environment `nuget`, and be active (step 2).
+  - The hash check failed: the artifact isn't the package Build (NuGet) made. `--failed` can't fix it, since a re-run of Publish downloads the same artifact. Find out which job replaced it, then re-run the release commit's run in full, which packs and hashes a new one.
+  - The push refused with a 403: the package id `RealtimeBpmAnalyzer` belongs to another account, or the policy's owner isn't `dlepaux`.
+- **Publish (Swift mirror)**: `gh run rerun <id> --failed` is safe. The script does nothing when the mirror has the tag, and the branch and the tag are pushed atomically, so a failed push leaves neither.
+  - `Permission denied (publickey)`: the deploy key lacks write access, or `SWIFT_DEPLOY_KEY` isn't its private half.
+  - `Host key verification failed`: GitHub changed its host key. Take the new ed25519 line from GitHub's "GitHub's SSH key fingerprints" page, check its fingerprint there, and put it in `main.yml` in a pull request. Never take it from `ssh-keyscan`, which trusts whatever answers.
+  - A push refused as not a fast-forward: someone pushed to the mirror's `main`. Find out what before anything else, and never force: the pipeline is the only writer.
+
+**After**
+
+7. **Drop `initial-version` from both entries** in `release-please-config.json`, in a `chore` PR, once the tags exist, as RBA-262 did for the Java port. Nothing reads it while a tag exists.
+   - Check: the next release PR proposes 6.2.1 or 6.3.0 for whichever changed.
+8. **List the mirror on the Swift Package Index**: a pull request on [SwiftPackageIndex/PackageList](https://github.com/SwiftPackageIndex/PackageList) adding `https://github.com/dlepaux/realtime-bpm-analyzer-swift.git` to `packages.json`. The text is drafted on RBA-272. The mirror's `.spi.yml` asks the index to build the documentation.
+   - Check: https://swiftpackageindex.com/dlepaux/realtime-bpm-analyzer-swift shows the package and its platforms once the index has built it.
+
+The C# and Swift guides left `UNPUBLISHED_GUIDES` in the same pull request as these jobs, so the site points to both packages from that pull request's deploy on. If that commit was held back, land it once step 6 passes.
 
 ## Privacy Wording
 

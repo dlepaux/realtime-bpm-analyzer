@@ -22,9 +22,12 @@ let package = Package(
             name: "RealtimeBpmAnalyzer",
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         ),
+        // swift-mirror: omit start. The release mirror ships no tests: they read the conformance vectors and the JS
+        // sources from this repository (bin/swift-mirror.mjs says why).
         .testTarget(
             name: "RealtimeBpmAnalyzerTests",
             dependencies: ["RealtimeBpmAnalyzer"]
         ),
+        // swift-mirror: omit end
     ]
 )

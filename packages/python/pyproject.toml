@@ -33,7 +33,6 @@ Homepage = "https://www.realtime-bpm-analyzer.com"
 Documentation = "https://www.realtime-bpm-analyzer.com/guide/python"
 Repository = "https://github.com/dlepaux/realtime-bpm-analyzer"
 Issues = "https://github.com/dlepaux/realtime-bpm-analyzer/issues"
-# release-please writes it in the release PR, so it exists before the first publish
 Changelog = "https://github.com/dlepaux/realtime-bpm-analyzer/blob/main/packages/python/changelog.md"
 
 [tool.hatch.build.targets.wheel]

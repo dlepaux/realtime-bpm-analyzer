@@ -33,15 +33,43 @@
       "component": "jvm",
       "include-component-in-tag": true,
       "changelog-path": "changelog.md",
-      "initial-version": "6.2.0",
-      "skip-snapshot": true
+      "skip-snapshot": true,
+      "extra-files": ["readme.md", "/docs/guide/java.md", "/docs/index.md", "/readme.md"],
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "perf", "section": "Performance Improvements" },
+        { "type": "deps", "section": "Dependencies" },
+        { "type": "revert", "section": "Reverts" },
+        { "type": "docs", "section": "Documentation", "hidden": true },
+        { "type": "style", "section": "Styles", "hidden": true },
+        { "type": "chore", "section": "Miscellaneous Chores", "hidden": true },
+        { "type": "refactor", "section": "Code Refactoring", "hidden": true },
+        { "type": "test", "section": "Tests", "hidden": true },
+        { "type": "build", "section": "Build System", "hidden": true },
+        { "type": "ci", "section": "Continuous Integration", "hidden": true }
+      ]
     },
     "packages/python": {
       "release-type": "python",
       "package-name": "realtime-bpm-analyzer",
       "component": "python",
       "include-component-in-tag": true,
-      "changelog-path": "changelog.md"
+      "changelog-path": "changelog.md",
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "perf", "section": "Performance Improvements" },
+        { "type": "deps", "section": "Dependencies" },
+        { "type": "revert", "section": "Reverts" },
+        { "type": "docs", "section": "Documentation", "hidden": true },
+        { "type": "style", "section": "Styles", "hidden": true },
+        { "type": "chore", "section": "Miscellaneous Chores", "hidden": true },
+        { "type": "refactor", "section": "Code Refactoring", "hidden": true },
+        { "type": "test", "section": "Tests", "hidden": true },
+        { "type": "build", "section": "Build System", "hidden": true },
+        { "type": "ci", "section": "Continuous Integration", "hidden": true }
+      ]
     }
   }
 }

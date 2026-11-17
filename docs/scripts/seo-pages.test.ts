@@ -64,8 +64,10 @@ test('the C# guide is out of the sidebar, llms.txt, the search and the content o
   assert.ok(unpublished.test('[C#](/guide/csharp)') && unpublished.test('[C#](./csharp)'), 'the pattern finds a link')
   assert.ok(!unpublished.test(read('../.vitepress/config.ts')), 'config.ts links the C# guide')
   assert.ok(!unpublished.test(read('../public/llms.txt')), 'llms.txt links the C# guide')
-  const guides = readdirSync(new URL('../guide/', import.meta.url)).filter((name) => name.endsWith('.md') && name !== 'csharp.md')
-  for (const name of guides) assert.ok(!unpublished.test(read(`../guide/${name}`)), `guide/${name} links the C# guide`)
+  const pages = readdirSync(new URL('../', import.meta.url), { recursive: true, encoding: 'utf8' })
+    .filter((name) => name.endsWith('.md') && !name.startsWith('node_modules') && name !== 'guide/csharp.md')
+  assert.ok(pages.length > 20, `only ${pages.length} pages read`)
+  for (const name of pages) assert.ok(!unpublished.test(read(`../${name}`)), `${name} links the C# guide`)
   assert.equal(field(read('../guide/csharp.md'), 'search'), 'false')
 })
 

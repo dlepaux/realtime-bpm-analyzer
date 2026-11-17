@@ -4,7 +4,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <!-- Test names read as sentences; xUnit's analyzers stay on. -->
     <!-- Test names read as sentences (CA1707), and literal arrays in assertions run once (CA1861). -->
     <NoWarn>$(NoWarn);CA1707;CA1861</NoWarn>
   </PropertyGroup>

@@ -27,7 +27,10 @@ namespace RealtimeBpmAnalyzer
             TempoRange = tempoRange ?? TempoRange.Default;
         }
 
-        /// <summary>The engine.</summary>
+        /// <summary>
+        /// The engine and its settings. A reading names the engine that measured it in
+        /// <see cref="Reading.Engine"/>, which compares with this one's <see cref="RealtimeBpmAnalyzer.Engine.Name"/>.
+        /// </summary>
         public Engine Engine { get; }
 
         /// <summary>The range the tempo is reported in.</summary>

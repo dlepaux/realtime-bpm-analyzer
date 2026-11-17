@@ -103,7 +103,9 @@ public sealed class ConformanceTests
         output.WriteLine(Summary(passed, failures.Count, inputFailures.Count, bpmExactDeviation, confidenceDeviation));
         var all = failures.Concat(inputFailures).ToList();
         Assert.True(all.Count == 0, $"{all.Count} conformance failures:\n{string.Join("\n", all)}");
-        Assert.True(passed > 0, "no case ran");
+        // Every case and error case of the file ran and passed: a loader that skipped some could not print PASS
+        int total = vectors.GetProperty("cases").GetArrayLength() + vectors.GetProperty("errorCases").GetArrayLength();
+        Assert.True(passed > 0 && passed == total, Vectors.Invariant($"{passed} of {total} cases passed"));
     }
 
     /// <summary>

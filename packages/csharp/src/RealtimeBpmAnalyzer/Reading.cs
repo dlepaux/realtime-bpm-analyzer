@@ -103,7 +103,10 @@ namespace RealtimeBpmAnalyzer
         /// <summary>Where the analysed audio ends, in seconds: the sample count divided by the sample rate.</summary>
         public double AudioTo { get; }
 
-        /// <summary>The engine that measured the tempo.</summary>
+        /// <summary>
+        /// The engine that measured the tempo: the <see cref="RealtimeBpmAnalyzer.Engine.Name"/> of
+        /// <see cref="AnalysisOptions.Engine"/>, without its settings.
+        /// </summary>
         public EngineName Engine { get; }
 
         /// <inheritdoc/>

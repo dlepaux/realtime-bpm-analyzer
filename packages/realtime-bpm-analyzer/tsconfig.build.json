@@ -4,6 +4,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "module": "esnext",
     "target": "es2022",
     "declaration": true,
     "emitDeclarationOnly": true,

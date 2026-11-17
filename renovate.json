@@ -61,16 +61,23 @@
       "allowedVersions": "<27"
     },
     {
-      "description": "Leave the engines floor of the CLI and the MCP server alone. It is the oldest Node CI tests them on (main.yml's node-floor job) and moves by hand with that job: bumped to each new release, as rangeStrategy bump would, npx warns EBADENGINE to everyone on an older LTS.",
+      "description": "Leave the engines floor of the CLI and the MCP server alone. It is the oldest Node CI tests them on (main.yml's node-floor job) and moves by hand with that job: bumped to each new release, as rangeStrategy bump would, npx warns EBADENGINE to everyone on an older LTS. Raising it drops those users, a breaking change David ruled out (RBA-269). docs/scripts/renovate-holds.test.ts pins this rule and the two below.",
       "matchDepTypes": ["engines"],
       "matchPackageNames": ["node"],
       "enabled": false
     },
     {
-      "description": "Leave main.yml's node-floor job on 22.12.0, the engines floor above: a patch bump would test a newer Node than the floor promises. It moves by hand with the floor.",
+      "description": "Leave main.yml's steps at the Node floor (the node-floor job, and the conformance job's floor step) on 22.12.0, the engines floor above: a patch bump would test a newer Node than the floor promises. It moves by hand with the floor. matchDepNames, not matchPackageNames: Renovate's package name for setup-node's node-version is actions/node-versions.",
       "matchManagers": ["github-actions"],
-      "matchPackageNames": ["node"],
+      "matchDepNames": ["node"],
       "matchCurrentValue": "/^22\\./",
+      "enabled": false
+    },
+    {
+      "description": "Leave main.yml's markers job on Python 3.13. Its requirements (docs/scripts/marker-conformance-requirements.txt) pin OpenTimelineIO 0.18.1's CPython 3.13 wheel by hash, and OpenTimelineIO publishes no wheel for a newer CPython (checked on PyPI 2026-11-17, RBA-269), so a newer Python fails pip's --require-hashes. Once a newer wheel exists, move the job, the requirements' hashes and this rule together, by hand.",
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["python"],
+      "matchCurrentValue": "/^3\\.13$/",
       "enabled": false
     },
     {

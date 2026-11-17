@@ -160,8 +160,9 @@ test('every TypeScript and TSX block type-checks, strict', () => {
 })
 
 // JavaScript readers get no types, so only what TypeScript infers without strictness is
-// held: a removed function, event or option still fails.
+// held: a removed function, event or option still fails. strict: false is spelled out because
+// TypeScript 6 turns strict on by default.
 test('every JavaScript block type-checks', () => {
-  const diagnostics = check(blocks.filter((block) => block.file.endsWith('.js')), { ...base, allowJs: true, checkJs: true })
+  const diagnostics = check(blocks.filter((block) => block.file.endsWith('.js')), { ...base, allowJs: true, checkJs: true, strict: false })
   assert.deepEqual(diagnostics, [])
 })

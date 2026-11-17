@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    netstandard2.0 is what Unity's ".NET Standard" API compatibility level and Godot's C# projects both accept, and it
+    is enough: nothing here needs 2.1. No PackageReference and no unsafe code, so the package brings nothing but the
+    base class library (ApiTests pins both).
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>RealtimeBpmAnalyzer</RootNamespace>
+    <AssemblyName>RealtimeBpmAnalyzer</AssemblyName>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <PackageId>RealtimeBpmAnalyzer</PackageId>
+    <Version>6.2.0</Version>
+    <Authors>David Lepaux</Authors>
+    <Description>Offline BPM analysis of PCM samples, in pure managed C#: the .NET port of the realtime-bpm-analyzer JS library, with the same readings, which shared conformance vectors check. For Unity, Godot C# and .NET apps.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>readme.md</PackageReadmeFile>
+    <PackageProjectUrl>https://www.realtime-bpm-analyzer.com</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dlepaux/realtime-bpm-analyzer</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>bpm;tempo;beat-detection;audio;music;unity;godot</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../readme.md" Pack="true" PackagePath="/" />
+    <InternalsVisibleTo Include="RealtimeBpmAnalyzer.Tests" />
+  </ItemGroup>
+</Project>

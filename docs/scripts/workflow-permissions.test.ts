@@ -73,6 +73,11 @@ const EXPECTED: Record<string, Record<string, Record<string, string>>> = {
     // checkout, and docker/login-action plus docker push to ghcr.io.
     image: { contents: 'read', packages: 'write' },
   },
+  'links.yml': {
+    // checkout, and the weekly report: gh issue list/comment/close and create-issue-from-file open, edit and close
+    // the one broken-links issue. lychee's download is anonymous: no step hands it the token.
+    'external-links': { contents: 'read', issues: 'write' },
+  },
   'browser-cost.yml': {
     cost: { contents: 'read' },
     memory: { contents: 'read' },

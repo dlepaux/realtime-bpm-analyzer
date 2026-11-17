@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { HOME_H1, NOT_IN_SITEMAP, seoProblems } from './seo-output.ts'
 import type { BuiltSite } from './extension-switch.ts'
+import { SITE_DESCRIPTION } from '../.vitepress/tools/page-description.ts'
 
 const SITE = 'https://www.realtime-bpm-analyzer.com'
 const TIME = '<time datetime="2026-11-03T10:00:00.000Z" data-v-1>November 3, 2026</time>'
@@ -11,20 +12,21 @@ const GUIDE = `<meta property="og:type" content="article"><script type="applicat
 const NOINDEX = '<meta name="robots" content="noindex">'
 const GUIDES = ['node', 'getting-started', 'how-it-works', 'performance', 'react-bpm-hook', 'cli', 'mcp', 'java', 'python']
 const canonical = (url: string) => `<link rel="canonical" href="${SITE}${url}">`
+const description = (text: string) => `<meta name="description" content="${text}">`
 const sitemap = (urls: readonly string[]) => urls.map((url) => `<url><loc>${SITE}${url}</loc></url>`).join('')
 // The clean URLs of the fixture's indexable pages, all in its sitemap by default.
 const LISTED = ['/', '/website-privacy', ...GUIDES.map((name) => `/guide/${name}`)]
 
 function site(overrides: Record<string, string> = {}): BuiltSite {
   const files: Record<string, string> = {
-    'index.html': `${canonical('/')}<h1 class="heading"><!--[--><span class="text">${HOME_H1}</span></h1><p>Maintained by David Lepaux. Last updated ${TIME}.</p>`,
+    'index.html': `${canonical('/')}${description('Find the BPM of a song')}<h1 class="heading"><!--[--><span class="text">${HOME_H1}</span></h1><p>Maintained by David Lepaux. Last updated ${TIME}.</p>`,
     'sitemap.xml': sitemap(LISTED),
-    'website-privacy.html': `${canonical('/website-privacy')}<p>privacy</p>`,
+    'website-privacy.html': `${canonical('/website-privacy')}${description('What the site measures')}<p>privacy</p>`,
     '404.html': '<h1>Page not found</h1>',
     'guide/swift.html': NOINDEX,
     'guide/quick-start.html': '<meta http-equiv="refresh" content="0; url=/guide/getting-started">',
     'guide/csharp.html': `${NOINDEX}<a href="/guide/node">Node.js</a>`,
-    ...Object.fromEntries(GUIDES.map((name) => [`guide/${name}.html`, `${canonical(`/guide/${name}`)}${GUIDE}`])),
+    ...Object.fromEntries(GUIDES.map((name) => [`guide/${name}.html`, `${canonical(`/guide/${name}`)}${description(`The ${name} guide`)}${GUIDE}`])),
     ...overrides,
   }
   return { paths: Object.keys(files), read: (path) => files[path] ?? '', size: (path) => (files[path] ?? '').length }
@@ -99,12 +101,12 @@ test('seoProblems: a page meant to rank that is missing from the sitemap fails',
   assert.deepEqual(seoProblems(newPage), ['bpm-to-ms.html: indexable but not in the sitemap'])
   const folder = site({ 'tools/index.html': `${canonical('/tools/')}<h1>Tools</h1>` })
   assert.deepEqual(seoProblems(folder), ['tools/index.html: indexable but not in the sitemap'])
-  const folderListed = site({ 'tools/index.html': `${canonical('/tools/')}<h1>Tools</h1>`, 'sitemap.xml': sitemap([...LISTED, '/tools/']) })
+  const folderListed = site({ 'tools/index.html': `${canonical('/tools/')}${description('Tools')}<h1>Tools</h1>`, 'sitemap.xml': sitemap([...LISTED, '/tools/']) })
   assert.deepEqual(seoProblems(folderListed), [])
 })
 
 test('seoProblems: a page in the sitemap that is noindex fails, in either attribute order', () => {
-  const tagged = site({ 'website-privacy.html': `${canonical('/website-privacy')}<meta content="noindex, nofollow" name="robots">` })
+  const tagged = site({ 'website-privacy.html': `${canonical('/website-privacy')}${description('What the site measures')}<meta content="noindex, nofollow" name="robots">` })
   assert.deepEqual(seoProblems(tagged), [`${SITE}/website-privacy: in the sitemap but noindex`])
 })
 
@@ -135,4 +137,20 @@ test('seoProblems: noindex pages, redirect stubs and the listed exclusions stay 
 test('seoProblems: no page carries an empty @graph', () => {
   const empty = site({ 'website-privacy.html': '<script type="application/ld+json">{"@context":"https://schema.org","@graph":[]}</script>' })
   assert.match(seoProblems(empty).join(), /website-privacy\.html: an empty @graph/)
+})
+
+// RBA-268: the API reference and the copied root files all carried the site's description.
+test('seoProblems: every page in the sitemap has a description of its own', () => {
+  const fallback = site({ 'website-privacy.html': `${canonical('/website-privacy')}${description(SITE_DESCRIPTION)}` })
+  assert.deepEqual(seoProblems(fallback), ["website-privacy.html: the site's default meta description"])
+  const shared = site({ 'website-privacy.html': `${canonical('/website-privacy')}${description('Find the BPM of a song')}` })
+  assert.deepEqual(seoProblems(shared), [
+    'index.html: the same meta description as website-privacy.html',
+    'website-privacy.html: the same meta description as index.html',
+  ])
+  const none = site({ 'guide/node.html': `${canonical('/guide/node')}${GUIDE}` })
+  assert.deepEqual(seoProblems(none), ['guide/node.html: no meta description'])
+  // Either attribute order.
+  const reversed = site({ 'website-privacy.html': `${canonical('/website-privacy')}<meta content="${SITE_DESCRIPTION}" name="description">` })
+  assert.deepEqual(seoProblems(reversed), ["website-privacy.html: the site's default meta description"])
 })

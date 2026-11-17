@@ -4,6 +4,7 @@
 // source tests can't see these: they come out of VitePress and config.ts together.
 import type { BuiltSite } from './extension-switch.ts'
 import { UNPUBLISHED_GUIDES } from '../.vitepress/tools/site-schema.ts'
+import { SITE_DESCRIPTION } from '../.vitepress/tools/page-description.ts'
 import { legacyRedirects } from './legacy-redirects.ts'
 import { targetFiles } from './redirects.ts'
 
@@ -129,6 +130,28 @@ function sitemapProblems(site: BuiltSite): string[] {
   return [...listed, ...missing]
 }
 
+const DESCRIPTION = /<meta\b(?=[^>]*\bname="description")[^>]*?\bcontent="([^"]*)"/
+
+// Every page in the sitemap describes itself (RBA-268): VitePress gives a page without a
+// description the site's, so 40-odd pages once shared one snippet. A page fails with no
+// description, with the site's, or with one another sitemap page also has.
+function descriptionProblems(site: BuiltSite): string[] {
+  const described = [...site.read('sitemap.xml').matchAll(LOC)]
+    .map((match) => pageOf(site, (match[1] ?? '').trim()))
+    .filter((page): page is string => page !== undefined)
+    .map((page) => ({ page, description: DESCRIPTION.exec(site.read(page))?.[1] }))
+  const pagesOf = new Map<string, string[]>()
+  for (const { page, description } of described) {
+    if (description) pagesOf.set(description, [...(pagesOf.get(description) ?? []), page])
+  }
+  return described.flatMap(({ page, description }) => {
+    if (!description) return [`${page}: no meta description`]
+    if (description === SITE_DESCRIPTION) return [`${page}: the site's default meta description`]
+    const others = (pagesOf.get(description) ?? []).filter((other) => other !== page)
+    return others.length ? [`${page}: the same meta description as ${others.join(', ')}`] : []
+  })
+}
+
 export function seoProblems(site: BuiltSite): string[] {
   const emptyGraph = site.paths.filter((path) => path.endsWith('.html') && site.read(path).includes('"@graph":[]'))
   return [
@@ -136,6 +159,7 @@ export function seoProblems(site: BuiltSite): string[] {
     ...unpublishedProblems(site),
     ...guideProblems(site),
     ...sitemapProblems(site),
+    ...descriptionProblems(site),
     ...emptyGraph.map((path) => `${path}: an empty @graph`),
   ]
 }

@@ -1,6 +1,6 @@
 ---
-title: 'Core Concepts: Real-Time vs Continuous BPM Analysis'
-description: Understand realtime-bpm-analyzer's usage modes (real-time, continuous with auto-reset, and offline buffer analysis) and pick the right pattern for files, streams, or microphone input.
+title: Core Concepts of the BPM Analyzer
+description: 'The usage modes of realtime-bpm-analyzer (real-time, long streams, whole files), its audio graph, its readings, its options and its events.'
 ---
 
 # Core Concepts
@@ -27,7 +27,7 @@ const analyzer = await createRealtimeBpmAnalyzer(audioContext);
 ### Continuous Analysis (Auto-Reset)
 For long-running or infinite streams:
 
-- Automatically starts over after a set stretch of audio
+- With the `peaks` engine, starts over after a set stretch of audio
 - Follows a change of tempo sooner
 - Best for: Radio streams, live broadcasts, streaming services
 
@@ -93,49 +93,9 @@ To skip it or use your own filter, connect to `analyzer.node` instead, the analy
 
 ## How BPM Detection Works
 
-This is the `peaks` engine, the 5.x default and still available with `engine: 'peaks'`. The default `tempogram` engine reads the tempo from an onset tempogram instead: see [the tempogram engine](/guide/realtime-bpm-detection#the-tempogram-detector).
-
-### 1. Peak Detection
-The analyzer scans the audio signal at multiple amplitude **thresholds** (0.95, 0.90, 0.85... down to 0.20):
-
-```
-Amplitude
-   1.0 ┤     ╭╮           threshold: 0.9
-   0.9 ┤    ╭╯╰╮  ╭─╮     ← Peak detected here
-   0.8 ┤   ╭╯  ╰──╯ ╰╮
-   0.7 ┤  ╭╯         ╰╮
-       └──────────────────→ Time
-```
-
-Lower thresholds detect more peaks, higher thresholds detect only strong peaks.
-
-### 2. Interval Calculation
-Once peaks are found, the analyzer calculates **time intervals** between them:
-
-```
-Peak 1    Peak 2    Peak 3    Peak 4
-  |─────────|─────────|─────────|
-    500ms     500ms     500ms
-```
-
-### 3. BPM Conversion
-Intervals are converted to BPM:
-
-```
-BPM = 60,000 / interval_in_milliseconds
-```
-
-For the example above:
-```
-60,000 / 500 = 120 BPM
-```
-
-### 4. Tempo Grouping
-The algorithm then:
-- Folds each BPM into the tempo range (90-180 BPM by default) by doubling or halving
-- Groups intervals that round to the same tempo
-- Counts occurrences (votes)
-- Reports the tempo with the most votes, with up to 4 runners-up
+Each engine turns audio into tempo candidates in its own way: the default `tempogram` from how the spectrum changes
+over time, `peaks` from the time between peaks in the bass. [How It Works](/guide/how-it-works) walks through both,
+step by step.
 
 ## BPM Candidates
 
@@ -161,20 +121,6 @@ const reading = {
 - **candidates**: Up to 5, the reading's own tempo first, the others in the engine's rank order. Each has a **relation** to the reading's tempo: `top`, `half`, `double` or `other`
 
 The reading's `bpm` is usually the right one. A `half` or `double` candidate is the same beat at another octave.
-
-## Threshold System
-
-The `peaks` engine uses a **progressive threshold** system:
-
-1. Starts at high threshold (0.95) - only strong peaks
-2. If enough peaks found, calculates BPM
-3. Each time it locks, it **raises the minimum threshold**
-4. This makes future detection more selective
-
-Benefits:
-- Early results from strong beats
-- Later locks rest on stronger peaks
-- Filters out weak/noise peaks
 
 ## Configuration Options
 
@@ -285,14 +231,14 @@ It comes about 20 ms after the kick reached the analyzer in Chromium, and 22 to 
 
 ## Best Practices
 
-### ✅ Do
+### Do
 - Connect the source to `analyzer.input`, which gives each engine what it needs (the low-pass filter for `peaks`, the full band for `tempogram`)
 - Wait for the `statechange` to `locked` before displaying a final result
 - Handle multiple candidates (show top 3-5)
 - Create `AudioContext` on user interaction
 - Call `stop()` when you are done: it is final, so create a new analyzer to listen again
 
-### ❌ Don't
+### Don't
 - Create `AudioContext` immediately on page load (autoplay restrictions)
 - Treat the first reading as final (wait for the lock)
 - Ignore the candidates' `relation` (a `half` or `double` is the same beat at another octave)

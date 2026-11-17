@@ -9,6 +9,7 @@ import { isUsersOnlyExtensionPage } from './tools/extension-pages'
 import { isGuidePage, isNoindexPage, isUnpublishedGuide, SCHEMA_WEB_APPLICATION, siteGraph, techArticle, toolFaqPage } from './tools/site-schema'
 import { EDGE_URL, STORE_URL } from './tools/extension-live'
 import { siteNav } from './tools/site-nav'
+import { fallbackDescription, SITE_DESCRIPTION } from './tools/page-description'
 import { EXTENSION_SHARE_IMAGE, excludedSources, extensionHomeHero, extensionPageSchema, llmsWithExtension } from './tools/extension-promo'
 import { gaLoaderScript } from './tools/analytics-loader'
 import { SITE_URL } from './tools/site-url'
@@ -102,6 +103,7 @@ function shareHead(url: string, title: string, description: string, image: Share
 export default defineConfig({
   title: "Realtime BPM Analyzer",
   titleTemplate: ":title | Realtime BPM Analyzer",
+  // The same words as SITE_DESCRIPTION, written out: home-frozen-text.test.ts pins them here.
   description: "Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first. Includes a free online BPM tool.",
 
   // Base URL - using root since deployed to www.realtime-bpm-analyzer.com
@@ -180,10 +182,14 @@ export default defineConfig({
 
     const SITE_NAME = 'Realtime BPM Analyzer'
     const DEFAULT_OG_TITLE = 'Realtime BPM Analyzer — Web Audio BPM Detection Library'
-    const DEFAULT_DESCRIPTION = 'Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first. Includes a free online BPM tool.'
 
     const pageTitle = pageData.frontmatter.title as string | undefined
-    const pageDesc = pageData.frontmatter.description as string | undefined
+    // A page that can't carry frontmatter (the API reference, the copied root files) gets
+    // a description of its own rather than the site's: see tools/page-description.ts.
+    const pageDesc = (pageData.frontmatter.description as string | undefined)
+      ?? fallbackDescription(pageData.relativePath, pageData.title)
+    // VitePress writes <meta name="description"> from pageData.description.
+    if (pageDesc) pageData.description = pageDesc
 
     // A page that opts out of the title template has already written its full title.
     const ogTitle = pageTitle && pageData.frontmatter.titleTemplate === false
@@ -191,7 +197,7 @@ export default defineConfig({
       : pageTitle
       ? `${pageTitle} | ${SITE_NAME}`
       : DEFAULT_OG_TITLE
-    const ogDesc = pageDesc ?? DEFAULT_DESCRIPTION
+    const ogDesc = pageDesc ?? SITE_DESCRIPTION
 
     // Schema.org @graph, one <script> tag per page: see tools/site-schema.ts for what
     // goes where. Google reads @graph members independently.
@@ -285,6 +291,15 @@ export default defineConfig({
     // Built from data in tools/site-nav.ts, gated on the extension switch (RBA-66).
     nav: siteNav(STORE_URL, pkg.version),
 
+    // VitePress's own 404 quotes a proverb and offers no way on (RBA-268).
+    notFound: {
+      title: 'Page not found',
+      quote: 'This address has no page, or the page has moved. The BPM finder and the free tools start from the home page.',
+      // The link's accessible name: the visible text, so voice control finds it by what it says.
+      linkLabel: 'Back to the BPM finder',
+      linkText: 'Back to the BPM finder',
+    },
+
     sidebar: {
       '/guide/': [
         {
@@ -304,18 +319,30 @@ export default defineConfig({
             { text: 'useBpm — A React Hook for BPM Detection', link: '/guide/react-bpm-hook' }
           ]
         },
+        // Platforms, internals and upgrades in groups of their own (RBA-268): one
+        // "Advanced" group of eleven mixed what a reader looks for with how it works.
+        {
+          text: 'Other platforms',
+          items: [
+            { text: 'BPM Detection in Node.js', link: '/guide/node' },
+            { text: 'BPM Detection from the Command Line', link: '/guide/cli' },
+            { text: 'MCP Server for AI Assistants', link: '/guide/mcp' },
+            { text: 'BPM Detection in Java, Kotlin and Android', link: '/guide/java' },
+            { text: 'BPM Detection in Python', link: '/guide/python' }
+          ]
+        },
         {
           text: 'Advanced',
           items: [
             { text: 'How It Works', link: '/guide/how-it-works' },
             { text: 'Performance Tips', link: '/guide/performance' },
             { text: 'Browser Compatibility', link: '/guide/browser-compatibility' },
-            { text: 'Strict CSP and Browser Extensions', link: '/guide/strict-csp' },
-            { text: 'BPM Detection in Node.js', link: '/guide/node' },
-            { text: 'BPM Detection from the Command Line', link: '/guide/cli' },
-            { text: 'MCP Server for AI Assistants', link: '/guide/mcp' },
-            { text: 'BPM Detection in Java, Kotlin and Android', link: '/guide/java' },
-            { text: 'BPM Detection in Python', link: '/guide/python' },
+            { text: 'Strict CSP and Browser Extensions', link: '/guide/strict-csp' }
+          ]
+        },
+        {
+          text: 'Upgrading',
+          items: [
             { text: 'Migration Guide (v5 → v6)', link: '/guide/migration-v6' },
             { text: 'Migration Guide (v4 → v5)', link: '/guide/migration-v5' }
           ]

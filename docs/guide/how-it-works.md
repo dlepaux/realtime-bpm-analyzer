@@ -1,45 +1,74 @@
 ---
-title: 'How BPM Detection Works: Algorithm and Audio Pipeline'
-description: 'How realtime-bpm-analyzer detects tempo: Web Audio API decoding, low-pass filtering, AudioWorklet peak detection, interval analysis. Architecture and algorithm explained.'
+title: How BPM Detection Works
+description: 'How realtime-bpm-analyzer finds the tempo: the AudioWorklet pipeline, the default tempogram engine, the peaks engine, its events, timing and limits.'
 ---
 
 # How It Works
 
-Understanding the technical approach behind Realtime BPM Analyzer helps you make better decisions when implementing it in your projects.
+What happens between the audio going in and a reading coming out, so you know what to expect from it.
 
 ## Overview
 
-The library uses the **Web Audio API** to analyze audio signals and detect rhythmic patterns. The core algorithm identifies "peaks" in the audio signal that correspond to beats, then analyzes the intervals between these peaks to determine tempo.
+The library listens in an `AudioWorklet`, on the browser's audio thread, and has two engines:
+
+- **`tempogram`**, the default, measures how the spectrum changes from moment to moment in five frequency bands,
+  and finds the tempo that repeats in those changes.
+- **`peaks`**, the default of 5.x, keeps the bass, finds where the signal peaks above a threshold, and turns the
+  time between peaks into tempos. `engine: 'peaks'` selects it.
+
+Both rank up to five candidate tempos and report the same kind of reading: the tempo, a confidence and the
+candidates.
 
 ## Architecture
 
 ### Audio Processing Pipeline
 
 ```
-Audio Source
+Audio source: media element, stream or microphone
     ↓
-Media Element Source / Stream / Buffer
+analyzer.input: nothing for tempogram, a 200 Hz low-pass for peaks
     ↓
-Low-Pass Filter (optional, recommended)
+AudioWorklet processor, on the audio thread
     ↓
-AudioWorklet Processor
+Engine: tempogram (default) or peaks
     ↓
-Peak Detection & Analysis
+Reading: tempo, confidence, up to 5 candidates
     ↓
-BPM Candidates
+Events: reading, statechange, progress, kick, error
 ```
+
+`analyzeFullBuffer`, and `analyzeChannelData` in Node, run the same engines on a whole decoded file at once,
+without the worklet, and return one reading, or `null` when there is no clear beat.
 
 ### Key Components
 
-1. **AudioWorklet**: Runs analysis on a separate thread for better performance
-2. **Peak Detection**: Identifies rhythmic patterns in the audio signal
-3. **Threshold Analysis**: Tests multiple sensitivity levels to find optimal peaks
-4. **Interval Grouping**: Groups similar intervals to identify tempo patterns
-5. **Candidate Ranking**: Ranks BPM candidates by vote count, and reports the top one as the reading
+1. **AudioWorklet**: runs the analysis off the main thread, so the page stays responsive
+2. **The engine**: `tempogram` or `peaks`, below
+3. **Candidate ranking**: up to five tempos, the first of which is the reading
+4. **Confidence**: each engine's raw score, mapped to one shared scale
+5. **State**: `listening`, `settling`, then `locked` once the readings agree
 
-## The Algorithm
+## The tempogram engine
 
-This is the `peaks` engine, the 5.x default, which `engine: 'peaks'` selects. The default `tempogram` engine reads the tempo from an onset tempogram instead: see [the tempogram engine](/guide/realtime-bpm-detection#the-tempogram-detector). The code below sketches each step; it is not the library's API.
+The default engine, step by step:
+
+1. **Onset strength.** It splits the audio into five bands, from 30 Hz to 10 kHz, and measures how much each
+   band's energy rises from one frame to the next, a hundred times a second. Sudden rises are where notes and
+   drums start.
+2. **Tempogram.** Every half second, it looks at the last 8 seconds of that onset strength and asks which time
+   between beats makes it repeat best (an autocorrelation).
+3. **Tempo prior.** It weighs each tempo by how likely music is to sit there, rather than folding every tempo
+   into one octave.
+4. **Memory.** It adds each new tempogram to what it heard before, with a 16-second half-life, so the reading
+   steadies over time and still follows a tempo change.
+
+Its first reading comes after 4 seconds of audio. It searches 90 to 180 BPM unless you set `tempoRange`:
+[the tempogram engine](/guide/realtime-bpm-detection#the-tempogram-detector) says what that range changes.
+
+## The peaks engine {#the-algorithm}
+
+This is the `peaks` engine, the 5.x default, which `engine: 'peaks'` selects. The code below sketches each step;
+it is not the library's API.
 
 ### Step 1: Audio Capture
 
@@ -261,15 +290,15 @@ The processor gathers audio before it reports:
 ### Complex Time Signatures
 
 The algorithm works best with:
-- ✅ 4/4 time (most popular music)
-- ✅ Simple rhythms
-- ⚠️ May struggle with 5/4, 7/8, or polyrhythmic music
+- 4/4 time (most popular music)
+- Simple rhythms
+- It may struggle with 5/4, 7/8, or polyrhythmic music
 
 ### Tempo Changes
 
 - **Fixed tempo**: Where it works best
-- **Slight variations**: Votes spread across neighbouring tempos, so the result can be less clear
-- **Major changes**: May report multiple candidates or incorrect BPM
+- **Slight variations**: The evidence spreads across neighbouring tempos, so the reading can be less clear
+- **Major changes**: The reading follows after a while: `tempogram`'s memory of past tempos fades with a 16-second half-life, and `peaks` follows sooner with `restartAfterSeconds`
 
 ## Further Reading
 

@@ -3,7 +3,7 @@
 // one h1 (RBA-129), and the titles and snippets this repo has tuned stay within what results show.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -56,6 +56,20 @@ test('the CLI, MCP, Java and Python guides are in the sidebar, llms.txt and the 
     assert.ok(llms.includes(`https://www.realtime-bpm-analyzer.com/guide/${name})`), `llms.txt: /guide/${name}`)
     assert.equal(field(read(`../guide/${name}.md`), 'search'), undefined, `guide/${name}.md: still out of the search`)
   }
+})
+
+// Until a Swift package is released (RBA-265).
+test('the Swift guide is out of the sidebar, llms.txt, the search and the content of every other page', () => {
+  const unpublished = /\/guide\/swift\b|\]\(\.\/swift\b/
+  assert.ok(!unpublished.test(read('../.vitepress/config.ts')), 'config.ts')
+  assert.ok(!unpublished.test(read('../public/llms.txt')), 'llms.txt')
+  const pages = ['index.md', 'bpm-to-frames.md', 'video-bpm.md', 'tap-tempo.md', 'bpm-to-ms.md', 'metronome.md', 'strobe-light.md']
+  const guides = readdirSync(new URL('../guide/', import.meta.url))
+    .filter((name) => name.endsWith('.md') && name !== 'swift.md')
+    .map((name) => `guide/${name}`)
+  for (const path of [...pages, ...guides]) assert.ok(!unpublished.test(read(`../${path}`)), path)
+  assert.equal(field(read('../guide/swift.md'), 'search'), 'false')
+  assert.ok(unpublished.test('[Swift](/guide/swift)') && unpublished.test('[Swift](./swift)'), 'the check must catch a link')
 })
 
 test('llms.txt lists the tutorials and the v6 migration, and calls the home tool the BPM Finder', () => {

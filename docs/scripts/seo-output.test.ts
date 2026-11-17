@@ -21,6 +21,7 @@ function site(overrides: Record<string, string> = {}): BuiltSite {
     'sitemap.xml': sitemap(LISTED),
     'website-privacy.html': `${canonical('/website-privacy')}<p>privacy</p>`,
     '404.html': '<h1>Page not found</h1>',
+    'guide/swift.html': NOINDEX,
     'guide/quick-start.html': '<meta http-equiv="refresh" content="0; url=/guide/getting-started">',
     ...Object.fromEntries(GUIDES.map((name) => [`guide/${name}.html`, `${canonical(`/guide/${name}`)}${GUIDE}`])),
     ...overrides,
@@ -61,6 +62,13 @@ test('seoProblems: the Java and Python guides are guides like the others', () =>
   assert.match(seoProblems(undated).join(), /guide\/python\.html: no TechArticle,guide\/python\.html: no datePublished/)
   const unlisted = site({ 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/python')) })
   assert.deepEqual(seoProblems(unlisted), ['guide/python.html: indexable but not in the sitemap'])
+})
+
+// Until a Swift package is released (RBA-265), the Swift guide stays noindex and out of the sitemap.
+test('seoProblems: the unpublished Swift guide stays noindex and out of the sitemap', () => {
+  assert.match(seoProblems(site({ 'guide/swift.html': '<p>swift</p>' })).join(), /guide\/swift: not noindex/)
+  const listed = site({ 'sitemap.xml': sitemap([...LISTED, '/guide/swift']) })
+  assert.match(seoProblems(listed).join(), /guide\/swift: in the sitemap/)
 })
 
 test('seoProblems: every other guide is an article with a server-rendered date', () => {

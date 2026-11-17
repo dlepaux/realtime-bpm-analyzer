@@ -59,6 +59,8 @@ export function omitMarked(text, {required = false, name = 'the file'} = {}) {
 // The mirror's readme: where it comes from first, then the package's own readme without its monorepo sections
 export function mirrorReadme(readme) {
   const body = omitMarked(readme, {name: 'readme.md'});
+  // The notice goes under the title, so the readme must open with it, not with a badge or a comment
+  if (!body.startsWith('# ')) throw new Error('readme.md: the first line is not the "# " title');
   const heading = body.indexOf('\n');
   const notice = [
     '',
@@ -129,7 +131,8 @@ export function publish(treeDir, remote, version, sourceSha) {
     git([...at, 'symbolic-ref', 'HEAD', 'refs/heads/main']);
     git([...at, 'remote', 'add', 'origin', remote]);
     if (hasMain) {
-      // The index takes main's tree, so `add --all` below records every file the new tree drops as deleted
+      // HEAD moves to main and the index stays empty, so the commit below holds the new tree alone, as a child of
+      // main: every file the new tree drops is deleted
       git([...at, 'fetch', '-q', '--depth=1', 'origin', 'refs/heads/main']);
       git([...at, 'reset', '-q', '--soft', 'FETCH_HEAD']);
     }

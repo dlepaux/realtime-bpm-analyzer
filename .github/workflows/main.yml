@@ -899,10 +899,10 @@ jobs:
           rm -rf "$RUNNER_TEMP/gnupg" "$RUNNER_TEMP/central-settings.xml"
 
   # NuGet takes the C# port through trusted publishing (OIDC, no stored key): the policy on nuget.org, owned by
-  # dlepaux, names this repository, this file and the nuget environment, for the package id RealtimeBpmAnalyzer. The
-  # gate and the pack run here, without id-token: the publish job holds the OIDC token and runs no code of this
-  # repository, only the download, NuGet's login action and `dotnet nuget push`. First publish: contributing.md,
-  # "First publish of C# and Swift".
+  # dlepaux, names this repository, this file and the nuget environment, with the package glob RealtimeBpmAnalyzer.
+  # The gate and the pack run here, without id-token: the publish job holds the OIDC token and runs no code of this
+  # repository, only the download, a hash check, NuGet's login action and `dotnet nuget push`. First publish:
+  # contributing.md, "First publish of C# and Swift".
   nuget-build:
     name: Build (NuGet)
     needs: [release, conformance-dotnet]
@@ -916,6 +916,8 @@ jobs:
       DOTNET_NOLOGO: '1'
     outputs:
       publish: ${{ steps.unpublished.outputs.publish }}
+      version: ${{ steps.unpublished.outputs.version }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
 
     steps:
       - name: Checkout
@@ -941,8 +943,10 @@ jobs:
           global-json-file: packages/csharp/global.json
 
       # The same locked restore and pack as Conformance (.NET). CI=true makes the build ContinuousIntegrationBuild,
-      # and the SDK's Source Link writes this commit into the embedded PDB
+      # and the SDK's Source Link writes this commit into the embedded PDB. The hash goes to Publish (NuGet) as a job
+      # output, which no other job can change, unlike the artifact
       - name: Pack
+        id: pack
         if: steps.unpublished.outputs.publish == 'true'
         working-directory: packages/csharp
         env:
@@ -951,7 +955,9 @@ jobs:
           dotnet restore src/RealtimeBpmAnalyzer --locked-mode
           dotnet pack src/RealtimeBpmAnalyzer -c Release --no-restore -o "$RUNNER_TEMP/nupkg"
           ls -l "$RUNNER_TEMP/nupkg"
-          test -f "$RUNNER_TEMP/nupkg/RealtimeBpmAnalyzer.$VERSION.nupkg"
+          package="$RUNNER_TEMP/nupkg/RealtimeBpmAnalyzer.$VERSION.nupkg"
+          test -f "$package"
+          echo "sha256=$(sha256sum "$package" | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
 
       - name: Upload the package
         if: steps.unpublished.outputs.publish == 'true'
@@ -987,6 +993,17 @@ jobs:
           name: nuget-package
           path: nupkg
 
+      # The artifact store is writable by every job of the run, so the package pushed is the one file Build (NuGet)
+      # made, by its hash, before the job asks for a key
+      - name: Check the package is the one Build (NuGet) made
+        env:
+          VERSION: ${{ needs.nuget-build.outputs.version }}
+          SHA256: ${{ needs.nuget-build.outputs.sha256 }}
+        run: |
+          [[ "$SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::no hash from Build (NuGet)"; exit 1; }
+          [ "$(ls -A nupkg)" = "RealtimeBpmAnalyzer.$VERSION.nupkg" ] || { echo "::error::nupkg/ holds $(ls -A nupkg)"; exit 1; }
+          echo "$SHA256  nupkg/RealtimeBpmAnalyzer.$VERSION.nupkg" | sha256sum --check --strict
+
       # Pinned by commit: this step holds the OIDC token. user is the nuget.org account that owns the policy, not a
       # secret; the key it returns is masked in the log
       - name: Log in to NuGet
@@ -1000,7 +1017,8 @@ jobs:
       - name: Push to NuGet
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: dotnet nuget push nupkg/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          VERSION: ${{ needs.nuget-build.outputs.version }}
+        run: dotnet nuget push "nupkg/RealtimeBpmAnalyzer.$VERSION.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   # SwiftPM reads a package from a repository's root and its versions from plain semver tags, so each Swift release
   # copies packages/swift to dlepaux/realtime-bpm-analyzer-swift, a generated, push-only mirror, and tags it with the
@@ -1063,7 +1081,7 @@ jobs:
     environment:
       name: swift
       url: https://github.com/dlepaux/realtime-bpm-analyzer-swift
-    # checkout. The deploy key is the swift environment's secret, not GITHUB_TOKEN's.
+    # contents: read for the checkout only. The deploy key is the swift environment's secret, not GITHUB_TOKEN's.
     permissions:
       contents: read
 

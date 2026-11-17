@@ -29,6 +29,7 @@ test('mirrorReadme says where the code is, right under the title', () => {
   assert.match(lines[2] ?? '', /^> \*\*Generated\.\*\*/);
   assert.match(readme, /issues and pull requests on\n> \[dlepaux\/realtime-bpm-analyzer\]/);
   assert.doesNotMatch(readme, /## Tests/);
+  assert.throws(() => mirrorReadme('[![badge](x)](y)\n# Title\n'), /not the "# " title/);
 });
 
 test('the tree is the package without its tests, with a licence, a readme and .spi.yml', () => {

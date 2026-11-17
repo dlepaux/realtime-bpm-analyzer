@@ -75,7 +75,8 @@ const EXPECTED: Record<string, Record<string, Record<string, string>>> = {
   },
   'links.yml': {
     // checkout, and the weekly report: gh issue list/comment/close and create-issue-from-file open, edit and close
-    // the one broken-links issue. lychee's download is anonymous: no step hands it the token.
+    // the one broken-links issue. lychee-action also hands this token to the lychee binary, for GitHub's rate
+    // limits on github.com links (main.yml's offline check withholds it with token: '').
     'external-links': { contents: 'read', issues: 'write' },
   },
   'browser-cost.yml': {

@@ -1,7 +1,8 @@
 # The readers the "Marker files" CI job checks the export with (scripts/marker-conformance.py).
 # Exact versions with their wheel hashes: pip install --require-hashes refuses anything else.
 # opentimelineio's and lxml's hashes are their CPython 3.13 manylinux x86_64 wheels (lxml has two
-# manylinux tags; pip picks one), so the job pins Python 3.13. lxml validates the FCPXML DTD.
+# manylinux tags; pip picks one), so the job pins Python 3.13, and renovate.json holds it there. lxml validates
+# the FCPXML DTD.
 opentimelineio==0.18.1 \
     --hash=sha256:8740c18d2778d64d2128c3cb805cf381a71164ec8f7ff6b38477b60471ebe1a1
 otio-cmx3600-adapter==1.0.0 \

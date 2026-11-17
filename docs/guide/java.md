@@ -16,7 +16,7 @@ It is on Maven Central as `io.github.dlepaux:realtime-bpm-analyzer`. With Gradle
 <!-- x-release-please-start-version -->
 
 ```kotlin
-implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.1")
+implementation("io.github.dlepaux:realtime-bpm-analyzer:6.3.0")
 ```
 
 <!-- x-release-please-end -->
@@ -29,7 +29,7 @@ Or with Maven:
 <dependency>
   <groupId>io.github.dlepaux</groupId>
   <artifactId>realtime-bpm-analyzer</artifactId>
-  <version>6.2.1</version>
+  <version>6.3.0</version>
 </dependency>
 ```
 

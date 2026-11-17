@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/swift-v6.2.1...swift-v6.3.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **swift:** refuse tempogram sample rates under 122.97509238026915 Hz, as the JS library now does (RBA-261) ([464624c](https://github.com/dlepaux/realtime-bpm-analyzer/commit/464624cda5b2657beadbfac9d934142e11116207))
+* **tempogram:** refuse sample rates under its FFT's floor, 122.97509238026915 Hz, in the library and every port (RBA-261) ([61603fc](https://github.com/dlepaux/realtime-bpm-analyzer/commit/61603fc8cc17b967f303f3f3fbf262bdf10ca593))
+
 ## [6.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/swift-v6.2.0...swift-v6.2.1) (2026-11-17)
 
 

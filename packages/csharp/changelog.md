@@ -1,5 +1,14 @@
 # Changelog
 
+## [6.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/csharp-v6.2.1...csharp-v6.3.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **csharp:** format the refused rate with R too, so .NET Framework prints it in full (RBA-261) ([ba31039](https://github.com/dlepaux/realtime-bpm-analyzer/commit/ba31039371a53045d2d3cadf86f84871eaf59fe3))
+* **csharp:** refuse tempogram sample rates under 122.97509238026915 Hz, as the JS library now does (RBA-261) ([25033d7](https://github.com/dlepaux/realtime-bpm-analyzer/commit/25033d76c6cb2aa30118db4efea5118921b3a6cc))
+* **tempogram:** refuse sample rates under its FFT's floor, 122.97509238026915 Hz, in the library and every port (RBA-261) ([61603fc](https://github.com/dlepaux/realtime-bpm-analyzer/commit/61603fc8cc17b967f303f3f3fbf262bdf10ca593))
+
 ## [6.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/csharp-v6.2.0...csharp-v6.2.1) (2026-11-17)
 
 

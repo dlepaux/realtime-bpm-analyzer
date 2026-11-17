@@ -23,7 +23,7 @@
 
   <groupId>io.github.dlepaux</groupId>
   <artifactId>realtime-bpm-analyzer</artifactId>
-  <version>6.2.1</version>
+  <version>6.3.0</version>
   <packaging>jar</packaging>
 
   <name>realtime-bpm-analyzer (JVM)</name>

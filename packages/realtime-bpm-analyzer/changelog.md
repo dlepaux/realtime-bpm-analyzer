@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v6.2.2...v6.3.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **tempogram:** refuse sample rates under 122.97509238026915 Hz with a RangeError, where its FFT has no bin above DC (RBA-261) ([923a207](https://github.com/dlepaux/realtime-bpm-analyzer/commit/923a2075cf1cc89d296a54a1ef6a6c749c421f30))
+* **tempogram:** refuse sample rates under its FFT's floor, 122.97509238026915 Hz, in the library and every port (RBA-261) ([61603fc](https://github.com/dlepaux/realtime-bpm-analyzer/commit/61603fc8cc17b967f303f3f3fbf262bdf10ca593))
+
 ## [6.2.2](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v6.2.1...v6.2.2) (2026-11-17)
 
 

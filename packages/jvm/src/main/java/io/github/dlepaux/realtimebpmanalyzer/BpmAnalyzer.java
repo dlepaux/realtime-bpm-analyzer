@@ -60,7 +60,7 @@ public final class BpmAnalyzer {
         TempoRange range = options.tempoRange();
         double audioTo = samples.length / sampleRate;
         if (engine.name() == EngineName.TEMPOGRAM) {
-            return toReading(TempogramEngine.detect(samples, sampleRate, range), audioTo, EngineName.TEMPOGRAM, range);
+            return toReading(TempogramEngine.detect(samples, sampleRate, range), audioTo, EngineName.TEMPOGRAM, range, true);
         }
         Lowpass lowpass = engine.lowpass();
         requireLowpassFits(lowpass, sampleRate);
@@ -70,7 +70,8 @@ public final class BpmAnalyzer {
             throw new OutOfRangeException("Invalid sample rate: " + sampleRate + ". The peaks engine needs at least "
                 + PeaksEngine.MIN_SAMPLE_RATE + " Hz, where the skip after a peak is a whole sample.");
         }
-        return toReading(PeaksEngine.detect(samples, sampleRate, lowpass, range), audioTo, EngineName.PEAKS, range);
+        PeaksEngine.Detection detection = PeaksEngine.detect(samples, sampleRate, lowpass, range);
+        return toReading(detection.tempos, audioTo, EngineName.PEAKS, range, detection.calibrated);
     }
 
     /**
@@ -100,7 +101,12 @@ public final class BpmAnalyzer {
         }
     }
 
-    private static Reading toReading(List<Tempo> tempos, double audioTo, EngineName engine, TempoRange range) {
+    /**
+     * @param calibrated False when the calibration never saw readings found the way these were, as for a peaks file
+     *     read relative to its own level (RBA-221): the confidence is then null, unmeasured
+     */
+    private static Reading toReading(List<Tempo> tempos, double audioTo, EngineName engine, TempoRange range,
+            boolean calibrated) {
         if (tempos.isEmpty()) {
             return null;
         }
@@ -111,8 +117,8 @@ public final class BpmAnalyzer {
             Relation relation = i == 0 ? Relation.TOP : relationTo(top.tempo, bpm);
             candidates.add(new Candidate(toInt(bpm), relation));
         }
-        return new Reading(toInt(top.tempo), top.exact,
-            Calibration.calibrate(engine, top.confidence, top.tempo, range), candidates, 0, audioTo, engine);
+        Double confidence = calibrated ? Calibration.calibrate(engine, top.confidence, top.tempo, range) : null;
+        return new Reading(toInt(top.tempo), top.exact, confidence, candidates, 0, audioTo, engine);
     }
 
     /** TempoRange caps max at Integer.MAX_VALUE and no engine reads past its range, so this never throws. */

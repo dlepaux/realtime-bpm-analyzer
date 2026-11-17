@@ -28,7 +28,8 @@ if (reading != null)
 ```
 
 The reading is `null` when no tempo was found. Otherwise it has the same fields as the JS
-reading: `Bpm`, `BpmExact`, `Confidence` (`null` off the default 90 to 180 BPM range),
+reading: `Bpm`, `BpmExact`, `Confidence` (`null` off the default 90 to 180 BPM range, and
+for a peaks reading of a quiet or bass-light input found only relative to its own level),
 `Candidates`, `AudioFrom`, `AudioTo` and `Engine`.
 
 ## What it doesn't do

@@ -71,7 +71,8 @@ class Reading:
     """The same tempo, unrounded."""
     confidence: float | None
     """The chance, 0 to 1, that `bpm` is right. None when unmeasured: the reading's `bpm` is outside 90 to 180 BPM,
-    or the analysis ran on any tempo range other than 90 to 180."""
+    or the analysis ran on any tempo range other than 90 to 180, or the peaks engine found the beats only relative to
+    a quiet or bass-light input's own level, which input may hold no beat at all."""
     candidates: tuple[Candidate, ...]
     """1 to 5 tempos in the engine's rank order, the first with relation `top`."""
     audio: AudioSpan

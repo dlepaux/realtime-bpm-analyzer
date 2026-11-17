@@ -52,6 +52,10 @@ final class JsSourceTests: XCTestCase {
         XCTAssertEqual(constant(consts, "export const lowpassFrequency"), Lowpass.default.frequency)
         XCTAssertEqual(constant(consts, "export const lowpassQ"), Lowpass.default.q)
         XCTAssertEqual(constant(consts, "export const peaksMinSampleRate"), Peaks.minimumSampleRate)
+        // The level-relative peaks search (RBA-221): the percentile of the window maxima, and the floor under which it
+        // reads silence
+        XCTAssertEqual(constant(consts, "export const levelPercentile"), Double(Peaks.levelPercentile))
+        XCTAssertEqual(constant(consts, "export const silenceFloor"), Peaks.silenceFloor)
 
         let lowpass = try source("core/lowpass.ts")
         XCTAssertEqual(constant(lowpass, "const qMin"), Lowpass.minQ)

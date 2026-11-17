@@ -129,7 +129,8 @@ public struct Reading: Sendable, Hashable {
     /// The same tempo, unrounded.
     public let bpmExact: Double
     /// The chance, 0 to 1, that ``bpm`` is right. `nil` when unmeasured: when the analysis ran on any tempo range
-    /// other than 90 to 180, the only one the confidence was calibrated on.
+    /// other than 90 to 180, the only one the confidence was calibrated on, or when the peaks engine found the beats
+    /// only relative to a quiet or bass-light input's own level, which input may hold no beat at all.
     public let confidence: Double?
     /// One to five tempos in the engine's rank order, the first with relation ``CandidateRelation/top``.
     public let candidates: [Candidate]

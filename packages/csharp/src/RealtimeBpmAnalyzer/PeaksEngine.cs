@@ -40,18 +40,54 @@ namespace RealtimeBpmAnalyzer
 
         private const int MaxCandidates = 5;
 
+        /// <summary>
+        /// The percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks
+        /// (RBA-221): JS's levelPercentile.
+        /// </summary>
+        internal const int LevelPercentile = 98;
+
+        /// <summary>-70 dBFS: under it the level-relative search reads silence. Written out as JS writes it, the same double.</summary>
+        internal const double SilenceFloor = 0.00031622776601683794;
+
         /// <param name="samples">The caller's samples, left untouched.</param>
         /// <param name="sampleRate">Their rate, positive and above twice the cutoff (checked by the caller).</param>
         /// <param name="lowpass">The lowpass settings.</param>
         /// <param name="range">The range tempos are folded into.</param>
-        /// <returns>Up to 5 candidates, by votes, empty when no threshold found enough peaks.</returns>
-        internal static List<Tempo> Detect(float[] samples, double sampleRate, Lowpass lowpass, TempoRange range)
+        /// <returns>
+        /// Up to 5 candidates, by votes, none when no threshold found enough peaks, and whether the confidence
+        /// calibration covers them: JS's detectTempo.
+        /// </returns>
+        internal static Detection Detect(float[] samples, double sampleRate, Lowpass lowpass, TempoRange range)
         {
             float[] filtered = ApplyLowpass(samples, sampleRate, lowpass);
             int[] peaks = FindPeaks(filtered, sampleRate);
+            bool calibrated = true;
+            // RBA-221: whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no
+            // peaks in is searched again relative to its level, and the calibration never saw such a reading
+            if (peaks.Length == 0)
+            {
+                peaks = FindPeaksRelativeToLevel(filtered, sampleRate);
+                calibrated = false;
+            }
+
             OrderedMap<int, int> intervals = IdentifyIntervals(peaks);
             List<Tempo> tempos = GroupByTempo(intervals, sampleRate, range);
-            return TopCandidates(tempos);
+            return new Detection(TopCandidates(tempos), calibrated);
+        }
+
+        /// <summary>The candidates of one channel, and whether the peaks calibration (RBA-106) covers them.</summary>
+        internal sealed class Detection
+        {
+            internal Detection(List<Tempo> tempos, bool calibrated)
+            {
+                Tempos = tempos;
+                Calibrated = calibrated;
+            }
+
+            internal List<Tempo> Tempos { get; }
+
+            /// <summary>False when the peaks were found only relative to the channel's level: the confidence is then unmeasured.</summary>
+            internal bool Calibrated { get; }
         }
 
         /// <summary>
@@ -110,10 +146,29 @@ namespace RealtimeBpmAnalyzer
         /// <summary>The peaks at the highest threshold that has at least <see cref="MinPeaks"/> of them, or none.</summary>
         internal static int[] FindPeaks(float[] data, double sampleRate)
         {
+            int step = SkipOf(sampleRate);
+            foreach (double threshold in ThresholdLadder())
+            {
+                int[] peaks = FindPeaksAtThreshold(data, threshold, step);
+                if (peaks.Length >= MinPeaks)
+                {
+                    return peaks;
+                }
+            }
+
+            return Array.Empty<int>();
+        }
+
+        /// <summary>
+        /// The samples skipped after a peak, which is also the window of <see cref="LevelReference"/>: 0.25 s, rounded
+        /// half up as JS's Math.round rounds.
+        /// </summary>
+        private static int SkipOf(double sampleRate)
+        {
             double skip = JsMath.Round(PeakSkipSeconds * sampleRate);
             // Each pass of FindPeaksAtThreshold moves on by at least one sample only while the skip is one sample or
-            // more, which bounds its loop to data.Length passes. BpmAnalyzer refuses a rate under 2 Hz, where it is 0,
-            // before this, as the JS library does (RBA-260)
+            // more, which bounds its loop to data.Length passes, and no level window is then empty. BpmAnalyzer
+            // refuses a rate under 2 Hz, where it is 0, before this, as the JS library does (RBA-260)
             if (!(skip >= 1))
             {
                 throw new ArgumentOutOfRangeException(
@@ -121,10 +176,64 @@ namespace RealtimeBpmAnalyzer
                     string.Format(CultureInfo.InvariantCulture, "Invalid sample rate: {0}. The peaks engine needs at least {1} Hz, where the skip after a peak is a whole sample.", sampleRate, MinSampleRate));
             }
 
-            int step = skip >= int.MaxValue ? int.MaxValue : (int)skip;
-            foreach (double threshold in ThresholdLadder())
+            // A skip past the longest array reaches past its end either way, so the clamp changes no peak or window count
+            return skip >= int.MaxValue ? int.MaxValue : (int)skip;
+        }
+
+        /// <summary>
+        /// The level of a channel's loudest beats, which one click or clipped transient can't set (RBA-221): JS's
+        /// levelReference. The maxima of its 0.25 s windows, each from 0 so only positive samples count, sorted, and
+        /// the one at index floor((windows - 1) * 98 / 100), in whole numbers.
+        /// </summary>
+        internal static float LevelReference(float[] data, double sampleRate)
+        {
+            int window = SkipOf(sampleRate);
+            int count = (int)((data.Length + (long)window - 1) / window);
+            if (count == 0)
             {
-                int[] peaks = FindPeaksAtThreshold(data, threshold, step);
+                return 0;
+            }
+
+            var maxima = new float[count];
+            for (int w = 0; w < count; w++)
+            {
+                long start = (long)w * window;
+                long end = Math.Min(data.Length, start + window);
+                float maximum = 0;
+                for (long i = start; i < end; i++)
+                {
+                    // A NaN sample fails the comparison, so it never becomes a maximum, as in JS
+                    if (data[i] > maximum)
+                    {
+                        maximum = data[i];
+                    }
+                }
+
+                maxima[w] = maximum;
+            }
+
+            Array.Sort(maxima);
+            return maxima[(int)(((long)(count - 1) * LevelPercentile) / 100)];
+        }
+
+        /// <summary>
+        /// The fixed ladder run again with every rung scaled by the channel's level, so a quiet or bass-light file is
+        /// searched the way a full-scale one is (RBA-221): JS's findPeaksRelativeToLevel. None under the silence
+        /// floor, or at full scale or above.
+        /// </summary>
+        internal static int[] FindPeaksRelativeToLevel(float[] data, double sampleRate)
+        {
+            // Widened to double here, so the floor comparison and every product below are in double, as in JS
+            double level = LevelReference(data, sampleRate);
+            if (!(level >= SilenceFloor && level < 1))
+            {
+                return Array.Empty<int>();
+            }
+
+            int step = SkipOf(sampleRate);
+            foreach (double rung in ThresholdLadder())
+            {
+                int[] peaks = FindPeaksAtThreshold(data, rung * level, step);
                 if (peaks.Length >= MinPeaks)
                 {
                     return peaks;

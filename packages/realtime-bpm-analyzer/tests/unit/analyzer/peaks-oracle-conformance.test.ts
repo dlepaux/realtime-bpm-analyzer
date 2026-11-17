@@ -76,6 +76,8 @@ describe('peaks file path - the readings the old path returns are unchanged on e
 
       if (oracle !== null) {
         expect(reading, `${id}: a reading the old path returns changed`).to.deep.equal(oracle);
+      } else if (reading !== null) {
+        expect(reading.confidence, `${id}: a reading only the new search finds is unmeasured`).to.equal(null);
       }
     });
   }

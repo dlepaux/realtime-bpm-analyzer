@@ -101,6 +101,14 @@ test('every example has a dev port, the one its vite config falls back to', () =
   assert.ok(read('./dev-examples.ts').includes('EXAMPLE_DEV_PORTS'), 'dev-examples.ts keeps its own port list')
 })
 
+// A dev server whose port is taken would move to the next free one, and the embed would then show
+// whatever app holds its port (RBA-238). strictPort makes it fail instead.
+test('every example dev server keeps its port or fails, never moving to another', () => {
+  for (const example of EXAMPLES) {
+    assert.match(read(`../../examples/${example}/vite.config.ts`), /\n\s+strictPort: true,\n/, example)
+  }
+})
+
 test('the dev command the embed names is a root script that starts the examples', () => {
   const { scripts } = JSON.parse(read('../../package.json'))
   const name = EXAMPLES_DEV_COMMAND.replace(/^npm run /, '')

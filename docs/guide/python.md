@@ -55,7 +55,9 @@ reading = analyze_channel_data(
 )
 ```
 
-- `engine`: `"tempogram"` (the default) or `"peaks"`.
+- `engine`: `"tempogram"` (the default) or `"peaks"`. A `peaks` reading of a
+  quiet or bass-light input, found only relative to its own level, has
+  `confidence` `None`: such input may hold no beat at all.
 - `tempo_range`: 90 to 180 BPM by default. With any other range,
   `confidence` is `None`, since it was calibrated on the default range only.
 - `lowpass`: the `peaks` engine's filter only.

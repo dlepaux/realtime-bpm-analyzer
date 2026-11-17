@@ -60,7 +60,9 @@ let options = AnalysisOptions(
 let reading = try analyzeChannelData(samples, sampleRate: 44_100, options: options)
 ```
 
-- `engine`: `.tempogram` (the default) or `.peaks`, which takes the lowpass.
+- `engine`: `.tempogram` (the default) or `.peaks`, which takes the lowpass. A
+  `.peaks` reading of a quiet or bass-light input, found only relative to its
+  own level, has `confidence` `nil`: such input may hold no beat at all.
 - `tempoRange`: 90 to 180 BPM by default. With any other range,
   `confidence` is `nil`, since it was calibrated on the default range only.
 

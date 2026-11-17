@@ -74,7 +74,9 @@ The fields are the library's [reading](./core-concepts#bpm-candidates), named in
   engine measured it. `null`: unmeasured, when `bpm` is outside 90 to 180 or when `min_bpm` or
   `max_bpm` set any other range than 90 to 180, since the calibration ran only on that range (a
   missing bound is filled from it, so `min_bpm: 90` alone keeps the number), and when no beat was
-  found.
+  found. Also `null` for a `peaks` reading of a quiet or bass-light file whose beats the engine found
+  only relative to the file's own level: the calibration never saw such a reading, and the file may
+  hold no beat at all.
 - `candidates`: each a `bpm` and its `relation` to that tempo (`top`, `half`, `double` or
   `other`). Empty when no beat was found.
 - `engine`: the engine that measured it.

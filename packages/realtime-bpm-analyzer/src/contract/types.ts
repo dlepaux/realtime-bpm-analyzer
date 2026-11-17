@@ -228,7 +228,12 @@ export type Reading = {
    * were read by analyses on the default range, 90 to 180 BPM, so the calibration says nothing about any other: a
    * custom range changes which candidate each engine picks, so even a reading inside 90 to 180 BPM from a 60 to 200
    * analysis has a score nobody measured. The confidence is then `null` rather than a number with no proven meaning.
-   * On the default range it is always a number, and an explicit `{min: 90, max: 180}` is the default range.
+   * An explicit `{min: 90, max: 180}` is the default range.
+   *
+   * Also `null` on the default range for one kind of reading: the offline peaks engine's, when it found the beats only
+   * relative to a quiet or bass-light file's own level, after its fixed thresholds found none (RBA-221). The tables
+   * never saw such a reading, and the file may hold no beat at all, since noise above -70 dBFS can read a tempo this
+   * way. Every other reading on the default range has a number.
    */
   readonly confidence: number | null;
   /**

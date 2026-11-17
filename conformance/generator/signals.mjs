@@ -181,6 +181,12 @@ function lowpassUnrounded(samples, sampleRate) {
 export const edgeThreshold = 0.85;
 
 /**
+ * The tempogram's floor, the library's consts.tempogramMinSampleRate (RBA-261): the first double at which its FFT has
+ * a bin above DC. A floor moved up makes the case at it throw, and generate.mjs refuses to write the set
+ */
+export const tempogramFloor = 122.97509238026915;
+
+/**
  * The peaks engine compares each lowpassed sample, stored as float32, with its threshold as a double. 15 kicks at
  * 100 BPM: 14 whose lowpassed peak is 0.875, and a last one whose lowpassed peak rounds to exactly
  * Math.fround(0.85), which is 2.4e-8 above 0.85. Compared as doubles, as the reference compares, it is over 0.85, so
@@ -312,7 +318,7 @@ function quieter(id, description, spec, {gainDb = 0, highpassHz = 0}) {
 }
 
 /**
- * Kicks one sample long, on the beat: the tempogram's floor is 100 Hz, where a hop is one sample
+ * Kicks one sample long, on the beat: a click a low rate keeps, where a hop is one sample
  * @param {number} sampleRate Hz
  * @param {number} bpm Tempo
  * @param {number} seconds Length
@@ -388,11 +394,19 @@ export const signals = [
     {sampleRate: 2_000, seconds: 10, bpm: 164, steps: patterns.fourOnTheFloor(), seed: 23}),
   pattern('kick-165-1k', 'Kick on every beat at 165 BPM, the first BPM of the top calibration band, 1 kHz, 10 s.',
     {sampleRate: 1_000, seconds: 10, bpm: 165, steps: patterns.fourOnTheFloor(), seed: 24}),
+  // RBA-261: from 100 Hz up to the tempogram's floor its FFT had 2 points, DC and Nyquist, and 6.2 read null here
   {
     id: 'impulses-120-100hz',
-    description: 'One-sample clicks at 120 BPM, 100 Hz, the lowest rate the tempogram takes (its hop is one sample), 12 s. It reads no tempo: under about 123 Hz the tempogram\'s FFT is 2 points, with no bin above DC.',
+    description: 'One-sample clicks at 120 BPM, 100 Hz, 12 s, for the error cases: under the tempogram\'s floor of 122.97509238026915 Hz, where its FFT would have 2 points, with no bin above DC.',
     sampleRate: 100,
     build: () => impulses(100, 120, 12),
+    optionSets: [],
+  },
+  {
+    id: 'impulses-120-tempogram-floor',
+    description: 'One-sample clicks at 120 BPM, 12 s, at 122.97509238026915 Hz, the tempogram\'s floor: the lowest rate at which its FFT has a bin above DC (4 points).',
+    sampleRate: tempogramFloor,
+    build: () => impulses(tempogramFloor, 120, 12),
     // The peaks engine's default lowpass needs more than 400 Hz
     optionSets: ['default', 'tempogram-90-180', 'range-60-140'],
   },

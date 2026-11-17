@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync} from 'node:fs';
 import {gunzipSync, gzipSync} from 'node:zlib';
 import {analyzeChannelData, applyLowpass} from '../../packages/realtime-bpm-analyzer/dist/node.mjs';
-import {edgeThreshold, noiseSource, signals, toPcm16} from './signals.mjs';
+import {edgeThreshold, noiseSource, signals, tempogramFloor, toPcm16} from './signals.mjs';
 
 const root = new URL('../', import.meta.url);
 const inputsDir = new URL('inputs/', root);
@@ -47,7 +47,7 @@ const extraCases = [
 const errorCases = [
   ['empty-input', 'empty', 44_100, {}, 'No samples.'],
   ['sample-rate-zero', 'kick-120-tiny-44k', 0, {}, 'A sample rate must be positive.'],
-  ['sample-rate-50-tempogram', 'kick-120-tiny-44k', 50, {}, 'The tempogram needs at least 100 Hz.'],
+  ['sample-rate-50-tempogram', 'kick-120-tiny-44k', 50, {}, 'Under the tempogram\'s floor of 122.97509238026915 Hz.'],
   ['sample-rate-negative-peaks', 'kick-120-tiny-44k', -1, {engine: 'peaks'}, 'A sample rate must be positive.'],
   ['range-without-octave', 'kick-120-tiny-44k', 44_100, {tempoRange: {min: 100, max: 150}}, 'max must be at least twice min.'],
   ['range-min-zero', 'kick-120-tiny-44k', 44_100, {tempoRange: {min: 0, max: 150}}, 'min and max must be positive.'],
@@ -63,8 +63,25 @@ const errorCases = [
     [`sample-${name}`, `kick-120-${name}-8k`, 8_000, {}, 'Every sample must be a finite number.'],
     [`sample-${name}-peaks`, `kick-120-${name}-8k`, 8_000, {engine: 'peaks'}, 'Every sample must be a finite number.'],
   ]),
-  ['sample-rate-99-tempogram', 'kick-120-tiny-44k', 99, {}, 'The tempogram needs at least 100 Hz: the edge just under its floor.'],
+  ['sample-rate-99-tempogram', 'kick-120-tiny-44k', 99, {}, 'Under the tempogram\'s floor of 122.97509238026915 Hz, and under its 100 Hz floor before RBA-261.'],
+  // RBA-261: from 100 Hz up to the floor the tempogram's FFT had 2 points, and it read null whatever the audio
+  ...[
+    ['sample-rate-100-tempogram', {}],
+    ['sample-rate-100-tempogram-90-180', {engine: 'tempogram', tempoRange: {min: 90, max: 180}}],
+    ['sample-rate-100-range-60-140', {tempoRange: {min: 60, max: 140}}],
+  ].map(([name, options]) => [name, 'impulses-120-100hz', 100, options, 'Under the tempogram\'s floor of 122.97509238026915 Hz, where its FFT would have 2 points: 6.2 read null.']),
+  ['sample-rate-under-tempogram-floor', 'impulses-120-tempogram-floor', previousDouble(tempogramFloor), {}, 'The double just under the tempogram\'s floor, 122.97509238026913 Hz, where its FFT would have 2 points.'],
 ];
+
+/**
+ * @param {number} value A positive finite double
+ * @returns {number} The double just under it
+ */
+function previousDouble(value) {
+  const bits = new BigInt64Array(Float64Array.of(value).buffer);
+  bits[0] -= 1n;
+  return new Float64Array(bits.buffer)[0];
+}
 
 /** Seeds of the perturbed runs each case is checked against */
 const perturbationSeeds = [101, 202, 303];

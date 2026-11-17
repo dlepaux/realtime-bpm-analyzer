@@ -26,9 +26,10 @@ and never edits them.
 ## Inputs
 
 Each input is a synthetic signal: drum-like patterns and clicks at known tempos, swing, tempos near and outside 90
-to 180 BPM, a quiet mix, a noisy mix, silence, noise, very short input, and sample rates from 8 to 96 kHz. Five more
+to 180 BPM, a quiet mix, a noisy mix, silence, noise, very short input, and sample rates from 8 to 96 kHz. Six more
 sit on an edge: 139, 164 and 165 BPM at 4, 2 and 1 kHz, a BPM either side of the confidence calibration's band edges
-at 140 and 165 (`kick-140-96k` reads 140); clicks at 100 Hz, the tempogram's lowest rate; and
+at 140 and 165 (`kick-140-96k` reads 140); clicks at 122.97509238026915 Hz, the tempogram's lowest rate (see
+Arithmetic), and at 100 Hz, under it, for the error cases; and
 `peaks-threshold-edge-4k`, whose last lowpassed kick lands exactly on a peaks threshold (see Arithmetic). Four
 patterns are quiet or bass-light (14 and 24 dB down, a 150 Hz highpass 10 dB down, a 300 Hz highpass), so the peaks
 engine reads them only relative to their own level, and one sits 76 dB down, under its silence floor (see Arithmetic).
@@ -132,7 +133,7 @@ double. Their `sampleRate` is the case's, not the input's.
 
 These calls must fail. `expectedError` is the JS error's name, which gives the category: `Error` for unusable input
 samples (none at all, or a NaN or infinite sample), and `RangeError` for a value outside its valid range (the sample
-rate, under 2 Hz for peaks and 100 Hz for the tempogram; the tempo range, whose `max` must be at most 2^31 - 1 and
+rate, under 2 Hz for peaks and 122.97509238026915 Hz for the tempogram; the tempo range, whose `max` must be at most 2^31 - 1 and
 whose `max / min` must be finite; or a lowpass setting). A port maps each category to one exception type of its own, chosen deliberately, such as Java's
 `IllegalArgumentException` or Python's `ValueError`, and the harness checks that the call raised that type. Any other
 exception is a failure: a port that crashes on a zero sample rate with a division error has not validated it.
@@ -234,6 +235,13 @@ different ways:
   a level whose `0.9 * level` rounds up when stored, and the 32-bit floats either side of the floor. Those floor tests
   also pin the floor's value to one 32-bit step, which the vectors don't: they catch a missing floor, and each port
   checks its constant against `consts.ts`.
+- **The tempogram's floor (RBA-261).** The tempogram refuses a sample rate under `122.97509238026915` Hz with the
+  error category `RangeError`. That is the first double at which its FFT has 4 points, `2 ** Math.round(Math.log2(0.023
+  * rate))`, so a bin above DC: `consts.ts` derives it. Compare the rate with that double, `rate >= floor`, before the
+  FFT size, and not the FFT size itself: a log2 computed as a ratio of logarithms gives 4 points on the two doubles
+  under the floor already, where `Math.log2` gives 2. The cases pin it both ways: `impulses-120-tempogram-floor` reads
+  at the floor, and `sample-rate-under-tempogram-floor` must fail on the double under it. Measured on 2026-11-17 on
+  the built library, a floor one double higher fails the three floor cases, and one double lower fails the error case.
 
 ## Regenerating
 

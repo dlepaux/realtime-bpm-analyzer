@@ -25,8 +25,9 @@ A live analyzer emits events as it listens:
 - `statechange`: from `listening` to `settling`, then to `locked` once the readings agree
 - `progress`: how far it is toward its first reading
 - `kick`: each kick drum, as it hears it
+- `error`: an analysis step that failed; the next one runs
 
-A whole file gives one reading back, in the same shape.
+A whole file gives one reading back, in the same shape, or `null` when it finds no clear beat.
 
 ## How it finds the tempo
 
@@ -49,7 +50,7 @@ and both report the same kind of reading:
 - **Python**: [the Python port](/guide/python)
 - **Java, Kotlin and Android**: [the Java port](/guide/java)
 
-## What people build with it
+## What it is for
 
 - DJ tools that show or match the tempo of a track
 - Music players that display it

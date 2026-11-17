@@ -34,11 +34,11 @@ Engine: tempogram (default) or peaks
     ↓
 Reading: tempo, confidence, up to 5 candidates
     ↓
-Events: reading, statechange, progress, kick
+Events: reading, statechange, progress, kick, error
 ```
 
 `analyzeFullBuffer`, and `analyzeChannelData` in Node, run the same engines on a whole decoded file at once,
-without the worklet, and return one reading.
+without the worklet, and return one reading, or `null` when there is no clear beat.
 
 ### Key Components
 
@@ -290,15 +290,15 @@ The processor gathers audio before it reports:
 ### Complex Time Signatures
 
 The algorithm works best with:
-- ✅ 4/4 time (most popular music)
-- ✅ Simple rhythms
-- ⚠️ May struggle with 5/4, 7/8, or polyrhythmic music
+- 4/4 time (most popular music)
+- Simple rhythms
+- It may struggle with 5/4, 7/8, or polyrhythmic music
 
 ### Tempo Changes
 
 - **Fixed tempo**: Where it works best
-- **Slight variations**: Votes spread across neighbouring tempos, so the result can be less clear
-- **Major changes**: May report multiple candidates or incorrect BPM
+- **Slight variations**: The evidence spreads across neighbouring tempos, so the reading can be less clear
+- **Major changes**: The reading follows after a while: `tempogram`'s memory of past tempos fades with a 16-second half-life, and `peaks` follows sooner with `restartAfterSeconds`
 
 ## Further Reading
 

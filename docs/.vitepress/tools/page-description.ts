@@ -1,8 +1,11 @@
 // The meta description of a page that has no `description:` in its frontmatter (RBA-268).
 // Two kinds of page can't carry one: the API reference, which TypeDoc writes on every
 // build, and the root files `copy:markdown` copies in (privacy, security, contributing,
-// code of conduct). Without this they all fell back to the home's description, so
+// code of conduct). Without this they all fell back to the site's description, so
 // search showed the same snippet for 40-odd pages. Every other page sets its own.
+
+/** The site's description, VitePress's fallback for any page that has none of its own. */
+export const SITE_DESCRIPTION = 'Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first. Includes a free online BPM tool.'
 
 /** The copied root files, by their path in docs/, each with what it is about. */
 const COPIED_PAGES: Readonly<Record<string, string>> = {

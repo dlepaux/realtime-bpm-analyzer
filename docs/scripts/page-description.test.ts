@@ -1,8 +1,8 @@
 // Run with `npm test`. Which pages without a frontmatter description get one of their own.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync } from 'node:fs'
-import { fallbackDescription } from '../.vitepress/tools/page-description.ts'
+import { existsSync, readFileSync } from 'node:fs'
+import { fallbackDescription, SITE_DESCRIPTION } from '../.vitepress/tools/page-description.ts'
 
 test('fallbackDescription: each copied root file gets its own, and the file exists', () => {
   const pages = ['privacy.md', 'security.md', 'contributing.md', 'code-of-conduct.md']
@@ -28,4 +28,10 @@ test('fallbackDescription: every other page keeps the frontmatter route', () => 
   for (const page of ['index.md', 'guide/node.md', 'tap-tempo.md', 'website-privacy.md']) {
     assert.equal(fallbackDescription(page, 'Title'), undefined)
   }
+})
+
+// verify:seo flags a page carrying SITE_DESCRIPTION, so it must be what VitePress falls back to.
+test('SITE_DESCRIPTION is the description config.ts gives the site', () => {
+  const config = readFileSync(new URL('../.vitepress/config.ts', import.meta.url), 'utf8')
+  assert.ok(config.includes(`\n  description: "${SITE_DESCRIPTION}",`))
 })

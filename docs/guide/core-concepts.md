@@ -231,14 +231,14 @@ It comes about 20 ms after the kick reached the analyzer in Chromium, and 22 to 
 
 ## Best Practices
 
-### ✅ Do
+### Do
 - Connect the source to `analyzer.input`, which gives each engine what it needs (the low-pass filter for `peaks`, the full band for `tempogram`)
 - Wait for the `statechange` to `locked` before displaying a final result
 - Handle multiple candidates (show top 3-5)
 - Create `AudioContext` on user interaction
 - Call `stop()` when you are done: it is final, so create a new analyzer to listen again
 
-### ❌ Don't
+### Don't
 - Create `AudioContext` immediately on page load (autoplay restrictions)
 - Treat the first reading as final (wait for the lock)
 - Ignore the candidates' `relation` (a `half` or `double` is the same beat at another octave)

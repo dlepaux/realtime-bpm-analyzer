@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { HOME_H1, NOT_IN_SITEMAP, seoProblems } from './seo-output.ts'
 import type { BuiltSite } from './extension-switch.ts'
+import { SITE_DESCRIPTION } from '../.vitepress/tools/page-description.ts'
 
 const SITE = 'https://www.realtime-bpm-analyzer.com'
 const TIME = '<time datetime="2026-11-03T10:00:00.000Z" data-v-1>November 3, 2026</time>'
@@ -138,13 +139,18 @@ test('seoProblems: no page carries an empty @graph', () => {
   assert.match(seoProblems(empty).join(), /website-privacy\.html: an empty @graph/)
 })
 
-// RBA-268: the API reference and the copied root files all carried the home's description.
+// RBA-268: the API reference and the copied root files all carried the site's description.
 test('seoProblems: every page in the sitemap has a description of its own', () => {
+  const fallback = site({ 'website-privacy.html': `${canonical('/website-privacy')}${description(SITE_DESCRIPTION)}` })
+  assert.deepEqual(seoProblems(fallback), ["website-privacy.html: the site's default meta description"])
   const shared = site({ 'website-privacy.html': `${canonical('/website-privacy')}${description('Find the BPM of a song')}` })
-  assert.deepEqual(seoProblems(shared), ["website-privacy.html: the home's meta description"])
+  assert.deepEqual(seoProblems(shared), [
+    'index.html: the same meta description as website-privacy.html',
+    'website-privacy.html: the same meta description as index.html',
+  ])
   const none = site({ 'guide/node.html': `${canonical('/guide/node')}${GUIDE}` })
   assert.deepEqual(seoProblems(none), ['guide/node.html: no meta description'])
   // Either attribute order.
-  const reversed = site({ 'website-privacy.html': `${canonical('/website-privacy')}<meta content="Find the BPM of a song" name="description">` })
-  assert.deepEqual(seoProblems(reversed), ["website-privacy.html: the home's meta description"])
+  const reversed = site({ 'website-privacy.html': `${canonical('/website-privacy')}<meta content="${SITE_DESCRIPTION}" name="description">` })
+  assert.deepEqual(seoProblems(reversed), ["website-privacy.html: the site's default meta description"])
 })

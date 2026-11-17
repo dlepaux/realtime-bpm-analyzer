@@ -9,7 +9,7 @@ import { isUsersOnlyExtensionPage } from './tools/extension-pages'
 import { isGuidePage, isNoindexPage, isUnpublishedGuide, SCHEMA_WEB_APPLICATION, siteGraph, techArticle, toolFaqPage } from './tools/site-schema'
 import { EDGE_URL, STORE_URL } from './tools/extension-live'
 import { siteNav } from './tools/site-nav'
-import { fallbackDescription } from './tools/page-description'
+import { fallbackDescription, SITE_DESCRIPTION } from './tools/page-description'
 import { EXTENSION_SHARE_IMAGE, excludedSources, extensionHomeHero, extensionPageSchema, llmsWithExtension } from './tools/extension-promo'
 import { gaLoaderScript } from './tools/analytics-loader'
 import { SITE_URL } from './tools/site-url'
@@ -103,6 +103,7 @@ function shareHead(url: string, title: string, description: string, image: Share
 export default defineConfig({
   title: "Realtime BPM Analyzer",
   titleTemplate: ":title | Realtime BPM Analyzer",
+  // The same words as SITE_DESCRIPTION, written out: home-frozen-text.test.ts pins them here.
   description: "Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first. Includes a free online BPM tool.",
 
   // Base URL - using root since deployed to www.realtime-bpm-analyzer.com
@@ -181,11 +182,10 @@ export default defineConfig({
 
     const SITE_NAME = 'Realtime BPM Analyzer'
     const DEFAULT_OG_TITLE = 'Realtime BPM Analyzer — Web Audio BPM Detection Library'
-    const DEFAULT_DESCRIPTION = 'Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first. Includes a free online BPM tool.'
 
     const pageTitle = pageData.frontmatter.title as string | undefined
     // A page that can't carry frontmatter (the API reference, the copied root files) gets
-    // a description of its own rather than the home's: see tools/page-description.ts.
+    // a description of its own rather than the site's: see tools/page-description.ts.
     const pageDesc = (pageData.frontmatter.description as string | undefined)
       ?? fallbackDescription(pageData.relativePath, pageData.title)
     // VitePress writes <meta name="description"> from pageData.description.
@@ -197,7 +197,7 @@ export default defineConfig({
       : pageTitle
       ? `${pageTitle} | ${SITE_NAME}`
       : DEFAULT_OG_TITLE
-    const ogDesc = pageDesc ?? DEFAULT_DESCRIPTION
+    const ogDesc = pageDesc ?? SITE_DESCRIPTION
 
     // Schema.org @graph, one <script> tag per page: see tools/site-schema.ts for what
     // goes where. Google reads @graph members independently.
@@ -295,7 +295,8 @@ export default defineConfig({
     notFound: {
       title: 'Page not found',
       quote: 'This address has no page, or the page has moved. The BPM finder and the free tools start from the home page.',
-      linkLabel: 'Go to the home page',
+      // The link's accessible name: the visible text, so voice control finds it by what it says.
+      linkLabel: 'Back to the BPM finder',
       linkText: 'Back to the BPM finder',
     },
 

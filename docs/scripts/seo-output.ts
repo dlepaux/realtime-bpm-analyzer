@@ -4,6 +4,7 @@
 // source tests can't see these: they come out of VitePress and config.ts together.
 import type { BuiltSite } from './extension-switch.ts'
 import { UNPUBLISHED_GUIDES } from '../.vitepress/tools/site-schema.ts'
+import { SITE_DESCRIPTION } from '../.vitepress/tools/page-description.ts'
 import { legacyRedirects } from './legacy-redirects.ts'
 import { targetFiles } from './redirects.ts'
 
@@ -132,18 +133,23 @@ function sitemapProblems(site: BuiltSite): string[] {
 const DESCRIPTION = /<meta\b(?=[^>]*\bname="description")[^>]*?\bcontent="([^"]*)"/
 
 // Every page in the sitemap describes itself (RBA-268): VitePress gives a page without a
-// description the site's, which is the home's, so 40-odd pages once shared one snippet.
+// description the site's, so 40-odd pages once shared one snippet. A page fails with no
+// description, with the site's, or with one another sitemap page also has.
 function descriptionProblems(site: BuiltSite): string[] {
-  const home = DESCRIPTION.exec(site.read('index.html'))?.[1]
-  if (!home) return ['home: no meta description']
-  return [...site.read('sitemap.xml').matchAll(LOC)]
+  const described = [...site.read('sitemap.xml').matchAll(LOC)]
     .map((match) => pageOf(site, (match[1] ?? '').trim()))
-    .filter((page): page is string => page !== undefined && page !== 'index.html')
-    .flatMap((page) => {
-      const description = DESCRIPTION.exec(site.read(page))?.[1]
-      if (!description) return [`${page}: no meta description`]
-      return description === home ? [`${page}: the home's meta description`] : []
-    })
+    .filter((page): page is string => page !== undefined)
+    .map((page) => ({ page, description: DESCRIPTION.exec(site.read(page))?.[1] }))
+  const pagesOf = new Map<string, string[]>()
+  for (const { page, description } of described) {
+    if (description) pagesOf.set(description, [...(pagesOf.get(description) ?? []), page])
+  }
+  return described.flatMap(({ page, description }) => {
+    if (!description) return [`${page}: no meta description`]
+    if (description === SITE_DESCRIPTION) return [`${page}: the site's default meta description`]
+    const others = (pagesOf.get(description) ?? []).filter((other) => other !== page)
+    return others.length ? [`${page}: the same meta description as ${others.join(', ')}`] : []
+  })
 }
 
 export function seoProblems(site: BuiltSite): string[] {

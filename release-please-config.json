@@ -76,7 +76,6 @@
       "component": "csharp",
       "include-component-in-tag": true,
       "changelog-path": "changelog.md",
-      "initial-version": "6.2.0",
       "extra-files": [
         { "type": "xml", "path": "src/RealtimeBpmAnalyzer/RealtimeBpmAnalyzer.csproj", "xpath": "//Project/PropertyGroup/Version" }
       ],
@@ -100,7 +99,6 @@
       "component": "swift",
       "include-component-in-tag": true,
       "changelog-path": "changelog.md",
-      "initial-version": "6.2.0",
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
         { "type": "fix", "section": "Bug Fixes" },

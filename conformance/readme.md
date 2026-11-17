@@ -29,8 +29,10 @@ Each input is a synthetic signal: drum-like patterns and clicks at known tempos,
 to 180 BPM, a quiet mix, a noisy mix, silence, noise, very short input, and sample rates from 8 to 96 kHz. Five more
 sit on an edge: 139, 164 and 165 BPM at 4, 2 and 1 kHz, a BPM either side of the confidence calibration's band edges
 at 140 and 165 (`kick-140-96k` reads 140); clicks at 100 Hz, the tempogram's lowest rate; and
-`peaks-threshold-edge-4k`, whose last lowpassed kick lands exactly on a peaks threshold (see Arithmetic). Three short
-kicks carry a NaN or an infinite sample, for the error cases. They contain no recorded music.
+`peaks-threshold-edge-4k`, whose last lowpassed kick lands exactly on a peaks threshold (see Arithmetic). Four
+patterns are quiet or bass-light (14 and 24 dB down, a 150 Hz highpass 10 dB down, a 300 Hz highpass), so the peaks
+engine reads them only relative to their own level, and one sits 76 dB down, under its silence floor (see Arithmetic).
+Three short kicks carry a NaN or an infinite sample, for the error cases. They contain no recorded music.
 
 An input file is mono PCM, signed 16-bit little-endian, gzipped. To get the samples the library analysed:
 
@@ -65,7 +67,7 @@ for (int i = 0; i < samples.length; i++) samples[i] = pcm.get(i) / 32768f;
 holds bit-identical samples. The other option was a generator that each port reimplements from a specified PRNG.
 That costs 0 bytes, but every port, C# and Swift later included, would then carry a second piece of code that has
 to match JS bit for bit. A wrong sample there would show up as a failed reading, a long way from its cause. The
-price of committed files is their size. The inputs total about 4.5 MiB, under a budget of 5 MiB that
+price of committed files is their size. The inputs total about 4.7 MiB, under a budget of 5 MiB that
 `tests/vectors.test.mjs` enforces. Lengths are kept to what a reading needs, 0.3 to 12 s.
 
 ## vectors.json, schema version 2
@@ -121,7 +123,7 @@ double. Their `sampleRate` is the case's, not the input's.
 |---|---|---|
 | `bpm` | integer | The tempo, inside the tempo range. Equal to `candidates[0].bpm`. |
 | `bpmExact` | float | The same tempo, unrounded. |
-| `confidence` | float or `null` | The chance, 0 to 1, that `bpm` is right. `null` means unmeasured: the reading's `bpm` is outside 90 to 180, or the analysis ran on any range other than 90 to 180. |
+| `confidence` | float or `null` | The chance, 0 to 1, that `bpm` is right. `null` means unmeasured: the reading's `bpm` is outside 90 to 180, or the analysis ran on any range other than 90 to 180, or the peaks engine found the beats only relative to the input's level (see Arithmetic). |
 | `candidates` | array, 1 to 5 entries | `{"bpm": integer, "relation": "top" \| "half" \| "double" \| "other"}`, in the engine's rank order. `candidates[0]` has relation `top`. |
 | `audio` | object | `{"from": 0, "to": <samples / sampleRate>, "contextTime": null}`: the span analysed, in seconds. |
 | `engine` | string | `"tempogram"` or `"peaks"`, the engine that ran. |
@@ -158,7 +160,7 @@ input sample moved by about one 32-bit float step (multiplied by 1 ± 2^-22, eit
 float32). That is the scale at which a port's arithmetic and a runtime's `Math` functions differ from the reference.
 If any exact field changes under that perturbation, the generator refuses to write the set, because a correct port
 could then fail on rounding alone. The largest change it sees in the two float fields is recorded as
-`referenceSpread`. When this was written, that spread was 5.5e-8 BPM for `bpmExact` and 1.4e-8 for `confidence`. The
+`referenceSpread`. When this was written, that spread was 7.1e-8 BPM for `bpmExact` and 1.4e-8 for `confidence`. The
 generator also refuses to write a set whose spread comes within 10 times of its tolerance, so a correct port has at
 least that much margin.
 
@@ -205,6 +207,27 @@ different ways:
 - **Arithmetic.** All of it is IEEE 754 double, except the input samples, which are 32-bit floats. The lowpass
   output and the tempogram's onset ring are also stored as 32-bit floats, but, as measured above, a port may keep
   them as doubles. The peaks thresholds (0.9 down to 0.2) are doubles, and the comparison with them is in double.
+- **The peaks level (RBA-221).** When none of the peaks thresholds finds 15 peaks, the engine searches once more,
+  with every threshold multiplied by the input's level. Its readings have `confidence` `null`, whatever the range.
+  The level is computed on the lowpassed samples:
+  1. Cut them into windows of `Math.round(0.25 * sampleRate)` samples, rounded half up: the same count as the skip
+     after a peak. The last window may be shorter. There are `ceil(n / window)` windows.
+  2. Take each window's maximum, starting from 0, so only positive samples count. Not the absolute value.
+  3. Sort the maxima in ascending order and take the one at index `floor((windows - 1) * 98 / 100)`, in integer
+     arithmetic. That is not a percentile function: NumPy's `percentile` and most libraries interpolate between
+     two values, and a nearest-rank formula picks another index. Each of those fails cases here.
+  4. If the level is under `0.00031622776601683794` (-70 dBFS, written out so every port compares with the same
+     double), or is 1 or more, there is no second search, and the reading is `null`.
+  5. Otherwise each threshold is `rung * level`, the rung (0.9 down to 0.2, as above) times the level, in double,
+     and each sample is compared with it in double, as above. The level is a 32-bit sample value: widen it to
+     double before the product and before the comparison with the floor. In NumPy 2, a `float32` times a Python
+     `float` stays `float32`, so convert it first.
+
+  Measured on 2026-11-17 by running the vectors through altered copies of this search: an interpolated percentile,
+  a nearest-rank one, a rounded index, the loudest window, absolute values and a missing floor each fail 4 to 12
+  cases. Two mistakes pass every case, so a port's review has to check them: windows of `floor(0.25 * sampleRate)`
+  samples, since moving a window's edge by one sample rarely changes the level, and a threshold rounded to 32 bits,
+  since no input places a sample within a 32-bit step of a scaled threshold.
 
 ## Regenerating
 

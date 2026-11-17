@@ -263,6 +263,55 @@ function thresholdEdge() {
 }
 
 /**
+ * A 4th-order Butterworth highpass, as two RBJ cookbook biquads in double precision: the bass cut of RBA-218's
+ * bass-light variants, which leave the peaks engine's 200 Hz lowpass little to read
+ * @param {Float64Array} mix The signal
+ * @param {number} sampleRate Hz
+ * @param {number} frequency The corner, in Hz
+ * @returns {Float64Array} The filtered signal
+ */
+function highpass(mix, sampleRate, frequency) {
+  let out = mix;
+  // The two section Qs of a 4th-order Butterworth filter, as RBA-218's probe set them
+  for (const q of [0.5412, 1.3066]) {
+    const w0 = (2 * Math.PI * frequency) / sampleRate;
+    const cosW0 = Math.cos(w0);
+    const alpha = Math.sin(w0) / (2 * q);
+    const a0 = 1 + alpha;
+    const [b0, b1, b2, a1, a2] = [((1 + cosW0) / 2) / a0, -(1 + cosW0) / a0, ((1 + cosW0) / 2) / a0, (-2 * cosW0) / a0, (1 - alpha) / a0];
+    const input = out;
+    out = new Float64Array(input.length);
+    let [x1, x2, y1, y2] = [0, 0, 0, 0];
+    for (let i = 0; i < input.length; i += 1) {
+      const x0 = input[i];
+      const y0 = (b0 * x0) + (b1 * x1) + (b2 * x2) - (a1 * y1) - (a2 * y2);
+      out[i] = y0;
+      [x2, x1, y2, y1] = [x1, x0, y1, y0];
+    }
+  }
+
+  return out;
+}
+
+/**
+ * A pattern made quiet or bass-light, as RBA-218's probe made its variants: RBA-221's fallback reads these, where the
+ * peaks engine's fixed thresholds find no beat
+ * @param {string} id File name in ../inputs
+ * @param {string} description What it is and why it is in the set
+ * @param {object} spec The settings {@link render} takes
+ * @param {{gainDb?: number, highpassHz?: number}} change A gain in dB on the mix's default 0.7, and a highpass corner
+ * @returns {{id: string, description: string, sampleRate: number, build: () => Float64Array}} The signal
+ */
+function quieter(id, description, spec, {gainDb = 0, highpassHz = 0}) {
+  const build = () => {
+    const mix = render({...spec, gain: 0.7 * (10 ** (gainDb / 20))});
+    return highpassHz > 0 ? highpass(mix, spec.sampleRate, highpassHz) : mix;
+  };
+
+  return {id, description, sampleRate: spec.sampleRate, build};
+}
+
+/**
  * Kicks one sample long, on the beat: the tempogram's floor is 100 Hz, where a hop is one sample
  * @param {number} sampleRate Hz
  * @param {number} bpm Tempo
@@ -357,6 +406,19 @@ export const signals = [
     // times a double's rounding, so any double lowpass keeps it, while a one-step move of a 16-bit input crosses it
     perturbation: 0,
   },
+  // RBA-221: the peaks engine's fixed thresholds find no beat in these, so their peaks readings come from its search
+  // relative to the input's level, with confidence null
+  quieter('house-118-minus14db-8k', 'House pattern at 118 BPM, 14 dB under the other patterns, 8 kHz, 10 s.',
+    {sampleRate: 8_000, seconds: 10, bpm: 118, steps: patterns.house(), seed: 26}, {gainDb: -14}),
+  quieter('rock-104-minus24db-11k', 'Rock pattern at 104 BPM, 24 dB under the other patterns, 11.025 kHz, 10 s.',
+    {sampleRate: 11_025, seconds: 10, bpm: 104, steps: patterns.rock(0.5), seed: 27}, {gainDb: -24}),
+  // A 150 Hz cut alone leaves this kick -8.6 dBFS after the lowpass, which the fixed thresholds read
+  quieter('kick-126-hp150-minus10db-16k', 'Kick on every beat at 126 BPM through a 150 Hz highpass (24 dB per octave), 10 dB under the other patterns, 16 kHz, 8 s.',
+    {sampleRate: 16_000, seconds: 8, bpm: 126, steps: patterns.fourOnTheFloor(), seed: 28}, {gainDb: -10, highpassHz: 150}),
+  quieter('house-112-hp300-8k', 'House pattern at 112 BPM through a 300 Hz highpass (24 dB per octave), 8 kHz, 10 s.',
+    {sampleRate: 8_000, seconds: 10, bpm: 112, steps: patterns.house(), seed: 29}, {highpassHz: 300}),
+  quieter('house-120-near-silent-8k', 'House pattern at 120 BPM, 76 dB under the other patterns, 8 kHz, 10 s: under the peaks engine\'s silence floor after its lowpass, so still no peaks reading.',
+    {sampleRate: 8_000, seconds: 10, bpm: 120, steps: patterns.house(), seed: 30}, {gainDb: -76}),
   ...[['nan', 'NaN'], ['infinity', 'Infinity'], ['negative-infinity', '-Infinity']].map(([name, value]) => ({
     ...pattern(`kick-120-${name}-8k`, `A kick at 120 BPM, 8 kHz, 0.5 s, whose last sample is ${value}, for the error cases.`,
       {sampleRate: 8_000, seconds: 0.5, bpm: 120, steps: patterns.fourOnTheFloor(), seed: 25}),

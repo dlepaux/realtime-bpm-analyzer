@@ -57,7 +57,7 @@ test('isNoindexPage: the docs readme and the unpublished Swift guide leave the s
 // The noindex flips (contributing.md, "First publish of v6", step 13, and "First publish of the
 // 6.2 ports", step 8) made the CLI, MCP, Java and Python guides articles.
 test('isUnpublishedGuide and isGuidePage: the CLI, MCP, Java and Python guides are articles since their packages were published', () => {
-  assert.deepEqual(UNPUBLISHED_GUIDES, ['guide/swift'])
+  assert.deepEqual(UNPUBLISHED_GUIDES, ['guide/csharp', 'guide/swift'])
   for (const path of ['guide/cli.md', '/guide/mcp', 'guide/java.md', '/guide/python', 'guide/node.md']) assert.ok(!isUnpublishedGuide(path), path)
   for (const path of ['guide/node.md', 'guide/beat-detection-web-audio.md', 'guide/cli.md', 'guide/mcp.md', 'guide/java.md', 'guide/python.md']) {
     assert.ok(isGuidePage(path), path)
@@ -65,6 +65,13 @@ test('isUnpublishedGuide and isGuidePage: the CLI, MCP, Java and Python guides a
   for (const path of ['index.md', 'bpm-to-frames.md', 'examples/react.md']) {
     assert.ok(!isGuidePage(path), path)
   }
+})
+
+// The C# guide is unpublished until the C# port is on NuGet (RBA-264).
+test('isUnpublishedGuide, isGuidePage and isNoindexPage: the C# guide is not an article until published', () => {
+  assert.ok(isUnpublishedGuide('guide/csharp.md') && isUnpublishedGuide('/guide/csharp'))
+  assert.ok(!isGuidePage('guide/csharp.md'))
+  for (const url of ['guide/csharp', '/guide/csharp.html']) assert.ok(isNoindexPage(url), url)
 })
 
 // Until a Swift package is released (RBA-265), the Swift guide is not an article.

@@ -47,6 +47,8 @@ const EXPECTED: Record<string, Record<string, Record<string, string>>> = {
     'conformance-jvm': { contents: 'read' },
     // checkout. setup-python downloads public releases, pip installs from PyPI without a token.
     'conformance-python': { contents: 'read' },
+    // checkout. setup-dotnet downloads the SDK anonymously, and the restore reads nuget.org without a token.
+    'conformance-dotnet': { contents: 'read' },
     // checkout. The Swift images are public, pulled from Docker Hub without a token.
     'conformance-swift': { contents: 'read' },
     // checkout. bin/port-publish-gate.mjs reads the tags anonymously; the upload uses the runner's own artifact token.

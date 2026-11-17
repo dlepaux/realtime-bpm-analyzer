@@ -153,7 +153,8 @@ export const tempoRangeKeys = Object.freeze(['min', 'max'] as const);
  * Validate a caller-supplied tempo range, or return the default 90–180 BPM
  * @param tempoRange - Range from the caller's options
  * @returns A range every tempo can be folded into
- * @throws {RangeError} When a bound is not a positive finite number, or the range spans less than one octave
+ * @throws {RangeError} When a bound is not a positive finite number, the range spans less than one octave, `max` is
+ * over 2^31 - 1 BPM, or `max / min` overflows
  * @throws {TypeError} When the range carries a key other than `min` and `max`
  */
 export function resolveTempoRange(tempoRange?: TempoRange): TempoRange {
@@ -185,6 +186,18 @@ export function resolveTempoRange(tempoRange?: TempoRange): TempoRange {
     throw new RangeError(
       `Invalid tempoRange: max (${max}) must be at least twice min (${min}) so that every tempo has an octave inside the range.`,
     );
+  }
+
+  // A whole BPM must fit the signed 32-bit integer every typed port returns it in (RBA-260)
+  if (max > consts.maxTempoRangeBpm) {
+    throw new RangeError(`Invalid tempoRange: max (${max}) must be at most ${consts.maxTempoRangeBpm} BPM.`);
+  }
+
+  // The tempogram's grid has one tempo per 1% step from min to max, log(max / min) / log(1.01) + 1 of them. Every
+  // finite ratio gives at most 71,333, with 2.3 MB of comb lags, which every runtime allocates. An infinite
+  // ratio has no grid: 6.1.0 refused it only by accident, with "Invalid typed array length" (RBA-260)
+  if (!Number.isFinite(max / min)) {
+    throw new RangeError(`Invalid tempoRange: max / min (${max} / ${min}) is too large, past the largest finite number.`);
   }
 
   return {min, max};

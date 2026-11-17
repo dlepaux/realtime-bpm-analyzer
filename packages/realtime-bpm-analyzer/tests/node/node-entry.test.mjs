@@ -254,6 +254,58 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {tempoRange: {min: 60, max: 120, mni: 50}}), {name: 'TypeError', message: / mni/});
     await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {engine: {name: 'peaks', lowpass: {frequency: Number.NaN}}}), RangeError);
   });
+
+  // RBA-260: under 2 Hz the 0.25 s skip after a peak rounds to no sample, and 6.1.0's peak search never advanced
+  it('refuses a sample rate under 2 Hz for peaks, where the skip after a peak rounds to no sample, and runs at 2 Hz', async () => {
+    const clicks = createClickTrack(120, 2, 60);
+    const lowpass = {frequency: 0.2};
+    for (const sampleRate of [1.99, 1, 0.5]) {
+      await assert.rejects(analyzeChannelData(clicks, sampleRate, {engine: {name: 'peaks', lowpass}}), {
+        name: 'RangeError',
+        message: new RegExp(`Invalid sample rate: ${sampleRate}\\. The peaks engine needs at least 2 Hz`),
+      });
+    }
+
+    // A lowpass fault is reported first, as in 6.1.0
+    await assert.rejects(analyzeChannelData(clicks, 1, {engine: {name: 'peaks', lowpass: {frequncy: 0.2}}}), {name: 'TypeError', message: / frequncy/});
+    await analyzeChannelData(clicks, 2, {engine: {name: 'peaks', lowpass}});
+  });
+
+  it('refuses a tempo range whose max / min overflows, with either engine, and takes the largest that does not', async () => {
+    const clicks = createClickTrack(120, 44_100, 12);
+    for (const engine of ['peaks', 'tempogram']) {
+      await assert.rejects(analyzeChannelData(clicks, 44_100, {engine, tempoRange: {min: 1e-306, max: 1000}}), {
+        name: 'RangeError',
+        message: /max \/ min \(1000 \/ 1e-306\) is too large/,
+      });
+    }
+
+    const reading = await analyzeChannelData(clicks, 44_100, {engine: 'peaks', tempoRange: {min: 1000 / Number.MAX_VALUE, max: 1000}});
+    assert.equal(reading?.bpm, 120);
+  });
+
+  it('refuses a tempo range max above 2^31 - 1 BPM, so a whole BPM fits a 32-bit integer in every port, and takes it at that', async () => {
+    const clicks = createClickTrack(120, 44_100, 12);
+    await assert.rejects(analyzeChannelData(clicks, 44_100, {engine: 'peaks', tempoRange: {min: 90, max: 2 ** 31}}), {
+      name: 'RangeError',
+      message: /max \(2147483648\) must be at most 2147483647/,
+    });
+    const reading = await analyzeChannelData(clicks, 44_100, {engine: 'peaks', tempoRange: {min: 90, max: (2 ** 31) - 1}});
+    assert.equal(reading?.bpm, 120);
+  });
+
+  it('refuses a NaN or infinite sample, naming its index, with either engine', async () => {
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const clicks = createClickTrack(120, 44_100, 12);
+      clicks[1234] = value;
+      for (const engine of ['peaks', 'tempogram']) {
+        await assert.rejects(analyzeChannelData(clicks, 44_100, {engine}), {
+          name: 'Error',
+          message: `Invalid channel data: sample 1234 is ${value}, and every sample must be a finite number.`,
+        });
+      }
+    }
+  });
 });
 
 describe('applyLowpass', hangLimit, () => {

@@ -132,10 +132,11 @@ export function siteGraph(relativePath: string): object[] {
 }
 
 /**
- * Guides for packages that aren't on npm yet. Their pages are noindex and out of the
- * sitemap, the sidebar, the search and llms.txt (RBA-122). Empty since the CLI and the
- * MCP server reached npm: the noindex flip (contributing.md, "First publish of v6", step 13)
- * made their guides articles like every other guide.
+ * Guides for packages that aren't published yet. Their pages are noindex and out of the
+ * sitemap, the sidebar, the search and llms.txt (RBA-122). Empty since the Java and Python
+ * ports reached Maven Central and PyPI (contributing.md, "First publish of the 6.2 ports",
+ * step 8), as the CLI and MCP guides left it when both reached npm ("First publish of v6",
+ * step 13). The machinery stays for a future package whose guide lands before its release.
  */
 export const UNPUBLISHED_GUIDES: readonly string[] = []
 

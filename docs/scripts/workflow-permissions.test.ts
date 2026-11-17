@@ -1,7 +1,8 @@
 // Run with `npm test`. What each workflow job may do with its GITHUB_TOKEN and its OIDC token (RBA-232).
 // npm's trusted publisher accepts an OIDC token from main.yml, so `id-token: write` on any other job of it,
 // a pull request's run included, could publish realtime-bpm-analyzer. Only the release job gets one, in the
-// `npm` environment that only main may deploy to, and Pages' deploy job, which needs one to deploy.
+// `npm` environment that only main may deploy to, the PyPI publish job, in the `pypi` environment that only main
+// may deploy to, and Pages' deploy job, which needs one to deploy.
 // A permission missing from a job fails only on main, after the merge, where no PR run shows it: so every
 // job's permissions are pinned below with the step that uses them, and a change has to change both.
 import { test } from 'node:test'
@@ -37,6 +38,24 @@ const EXPECTED: Record<string, Record<string, Record<string, string>>> = {
     firefox: { contents: 'read' },
     // checkout. The downloads use the runner's own artifact token.
     'node-floor': { contents: 'read' },
+    // checkout. The download uses the runner's own artifact token; Deno's and Bun's setup actions download public
+    // releases.
+    conformance: { contents: 'read' },
+    // checkout, and the Hermes clone, which is public. actions/cache uses the runner's own token.
+    'conformance-hermes': { contents: 'read' },
+    // checkout. setup-java's Maven cache uses the runner's own token, and the wrapper downloads Maven anonymously.
+    'conformance-jvm': { contents: 'read' },
+    // checkout. setup-python downloads public releases, pip installs from PyPI without a token.
+    'conformance-python': { contents: 'read' },
+    // checkout. bin/port-publish-gate.mjs reads the tags anonymously; the upload uses the runner's own artifact token.
+    'pypi-build': { contents: 'read' },
+    // pypa/gh-action-pypi-publish's README: id-token for PyPI's trusted publishing and the attestations. No
+    // checkout, and the download uses the runner's own artifact token.
+    'pypi-publish': { 'id-token': 'write' },
+    // checkout. bin/port-publish-gate.mjs reads the tags anonymously.
+    'maven-check': { contents: 'read' },
+    // checkout. Central's token and the signing key are the maven environment's secrets, not GITHUB_TOKEN's.
+    'maven-publish': { contents: 'read' },
     // checkout, and configure-pages on pushes, which reads the Pages site (GET /repos/{owner}/{repo}/pages).
     // upload-pages-artifact is an artifact upload.
     docs: { contents: 'read', pages: 'read' },
@@ -68,7 +87,7 @@ const PULL_REQUEST_WRITES: Record<string, Record<string, string[]>> = {
   'codeql.yml': { analyze: ['security-events'] },
 }
 
-const ID_TOKEN_JOBS = ['main.yml/release', 'main.yml/docs-deploy']
+const ID_TOKEN_JOBS = ['main.yml/release', 'main.yml/pypi-publish', 'main.yml/docs-deploy']
 
 const ALL_SCOPES = ['actions', 'attestations', 'checks', 'contents', 'deployments', 'discussions', 'id-token', 'issues', 'models', 'packages', 'pages', 'pull-requests', 'security-events', 'statuses']
 
@@ -118,14 +137,16 @@ test('each job has exactly the permissions pinned for it', () => {
   }
 })
 
-test('id-token: write is on the release job and Pages\' deploy only', () => {
+test('id-token: write is on the release job, the PyPI publish and Pages\' deploy only', () => {
   const holders = jobsOf().filter(({ job, workflow }) => effective(workflow, job)['id-token'] === 'write').map(({ file, id }) => `${file}/${id}`)
   assert.deepEqual(holders.sort(), [...ID_TOKEN_JOBS].sort())
 })
 
-test('the release job runs in the npm environment, and Pages\' deploy in github-pages', () => {
+test('each publish job runs in its registry\'s environment, and Pages\' deploy in github-pages', () => {
   const jobs = workflows['main.yml']?.jobs
   assert.equal(environmentName(jobs?.release ?? {}), 'npm')
+  assert.equal(environmentName(jobs?.['pypi-publish'] ?? {}), 'pypi')
+  assert.equal(environmentName(jobs?.['maven-publish'] ?? {}), 'maven')
   assert.equal(environmentName(jobs?.['docs-deploy'] ?? {}), 'github-pages')
 })
 

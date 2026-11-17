@@ -103,7 +103,8 @@ export async function getOfflineLowPassSource(
  * @param options - The engine (default `tempogram`; lowpass settings for `peaks`) and the tempo range
  * @returns A promise of the reading, the same shape as a realtime one, or null when no tempo was found. The function
  * itself never throws: each error below rejects the promise.
- * @throws {Error} When the buffer is empty or its sample rate is not positive
+ * @throws {Error} When the buffer is empty, its sample rate is not positive, or channel 0 holds a NaN or infinite
+ * sample
  * @throws {RangeError} When `engine` or `tempoRange` is invalid
  * @throws {TypeError} When the options are not an object or carry a key other than `engine` and `tempoRange` (a 5.x
  * option name included, with its replacement), `tempoRange` carries a key other than `min` and `max`, the `engine`

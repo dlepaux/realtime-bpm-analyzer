@@ -1,6 +1,6 @@
 // Run with `npm test`. What the page sources must say for search engines and AI readers:
-// the CLI and MCP guides are in every list since the noindex flip, home has one h1 (RBA-129),
-// and the titles and snippets this repo has tuned stay within what results show.
+// the CLI, MCP, Java and Python guides are in every list since their noindex flips, home has
+// one h1 (RBA-129), and the titles and snippets this repo has tuned stay within what results show.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -45,11 +45,13 @@ test('the guides whose openings answer first still do', () => {
   assert.match(opening('guide/bpm-from-microphone.md'), /^To detect BPM from the microphone/)
 })
 
-// The noindex flip (contributing.md, "First publish of v6", step 13): both packages are on npm.
-test('the CLI and MCP guides are in the sidebar, llms.txt and the search', () => {
+// The noindex flips (contributing.md, "First publish of v6", step 13, and "First publish of the
+// 6.2 ports", step 8): the CLI and MCP server are on npm, the Java port on Maven Central and the
+// Python port on PyPI.
+test('the CLI, MCP, Java and Python guides are in the sidebar, llms.txt and the search', () => {
   const config = read('../.vitepress/config.ts')
   const llms = read('../public/llms.txt')
-  for (const name of ['cli', 'mcp']) {
+  for (const name of ['cli', 'mcp', 'java', 'python']) {
     assert.ok(config.includes(`link: '/guide/${name}' }`), `config.ts: /guide/${name} is not in the sidebar`)
     assert.ok(llms.includes(`https://www.realtime-bpm-analyzer.com/guide/${name})`), `llms.txt: /guide/${name}`)
     assert.equal(field(read(`../guide/${name}.md`), 'search'), undefined, `guide/${name}.md: still out of the search`)

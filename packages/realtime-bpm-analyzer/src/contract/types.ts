@@ -102,9 +102,11 @@ export type OfflineEngineOption =
 
 /**
  * Range every tempo is reported in, in BPM. `max` must be at least twice `min`, so every tempo has an octave
- * inside it. Default 90 to 180, the range `Reading.confidence` was measured on: any other range gives every reading
- * confidence `null`, and an explicit `{min: 90, max: 180}` is the default. Any key other than `min` and `max` is
- * refused with a `TypeError` that names it.
+ * inside it. `max` must be at most 2^31 - 1, so a whole BPM fits a signed 32-bit integer, and `max / min` must be a
+ * finite number; a value past either bound is refused with a `RangeError`. Default 90 to 180, the range
+ * `Reading.confidence` was measured on: any other range gives every reading confidence `null`, and an explicit
+ * `{min: 90, max: 180}` is the default. Any key other than `min` and `max` is refused with a `TypeError` that names
+ * it.
  */
 export type TempoRange = {
   readonly min: number;

@@ -27,6 +27,21 @@
       "include-component-in-tag": true,
       "changelog-path": "changelog.md",
       "initial-version": "0.1.0"
+    },
+    "packages/jvm": {
+      "release-type": "maven",
+      "component": "jvm",
+      "include-component-in-tag": true,
+      "changelog-path": "changelog.md",
+      "initial-version": "6.2.0",
+      "skip-snapshot": true
+    },
+    "packages/python": {
+      "release-type": "python",
+      "package-name": "realtime-bpm-analyzer",
+      "component": "python",
+      "include-component-in-tag": true,
+      "changelog-path": "changelog.md"
     }
   }
 }

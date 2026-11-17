@@ -1,6 +1,6 @@
 {
   "name": "realtime-bpm-analyzer",
-  "version": "6.1.0",
+  "version": "6.2.0",
   "description": "Realtime BPM detection library for the browser — file, microphone, and stream audio. AudioWorklet-native, zero dependencies, TypeScript-first.",
   "author": {
     "name": "David Lepaux",
@@ -103,6 +103,6 @@
     "puppeteer": "^25.16.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.2"
   }
 }

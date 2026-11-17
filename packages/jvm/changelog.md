@@ -1,5 +1,14 @@
 # Changelog
 
+## [6.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/jvm-v6.2.0...jvm-v6.2.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **jvm:** name the level-relative peaks reading where confidence() documents its null (RBA-221) ([32a36cb](https://github.com/dlepaux/realtime-bpm-analyzer/commit/32a36cb9e89f616700b77d7540a4a81991d412c2))
+* **jvm:** read quiet and bass-light files with the peaks engine, as the JS library now does (RBA-221) ([aa7a15e](https://github.com/dlepaux/realtime-bpm-analyzer/commit/aa7a15eabf3eb9e638ba1d79c5805982944afd20))
+* **peaks:** read quiet and bass-light files that returned no tempo, in the library and its four ports (RBA-221) ([b76386a](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b76386aec8f34895cfd766ecbba522fc05c36e91))
+
 ## 6.2.0 (2026-11-16)
 
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.2.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/swift-v6.2.0...swift-v6.2.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **peaks:** read quiet and bass-light files that returned no tempo, in the library and its four ports (RBA-221) ([b76386a](https://github.com/dlepaux/realtime-bpm-analyzer/commit/b76386aec8f34895cfd766ecbba522fc05c36e91))
+* **swift:** size RBA-221's level window before the empty check again, as JS does ([95591e1](https://github.com/dlepaux/realtime-bpm-analyzer/commit/95591e1314f10d26625f0804d21540b9d6edea2d))
+
 ## 6.2.0 (2026-11-17)
 
 

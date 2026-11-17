@@ -32,7 +32,7 @@
 | Browser, live or from a file | [`realtime-bpm-analyzer`](https://www.npmjs.com/package/realtime-bpm-analyzer) | `npm install realtime-bpm-analyzer` | [Getting started](https://www.realtime-bpm-analyzer.com/guide/getting-started) |
 | Node.js, Deno and Bun | [`realtime-bpm-analyzer/node`](https://www.npmjs.com/package/realtime-bpm-analyzer) | `npm install realtime-bpm-analyzer` | [Node.js](https://www.realtime-bpm-analyzer.com/guide/node) |
 | Python 3.11+ | [`realtime-bpm-analyzer`](https://pypi.org/project/realtime-bpm-analyzer/) | `pip install realtime-bpm-analyzer` | [Python](https://www.realtime-bpm-analyzer.com/guide/python) |
-| Java 8+, Kotlin and Android | [`io.github.dlepaux:realtime-bpm-analyzer`](https://central.sonatype.com/artifact/io.github.dlepaux/realtime-bpm-analyzer) | `implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")` | [Java and Kotlin](https://www.realtime-bpm-analyzer.com/guide/java) |
+| Java 8+, Kotlin and Android | [`io.github.dlepaux:realtime-bpm-analyzer`](https://central.sonatype.com/artifact/io.github.dlepaux/realtime-bpm-analyzer) | `implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.1")` | [Java and Kotlin](https://www.realtime-bpm-analyzer.com/guide/java) |
 | C# on .NET Standard 2.0: Unity, Godot and .NET | [`RealtimeBpmAnalyzer`](https://www.nuget.org/packages/RealtimeBpmAnalyzer) | `dotnet add package RealtimeBpmAnalyzer` | [C#, Unity and Godot](https://www.realtime-bpm-analyzer.com/guide/csharp) |
 | Swift 5.9+: iOS, macOS and Linux | [`realtime-bpm-analyzer-swift`](https://github.com/dlepaux/realtime-bpm-analyzer-swift) | Swift Package Manager, from `https://github.com/dlepaux/realtime-bpm-analyzer-swift` | [Swift](https://www.realtime-bpm-analyzer.com/guide/swift) |
 

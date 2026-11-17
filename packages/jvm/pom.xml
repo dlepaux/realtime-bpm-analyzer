@@ -18,14 +18,12 @@
   (Maven Central) job, on a release from main, and on pull requests with a throwaway key and skipUpload
   (contributing.md, "First publish of the 6.2 ports").
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>io.github.dlepaux</groupId>
   <artifactId>realtime-bpm-analyzer</artifactId>
-  <version>6.2.0</version>
+  <version>6.2.1</version>
   <packaging>jar</packaging>
 
   <name>realtime-bpm-analyzer (JVM)</name>

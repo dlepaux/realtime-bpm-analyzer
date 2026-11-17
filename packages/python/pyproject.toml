@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "realtime-bpm-analyzer"
-version = "6.2.1"
+version = "6.2.2"
 description = "Offline BPM detection with the same readings as the realtime-bpm-analyzer JS library, held to it by shared conformance vectors."
 readme = "readme.md"
 license = "Apache-2.0"

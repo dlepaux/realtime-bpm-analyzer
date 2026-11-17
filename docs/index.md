@@ -228,7 +228,7 @@ On Java 8 or later, with no dependencies: the tempo of samples from any decoder.
 <dependency>
   <groupId>io.github.dlepaux</groupId>
   <artifactId>realtime-bpm-analyzer</artifactId>
-  <version>6.2.0</version>
+  <version>6.2.1</version>
 </dependency>
 ```
 
@@ -253,7 +253,7 @@ In Kotlin and on Android, with the same jar: the tempo of samples from any decod
 <!-- x-release-please-start-version -->
 
 ```kotlin
-implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.0")
+implementation("io.github.dlepaux:realtime-bpm-analyzer:6.2.1")
 ```
 
 <!-- x-release-please-end -->

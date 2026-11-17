@@ -41,7 +41,8 @@ const FIELDS: Record<string, (dep: Dep) => string | undefined> = {
 
 function ruleMatches(rule: Rule, dep: Dep): boolean {
   const matchers = Object.keys(rule).filter((key) => key.startsWith('match'))
-  return matchers.length > 0 && matchers.every((key) => {
+  // No matcher at all applies the rule to every dependency, as in Renovate
+  return matchers.every((key) => {
     const value = FIELDS[key]?.(dep)
     if (value === undefined) return false
     const patterns = [rule[key]].flat() as string[]
@@ -130,4 +131,5 @@ test('the matcher reads matchPackageNames as the package name, as Renovate does'
   assert.equal(ruleMatches({ matchManagers: ['github-actions'], matchDepNames: ['node'] }, setupNode), true)
   assert.equal(ruleMatches({ matchDepNames: ['node'], matchCurrentValue: '/^22\\./' }, { ...setupNode, currentValue: '26.12.1' }), false)
   assert.equal(ruleMatches({ matchDepNames: ['node'], matchFileNames: ['x'] }, setupNode), false)
+  assert.equal(ruleMatches({ enabled: false }, setupNode), true)
 })

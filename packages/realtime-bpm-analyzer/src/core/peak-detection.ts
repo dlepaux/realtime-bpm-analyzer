@@ -131,7 +131,8 @@ export async function findPeaks({
  * @param audioSampleRate Sample rate in Hz, at least {@link consts.peaksMinSampleRate}
  * @returns The `levelPercentile` of the channel's maxima per `peakSkipDuration` window, 0 for silence
  * @remarks Only positive samples count, since `findPeaksAtThreshold` compares signed samples. A sample that is NaN is
- * skipped, since no comparison with it holds, and an infinite one counts: either way the level then finds no beats.
+ * skipped, since no comparison with it holds, so it never sets the level. An infinite one counts: when the level lands
+ * on it, the level is past full scale and `findPeaksRelativeToLevel` searches nothing.
  */
 export function levelReference(data: Float32Array, audioSampleRate: number): number {
   const window = utils.computeIndexesToSkip(consts.peakSkipDuration, audioSampleRate);

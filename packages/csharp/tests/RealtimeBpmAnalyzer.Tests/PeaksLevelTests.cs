@@ -15,7 +15,7 @@ public sealed class PeaksLevelTests
     [Fact]
     public void Takes_the_maximum_at_the_floored_percentile_index()
     {
-        // 100 windows of 1..100: floor(99 * 98 / 100) = 97, the 98th value
+        // 100 windows of 0.001 to 0.100: floor(99 * 98 / 100) = 97, the 98th value
         var hundred = new float[100];
         for (int i = 0; i < hundred.Length; i++)
         {
@@ -37,6 +37,38 @@ public sealed class PeaksLevelTests
         Assert.Equal(0f, PeaksEngine.LevelReference(Array.Empty<float>(), 8));
         // A NaN sample never becomes a window's maximum
         Assert.Equal(0.2f, PeaksEngine.LevelReference(new[] { float.NaN, 0.2f }, 8));
+    }
+
+    /// <summary>The 32-bit float with these bits, so the arithmetic traps below are exact.</summary>
+    private static float F32(int bits) => BitConverter.Int32BitsToSingle(bits);
+
+    [Fact]
+    public void Compares_each_sample_with_the_scaled_rung_in_double()
+    {
+        // conformance/readme.md, "The peaks level": a 32-bit threshold passes every vector, so this pins it. At 4 Hz a
+        // window is one sample. The level is L, the first 32-bit float above 0.01 whose 0.9 * L rounds up when stored;
+        // twelve samples hold that stored 0.9 * L, so they clear the double threshold 0.9 * L and rung 0.9 finds 15
+        // peaks. A 32-bit threshold equals them and finds 3, so the search would go on to 0.85 and take sample 50 too
+        var data = new float[100];
+        Array.Fill(data, F32(0x3C23D70D), 0, 3);
+        Array.Fill(data, F32(0x3C1374BF), 10, 12);
+        data[50] = F32(0x3C0E8A74);
+        Assert.Equal(F32(0x3C23D70D), PeaksEngine.LevelReference(data, 4));
+        Assert.Equal(new[] { 0, 1, 2, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 }, PeaksEngine.FindPeaksRelativeToLevel(data, 4));
+    }
+
+    [Fact]
+    public void Compares_the_level_with_the_silence_floor_in_double()
+    {
+        // The 32-bit float nearest -70 dBFS is just under the double floor, so it searches nothing; the next one up does
+        float under = F32(0x39A5CB5F);
+        float over = F32(0x39A5CB60);
+        Assert.True(under < PeaksEngine.SilenceFloor && over > PeaksEngine.SilenceFloor);
+        var quiet = new float[64];
+        Array.Fill(quiet, under);
+        Assert.Empty(PeaksEngine.FindPeaksRelativeToLevel(quiet, 4));
+        Array.Fill(quiet, over);
+        Assert.Equal(64, PeaksEngine.FindPeaksRelativeToLevel(quiet, 4).Length);
     }
 
     [Fact]

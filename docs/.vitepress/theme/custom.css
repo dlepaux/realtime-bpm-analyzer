@@ -95,3 +95,9 @@
 .dark .example-frame {
   background: #1a1a1a;
 }
+
+/* A code block's language label ("ts", "bash") is VitePress's --vp-c-text-3, 3.4:1 on the dark
+   block and about 3:1 on the light one. Text-2 is 5:1 or more on both (RBA-268). */
+:root {
+  --vp-code-lang-color: var(--vp-c-text-2);
+}

@@ -129,6 +129,23 @@ function sitemapProblems(site: BuiltSite): string[] {
   return [...listed, ...missing]
 }
 
+const DESCRIPTION = /<meta\b(?=[^>]*\bname="description")[^>]*?\bcontent="([^"]*)"/
+
+// Every page in the sitemap describes itself (RBA-268): VitePress gives a page without a
+// description the site's, which is the home's, so 40-odd pages once shared one snippet.
+function descriptionProblems(site: BuiltSite): string[] {
+  const home = DESCRIPTION.exec(site.read('index.html'))?.[1]
+  if (!home) return ['home: no meta description']
+  return [...site.read('sitemap.xml').matchAll(LOC)]
+    .map((match) => pageOf(site, (match[1] ?? '').trim()))
+    .filter((page): page is string => page !== undefined && page !== 'index.html')
+    .flatMap((page) => {
+      const description = DESCRIPTION.exec(site.read(page))?.[1]
+      if (!description) return [`${page}: no meta description`]
+      return description === home ? [`${page}: the home's meta description`] : []
+    })
+}
+
 export function seoProblems(site: BuiltSite): string[] {
   const emptyGraph = site.paths.filter((path) => path.endsWith('.html') && site.read(path).includes('"@graph":[]'))
   return [
@@ -136,6 +153,7 @@ export function seoProblems(site: BuiltSite): string[] {
     ...unpublishedProblems(site),
     ...guideProblems(site),
     ...sitemapProblems(site),
+    ...descriptionProblems(site),
     ...emptyGraph.map((path) => `${path}: an empty @graph`),
   ]
 }

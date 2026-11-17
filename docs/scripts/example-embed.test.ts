@@ -105,7 +105,7 @@ test('every example has a dev port, the one its vite config falls back to', () =
 // whatever app holds its port (RBA-238). strictPort makes it fail instead.
 test('every example dev server keeps its port or fails, never moving to another', () => {
   for (const example of EXAMPLES) {
-    assert.match(read(`../../examples/${example}/vite.config.ts`), /\n\s+strictPort: true,\n/, example)
+    assert.match(read(`../../examples/${example}/vite.config.ts`), /\n\s+server: \{\n\s+port: [^\n]+\n\s+strictPort: true,\n/, example)
   }
 })
 

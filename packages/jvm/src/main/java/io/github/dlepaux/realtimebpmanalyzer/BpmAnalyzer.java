@@ -44,8 +44,9 @@ public final class BpmAnalyzer {
      * @return The reading, or null when no tempo was found
      * @throws NullPointerException When an argument is null
      * @throws IllegalArgumentException When {@code samples} is empty, or holds a NaN or infinite sample
-     * @throws OutOfRangeException When the sample rate is not finite, or is under 100 Hz for the tempogram, or under
-     *     2 Hz or not above twice the lowpass cutoff for the peaks engine
+     * @throws OutOfRangeException When the sample rate is not finite, or is under 122.97509238026915 Hz for the
+     *     tempogram, the first rate at which its FFT has a bin above DC, or under 2 Hz or not above twice the lowpass
+     *     cutoff for the peaks engine
      */
     public static Reading analyzeChannelData(float[] samples, double sampleRate, AnalysisOptions options) {
         if (samples == null || options == null) {

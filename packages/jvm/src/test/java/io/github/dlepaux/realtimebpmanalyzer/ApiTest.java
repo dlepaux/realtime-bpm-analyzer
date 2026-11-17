@@ -138,6 +138,36 @@ class ApiTest {
         assertEquals(1024, TempogramEngine.fftSize(RATE));
     }
 
+    /** One-sample clicks at 120 BPM, as the conformance set's impulses inputs: a click a low rate keeps. */
+    private static float[] clicks(double rate, double seconds) {
+        float[] samples = new float[(int) Math.round(seconds * rate)];
+        for (int beat = 0; Math.round(beat * 0.5 * rate) < samples.length; beat++) {
+            samples[(int) Math.round(beat * 0.5 * rate)] = 0.9f;
+        }
+        return samples;
+    }
+
+    @Test
+    void refusesTempogramRatesUnderItsFloorAndReadsAtIt() {
+        double floor = TempogramEngine.MIN_SAMPLE_RATE;
+        double under = Math.nextDown(floor);
+        assertEquals(2 * Math.sqrt(2) / 0.023, floor);
+        assertEquals(122.97509238026913, under);
+        assertEquals(4, TempogramEngine.fftSize(floor));
+        // Under the floor whatever the audio's length, and also where this port's log2 alone would give 4 points
+        for (double rate : new double[] {100, 110, 122, Math.nextDown(under), under}) {
+            for (float[] samples : new float[][] {clicks(rate, 12), new float[10]}) {
+                OutOfRangeException error = assertThrowsExactly(OutOfRangeException.class,
+                    () -> BpmAnalyzer.analyzeChannelData(samples, rate));
+                assertEquals("Invalid sample rate: " + rate + ". The tempogram needs at least 122.97509238026915 Hz, "
+                    + "the lowest rate at which its FFT has a bin above DC.", error.getMessage());
+            }
+        }
+        Reading reading = BpmAnalyzer.analyzeChannelData(clicks(floor, 12), floor);
+        assertNotNull(reading);
+        assertEquals(120, reading.bpm());
+    }
+
     @Test
     void refusesInvalidOptionsWhenTheyAreMade() {
         double[][] ranges = {

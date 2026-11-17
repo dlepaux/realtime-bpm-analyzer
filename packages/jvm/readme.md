@@ -36,7 +36,7 @@ The jar runs on Java 8 and later. Building it from this folder (`./mvnw install`
 ## Versions
 
 The version is the JS library's major and minor whose conformance vectors the port passes, plus its own patch:
-6.2.x reads the same as `realtime-bpm-analyzer` 6.2 on npm. A patch of the port can ship without a JS release.
+6.3.x reads the same as `realtime-bpm-analyzer` 6.3 on npm. A patch of the port can ship without a JS release.
 
 ## Example
 

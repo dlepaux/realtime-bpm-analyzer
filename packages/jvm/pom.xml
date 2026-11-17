@@ -11,7 +11,7 @@
 
   Coordinates io.github.dlepaux:realtime-bpm-analyzer, a namespace verified on Maven Central through the GitHub
   account (RBA-259). The version is the library's major.minor whose conformance vectors the port passes, plus its
-  own patch (6.2.x passes the vectors of JS 6.2), and release-please sets it (release-please-config.json).
+  own patch (6.3.x passes the vectors of JS 6.3), and release-please sets it (release-please-config.json).
 
   Ordinary builds sign and publish nothing. The central-publish profile adds what Maven Central requires (sources
   and javadoc jars, a signature on every file) and the Central Portal's plugin; CI runs it only in the Publish

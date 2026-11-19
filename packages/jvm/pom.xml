@@ -74,7 +74,7 @@
         <groupId>org.junit</groupId>
         <artifactId>junit-bom</artifactId>
         <!-- 5.x, not 6.x: JUnit 6 needs Java 17, and CI also runs the tests on Java 8 to prove the bytecode level -->
-        <version>5.14.4</version>
+        <version>6.1.3</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

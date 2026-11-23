@@ -9,16 +9,17 @@ import AnalyticsEventList from './.vitepress/components/AnalyticsEventList.vue'
 
 # Website Privacy
 
-This page covers the website **realtime-bpm-analyzer.com**. The open-source
-library that runs the analysis has its own page: [Library Privacy](/privacy), and
+This page covers the website **realtime-bpm-analyzer.com**, the music toolbox
+app at **app.realtime-bpm-analyzer.com** included ([The app](#the-app) says how
+it differs). The open-source library that runs the analysis has its own page: [Library Privacy](/privacy), and
 so does the browser extension: [Extension Privacy](/extension/privacy).
 
 ## Your audio never leaves your device
 
 Files you choose, microphone input and stream audio are analysed in your
-browser by the library. The website never receives your audio, your files or
-their names. That is about your audio only: the pages themselves are measured, as
-[What the website measures](#what-the-website-measures) describes.
+browser by the library. Neither the website nor the app ever receives your
+audio, your files or their names. That is about your audio only: the pages
+themselves are measured, as [What the website measures](#what-the-website-measures) describes.
 
 ## What the tools remember
 
@@ -69,6 +70,34 @@ When you analyse a stream, your browser connects directly to that station, under
 the station's own terms. The GitHub star count is fetched when the site is
 built, not from your browser.
 
+## The app
+
+The toolbox at **app.realtime-bpm-analyzer.com** runs the same tools in your
+browser, and is measured with the same Google Analytics property as the website,
+so everything above about Google Analytics applies to it. The two addresses
+share Google Analytics' cookie, so a visit that goes from one to the other
+counts as one visitor, and reports tell them apart by address.
+
+The app sends the events listed above for the tools it has, with one difference:
+when a file can't be analysed, `bpm_file_error` carries the name of the
+browser's error, such as `EncodingError`, never its message, because a message
+can quote the file's name. It also sends two events of its own:
+
+- When you open a tool from the app's menus, its home or its tools page: which
+  tool, and from which of them. Opening the BPM finder this way sends no such
+  event. `bpm_tool_opened`
+- When you open Your tracks with tracks you kept in this browser: how many, in a
+  range such as 6 to 20. Never their names or tempos. `bpm_tracks_reopened`
+
+The app is its own address, so your browser keeps what it stores apart from the
+website's. The app has its own Your tracks list, holding the same details as the
+website's, and the two lists are never shared or merged: a track you analysed on
+one does not appear on the other. The app also keeps the metronome's settings,
+and the last three tools you used so its home shows them first. All of it stays
+in your browser's local storage, on this device, and is never sent anywhere. The
+list's clear button removes its tracks, and clearing the browser's data for
+app.realtime-bpm-analyzer.com removes everything the app kept.
+
 ## Your choices
 
 - Block cookies for this site in your browser settings, or use a content blocker.
@@ -87,4 +116,4 @@ linked to your name.
 The site is run by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 8 November 2026._
+_Last updated: 23 November 2026._

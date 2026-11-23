@@ -23,6 +23,7 @@ import { MIC_PHASES } from './mic-guard.ts'
 import { CRATE_ROW_BUCKETS } from './bpm-crate.ts'
 import { PLATFORM_LABELS, STATIONS, STREAM_ERROR_MESSAGES, type Platform, type StreamErrorKind } from './stream-input.ts'
 import { STROBE_SOURCES } from './strobe.ts'
+import { SEEN_ON, TOOL_PAGES } from './tool-seen.ts'
 import { NOTE_DIVISIONS } from './tempo.ts'
 import { freeTools } from './tool-list.ts'
 
@@ -139,6 +140,13 @@ export const PARAMS = {
   // ── Added by RBA-277 ─────────────────────────────────────────────────────────────────────
   /** How many tracks a returning visitor's list holds, in buckets. Read from the BigQuery export. */
   rows: { type: 'enum', values: [...CRATE_ROW_BUCKETS], scope: 'none' },
+
+  // ── Added by RBA-298 ─────────────────────────────────────────────────────────────────────
+  // Whether the BPM tool was ever on screen, read from the BigQuery export like the ones above.
+  /** The page the tool is on, by name: the home or the video finder. Never the address. */
+  page: { type: 'enum', values: [...TOOL_PAGES], scope: 'none' },
+  /** Whether the tool's input area was half on screen as the page opened, or only after a scroll. */
+  seen_on: { type: 'enum', values: [...SEEN_ON], scope: 'none' },
 } as const satisfies Record<string, ParamSpec>
 
 export type ParamName = keyof typeof PARAMS
@@ -181,6 +189,11 @@ export const EVENTS = {
     params: {},
     repeats: 'Each time a file result is cleared.',
     privacy: 'When you clear a file result to start again.',
+  },
+  bpm_tool_seen: {
+    params: { page: 'required', seen_on: 'required' },
+    repeats: 'At most once per page view, the first time the BPM tool is at least half on screen.',
+    privacy: 'When the BPM finder first comes into view: on which page, and whether it was on screen as the page opened or only after you scrolled.',
   },
   bpm_crate_loaded: {
     params: { rows: 'required' },

@@ -265,8 +265,9 @@ test('the tool below the first screen is seen only once a scroll brings it in', 
 
 // The way into the musician app (RBA-284). The click leaves the page in the same tab, so its hit has
 // to go out as the page unloads: the app's origin answers with a stub page, so the navigation
-// completes and the old page really unloads. The address the browser asks for is the bare link, so
-// nothing (a UTM, GA's own linker) was added to it on the way.
+// completes and the old page really unloads. The address the browser asks for is the link's own
+// path with nothing added but `_gl`: GA4's cross-domain linker, which the data stream's "Configure
+// your domains" turns on and gtag.js adds at click time. A UTM or anything else fails here.
 test('opening the toolbox sends where the entry sits, and nothing else, as the page leaves', async () => {
   await page.setViewport(DESKTOP)
   try {
@@ -275,7 +276,11 @@ test('opening the toolbox sends where the entry sits, and nothing else, as the p
     assert.equal(href, `${APP_ORIGIN}/video-bpm`)
     await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click('.toolbox-entry.is-nav')])
     assert.equal(new URL(page.url()).origin, APP_ORIGIN, 'the click should have left for the app')
-    assert.deepEqual(appRequests, [href])
+    assert.equal(appRequests.length, 1, appRequests.join(' '))
+    const opened = new URL(appRequests[0] ?? '')
+    assert.equal(`${opened.origin}${opened.pathname}`, href)
+    assert.deepEqual([...opened.searchParams.keys()].filter((key) => key !== '_gl'), [], opened.search)
+    assert.equal(opened.hash, '')
     const clicks = () => hits.slice(mark).filter((hit) => hit.name === 'app_link_clicked')
     await waitFor('app_link_clicked', () => clicks().length >= 1)
     assert.deepEqual(clicks().map((hit) => hit.params), [{ placement: 'app_nav' }])

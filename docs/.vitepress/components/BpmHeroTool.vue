@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import {
   FileAudio,
   Mic,
@@ -14,6 +14,8 @@ import {
   type BpmAnalyzer,
 } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
+import { useMicGuard } from '../composables/useMicGuard'
+import { MIC_LISTENING_LINE, MIC_STOPPED_LINE, micStatusLine, type MicPhase } from '../tools/mic-guard'
 import { fileExtensionParam } from '../tools/analytics-params'
 import { classifyMicError } from '../tools/mic-error'
 import { decodeAndClose, openAnalysis } from '../tools/audio-setup'
@@ -110,6 +112,21 @@ const micError = ref<string | null>(null)
 const micContext = shallowRef<AudioContext | null>(null)
 const micStream = shallowRef<MediaStream | null>(null)
 const micAnalyzer = shallowRef<BpmAnalyzer | null>(null)
+// When this session's mic was clicked, for the elapsed time bpm_mic_stopped reports. Null once
+// the session is reported, so it is reported once, however it ends.
+let micStartedAt: number | null = null
+const micGuard = useMicGuard()
+const { paused: micPaused, tooQuiet: micTooQuiet, offerTap: micOfferTap } = micGuard
+// A mic result can outlive its session (kept on screen after a tab switch): it then says so,
+// and its button starts over instead of claiming to stop something. An explicit flag, set where
+// the result is kept, because "no audio context" also holds while the mic is still starting.
+const micResultKept = ref(false)
+const micLive = computed(() => !micResultKept.value)
+const micLine = computed(() => (micLive.value
+  ? micStatusLine({ paused: micPaused.value, tooQuiet: micTooQuiet.value })
+  : MIC_STOPPED_LINE))
+const toolRoot = ref<HTMLElement | null>(null)
+const micStopButton = ref<HTMLButtonElement | null>(null)
 
 // ─── Stream ──────────────────────────────────────────────────────────────
 // Prefilled from the presets, so the default is always a station whose terms were read (RBA-245).
@@ -160,8 +177,10 @@ function setMode(next: Mode) {
   // Leaving a mode stops its audio, so only a finished mic result may stay on
   // screen. A live panel or a pending "Checking why…" would show nothing running.
   if (mode.value === 'mic') {
+    reportMicStop()
     teardownMic()
-    if (micStatus.value !== 'result') {
+    if (micStatus.value === 'result') micResultKept.value = true
+    else {
       micStatus.value = 'idle'
       micLiveBpm.value = null
       micError.value = null
@@ -286,7 +305,7 @@ function restartFile() {
 }
 
 // ─── Mic flow ────────────────────────────────────────────────────────────
-async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
+async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic_tab') {
   if (micStatus.value !== 'idle') return
 
   track('bpm_mic_clicked', { input_method: entry })
@@ -295,7 +314,10 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
   micError.value = null
   micLiveBpm.value = null
   micStableBpm.value = null
+  micResultKept.value = false
   micStatus.value = 'analysing'
+  micStartedAt = clickedAt
+  micGuard.resetReport()
 
   // Capture the generation at entry. If anything invalidates it mid-setup
   // (mode switch, stop, unmount), bail and tear down the locals we've built
@@ -330,6 +352,7 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
     const source = localContext.createMediaStreamSource(localStream)
     source.connect(localAnalyzer.input)
     // Intentionally do NOT connect to destination — avoids mic feedback.
+    micGuard.attach(localContext, localStream, source, clickedAt)
 
     // The state is current inside a reading listener. A lock can move without a
     // statechange (peaks relocks on a fuller rung), so the locked BPM follows every reading.
@@ -338,8 +361,22 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' = 'mic_tab') {
       if (localAnalyzer.state.status === 'locked') micStableBpm.value = micLiveBpm.value
     })
 
-    localAnalyzer.on('statechange', ({ to }) => {
-      if (to.status !== 'locked') return
+    localAnalyzer.on('statechange', ({ to, reason }) => {
+      // Stopped by the caller is the session ending (Stop, a tab switch), never a lock lost: a tab
+      // switch keeps the locked result on screen, so it must not be demoted on the way out. Stopped
+      // by a fault is a dead analyzer: say so and release the mic, rather than keep it listening.
+      if (to.status === 'stopped') {
+        if (reason === 'failed' && micAnalyzer.value === localAnalyzer) failMic()
+        return
+      }
+      if (to.status !== 'locked') {
+        // A lock that no longer holds (a new song, the beat or the sound lost) goes back to
+        // Settling, never a stale Stable (RBA-275). With no reading at all, no number either.
+        if (to.status === 'listening') micLiveBpm.value = null
+        if (micStatus.value === 'result') micStatus.value = 'analysing'
+        return
+      }
+      micGuard.markLocked()
       const bpm = Math.round(to.reading.bpm)
       // The analyzer can lock again after it unlocks or loses the pulse: report a tempo only
       // when it differs from the locked tempo last shown, which readings keep current while locked,
@@ -377,6 +414,7 @@ function disposeLocalMic(
 }
 
 function teardownMic() {
+  micGuard.detach()
   try {
     micAnalyzer.value?.stop()
     micAnalyzer.value?.disconnect()
@@ -390,14 +428,74 @@ function teardownMic() {
   micContext.value = null
 }
 
-function stopMic() {
-  track('bpm_mic_stopped')
+// Where the session stood when it stopped, so the half of mobile sessions that never lock
+// say why: still listening, settling, paused by an interruption, or failed (RBA-275).
+function micPhase(): MicPhase {
+  if (micStatus.value === 'error') return 'error'
+  if (micPaused.value) return 'paused'
+  const status = micAnalyzer.value?.state.status
+  return status === 'locked' || status === 'settling' ? status : 'listening'
+}
+
+/** The longest elapsed_ms the catalogue takes: an hour. A longer session reports an hour. */
+const MAX_ELAPSED_MS = 3_600_000
+
+// Every way a mic session ends reports it once: Stop, a tab switch, leaving the page (the
+// tap-along link does), or Resume starting it over. Before the teardown, which clears the state.
+function reportMicStop() {
+  if (micStartedAt === null) return
+  track('bpm_mic_stopped', {
+    mic_phase: micPhase(),
+    too_quiet: micGuard.wasQuiet.value,
+    interrupted: micGuard.wasInterrupted.value,
+    elapsed_ms: Math.min(Math.round(performance.now() - micStartedAt), MAX_ELAPSED_MS),
+  })
+  micStartedAt = null
+}
+
+// The analyzer died mid-session: the panel says so, the session reports 'error', and the mic,
+// the level polling and the wake lock are released.
+function failMic() {
+  micStatus.value = 'error'
+  micError.value = 'The microphone stopped unexpectedly.'
+  reportMicStop()
   invalidate()
   teardownMic()
+}
+
+function stopMic() {
+  reportMicStop()
+  invalidate()
+  teardownMic()
+  micResultKept.value = false
   micStatus.value = 'idle'
   micLiveBpm.value = null
   micStableBpm.value = null
   micError.value = null
+}
+
+// The tap on Resume is the gesture iOS wants before audio runs again. A mic track that ended
+// can't be resumed, so that session is stopped (and reported) and a new one started.
+async function resumeMic() {
+  const gen = generation
+  const outcome = await micGuard.resume()
+  // Stop, a tab switch or leaving the page while the resume was pending: never reopen the mic.
+  if (gen !== generation || outcome !== 'restart') return
+  stopMic()
+  await startMic('mic_resume')
+}
+
+// Keyboard focus survives the panel changing under it: a lock lost, Resume gone after a resume.
+watch([micStatus, micPaused], () => {
+  const root = toolRoot.value
+  if (!root?.contains(document.activeElement)) return
+  void nextTick(() => {
+    if (!root.contains(document.activeElement)) micStopButton.value?.focus()
+  })
+})
+
+function onTapAlongOffer() {
+  track('bpm_tool_link_clicked', { mode: 'mic→tap-tempo', result_source: 'mic', tool: 'tap-tempo' })
 }
 
 // ─── Stream flow ─────────────────────────────────────────────────────────
@@ -638,6 +736,8 @@ function onTabSharingEnded(gen: number) {
 
 function useMicInstead() {
   setMode('mic')
+  // A result kept from an earlier mic session would make startMic a no-op: the visitor asked for a new one.
+  if (micResultKept.value) stopMic()
   startMic('link_fallback')
 }
 
@@ -711,6 +811,7 @@ onMounted(() => {
 
 // ─── Cleanup on unmount ──────────────────────────────────────────────────
 onBeforeUnmount(() => {
+  reportMicStop()
   invalidate()
   teardownMic()
   teardownStream()
@@ -726,6 +827,12 @@ const metaLine = computed(() => (mode.value === 'file' ? `${fileCopy.value.forma
 const announcement = ref('')
 const announce = (text: string) => { announcement.value = text }
 watch(() => (fileStatus.value === 'result' ? fileBpm.value : null), (bpm) => announce(bpm === null ? '' : `${bpm} BPM`))
+// A pause, lost sound or a quiet input is said once as it begins; the usual line says nothing,
+// and takes back a notice that no longer holds, so it isn't left in the region after a stop.
+watch(micLine, (line, previous) => {
+  if (mode.value === 'mic' && micStatus.value !== 'idle' && line !== MIC_LISTENING_LINE) announce(line)
+  else if (announcement.value === previous) announce('')
+})
 watch([micStableBpm, streamStableBpm], ([mic, stream], [oldMic]) => {
   const bpm = mic !== oldMic ? mic : stream
   announce(bpm === null ? '' : `Stable at ${bpm} BPM`)
@@ -744,7 +851,10 @@ function formatDuration(seconds: number): string {
 </script>
 
 <template>
-  <div class="bpm-hero-tool">
+  <div
+    ref="toolRoot"
+    class="bpm-hero-tool"
+  >
     <slot name="heading" />
     <BpmSourceSwitch
       :options="modes"
@@ -911,12 +1021,30 @@ function formatDuration(seconds: number): string {
             <BpmReadout
               :bpm="micLiveBpm"
               state="settling"
-              listening
+              :listening="!micPaused"
             />
-            <div class="bpm-state-label">
-              Listening to your microphone
+            <div
+              class="bpm-state-label"
+              :class="{ 'is-notice': micLive && micLine !== MIC_LISTENING_LINE }"
+            >
+              {{ micLine }}
             </div>
             <button
+              v-if="micPaused"
+              type="button"
+              class="bpm-primary-btn"
+              @click="resumeMic"
+            >
+              Resume
+            </button>
+            <a
+              v-else-if="micOfferTap"
+              class="bpm-tap-offer"
+              href="/tap-tempo"
+              @click="onTapAlongOffer"
+            >No steady beat yet? Tap along instead</a>
+            <button
+              ref="micStopButton"
               type="button"
               class="bpm-restart-btn"
               @click="stopMic"
@@ -931,11 +1059,22 @@ function formatDuration(seconds: number): string {
             <BpmReadout
               :bpm="micStableBpm"
               state="stable"
-              listening
+              :listening="!micPaused"
             />
-            <div class="bpm-state-label">
-              Listening to your microphone
+            <div
+              class="bpm-state-label"
+              :class="{ 'is-notice': micLive && micLine !== MIC_LISTENING_LINE }"
+            >
+              {{ micLine }}
             </div>
+            <button
+              v-if="micPaused"
+              type="button"
+              class="bpm-primary-btn"
+              @click="resumeMic"
+            >
+              Resume
+            </button>
             <ResultToolLinks
               v-if="micStableBpm !== null"
               :bpm="micStableBpm"
@@ -944,11 +1083,12 @@ function formatDuration(seconds: number): string {
             <ExtensionResultPrompt source="mic" />
             <div class="bpm-result-actions">
               <button
+                ref="micStopButton"
                 type="button"
                 class="bpm-restart-btn"
                 @click="stopMic"
               >
-                Detect again
+                {{ micLive ? 'Stop' : 'Detect again' }}
               </button>
               <GithubStarSupport
                 variant="inline"
@@ -1321,6 +1461,24 @@ function formatDuration(seconds: number): string {
 .bpm-state-label {
   font-size: 0.9375rem;
   color: var(--vp-c-text-2);
+}
+
+/* A pause, lost sound or a quiet input: said in the reading's own colour, so it is read before the number is trusted. */
+.bpm-state-label.is-notice {
+  font-weight: 500;
+  color: var(--vp-c-text-1);
+}
+
+/* A way out when no reading comes: a link, since it leaves the page, with a full touch target. */
+.bpm-tap-offer {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .bpm-spinner {

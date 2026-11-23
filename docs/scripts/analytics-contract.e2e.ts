@@ -200,6 +200,62 @@ test('a visit is unmarked, and a flagged browser marks every hit internal', asyn
   }
 })
 
+// The BPM tool's first sighting (RBA-298), with a real IntersectionObserver: once per page view,
+// whether the tool sits on the first screen or a scroll brings it in.
+const DESKTOP = { width: 1280, height: 800 }
+// A phone on its side: the tool's input area starts below its first screen.
+const PHONE_LANDSCAPE = { width: 844, height: 390, isMobile: true, hasTouch: true }
+const DEFAULT_VIEWPORT = { width: 800, height: 600 }
+
+/** How much of the tool's input area is on screen, from 0 to 1. */
+const toolBodyRatio = () => page.$eval('.bpm-tool-body', (body) => {
+  const box = body.getBoundingClientRect()
+  return Math.max(0, Math.min(box.bottom, window.innerHeight) - Math.max(box.top, 0)) / box.height
+})
+
+async function openFresh(path: string): Promise<number> {
+  const mark = hits.length
+  await page.goto(`${SITE_URL}${path}`, { waitUntil: 'load', timeout: NAVIGATION_TIMEOUT_MS })
+  await page.waitForSelector('.bpm-tool-body')
+  await waitFor(`the page_view of ${path}`, () => hits.slice(mark).some((hit) => hit.name === 'page_view'))
+  return mark
+}
+
+const toolSeenSince = (mark: number) => hits.slice(mark).filter((hit) => hit.name === 'bpm_tool_seen').map((hit) => hit.params)
+
+test('the tool on the first screen is seen on load, once', async () => {
+  await page.setViewport(DESKTOP)
+  try {
+    const mark = await openFresh('/')
+    assert.ok(await toolBodyRatio() >= 0.5, 'the tool should start on the first screen at this size')
+    await page.evaluate(() => window.scrollBy(0, 400))
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await new Promise((resolve) => setTimeout(resolve, QUIET_MS))
+    assert.deepEqual(toolSeenSince(mark), [{ page: 'home', seen_on: 'load' }])
+  } finally {
+    await page.setViewport(DEFAULT_VIEWPORT)
+  }
+})
+
+test('the tool below the first screen is seen only once a scroll brings it in', async () => {
+  await page.setViewport(PHONE_LANDSCAPE)
+  try {
+    const mark = await openFresh('/video-bpm')
+    assert.ok(await toolBodyRatio() < 0.5, 'the tool should start below the first screen at this size')
+    assert.deepEqual(toolSeenSince(mark), [], 'seen before it was on screen')
+
+    await page.$eval('.bpm-tool-body', (body) => body.scrollIntoView({ block: 'center' }))
+    await waitFor('bpm_tool_seen', () => toolSeenSince(mark).length >= 1)
+    // Away and back: the first sighting was the only one.
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.$eval('.bpm-tool-body', (body) => body.scrollIntoView({ block: 'center' }))
+    await new Promise((resolve) => setTimeout(resolve, QUIET_MS))
+    assert.deepEqual(toolSeenSince(mark), [{ page: 'video-bpm', seen_on: 'scroll' }])
+  } finally {
+    await page.setViewport(DEFAULT_VIEWPORT)
+  }
+})
+
 // What GA4 and its enhanced measurement send by themselves, with params of their own.
 const COLLECTED_BY_GA = new Set(['page_view', 'user_engagement', 'scroll', 'click', 'file_download', 'form_start', 'form_submit', 'view_search_results'])
 

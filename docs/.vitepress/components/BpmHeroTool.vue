@@ -18,6 +18,7 @@ import { useMicGuard } from '../composables/useMicGuard'
 import { MIC_LISTENING_LINE, MIC_STOPPED_LINE, micStatusLine, type MicPhase } from '../tools/mic-guard'
 import { fileExtensionParam } from '../tools/analytics-params'
 import { classifyMicError } from '../tools/mic-error'
+import { toolPageOf, watchToolSeen } from '../tools/tool-seen'
 import { decodeAndClose, openAnalysis } from '../tools/audio-setup'
 import {
   PLATFORM_LABELS,
@@ -130,6 +131,9 @@ const micLine = computed(() => (micLive.value
   ? micStatusLine({ paused: micPaused.value, tooQuiet: micTooQuiet.value })
   : MIC_STOPPED_LINE))
 const toolRoot = ref<HTMLElement | null>(null)
+// The input area under the source switch: the drop zone, the mic or the stream, whichever shows.
+const toolBody = ref<HTMLElement | null>(null)
+let stopSeenWatch = () => {}
 const micStopButton = ref<HTMLButtonElement | null>(null)
 
 // ─── Stream ──────────────────────────────────────────────────────────────
@@ -926,6 +930,9 @@ function stopStream() {
 }
 
 onMounted(() => {
+  // Whether the tool was on screen at all, and whether that took a scroll (RBA-298).
+  const page = toolPageOf(window.location.pathname)
+  if (toolBody.value) stopSeenWatch = watchToolSeen(toolBody.value, (seenOn) => track('bpm_tool_seen', { page, seen_on: seenOn }))
   tabAudioSupported.value = supportsTabAudio(navigator as NavigatorLike)
   if (keepsTracks.value) {
     crateStored.value = browserStore() !== null
@@ -940,6 +947,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   // invalidate() also stops a batch: the file under analysis finishes on its own.
   window.removeEventListener('storage', onCrateStorage)
+  stopSeenWatch()
   reportMicStop()
   invalidate()
   teardownMic()
@@ -996,7 +1004,10 @@ function formatDuration(seconds: number): string {
       @select="setMode"
     />
 
-    <div class="bpm-tool-body">
+    <div
+      ref="toolBody"
+      class="bpm-tool-body"
+    >
       <!-- FILE MODE -->
       <div
         v-if="mode === 'file'"

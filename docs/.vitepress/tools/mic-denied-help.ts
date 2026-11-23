@@ -32,7 +32,7 @@ export const MIC_ALLOW_STEPS: Readonly<Record<MicHelpBrowser, string>> = {
 
 /**
  * Beside the button that starts listening: what the mic is for, and that its audio stays here,
- * so the browser's prompt that follows the press has its context (RBA-299).
+ * so the browser's prompt that follows the press has its context.
  */
 export const MIC_PURPOSE_LINE = 'Your microphone hears the music to find its tempo. The audio stays on this device.'
 

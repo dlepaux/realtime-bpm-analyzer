@@ -28,7 +28,7 @@ const MAC_FIREFOX = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:145.0) Gec
 type Device = { readonly userAgent?: string; readonly phone: boolean; readonly context?: BrowserContext; readonly before?: () => void }
 
 // Before any page script: every getUserMedia call is logged with the last press before it, so a
-// test can prove the browser's prompt only ever follows a press (DECISION of 2026-11-23, RBA-299).
+// test can prove the browser's prompt only ever follows a press to start listening.
 function logMicRequests(): void {
   const log: string[] = []
   let lastPress = 'none'

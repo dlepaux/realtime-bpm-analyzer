@@ -81,6 +81,18 @@
       "enabled": false
     },
     {
+      "description": "Leave the runtime floors of the published Python package (packages/python/pyproject.toml's dependencies, numpy >=1.26.4) alone. The Conformance (Python) job's py311 run installs exactly that floor (ci/test-py311.in), and the py315 run the latest, so the range is tested at both ends. Bumped as rangeStrategy bump would, the floor drops every user on the older major and fails the py311 run (#455). It moves by hand with test-py311.in. docs/scripts/renovate-holds.test.ts pins this rule.",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["project.dependencies"],
+      "enabled": false
+    },
+    {
+      "description": "Hold the JVM package's JUnit below 6. JUnit 6 is built for Java 17, and the Conformance (JVM) job runs the same tests on Java 8 to prove the jar's bytecode level (maven.compiler.release 8), so 6.x fails there (#456). Drop this with Java 8 support. docs/scripts/renovate-holds.test.ts pins this rule.",
+      "matchManagers": ["maven"],
+      "matchDepNames": ["org.junit:junit-bom"],
+      "allowedVersions": "<6"
+    },
+    {
       "description": "Hold TypeScript below 7 until ts-node and docs tooling support TS7 (TypeStrong/ts-node#2174, TypeStrong/typedoc#3098).",
       "matchPackageNames": ["typescript"],
       "allowedVersions": "<7"

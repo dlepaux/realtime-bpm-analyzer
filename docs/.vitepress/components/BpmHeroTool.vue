@@ -118,8 +118,10 @@ let micStartedAt: number | null = null
 const micGuard = useMicGuard()
 const { paused: micPaused, tooQuiet: micTooQuiet, offerTap: micOfferTap } = micGuard
 // A mic result can outlive its session (kept on screen after a tab switch): it then says so,
-// and its button starts over instead of claiming to stop something.
-const micLive = computed(() => micContext.value !== null)
+// and its button starts over instead of claiming to stop something. An explicit flag, set where
+// the result is kept, because "no audio context" also holds while the mic is still starting.
+const micResultKept = ref(false)
+const micLive = computed(() => !micResultKept.value)
 const micLine = computed(() => (micLive.value
   ? micStatusLine({ paused: micPaused.value, tooQuiet: micTooQuiet.value })
   : MIC_STOPPED_LINE))
@@ -177,7 +179,8 @@ function setMode(next: Mode) {
   if (mode.value === 'mic') {
     reportMicStop()
     teardownMic()
-    if (micStatus.value !== 'result') {
+    if (micStatus.value === 'result') micResultKept.value = true
+    else {
       micStatus.value = 'idle'
       micLiveBpm.value = null
       micError.value = null
@@ -311,6 +314,7 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic
   micError.value = null
   micLiveBpm.value = null
   micStableBpm.value = null
+  micResultKept.value = false
   micStatus.value = 'analysing'
   micStartedAt = clickedAt
   micGuard.resetReport()
@@ -358,6 +362,9 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic
     })
 
     localAnalyzer.on('statechange', ({ to }) => {
+      // Stopped is the session ending (Stop, a tab switch), never a lock lost: a tab switch keeps
+      // the locked result on screen, so it must not be demoted on the way out.
+      if (to.status === 'stopped') return
       if (to.status !== 'locked') {
         // A lock that no longer holds (a new song, the beat or the sound lost) goes back to
         // Settling, never a stale Stable (RBA-275). With no reading at all, no number either.
@@ -446,6 +453,7 @@ function stopMic() {
   reportMicStop()
   invalidate()
   teardownMic()
+  micResultKept.value = false
   micStatus.value = 'idle'
   micLiveBpm.value = null
   micStableBpm.value = null

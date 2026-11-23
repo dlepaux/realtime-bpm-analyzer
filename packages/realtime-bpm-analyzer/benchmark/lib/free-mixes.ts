@@ -6,7 +6,7 @@ import {splitTracks} from './free-mixes-rows';
 import type {FreeSet} from './free-mixes-rows';
 import type {Track} from './types';
 
-// Reads one of RBA-59's halves off the volume. What it keeps, and why held-out is only RBA-51's look:
+// Reads one of the free mixes' halves off the volume. What it keeps, and why held-out is only the engine study's look:
 // lib/free-mixes-rows.ts
 
 type Half = 'dev' | 'heldout';
@@ -26,7 +26,7 @@ function load(split: Half): Record<FreeSet, Track[]> {
   const ids = (JSON.parse(splitIds) as Record<Half, string[]>)[split];
 
   cached.set(split, tracks);
-  // RBA-59's ids are final since 2026-11-03, and a result still names the list it read
+  // The free mixes' ids are final since 2026-11-03, and a result still names the list it read
   console.error(`free-mixes: ${split} list sha256 ${createHash('sha256').update(JSON.stringify(ids)).digest('hex').slice(0, 16)}, strict ${tracks['free-mixes'].length}, contested ${tracks['free-mixes-contested'].length}`);
 
   return tracks;
@@ -38,7 +38,7 @@ export const freeLoaders: Record<FreeSet, () => Track[]> = {
   'free-mixes-contested': () => load('dev')['free-mixes-contested'],
 };
 
-/** Held-out, for RBA-51's one look only: run.ts reaches it past `freeHeldoutRefusal` and the look's log line */
+/** Held-out, for the engine study's one look only: run.ts reaches it past `freeHeldoutRefusal` and the look's log line */
 export const freeHeldoutLoaders: Record<FreeSet, () => Track[]> = {
   'free-mixes': () => load('heldout')['free-mixes'],
   'free-mixes-contested': () => load('heldout')['free-mixes-contested'],

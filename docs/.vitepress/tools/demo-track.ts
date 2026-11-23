@@ -1,4 +1,4 @@
-// The strobe's demo track (RBA-237): 30 s of techno at 128 BPM, rendered in the page from the
+// The strobe's demo track: 30 s of techno at 128 BPM, rendered in the page from the
 // score below with an OfflineAudioContext. Rendering beats shipping a file: no encoder, no
 // download, no rights question, and the kick times are the score's, so the browser measurement
 // has its ground truth. Its shape shows the feature: a clear kick, a breakdown where the kicks

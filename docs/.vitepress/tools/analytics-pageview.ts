@@ -1,4 +1,4 @@
-// When an in-site navigation is a page view (RBA-154): when the path changes, and only then.
+// When an in-site navigation is a page view: when the path changes, and only then.
 // GA4's own "page changes based on browser history events" also counted a query written into
 // the address (the tools put the tempo there as `?bpm=`), so each tempo set on a tool page was a
 // second page view. The site sends its own page views from the router instead, and that GA4

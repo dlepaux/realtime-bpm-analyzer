@@ -164,7 +164,7 @@ export function parseFps(raw: string): number | null {
   const fps = Number(trimmed)
   if (!Number.isFinite(fps) || fps < MIN_FPS || fps > MAX_FPS) return null
   // "29.970" or "23.9760" is a preset written another way: return the preset's exact fps,
-  // so the page doesn't add it again as a custom row (RBA-124).
+  // so the page doesn't add it again as a custom row.
   const near = FRAME_RATES.find((rate) => Math.abs(rate.fps - fps) < PRESET_TOLERANCE)
   return near ? near.fps : fps
 }

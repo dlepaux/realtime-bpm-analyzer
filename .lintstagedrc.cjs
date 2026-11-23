@@ -5,7 +5,7 @@
 // fires false positives. Using a function here ignores the filenames argument
 // and lets eslint resolve the whole project graph, matching CI.
 //
-// Each package is linted only when one of its own files is staged (RBA-149).
+// Each package is linted only when one of its own files is staged.
 // mcp's lint resolves cli's types from cli's build, so linting every package
 // on any staged file meant a docs-only commit failed in a fresh clone until the
 // packages were built. The trade-off: a library change no longer re-lints cli

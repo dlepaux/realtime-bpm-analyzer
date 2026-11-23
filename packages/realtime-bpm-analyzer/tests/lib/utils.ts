@@ -17,7 +17,7 @@ describe('Utils - Unit tests', () => {
       });
 
       // Check if object have only ONE entry
-      // The first rung is exactly 0.9, not the float-drifted 0.8999999999999999 (RBA-107)
+      // The first rung is exactly 0.9, not the float-drifted 0.8999999999999999
       expect(JSON.stringify(object)).to.be.equal('{"foo":0.9}');
     });
 

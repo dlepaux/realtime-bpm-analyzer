@@ -10,7 +10,7 @@ on:
   # Manual retry when a release fails after its commit landed (e.g. npm's provenance step).
   workflow_dispatch:
 
-# Read-only by default. Each job names what it needs (RBA-232): npm's trusted publisher accepts an OIDC
+# Read-only by default. Each job names what it needs: npm's trusted publisher accepts an OIDC
 # token from any job of this file, so id-token: write is only on Release, which runs in the npm environment
 # that only main may deploy to, on Publish (PyPI) and Publish (NuGet), each in its registry's environment that
 # only main may deploy to, and on Deploy Documentation. Pull requests never get a write token here.
@@ -24,7 +24,7 @@ permissions:
 #
 # Every job has a timeout-minutes, at about three times its slowest recent run (5 at least, and Deploy
 # Documentation above deploy-pages' own wait): with cancel-in-progress off, a hung job held its group,
-# and every run behind it, for up to GitHub's 6-hour limit (RBA-241: 72 minutes before a hand cancelled it).
+# and every run behind it, for up to GitHub's 6-hour limit (one hung run took 72 minutes before it was cancelled by hand).
 concurrency:
   group: main-pipeline-${{ github.event_name == 'push' && 'main' || github.ref }}
   cancel-in-progress: false
@@ -125,7 +125,7 @@ jobs:
 
   # The library's browser tests again in Firefox. Gecko reads the audio clock differently from Chromium (the main
   # thread's currentTime freezes during a long task), and the epoch watchdog's reset anchor depends on it. One of the
-  # release's needs, so a red Firefox run can't publish (RBA-108 DECISION 2026-11-16): a Gecko-only flake holds the
+  # release's needs, so a red Firefox run can't publish (decided on 2026-11-16): a Gecko-only flake holds the
   # release until "Re-run failed jobs" passes it, which then runs Release too.
   firefox:
     name: Test (Firefox)
@@ -169,9 +169,8 @@ jobs:
       - name: Test in Firefox
         run: npm run test:firefox -w realtime-bpm-analyzer
 
-  # The CLI and the MCP server declare >=22.12.0 as their floor (engines), in the oldest maintained LTS (DECISION
-  # 2026-11-15 on RBA-108), and not 22.0.0, whose worker teardown can deadlock and hang the host (DECISIONs 2026-11-15
-  # on RBA-241). Every other job runs 26. This runs the built bins and the library's Node entry on 22.12.0, the floor
+  # The CLI and the MCP server declare >=22.12.0 as their floor (engines), in the oldest maintained LTS (decided
+  # on 2026-11-15), and not 22.0.0, whose worker teardown can deadlock and hang the host. Every other job runs 26. This runs the built bins and the library's Node entry on 22.12.0, the floor
   # itself, so the floor the docs state is one CI tests. One of the release's needs, like Firefox. Renovate leaves
   # this version alone: raise it and the engines floor together, by hand (packages/cli/tests/node-floor.test.mjs).
   node-floor:
@@ -221,10 +220,10 @@ jobs:
         env:
           NODE_OPTIONS: --import ${{ github.workspace }}/bin/node-floor/register-ts.mjs
 
-  # RBA-255: the conformance set the ports in other languages are held to (conformance/readme.md). It checks the
+  # The conformance set the ports in other languages are held to (conformance/readme.md). It checks the
   # committed vectors against a fresh generation from this build, so they can't drift from the library, then runs
   # them on the built library in each JS runtime the docs claim: Node at the CLI's floor, Deno and Bun, each through
-  # its own file APIs. One of the release's needs (DECISION ms7q6jzdghu0prtemkkvdnff on RBA-259): the ports are held
+  # its own file APIs. One of the release's needs: the ports are held
   # to these vectors, so a library whose readings drift from them must not ship.
   conformance:
     name: Conformance (Node, Deno, Bun)
@@ -280,7 +279,7 @@ jobs:
       - name: Run the vectors in Bun
         run: bun conformance/runner/bun.mjs
 
-  # RBA-255: the same vectors in Hermes, React Native's engine, at the version React Native 0.88 ships
+  # The same vectors in Hermes, React Native's engine, at the version React Native 0.88 ships
   # (hermes-compiler 260318099.0.5). Hermes publishes no shell binary since v0.13.0 (2024), so this builds its
   # `hermes` shell from that tag once and caches it: a cache miss costs the build, a hit a few seconds. The shell
   # has no file system, so the vectors and the PCM go into one bundled script. Only the engine is proven: live
@@ -356,7 +355,7 @@ jobs:
           ~/hermes-shell/hermes "$RUNNER_TEMP/conformance-hermes.js" | tee "$RUNNER_TEMP/hermes.log"
           grep -qE '^conformance: PASS on Hermes [0-9]' "$RUNNER_TEMP/hermes.log"
 
-  # RBA-257: the Python port against the same vectors. It builds the sdist, and the wheel from it, installs the wheel
+  # The Python port against the same vectors. It builds the sdist, and the wheel from it, installs the wheel
   # in a clean venv per Python and runs the tests there, so they test the package a user would get, not the source
   # tree. The oldest supported Python runs with the oldest NumPy the package allows, the newest with the newest NumPy
   # at the lock's date. Every tool comes from a hashed lock in packages/python/ci/. Publish (PyPI) needs it.
@@ -397,7 +396,7 @@ jobs:
         working-directory: packages/python
         run: '"$RUNNER_TEMP/py315/bin/mypy"'
 
-  # RBA-256: the pure-Java port (packages/jvm) held to the same vectors. It builds with JDK 21, Minecraft's Java,
+  # The pure-Java port (packages/jvm) held to the same vectors. It builds with JDK 21, Minecraft's Java,
   # for Java 8 bytecode, then runs the same tests on a Java 8 runtime, the oldest the port claims. It reads the
   # sources and the vectors only, so it needs no JS build. Publish (Maven Central) needs it.
   conformance-jvm:
@@ -463,7 +462,7 @@ jobs:
           diff <(echo "$expected") <(echo "$actual")
           gpgconf --kill all
 
-  # The C# port (RBA-264), held to the same vectors. Build (NuGet) needs it, so a port that drifts never ships, and it
+  # The C# port, held to the same vectors. Build (NuGet) needs it, so a port that drifts never ships, and it
   # packs the package on every pull request, so a broken pack shows in review rather than on release day.
   conformance-dotnet:
     name: Conformance (.NET)
@@ -510,10 +509,10 @@ jobs:
           grep -qE ' readme\.md$' "$RUNNER_TEMP/nupkg.txt"
           grep -qE ' lib/netstandard2\.0/RealtimeBpmAnalyzer\.dll$' "$RUNNER_TEMP/nupkg.txt"
 
-  # RBA-265: the pure-Swift port (packages/swift) held to the same vectors, built and tested with the oldest Swift its
+  # The pure-Swift port (packages/swift) held to the same vectors, built and tested with the oldest Swift its
   # manifest claims (5.9, Xcode 15's) and the newest, in the Swift project's Linux images, pinned by digest. The library
   # imports Foundation only, so Linux builds what iOS and macOS build; Apple's libm read the vectors bit-identical too
-  # (RBA-265's READY), so no macOS runner. Check (Swift mirror) needs it, and it builds the mirror's tree on every pull
+  # (checked when the port was built), so no macOS runner. Check (Swift mirror) needs it, and it builds the mirror's tree on every pull
   # request (bin/swift-mirror.mjs), so a broken mirror shows in review rather than on release day.
   conformance-swift:
     name: Conformance (Swift)
@@ -727,10 +726,9 @@ jobs:
         working-directory: packages/mcp
         run: npm publish --provenance --access public
 
-  # RBA-259: the ports publish from here, after Release has tagged them, and only from the commit their tag names
+  # The ports publish from here, after Release has tagged them, and only from the commit their tag names
   # (bin/port-publish-gate.mjs says why). Each also needs its own conformance job, so a port whose readings drift
-  # from the library's never ships, and a red port never holds the library. First publish: contributing.md,
-  # "First publish of the 6.2 ports".
+  # from the library's never ships, and a red port never holds the library.
   #
   # PyPI takes the package through trusted publishing (OIDC, no token), with the publisher on pypi.org bound to
   # this file and the pypi environment. The build runs here, without id-token: the publish job holds the OIDC token
@@ -877,7 +875,7 @@ jobs:
           GNUPGHOME="$RUNNER_TEMP/gnupg" gpg --batch --list-secret-keys --keyid-format long
 
       # The settings file names the credentials by environment variable, so their values never reach a file. The key
-      # is pinned by its fingerprint, the one on the keyservers (contributing.md). No tests: Conformance (JVM) ran
+      # is pinned by its fingerprint, the one on the keyservers. No tests: Conformance (JVM) ran
       # them on this commit, and they would run with the secrets in their environment.
       - name: Sign, upload and publish to Maven Central
         working-directory: packages/jvm
@@ -904,8 +902,7 @@ jobs:
   # NuGet takes the C# port through trusted publishing (OIDC, no stored key): the policy on nuget.org, owned by
   # dlepaux, names this repository, this file and the nuget environment, with the package glob RealtimeBpmAnalyzer.
   # The gate and the pack run here, without id-token: the publish job holds the OIDC token and runs no code of this
-  # repository, only the download, a hash check, NuGet's login action and `dotnet nuget push`. First publish:
-  # contributing.md, "First publish of C# and Swift".
+  # repository, only the download, a hash check, NuGet's login action and `dotnet nuget push`.
   nuget-build:
     name: Build (NuGet)
     needs: [release, conformance-dotnet]
@@ -1183,7 +1180,7 @@ jobs:
       - name: Check SEO output
         run: npm run verify:seo -w docs
 
-      # The analytics contract in Chrome (RBA-154): the built site, served under its production
+      # The analytics contract in Chrome: the built site, served under its production
       # hostname, must send one page_view per page and hits carrying exactly their own params.
       # Every Google Analytics request is aborted and its hosts resolve to the runner itself, so
       # no real hit is ever sent. Only the gtag.js script is fetched from Google.
@@ -1194,12 +1191,12 @@ jobs:
           CONTRACT_BASE_URL=http://localhost:4173 npm run test:analytics-contract -w docs
 
       # Checks this build against the committed EXTENSION_STORE_URL, then builds the site
-      # in the other state and checks that too (RBA-58). Before and after the switch is
+      # in the other state and checks that too. Before and after the switch is
       # flipped, both states stay proven. The pages artifact below is this first build.
       - name: Check the extension switch in both states
         run: npm run verify:extension-switch -w docs
 
-      # A PR's built site, to look at in a browser without building it locally (RBA-240): download
+      # A PR's built site, to look at in a browser without building it locally: download
       # it with `gh run download <run-id> -n docs-site` and serve the folder. It is the same folder
       # the pages artifact publishes, so it holds nothing the live site doesn't. Hidden files stay
       # out, as upload-artifact's default.
@@ -1245,7 +1242,7 @@ jobs:
         with:
           path: docs/.vitepress/dist
 
-  # The beat marker files (RBA-127), every format at every frame rate, read back by readers that
+  # The beat marker files, every format at every frame rate, read back by readers that
   # aren't ours: OpenTimelineIO's CMX 3600 and FCP 7 XML adapters, and Apple's FCPXML 1.10 DTD
   # (docs/scripts/marker-conformance.py says what each check covers). It needs no npm install: the
   # fixture script runs the export's pure functions in plain Node. CI only, never a local suite.

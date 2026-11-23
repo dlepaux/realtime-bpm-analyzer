@@ -1,4 +1,4 @@
-// The site's one way to send an analytics event (RBA-154). Typed from the catalogue in
+// The site's one way to send an analytics event. Typed from the catalogue in
 // tools/analytics-events.ts, gated at run time by tools/analytics-gate.ts, then handed to gtag.js,
 // which tools/analytics-loader.ts loads on the production host only. Everywhere else the event is
 // still checked, and logged in dev, but nothing is sent. SSR-safe: a no-op without `window`.

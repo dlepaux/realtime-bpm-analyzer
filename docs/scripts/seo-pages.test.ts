@@ -1,6 +1,6 @@
 // Run with `npm test`. What the page sources must say for search engines and AI readers:
 // the CLI, MCP, Java, Python, C# and Swift guides are in every list since their noindex flips, home has
-// one h1 (RBA-129), and the titles and snippets this repo has tuned stay within what results show.
+// one h1, and the titles and snippets this repo has tuned stay within what results show.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -22,7 +22,7 @@ const MEASURED = {
   'guide/node.md': { title: true, description: true },
   'guide/beat-detection-web-audio.md': { description: true },
   'guide/realtime-bpm-detection.md': { description: true },
-  // RBA-268's audit: the guides it rewrote or whose titles were cut off in results.
+  // The SEO audit's list: the guides it rewrote or whose titles were cut off in results.
   'guide/introduction.md': { title: true, description: true },
   'guide/how-it-works.md': { title: true, description: true },
   'guide/core-concepts.md': { title: true, description: true },
@@ -52,8 +52,7 @@ test('the guides whose openings answer first still do', () => {
   assert.match(opening('guide/bpm-from-microphone.md'), /^To detect BPM from the microphone/)
 })
 
-// The noindex flips (contributing.md, "First publish of v6", step 13, and "First publish of the
-// 6.2 ports", step 8, and RBA-272): the CLI and MCP server are on npm, the Java port on Maven
+// The noindex flips, each lifted once its package was published: the CLI and MCP server are on npm, the Java port on Maven
 // Central, the Python port on PyPI, and the C# and Swift ports publish from the release pipeline.
 test('the CLI, MCP, Java, Python, C# and Swift guides are in the sidebar, llms.txt and the search', () => {
   const config = read('../.vitepress/config.ts')
@@ -76,7 +75,7 @@ test('llms.txt lists the tutorials and the v6 migration, and calls the home tool
 
 test('home: one h1, holding only the hero text, at every width', () => {
   const home = read('../index.md')
-  // A `hero:` key would bring back VitePress's own hero and its h1 next to HomeHero's (RBA-66).
+  // A `hero:` key would bring back VitePress's own hero and its h1 next to HomeHero's.
   assert.ok(!/^hero:$/m.test(home), 'VitePress would render a second hero')
   const hero = home.split(/^homeHero:$/m)[1]?.split(/^\S/m)[0] ?? ''
   assert.equal(field(`---\n${hero.replace(/^ {2}/gm, '')}\n---`, 'text'), field(home, 'title'))

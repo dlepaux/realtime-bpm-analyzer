@@ -1,4 +1,4 @@
-"""RBA-106: rebuild peaks' calibration samples under the hysteresis the library ships.
+"""Rebuild peaks' calibration samples under the hysteresis the library ships.
 
 The sweep (benchmark/hysteresis.ts) keeps the samples of each engine's picked row. The library has one shared
 `HYSTERESIS`, and it keeps the contract's values (see results/rba-v6-hysteresis-dev.md), so peaks' samples are

@@ -10,7 +10,7 @@ export default {
   ...base,
   coverage: false,
   // One file at a time: run in parallel, a file that starts worklets hung its Firefox page now and then, with no
-  // test failing (create-processor, then error-handling, in RBA-108's CI runs)
+  // test failing (create-processor, then error-handling, in the v6 branch's CI runs)
   concurrency: 1,
   browsers: [
     puppeteerLauncher({

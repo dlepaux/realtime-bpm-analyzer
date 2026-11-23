@@ -1,5 +1,5 @@
-// The strobe light's decisions (RBA-237): when a flash may show, how it looks, and when it stops.
-// The light flashes on the library's kick event (RBA-243). The page flashes, so its safety rules
+// The strobe light's decisions: when a flash may show, how it looks, and when it stops.
+// The light flashes on the library's kick event. The page flashes, so its safety rules
 // follow WCAG 2.3.1, Three Flashes or Below Threshold, and they live here, where node --test
 // checks them against generated patterns of kicks (scripts/strobe.test.ts) without a browser. The
 // component only feeds in kicks and frame times, and draws what step() returns. Pure: no Vue, no DOM.
@@ -14,7 +14,7 @@ export const FLASH_WINDOW_MS = 1000
  * painted flashes can sit closer than the decided ones by the spread in that delay. 100 ms is
  * three frames of a 30 Hz screen: a first flash painted up to three frames later than the fourth
  * still reads over 1 s. A cap held at exactly 1000 ms on the frame clock painted 4 flashes in
- * 999 ms in a browser (RBA-237, round 2).
+ * 999 ms in a browser.
  */
 export const CAP_MARGIN_MS = 100
 
@@ -37,7 +37,7 @@ export const EVERY_KICK_UP_TO_BPM = 60_000 / MIN_REGULAR_INTERVAL_MS
  */
 const SWITCH_BACK_ROOM = 1.04
 
-/** The detector reports kicks at least 80 ms apart (RBA-243), so 5 kicks always make 400 ms. */
+/** The detector reports kicks at least 80 ms apart, so 5 kicks always make 400 ms. */
 const MAX_KICKS_PER_FLASH = 8
 
 /** How many recent kicks the tempo between them is read from: a median of the last 4 gaps. */
@@ -97,7 +97,7 @@ export function playsInPage(source: StrobeSource): boolean {
 export type AudioClock = { now: number; currentTime: number; baseLatency?: number; outputLatency?: number }
 
 /**
- * When the listener hears a context time, in performance.now() ms: RBA-243's recipe. currentTime
+ * When the listener hears a context time, in performance.now() ms. currentTime
  * is about where the analyzer is now, and the speakers play it baseLatency + outputLatency later.
  * getOutputTimestamp() isn't used: Firefox shifts both of its halves back by outputLatency.
  * Safari before 17 has no outputLatency, and a missing latency counts as none.
@@ -110,7 +110,7 @@ export function heardAt(contextTime: number, clock: AudioClock): number {
 /**
  * How long the demo and a song are held back on their way to the speakers, in ms; the analyzer
  * hears them at once. The library's kick event reaches the page 13 to 18 ms of audio time after
- * the kick (measured on RBA-237), and a busy main thread adds to that, so without the hold the
+ * the kick (measured), and a busy main thread adds to that, so without the hold the
  * light would trail the sound. With it the event comes early, and the light waits for the kick to
  * be heard: measured, it lands within a frame. Generous for a slower device, and short enough that
  * Start still feels immediate.
@@ -189,7 +189,7 @@ export function initialStyle(reducedMotion: boolean): FlashStyle {
 export type FlashAnimation = { color: string; peakOpacity: number; attackMs: number; decayMs: number }
 
 /**
- * How one flash looks. The kick's strength (0.5 to 1 in practice, RBA-243) sets its brightness,
+ * How one flash looks. The kick's strength (0.5 to 1 in practice) sets its brightness,
  * so the light follows the music's dynamics. The full flash is on at once and gone within 120 ms.
  * The soft pulse rises gently to a third of the light and fades, for the reduced-motion default.
  * Both end before the next flash can start (`intervalMs`, at least MIN_GAP_MS): dark between.

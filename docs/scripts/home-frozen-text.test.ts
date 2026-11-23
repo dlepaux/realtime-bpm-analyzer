@@ -1,4 +1,4 @@
-// Run with `npm test`. The home's ranking text is frozen while its layout changes (RBA-66, PR 1):
+// Run with `npm test`. The home's ranking text is frozen while its layout changes:
 // search traffic is read against the 2026-11-03 title and H1 change, so a word changed here would
 // leave a traffic move with two causes. The rewording comes in PR 2, after 2026-12-01, with the
 // rendered-text diff in that PR; it updates these pins in the same change, never alone.
@@ -61,9 +61,9 @@ const FROZEN_SECTIONS: readonly (readonly [string, string])[] = [
 ]
 
 // Taken from main at 4c25a8f, before the layout change. FAQ and DEV were re-pinned by v6 of the
-// library (RBA-108): the frozen words showed the 5.x API that v6 removes (the bpm and bpmStable
+// library: the frozen words showed the 5.x API that v6 removes (the bpm and bpmStable
 // events, the stabilisation time) and named peaks' low-pass as how it works, so they could not
-// stay. v6 deploys after the day-14 read. The rendered-text diff is on RBA-108 (2026-11-15).
+// stay. v6 deploys after the day-14 read.
 const PINS: Readonly<Record<string, string>> = {
   FIND: '118cfd63d08e3898',
   LIMITS: 'f1369c32a1493820',

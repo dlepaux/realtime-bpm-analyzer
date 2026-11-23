@@ -1,4 +1,4 @@
-// Saving a setting as it changes, but not too often (RBA-276). The first change after a quiet
+// Saving a setting as it changes, but not too often. The first change after a quiet
 // spell is written at once, so a click is saved before a quick reload reads it back; the changes
 // that follow within `waitMs` (a slider drag, a held arrow key) become one write at the end of
 // the spell. That bounds the writes to one per `waitMs`, under Safari's limit of about 100

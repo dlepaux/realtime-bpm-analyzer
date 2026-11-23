@@ -57,7 +57,7 @@ const instruments = {
 
     return out;
   },
-  // A metronome's tick: a 1 kHz tone that dies in a few milliseconds, with nothing below 200 Hz (RBA-131's case)
+  // A metronome's tick: a 1 kHz tone that dies in a few milliseconds, with nothing below 200 Hz
   tick(sampleRate) {
     const length = Math.round(0.02 * sampleRate);
     const out = new Float64Array(length);
@@ -181,7 +181,7 @@ function lowpassUnrounded(samples, sampleRate) {
 export const edgeThreshold = 0.85;
 
 /**
- * The tempogram's floor, the library's consts.tempogramMinSampleRate (RBA-261): the first double at which its FFT has
+ * The tempogram's floor, the library's consts.tempogramMinSampleRate: the first double at which its FFT has
  * a bin above DC. A floor moved up makes the case at it throw, and generate.mjs refuses to write the set
  */
 export const tempogramFloor = 122.97509238026915;
@@ -269,7 +269,7 @@ function thresholdEdge() {
 }
 
 /**
- * A 4th-order Butterworth highpass, as two RBJ cookbook biquads in double precision: the bass cut of RBA-218's
+ * A 4th-order Butterworth highpass, as two RBJ cookbook biquads in double precision: the bass cut of the quiet-input probe's
  * bass-light variants, which leave the peaks engine's 200 Hz lowpass little to read
  * @param {Float64Array} mix The signal
  * @param {number} sampleRate Hz
@@ -278,7 +278,7 @@ function thresholdEdge() {
  */
 function highpass(mix, sampleRate, frequency) {
   let out = mix;
-  // The two section Qs of a 4th-order Butterworth filter, as RBA-218's probe set them
+  // The two section Qs of a 4th-order Butterworth filter, as the quiet-input probe set them
   for (const q of [0.5412, 1.3066]) {
     const w0 = (2 * Math.PI * frequency) / sampleRate;
     const cosW0 = Math.cos(w0);
@@ -300,7 +300,7 @@ function highpass(mix, sampleRate, frequency) {
 }
 
 /**
- * A pattern made quiet or bass-light, as RBA-218's probe made its variants: RBA-221's fallback reads these, where the
+ * A pattern made quiet or bass-light, as the quiet-input probe made its variants: the peaks engine's fallback search reads these, where the
  * peaks engine's fixed thresholds find no beat
  * @param {string} id File name in ../inputs
  * @param {string} description What it is and why it is in the set
@@ -386,7 +386,7 @@ export const signals = [
     {sampleRate: 44_100, seconds: 0.3, bpm: 120, steps: patterns.fourOnTheFloor(), seed: 18}),
   {id: 'silence-44k', description: 'Digital silence, 44.1 kHz, 8 s.', sampleRate: 44_100, build: () => new Float64Array(352_800)},
   {id: 'empty', description: 'No samples at all, for the error case.', sampleRate: 44_100, build: () => new Float64Array(0), optionSets: []},
-  // RBA-260: the calibration's band edges sit at 140 and 165 BPM, and kick-140-96k reads 140. These read 139, 164
+  // The calibration's band edges sit at 140 and 165 BPM, and kick-140-96k reads 140. These read 139, 164
   // and 165, so moving an edge by one BPM either way changes a confidence. Their low rates are the set's rates under 8 kHz
   pattern('kick-139-4k', 'Kick on every beat at 139 BPM, a BPM under the calibration band that starts at 140, 4 kHz, 10 s.',
     {sampleRate: 4_000, seconds: 10, bpm: 139, steps: patterns.fourOnTheFloor(), seed: 22}),
@@ -394,7 +394,7 @@ export const signals = [
     {sampleRate: 2_000, seconds: 10, bpm: 164, steps: patterns.fourOnTheFloor(), seed: 23}),
   pattern('kick-165-1k', 'Kick on every beat at 165 BPM, the first BPM of the top calibration band, 1 kHz, 10 s.',
     {sampleRate: 1_000, seconds: 10, bpm: 165, steps: patterns.fourOnTheFloor(), seed: 24}),
-  // RBA-261: from 100 Hz up to the tempogram's floor its FFT had 2 points, DC and Nyquist, and 6.2 read null here
+  // Before 6.3.0, from 100 Hz up to the tempogram's floor its FFT had 2 points, DC and Nyquist, and 6.2 read null here
   {
     id: 'impulses-120-100hz',
     description: 'One-sample clicks at 120 BPM, 100 Hz, 12 s, for the error cases: under the tempogram\'s floor of 122.97509238026915 Hz, where its FFT would have 2 points, with no bin above DC.',
@@ -420,7 +420,7 @@ export const signals = [
     // times a double's rounding, so any double lowpass keeps it, while a one-step move of a 16-bit input crosses it
     perturbation: 0,
   },
-  // RBA-221: the peaks engine's fixed thresholds find no beat in these, so their peaks readings come from its search
+  // The peaks engine's fixed thresholds find no beat in these, so their peaks readings come from its search
   // relative to the input's level, with confidence null
   quieter('house-118-minus14db-8k', 'House pattern at 118 BPM, 14 dB under the other patterns, 8 kHz, 10 s.',
     {sampleRate: 8_000, seconds: 10, bpm: 118, steps: patterns.house(), seed: 26}, {gainDb: -14}),

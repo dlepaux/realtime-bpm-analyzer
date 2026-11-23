@@ -19,7 +19,7 @@ export type DetectorConfig = {
   readonly tuning?: Partial<TempogramTuning>;
   /** For dev only, unless it is the pick */
   readonly candidate?: true;
-  /** RBA-106's hysteresis sweep of this engine (lib/hysteresis.ts), dev only: it runs every row on each track */
+  /** The calibration study's hysteresis sweep of this engine (lib/hysteresis.ts), dev only: it runs every row on each track */
   readonly sweep?: EngineName;
 };
 
@@ -28,7 +28,7 @@ const extensionRange = {min: 90, max: 180};
 const wideRange = {min: 50, max: 240};
 // What #285 shipped, fitted on sets that are now evaluation-only: kept as the row to compare against
 const tuning285 = {priorBpm: 136, priorOctaves: 0.8, halfBeatPenalty: 0, thirdBeatPenalty: 0};
-// RBA-51's first pick (b1ab9d3): lost fast music on its look, kept as the row to compare against.
+// The engine study's first pick (b1ab9d3): lost fast music on its look, kept as the row to compare against.
 // Only here: since the second look the library holds the locked values and nothing else
 const tuningFirst = {priorBpm: 110, priorOctaves: 0.7, halfBeatPenalty: 0, thirdBeatPenalty: 0.2};
 // Three points of one ridge on the second sweep's dev surface, equal within its noise: on 90 to 180 the
@@ -64,7 +64,7 @@ export const detectors: Record<string, DetectorConfig> = {
   },
   // The candidate as a caller gets it: through the option, with no override, so a look scores the shipped path
   'tempogram-extension': {options: {engine: {name: 'tempogram', mode: 'measured'}}, lowpass: false, offline: false},
-  // RBA-106's sweeps: the engine's own path per row, lowpass included for peaks, and the offline reading
+  // The calibration study's sweeps: the engine's own path per row, lowpass included for peaks, and the offline reading
   'tempogram-hysteresis': {options: tempogram, lowpass: false, offline: false, sweep: 'tempogram', candidate: true},
   'peaks-hysteresis': {options: {engine: 'peaks'}, lowpass: false, offline: false, sweep: 'peaks', candidate: true},
   // The extension's options as they are today, offscreen/main.ts: its timer resets the analyzer every 10 s
@@ -76,7 +76,7 @@ export const detectors: Record<string, DetectorConfig> = {
 };
 
 /**
- * The configuration fixed for RBA-51's second and last look, by its DECISION of 2026-10-31, which must
+ * The configuration fixed for the engine study's second and last look, by its decision of 2026-10-31, which must
  * hold the guard on the real path before the look: see the job's heldout mode. The amended rule in
  * lib/sweep.ts gives the same values, and a test holds the three together.
  */

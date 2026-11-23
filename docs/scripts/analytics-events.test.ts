@@ -1,4 +1,4 @@
-// Run with `npm test`. The analytics catalogue against GA4's own rules (RBA-154): a name or value
+// Run with `npm test`. The analytics catalogue against GA4's own rules: a name or value
 // GA4 rejects, renames or reads as something else is lost without an error, so it fails here.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -111,9 +111,9 @@ test('deprecated params are ones the event still sends, each with its replacemen
   }
 })
 
-// Continuity for the RBA-153 and RBA-66 readbacks: these names were live before RBA-154 and are
+// Continuity for the readbacks: these names were live before the typed catalogue and are
 // read across the cut-over. Renaming or dropping one breaks the series. v6 of the library renamed
-// two on purpose (RBA-108, DECISION 2026-11-03), and GA4's reports follow the new names.
+// two on purpose (decided on 2026-11-03), and GA4's reports follow the new names.
 const RENAMED_IN_V6: Record<string, string> = { bpm_mic_stable: 'bpm_mic_locked', bpm_stream_stable: 'bpm_stream_locked' }
 const current = (name: string): string => RENAMED_IN_V6[name] ?? name
 
@@ -124,7 +124,7 @@ test('v6 renamed the stable events outright, with no alias left behind', () => {
   }
 })
 
-test('every event and param that existed before RBA-154 is still there', () => {
+test('every event and param that existed before the typed catalogue is still there', () => {
   const before = [
     'bpm_tab_change', 'bpm_file_selected', 'bpm_file_result', 'bpm_file_error', 'bpm_file_restart', 'bpm_mic_clicked',
     'bpm_mic_stable', 'bpm_mic_error', 'bpm_mic_stopped', 'bpm_stream_clicked', 'bpm_stream_stable', 'bpm_stream_error',

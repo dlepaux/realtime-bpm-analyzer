@@ -21,7 +21,7 @@ test('decodeAndClose: closes the context after a decode', async () => {
   assert.deepEqual(calls, ['close'])
 })
 
-// RBA-93: every file the browser could not decode left a running context behind.
+// Every file the browser could not decode left a running context behind.
 test('decodeAndClose: closes the context when the decode fails', async () => {
   const { calls, context } = fakeContext(() => Promise.reject(new Error('undecodable')))
   await assert.rejects(decodeAndClose(context, new ArrayBuffer(1)), /undecodable/)
@@ -36,7 +36,7 @@ test('openAnalysis: hands back the context and analyzer, and releases nothing', 
   assert.deepEqual(calls, ['resume'])
 })
 
-// RBA-93: a worklet that failed to load left the context running and, for the mic, the track live.
+// A worklet that failed to load left the context running and, for the mic, the track live.
 test('openAnalysis: a failed analyzer closes the context and releases the input', async () => {
   const { calls, context } = fakeContext()
   await assert.rejects(

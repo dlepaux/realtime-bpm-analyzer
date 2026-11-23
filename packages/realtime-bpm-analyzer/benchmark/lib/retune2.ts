@@ -3,7 +3,7 @@ import type {Guard, SweepRow} from './sweep';
 
 /**
  * The sets the third sweep tunes on and scores macro: the three clean sets of the first two sweeps and
- * RBA-59's full mixes with a strict label. Contested labels are licence-clean too, and are left out by
+ * The free full mixes with a strict label. Contested labels are licence-clean too, and are left out by
  * choice: an octave a tracker disputes is no target to tune to.
  */
 export const tuningSetsOf: ReadonlySet<string> = new Set(['fsld', 'groove', 'guitarset', 'free-mixes']);

@@ -1,4 +1,4 @@
-// "Your tracks" (RBA-277): the file results of this browser, kept on this device so a returning
+// "Your tracks": the file results of this browser, kept on this device so a returning
 // visitor finds the tracks they already checked, and a DJ or a runner can sort and filter them.
 //
 // Pure data and functions; the component reads and writes storage through local-store.ts.

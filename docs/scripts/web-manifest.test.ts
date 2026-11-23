@@ -1,4 +1,4 @@
-// Run with `npm test`. The web manifest (RBA-276): it opens on the home and offers the two habit
+// Run with `npm test`. The web manifest: it opens on the home and offers the two habit
 // tools as shortcuts. `npm run build:favicon` rewrites the file, so these pins catch a regenerate
 // that drops the hand-added fields or points the icons outside /favicon/ again.
 import { test } from 'node:test'

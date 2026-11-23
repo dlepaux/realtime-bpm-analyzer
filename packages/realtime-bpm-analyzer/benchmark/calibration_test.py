@@ -57,7 +57,7 @@ class Readings(unittest.TestCase):
         out = readings_of(track('22', [[120, 0.9, 0.5], [120, 0.9, 0.6]]))
         self.assertEqual([s['time'] for s in out], ['10 s', 'end'])
 
-    # RBA-148: since v6 the recorded confidence is calibrated, so the fit must read the raw score beside it
+    # Since v6 the recorded confidence is calibrated, so the fit must read the raw score beside it
     def test_the_fit_reads_the_raw_score_not_the_calibrated_one(self):
         out = readings_of(track('22', [[120, 0.8, 0.3], [120, 0.85, 0.4]], offline=[120, 0.9, 0.5]))
         self.assertEqual([(s['raw'], s['shown']) for s in out], [(0.3, 0.8), (0.4, 0.85), (0.5, 0.9)])
@@ -200,7 +200,7 @@ def recorded_tracks(count, seed, overconfident=True):
 
 
 def with_confidence(tracks, mapping):
-    """The same tracks as the harness records them since RBA-148: [bpm, confidence, raw], the confidence being
+    """The same tracks as the harness records them now: [bpm, confidence, raw], the confidence being
     `mapping` read at the raw score, as the library's `calibrate` gives it"""
     add = lambda r: None if r is None else [r[0], round(apply_mapping(mapping, r[1], r[0]), 6), r[1]]
     return [{**t, 'readings': [add(r) for r in t['readings']], 'offline': add(t['offline'])} for t in tracks]
@@ -220,7 +220,7 @@ def samples_file(chosen, split='dev', **extra):
 
 
 class Refit(unittest.TestCase):
-    """RBA-148: a re-fit on what the harness records now gives the tables the dev fit committed"""
+    """A re-fit on what the harness records now gives the tables the dev fit committed"""
 
     @classmethod
     def setUpClass(cls):

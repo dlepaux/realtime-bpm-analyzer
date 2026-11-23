@@ -1,6 +1,6 @@
 name: Browser cost
 
-# RBA-51: what each engine costs in a real browser, before David rules on the default. On demand only:
+# What each engine costs in a real browser, measured before choosing the default. On demand only:
 # the pull_request trigger fires for changes to the harness itself, and nothing else runs it.
 on:
   workflow_dispatch:

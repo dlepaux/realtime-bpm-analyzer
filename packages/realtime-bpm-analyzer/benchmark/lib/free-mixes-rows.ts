@@ -1,12 +1,12 @@
 import type {Track} from './types';
 
 /**
- * RBA-59's licence-clean full mixes. A caller reads one half: the ids of that half in split-ids.json,
+ * The licence-clean free full mixes. A caller reads one half: the ids of that half in split-ids.json,
  * skipping every manifest line whose id is not one of them before parsing it, and refusing a parsed row
- * that names the other half. Dev feeds tuning. Held-out is read only by RBA-51's one look, which its
+ * that names the other half. Dev feeds tuning. Held-out is read only by the engine study's one look, which its
  * DECISION of 2026-11-03 opened: `freeHeldoutRefusal` holds that scope, and tuning refuses held-out in
  * any form. The sets are kept out of `loaders` on purpose, which is every other route to held-out in
- * run.ts and job.ts. Layout and labels: RBA-59's free-data.ts on feat/rba-59-free-data.
+ * run.ts and job.ts. Layout and labels: the free-mix pipeline's free-data.ts, kept outside this repository.
  */
 export const freeSets = ['free-mixes', 'free-mixes-contested'] as const;
 
@@ -19,7 +19,7 @@ export type FreeSet = (typeof freeSets)[number];
  */
 export const excerptSeconds = 60;
 
-/** The fields of a manifest row this reads. The full type lives with RBA-59's pipeline */
+/** The fields of a manifest row this reads. The full type lives with the free-mix pipeline */
 type ManifestRow = {
   readonly id: string;
   readonly kind: string;
@@ -34,7 +34,7 @@ type ManifestRow = {
 };
 
 /**
- * The tier of a label. Strict is RBA-59's report verdict rule without its genre and licence-class
+ * The tier of a label. Strict is the free-mix report's verdict rule without its genre and licence-class
  * target filters: a tempo, no tracker an octave away, and one tempo through both halves. A label a
  * tracker contests by an octave, or whose halves disagree, is contested. No tempo, no tier.
  * @param row A manifest row
@@ -119,7 +119,7 @@ export function devTracks(splitIds: string, manifest: string): Record<FreeSet, T
 }
 
 /**
- * RBA-51's look at this half scores these detectors on these sets, whole, and nothing else: a narrower
+ * The engine study's look at this half scores these detectors on these sets, whole, and nothing else: a narrower
  * or wider run would spend the one look on something the bar cannot judge. Kept here, beside the
  * refusal, so both entry points read one list. lib/free-look.ts holds the same lists for its verdict,
  * and a test holds them together.
@@ -129,7 +129,7 @@ export const freeLookScope = {detectors: ['peaks', 'tempogram'], sets: ['free-mi
 /**
  * The one refusal both entry points apply before anything is logged or read: run.ts before its look's
  * log line, so naming a free set spends nothing, and job.ts as a usage error. Held-out on a free set is
- * RBA-51's look and nothing else: both free sets, no other set, and exactly the look's detectors.
+ * The engine study's look and nothing else: both free sets, no other set, and exactly the look's detectors.
  * @param split The split asked for
  * @param sets The sets asked for
  * @param detectorNames The detectors asked for
@@ -162,7 +162,7 @@ export function freeJobModeRefusal(mode: string, sets: readonly string[]): strin
 
 /**
  * @param set A set name
- * @returns Whether it is one of RBA-59's sets
+ * @returns Whether it is one of the free-mix sets
  */
 export function isFreeSet(set: string): set is FreeSet {
   return (freeSets as readonly string[]).includes(set);

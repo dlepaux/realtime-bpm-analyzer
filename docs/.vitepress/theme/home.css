@@ -1,4 +1,4 @@
-/* The home page (RBA-66): the analyzer first, then the free tools, then the reading.
+/* The home page: the analyzer first, then the free tools, then the reading.
    Widths follow VitePress's own home content (1280px, 24/48/64px gutters at 640 and 960), so
    the hero, the tiles and the markdown below share one left edge. The one device check is
    (pointer: coarse), as in extension.css; the widths are VitePress's breakpoints. */

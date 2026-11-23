@@ -43,7 +43,7 @@ test('seoProblems: home needs one h1 holding only the search phrase, and a dated
   assert.match(seoProblems(undated).join(), /no byline with a date/)
 })
 
-// Since the noindex flip (contributing.md, "First publish of v6", step 13) the CLI and MCP
+// Since both reached npm and their noindex was lifted, the CLI and MCP
 // guides are held to every guide's rules: indexable, in the sitemap, an article with its dates.
 test('seoProblems: the CLI and MCP guides are guides like the others', () => {
   const noindex = site({ 'guide/cli.html': `${NOINDEX}${canonical('/guide/cli')}${GUIDE}`, 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/cli')) })
@@ -54,7 +54,7 @@ test('seoProblems: the CLI and MCP guides are guides like the others', () => {
   assert.deepEqual(seoProblems(unlisted), ['guide/mcp.html: indexable but not in the sitemap'])
 })
 
-// Since the 6.2 ports' noindex flip (contributing.md, "First publish of the 6.2 ports", step 8)
+// Since their ports reached Maven Central and PyPI and their noindex was lifted,
 // the Java and Python guides are held to every guide's rules too.
 test('seoProblems: the Java and Python guides are guides like the others', () => {
   const noindex = site({ 'guide/java.html': `${NOINDEX}${canonical('/guide/java')}${GUIDE}`, 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/java')) })
@@ -65,7 +65,7 @@ test('seoProblems: the Java and Python guides are guides like the others', () =>
   assert.deepEqual(seoProblems(unlisted), ['guide/python.html: indexable but not in the sitemap'])
 })
 
-// Since their publish flip (RBA-272) the C# and Swift guides are held to every guide's rules too.
+// Since their publish flip the C# and Swift guides are held to every guide's rules too.
 test('seoProblems: the C# and Swift guides are guides like the others', () => {
   const noindex = site({ 'guide/csharp.html': `${NOINDEX}${canonical('/guide/csharp')}${GUIDE}`, 'sitemap.xml': sitemap(LISTED.filter((url) => url !== '/guide/csharp')) })
   assert.deepEqual(seoProblems(noindex), ['guide/csharp.html: noindex'])
@@ -134,7 +134,7 @@ test('seoProblems: no page carries an empty @graph', () => {
   assert.match(seoProblems(empty).join(), /website-privacy\.html: an empty @graph/)
 })
 
-// RBA-268: the API reference and the copied root files all carried the site's description.
+// The API reference and the copied root files all carried the site's description.
 test('seoProblems: every page in the sitemap has a description of its own', () => {
   const fallback = site({ 'website-privacy.html': `${canonical('/website-privacy')}${description(SITE_DESCRIPTION)}` })
   assert.deepEqual(seoProblems(fallback), ["website-privacy.html: the site's default meta description"])

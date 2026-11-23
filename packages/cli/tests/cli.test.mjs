@@ -15,7 +15,7 @@ import {decodeFile} from '../dist/decode.mjs';
 import {bassTestExpected} from '../../realtime-bpm-analyzer/tests/fixtures/bass-test-expected.ts';
 import {createClickTrack} from '../../realtime-bpm-analyzer/tests/fixtures/click-track.ts';
 
-// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// node --test has no timeout of its own. This one caps each top-level suite as a whole,
 // each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
 // thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
 const hangLimit = {timeout: 60_000};
@@ -146,7 +146,7 @@ describe('realtime-bpm-analyzer CLI', hangLimit, () => {
   });
 
   it('prints an unmeasured confidence as unmeasured in text and null in JSON, never as 0 or NaN', async () => {
-    // 128 BPM on 40 to 80 reads 64, outside the 90 to 180 BPM confidence was measured on (RBA-147)
+    // 128 BPM on 40 to 80 reads 64, outside the 90 to 180 BPM confidence was measured on
     const range = ['--min-bpm', '40', '--max-bpm', '80'];
     for (const engine of ['peaks', 'tempogram']) {
       const text = await run(['--engine', engine, ...range, clickMp3]);
@@ -161,7 +161,7 @@ describe('realtime-bpm-analyzer CLI', hangLimit, () => {
   });
 
   it('gives null on any custom range, even for a tempo inside 90 to 180', async () => {
-    // RBA-108's DECISION of 2026-11-16: the tables were fitted only on the default range, and a custom range changes
+    // The tables were fitted only on the default range, and a custom range changes
     // what each engine picks, so a reading there is unmeasured wherever it lands. 128 is the click's only octave in 80 to 200
     for (const engine of ['peaks', 'tempogram']) {
       const {code, results: [result]} = await runJson(['--engine', engine, '--min-bpm', '80', '--max-bpm', '200', clickMp3]);

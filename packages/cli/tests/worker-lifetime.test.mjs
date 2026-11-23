@@ -1,6 +1,6 @@
 // Who ends the analysis worker, on each path. On Node 22.0.0, a terminate() that lands while the
 // worker is exiting by itself can deadlock the worker's teardown: terminate never settles, the
-// live thread holds the host's event loop, and analyzeFile never returns (RBA-241: the CLI hung
+// live thread holds the host's event loop, and analyzeFile never returns (the CLI hung
 // about once in 150 runs, and CI's Node 22 job for 72 minutes). So the two endings must never
 // overlap: the host ends a worker that answered, and waits for one that ended by itself.
 // Needs `npm run build` at the repo root first.
@@ -13,7 +13,7 @@ import {copyFile, mkdtemp, rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
-// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// node --test has no timeout of its own. This one caps each top-level suite as a whole,
 // each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
 // thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
 const hangLimit = {timeout: 60_000};

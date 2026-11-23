@@ -1,4 +1,4 @@
-// Compile-time checks of track()'s typing (RBA-154), run by the docs typecheck (vue-tsc). Never
+// Compile-time checks of track()'s typing, run by the docs typecheck (vue-tsc). Never
 // imported: each @ts-expect-error fails the typecheck if the line it guards starts compiling.
 import { track } from '../composables/useAnalytics'
 

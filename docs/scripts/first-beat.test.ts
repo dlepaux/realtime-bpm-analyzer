@@ -221,7 +221,7 @@ test('fitTempo: a fitted grid carries its phase, a beat of the grid in seconds',
   assert.ok(Math.abs(off) < 0.015, `phase ${tempo.phase} sits ${off} s off the beats`)
 })
 
-// v6 seeds the fit with Reading.bpmExact (RBA-128): the fit refines the exact reading within
+// v6 seeds the fit with Reading.bpmExact: the fit refines the exact reading within
 // FIT_RANGE_BPM of it, and a weak fit keeps the exact reading, never its rounded value.
 test('fitTempo: seeded with the exact reading 127.6, it refines it and its range is centred on it', () => {
   const truth = { offset: 0.31, bpm: 127.6 }

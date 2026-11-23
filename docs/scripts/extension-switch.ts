@@ -1,4 +1,4 @@
-// What a built site must look like in each state of EXTENSION_STORE_URL (RBA-58), as
+// What a built site must look like in each state of EXTENSION_STORE_URL, as
 // pure checks over the build's files. verify-extension-switch.ts runs them on real
 // builds in CI; extension-switch.test.ts proves they catch what they claim to catch.
 
@@ -30,7 +30,7 @@ const MAX_SHARE_IMAGE_BYTES = 300_000
 const HERO_ACTION = 'Live BPM Detector for Chrome and Edge'
 const HOME_SECTION = 'ext-band'
 const HOME_TAGLINE = 'extension for Chrome and Edge, for the music in your tabs'
-// A phone's door to the extension: the page, sent to a computer (RBA-66).
+// A phone's door to the extension: the page, sent to a computer.
 const HOME_SEND_LINK = 'Send the link to yourself'
 const BANNED_MARKUP = /aggregateRating|ratingValue|reviewCount|"review"/
 
@@ -129,8 +129,8 @@ function demoProblems(site: BuiltSite): string[] {
   return problems
 }
 
-// The structured data's installUrl: one listing as a string, several as an array (RBA-58,
-// Edge beside Chrome). Anything unreadable counts as no listing.
+// The structured data's installUrl: one listing as a string, several as an array (Edge
+// beside Chrome). Anything unreadable counts as no listing.
 function schemaInstallUrls(page: string): string[] {
   const raw = /"installUrl":("[^"]*"|\[[^\]]*\])/.exec(page)?.[1]
   if (raw === undefined) return []

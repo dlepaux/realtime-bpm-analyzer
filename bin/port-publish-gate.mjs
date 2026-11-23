@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// CI gate for the ports' publish jobs (RBA-259): publish a port only from the commit release-please released it at,
+// CI gate for the ports' publish jobs: publish a port only from the commit release-please released it at,
 // and, given a registry URL, only when the registry doesn't have that version yet.
 //
 // The npm steps key on the registry alone, because a package.json only names a new version once its release PR has

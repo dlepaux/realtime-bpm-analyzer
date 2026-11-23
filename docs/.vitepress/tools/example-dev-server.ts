@@ -1,5 +1,5 @@
 // In docs dev each embed loads its example from that example's own dev server, which
-// `npm run docs:dev` does not start (RBA-231). The embed checks the server first, and names the
+// `npm run docs:dev` does not start. The embed checks the server first, and names the
 // command to run instead of showing a blank frame. Production serves the built examples from the
 // site itself and never probes. The ports are the ones each example's vite config falls back to,
 // and docs/scripts/dev-examples.ts starts the servers from this same list.

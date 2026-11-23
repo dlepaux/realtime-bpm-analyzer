@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs the built wheel in a clean venv and runs the tests against it, so they test the package a user installs,
-# not src/ (RBA-257). The tools come from a hashed lock, all as wheels: the port must need no compiler.
+# not src/. The tools come from a hashed lock, all as wheels: the port must need no compiler.
 # Usage: test-wheel.sh <python> <new venv dir> <dist dir> <requirements lock>
 set -euo pipefail
 python=$1

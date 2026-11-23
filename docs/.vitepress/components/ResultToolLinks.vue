@@ -10,7 +10,7 @@ import { useFrameRate } from '../composables/useFrameRate'
 // tools, each opened already set to it (they read `?bpm=`). Deliberately a
 // line of text, not buttons, so it never competes with the result's actions.
 // `source` names the analyzer mode in analytics. `video` (the /video-bpm page) adds
-// the beat in frames at the editor's remembered rate (24 fps until they pick one, RBA-276), and
+// the beat in frames at the editor's remembered rate (24 fps until they pick one), and
 // leads with frames. The audio results link to frames too, for the editor who starts on the home.
 const props = defineProps<{ bpm: number; source: 'file' | 'mic' | 'stream'; video?: boolean }>()
 
@@ -32,7 +32,7 @@ const VIDEO_LINKS = [{ tool: 'bpm-to-frames', label: 'Frames at every fps' }] as
 const links = computed(() => (props.video ? VIDEO_LINKS : AUDIO_LINKS))
 
 function onClick(tool: string) {
-  // `mode` keeps its old form for the readback; result_source and tool split it (RBA-154).
+  // `mode` keeps its old form for the readback; result_source and tool split it.
   track('bpm_tool_link_clicked', { bpm: props.bpm, mode: `${props.source}→${tool}`, result_source: props.source, tool })
 }
 </script>

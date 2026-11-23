@@ -115,7 +115,7 @@ describe('the measured mode', () => {
 });
 
 describe('engine option', () => {
-  // RBA-51 DECISION 2026-11-03: v6 runs the tempogram unless the caller asks for peaks
+  // Since v6 (decided on 2026-11-03), it runs the tempogram unless the caller asks for peaks
   it('defaults to the tempogram, realtime and offline', async () => {
     expect(resolveEngine(undefined, undefined).engine).to.deep.equal({name: 'tempogram'});
     expect(resolveOfflineEngine(undefined, 44_100)).to.deep.equal({name: 'tempogram', lowpass: {}});

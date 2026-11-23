@@ -1,5 +1,5 @@
-// Run with `npm test`. What each workflow job may do with its GITHUB_TOKEN and its OIDC token (RBA-232), and
-// where its secrets may appear (RBA-272).
+// Run with `npm test`. What each workflow job may do with its GITHUB_TOKEN and its OIDC token, and
+// where its secrets may appear.
 // npm's trusted publisher accepts an OIDC token from main.yml, so `id-token: write` on any other job of it,
 // a pull request's run included, could publish realtime-bpm-analyzer. Only the release job gets one, in the
 // `npm` environment that only main may deploy to, the PyPI and NuGet publish jobs, each in its registry's

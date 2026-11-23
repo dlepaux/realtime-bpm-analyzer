@@ -157,7 +157,7 @@ export interface Station {
   name: string
   url: string
   /**
-   * Where the station's terms were read, and the day (RBA-245). A station joins this list only
+   * Where the station's terms were read, and the day. A station joins this list only
    * once its terms allow other websites to play it: silence is not permission. Terms change, so
    * re-read every station's whenever the list changes.
    */
@@ -165,11 +165,11 @@ export interface Station {
 }
 
 // Each one checked live on 2026-10-29 to answer with Access-Control-Allow-Origin,
-// which the analyser needs to read a cross-origin stream (RBA-4). Radio Paradise
+// which the analyser needs to read a cross-origin stream. Radio Paradise
 // also serves http://, which this https page would block, so keep the https URL.
 // Radio Paradise predates the terms rule: its stream-links page offers its URLs "for
 // WiFi Radios & other players" and says nothing about websites, so whether it stays
-// is the ruling pending on RBA-237.
+// is a ruling still pending.
 export const STATIONS: readonly Station[] = [
   {
     id: 'radio_paradise',
@@ -206,7 +206,7 @@ function sameStream(a: URL, b: URL): boolean {
 }
 
 /**
- * What stream events send instead of the URL (RBA-35). Analytics never carry a
+ * What stream events send instead of the URL. Analytics never carry a
  * URL: a pasted one can hold a private path or a token, and only an enumerated
  * value leaves this function, never a piece of the address.
  */

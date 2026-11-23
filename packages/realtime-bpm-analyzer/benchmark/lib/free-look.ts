@@ -5,8 +5,8 @@ import type {Interval, Metric, Scope, TrackFilter} from './pass-bar';
 import type {TrackResult} from './types';
 
 /**
- * The pass bar of RBA-51's look at RBA-59's held-out free mixes, as code, committed before the look
- * so that its reading cannot follow the numbers. The bar is the one proposed on RBA-51 on 2026-11-03
+ * The pass bar of the engine study's look at the held-out free mixes, as code, committed before the look
+ * so that its reading cannot follow the numbers. The bar is the one proposed on 2026-11-03
  * (10:41Z), applied as the DECISION of 2026-11-03 (12:40Z) narrows it: the candidate is 5.5.0 as
  * shipped, so gate 3 and the half of gate 2 against 5.5.0 are void. Where the wording leaves a reading
  * open, the one taken is written beside the check. Any failure keeps peaks.

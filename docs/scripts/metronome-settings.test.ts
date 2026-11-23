@@ -1,5 +1,5 @@
 // Run with `npm test` (node --test, Node's own type stripping; no test framework).
-// The metronome's remembered settings (RBA-276): the address, then the store, then the defaults.
+// The metronome's remembered settings: the address, then the store, then the defaults.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -120,7 +120,7 @@ test('subdivisionOf and subdivisionValue map clicks per beat to the id and back'
     assert.equal(subdivisionValue(sub.id), sub.value)
   }
   assert.equal(subdivisionOf(5).id, 'quarters')
-  // The ids are what analytics sends (RBA-154): renaming one changes a reported value.
+  // The ids are what analytics sends: renaming one changes a reported value.
   assert.deepEqual(SUBDIVISIONS.map((sub) => sub.id), ['quarters', 'eighths', 'triplets', 'sixteenths'])
 })
 

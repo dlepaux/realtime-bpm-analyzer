@@ -34,15 +34,15 @@ type Keys = typeof engineKeys;
 type RealtimeObject = Extract<EngineOption, object>;
 type OfflineObject = Extract<OfflineEngineOption, object>;
 
-// The resolvers refuse every key outside `engineKeys`, so these hold it equal to the public types (RBA-108's
-// DECISION of 2026-11-16): a setting added to one and not the other fails this check
+// The resolvers refuse every key outside `engineKeys`, so these hold it equal to the public types
+// (strict options): a setting added to one and not the other fails this check
 export type RealtimeEngineNames = Satisfies<Same<RealtimeObject['name'], keyof Keys['realtime']>, true>;
 export type RealtimePeaksKeys = Satisfies<Same<keyof Extract<RealtimeObject, {name: 'peaks'}>, Keys['realtime']['peaks'][number]>, true>;
 export type RealtimeTempogramKeys = Satisfies<Same<keyof Extract<RealtimeObject, {name: 'tempogram'}>, Keys['realtime']['tempogram'][number]>, true>;
 export type OfflineEngineNames = Satisfies<Same<OfflineObject['name'], keyof Keys['offline']>, true>;
 export type OfflinePeaksKeys = Satisfies<Same<keyof Extract<OfflineObject, {name: 'peaks'}>, Keys['offline']['peaks'][number]>, true>;
 
-// The same for the top-level options and the tempo range (RBA-108's DECISION of 2026-11-16, strict options): an
+// The same for the top-level options and the tempo range (strict options): an
 // option added to the type and not to the list, or the other way round, fails this check
 export type RealtimeOptionKeys = Satisfies<Same<keyof AnalyzerOptions, (typeof optionKeys)['realtime'][number]>, true>;
 export type OfflineOptionKeys = Satisfies<Same<keyof OfflineOptions, (typeof optionKeys)['offline'][number]>, true>;

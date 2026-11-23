@@ -8,7 +8,7 @@
 // npm 11, which @semantic-release/npm required). The plain gate then failed
 // every PR whatever it changed. The library ships no runtime dependencies, so
 // none of these reach consumers. The list is empty since release-please replaced
-// semantic-release (RBA-37) and took the bundled npm out of the tree.
+// semantic-release and took the bundled npm out of the tree.
 //
 // Each entry is scoped to one advisory in one package, optionally only under a
 // path prefix, and stops suppressing after `until`. CI then goes red again and

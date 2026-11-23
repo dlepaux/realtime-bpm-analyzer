@@ -1,4 +1,4 @@
-"""RBA-106: peaks and the 5.5.0 tempogram run together, on dev only.
+"""Peaks and the 5.5.0 tempogram run together, on dev only.
 
 Reads a dev result file from the batch job (`_job/dev-<commit>.json`, both engines on the real path) and
 prints aggregates as markdown. It never reads a held-out file: it refuses any file whose `split` is not
@@ -12,7 +12,7 @@ paired. The draws come from Python's own seeded generator, so the ranges are not
 TypeScript reports, only the same method.
 
 Every rule here is fixed on dev. A held-out check of any of them would be a second look and needs its own
-DECISION on RBA-106.
+decision.
 """
 
 from array import array

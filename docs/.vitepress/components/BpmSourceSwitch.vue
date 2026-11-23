@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="Id extends string">
-// The analyzer's source picker (RBA-66): a segmented control of toggle buttons, one pressed. Plain
+// The analyzer's source picker: a segmented control of toggle buttons, one pressed. Plain
 // buttons rather than ARIA tabs, since each press also stops the previous source's audio: a
 // button says it acts, and Tab reaches each one with no roving focus to learn.
 import type { Component } from 'vue'

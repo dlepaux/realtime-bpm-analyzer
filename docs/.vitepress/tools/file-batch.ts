@@ -1,4 +1,4 @@
-// The BPM finder's file batch (RBA-277): how much of a drop it takes, and what its progress says.
+// The BPM finder's file batch: how much of a drop it takes, and what its progress says.
 // Pure, so node --test checks the arithmetic the component relies on.
 
 /** Files per batch: a folder of 300 would hold the tab for an hour. The copy says how many were left out. */

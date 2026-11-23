@@ -112,7 +112,7 @@ async function copy(key: string, text: string, row: { label: string; isCustom: b
     window.clearTimeout(copiedTimer)
     copiedTimer = window.setTimeout(() => (copied.value = null), 1400)
     // `mode` keeps its old form for the readback; fps and frame_cell split it, and a typed rate
-    // is sent as `custom`, never the number itself (RBA-154).
+    // is sent as `custom`, never the number itself.
     track('bpm_frames_copied', {
       bpm: Math.round(bpm.value ?? 0),
       mode: `${row.label} fps ${cell}`,

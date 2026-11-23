@@ -1,6 +1,6 @@
-// Run with `npm test`. The versions Renovate must leave alone, and the ones it must keep moving (RBA-269).
+// Run with `npm test`. The versions Renovate must leave alone, and the ones it must keep moving.
 // - The published engines of the CLI and the MCP server: raising them drops users on an older Node LTS,
-//   a breaking change David ruled out on 2026-11-17 (DECISION da6in496c14kne8f9dn1t5o6 on RBA-269).
+//   a breaking change ruled out on 2026-11-17.
 // - The steps that run Node at that floor: a bump there tests a newer Node than the floor promises.
 // - The markers job's Python: its requirements pin OpenTimelineIO's CPython wheel by hash, and OpenTimelineIO
 //   publishes none past 3.13, so a newer Python breaks `pip install --require-hashes`.

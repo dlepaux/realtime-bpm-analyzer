@@ -137,7 +137,7 @@ describe('tempogram detector', () => {
   for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
     it(`hears onsets as before a few seconds after one sample of ${String(bad)}`, () => {
       // On this frame boundary at 48 kHz, an infinite sample used to set an infinite loudness
-      // that never decayed, and every onset after it read 0: a tempo deaf for good (RBA-246)
+      // that never decayed, and every onset after it read 0: a tempo deaf for good
       const rate = 48_000;
       const clean = createBrightClicks(120, 20, 1, rate);
       const spoiled = clean.slice();
@@ -360,7 +360,7 @@ describe('detectTempogram', () => {
   });
 });
 
-// RBA-261: from 100 Hz to just under this floor the FFT had 2 points, DC and Nyquist, so every reading was null
+// Before 6.3.0, from 100 Hz to just under this floor the FFT had 2 points, DC and Nyquist, so every reading was null
 describe('the tempogram\'s sample rate floor', () => {
   const floor = tempogramMinSampleRate;
   const under = previousDouble(floor);

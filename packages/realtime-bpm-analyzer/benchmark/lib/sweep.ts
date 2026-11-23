@@ -22,11 +22,11 @@ export type SweepRow = {
   readonly tuning: Tuning;
   readonly sets: Readonly<Record<string, SetMetrics>>;
   readonly score: number;
-  /** What the replay searched. Absent on RBA-51's first sweep, which ran the default */
+  /** What the replay searched. Absent on the engine study's first sweep, which ran the default */
   readonly tempoRange?: TempoRange;
   /** Tracks and hits per labelled tempo band, pooled over the sets. Absent on the first sweep */
   readonly bands?: Readonly<Record<string, BandCount>>;
-  /** One standard error of the score from resampling groups within each set. Absent before RBA-51's third sweep */
+  /** One standard error of the score from resampling groups within each set. Absent before the engine study's third sweep */
   readonly scoreSe?: number;
 };
 
@@ -66,7 +66,7 @@ export function guardShortfalls(bands: SweepRow['bands'], guard: Guard = secondS
  * The rule of the second sweep: the noise rule, over the configurations the guard lets through.
  * A configuration is a tuning and a range, and the range is no knob, so this picks the range too.
  *
- * Amended by RBA-51's DECISION of 2026-10-31, after this rule had refused twice, before the look: among
+ * Amended by the engine study's decision of 2026-10-31, after this rule had refused twice, before the look: among
  * the rows within noise, one holding the prior inside what was measured comes first. As first written
  * it chose the end of a flat ridge and refused on being at an end, at 80/1.7 and again at 50/2.4 once the
  * grid reached it, and those two read 1 of 1192 dev tracks differently. An amendment made to spend a look
@@ -139,7 +139,7 @@ export function tuningKey(tuning: Tuning): string {
 }
 
 /**
- * The score of RBA-51's first sweep, percentage points: macro over sets so that the largest set
+ * The score of the engine study's first sweep, percentage points: macro over sets so that the largest set
  * does not pick the prior. False-stable alone rewards silence, hence the coverage term. A set
  * without a single stable reading counts as all false.
  * @param sets Metrics per set, as shares
@@ -162,7 +162,7 @@ export function bestRow(rows: readonly SweepRow[]): SweepRow | null {
 
 /**
  * Sampling noise of a score, in its own points: binomial per metric, assumed independent. An
- * estimate, unpaired although rows share their tracks: RBA-51's review bootstrapped its chosen row at
+ * estimate, unpaired although rows share their tracks: the engine study's review bootstrapped its chosen row at
  * 2.04 where this says 1.58, so its pick is recorded with the range of widths it holds for.
  * @param row A row
  * @param sizes Tracks per set

@@ -1,4 +1,4 @@
-// Run with `npm test`. Where Google Analytics loads (RBA-154): the production host only, so local
+// Run with `npm test`. Where Google Analytics loads: the production host only, so local
 // runs and preview hosts never report, and the owner's devices are marked internal.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'

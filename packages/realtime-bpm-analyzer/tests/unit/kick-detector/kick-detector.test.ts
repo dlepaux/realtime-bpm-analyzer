@@ -4,7 +4,7 @@ import {absolutePercentile, createKickChangeScene, createKickScene, kickSceneNam
 import type {KickSceneName} from '../../fixtures/kick-scenes';
 
 /**
- * The kick detector on synthetic scenes whose kick times are exact (RBA-243). The thresholds, and why:
+ * The kick detector on synthetic scenes whose kick times are exact. The thresholds, and why:
  * - The hit window is ±50 ms, the usual one for scoring onsets (MIREX). The timing error is asserted on its own,
  *   much tighter, so a detection late by 40 ms does not pass as a hit and go unnoticed.
  * - Music scenes: no miss and no false kick. The scenes are deterministic and the detector scores 100% on them at
@@ -78,7 +78,7 @@ describe('Kick detector - synthetic scenes', () => {
           p90: absolutePercentile(score.errors, 0.9),
           max: absolutePercentile(score.errors, 1),
         };
-        // Read by the RBA-243 report: one line per scene and rate
+        // Read by the kick detector's report: one line per scene and rate
         console.log(`KICK-SCORE ${JSON.stringify({name, sampleRate, ...score, errors: undefined, timingMs: Object.fromEntries(Object.entries(timing).map(([key, value]) => [key, Number((value * 1000).toFixed(1))]))})}`);
 
         expect(score.misses, 'missed kicks').to.equal(0);
@@ -198,7 +198,7 @@ const missedKicks = (truth: readonly number[], detections: readonly Detection[])
 const falseKicks = (truth: readonly number[], detections: readonly Detection[]) => detections.filter(({time}) => !truth.some(kick => Math.abs(time - kick) <= hitWindow));
 
 /**
- * When the music changes under the detector, with no reset() (RBA-246). The thresholds, and why:
+ * When the music changes under the detector, with no reset(). The thresholds, and why:
  * - The loudest kick is the loudest of the last 3.5 s (`memorySeconds`), so after a drop every kick that starts 3.55 s
  *   or more after it counts again, whatever the drop: 3.5 s for the window, and 50 ms for the hops a kick takes to be
  *   confirmed, which differ from one kick to the next. Measured: the last kick missed starts 3.08 s after either drop,
@@ -260,7 +260,7 @@ describe('Kick detector - when the music changes', () => {
 });
 
 /**
- * A sample that is not finite, once (RBA-246). It used to leave the filters at NaN, and no kick counted again until
+ * A sample that is not finite, once. It used to leave the filters at NaN, and no kick counted again until
  * reset(). Each one lands 23 ms into the full mix's kick at 10.18 s, just after that kick was confirmed. The bound:
  * every kick that starts 100 ms or more after it is heard, the 80 ms the detector takes to refill its history and
  * the time it takes to confirm a kick. The scene's next kick starts 461 ms after it, so this pins the recovery, not

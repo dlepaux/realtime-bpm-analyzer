@@ -4,7 +4,7 @@ using Xunit;
 namespace RealtimeBpmAnalyzer.Tests;
 
 /// <summary>
-/// RBA-221's level-relative search at its edges, which the conformance inputs reach only in the middle: the
+/// The peaks engine's level-relative search at its edges, which the conformance inputs reach only in the middle: the
 /// percentile's index, the windows' bounds, and the floor and full-scale guards.
 /// </summary>
 public sealed class PeaksLevelTests

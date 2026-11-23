@@ -16,9 +16,9 @@ export default {
   Layout,
   enhanceApp({ app, router }: EnhanceAppContext) {
     app.component('ExampleEmbed', ExampleEmbed)
-    // The tool pages put it under their tool (RBA-284).
+    // The tool pages put it under their tool.
     app.component('ToolboxEntry', ToolboxEntry)
-    // In-site page views come from the router, not from GA4's history tracking (RBA-154).
+    // In-site page views come from the router, not from GA4's history tracking.
     if (inBrowser) router.onAfterRouteChange = trackRouteChange
   },
 } satisfies Theme

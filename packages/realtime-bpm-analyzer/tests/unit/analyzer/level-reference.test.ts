@@ -19,10 +19,10 @@ function scaled(samples: Float32Array, gain: number): Float32Array {
 }
 
 /**
- * RBA-221: peaks' file path read nothing once the lowpassed bass peaked under the fixed ladder's 0.2 floor. It now
+ * Peaks' file path read nothing once the lowpassed bass peaked under the fixed ladder's 0.2 floor. It now
  * searches again relative to the channel's own level, only when the fixed ladder found nothing.
  */
-describe('analyzer - level reference (RBA-221)', () => {
+describe('analyzer - level reference', () => {
   describe('consts', () => {
     it('writes the silence floor out as the double 10 ** (-70 / 20) is', () => {
       expect(consts.silenceFloor).to.equal(10 ** (-70 / 20));

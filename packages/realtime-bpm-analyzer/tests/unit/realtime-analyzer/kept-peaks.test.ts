@@ -6,7 +6,7 @@ import {createClickTrack} from '../../fixtures/click-track';
 const bufferSize = 4096;
 const audioSampleRate = 44_100;
 
-describe('PeaksEngine - kept peaks are bounded (RBA-107)', () => {
+describe('PeaksEngine - kept peaks are bounded', () => {
   it('keeps at most maxKeptPeaks per threshold over a long listen, the newest ones, and still reads the tempo', async function () {
     this.timeout(30_000);
     // 240 BPM clicks give about 4 peaks a second: 2 minutes is near twice the cap

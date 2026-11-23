@@ -37,7 +37,7 @@ function swellingClicks(seconds: number): Float32Array {
   return samples;
 }
 
-describe('peaks engine - the lock waits for the warm-up (RBA-107)', () => {
+describe('peaks engine - the lock waits for the warm-up', () => {
   it('reads above the lowest threshold well before the warm-up, yet does not lock until it', async () => {
     const heard = await listen(createClickTrack(120, audioSampleRate, 15));
     const firstReading = heard.find(({message}) => message.type === 'step' && message.status === 'settling');

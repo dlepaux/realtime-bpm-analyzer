@@ -6,7 +6,7 @@ import { EXAMPLE_DEV_PORTS } from '../.vitepress/tools/example-dev-server.ts';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// The same ports the docs embeds load in dev, from one list (RBA-231).
+// The same ports the docs embeds load in dev, from one list.
 const examples = Object.entries(EXAMPLE_DEV_PORTS).map(([name, port]) => ({ name, port }));
 
 const rootDir = join(__dirname, '../..');

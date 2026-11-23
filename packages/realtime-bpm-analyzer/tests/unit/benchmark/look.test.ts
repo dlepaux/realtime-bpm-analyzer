@@ -123,7 +123,7 @@ describe('benchmark held-out looks', () => {
     const line = '| 2026-11-03T15:00:00.000Z | abc | peaks, tempogram | why |\n';
 
     it('starts once, with a reason, on an empty log of its own', () => {
-      expect(freeLookRefusal('', false, 'RBA-51 look at the free mixes')).to.equal(null);
+      expect(freeLookRefusal('', false, 'the look at the free mixes')).to.equal(null);
       expect(freeLookRefusal('', false, ' ')).to.contain('reason');
     });
 

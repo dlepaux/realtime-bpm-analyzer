@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The home's first screen (RBA-66): the brand as a small line, the page's only h1, then the
+// The home's first screen: the brand as a small line, the page's only h1, then the
 // analyzer, which leads. VitePress's own hero is not used: it puts the brand in the h1 and centres
 // on phones, and bending it took a page of overrides. The h1 and tagline still come from the
 // page's frontmatter (`homeHero`), so the words stay in index.md, where the frozen-text test reads them.

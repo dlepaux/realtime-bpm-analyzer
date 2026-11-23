@@ -1,4 +1,4 @@
-"""RBA-221's level-relative search at its edges, which the conformance inputs reach only in the middle."""
+"""The peaks engine's level-relative search at its edges, which the conformance inputs reach only in the middle."""
 
 from __future__ import annotations
 

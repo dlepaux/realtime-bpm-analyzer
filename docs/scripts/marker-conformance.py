@@ -38,10 +38,10 @@ SAFE_PARSER = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=
 MAX_MARKERS = 20_000
 
 
-# RBA-239's file, worked out by hand: 60 beats in 30.0 s at 120 BPM, the last at 29.5 s. The end,
+# The file ending on a beat, worked out by hand: 60 beats in 30.0 s at 120 BPM, the last at 29.5 s. The end,
 # 30.0 s, is no beat. A grid that wrote one there passed this job until 2026-11-15, because the
 # grid below copied the export's own end bound and the only file then had no beat near its end.
-KNOWN_GRIDS = {"RBA-239 kick 120 BPM.wav": (60, 29.5)}
+KNOWN_GRIDS = {"kick 120 BPM ending on a beat.wav": (60, 29.5)}
 
 
 def sequence_frames(entry):

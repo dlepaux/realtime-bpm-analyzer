@@ -5,7 +5,7 @@ import {fnv1a} from './split';
 import type {TrackResult} from './types';
 
 /**
- * The bar of RBA-51's DECISION of 2026-10-31 for the extension to leave peaks, as code, committed before
+ * The bar of the engine study's decision of 2026-10-31 for the extension to leave peaks, as code, committed before
  * the second look so that its reading cannot follow the numbers. Where the DECISION leaves a reading
  * open, the one taken is written next to the check, and any failure keeps the extension on peaks.
  *

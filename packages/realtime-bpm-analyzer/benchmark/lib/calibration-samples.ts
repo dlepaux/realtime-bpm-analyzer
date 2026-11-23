@@ -7,7 +7,7 @@ import type {Split, TrackResult} from './types';
 
 /**
  * The calibration samples benchmark/calibration.py reads: per track, the reading shown at each sample time and the
- * offline reading. Each reading is [bpm, confidence, raw] since RBA-148: the calibrated confidence it carried, and
+ * offline reading. Each reading is [bpm, confidence, raw] since the harness records the raw score: the calibrated confidence it carried, and
  * the raw score that confidence maps, which is the one a re-fit reads. Files without `format` are older and hold
  * [bpm, confidence] only, which was the raw score before e70a4f5 and the calibrated one after it.
  */
@@ -101,7 +101,7 @@ export function samplesFile(
 }
 
 /**
- * RBA-106's one held-out calibration check, approved by its DECISION of 2026-11-05: the tempogram's realtime
+ * The calibration study's one held-out calibration check, approved by its decision of 2026-11-05: the tempogram's realtime
  * readings on the held-out halves of the five sets the table was fitted on, no more and no less
  */
 export const calibrationLookScope = {
@@ -109,7 +109,7 @@ export const calibrationLookScope = {
   sets: ['fsld', 'groove', 'guitarset', 'free-mixes', 'free-mixes-contested'],
 } as const;
 
-/** Its own log on the data volume, so it spends nothing of RBA-51's looks and they spend nothing of it */
+/** Its own log on the data volume, so it spends nothing of the engine study's looks and they spend nothing of it */
 export const calibrationLogName = 'calibration-heldout-log.md';
 
 /**

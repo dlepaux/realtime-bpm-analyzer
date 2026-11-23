@@ -1,6 +1,6 @@
-// The way from www's pages into the musician app (RBA-284, after RBA-280's DECISION of 2026-11-23):
+// The way from www's pages into the musician app, decided on 2026-11-23:
 // www keeps the search landing pages, and each tool page and the home lead into the app's copy of
-// the same page. The app mirrors www path for path (rba-web app/lib/www-pages.json lists the pages
+// the same page. The app mirrors www path for path (the app's own list of the pages
 // and gives each its www canonical), so the route is the page's own path, gated by www's own tool
 // list: there is no second map to keep in step.
 //

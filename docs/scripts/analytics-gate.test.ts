@@ -1,4 +1,4 @@
-// Run with `npm test`. The runtime gate behind track() (RBA-154).
+// Run with `npm test`. The runtime gate behind track().
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { gateEvent } from '../.vitepress/tools/analytics-gate.ts'

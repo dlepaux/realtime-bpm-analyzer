@@ -36,7 +36,7 @@ class JsSourceTest {
         assertEquals(constant(consts, "export const maxBpmRange"), TempoRange.DEFAULT.max());
         assertEquals(constant(consts, "export const lowpassFrequency"), Lowpass.DEFAULT.frequency());
         assertEquals(constant(consts, "export const lowpassQ"), Lowpass.DEFAULT.q());
-        // RBA-221's level-relative search, which only the vectors' quiet inputs reach
+        // The peaks engine's level-relative search, which only the vectors' quiet inputs reach
         assertEquals(constant(consts, "export const levelPercentile"), PeaksEngine.LEVEL_PERCENTILE);
         assertEquals(constant(consts, "export const silenceFloor"), PeaksEngine.SILENCE_FLOOR);
         assertEquals(constant(consts, "export const tempogramMinSampleRate"), TempogramEngine.MIN_SAMPLE_RATE);

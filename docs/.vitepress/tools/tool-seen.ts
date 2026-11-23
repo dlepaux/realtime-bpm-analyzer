@@ -1,5 +1,5 @@
-// When the BPM tool counts as seen (RBA-298): the first time, in a page view, that its input area
-// is at least half on screen. RBA-294 found that most mobile home visits leave in seconds without
+// When the BPM tool counts as seen: the first time, in a page view, that its input area
+// is at least half on screen. A look at the analytics found that most mobile home visits leave in seconds without
 // starting anything, and nothing said whether the tool had ever been on screen; this event tells
 // "never saw it" from "saw it and left", and whether seeing it took a scroll.
 //

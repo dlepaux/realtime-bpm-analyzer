@@ -1,4 +1,4 @@
-"""RBA-106: the hysteresis sweep's trade-off tables, as markdown, from the job's aggregate report.
+"""The hysteresis sweep's trade-off tables, as markdown, from the job's aggregate report.
 
     python3 -I benchmark/hysteresis_table.py <hysteresis-report-<sha>.json>
 

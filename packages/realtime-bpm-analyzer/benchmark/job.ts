@@ -1,11 +1,11 @@
-// The RBA-51 batch job: see job/readme.md. Bundled by benchmark/run.sh, started by job/entrypoint.sh.
+// The engine study's batch job: see job/readme.md. Bundled by benchmark/run.sh, started by job/entrypoint.sh.
 //   job.mjs [tune]                                the data, then the dev sweep. The default
 //   job.mjs fetch                                 the data only
 //   job.mjs dev --detector a,b                    the data, then a dev scoring through the real path. No look
-//   job.mjs hysteresis                            the data, then RBA-106's hysteresis sweep on dev and its pick. No look
+//   job.mjs hysteresis                            the data, then the calibration study's hysteresis sweep on dev and its pick. No look
 //   job.mjs heldout --reason "..." [--detector]   the data, a dev scoring, then a held-out look, logged
-//   job.mjs free-look --reason "..."              RBA-51's one look at RBA-59's held-out free mixes, then its verdict
-//   job.mjs calibration-heldout --reason "..."    RBA-106's one held-out check of the shipped calibration, then its verdict
+//   job.mjs free-look --reason "..."              the engine study's one look at the held-out free mixes, then its verdict
+//   job.mjs calibration-heldout --reason "..."    the calibration study's one held-out check of the shipped calibration, then its verdict
 // Every stage is safe to kill and restart. Exit: 0 done, 1 failed, 2 bad arguments, 3 the sweep is
 // done on clean data but an evaluation set did not come back whole.
 import {spawn} from 'node:child_process';
@@ -37,12 +37,12 @@ const benchmarkSha = (process.env.RBA_BENCHMARK_SHA || 'local').slice(0, 12);
 const heldoutOut = join(jobDir, `heldout-${benchmarkSha}.json`);
 const heldoutProgress = join(jobDir, `heldout-progress-${benchmarkSha}.jsonl`);
 const incompleteEvaluation = 3;
-// RBA-51's look at the held-out free mixes: its own files and log, so it touches nothing of the clean sets' looks
+// The engine study's look at the held-out free mixes: its own files and log, so it touches nothing of the clean sets' looks
 const freeLog = join(jobDir, 'free-heldout-log.md');
 const freeOut = join(jobDir, `free-heldout-${benchmarkSha}.json`);
 const freeProgress = join(jobDir, `free-heldout-progress-${benchmarkSha}.jsonl`);
 const freeVerdict = {md: join(jobDir, `free-verdict-${benchmarkSha}.md`), json: join(jobDir, `free-verdict-${benchmarkSha}.json`)};
-// RBA-106's held-out calibration check. Per track, staying on the volume: the runs, their progress and the samples.
+// The calibration study's held-out calibration check. Per track, staying on the volume: the runs, their progress and the samples.
 // Aggregates, the only files that leave it: the dev re-fit's comparison and the verdict
 const calibration = {
   log: join(jobDir, calibrationLogName),
@@ -193,7 +193,7 @@ async function heldout(summary: Summary, sets: readonly string[], reason: string
 }
 
 /**
- * RBA-51's one look at the held-out free mixes, then the verdict committed before it. No dev scoring
+ * The engine study's one look at the held-out free mixes, then the verdict committed before it. No dev scoring
  * first: 5.5.0 and peaks were scored on this dev half through the real path at 61446af, and the
  * candidate is the library as shipped, so there is no replayed pick to hold to a guard. The sets live on
  * the volume and have no source to fetch. A restart after the look's file only judges it again: the
@@ -221,7 +221,7 @@ async function freeLook(summary: Summary, reason: string): Promise<void> {
 }
 
 /**
- * RBA-59's sets are on the volume already and have no source to fetch here: their pipeline owns them,
+ * The free-mix sets are on the volume already and have no source to fetch here: their pipeline owns them,
  * and this only counts their dev tracks. A count of zero fails, as a set that did not come back.
  */
 function freeSetReports(sets: readonly string[]): DataReport['sets'] {
@@ -292,7 +292,7 @@ async function stages(summary: Summary, mode: string, wanted: readonly string[],
 }
 
 /**
- * RBA-106's hysteresis sweep: every row of both engines' grids on dev, then the rule committed in
+ * The calibration study's hysteresis sweep: every row of both engines' grids on dev, then the rule committed in
  * lib/hysteresis-pick.ts picks, and the picked rows' readings are kept for the calibration. Dev only.
  */
 async function hysteresisSweep(summary: Summary, sets: readonly string[]): Promise<void> {
@@ -305,9 +305,9 @@ async function hysteresisSweep(summary: Summary, sets: readonly string[]): Promi
 }
 
 /**
- * RBA-106's check, first step: the tempogram on dev with this harness, its samples, and calibration.py's re-fit,
+ * The calibration study's check, first step: the tempogram on dev with this harness, its samples, and calibration.py's re-fit,
  * which must give the committed tables exactly and find every recorded confidence to be the committed table read at
- * the recorded raw score. It proves the raw scores are recorded right (RBA-148) and that the image ships those
+ * the recorded raw score. It proves the raw scores are recorded right and that the image ships those
  * tables. A failure here takes no look.
  */
 async function calibrationDevRefit(summary: Summary, sets: readonly string[]): Promise<void> {

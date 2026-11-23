@@ -2,7 +2,7 @@
 // them on, so the oldest Node a user may run is one CI has run. Renovate leaves both alone
 // (renovate.json), so only a hand edit moves them, and this catches an edit to one of the three
 // without the others. The floor is 22.12.0: 22.0.0 can deadlock a worker's teardown and hang the
-// host (RBA-241).
+// host.
 import {describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';

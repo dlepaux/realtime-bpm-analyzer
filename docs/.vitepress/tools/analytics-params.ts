@@ -1,5 +1,5 @@
 // The last line of defence for the lane rule "analytics never send URLs"
-// (RBA-35). Events are built from enumerated values, but a free-text param
+// because a listener's links are their own. Events are built from enumerated values, but a free-text param
 // such as an error message can still quote an address, so track() runs every
 // event through this. Pure and import-free so `npm test` runs it with node --test.
 

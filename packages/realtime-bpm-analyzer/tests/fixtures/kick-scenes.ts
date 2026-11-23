@@ -1,4 +1,4 @@
-// Synthetic scenes with known kick times, for the kick event's tests (RBA-243). Shared by the browser tests and
+// Synthetic scenes with known kick times, for the kick event's tests. Shared by the browser tests and
 // the plain-Node measurement script (Node strips the types), so it must stay import-free.
 
 /** A rendered scene: mono samples, and the time each kick starts, in seconds from the first sample */
@@ -273,7 +273,7 @@ export function absolutePercentile(values: readonly number[], fraction: number):
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(fraction * sorted.length) - 1))];
 }
 
-/** Scenes where the music changes under the detector (RBA-246): its level at once, or its kicks for a while */
+/** Scenes where the music changes under the detector: its level at once, or its kicks for a while */
 export const kickChangeSceneNames = ['drop-10', 'drop-20', 'rise-20', 'long-breakdown', 'kick-free-bars', 'bass-breakdown'] as const;
 export type KickChangeSceneName = typeof kickChangeSceneNames[number];
 

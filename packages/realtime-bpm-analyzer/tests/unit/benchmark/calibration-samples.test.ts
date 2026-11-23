@@ -43,7 +43,7 @@ describe('the calibration samples', () => {
 
 describe('the held-out calibration check', () => {
   const {detectors: names, sets} = calibrationLookScope;
-  const reason = 'RBA-106, DECISION 2026-11-05';
+  const reason = 'the calibration check, decided on 2026-11-05';
 
   it('covers the tempogram on the five sets the table was fitted on', () => {
     expect([...names]).to.deep.equal(['tempogram-hysteresis']);

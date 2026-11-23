@@ -6,7 +6,7 @@ import type {EngineTraceStep} from './stream';
 import type {TrackResult} from './types';
 
 /**
- * RBA-106's hysteresis pick, committed before the sweep ran. Every range is a 95% percentile range from resampling
+ * The calibration study's hysteresis pick, committed before the sweep ran. Every range is a 95% percentile range from resampling
  * artists (the track's `group`) within each set, as the existing reports do. All rows are scored on the same
  * resamples, so a difference between two rows is paired.
  *
@@ -32,7 +32,7 @@ const seed = 'rba-106-hysteresis';
 
 /**
  * Tracks whose label is one steady tempo, where a lock falling back to settling is flapping and not a tempo change:
- * fsld's loops, played back repeated, and the strict free mixes, whose tempo holds through both halves (RBA-59).
+ * fsld's loops, played back repeated, and the strict free mixes, whose tempo holds through both halves.
  * GuitarSet, Groove and the contested mixes are left out: nothing in their labels says the tempo holds.
  */
 export const isSteady = (set: string): boolean => set === 'fsld' || set === 'free-mixes';

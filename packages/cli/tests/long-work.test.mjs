@@ -10,7 +10,7 @@ import {analyzeFile} from 'realtime-bpm-analyzer-cli';
 import {decodeFile} from '../dist/decode.mjs';
 import {clickWav} from './click-wav.mjs';
 
-// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// node --test has no timeout of its own. This one caps each top-level suite as a whole,
 // each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
 // thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
 const hangLimit = {timeout: 60_000};

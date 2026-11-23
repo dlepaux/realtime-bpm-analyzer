@@ -118,14 +118,14 @@ export default defineConfig({
   // Sitemap generation
   sitemap: {
     hostname: SITE_URL,
-    // The pages the browser extension opens (RBA-38) are for its users only and
+    // The pages the browser extension opens are for its users only and
     // carry noindex, so they stay out of the sitemap too. The /extension/ page itself
     // goes in once it is built (see srcExclude). A sitemap lists what should appear in
     // results, so a noindex page has no place in it.
     transformItems: (items) => items.filter((item) => !isUsersOnlyExtensionPage(item.url) && !isNoindexPage(item.url)),
   },
   
-  // The /extension/ page exists only once the extension has a store listing (RBA-58).
+  // The /extension/ page exists only once the extension has a store listing.
   // Left out of the build, it has no route, no sitemap entry and no search entry.
   srcExclude: excludedSources(STORE_URL),
 
@@ -245,7 +245,7 @@ export default defineConfig({
 
     pageData.frontmatter.head ??= []
     // A guide whose package isn't published yet stays unindexed (UNPUBLISHED_GUIDES in
-    // tools/site-schema.ts, empty since RBA-272).
+    // tools/site-schema.ts, empty while every guide's package is published).
     if (isUnpublishedGuide(pageData.relativePath)) {
       pageData.frontmatter.head.push(['meta', { name: 'robots', content: 'noindex' }])
     }
@@ -264,7 +264,7 @@ export default defineConfig({
   },
   
   head: [
-    // Google Analytics 4 through gtag.js, on the production host only (RBA-154): see
+    // Google Analytics 4 through gtag.js, on the production host only: see
     // tools/analytics-loader.ts for the internal-traffic flag and the page_view rule.
     ['script', {}, gaLoaderScript()],
     ['meta', { name: 'theme-color', content: '#646cff' }],
@@ -288,10 +288,10 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     logo: '/logo.svg',
     
-    // Built from data in tools/site-nav.ts, gated on the extension switch (RBA-66).
+    // Built from data in tools/site-nav.ts, gated on the extension switch.
     nav: siteNav(STORE_URL, pkg.version),
 
-    // VitePress's own 404 quotes a proverb and offers no way on (RBA-268).
+    // VitePress's own 404 quotes a proverb and offers no way on.
     notFound: {
       title: 'Page not found',
       quote: 'This address has no page, or the page has moved. The BPM finder and the free tools start from the home page.',
@@ -319,7 +319,7 @@ export default defineConfig({
             { text: 'useBpm — A React Hook for BPM Detection', link: '/guide/react-bpm-hook' }
           ]
         },
-        // Platforms, internals and upgrades in groups of their own (RBA-268): one
+        // Platforms, internals and upgrades in groups of their own: one
         // "Advanced" group of eleven mixed what a reader looks for with how it works.
         {
           text: 'Other platforms',

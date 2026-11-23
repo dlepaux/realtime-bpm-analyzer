@@ -1,4 +1,4 @@
-// Browser cost of the two engines (RBA-51): drives headless Chromium through puppeteer, always muted.
+// Browser cost of the two engines: drives headless Chromium through puppeteer, always muted.
 // Usage, through run.sh: run <cost|memory|bundle> [--throttle N] [--engine peaks|tempogram] [--seconds N] --out file.json
 import {createServer, type Server} from 'node:http';
 import {readFileSync, writeFileSync} from 'node:fs';

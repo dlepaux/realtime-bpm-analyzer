@@ -1,5 +1,5 @@
 // Run with `npm test` (node --test, Node's own type stripping; no test framework).
-// The metronome saves a click at once and a drag once per spell (RBA-276).
+// The metronome saves a click at once and a drag once per spell.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { coalescedWrite, type Timers } from '../.vitepress/tools/coalesced-write.ts'

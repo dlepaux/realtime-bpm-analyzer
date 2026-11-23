@@ -1,5 +1,5 @@
 // Run with `npm test` (node --test, Node's own type stripping; no test framework).
-// The frame rate remembered across the video tools (RBA-276), and the store door it goes through.
+// The frame rate remembered across the video tools, and the store door it goes through.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { EXPORT_TIMECODES, timecodeChoice } from '../.vitepress/tools/beat-markers.ts'

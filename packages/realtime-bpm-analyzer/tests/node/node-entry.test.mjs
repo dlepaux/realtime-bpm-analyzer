@@ -9,7 +9,7 @@ import {analyzeChannelData, applyLowpass} from 'realtime-bpm-analyzer/node';
 import {createClickTrack, createNoise, clickTrackTempos} from '../fixtures/click-track.ts';
 import {bassTestExpected} from '../fixtures/bass-test-expected.ts';
 
-// node --test has no timeout of its own (RBA-241). This one caps each top-level suite as a whole,
+// node --test has no timeout of its own. This one caps each top-level suite as a whole,
 // each test in it, and each hook, which inherits none, so a hang fails under its test's name. A
 // thread that never ends can still hold the file's process open: main.yml's timeout-minutes ends that.
 const hangLimit = {timeout: 60_000};
@@ -159,7 +159,7 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     assert.ok(Math.abs(fast.bpm - 174) <= 3, `got ${fast.bpm}`);
   });
 
-  // RBA-128, the tolerance as in tests/unit/session/session.test.ts: a quarter of what rounding loses
+  // The tolerance as in tests/unit/session/session.test.ts: a quarter of what rounding loses
   for (const engine of ['peaks', 'tempogram']) {
     it(`reports a whole bpm and the exact tempo it measured, for ${engine}, on a 127.6 BPM click`, async () => {
       const reading = await analyzeChannelData(createClickTrack(127.6, 44_100, 30), 44_100, {engine});
@@ -192,7 +192,7 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     assert.ok(reading.candidates.slice(1).every(({relation}) => ['half', 'double', 'other'].includes(relation)));
     assert.ok(reading.confidence >= 0 && reading.confidence <= 1);
     assert.deepEqual(reading.audio, {from: 0, to: 30, contextTime: null});
-    // The reading names the engine that ran: the default, since RBA-51
+    // The reading names the engine that ran: the default, the tempogram since v6
     assert.equal(reading.engine, 'tempogram');
     assert.ok(Object.isFrozen(reading));
   });
@@ -227,7 +227,7 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
   });
 
   it('gives confidence null on a custom range even inside 90 to 180 BPM, and a number on an explicit 90 to 180', async () => {
-    // RBA-108's DECISION of 2026-11-16: 128 is the click's only octave in 80 to 200
+    // 128 is the click's only octave in 80 to 200
     for (const engine of ['peaks', 'tempogram']) {
       const custom = await analyzeChannelData(createClickTrack(128), 44_100, {engine, tempoRange: {min: 80, max: 200}});
       assert.equal(custom.bpm, 128, engine);
@@ -255,7 +255,7 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     await assert.rejects(analyzeChannelData(new Float32Array(10), 44_100, {engine: {name: 'peaks', lowpass: {frequency: Number.NaN}}}), RangeError);
   });
 
-  // RBA-260: under 2 Hz the 0.25 s skip after a peak rounds to no sample, and 6.1.0's peak search never advanced
+  // Under 2 Hz the 0.25 s skip after a peak rounds to no sample, and 6.1.0's peak search never advanced
   it('refuses a sample rate under 2 Hz for peaks, where the skip after a peak rounds to no sample, and runs at 2 Hz', async () => {
     const clicks = createClickTrack(120, 2, 60);
     const lowpass = {frequency: 0.2};
@@ -271,7 +271,7 @@ describe('realtime-bpm-analyzer/node', hangLimit, () => {
     await analyzeChannelData(clicks, 2, {engine: {name: 'peaks', lowpass}});
   });
 
-  // RBA-261: from 100 Hz to just under the floor the tempogram's FFT had 2 points, DC and Nyquist, and 6.2 read null
+  // Before 6.3.0, from 100 Hz to just under the floor the tempogram's FFT had 2 points, DC and Nyquist, and 6.2 read null
   it('refuses a sample rate under the tempogram\'s floor, by default too, reads at the floor, and leaves peaks as it was', async () => {
     const floor = 122.97509238026915;
     const under = 122.97509238026913;

@@ -1,4 +1,4 @@
-// The one door to localStorage for the tools' remembered settings (RBA-276). Storage can be
+// The one door to localStorage for the tools' remembered settings. Storage can be
 // missing (prerender), refused (Safari with cookies blocked throws on access) or full, and none
 // of that may break a tool: a setting that can't be read is a default, one that can't be written
 // is forgotten. Pure and import-free so node --test runs it with a fake store.

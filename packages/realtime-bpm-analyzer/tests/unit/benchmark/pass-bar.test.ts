@@ -32,7 +32,7 @@ const results = (reads: (track: Track, index: number) => boolean, peaks: (track:
 
 const everyOther = (_: Track, index: number) => index % 2 === 0;
 
-describe('the pass bar of RBA-51', () => {
+describe('the pass bar of the engine study', () => {
   it('passes a candidate clearly ahead everywhere', () => {
     const conditions = passBar(results(() => true, everyOther));
 
@@ -204,7 +204,7 @@ describe('what the second look fixes', () => {
     expect(chosen?.tempoRange).to.deep.equal(defaultTempogramRange);
   });
 
-  // RBA-51 DECISION 2026-11-03 made the tempogram the library default once the held-out look passed
+  // The decision of 2026-11-03 made the tempogram the library default once the held-out look passed
   it('makes the tempogram the default engine, and keeps the first pick only as a row to compare against', () => {
     expect(resolveEngine(undefined, undefined).engine.name).to.equal('tempogram');
     // The peaks reference rows name their engine, so the flip does not turn them into tempogram rows

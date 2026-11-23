@@ -48,7 +48,7 @@ describe('PeaksEngine - clearValidPeaks', () => {
       expect(analyzer.validPeaks[key090]).to.deep.equal([100, 200, 300]);
       expect(analyzer.validPeaks[key085]).to.deep.equal([150, 250, 350]);
 
-      // The floor's own rung stays: the lock is on it (RBA-107; it went only because float drift put it at 0.7999999999999998)
+      // The floor's own rung stays: the lock is on it (it went only because float drift put it at 0.7999999999999998)
       expect(analyzer.validPeaks[key080]).to.deep.equal([180, 280, 380]);
       // Below threshold should be deleted
       expect(analyzer.validPeaks[key075]).to.be.undefined;
@@ -106,7 +106,7 @@ describe('PeaksEngine - clearValidPeaks', () => {
       // Above threshold should remain
       expect(analyzer.validPeaks[key085]).to.exist.and.deep.equal([100, 200]);
 
-      // The floor's own rung stays: the lock is on it (RBA-107; it went only because float drift put it at 0.7999999999999998)
+      // The floor's own rung stays: the lock is on it (it went only because float drift put it at 0.7999999999999998)
       expect(analyzer.validPeaks[key080]).to.exist;
       // Below threshold should be deleted
       expect(analyzer.validPeaks[key075]).to.be.undefined;
@@ -203,7 +203,7 @@ describe('PeaksEngine - clearValidPeaks', () => {
       // Progressive cleanup
       await analyzer.clearValidPeaks(0.75);
       expect(analyzer.validPeaks[key070]).to.be.undefined;
-      // The floor's own rung stays (RBA-107)
+      // The floor's own rung stays
       expect(analyzer.validPeaks[key075]).to.exist;
       expect(analyzer.validPeaks[key080]).to.exist.and.deep.equal([200]);
       expect(analyzer.validPeaks[key085]).to.exist.and.deep.equal([150]);
@@ -288,7 +288,7 @@ describe('PeaksEngine - clearValidPeaks', () => {
       await analyzer.clearValidPeaks(0.8);
 
       expect(analyzer.validPeaks[key085]).to.exist.and.deep.equal([100]);
-      // The floor's own rung stays: the lock is on it (RBA-107; it went only because float drift put it at 0.7999999999999998)
+      // The floor's own rung stays: the lock is on it (it went only because float drift put it at 0.7999999999999998)
       expect(analyzer.validPeaks[key080]).to.exist;
       expect(analyzer.validPeaks[key075]).to.be.undefined;
     });
@@ -328,7 +328,7 @@ describe('PeaksEngine - clearValidPeaks', () => {
       await analyzer.clearValidPeaks(0.75);
 
       expect(analyzer.validPeaks[key085]).to.deep.equal([100, 200]);
-      // The floor's own rung stays (RBA-107)
+      // The floor's own rung stays
       expect(analyzer.validPeaks[key075]).to.deep.equal([]);
       expect(analyzer.validPeaks[key070]).to.be.undefined;
     });

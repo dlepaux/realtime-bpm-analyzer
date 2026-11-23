@@ -54,8 +54,7 @@ test('isNoindexPage: the docs readme leaves the sitemap', () => {
   }
 })
 
-// The noindex flips (contributing.md, "First publish of v6", step 13, and "First publish of the
-// 6.2 ports", step 8, and RBA-272) made the CLI, MCP, Java, Python, C# and Swift guides articles.
+// The noindex flips, each lifted once its package was published, made the CLI, MCP, Java, Python, C# and Swift guides articles.
 test('isUnpublishedGuide and isGuidePage: the CLI, MCP, Java, Python, C# and Swift guides are articles', () => {
   assert.deepEqual(UNPUBLISHED_GUIDES, [])
   for (const path of ['guide/cli.md', '/guide/mcp', 'guide/java.md', '/guide/python', 'guide/csharp.md', '/guide/swift', 'guide/node.md']) assert.ok(!isUnpublishedGuide(path), path)
@@ -105,7 +104,7 @@ test('no unmeasured tolerance or accuracy praise in the guides', () => {
 })
 
 test('no long dash on home, the video pages or in the home markup', () => {
-  // Plain copy rule (RBA-124): a long dash reads as generated text, in the snippet too.
+  // Plain copy rule: a long dash reads as generated text, in the snippet too.
   const dash = /[\u2013\u2014]/
   for (const name of ['index.md', 'video-bpm.md', 'bpm-to-frames.md']) {
     const source = readFileSync(new URL(`../${name}`, import.meta.url), 'utf8')

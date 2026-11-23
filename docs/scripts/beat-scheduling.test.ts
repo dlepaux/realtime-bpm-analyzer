@@ -1,5 +1,5 @@
 // Run with `npm test`. The scheduling and tap steps the metronome and the strobe light share
-// (RBA-237), so the two pages keep one beat grid and one way of reading taps.
+// so the two pages keep one beat grid and one way of reading taps.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { MAX_TICKS_PER_CALL, TAPS_TO_SET, tapToSet, ticksBefore } from '../.vitepress/tools/tempo.ts'

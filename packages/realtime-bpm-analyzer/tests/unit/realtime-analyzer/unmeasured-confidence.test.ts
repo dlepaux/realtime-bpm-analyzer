@@ -7,7 +7,7 @@ import {analyzeChannelData} from '../../../src/node';
 import {createClickTrack} from '../../fixtures/click-track';
 import {feedSession} from '../../setup';
 
-// RBA-108's DECISIONs of 2026-11-16 (RBA-147): confidence was measured only on the default tempo range, 90 to 180.
+// Confidence was measured only on the default tempo range, 90 to 180.
 // A reading outside it carries confidence null, and so does every reading of an analysis run on any other range,
 // on both engines and both paths. An explicit {min: 90, max: 180} is the default and keeps the number.
 

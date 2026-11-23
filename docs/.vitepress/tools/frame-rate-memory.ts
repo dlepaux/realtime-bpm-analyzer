@@ -1,4 +1,4 @@
-// The editor's frame rate, remembered across the video tools (RBA-276): the rate last used on
+// The editor's frame rate, remembered across the video tools: the rate last used on
 // /bpm-to-frames or in the beat-marker export is the one the result card counts frames at and
 // the export opens on next time. An editor works at one rate per project, and the tools used to
 // assume 24 after every visit. No Vue and no DOM, so node --test runs it

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// The home page's "Where it runs" section (RBA-266): a row of the platforms the library runs
+// The home page's "Where it runs" section: a row of the platforms the library runs
 // on, each linking to its guide, then one tab per language. The row shows names only, no logos
-// (David, 2026-11-17, on RBA-266). index.md fills each tab's slot with the install line and the
+// by design. index.md fills each tab's slot with the install line and the
 // sample, copied from the guide, so the code renders at build time and
 // scripts/home-platforms.test.ts can hold it to the guide. Self-contained, so the
-// home page's rework (RBA-240) moves it in one piece.
+// a rework of the home page moves it in one piece.
 //
 // The tabs follow the WAI-ARIA tabs pattern: arrow keys, Home and End move between them and
 // select the one they land on; Tab moves into the open panel. Every panel is in the HTML,

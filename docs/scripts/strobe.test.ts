@@ -1,4 +1,4 @@
-// Run with `npm test`. The strobe light's safety rules (RBA-237, WCAG 2.3.1 Three Flashes or Below
+// Run with `npm test`. The strobe light's safety rules (WCAG 2.3.1 Three Flashes or Below
 // Threshold), tested where they are decided: tools/strobe.ts. The light flashes on the library's
 // kick event, so the page can produce any pattern of kicks: these cases are generated, and the
 // rules must hold for all of them, at any screen rate.
@@ -221,7 +221,7 @@ test('a breakdown stops the flashes, and the drop\'s first kick flashes at once'
 
 // ── Timing, per source ──────────────────────────────────────────────────────────────────────
 
-test('heardAt is RBA-243\'s recipe: now plus the kick\'s distance from currentTime, plus both latencies', () => {
+test('heardAt: now plus the kick\'s distance from currentTime, plus both latencies', () => {
   const clock = { now: 10_000, currentTime: 5, baseLatency: 0.01, outputLatency: 0.03 }
   assert.equal(Math.round(heardAt(4.99, clock)), 10_030)
   // Safari before 17 has no outputLatency, and a missing value counts as none.
@@ -241,7 +241,7 @@ test('the demo and a file wait until the kick is heard, behind the speakers\' ho
 })
 
 test('the speakers are held back longer than the kick event takes to arrive, so a song\'s light lands on its kick', () => {
-  // Measured on RBA-237 in Chromium: the event reaches the page 13 to 18 ms of audio time after
+  // Measured in Chromium: the event reaches the page 13 to 18 ms of audio time after
   // the kick, and the light shows it on a frame (up to 17 ms). The hold covers both several times
   // over, for a busier device, and stays short enough that Start still feels immediate.
   assert.ok(SPEAKER_DELAY_MS >= 3 * (18 + 17), `${SPEAKER_DELAY_MS} ms`)

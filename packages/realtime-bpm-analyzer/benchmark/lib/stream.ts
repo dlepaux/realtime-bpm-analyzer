@@ -36,8 +36,8 @@ export function repeatTo(pcm: Float32Array, length: number): Float32Array {
  * @param options The analyzer options
  * @param onMessage Called with each message and the seconds of audio heard so far
  * @param tuning Tempogram overrides, for tuning runs on dev
- * @param hysteresis Hysteresis overrides, for RBA-106's sweep on dev: the contract's values otherwise
- * @param debug Whether the session sends the engine's debug detail, which holds the raw scores (RBA-148)
+ * @param hysteresis Hysteresis overrides, for the calibration study's sweep on dev: the contract's values otherwise
+ * @param debug Whether the session sends the engine's debug detail, which holds the raw scores
  */
 export async function streamPcm(
   pcm: Float32Array,
@@ -71,7 +71,7 @@ export async function streamPcm(
   }
 }
 
-/** Confidence null outside the measured tempo range or on a custom range (RBA-147), as the library reports it */
+/** Confidence null outside the measured tempo range or on a custom range, as the library reports it */
 export type Reading = readonly [heard: number, tempo: number, confidence: number | null];
 
 /** Candidates kept from the last reading: enough to see the other metrical level, not the tail */
@@ -152,8 +152,8 @@ export async function listen(
 }
 
 /**
- * The engine's raw score for its top tempo: what the calibration tables map, so what a re-fit must read (RBA-148).
- * It is the score as `calibrate` takes it, and as `toReading` reported it before RBA-106 calibrated it, which is
+ * The engine's raw score for its top tempo: what the calibration tables map, so what a re-fit must read.
+ * It is the score as `calibrate` takes it, and as `toReading` reported it before it was calibrated, which is
  * what the committed tables were fitted on.
  * @param tempos The engine's candidates, best first
  * @returns The score, 0 to 1, or null without a candidate

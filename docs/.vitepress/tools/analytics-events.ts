@@ -1,13 +1,13 @@
-// Every analytics event the website sends and every param it may carry (RBA-154). This file is
+// Every analytics event the website sends and every param it may carry. This file is
 // the contract: track() is typed from it and drops or marks anything it doesn't declare, the
 // tests check its names against GA4's rules and every call site against it, and the website
 // privacy page prints its privacy sentences. A new event or param starts here, and nowhere else
 // needs editing for it to reach GA4.
 //
-// Readback continuity (RBA-153, RBA-66): no `bpm_*` event is renamed or removed and no param
+// Readback continuity: no `bpm_*` event is renamed or removed and no param
 // changes meaning before the day-14 read. Split params ride beside the ones they replace, which
 // are marked `deprecated` and go after DEPRECATED_REMOVE_AFTER. The one exception is v6 of the
-// library (RBA-108, DECISION 2026-11-03): the analyzer locks rather than stabilises, so
+// library, decided on 2026-11-03: the analyzer locks rather than stabilises, so
 // bpm_mic_stable and bpm_stream_stable became bpm_mic_locked and bpm_stream_locked, and GA4's
 // reports are changed with it. v6 deploys only after the day-14 read.
 //
@@ -44,7 +44,7 @@ export type ParamSpec =
 /** Sent in place of an enum value the catalogue doesn't list, so the drift shows in reports. */
 export const INVALID = 'invalid'
 
-/** When the deprecated params below may go: after the RBA-66 day-14 read. */
+/** When the deprecated params below may go: after the day-14 read of the musician-first home. */
 export const DEPRECATED_REMOVE_AFTER = '2026-11-22'
 
 const NOTE_FEELS = ['straight', 'dotted', 'triplet'] as const
@@ -60,7 +60,7 @@ export const PARAMS = {
   mode: { type: 'text', maxLength: 100, pattern: /^[\w ./→-]+$/u, scope: 'dimension' },
   input_method: {
     type: 'enum',
-    // mic_resume (RBA-275): Resume had to restart a mic whose track ended, so a funnel of first
+    // mic_resume: Resume had to restart a mic whose track ended, so a funnel of first
     // clicks leaves it out.
     values: ['drop', 'browse', 'mic_tab', 'link_fallback', 'mic_resume', 'tab', 'url'],
     scope: 'dimension',
@@ -90,7 +90,7 @@ export const PARAMS = {
   variant: { type: 'enum', values: ['inline', 'block'], scope: 'dimension' },
   placement: {
     type: 'enum',
-    // APP_PLACEMENTS (RBA-284): the entries into the musician app.
+    // APP_PLACEMENTS: the entries into the musician app.
     values: [...EXTENSION_PLACEMENTS, 'demo_file_result', 'demo_mic_stable', 'demo_stream_stable', 'getting_started_end', ...APP_PLACEMENTS],
     scope: 'dimension',
   },
@@ -99,11 +99,11 @@ export const PARAMS = {
   extension_version: { type: 'text', maxLength: 23, pattern: /^\d{1,5}(\.\d{1,5}){0,3}$/, scope: 'dimension' },
   action: { type: 'enum', values: ['replay', 'pause'], scope: 'dimension' },
 
-  // ── Added by v6 of the library (RBA-108) ─────────────────────────────────────────────────
+  // ── Added by v6 of the library ───────────────────────────────────────────────────────────
   /** The engine that read the tempo: v6 made the tempogram the file default, so a series splits on it. Mirrors the library's EngineName. */
   engine: { type: 'enum', values: ['peaks', 'tempogram'], scope: 'dimension' },
 
-  // ── Added by RBA-154 ─────────────────────────────────────────────────────────────────────
+  // ── Added with the typed catalogue ───────────────────────────────────────────────────────
   result_source: { type: 'enum', values: ['file', 'mic', 'stream'], scope: 'dimension' },
   tool: { type: 'enum', values: TOOL_IDS, scope: 'dimension' },
   error_name: { type: 'enum', values: MIC_ERROR_NAMES, scope: 'dimension' },
@@ -121,15 +121,15 @@ export const PARAMS = {
   export_format: { type: 'enum', values: MARKER_FORMATS.map((entry) => entry.id), scope: 'dimension' },
   first: { type: 'bool', scope: 'dimension' },
 
-  // ── Added by RBA-237 ─────────────────────────────────────────────────────────────────────
+  // ── Added by the strobe light ────────────────────────────────────────────────────────────
   /**
    * Where the strobe light's music came from: the demo track, a song, the mic or another tab.
-   * Not `source`, which GA4 reads as the traffic source (RBA-2). `none`: the readback reads it
+   * Not `source`, which GA4 reads as the traffic source. `none`: the readback reads it
    * from the BigQuery export, which keeps every param, so it needs no Custom definition in GA4.
    */
   audio_source: { type: 'enum', values: [...STROBE_SOURCES], scope: 'none' },
 
-  // ── Added by RBA-275 ─────────────────────────────────────────────────────────────────────
+  // ── Added by the mic guard ───────────────────────────────────────────────────────────────
   // Why half of the mobile mic sessions stop without a lock. `none`, like audio_source: read from
   // the BigQuery export, so they need no Custom definition in GA4.
   /** Where the mic session stood when it stopped: listening, settling, locked, paused or failed. */
@@ -139,11 +139,11 @@ export const PARAMS = {
   /** The audio stopped under the session at least once: a call, the screen locking, another app. */
   interrupted: { type: 'bool', scope: 'none' },
 
-  // ── Added by RBA-277 ─────────────────────────────────────────────────────────────────────
+  // ── Added by "Your tracks" ───────────────────────────────────────────────────────────────
   /** How many tracks a returning visitor's list holds, in buckets. Read from the BigQuery export. */
   rows: { type: 'enum', values: [...CRATE_ROW_BUCKETS], scope: 'none' },
 
-  // ── Added by RBA-298 ─────────────────────────────────────────────────────────────────────
+  // ── Added by the tool-seen event ─────────────────────────────────────────────────────────
   // Whether the BPM tool was ever on screen, read from the BigQuery export like the ones above.
   /** The page the tool is on, by name: the home or the video finder. Never the address. */
   page: { type: 'enum', values: [...TOOL_PAGES], scope: 'none' },

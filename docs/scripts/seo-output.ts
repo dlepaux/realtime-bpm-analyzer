@@ -1,4 +1,4 @@
-// What the built site must show search engines (RBA-122, RBA-129 and the structured
+// What the built site must show search engines (indexing, one h1 a page, and the structured
 // data), as pure checks over the build's files. verify-seo.ts runs them on the real
 // build in CI; seo-output.test.ts proves they catch what they claim to catch. The
 // source tests can't see these: they come out of VitePress and config.ts together.
@@ -59,7 +59,7 @@ function unpublishedProblems(site: BuiltSite): string[] {
     if (!isNoindex(site.read(`${page}.html`))) problems.push(`${page}: not noindex`)
     if (sitemap.includes(`${SITE}/${page}<`)) problems.push(`${page}: in the sitemap`)
   }
-  // Links are allowed: the Developers menu links both guides from every page (RBA-247).
+  // Links are allowed: the Developers menu links both guides from every page.
   return problems
 }
 
@@ -132,7 +132,7 @@ function sitemapProblems(site: BuiltSite): string[] {
 
 const DESCRIPTION = /<meta\b(?=[^>]*\bname="description")[^>]*?\bcontent="([^"]*)"/
 
-// Every page in the sitemap describes itself (RBA-268): VitePress gives a page without a
+// Every page in the sitemap describes itself: VitePress gives a page without a
 // description the site's, so 40-odd pages once shared one snippet. A page fails with no
 // description, with the site's, or with one another sitemap page also has.
 function descriptionProblems(site: BuiltSite): string[] {

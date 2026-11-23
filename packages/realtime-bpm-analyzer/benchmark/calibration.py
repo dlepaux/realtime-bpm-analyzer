@@ -395,10 +395,10 @@ def load_data(data, split='dev', legacy=False):
     if data.get('split') != split:
         raise SystemExit(f"calibration reads {split} only here, not {data.get('split')}")
     if legacy and data.get('format') is not None:
-        raise SystemExit(f"--legacy-raw is for files from before RBA-148, and this one has format {data['format']}")
+        raise SystemExit(f"--legacy-raw is for files from before the samples kept the raw score, and this one has format {data['format']}")
     if not legacy and data.get('format') != SAMPLES_FORMAT:
-        raise SystemExit(f"these samples have format {data.get('format')}, not {SAMPLES_FORMAT}: a file from before RBA-148 "
-                         'holds the raw score only if its image predates e70a4f5, and then reads with --legacy-raw')
+        raise SystemExit(f"these samples have format {data.get('format')}, not {SAMPLES_FORMAT}: a file from before the samples kept the raw score "
+                         'holds it only if its image predates e70a4f5, and then reads with --legacy-raw')
     out = {}
     for engine, tracks in data['samples'].items():
         out[engine] = []
@@ -468,7 +468,7 @@ def heldout_markdown(verdict):
     check = verdict['check']
     halves = verdict['top half less bottom half']['realtime']
     tracks = verdict['tracks'] or {}
-    out = [f"## RBA-106 held-out calibration check: {'pass' if verdict['passed'] else 'fail'}\n",
+    out = [f"## The calibration study's held-out calibration check: {'pass' if verdict['passed'] else 'fail'}\n",
            f"Tempogram realtime readings at `{json.dumps(verdict['hysteresis'], sort_keys=True)}`, the committed table. "
            f"Tracks: {', '.join(f'{name} {n}' for name, n in sorted(tracks.items())) or 'n/a'}, {verdict['skipped']} skipped. "
            f"Readings: {check['readings']}, from {verdict['artists']} artists. Ranges: 95% percentile, {REPLICATES} draws "

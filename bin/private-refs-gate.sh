@@ -9,9 +9,9 @@
 #   line by line with the original.
 # The pattern is case-sensitive on purpose: the results' lowercase file names, such as rba-51-*.md, are record
 # names, and the readme links to them.
-# bin/private-refs-allowlist.txt lists the single lines that must stay as they are, each as `path:text`: strings the
-# benchmark prints or throws, the tests that match them, and a quote of a logged reason. Any other line of those
-# files is still checked, and a line that changes no longer matches its entry.
+# bin/private-refs-allowlist.txt lists the single lines that must stay as they are, each as `path:text`, such as a
+# verbatim quote that cannot be reworded. It is empty for now, and kept so such a line has a place other than this
+# script. Any other line of a listed file is still checked, and a line that changes no longer matches its entry.
 #
 # Usage: sh bin/private-refs-gate.sh   (from the repository root)
 set -eu

@@ -293,7 +293,7 @@ export function compactTrace(steps: readonly EngineTraceStep[]): CompactTrace {
 export function expandTrace(trace: CompactTrace): EngineTraceStep[] {
   // Its confidence was raw before e70a4f5 and calibrated after, and the file does not say which: run dev again
   if (!Array.isArray(trace.raw)) {
-    throw new Error('This trace was written before RBA-148 and holds no raw score: score dev again with this harness');
+    throw new Error('This trace was written before traces kept the raw score, and holds none: score dev again with this harness');
   }
 
   return trace.now.map((now, i) => ({

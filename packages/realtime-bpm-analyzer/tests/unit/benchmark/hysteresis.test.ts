@@ -123,7 +123,7 @@ describe('the hysteresis replay', () => {
 
   it('refuses a trace written before the raw score was recorded', () => {
     const old = {now: [1], bpm: [120], confidence: [0.5], frameTempo: [120], flags: [1]} as unknown as CompactTrace;
-    expect(() => expandTrace(old)).to.throw('RBA-148');
+    expect(() => expandTrace(old)).to.throw('before traces kept the raw score');
   });
 
   it('refuses peaks, whose steps depend on the tracker', async () => {

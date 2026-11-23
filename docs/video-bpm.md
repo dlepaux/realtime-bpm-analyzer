@@ -8,11 +8,11 @@ tool:
   featureList:
     - Reads the sound track of MP4, WebM and MOV files, and audio files
     - The analysis runs in the browser, so the file stays on the device
-    - Shows one beat in milliseconds and in frames at 24 fps
+    - Shows one beat in milliseconds and in frames, at 24 fps or the frame rate you last used
     - Also reads the audio of another browser tab on desktop Chrome and Edge, or the microphone
 faq:
   - q: How do I find the BPM of a video?
-    a: Drop the video file on the tool at the top of this page, or click it to browse. Your browser decodes the sound track and the analyzer reads the tempo from it. The result shows the BPM and the length of one beat in milliseconds and in frames at 24 fps.
+    a: Drop the video file on the tool at the top of this page, or click it to browse. Your browser decodes the sound track and the analyzer reads the tempo from it. The result shows the BPM and the length of one beat in milliseconds and in frames, at 24 fps until you use another frame rate in the marker export or the BPM to frames calculator. The site remembers that rate on your device.
   - q: Is my video uploaded?
     a: No. The file is read and analysed in your browser by the open-source library, which sends no audio anywhere, so the video stays on your device. The website uses Google Analytics to record how the tool is used, such as the tempo found and the file's size, type and duration. It never records the video, its sound or its name. The Website Privacy page has the details.
   - q: Which video formats work?

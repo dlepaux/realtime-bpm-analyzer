@@ -20,6 +20,14 @@ browser by the library. The website never receives your audio, your files or
 their names. That is about your audio only: the pages themselves are measured, as
 the next section describes.
 
+## What the tools remember
+
+The metronome remembers its tempo, beats per bar and subdivision, and the video
+tools the frame rate you last used, so they open where you left off. These
+settings are kept in your browser's local storage, on this device. The metronome
+also puts its settings in the page's address, so a copied link opens on them.
+Clearing this site's data in your browser removes them.
+
 ## What the website measures
 
 The website uses **Google Analytics 4**, loaded directly with Google's tag (gtag.js) on

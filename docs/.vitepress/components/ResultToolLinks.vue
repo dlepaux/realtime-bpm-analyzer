@@ -1,25 +1,34 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useAnalytics } from '../composables/useAnalytics'
 import { noteMs } from '../tools/tempo'
 import { framesPerBeat } from '../tools/frames'
+import { fps } from '../tools/beat-markers'
+import { DEFAULT_TIMECODE, loadFrameRate } from '../tools/frame-rate-memory'
+import { browserStore } from '../tools/local-store'
 
 // The next step after a detected tempo: the beat length right away, then the
 // tools, each opened already set to it (they read `?bpm=`). Deliberately a
 // line of text, not buttons, so it never competes with the result's actions.
 // `source` names the analyzer mode in analytics. `video` (the /video-bpm page) adds
-// the beat in frames at 24 fps, the most common editing rate, and leads with frames.
+// the beat in frames at the editor's remembered rate (24 fps until they pick one, RBA-276), and
+// leads with frames. The audio results link to frames too, for the editor who starts on the home.
 const props = defineProps<{ bpm: number; source: 'file' | 'mic' | 'stream'; video?: boolean }>()
 
 const { track } = useAnalytics()
 
 const beatMs = computed(() => Math.round(noteMs(props.bpm, 4)))
 
-const beatFrames = computed(() => Number(framesPerBeat(props.bpm, 24).toFixed(2)))
+// Read on mount, so a prerendered card and its hydration agree on 24 first.
+const timecode = ref(DEFAULT_TIMECODE)
+onMounted(() => { timecode.value = loadFrameRate(browserStore()) })
+
+const beatFrames = computed(() => Number(framesPerBeat(props.bpm, fps(timecode.value.rate)).toFixed(2)))
 
 const AUDIO_LINKS = [
   { tool: 'bpm-to-ms', label: 'Delay times' },
   { tool: 'metronome', label: 'Metronome' },
+  { tool: 'bpm-to-frames', label: 'Beat in frames' },
 ] as const
 const VIDEO_LINKS = [{ tool: 'bpm-to-frames', label: 'Frames at every fps' }] as const
 const links = computed(() => (props.video ? VIDEO_LINKS : AUDIO_LINKS))
@@ -32,7 +41,7 @@ function onClick(tool: string) {
 
 <template>
   <p class="result-tools">
-    <span>1 beat = {{ beatMs }} ms<template v-if="video"> = {{ beatFrames }} frames at 24 fps</template></span>
+    <span>1 beat = {{ beatMs }} ms<template v-if="video"> = {{ beatFrames }} frames at {{ timecode.rate.label }} fps</template></span>
     <!-- One unit, so a narrow card breaks between the value and the links. -->
     <span class="result-links">
       <a
@@ -60,10 +69,14 @@ function onClick(tool: string) {
 
 .result-links {
   display: inline-flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.2rem 1rem;
 }
 
+/* Three links don't fit a phone's card on one line: they wrap whole, never mid-label. */
 .result-tool {
+  white-space: nowrap;
   font-weight: 500;
   color: var(--vp-c-brand-1);
   text-decoration: none;

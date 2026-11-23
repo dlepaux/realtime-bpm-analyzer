@@ -40,14 +40,14 @@ milliseconds and in frames, ready for cutting to the beat.
   <BpmHeroTool variant="video" />
 </div>
 
-<ToolboxEntry placement="app_below_tool" />
-
 The file is analysed in your browser and stays on your device. The website
 records how the tool is used, never the file itself: see
 [Website Privacy](/website-privacy). For a video
 online, paste its link in the **Stream** tab: on desktop Chrome and Edge the
 tool offers to share the audio of the tab that plays it, and elsewhere the
 microphone.
+
+<ToolboxEntry placement="app_below_tool" />
 
 ## From BPM to frames
 

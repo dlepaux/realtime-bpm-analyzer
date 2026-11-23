@@ -5,7 +5,8 @@
 // list: there is no second map to keep in step.
 //
 // The link is the bare address. www and the app share one GA4 property and the parent domain's
-// cookie, so a UTM tag would cut the visit in two; the click event says where the entry was.
+// cookie, so the visit is already one visitor's; a UTM tag would only re-credit what they do in the
+// app to a made-up campaign. The click event says where the entry was.
 // Pure and import-light so node --test runs it.
 import { freeTools } from './tool-list.ts'
 
@@ -20,10 +21,13 @@ export type AppPlacement = (typeof APP_PLACEMENTS)[number]
 
 const TOOL_PATHS: ReadonlySet<string> = new Set(freeTools().map((tool) => tool.link))
 
-/** The app route for a www page, or null when the app has no copy of it. */
+/**
+ * The app route for a www page, or null when the app has no copy of it. A tool path with a
+ * trailing slash is not the page: www answers it with a 404, so it gets no entry either.
+ */
 export function appRouteOf(pathname: string): string | null {
-  const path = pathname.replace(/\.html$/, '').replace(/(^|\/)index$/, '').replace(/\/+$/, '')
-  if (path === '') return '/'
+  const path = pathname.replace(/\.html$/, '').replace(/(^|\/)index$/, '')
+  if (path === '' || path === '/') return '/'
   return TOOL_PATHS.has(path) ? path : null
 }
 

@@ -5,7 +5,7 @@
 // above a tool: on a phone the first screen stays the tool's (RBA-294), so the bar entry shows from
 // tablet width up, and phones get it at the top of the menu and under the tool.
 import { computed } from 'vue'
-import { useRoute } from 'vitepress'
+import { useData, useRoute } from 'vitepress'
 import { ArrowRight } from 'lucide-vue-next'
 import { useAnalytics } from '../composables/useAnalytics'
 import { appUrlOf, type AppPlacement } from '../tools/toolbox-entry'
@@ -13,7 +13,9 @@ import { appUrlOf, type AppPlacement } from '../tools/toolbox-entry'
 const props = defineProps<{ placement: AppPlacement }>()
 const route = useRoute()
 const { track } = useAnalytics()
-const href = computed(() => appUrlOf(route.path))
+const { page } = useData()
+// The 404 page is prerendered at /404, so it never has an entry, whatever address shows it.
+const href = computed(() => (page.value.isNotFound ? null : appUrlOf(route.path)))
 </script>
 
 <template>
@@ -76,22 +78,38 @@ const href = computed(() => appUrlOf(route.path))
   flex: none;
 }
 
-/* The bar is VitePress's, which turns pointer events off on its frame and on for its children. */
+/* The bar is VitePress's, which turns pointer events off on its frame and on for its children.
+   The pill looks 30px tall; its ::after makes the tap area 44px without making the bar busier. */
 .toolbox-entry.is-nav {
   display: none;
+  position: relative;
   pointer-events: auto;
   margin-left: 16px;
   padding: 0.35rem 0.9rem;
   font-size: 0.875rem;
 }
 
-/* VitePress keeps its menu button up to 959px: from 768px the bar's entry stands for both. */
+.toolbox-entry.is-nav::after {
+  content: '';
+  position: absolute;
+  inset: -7px 0;
+}
+
+/* The theme keeps its menu button up to 959px (custom.css), so from 768px the bar's entry stands
+   for the menu's. From 960px the full menu takes the bar, and the entry only fits again from
+   1100px (measured); between the two, the row under the tool is the way in. */
 @media (min-width: 768px) {
   .toolbox-entry.is-nav {
     display: inline-flex;
   }
 
   .toolbox-entry.is-menu {
+    display: none;
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1099px) {
+  .toolbox-entry.is-nav {
     display: none;
   }
 }

@@ -332,7 +332,7 @@ export const EVENTS = {
   app_link_clicked: {
     params: { placement: 'required' },
     repeats: 'Each click.',
-    privacy: 'When you open the music toolbox app from this site: where the link sits (the top bar, the menu, or under the tool). Never the address it opens.',
+    privacy: 'When you open the music toolbox app from this site: where the link sits (the top bar, the menu, or under the tool). The event itself carries no address.',
   },
   extension_demo_control: {
     params: { action: 'required' },

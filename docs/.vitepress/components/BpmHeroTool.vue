@@ -114,7 +114,7 @@ const micLiveBpm = ref<number | null>(null)
 const micStableBpm = ref<number | null>(null)
 const micError = ref<string | null>(null)
 // A blocked mic gets its own panel: how to allow it again in this browser, and the two inputs
-// that need no mic (RBA-299). Read from the user agent once mounted, never sent.
+// that need no mic. Read from the user agent once mounted, never sent.
 const micDenied = ref(false)
 const micAllowSteps = ref(MIC_ALLOW_STEPS.other)
 // `shallowRef` for audio graph nodes — Vue shouldn't deep-track them (they're
@@ -162,7 +162,7 @@ const streamTabCapture = shallowRef<MediaStream | null>(null)
 const tabSharingEnded = ref(false)
 // Decided on mount, not during SSR, because it reads `navigator`.
 const tabAudioSupported = ref(false)
-// A phone has no tab to share, so a pasted link can only reach the mic (RBA-300).
+// A phone has no tab to share, so a pasted link can only reach the mic.
 const onPhone = ref(false)
 
 // A YouTube, Spotify… link can never play here: those sites stream through their
@@ -629,11 +629,15 @@ watch([micStatus, micPaused], () => {
   })
 })
 
-// The blocked panel's way out that needs no mic. The picker opens in the same click, once the
-// file mode's input is on screen; a file result already there is simply shown.
+// The way out that needs no mic, from a blocked mic or a phone's pasted link. The picker opens in
+// the same click once the file mode's input is on screen, which takes an idle file panel: the
+// visitor asked for a new file, as "Try another" does. Focus goes to the file button, since the pressed
+// button is gone and a cancelled picker would otherwise leave it on the page body.
 async function chooseFileInstead() {
   setMode('file')
+  if (fileStatus.value !== 'idle') restartFile()
   await nextTick()
+  chooseFileButton.value?.focus()
   openFilePicker()
 }
 
@@ -1274,18 +1278,21 @@ function formatDuration(seconds: number): string {
         </template>
 
         <template v-else>
-          <div
-            class="bpm-state bpm-state-error"
-            role="alert"
-          >
-            <div class="bpm-error-msg">
-              {{ micError }}
-            </div>
+          <div class="bpm-state bpm-state-error">
+            <!-- Only the message and the steps are announced, not the buttons after them. -->
             <div
-              v-if="micDenied"
-              class="bpm-mic-steps"
+              class="bpm-mic-alert"
+              role="alert"
             >
-              {{ micAllowSteps }}
+              <div class="bpm-error-msg">
+                {{ micError }}
+              </div>
+              <div
+                v-if="micDenied"
+                class="bpm-mic-steps"
+              >
+                {{ micAllowSteps }}
+              </div>
             </div>
             <button
               type="button"
@@ -1770,6 +1777,13 @@ function formatDuration(seconds: number): string {
 .bpm-state-error .bpm-error-msg {
   font-size: 0.9375rem;
   color: var(--vp-c-danger-1);
+}
+
+.bpm-mic-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 /* The way back to the mic, under the blocked line: instructions, not an error, so neutral text. */

@@ -1,5 +1,5 @@
-// The blocked microphone (RBA-299) and the phone's note before a pasted link reaches the mic
-// (RBA-300), in a real Chrome. The mic is denied through Chrome's own permission control, as a
+// The blocked microphone's help and the phone's note before a pasted link reaches the mic, in a
+// real Chrome. The mic is denied through Chrome's own permission control, as a
 // visitor's "Block" leaves it, and each browser is played by its user agent (and, for a phone,
 // its client hints, which decide whether tab audio is offered).
 //
@@ -135,12 +135,14 @@ test('a pasted link on a phone says the song must play out loud, and offers the 
   await page.close()
 })
 
-test('a pasted link on a desktop keeps its own hints, without the phone line', async () => {
-  const page = await openPage({ phone: false })
+// Firefox has no tab audio, so this is the branch the phone line lives in, on a desktop.
+test('a pasted link on a desktop without tab audio keeps its own hint, without the phone line', async () => {
+  const page = await openPage({ userAgent: MAC_FIREFOX, phone: false })
   await pickSource(page, 'Stream')
   await page.locator('#bpm-stream-url').fill('https://www.youtube.com/watch?v=abc')
   await page.waitForSelector('.bpm-link-note')
   const text = await page.$eval('.bpm-mode-stream', (node) => (node as HTMLElement).innerText)
+  assert.ok(text.includes('Play the track out loud on any device and hold it near this one.'), text)
   assert.ok(!text.includes(PHONE_LINK_LINE), text)
   await page.close()
 })

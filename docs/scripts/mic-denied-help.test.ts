@@ -17,6 +17,7 @@ const UA = {
   androidWebView: 'Mozilla/5.0 (Linux; Android 10; K; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/142.0.0.0 Mobile Safari/537.36',
   androidFirefox: 'Mozilla/5.0 (Android 15; Mobile; rv:145.0) Gecko/145.0 Firefox/145.0',
   iphoneSafari: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.1 Mobile/15E148 Safari/604.1',
+  iphoneTikTok: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 musical_ly_42.1.0 JsSdk/2.0 NetType/WIFI Channel/App Store ByteLocale/en Region/US',
   iphoneChrome: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/142.0.7444.77 Mobile/15E148 Safari/604.1',
   // iPadOS asks for the desktop site by default: a Mac user agent on a touch screen.
   ipadSafari: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.1 Safari/605.1.15',
@@ -37,6 +38,7 @@ test('each browser gets its own steps, and anything unknown the general ones', (
     [UA.androidFirefox, 5, 'other'],
     [UA.iphoneSafari, 5, 'ios_safari'],
     [UA.iphoneChrome, 5, 'other'],
+    [UA.iphoneTikTok, 5, 'other'],
     [UA.ipadSafari, 5, 'ios_safari'],
     [UA.macSafari, 0, 'safari'],
     [UA.macChrome, 0, 'chrome'],
@@ -54,7 +56,7 @@ test('each browser gets its own steps, and anything unknown the general ones', (
 test('the steps name each browser and the Allow choice, and the fallback names none', () => {
   assert.match(MIC_ALLOW_STEPS.android_chrome, /^In Chrome, .*Site settings.*Microphone.*Blocked.*Allow/)
   assert.match(MIC_ALLOW_STEPS.ios_safari, /^In Safari, .*Page Menu.*Website Settings.*Microphone.*Allow/)
-  assert.match(MIC_ALLOW_STEPS.chrome, /^In Chrome, .*Privacy and security.*Site settings.*Allow/)
+  assert.match(MIC_ALLOW_STEPS.chrome, /^In Chrome, .*Privacy and security.*Site settings.*Microphone.*Allow/)
   assert.match(MIC_ALLOW_STEPS.edge, /^In Edge, .*lock icon.*Allow/)
   assert.match(MIC_ALLOW_STEPS.firefox, /^In Firefox, .*address bar/)
   assert.match(MIC_ALLOW_STEPS.safari, /^In Safari, .*Settings.*Websites.*Microphone.*Allow/)

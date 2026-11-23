@@ -30,6 +30,12 @@ export const MIC_ALLOW_STEPS: Readonly<Record<MicHelpBrowser, string>> = {
   other: 'Open your browser’s settings for this site and set Microphone to Allow. Then try again.',
 }
 
+/**
+ * Beside the button that starts listening: what the mic is for, and that its audio stays here,
+ * so the browser's prompt that follows the press has its context (RBA-299).
+ */
+export const MIC_PURPOSE_LINE = 'Your microphone hears the music to find its tempo. The audio stays on this device.'
+
 /** Shown on a phone, where a pasted link can only be heard through the mic: no tab to share. */
 export const PHONE_LINK_LINE = 'The song has to play out loud near this phone.'
 
@@ -67,4 +73,47 @@ export function micHelpBrowser(signals: BrowserSignals): MicHelpBrowser {
 /** A phone, not a tablet: Android puts "Mobile" only in its phones' user agents. */
 export function isPhone(userAgent: string): boolean {
   return /\b(?:iPhone|iPod)\b/.test(userAgent) || (/\bAndroid\b/.test(userAgent) && /\bMobile\b/.test(userAgent))
+}
+
+export type MicPermission = 'granted' | 'denied' | 'prompt' | 'unknown'
+
+type PermissionStatusLike = {
+  readonly state: string
+  addEventListener(type: 'change', listener: () => void): void
+  removeEventListener(type: 'change', listener: () => void): void
+}
+export type PermissionsLike = { query(descriptor: { name: 'microphone' }): Promise<PermissionStatusLike> }
+
+function asMicPermission(state: string): MicPermission {
+  return state === 'granted' || state === 'denied' || state === 'prompt' ? state : 'unknown'
+}
+
+/**
+ * Follows the mic permission where the browser reports it. Chrome on Android remembers a block per
+ * site and refuses at once, with no prompt, so a returning visitor who blocked once would press a
+ * button that can only fail: on `denied` the tool shows how to allow it instead. A browser that
+ * can't query the microphone (older Firefox throws, some WebViews have no Permissions API) reports
+ * `unknown`, and the help waits for a refusal. Returns the function that stops following.
+ */
+export function watchMicPermission(permissions: PermissionsLike | undefined, onState: (state: MicPermission) => void): () => void {
+  let stopped = false
+  let status: PermissionStatusLike | null = null
+  const emit = () => { if (!stopped && status) onState(asMicPermission(status.state)) }
+  if (!permissions) {
+    onState('unknown')
+    return () => { stopped = true }
+  }
+  permissions.query({ name: 'microphone' }).then(
+    (result) => {
+      if (stopped) return
+      status = result
+      result.addEventListener('change', emit)
+      emit()
+    },
+    () => { if (!stopped) onState('unknown') },
+  )
+  return () => {
+    stopped = true
+    status?.removeEventListener('change', emit)
+  }
 }

@@ -18,7 +18,7 @@ import { useMicGuard } from '../composables/useMicGuard'
 import { MIC_LISTENING_LINE, MIC_STOPPED_LINE, micStatusLine, type MicPhase } from '../tools/mic-guard'
 import { fileExtensionParam } from '../tools/analytics-params'
 import { classifyMicError } from '../tools/mic-error'
-import { MIC_ALLOW_STEPS, MIC_BLOCKED_LINE, PHONE_LINK_LINE, isPhone, micHelpBrowser } from '../tools/mic-denied-help'
+import { MIC_ALLOW_STEPS, MIC_BLOCKED_LINE, MIC_PURPOSE_LINE, PHONE_LINK_LINE, isPhone, micHelpBrowser, watchMicPermission, type MicPermission, type PermissionsLike } from '../tools/mic-denied-help'
 import { toolPageOf, watchToolSeen } from '../tools/tool-seen'
 import { decodeAndClose, openAnalysis } from '../tools/audio-setup'
 import {
@@ -117,6 +117,11 @@ const micError = ref<string | null>(null)
 // that need no mic. Read from the user agent once mounted, never sent.
 const micDenied = ref(false)
 const micAllowSteps = ref(MIC_ALLOW_STEPS.other)
+// A site blocked earlier is refused at once, with no prompt: the Mic tab shows the help in place
+// of a button that could only fail. `unknown` where the browser can't tell, until a refusal.
+const micPermission = ref<MicPermission>('unknown')
+const micBlocked = computed(() => micDenied.value || (micStatus.value === 'idle' && micPermission.value === 'denied'))
+let stopPermissionWatch: (() => void) | null = null
 // `shallowRef` for audio graph nodes — Vue shouldn't deep-track them (they're
 // not reactive targets) and we want consistent `.value = null` semantics.
 const micContext = shallowRef<AudioContext | null>(null)
@@ -641,6 +646,13 @@ async function chooseFileInstead() {
   openFilePicker()
 }
 
+// Try again on a blocked mic asks the browser at once: going back to the mic button first would
+// show the same help again, so the first press would seem to do nothing.
+function retryBlockedMic() {
+  stopMic()
+  void startMic()
+}
+
 function onTapAlongOffer() {
   track('bpm_tool_link_clicked', { mode: 'mic→tap-tempo', result_source: 'mic', tool: 'tap-tempo' })
 }
@@ -959,6 +971,7 @@ onMounted(() => {
   tabAudioSupported.value = supportsTabAudio(navigator as NavigatorLike)
   onPhone.value = isPhone(navigator.userAgent)
   micAllowSteps.value = MIC_ALLOW_STEPS[micHelpBrowser({ userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints })]
+  stopPermissionWatch = watchMicPermission(navigator.permissions as PermissionsLike | undefined, (state) => { micPermission.value = state })
   if (keepsTracks.value) {
     crateStored.value = browserStore() !== null
     crateRows.value = parseCrate(readItem(browserStore(), CRATE_STORAGE_KEY))
@@ -970,6 +983,7 @@ onMounted(() => {
 
 // ─── Cleanup on unmount ──────────────────────────────────────────────────
 onBeforeUnmount(() => {
+  stopPermissionWatch?.()
   // invalidate() also stops a batch: the file under analysis finishes on its own.
   window.removeEventListener('storage', onCrateStorage)
   stopSeenWatch()
@@ -1172,7 +1186,7 @@ function formatDuration(seconds: number): string {
         v-else-if="mode === 'mic'"
         class="bpm-mode bpm-mode-mic"
       >
-        <template v-if="micStatus === 'idle'">
+        <template v-if="micStatus === 'idle' && micPermission !== 'denied'">
           <button
             type="button"
             class="bpm-mic-button"
@@ -1190,7 +1204,7 @@ function formatDuration(seconds: number): string {
               Tap to detect BPM
             </div>
             <div class="bpm-sub">
-              From your microphone
+              {{ MIC_PURPOSE_LINE }}
             </div>
           </div>
         </template>
@@ -1285,10 +1299,10 @@ function formatDuration(seconds: number): string {
               role="alert"
             >
               <div class="bpm-error-msg">
-                {{ micError }}
+                {{ micError ?? MIC_BLOCKED_LINE }}
               </div>
               <div
-                v-if="micDenied"
+                v-if="micBlocked"
                 class="bpm-mic-steps"
               >
                 {{ micAllowSteps }}
@@ -1297,12 +1311,12 @@ function formatDuration(seconds: number): string {
             <button
               type="button"
               class="bpm-restart-btn"
-              @click="stopMic"
+              @click="micBlocked ? retryBlockedMic() : stopMic()"
             >
               Try again
             </button>
             <div
-              v-if="micDenied"
+              v-if="micBlocked"
               class="bpm-stream-hint"
             >
               Or skip the microphone: <button

@@ -4,9 +4,13 @@ import assert from 'node:assert/strict'
 import {
   MIC_ALLOW_STEPS,
   MIC_BLOCKED_LINE,
+  MIC_PURPOSE_LINE,
   PHONE_LINK_LINE,
   isPhone,
   micHelpBrowser,
+  watchMicPermission,
+  type MicPermission,
+  type PermissionsLike,
 } from '../.vitepress/tools/mic-denied-help.ts'
 
 // Real user agents, current majors as of 2026-11.
@@ -79,4 +83,52 @@ test('a phone is an iPhone or an Android phone, never a tablet or a desktop', ()
   assert.equal(isPhone(UA.ipadSafari), false)
   assert.equal(isPhone(UA.macChrome), false)
   assert.equal(isPhone(UA.winEdge), false)
+})
+
+// A Permissions API double: the state it reports, and the change listeners it holds.
+function fakePermissions(initial: string) {
+  const listeners = new Set<() => void>()
+  const status = {
+    state: initial,
+    addEventListener: (_: 'change', listener: () => void) => { listeners.add(listener) },
+    removeEventListener: (_: 'change', listener: () => void) => { listeners.delete(listener) },
+  }
+  const permissions: PermissionsLike = { query: async () => status }
+  return { permissions, listeners, change(state: string) { status.state = state; listeners.forEach((l) => l()) } }
+}
+const settle = () => new Promise((resolve) => setImmediate(resolve))
+
+test('a site blocked earlier reports denied before any press, and follows the visitor allowing it', async () => {
+  const fake = fakePermissions('denied')
+  const seen: MicPermission[] = []
+  const stop = watchMicPermission(fake.permissions, (state) => seen.push(state))
+  await settle()
+  fake.change('granted')
+  assert.deepEqual(seen, ['denied', 'granted'])
+  stop()
+  assert.equal(fake.listeners.size, 0)
+  fake.change('denied')
+  assert.deepEqual(seen, ['denied', 'granted'])
+})
+
+test('a browser that cannot query the mic reports unknown, so the help waits for a refusal', async () => {
+  const seen: MicPermission[] = []
+  watchMicPermission(undefined, (state) => seen.push(state))
+  watchMicPermission({ query: () => Promise.reject(new TypeError('microphone is not a valid permission name')) }, (state) => seen.push(state))
+  watchMicPermission(fakePermissions('something-new').permissions, (state) => seen.push(state))
+  await settle()
+  assert.deepEqual(seen, ['unknown', 'unknown', 'unknown'])
+})
+
+test('a stop before the query answers reports nothing', async () => {
+  const seen: MicPermission[] = []
+  watchMicPermission(fakePermissions('denied').permissions, (state) => seen.push(state))()
+  await settle()
+  assert.deepEqual(seen, [])
+})
+
+test('the line beside the mic button says what it is for and that the audio stays here, with no claim', () => {
+  assert.match(MIC_PURPOSE_LINE, /tempo/)
+  assert.match(MIC_PURPOSE_LINE, /stays on this device/)
+  assert.doesNotMatch(MIC_PURPOSE_LINE, /accura|best|precise|\d+ ?%/i)
 })

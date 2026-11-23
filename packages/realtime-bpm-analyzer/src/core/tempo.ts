@@ -144,7 +144,7 @@ export function identifyIntervals(peaks: readonly number[]): Interval[] {
 
 /**
  * The keys a tempo range takes. Any other own key throws a `TypeError` that names it, whatever its value, under the
- * same ruling as the options (RBA-108's DECISION of 2026-11-16): `{min, max, mni}` would otherwise pass for a typo'd
+ * same rule as the options: `{min, max, mni}` would otherwise pass for a typo'd
  * bound. tests/types/public-surface.ts holds it equal to the keys of `TempoRange`.
  */
 export const tempoRangeKeys = Object.freeze(['min', 'max'] as const);
@@ -188,14 +188,14 @@ export function resolveTempoRange(tempoRange?: TempoRange): TempoRange {
     );
   }
 
-  // A whole BPM must fit the signed 32-bit integer every typed port returns it in (RBA-260)
+  // A whole BPM must fit the signed 32-bit integer every typed port returns it in
   if (max > consts.maxTempoRangeBpm) {
     throw new RangeError(`Invalid tempoRange: max (${max}) must be at most ${consts.maxTempoRangeBpm} BPM.`);
   }
 
   // The tempogram's grid has one tempo per 1% step from min to max, log(max / min) / log(1.01) + 1 of them. Every
   // finite ratio gives at most 71,333, with 2.3 MB of comb lags, which every runtime allocates. An infinite
-  // ratio has no grid: 6.1.0 refused it only by accident, with "Invalid typed array length" (RBA-260)
+  // ratio has no grid: 6.1.0 refused it only by accident, with "Invalid typed array length"
   if (!Number.isFinite(max / min)) {
     throw new RangeError(`Invalid tempoRange: max / min (${max} / ${min}) is too large, past the largest finite number.`);
   }

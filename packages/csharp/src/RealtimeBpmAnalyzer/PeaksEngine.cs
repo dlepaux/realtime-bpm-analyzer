@@ -41,8 +41,8 @@ namespace RealtimeBpmAnalyzer
         private const int MaxCandidates = 5;
 
         /// <summary>
-        /// The percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks
-        /// (RBA-221): JS's levelPercentile.
+        /// The percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks:
+        /// JS's levelPercentile.
         /// </summary>
         internal const int LevelPercentile = 98;
 
@@ -62,7 +62,7 @@ namespace RealtimeBpmAnalyzer
             float[] filtered = ApplyLowpass(samples, sampleRate, lowpass);
             int[] peaks = FindPeaks(filtered, sampleRate);
             bool calibrated = true;
-            // RBA-221: whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no
+            // Whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no
             // peaks in is searched again relative to its level, and the calibration never saw such a reading
             if (peaks.Length == 0)
             {
@@ -75,7 +75,7 @@ namespace RealtimeBpmAnalyzer
             return new Detection(TopCandidates(tempos), calibrated);
         }
 
-        /// <summary>The candidates of one channel, and whether the peaks calibration (RBA-106) covers them.</summary>
+        /// <summary>The candidates of one channel, and whether the peaks calibration covers them.</summary>
         internal sealed class Detection
         {
             internal Detection(List<Tempo> tempos, bool calibrated)
@@ -168,7 +168,7 @@ namespace RealtimeBpmAnalyzer
             double skip = JsMath.Round(PeakSkipSeconds * sampleRate);
             // Each pass of FindPeaksAtThreshold moves on by at least one sample only while the skip is one sample or
             // more, which bounds its loop to data.Length passes, and no level window is then empty. BpmAnalyzer
-            // refuses a rate under 2 Hz, where it is 0, before this, as the JS library does (RBA-260)
+            // refuses a rate under 2 Hz, where it is 0, before this, as the JS library does
             if (!(skip >= 1))
             {
                 throw new ArgumentOutOfRangeException(
@@ -181,7 +181,7 @@ namespace RealtimeBpmAnalyzer
         }
 
         /// <summary>
-        /// The level of a channel's loudest beats, which one click or clipped transient can't set (RBA-221): JS's
+        /// The level of a channel's loudest beats, which one click or clipped transient can't set: JS's
         /// levelReference. The maxima of its 0.25 s windows, each from 0 so only positive samples count, sorted, and
         /// the one at index floor((windows - 1) * 98 / 100), in whole numbers.
         /// </summary>
@@ -218,7 +218,7 @@ namespace RealtimeBpmAnalyzer
 
         /// <summary>
         /// The fixed ladder run again with every rung scaled by the channel's level, so a quiet or bass-light file is
-        /// searched the way a full-scale one is (RBA-221): JS's findPeaksRelativeToLevel. None under the silence
+        /// searched the way a full-scale one is: JS's findPeaksRelativeToLevel. None under the silence
         /// floor, or at full scale or above.
         /// </summary>
         internal static int[] FindPeaksRelativeToLevel(float[] data, double sampleRate)

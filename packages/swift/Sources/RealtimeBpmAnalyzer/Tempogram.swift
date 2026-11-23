@@ -9,7 +9,7 @@ import Foundation
 
 enum Tempogram {
     /// The lowest sample rate, in Hz: the JS library's `tempogramMinSampleRate`, the first double at which the FFT has
-    /// 4 points, so a bin above DC (RBA-261). Under it the FFT has 2, whose bins the onset sums skip, and every reading
+    /// 4 points, so a bin above DC. Under it the FFT has 2, whose bins the onset sums skip, and every reading
     /// was empty. The rate is compared with this double, not through ``fftSize(sampleRate:)``, as every port does: a
     /// log2 computed as a ratio of logarithms gives 4 points on the two doubles under it. `consts.ts` derives it.
     static let minimumSampleRate = 122.97509238026915
@@ -147,7 +147,7 @@ private struct OnsetStage {
             total += power
         }
         // A NaN or infinite sample is no audio: no onset, and the state is kept. analyzeChannelData refuses such
-        // samples first (RBA-260); this mirrors the reference's realtime rule (RBA-246)
+        // samples first; this mirrors the reference's realtime rule
         guard total.isFinite else { return 0 }
         // Relative to a slow loudness reference, so the reading does not depend on the volume
         loudness = Swift.max(peak.squareRoot(), loudness * Tempogram.loudnessDecay, Tempogram.minimumLoudness)

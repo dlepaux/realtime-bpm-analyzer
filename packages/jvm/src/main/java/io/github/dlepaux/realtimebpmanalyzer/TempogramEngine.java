@@ -22,7 +22,7 @@ final class TempogramEngine {
     private static final double FRAME_RATE = 100;
     /**
      * The lowest sample rate, in Hz, the tempogram runs at: the JS library's {@code tempogramMinSampleRate}, the
-     * first double at which its FFT has 4 points, so a bin above DC (RBA-261). Under it the FFT has 2, whose bins
+     * first double at which its FFT has 4 points, so a bin above DC. Under it the FFT has 2, whose bins
      * the onset sums skip, and every reading was empty. The rate is compared with this double, not through
      * {@link #fftSize}: this port's {@link #log2} already gives 4 points on the two doubles under it, where JS's
      * {@code Math.log2} gives 2, so only the comparison makes the ports refuse the same rates. {@code consts.ts}
@@ -200,7 +200,7 @@ final class TempogramEngine {
             }
             if (Double.isNaN(total) || Double.isInfinite(total)) {
                 // A NaN or infinite sample is no audio: no onset, and the state is kept. BpmAnalyzer refuses such
-                // samples first (RBA-260); this mirrors the reference's realtime rule (RBA-246)
+                // samples first; this mirrors the reference's realtime rule
                 return 0;
             }
 

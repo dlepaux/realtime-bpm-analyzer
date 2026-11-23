@@ -25,7 +25,7 @@
   </PropertyGroup>
 
   <!--
-    Debugging into the package from nuget.org (RBA-272). The SDK's built-in Source Link (.NET 8 and later, no
+    Debugging into the package from nuget.org. The SDK's built-in Source Link (.NET 8 and later, no
     PackageReference) writes the GitHub commit and URLs into the PDB, and PublishRepositoryUrl puts the commit in the
     nuspec. The PDB is embedded in the DLL rather than shipped as a .snupkg, so the push is one file and a debugger
     finds the symbols with no symbol server. Deterministic and ContinuousIntegrationBuild are in Directory.Build.props.

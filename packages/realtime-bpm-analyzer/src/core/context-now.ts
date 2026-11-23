@@ -11,7 +11,7 @@ export type Heard = {readonly at: number; readonly wall: number};
  * output. The other is the last processor message heard: its send time, plus the time since it was received.
  * `currentTime` and the message read early, never late, as a message arrives after it is sent, so the latest of
  * the three wins. The output clock can read late, ahead of the render thread: in Firefox it is ahead by the output
- * latency, 48 ms on CI and 9 ms on a Mac (RBA-246), so contextNow can be too. Its one
+ * latency, 48 ms on CI and 9 ms on a Mac, so contextNow can be too. Its one
  * reader is the stale-epoch watchdog's start (`staleAfterSeconds`), which a late clock only moves later: a deaf
  * processor is judged that much later, and a live one is never judged deaf sooner. The output timestamp alone was
  * not enough: in Firefox on CI it stood still through a 1.2 s block too.

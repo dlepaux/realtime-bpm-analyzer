@@ -12,7 +12,7 @@ API that hasn't shipped yet. The migration guide (phase 6) moves the mapping tab
 
 5.x reports through events alone. `bpm` and `bpmStable` carry the same payload, so "stable" is an event,
 not a state. A lost lock has no event at all, and a listener added late can't learn what it missed. Each
-app rebuilds the state machine from the events, and rba-pro is one example (its `reading.ts`).
+app rebuilds the state machine from the events, as the Live BPM Detector extension did.
 
 v6 follows `AudioContext`, the pattern web developers already know. `AudioContext.state` is a value you can
 query, and `statechange` announces each change to it. Here:
@@ -98,7 +98,7 @@ These rules are fixed now so that beats land in a minor release, without a break
 
 ## Kicks
 
-`kick` reports each kick drum heard, `{contextTime, strength}`, before predicted beats exist (RBA-243). It
+`kick` reports each kick drum heard, `{contextTime, strength}`, before predicted beats exist. It
 follows the rules above without needing any of their room:
 
 - **Protocol.** The `kick` message is part of protocol 1.0. Minor 0 had not shipped when it was added: the
@@ -110,7 +110,7 @@ follows the rules above without needing any of their room:
   predicted, so there is nothing to cancel. The detector starts over on a reset and on an audio-lost restart.
 - **No state.** A kick moves no state and is not part of a step's sequence of events. It is dispatched
   through the same queue, so a `reset()` or `stop()` from a kick listener waits for the events in flight.
-- **Name.** `beat` stays free for predicted beats (RBA-244). A kick is heard, a beat is predicted: an app that
+- **Name.** `beat` stays free for predicted beats. A kick is heard, a beat is predicted: an app that
   flashes on both tells them apart by the event's name.
 - **Offline.** `analyzeFullBuffer` lists no kicks. As with beats, a list of a file's kicks would come from a
   separate function.

@@ -4,7 +4,7 @@ title: "BPM Finder: Find the BPM of Any Song"
 description: Find the BPM of any song in your browser. This free BPM detector reads a file, the microphone or a stream, and your audio never leaves your device.
 
 homeHero:
-  # HomeHero.vue draws this: the brand as a small line above, then the h1 (RBA-66).
+  # HomeHero.vue draws this: the brand as a small line above, then the h1.
   text: "BPM Finder: Find the BPM of Any Song"
   tagline: A free BPM detector that runs in your browser. Drop a song, use the microphone or play a stream, and your audio stays on your device. Also a zero-dependency TypeScript library for developers.
 ---

@@ -264,7 +264,7 @@ function createOnsetStage(sampleRate: number, frameRate: number, tuning: Tempogr
 
     if (!Number.isFinite(total)) {
       // A NaN or infinite sample is no audio: no onset, and the state is kept, since an
-      // infinite loudness would never decay and leave the tempo deaf for good (RBA-246)
+      // infinite loudness would never decay and leave the tempo deaf for good
       return 0;
     }
 

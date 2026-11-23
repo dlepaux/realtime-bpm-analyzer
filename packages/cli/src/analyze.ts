@@ -73,7 +73,7 @@ export async function analyzeOnWorker(request: AnalysisRequest, signal: AbortSig
     signal?.removeEventListener('abort', onAbort);
     // One ending per worker, never two at once. On Node 22.0.0 a terminate() that lands while the
     // worker exits by itself can deadlock its teardown: terminate never settles and the thread
-    // holds the host's event loop, so the CLI never exits (RBA-241). A worker that answered waits
+    // holds the host's event loop, so the CLI never exits. A worker that answered waits
     // to be ended (analyze-worker.ts), and one that threw or exited is already going: wait for it.
     // One overlap is left, and needs an abort at the worker's own end: an abort that lands after the
     // worker threw or exited, before its 'error' or 'exit' reaches this thread, still terminates it.

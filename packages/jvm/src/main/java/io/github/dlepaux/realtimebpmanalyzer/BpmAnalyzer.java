@@ -77,7 +77,7 @@ public final class BpmAnalyzer {
 
     /**
      * A NaN or infinite sample is no PCM, and through the peaks lowpass it would turn every later sample into NaN. The
-     * caller can fix its decoding, so it is refused, as the JS library refuses it (RBA-260).
+     * caller can fix its decoding, so it is refused, as the JS library refuses it.
      */
     private static void requireFiniteSamples(float[] samples) {
         for (int i = 0; i < samples.length; i++) {
@@ -104,7 +104,7 @@ public final class BpmAnalyzer {
 
     /**
      * @param calibrated False when the calibration never saw readings found the way these were, as for a peaks file
-     *     read relative to its own level (RBA-221): the confidence is then null, unmeasured
+     *     read relative to its own level: the confidence is then null, unmeasured
      */
     private static Reading toReading(List<Tempo> tempos, double audioTo, EngineName engine, TempoRange range,
             boolean calibrated) {

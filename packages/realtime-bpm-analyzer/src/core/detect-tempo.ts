@@ -7,8 +7,8 @@ export type PeaksTempos = {
   /** Up to 5 tempo candidates, sorted by `count` */
   readonly tempos: Tempo[];
   /**
-   * False when the beats were found only relative to the channel's own level (RBA-221). The peaks calibration
-   * (RBA-106) never saw such a reading, so its confidence is unmeasured.
+   * False when the beats were found only relative to the channel's own level. The peaks calibration
+   * never saw such a reading, so its confidence is unmeasured.
    */
   readonly calibrated: boolean;
 };
@@ -31,8 +31,8 @@ export async function detectTempo(
     channelData,
   });
 
-  // RBA-221: whatever the fixed ladder finds keeps exactly the result it had before. Only a channel it finds no peaks
-  // in, as when the bass after the lowpass peaks under about -14 dBFS (RBA-218), is searched relative to its level
+  // Whatever the fixed ladder finds keeps exactly the result it had before. Only a channel it finds no peaks
+  // in, as when the bass after the lowpass peaks under about -14 dBFS, is searched relative to its level
   if (fixed.peaks.length > 0) {
     return {tempos: temposOf(fixed.peaks, sampleRate, tempoRange), calibrated: true};
   }

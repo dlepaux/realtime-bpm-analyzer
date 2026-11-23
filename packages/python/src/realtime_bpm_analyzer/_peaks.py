@@ -23,7 +23,7 @@ PEAK_SKIP_SECONDS = 0.25
 MINIMUM_SAMPLE_RATE = 2
 MAX_INTERVAL_COMPARISONS = 10
 MAX_CANDIDATES = 5
-# RBA-221: the percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks
+# The percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks
 LEVEL_PERCENTILE = 98
 # -70 dBFS: under it the level-relative search reads silence. Written out as JS writes it, the same double
 SILENCE_FLOOR = 0.00031622776601683794
@@ -116,7 +116,7 @@ def find_peaks(data: NDArray[np.float64], sample_rate: float) -> list[int]:
 
 
 def level_reference(data: NDArray[np.float64], sample_rate: float) -> float:
-    """The level of a channel's loudest beats, which one click or clipped transient can't set (RBA-221).
+    """The level of a channel's loudest beats, which one click or clipped transient can't set.
 
     The maxima of its 0.25 s windows, each from 0 so only positive samples count (a NaN one never wins, as in JS),
     sorted, and the one at index floor((windows - 1) * 98 / 100) in whole numbers: not NumPy's interpolating
@@ -136,7 +136,7 @@ def level_reference(data: NDArray[np.float64], sample_rate: float) -> float:
 
 
 def find_peaks_relative_to_level(data: NDArray[np.float64], sample_rate: float) -> list[int]:
-    """The fixed ladder again, every rung scaled by the channel's level (RBA-221): none under the floor or at full scale.
+    """The fixed ladder again, every rung scaled by the channel's level: none under the floor or at full scale.
 
     The level is a Python float, so each product and comparison is in double, as in JS. A NumPy float32 level would
     keep `rung * level` in float32 under NumPy 2's promotion rules.
@@ -223,7 +223,7 @@ def detect_peaks(
 ) -> tuple[list[Tempo], bool]:
     """Up to 5 candidates, most votes first, ties in the order they were first met, and whether they are calibrated.
 
-    The flag is False when the peaks were found only relative to the channel's level: the peaks calibration (RBA-106)
+    The flag is False when the peaks were found only relative to the channel's level: the peaks calibration
     never saw such a reading, so its confidence is unmeasured.
     """
     filtered = apply_lowpass(samples.astype(np.float64), sample_rate, frequency, q)
@@ -231,7 +231,7 @@ def detect_peaks(
     as_doubles = filtered.astype(np.float64)
     peaks = find_peaks(as_doubles, sample_rate)
     calibrated = True
-    # RBA-221: whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no peaks in
+    # Whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no peaks in
     # is searched again relative to its level
     if not peaks:
         peaks = find_peaks_relative_to_level(as_doubles, sample_rate)

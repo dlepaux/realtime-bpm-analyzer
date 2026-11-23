@@ -24,7 +24,7 @@ namespace RealtimeBpmAnalyzer
 
         /// <summary>
         /// The lowest sample rate, in Hz, the tempogram runs at: the JS library's <c>tempogramMinSampleRate</c>, the
-        /// first double at which its FFT has 4 points, so a bin above DC (RBA-261). Under it the FFT has 2, whose bins
+        /// first double at which its FFT has 4 points, so a bin above DC. Under it the FFT has 2, whose bins
         /// the onset sums skip, and every reading was empty.
         /// </summary>
         /// <remarks>
@@ -262,7 +262,7 @@ namespace RealtimeBpmAnalyzer
                 if (double.IsNaN(total) || double.IsInfinity(total))
                 {
                     // A NaN or infinite sample is no audio: no onset, and the state is kept. BpmAnalyzer refuses such
-                    // samples first (RBA-260); this mirrors the reference's realtime rule (RBA-246)
+                    // samples first; this mirrors the reference's realtime rule
                     return 0;
                 }
 

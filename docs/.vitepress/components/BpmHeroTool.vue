@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import {
   FileAudio,
   Mic,
@@ -15,7 +15,7 @@ import {
 } from 'realtime-bpm-analyzer'
 import { useAnalytics } from '../composables/useAnalytics'
 import { useMicGuard } from '../composables/useMicGuard'
-import { MIC_LISTENING_LINE, micStatusLine, type MicPhase } from '../tools/mic-guard'
+import { MIC_LISTENING_LINE, MIC_STOPPED_LINE, micStatusLine, type MicPhase } from '../tools/mic-guard'
 import { fileExtensionParam } from '../tools/analytics-params'
 import { classifyMicError } from '../tools/mic-error'
 import { decodeAndClose, openAnalysis } from '../tools/audio-setup'
@@ -112,13 +112,19 @@ const micError = ref<string | null>(null)
 const micContext = shallowRef<AudioContext | null>(null)
 const micStream = shallowRef<MediaStream | null>(null)
 const micAnalyzer = shallowRef<BpmAnalyzer | null>(null)
-// The analyzer said no sound is reaching it (listening, reason audio-lost) (RBA-275).
-const micAudioLost = ref(false)
-// When this session's mic was clicked, for the elapsed time bpm_mic_stopped reports.
+// When this session's mic was clicked, for the elapsed time bpm_mic_stopped reports. Null once
+// the session is reported, so it is reported once, however it ends.
 let micStartedAt: number | null = null
 const micGuard = useMicGuard()
 const { paused: micPaused, tooQuiet: micTooQuiet, offerTap: micOfferTap } = micGuard
-const micLine = computed(() => micStatusLine({ paused: micPaused.value, audioLost: micAudioLost.value, tooQuiet: micTooQuiet.value }))
+// A mic result can outlive its session (kept on screen after a tab switch): it then says so,
+// and its button starts over instead of claiming to stop something.
+const micLive = computed(() => micContext.value !== null)
+const micLine = computed(() => (micLive.value
+  ? micStatusLine({ paused: micPaused.value, tooQuiet: micTooQuiet.value })
+  : MIC_STOPPED_LINE))
+const toolRoot = ref<HTMLElement | null>(null)
+const micStopButton = ref<HTMLButtonElement | null>(null)
 
 // ─── Stream ──────────────────────────────────────────────────────────────
 // Prefilled from the presets, so the default is always a station whose terms were read (RBA-245).
@@ -169,6 +175,7 @@ function setMode(next: Mode) {
   // Leaving a mode stops its audio, so only a finished mic result may stay on
   // screen. A live panel or a pending "Checking why…" would show nothing running.
   if (mode.value === 'mic') {
+    reportMicStop()
     teardownMic()
     if (micStatus.value !== 'result') {
       micStatus.value = 'idle'
@@ -304,7 +311,6 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic
   micError.value = null
   micLiveBpm.value = null
   micStableBpm.value = null
-  micAudioLost.value = false
   micStatus.value = 'analysing'
   micStartedAt = clickedAt
   micGuard.resetReport()
@@ -352,7 +358,6 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic
     })
 
     localAnalyzer.on('statechange', ({ to }) => {
-      micAudioLost.value = to.status === 'listening' && to.reason === 'audio-lost'
       if (to.status !== 'locked') {
         // A lock that no longer holds (a new song, the beat or the sound lost) goes back to
         // Settling, never a stale Stable (RBA-275). With no reading at all, no number either.
@@ -421,30 +426,51 @@ function micPhase(): MicPhase {
   return status === 'locked' || status === 'settling' ? status : 'listening'
 }
 
-function stopMic() {
+/** The longest elapsed_ms the catalogue takes: an hour. A longer session reports an hour. */
+const MAX_ELAPSED_MS = 3_600_000
+
+// Every way a mic session ends reports it once: Stop, a tab switch, leaving the page (the
+// tap-along link does), or Resume starting it over. Before the teardown, which clears the state.
+function reportMicStop() {
+  if (micStartedAt === null) return
   track('bpm_mic_stopped', {
     mic_phase: micPhase(),
     too_quiet: micGuard.wasQuiet.value,
     interrupted: micGuard.wasInterrupted.value,
-    ...(micStartedAt === null ? {} : { elapsed_ms: Math.round(performance.now() - micStartedAt) }),
+    elapsed_ms: Math.min(Math.round(performance.now() - micStartedAt), MAX_ELAPSED_MS),
   })
   micStartedAt = null
+}
+
+function stopMic() {
+  reportMicStop()
   invalidate()
   teardownMic()
   micStatus.value = 'idle'
   micLiveBpm.value = null
   micStableBpm.value = null
   micError.value = null
-  micAudioLost.value = false
 }
 
 // The tap on Resume is the gesture iOS wants before audio runs again. A mic track that ended
 // can't be resumed, so that session is stopped (and reported) and a new one started.
 async function resumeMic() {
-  if ((await micGuard.resume()) === 'resumed') return
+  const gen = generation
+  const outcome = await micGuard.resume()
+  // Stop, a tab switch or leaving the page while the resume was pending: never reopen the mic.
+  if (gen !== generation || outcome !== 'restart') return
   stopMic()
   await startMic('mic_resume')
 }
+
+// Keyboard focus survives the panel changing under it: a lock lost, Resume gone after a resume.
+watch([micStatus, micPaused], () => {
+  const root = toolRoot.value
+  if (!root?.contains(document.activeElement)) return
+  void nextTick(() => {
+    if (!root.contains(document.activeElement)) micStopButton.value?.focus()
+  })
+})
 
 function onTapAlongOffer() {
   track('bpm_tool_link_clicked', { mode: 'mic→tap-tempo', result_source: 'mic', tool: 'tap-tempo' })
@@ -761,6 +787,7 @@ onMounted(() => {
 
 // ─── Cleanup on unmount ──────────────────────────────────────────────────
 onBeforeUnmount(() => {
+  reportMicStop()
   invalidate()
   teardownMic()
   teardownStream()
@@ -800,7 +827,10 @@ function formatDuration(seconds: number): string {
 </script>
 
 <template>
-  <div class="bpm-hero-tool">
+  <div
+    ref="toolRoot"
+    class="bpm-hero-tool"
+  >
     <slot name="heading" />
     <BpmSourceSwitch
       :options="modes"
@@ -971,7 +1001,7 @@ function formatDuration(seconds: number): string {
             />
             <div
               class="bpm-state-label"
-              :class="{ 'is-notice': micLine !== MIC_LISTENING_LINE }"
+              :class="{ 'is-notice': micLive && micLine !== MIC_LISTENING_LINE }"
             >
               {{ micLine }}
             </div>
@@ -990,6 +1020,7 @@ function formatDuration(seconds: number): string {
               @click="onTapAlongOffer"
             >No steady beat yet? Tap along instead</a>
             <button
+              ref="micStopButton"
               type="button"
               class="bpm-restart-btn"
               @click="stopMic"
@@ -1008,7 +1039,7 @@ function formatDuration(seconds: number): string {
             />
             <div
               class="bpm-state-label"
-              :class="{ 'is-notice': micLine !== MIC_LISTENING_LINE }"
+              :class="{ 'is-notice': micLive && micLine !== MIC_LISTENING_LINE }"
             >
               {{ micLine }}
             </div>
@@ -1028,11 +1059,12 @@ function formatDuration(seconds: number): string {
             <ExtensionResultPrompt source="mic" />
             <div class="bpm-result-actions">
               <button
+                ref="micStopButton"
                 type="button"
                 class="bpm-restart-btn"
                 @click="stopMic"
               >
-                Stop
+                {{ micLive ? 'Stop' : 'Detect again' }}
               </button>
               <GithubStarSupport
                 variant="inline"

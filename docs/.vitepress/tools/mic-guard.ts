@@ -54,14 +54,15 @@ export function offersTapAlong(startedAt: number, now: number, everLocked: boole
 }
 
 export const MIC_LISTENING_LINE = 'Listening to your microphone'
+/** Under a result kept after its session ended, so it doesn't claim to be listening. */
+export const MIC_STOPPED_LINE = 'Microphone off'
 
 /**
  * The line under the number, by priority: an interruption first, since nothing else works until
- * it's resumed, then no audio at all, then a quiet input, then the default.
+ * it's resumed, then a quiet input, then the default.
  */
-export function micStatusLine(state: { paused: boolean; audioLost: boolean; tooQuiet: boolean }): string {
+export function micStatusLine(state: { paused: boolean; tooQuiet: boolean }): string {
   if (state.paused) return 'Paused: the microphone was interrupted'
-  if (state.audioLost) return 'No sound is coming in from the microphone'
   if (state.tooQuiet) return 'Too quiet: hold your device closer to the music'
   return MIC_LISTENING_LINE
 }

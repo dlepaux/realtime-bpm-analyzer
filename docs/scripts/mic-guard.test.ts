@@ -48,9 +48,8 @@ test('tapping along is offered after the wait, and never once the tempo locked',
   assert.equal(offersTapAlong(0, TAP_OFFER_AFTER_MS * 4, true), false)
 })
 
-test('the status line puts an interruption first, then no audio, then a quiet input', () => {
-  assert.equal(micStatusLine({ paused: false, audioLost: false, tooQuiet: false }), MIC_LISTENING_LINE)
-  assert.match(micStatusLine({ paused: true, audioLost: true, tooQuiet: true }), /^Paused/)
-  assert.match(micStatusLine({ paused: false, audioLost: true, tooQuiet: true }), /^No sound/)
-  assert.match(micStatusLine({ paused: false, audioLost: false, tooQuiet: true }), /^Too quiet/)
+test('the status line puts an interruption first, then a quiet input', () => {
+  assert.equal(micStatusLine({ paused: false, tooQuiet: false }), MIC_LISTENING_LINE)
+  assert.match(micStatusLine({ paused: true, tooQuiet: true }), /^Paused/)
+  assert.match(micStatusLine({ paused: false, tooQuiet: true }), /^Too quiet/)
 })

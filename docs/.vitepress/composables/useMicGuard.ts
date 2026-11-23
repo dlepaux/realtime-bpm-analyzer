@@ -20,6 +20,8 @@ interface MicSession {
   trackEnded: boolean
   timer: number
   wakeLock: WakeLockSentinel | null
+  /** A wake lock request in flight, so a second one isn't made and its sentinel lost. */
+  wakeLockPending: boolean
   release: () => void
 }
 
@@ -36,7 +38,12 @@ export function useMicGuard() {
   let session: MicSession | null = null
 
   function setPaused(next: boolean) {
-    if (next) wasInterrupted.value = true
+    if (next && session) {
+      wasInterrupted.value = true
+      // The level before a pause says nothing about the level after it.
+      session.quietSince = null
+      tooQuiet.value = false
+    }
     paused.value = next
   }
 
@@ -58,14 +65,17 @@ export function useMicGuard() {
 
   // A wake lock is refused when the page is hidden or the browser has none; the reading works without it.
   async function keepScreenOn() {
-    if (!session || session.wakeLock || document.visibilityState !== 'visible') return
+    if (!session || session.wakeLock || session.wakeLockPending || document.visibilityState !== 'visible') return
     const current = session
+    current.wakeLockPending = true
     try {
       const lock = (await navigator.wakeLock?.request('screen')) ?? null
       if (session === current) current.wakeLock = lock
       else void lock?.release().catch(() => undefined)
     } catch {
       // Refused: low battery, a policy, or no support. Nothing to tell the listener.
+    } finally {
+      current.wakeLockPending = false
     }
   }
 
@@ -104,6 +114,7 @@ export function useMicGuard() {
       trackEnded: track?.readyState === 'ended',
       timer: window.setInterval(tick, LEVEL_POLL_MS),
       wakeLock: null,
+      wakeLockPending: false,
       release: () => {
         context.removeEventListener('statechange', refreshPaused)
         track?.removeEventListener('mute', refreshPaused)
@@ -124,18 +135,23 @@ export function useMicGuard() {
   }
 
   /**
-   * The listener's tap on Resume, the user gesture iOS wants before audio runs again. Answers
-   * 'restart' when the mic track itself ended, since no resume brings that back.
+   * The listener's tap on Resume, the user gesture iOS wants before audio runs again: resume()
+   * is called before any await. Answers 'restart' when resuming can't bring the mic back (the
+   * track ended, or is still muted, as iOS can leave it after a call), and 'stale' when the
+   * session was stopped or replaced while the resume was pending, which must start nothing.
    */
-  async function resume(): Promise<'resumed' | 'restart'> {
-    if (!session) return 'restart'
-    if (session.trackEnded) return 'restart'
+  async function resume(): Promise<'resumed' | 'restart' | 'stale'> {
+    const current = session
+    if (!current) return 'stale'
+    if (current.trackEnded) return 'restart'
     try {
-      await session.context.resume()
+      await current.context.resume()
     } catch {
-      return 'restart'
+      return session === current ? 'restart' : 'stale'
     }
+    if (session !== current) return 'stale'
     refreshPaused()
+    if (paused.value) return 'restart'
     void keepScreenOn()
     return 'resumed'
   }

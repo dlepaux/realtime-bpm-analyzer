@@ -275,7 +275,7 @@ export const EVENTS = {
   bpm_tool_link_clicked: {
     params: { bpm: 'optional', mode: 'required', result_source: 'required', tool: 'required' },
     repeats: 'Each click.',
-    privacy: 'When you open another tool from the links under a result: which tool, which analyzer mode the result came from, and the tempo it carries over.',
+    privacy: 'When you open another tool from the links under a result, or from the tap-along link offered while the microphone listens: which tool, which analyzer mode the result came from, and the tempo it carries over.',
     deprecated: { mode: 'result_source and tool' },
   },
   bpm_home_tool_clicked: {

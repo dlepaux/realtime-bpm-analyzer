@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// "Open the toolbox" (RBA-284): the door from a www page into the app's copy of it. It renders on
+// "Open the toolbox": the door from a www page into the app's copy of it. It renders on
 // the home and the free tools' pages, and nowhere else (tools/toolbox-entry.ts). Every placement is
 // in the prerendered HTML at its final size, so nothing moves when the page hydrates, and none sits
-// above a tool: on a phone the first screen stays the tool's (RBA-294), so the bar entry shows from
+// above a tool: on a phone the first screen stays the tool's, so the bar entry shows from
 // tablet width up, and phones get it at the top of the menu and under the tool.
 import { computed } from 'vue'
 import { useData, useRoute } from 'vitepress'

@@ -1,4 +1,4 @@
-// RBA-218: does a quiet or bass-light file make the detector return no tempo? Generated, licence-clean
+// Does a quiet or bass-light file make the detector return no tempo? Generated, licence-clean
 // sources and the level and bass variants the probe runs through the site's file path. It uses only Web Audio
 // and no library code, so the variants don't depend on what they test.
 import {createClickTrack, createNoise} from './click-track';

@@ -1,14 +1,14 @@
-// The site's top navigation (RBA-66), musician-first: visitors come for the tools, so the
+// The site's top navigation, musician-first: visitors come for the tools, so the
 // tools and the extension lead, and the library's pages share one Developers menu. VitePress
 // renders this one list on the desktop bar and in the mobile menu. Only menus moved here:
-// every link is an address the site already had (RBA-66's DECISION, 2026-11-05).
+// every link is an address the site already had, so no address changed.
 //
-// The CLI, the MCP server and "Migrating to v6" are in Developers from v6 on (RBA-150, and
-// RBA-240's DECISION of 2026-11-16: no "Apps" menu). The sidebar, the sitemap, the search and
+// The CLI, the MCP server and "Migrating to v6" are in Developers from v6 on (and
+// no "Apps" menu, since the CLI and the MCP server are developer tools). The sidebar, the sitemap, the search and
 // llms.txt list the CLI and MCP guides too, since both packages are on npm (the noindex flip);
 // the theme draws their generic icons (custom.css). The Java and Python guides are in the sidebar,
 // the sitemap, the search and llms.txt since their ports reached Maven Central and PyPI, but not
-// in Developers: step 8 of "First publish of the 6.2 ports" (contributing.md) didn't add them.
+// in Developers: their first publish didn't add them there.
 import type { DefaultTheme } from 'vitepress'
 import { extensionNavItems, extensionPrivacyNavItems } from './extension-promo.ts'
 

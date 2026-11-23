@@ -1,8 +1,8 @@
-// RBA-221's oracle: the peaks file path as it stood on main at 6624169, before the level-relative fallback, so the
+// The oracle for the level-relative search: the peaks file path as it stood on main at 6624169, before the level-relative fallback, so the
 // tests can prove that every reading that path returned is still returned whole. `oracleFindPeaks`,
 // `oracleDetectTempo` and the peaks branch of `oracleAnalyzeSamples` are verbatim copies of `findPeaks`,
 // `detectTempo` and `analyzeSamples`, renamed and with their comments cut. What they call (`findPeaksAtThreshold`,
-// the tempo grouping, `toReading`, the option checks) is imported: RBA-221 leaves those untouched, and they also run
+// the tempo grouping, `toReading`, the option checks) is imported: the level-relative search leaves those untouched, and they also run
 // the realtime engine, whose tests pin them. Never update this file to follow the library: it is the "before".
 import type {LowpassOption, OfflineOptions, OfflineResult} from '../../src/contract/types';
 import {assertOptions, resolveOfflineEngine, toReading} from '../../src/core/engine';

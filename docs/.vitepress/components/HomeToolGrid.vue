@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The free tools, right under the analyzer (RBA-66). One CSS grid of 6 columns: each row's tiles
+// The free tools, right under the analyzer. One CSS grid of 6 columns: each row's tiles
 // share it evenly (3 then 3), so every row is full at every width, and a phone gets a list.
 import { Clock, Film, Hand, Timer, Video, Zap } from 'lucide-vue-next'
 import { useAnalytics } from '../composables/useAnalytics'
@@ -11,8 +11,8 @@ const tiles = FREE_TOOL_ROWS.flatMap((row) => row.map((tool) => ({ ...tool, id: 
 
 const { track } = useAnalytics()
 // Its own event, not bpm_tool_link_clicked: that one has counted only the links under a result
-// since before the RBA-153 readback, and adding home clicks to it would show as a step change.
-// `tool` is the same param on both, so one report can still put them side by side (RBA-154).
+// since before its counts were first read back, and adding home clicks to it would show as a step change.
+// `tool` is the same param on both, so one report can still put them side by side.
 const onClick = (tool: string) => track('bpm_home_tool_clicked', { tool })
 </script>
 

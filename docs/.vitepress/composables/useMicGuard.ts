@@ -1,4 +1,4 @@
-// Watches a live mic session for what the analyzer can't see (RBA-275): the AudioContext or the
+// Watches a live mic session for what the analyzer can't see: the AudioContext or the
 // track stopping under it (a call, a notification, the screen locking, iOS taking the audio
 // session), an input too quiet to read, and a reading that isn't coming. It also keeps the
 // screen on while listening, which a phone held near a speaker otherwise turns off mid-reading.

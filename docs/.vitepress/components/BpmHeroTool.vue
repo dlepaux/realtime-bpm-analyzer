@@ -98,8 +98,8 @@ const fileBpm = ref<number | null>(null)
 const fileDuration = ref<number | null>(null)
 const fileElapsedMs = ref<number | null>(null)
 const fileError = ref<string | null>(null)
-// For the beat marker export (RBA-127): the reading's unrounded bpmExact, which seeds the
-// export's tempo fit, since a grid on the whole fileBpm drifts on long tracks (RBA-128), and the
+// For the beat marker export: the reading's unrounded bpmExact, which seeds the
+// export's tempo fit, since a grid on the whole fileBpm drifts on long tracks, and the
 // first channel, the one analyzeFullBuffer reads. The export measures the first beat and refines
 // the tempo in it only if it is opened, and the channel is released once that has run, or when
 // the result is cleared. An unopened result keeps it until then.
@@ -137,7 +137,7 @@ let stopSeenWatch = () => {}
 const micStopButton = ref<HTMLButtonElement | null>(null)
 
 // ─── Stream ──────────────────────────────────────────────────────────────
-// Prefilled from the presets, so the default is always a station whose terms were read (RBA-245).
+// Prefilled from the presets, so the default is always a station whose terms were read.
 const streamUrl = ref(STATIONS[0]?.url ?? '')
 const streamStatus = ref<Status>('idle')
 const streamLiveBpm = ref<number | null>(null)
@@ -150,7 +150,7 @@ const streamAnalyzer = shallowRef<BpmAnalyzer | null>(null)
 const streamGain = shallowRef<GainNode | null>(null)
 const streamErrorHandler = shallowRef<((event: Event) => void) | null>(null)
 // What feeds the live stream panel: a URL through an <audio> element, or another
-// tab's audio shared through getDisplayMedia (RBA-23).
+// tab's audio shared through getDisplayMedia.
 const streamInput = ref<'url' | 'tab'>('url')
 const streamTabCapture = shallowRef<MediaStream | null>(null)
 // The user pressed Chrome's "Stop sharing" after a stable reading: keep the BPM on screen.
@@ -209,7 +209,7 @@ function openFilePicker() {
   fileInput.value?.click()
 }
 
-// "Your tracks" (RBA-277): every file result of the audio tool, kept in this browser. The video
+// "Your tracks": every file result of the audio tool, kept in this browser. The video
 // page's result is a marker export, not a track list, so it keeps nothing.
 const keepsTracks = computed(() => props.variant === 'audio')
 const crateRows = shallowRef<CrateRow[]>([])
@@ -339,7 +339,7 @@ function onDragLeave() {
 }
 
 // `input_method`, not `source`: GA4 reads an event parameter named `source` as the
-// session's traffic source, which credited 1,237 sessions to "drop"/"browse" (RBA-2).
+// session's traffic source, which credited 1,237 sessions to "drop"/"browse".
 /** Analyses one file into the tool's result, and answers whether it gave a reading. */
 async function analyseFile(file: File, inputMethod: 'drop' | 'browse'): Promise<boolean> {
   fileName.value = file.name
@@ -381,7 +381,7 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse'): Promise<
     track('bpm_file_result', {
       input_method: inputMethod,
       bpm: fileBpm.value,
-      // Which engine read it: the v6 default moved to the tempogram, and the series splits on this (RBA-108)
+      // Which engine read it: the v6 default moved to the tempogram, and the series splits on this
       engine: reading.engine,
       duration_s: Math.round(fileDuration.value),
       elapsed_ms: fileElapsedMs.value,
@@ -495,7 +495,7 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic
       }
       if (to.status !== 'locked') {
         // A lock that no longer holds (a new song, the beat or the sound lost) goes back to
-        // Settling, never a stale Stable (RBA-275). With no reading at all, no number either.
+        // Settling, never a stale Stable. With no reading at all, no number either.
         if (to.status === 'listening') micLiveBpm.value = null
         if (micStatus.value === 'result') micStatus.value = 'analysing'
         return
@@ -504,7 +504,7 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic
       const bpm = Math.round(to.reading.bpm)
       // The analyzer can lock again after it unlocks or loses the pulse: report a tempo only
       // when it differs from the locked tempo last shown, which readings keep current while locked,
-      // so a relock on the same tempo sends nothing (RBA-5). The first one also says how long it took.
+      // so a relock on the same tempo sends nothing. The first one also says how long it took.
       if (bpm !== micStableBpm.value) {
         track('bpm_mic_locked', { ...stableReading(bpm, micStableBpm.value === null, clickedAt), engine: to.reading.engine })
       }
@@ -553,7 +553,7 @@ function teardownMic() {
 }
 
 // Where the session stood when it stopped, so the half of mobile sessions that never lock
-// say why: still listening, settling, paused by an interruption, or failed (RBA-275).
+// say why: still listening, settling, paused by an interruption, or failed.
 function micPhase(): MicPhase {
   if (micStatus.value === 'error') return 'error'
   if (micPaused.value) return 'paused'
@@ -636,7 +636,7 @@ function resetStreamReadings() {
 }
 
 // A locked reading's params: the tempo, whether it is the first since the click, and for the
-// first one how long it took (RBA-154: time to first result).
+// first one how long it took, the time to a first result.
 function stableReading(bpm: number, first: boolean, clickedAt: number) {
   return first ? { bpm, first, elapsed_ms: Math.round(performance.now() - clickedAt) } : { bpm, first }
 }
@@ -667,7 +667,7 @@ function listenToStreamAnalyzer(analyzer: BpmAnalyzer, stableParams: UrlStreamPa
 
 // The <audio> element only says "error". Show the failure at once, then ask the
 // server why (cors / network / decode / http / insecure) and send the one report
-// with that reason. The caller guarantees this runs once per attempt (RBA-4).
+// with that reason. The caller guarantees this runs once per attempt.
 async function reportStreamFailure(gen: number, url: string, eventParams: UrlStreamParams, reason: string, knownKind?: StreamErrorKind) {
   teardownStream()
   streamError.value = 'Couldn’t play that stream. Checking why…'
@@ -685,7 +685,7 @@ async function startStream() {
   // A platform link gets the alternatives instead, and never reaches analytics.
   if (!url || linkPlatform.value) return
 
-  // Station, scheme and format, never the URL itself (RBA-35).
+  // Station, scheme and format, never the URL itself, which is the listener's own.
   const eventParams: UrlStreamParams = { ...streamEventParams(url), input_method: 'url' }
   track('bpm_stream_clicked', eventParams)
   const clickedAt = performance.now()
@@ -696,7 +696,7 @@ async function startStream() {
 
   const gen = ++generation
   // A source that answers but fails (404, CORS) fires the element's `error` event
-  // AND rejects play(): whichever comes first reports it, once (RBA-4).
+  // AND rejects play(): whichever comes first reports it, once.
   let reported = false
   const fail = (reason: string, knownKind?: StreamErrorKind) => {
     if (reported) return
@@ -930,7 +930,7 @@ function stopStream() {
 }
 
 onMounted(() => {
-  // Whether the tool was on screen at all, and whether that took a scroll (RBA-298).
+  // Whether the tool was on screen at all, and whether that took a scroll.
   const page = toolPageOf(window.location.pathname)
   if (toolBody.value) stopSeenWatch = watchToolSeen(toolBody.value, (seenOn) => track('bpm_tool_seen', { page, seen_on: seenOn }))
   tabAudioSupported.value = supportsTabAudio(navigator as NavigatorLike)
@@ -938,7 +938,7 @@ onMounted(() => {
     crateStored.value = browserStore() !== null
     crateRows.value = parseCrate(readItem(browserStore(), CRATE_STORAGE_KEY))
     window.addEventListener('storage', onCrateStorage)
-    // How many come back to a list they built: the size in buckets, never a name (RBA-277).
+    // How many come back to a list they built: the size in buckets, never a name.
     if (crateRows.value.length > 0) track('bpm_crate_loaded', { rows: crateRowBucket(crateRows.value.length) })
   }
 })
@@ -958,7 +958,7 @@ onBeforeUnmount(() => {
 // One line under the tool: the formats where a file is chosen, and where the audio goes.
 const metaLine = computed(() => {
   if (mode.value !== 'file') return STAYS_ON_DEVICE
-  // Choosing several files is easy to miss in a picker, so the line says it (RBA-277).
+  // Choosing several files is easy to miss in a picker, so the line says it.
   const several = keepsTracks.value ? ' · Several at once' : ''
   return `${fileCopy.value.formats}${several} · ${STAYS_ON_DEVICE}`
 })
@@ -1506,7 +1506,7 @@ function formatDuration(seconds: number): string {
 </template>
 
 <style scoped>
-/* The tool is a raised card: the one object on the page that does something (RBA-66). The body's
+/* The tool is a raised card: the one object on the page that does something. The body's
    height is the tallest state's, a file result with its alternate reading, so idle, listening and a result all take the same
    room and a result arriving seconds after the click moves nothing below (CLS). */
 .bpm-hero-tool {

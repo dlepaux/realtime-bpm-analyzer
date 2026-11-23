@@ -1,4 +1,4 @@
-// Run with `npm test`. The "Open the toolbox" entry from www into the musician app (RBA-284): each
+// Run with `npm test`. The "Open the toolbox" entry from www into the musician app: each
 // page that has one opens the app's copy of that page, the link carries nothing but the address,
 // and the click event says where the entry sits and nothing else.
 import { test } from 'node:test'

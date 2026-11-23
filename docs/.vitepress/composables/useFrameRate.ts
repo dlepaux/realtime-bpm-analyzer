@@ -1,4 +1,4 @@
-// The editor's remembered frame rate as one value the video tools share (RBA-276), so a rate
+// The editor's remembered frame rate as one value the video tools share, so a rate
 // picked in the marker export shows at once in the result line above it. Read from the store on
 // the first mount, never at import: the build prerenders the pages in Node, where module state
 // is shared by every page and there is no store.

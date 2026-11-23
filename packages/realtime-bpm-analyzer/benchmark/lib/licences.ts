@@ -9,7 +9,7 @@ import type {Track} from './types';
 export const tuningSets: ReadonlySet<string> = new Set(['fsld', 'groove', 'guitarset', 'free-mixes']);
 
 /**
- * Licence-clean sets, which dev may score: the tuning sets and RBA-59's contested labels. Those are as
+ * Licence-clean sets, which dev may score: the tuning sets and the free mixes' contested labels. Those are as
  * clean as the strict ones, but an octave a tracker disputes is no target to tune to, so they are
  * scored and reported and never tuned on.
  */
@@ -20,9 +20,9 @@ export const tuningLicences: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * RBA-59 kept an item only on an exact Creative Commons URL for CC0, CC BY or CC BY-SA, and FMA and the
+ * The free-mix pipeline kept an item only on an exact Creative Commons URL for CC0, CC BY or CC BY-SA, and FMA and the
  * Internet Archive carry every version and port of those two (CC-BY-2.5-CA, CC-BY-SA-3.0-US). Each is
- * the same grant RBA-51's licence rule names, so the version and port are not a reason to refuse.
+ * the same grant the engine study's licence rule names, so the version and port are not a reason to refuse.
  */
 const portedLicence = /^CC-BY(?:-SA)?-[1-4]\.\d(?:-[A-Z]{2})?$/;
 

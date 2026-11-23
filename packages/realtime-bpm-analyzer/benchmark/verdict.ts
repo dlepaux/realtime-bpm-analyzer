@@ -1,4 +1,4 @@
-// Applies RBA-51's pass bar to the second look's result file and prints the tables and a yes or no.
+// Applies the engine study's pass bar to the second look's result file and prints the tables and a yes or no.
 //   verdict.mjs <heldout.json>
 // Exits 0 on yes, 1 on no, 2 when the file cannot be judged. See lib/pass-bar.ts.
 import {readFileSync} from 'node:fs';

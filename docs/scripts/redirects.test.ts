@@ -44,7 +44,7 @@ test('redirectHtml carries refresh, canonical and the JS hop to the same target'
   assert.match(html, /location\.replace\("\/api\/"/)
 })
 
-// v5's API pages for the types v6 removed were live until the v6 release (RBA-247). Each
+// v5's API pages for the types v6 removed were live until the v6 release. Each
 // one now lands on the migration guide, which says what replaced it.
 test('the v5 type pages v6 removed redirect to the v6 migration guide', () => {
   for (const name of ['BpmProgress', 'CreateRealtimeBpmAnalyzerOptions', 'Detector', 'TempogramMode', 'BiquadFilterOptions', 'AnalyzeFullBufferOptions']) {

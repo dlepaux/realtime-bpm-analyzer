@@ -1,4 +1,4 @@
-// The logic behind the pages the browser extension opens (RBA-38): /extension/welcome,
+// The logic behind the pages the browser extension opens: /extension/welcome,
 // /extension/whats-new and /extension/goodbye. The extension builds their URLs with
 // `v=<version>` and, for what's new, `from=<previous version>`. Anyone can edit a
 // query string, so a value is used only once it parses as a version, and only in

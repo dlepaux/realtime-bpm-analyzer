@@ -15,8 +15,7 @@
 
   Ordinary builds sign and publish nothing. The central-publish profile adds what Maven Central requires (sources
   and javadoc jars, a signature on every file) and the Central Portal's plugin; CI runs it only in the Publish
-  (Maven Central) job, on a release from main, and on pull requests with a throwaway key and skipUpload
-  (contributing.md, "First publish of the 6.2 ports").
+  (Maven Central) job, on a release from main, and on pull requests with a throwaway key and skipUpload.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>

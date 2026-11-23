@@ -1,4 +1,4 @@
-// The meta description of a page that has no `description:` in its frontmatter (RBA-268).
+// The meta description of a page that has no `description:` in its frontmatter.
 // Two kinds of page can't carry one: the API reference, which TypeDoc writes on every
 // build, and the root files `copy:markdown` copies in (privacy, security, contributing,
 // code of conduct). Without this they all fell back to the site's description, so

@@ -1,4 +1,4 @@
-// Run with `npm test`. The home page's "Where it runs" tabs (RBA-266) show code copied from the
+// Run with `npm test`. The home page's "Where it runs" tabs show code copied from the
 // guides, so a sample changed in a guide can't be left stale on the home page. code-blocks.test.ts
 // type-checks the JavaScript and TypeScript ones; nothing here runs the Python, Java, Kotlin, C#
 // or Swift samples, so this holds each of them to the guide that documents it, character for character.
@@ -81,7 +81,7 @@ test('every platform and every tab links to a guide that exists, and to a headin
   }
 })
 
-// David's ruling of 2026-11-17 (DECISION x0rf4m34ytgkuhvy3r8w2yqi on RBA-266): the "Runs in" row shows
+// Decided on 2026-11-17: the "Runs in" row shows
 // names only. Some owners' terms allow no grey logo (Java's cup, Apple's marks), so a logo row would
 // always mix logos with names; the tabs below show the platforms off. With no logo shown, no
 // trademark credit line either.

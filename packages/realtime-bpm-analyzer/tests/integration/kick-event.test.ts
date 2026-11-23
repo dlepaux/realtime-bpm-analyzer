@@ -6,7 +6,7 @@ import {absolutePercentile, createKickScene, scoreKicks} from '../fixtures/kick-
 import {closeAudioContext, createTestAudioContext} from '../setup';
 
 /**
- * The kick event from every live input, in a real browser with a real-time AudioContext (RBA-243): a media element
+ * The kick event from every live input, in a real browser with a real-time AudioContext: a media element
  * (a file or a radio), a MediaStream (a tab's audio), and a MediaStream with `liveInput` (the mic, played here by
  * synthetic audio, as no CI runner has a mic). Each test logs the delay from the kick reaching the analyzer to the
  * listener, as `KICK-DELAY`, for the report.

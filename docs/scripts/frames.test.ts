@@ -77,7 +77,7 @@ test('parseFps: labels map to the exact rate, plain numbers pass, the rest is re
   assert.equal(parseFps('Infinity'), null)
 })
 
-test('parseFps: a preset written another way is the preset, so it never adds a duplicate row (RBA-124)', () => {
+test('parseFps: a preset written another way is the preset, so it never adds a duplicate row', () => {
   assert.equal(parseFps('29.970'), FRAME_RATES[3]!.fps)
   assert.equal(parseFps('23.9760'), FRAME_RATES[0]!.fps)
   assert.equal(parseFps('59.940'), FRAME_RATES[6]!.fps)

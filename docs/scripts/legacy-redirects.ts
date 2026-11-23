@@ -3,7 +3,7 @@
 // to (relative to the dist root, as the old URL named them); values are clean-URL
 // paths that must resolve to a page VitePress built (checked by check-redirects.ts).
 //
-// Reconstructed for RBA-6 without a Search Console export, from: every commit of
+// Reconstructed without a Search Console export, from: every commit of
 // the gh-pages branch (TypeDoc v2/v3/v4 output and the 2018 example pages), the
 // HTML pages once committed under docs/ on main, the TypeDoc markdown output of
 // every v5 minor, and every site link in the README and docs history.
@@ -83,7 +83,7 @@ export const legacyRedirects: Readonly<Record<string, string>> = {
   'api/type-aliases/Group.html': '/api/',
   'api/type-aliases/Interval.html': '/api/',
 
-  // TypeDoc markdown pages of v5 whose types v6 removed (RBA-247): the migration guide
+  // TypeDoc markdown pages of v5 whose types v6 removed: the migration guide
   // says what replaced each one.
   'api/type-aliases/BpmProgress.html': '/guide/migration-v6',
   'api/type-aliases/CreateRealtimeBpmAnalyzerOptions.html': '/guide/migration-v6',
@@ -172,7 +172,7 @@ export const legacyRedirects: Readonly<Record<string, string>> = {
   'guide/index.html': '/guide/getting-started',
   'guide/quick-start.html': '/guide/getting-started',
   'examples/index.html': '/examples/basic-usage',
-  // TypeDoc pages of the 5.x API that v6 removed outright (RBA-108).
+  // TypeDoc pages of the 5.x API that v6 removed outright.
   'api/classes/RealTimeBpmAnalyzer.html': '/api/classes/BpmAnalyzer',
   'api/functions/createRealTimeBpmProcessor.html': '/api/functions/createRealtimeBpmAnalyzer',
   'api/type-aliases/BpmCandidates.html': '/api/type-aliases/Reading',

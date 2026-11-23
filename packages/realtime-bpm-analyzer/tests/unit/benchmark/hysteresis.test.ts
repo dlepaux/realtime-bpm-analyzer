@@ -106,7 +106,7 @@ describe('the hysteresis replay', () => {
     expect(back.every(({raw}, i) => Math.abs((raw ?? 0) - (steps[i].raw ?? 0)) < 1e-6)).to.equal(true);
   });
 
-  // RBA-148: the confidence is calibrated, so a re-fit needs the score it maps, recorded beside it
+  // The confidence is calibrated, so a re-fit needs the score it maps, recorded beside it
   it('records the raw score each reading\'s confidence maps', async () => {
     const steps = await traceEngine(changingTrack(), sampleRate, {engine: 'tempogram'});
     const readings = steps.filter(step => step.bpm !== null);
@@ -373,7 +373,7 @@ describe('offlineSample', function () {
   }
 
   it('leaves out a peaks reading found only relative to the input\'s level, which is no sample for the fit', async () => {
-    // At -40 dBFS the fixed ladder finds no peak, so analyzeSamples reads it only through RBA-221's search
+    // At -40 dBFS the fixed ladder finds no peak, so analyzeSamples reads it only through the level-relative search
     const pcm = createClickTrack(128, sampleRate, 20).map(sample => sample * 0.01);
     const reading = await analyzeSamples(pcm, sampleRate, {engine: 'peaks'}, async lowpass => applyLowpass(pcm, sampleRate, lowpass));
     expect(reading?.bpm).to.equal(128);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A phone's door to the extension (RBA-66): it can't install there, so instead of a pitch the
+// A phone's door to the extension: it can't install there, so instead of a pitch the
 // card offers to send the page to a computer, as /extension/ does. Rendered for everyone and shown
 // only on touch screens by CSS, so the server's HTML and the hydrated page agree.
 import { useAnalytics } from '../composables/useAnalytics'

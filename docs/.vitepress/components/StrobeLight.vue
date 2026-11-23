@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// The strobe light (RBA-237): it flashes on each kick the library hears (its `kick` event,
-// RBA-243), from the built-in demo track, a dropped song, the microphone or another tab's sound,
+// The strobe light: it flashes on each kick the library hears (its `kick`
+// event), from the built-in demo track, a dropped song, the microphone or another tab's sound,
 // with a spectrogram on which each kick appears. Every safety decision is in tools/strobe.ts,
 // where node --test checks it: this component feeds it kicks and frame times, and draws what it
 // returns. start() is called from the Start button's click and nowhere else, and every stop path
-// ends in halt(), which releases the source. The library loads on Start, never with the page (RBA-123).
+// ends in halt(), which releases the source. The library loads on Start, never with the page.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { FileAudio, Maximize, Square, Zap } from 'lucide-vue-next'
 import type { BpmAnalyzer } from 'realtime-bpm-analyzer'

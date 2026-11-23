@@ -1,4 +1,4 @@
-// Run with `npm test`. The strobe light page (RBA-237) around its pure rules (strobe.test.ts):
+// Run with `npm test`. The strobe light page around its pure rules (strobe.test.ts):
 // how the component wires them, its analytics, its links and what the page says. Node reads the
 // sources as text: a browser test would add a dependency for checks a regex can make.
 import { test } from 'node:test'
@@ -34,7 +34,7 @@ test('analytics: the component sends the start once, from the click that starts 
   assert.match(SCRIPT, /track\('bpm_strobe_started', \{ audio_source: chosen \}\)/)
 })
 
-// ── The library loads on this page only (RBA-123) ───────────────────────────────────────────
+// ── The library loads on this page only ─────────────────────────────────────────────────────
 
 test('the library loads on Start, never in the theme or the page chunk', () => {
   // `import type` is erased at build time; any other import puts the library in the page chunk.
@@ -155,7 +155,7 @@ const rule = (selector: string) => {
 
 test('while it runs, the stage covers the whole window, with full screen or without it', () => {
   // In the page's flow, focus moving to Stop scrolled most of the light off a phone's screen
-  // (RUNNER-RBA-240: 8 px of 591 left at 390 x 844). Fixed to the window, nothing scrolls it away,
+  // (8 px of 591 left at 390 x 844). Fixed to the window, nothing scrolls it away,
   // and iPhone Safari, which has no full screen for a page element, gets the same light.
   const stage = rule('.strobe-stage')
   assert.match(stage, /position: fixed;/)

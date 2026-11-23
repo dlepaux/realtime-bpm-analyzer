@@ -1,4 +1,4 @@
-// The metronome's remembered settings (RBA-276): tempo, beats per bar and subdivision, kept in
+// The metronome's remembered settings: tempo, beats per bar and subdivision, kept in
 // localStorage and in the address, so a returning player starts where they left off and a
 // teacher's link opens on the meter as well as the tempo. The URL and the store hold the same
 // query text (`bpm=72&beats=3&sub=triplets`), so one reader validates both. No Vue and no DOM,
@@ -12,7 +12,7 @@ export const METRONOME_STORAGE_KEY = 'rba:metronome:v1'
 export const MIN_BEATS_PER_BAR = 1
 export const MAX_BEATS_PER_BAR = 12
 
-// `id` is what analytics sends (RBA-154), and what the address and the store hold; `label` is
+// `id` is what analytics sends, and what the address and the store hold; `label` is
 // what the button shows; `value` is the clicks per beat.
 export const SUBDIVISIONS = [
   { value: 1, label: 'Quarters', id: 'quarters' },

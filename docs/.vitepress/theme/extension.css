@@ -375,7 +375,7 @@
 /* ── Home: the extension's door, beside the analyzer ──────────────────────── */
 
 /* The analyzer leads the first screen and keeps the page's one filled action (Von Restorff):
-   the door is an outline button and a smaller demo (RBA-66). A phone can't install the
+   the door is an outline button and a smaller demo. A phone can't install the
    extension, so there the door is gone and HomeComputerCard offers to send the link instead. */
 .ext-door { min-width: 0; }
 
@@ -505,7 +505,7 @@
     column-gap: 64px;
     row-gap: 20px;
     align-items: start;
-    /* The next section brings its own top padding, so the fold ends with one gap, not two (RBA-58). */
+    /* The next section brings its own top padding, so the fold ends with one gap, not two. */
     padding-block: 64px 16px;
   }
 

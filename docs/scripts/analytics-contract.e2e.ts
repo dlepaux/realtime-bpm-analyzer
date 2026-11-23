@@ -1,4 +1,4 @@
-// The analytics contract in a real browser (RBA-154): what gtag.js actually sends, read off the
+// The analytics contract in a real browser: what gtag.js actually sends, read off the
 // wire. Unit tests prove the catalogue and the gate; only this proves that a hit carries exactly
 // an event's own params (no stale values from the event before, the GTM failure) and that each
 // page sends exactly one page_view.
@@ -83,7 +83,7 @@ async function route(request: HTTPRequest): Promise<void> {
   if (COLLECT.test(url)) {
     hits.push(...parseHits(url, request.postData() ?? (await request.fetchPostData().catch(() => undefined))))
     // Answered as Google's collect endpoint answers, not aborted: gtag.js sends a failed hit again by
-    // another transport, which counted every page_view twice on CI (RBA-155). The answer comes from
+    // another transport, which counted every page_view twice on CI. The answer comes from
     // this test inside the browser, so the hit still never leaves the machine.
     return request.respond({ status: 204 })
   }
@@ -207,7 +207,7 @@ test('a visit is unmarked, and a flagged browser marks every hit internal', asyn
   }
 })
 
-// The BPM tool's first sighting (RBA-298), with a real IntersectionObserver: once per page view,
+// The BPM tool's first sighting, with a real IntersectionObserver: once per page view,
 // whether the tool sits on the first screen or a scroll brings it in.
 const DESKTOP = { width: 1280, height: 800 }
 // A phone on its side: the tool's input area starts below its first screen.
@@ -263,7 +263,7 @@ test('the tool below the first screen is seen only once a scroll brings it in', 
   }
 })
 
-// The way into the musician app (RBA-284). The click leaves the page in the same tab, so its hit has
+// The way into the musician app. The click leaves the page in the same tab, so its hit has
 // to go out as the page unloads: the app's origin answers with a stub page, so the navigation
 // completes and the old page really unloads. The address the browser asks for is the link's own
 // path with nothing added but `_gl`: GA4's cross-domain linker, which the data stream's "Configure

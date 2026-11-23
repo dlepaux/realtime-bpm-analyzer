@@ -55,7 +55,7 @@ test('website surfaces: no line promises the website collects nothing', () => {
   }
 })
 
-// When the loader goes or changes (RBA-84 decides consent), this fails so the policy moves with it.
+// When the loader goes or changes (a consent step would change it), this fails so the policy moves with it.
 test('website privacy: names the analytics the site really loads', () => {
   assert.match(read('../.vitepress/config.ts'), /gaLoaderScript\(\)/)
   assert.match(read('../.vitepress/tools/analytics-loader.ts'), /googletagmanager\.com\/gtag\/js/)
@@ -65,7 +65,7 @@ test('website privacy: names the analytics the site really loads', () => {
   assert.doesNotMatch(policy, /Tag Manager/)
 })
 
-// The event list is printed from the catalogue track() is typed from (RBA-154), so it can't drift.
+// The event list is printed from the catalogue track() is typed from, so it can't drift.
 test('website privacy: the event list comes from the analytics catalogue', () => {
   assert.match(read('../website-privacy.md'), /<AnalyticsEventList \/>/)
   assert.match(read('../.vitepress/components/AnalyticsEventList.vue'), /from '\.\.\/tools\/analytics-events'/)
@@ -83,7 +83,7 @@ test('home FAQ: the audio answer also says the website measures its pages', () =
 })
 
 // The tool's answers said GA measured "its own pages" while it records the tempo and the
-// file's size, type and duration (RBA-125). Each answer names what is recorded, and the page
+// file's size, type and duration. Each answer names what is recorded, and the page
 // links the policy, since a frontmatter answer renders as plain text.
 test('tool FAQs: the privacy answer says what Google Analytics records, and the page links the policy', () => {
   const video = read('../video-bpm.md')
@@ -102,7 +102,7 @@ test('tool FAQs: the privacy answer says what Google Analytics records, and the 
 })
 
 // From 1.0.1 the settings page keeps its choice in storage.local until the extension is removed
-// (RBA-99), so neither page may say the extension stores only session data any more.
+// so neither page may say the extension stores only session data any more.
 test('extension pages: the stored settings choice is named, and nothing claims session-only storage', () => {
   const flat = (path: string) => read(path).replace(/\s+/g, ' ')
   assert.ok(

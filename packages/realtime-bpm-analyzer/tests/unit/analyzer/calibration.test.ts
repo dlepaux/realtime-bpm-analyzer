@@ -10,7 +10,7 @@ const defaultRange = resolveTempoRange();
 
 /**
  * benchmark/calibration.py's `apply_mapping` on the same tables, at these points: the library must read its tables
- * exactly as the benchmark that fitted and graded them does (RBA-106). The rows at 80 and 190 BPM are outside
+ * exactly as the benchmark that fitted and graded them does. The rows at 80 and 190 BPM are outside
  * {@link MEASURED_TEMPO_RANGE}, where the library gives no confidence at all, so only the rows inside it are compared.
  */
 const parity: ReadonlyArray<readonly [EngineName, number, number, number]> = [
@@ -279,7 +279,7 @@ describe('Calibration', () => {
   });
 });
 
-// RBA-108's DECISION of 2026-11-16 (RBA-147): a confidence nobody measured would mislead the programs that act on it,
+// A confidence nobody measured would mislead the programs that act on it,
 // so a reading outside the range the tables were fitted on carries null, never the nearest table's number
 describe('Calibration, the measured tempo range', () => {
   const audio = {from: 0, to: 10, contextTime: 10};
@@ -332,7 +332,7 @@ describe('Calibration, the measured tempo range', () => {
   });
 });
 
-// RBA-108's DECISION of 2026-11-16 on a custom range: the tables were fitted only on analyses run on the default
+// On a custom range, the tables were fitted only on analyses run on the default
 // range, and a custom range changes which candidate each engine picks, so its readings carry null even inside 90 to 180
 describe('Calibration, the analysis\'s tempo range', () => {
   const audio = {from: 0, to: 10, contextTime: 10};

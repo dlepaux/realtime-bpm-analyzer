@@ -37,10 +37,10 @@ public sealed class JsSourceTests
         Assert.Equal(Lowpass.MinQ, Constant(lowpass, "const qMin"));
         Assert.Equal(Lowpass.MaxQ, Constant(lowpass, "const qMax"));
 
-        // The tempogram's sample rate floor (RBA-261)
+        // The tempogram's sample rate floor
         Assert.Equal(TempogramEngine.MinSampleRate, Constant(consts, "export const tempogramMinSampleRate"));
 
-        // The level-relative peaks search (RBA-221): the percentile of the window maxima, and the floor under which it reads silence
+        // The level-relative peaks search: the percentile of the window maxima, and the floor under which it reads silence
         Assert.Equal(PeaksEngine.LevelPercentile, Constant(consts, "export const levelPercentile"));
         Assert.Equal(PeaksEngine.SilenceFloor, Constant(consts, "export const silenceFloor"));
 

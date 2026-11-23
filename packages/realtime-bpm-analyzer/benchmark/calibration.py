@@ -1,9 +1,9 @@
-"""RBA-106: calibrate each engine's `confidence` on dev, so that it reads as the chance the reading is right.
+"""Calibrate each engine's `confidence` on dev, so that it reads as the chance the reading is right.
 
 Reads the calibration samples the hysteresis sweep keeps on the data volume
 (`_job/calibration-samples-<commit>.json`, written by benchmark/hysteresis.ts): per dev track, under the
 picked hysteresis, the reading last shown at 10, 15, 20, 30 and 45 s and at the end, the status there, and
-the offline reading. Each reading is [bpm, confidence, raw] (`format` 2, RBA-148): the fit reads the raw score,
+the offline reading. Each reading is [bpm, confidence, raw] (`format` 2): the fit reads the raw score,
 since the confidence is already calibrated. It refuses any file whose `split` is not `dev`, except in the
 held-out mode, and never opens anything else.
 
@@ -13,10 +13,10 @@ held-out mode, and never opens anything else.
     python3 -I benchmark/calibration.py heldout <held-out samples.json> <committed results.json> <verdict.md> <verdict.json>
 
 The first prints aggregates as markdown and writes the fitted tables, aggregates only, to <report.json>.
-`--legacy-raw` reads a file written before RBA-148, whose readings are [bpm, confidence]: only for an image older
+`--legacy-raw` reads a file written before the raw score was recorded, whose readings are [bpm, confidence]: only for an image older
 than e70a4f5, when that confidence was still the raw score, as sha-0063495's was. `refit` fits dev again and exits 0
 only when the tables equal the committed ones exactly and every recorded confidence is the committed table read at
-the recorded raw score. `heldout` is RBA-106's one held-out check (DECISION 2026-11-05): the committed tempogram
+the recorded raw score. `heldout` is the calibration study's one held-out check (decided on 2026-11-05): the committed tempogram
 mapping on every held-out realtime reading at the shipped HYSTERESIS, judged against HELDOUT_BAR, exit 0 pass and
 1 fail. Both write aggregates only, and exit 2, writing no verdict, when they refuse their input or break.
 
@@ -57,14 +57,14 @@ BANDS = (('under 90', 0, 90), ('90-140', 90, 140), ('140-165', 140, 165), ('165 
 TIMES = ('10 s', '15 s', '20 s', '30 s', '45 s')
 
 # The one held-out check this proposes, fixed before it may run: on the tempogram's realtime readings, with
-# the shipped table, all must hold. It needs a DECISION on RBA-106 and is not run by this file.
+# the shipped table, all must hold. It needs its own decision and is not run by this file.
 HELDOUT_BAR = {'ece_max': 0.05, 'ece_high_max': 0.08, 'brier_not_worse': True, 'top_half_low_min': 0.0}
 # The row the held-out check judges at: the shipped HYSTERESIS, as the approved check says. The table was fitted at the
 # sweep's pick, pulseLostAfterSeconds 3, which only the dev re-fit uses. tests/unit/benchmark/calibration-samples.test.ts
 # holds this line to the library's HYSTERESIS.
 HELDOUT_HYSTERESIS = {"lockBand": 0.02, "lockAfterSeconds": 8, "unlockBand": 0.04, "unlockAfterSeconds": 2, "pulseLostAfterSeconds": 2}
 
-# The samples' format since RBA-148: readings as [bpm, confidence, raw]
+# The samples' format since the harness records the raw score: readings as [bpm, confidence, raw]
 SAMPLES_FORMAT = 2
 # How far a recorded confidence may sit from the committed table read at its recorded raw score: the tempogram's
 # trace keeps both to six decimals, and the steepest segment of any table rises about 15 per unit of raw score, so
@@ -87,7 +87,7 @@ def is_check(track):
 
 def scored(reading, legacy=False):
     """(bpm, raw score, recorded confidence) of a recorded reading: [bpm, confidence, raw], or, in a file from
-    before RBA-148, [bpm, raw] with no calibrated confidence beside it"""
+    before the raw score was recorded, [bpm, raw] with no calibrated confidence beside it"""
     if legacy:
         assert len(reading) == 2, reading
         return reading[0], reading[1], None
@@ -368,7 +368,7 @@ def analyse(samples):
 
 
 def heldout_report(mapping, samples):
-    """RBA-106's held-out check, which its DECISION of 2026-11-05 allows once: the shipped mapping on every
+    """The calibration study's held-out check, which its decision of 2026-11-05 allows once: the shipped mapping on every
     held-out realtime reading, in the shape `heldout_verdict` reads. Only the `heldout` mode calls it"""
     realtime = [s for s in samples if s['path'] == 'realtime']
     return {'check': check_block(mapping, realtime), 'top half less bottom half': {'realtime': top_half(realtime)}}
@@ -447,7 +447,7 @@ def refit(data, committed):
 
 
 def heldout_check(data, committed):
-    """The verdict file of RBA-106's held-out check, aggregates only. Refuses before judging when the samples are
+    """The verdict file of the calibration study's held-out check, aggregates only. Refuses before judging when the samples are
     not the tempogram's at the shipped row, or carry confidences the committed table does not give"""
     hysteresis, samples, counts = load_data(data, split='heldout')
     if set(samples) != {'tempogram'} or hysteresis['tempogram'] != HELDOUT_HYSTERESIS:

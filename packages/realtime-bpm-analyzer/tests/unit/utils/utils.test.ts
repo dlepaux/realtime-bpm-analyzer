@@ -60,11 +60,11 @@ describe('utils - comprehensive tests', () => {
       );
 
       // Decrements first and stops on the first rung at or under the floor. A 0.1 rung used to follow
-      // only because float drift left the 0.2 rung at 0.20000000000000004, over the floor (RBA-107)
+      // only because float drift left the 0.2 rung at 0.20000000000000004, over the floor
       expect(thresholds).to.deep.equal([0.4, 0.3, 0.2]);
     });
 
-    it('walks the default ladder in exact rungs, the last one equal to minValidThreshold (RBA-107)', async () => {
+    it('walks the default ladder in exact rungs, the last one equal to minValidThreshold', async () => {
       const thresholds: number[] = [];
 
       await utils.descendingOverThresholds(async threshold => {

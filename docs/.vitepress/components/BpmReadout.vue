@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The analyzer's tempo readout (RBA-66): one large number, a chip saying whether a live reading
+// The analyzer's tempo readout: one large number, a chip saying whether a live reading
 // is still settling or stable, the beat dot while audio comes in, and at most one alternate
 // reading. The rules live in tools/tempo-readout.ts. Screen readers hear the parent's live
 // region, not this, so a live number changing every second is never read out.

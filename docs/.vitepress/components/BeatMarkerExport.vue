@@ -13,9 +13,9 @@ import {
 import { fallbackNote, firstBeatOf, fitTempo, onsetCurveInSlices, type GridTempo } from '../tools/first-beat'
 import { useFrameRate } from '../composables/useFrameRate'
 
-// The "Export beat markers" step on a file result (RBA-127): a fixed grid at the exact tempo
+// The "Export beat markers" step on a file result: a fixed grid at the exact tempo
 // from the first strong onset, so it only suits steady tempos, and the copy says so. It is also
-// the RBA-109 demand test: `bpm_markers_exported` fires once per result, on the first download,
+// the test of whether anyone wants markers: `bpm_markers_exported` fires once per result, on the first download,
 // so exports divided by `bpm_file_result` reads the share of results that exported. The parent
 // mounts a fresh instance per result (v-if on the result state), which resets that.
 const props = defineProps<{
@@ -23,7 +23,7 @@ const props = defineProps<{
   fileName: string
   /**
    * The library's unrounded tempo, Reading.bpmExact. It seeds fitTempo, which refines it from
-   * the audio here, and is never shown (RBA-128).
+   * the audio here, and is never shown.
    */
   tempo: number
   /** Reading.bpm, the whole number the result shows. */
@@ -51,7 +51,7 @@ const IMPORT_STEPS: Record<MarkerFormat, string> = {
 const format = ref<MarkerFormat>('fcp7xml')
 const { rate: rememberedRate, pick: pickRate } = useFrameRate()
 const timecodeId = ref('24')
-// Opens on the editor's remembered rate (RBA-276), as this format offers it. useFrameRate's own
+// Opens on the editor's remembered rate, as this format offers it. useFrameRate's own
 // mount hook, registered first, has read the store by then.
 onMounted(() => { timecodeId.value = timecodeChoice(format.value, rememberedRate.value.id).id })
 let reported = false
@@ -105,7 +105,7 @@ function pickTimecode(event: Event) {
   pickRate(choice.value)
 }
 // One input for the count and the file: how many beats fit depends on the frame rate, since a
-// beat in the sequence's last half frame isn't written (RBA-239).
+// beat in the sequence's last half frame isn't written.
 const exportInput = computed<MarkerExport | null>(() => (grid.value === null ? null : {
   name: props.fileName,
   bpm: grid.value.tempo.bpm,
@@ -130,7 +130,7 @@ function download() {
 
   if (!reported) {
     reported = true
-    // `format` keeps its old meaning for the readback; export_format names it alone (RBA-154).
+    // `format` keeps its old meaning for the readback; export_format names it alone.
     track('bpm_markers_exported', { format: format.value, frame_rate: choice.value.id, export_format: format.value })
   }
 }

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// The Swift port's mirror (RBA-272): dlepaux/realtime-bpm-analyzer-swift, a generated, push-only copy of packages/swift.
+// The Swift port's mirror: dlepaux/realtime-bpm-analyzer-swift, a generated, push-only copy of packages/swift.
 //
 // SwiftPM reads a package from the root of a git repository and its versions from plain semver tags, while this
 // repository's root and its vX.Y.Z tags belong to the JS library. So each Swift release copies the package into the
-// mirror's root, commits it on main and tags it with the bare version (DECISION of 2026-11-17 on RBA-272). The code
+// mirror's root, commits it on main and tags it with the bare version, which is what SwiftPM resolves. The code
 // is only ever changed here, in packages/swift, and versioned by release-please with the other ports.
 //
 // The mirror ships no test target. The tests read the conformance vectors in conformance/ and the JS library's

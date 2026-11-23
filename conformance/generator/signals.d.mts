@@ -1,4 +1,4 @@
-// Types for signals.mjs, so the library's TypeScript tests can build the conformance inputs (RBA-221's oracle test)
+// Types for signals.mjs, so the library's TypeScript tests can build the conformance inputs (the peaks oracle's test)
 
 export type Signal = {
   id: string;

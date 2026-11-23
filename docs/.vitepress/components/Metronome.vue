@@ -148,7 +148,7 @@ async function start() {
   schedulerTimer = window.setInterval(schedule, LOOKAHEAD_MS)
   frame = requestAnimationFrame(draw)
   const chosen = subdivisionOf(subdivision.value)
-  // `mode` keeps its old form for the readback; time_signature and subdivision split it (RBA-154).
+  // `mode` keeps its old form for the readback; time_signature and subdivision split it.
   track('bpm_metronome_started', {
     bpm: bpm.value,
     mode: `${beatsPerBar.value}/4 ${chosen.label}`,
@@ -173,7 +173,7 @@ function stop() {
   angle.value = 0
   void wakeLock?.release().catch(() => undefined)
   wakeLock = null
-  // A running context holds the output device with nothing playing. start() resumes it (RBA-93).
+  // A running context holds the output device with nothing playing. start() resumes it.
   void ctx?.suspend().catch(() => undefined)
 }
 

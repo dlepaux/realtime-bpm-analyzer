@@ -1,4 +1,4 @@
-# The RBA-51 batch job. Build context: the repo root, narrowed by Dockerfile.dockerignore to the
+# The engine study's batch job. Build context: the repo root, narrowed by Dockerfile.dockerignore to the
 # manifests, the library source and this directory, so no audio can reach the image.
 FROM node:24.22.1-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c AS build
 WORKDIR /src
@@ -17,7 +17,7 @@ COPY --from=build /src/packages/realtime-bpm-analyzer/benchmark/dist dist
 COPY --from=build /src/packages/realtime-bpm-analyzer/benchmark/splits splits
 COPY --from=build /src/packages/realtime-bpm-analyzer/benchmark/job job
 COPY --from=build /src/packages/realtime-bpm-analyzer/benchmark/run.sh run.sh
-# RBA-106's held-out calibration check: calibration.py judges the committed tables, which it reads from results/
+# The calibration study's held-out calibration check: calibration.py judges the committed tables, which it reads from results/
 COPY --from=build /src/packages/realtime-bpm-analyzer/benchmark/calibration.py /src/packages/realtime-bpm-analyzer/benchmark/calibration_test.py ./
 COPY --from=build /src/packages/realtime-bpm-analyzer/benchmark/results/rba-106-calibration-dev.json results/
 # No CI runs the calibration's Python, so the image tests it on the Python the check runs on

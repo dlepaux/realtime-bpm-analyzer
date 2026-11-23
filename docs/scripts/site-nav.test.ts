@@ -1,4 +1,4 @@
-// Run with `npm test`. The top navigation (RBA-66): musician-first, one Developers menu,
+// Run with `npm test`. The top navigation: musician-first, one Developers menu,
 // and every extension link gated on the store switch like the rest of the promotion.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -124,7 +124,7 @@ test('no page is linked twice', () => {
   }
 })
 
-// RBA-240's DECISION of 2026-11-16: the CLI and the MCP server get a generic icon each, and the
+// Decided on 2026-11-16: the CLI and the MCP server get a generic icon each, and the
 // MCP server is named in text. No third-party logo: no terms allow the MCP one.
 test('the CLI and MCP entries carry a generic icon, drawn by the theme, in both nav renderings', () => {
   const css = readFileSync(new URL('../.vitepress/theme/custom.css', import.meta.url), 'utf8')

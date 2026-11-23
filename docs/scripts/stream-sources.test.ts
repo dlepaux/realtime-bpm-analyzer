@@ -1,4 +1,4 @@
-// Run with `npm test`. What the site and the examples may play (RBA-245): a third-party stream ships
+// Run with `npm test`. What the site and the examples may play: a third-party stream ships
 // only once its station's terms have been read, and never when they forbid other websites. SomaFM's
 // terms (https://somafm.com/contact/tos.html, updated 2026-09-04) forbid "Embedding the Content in
 // any website, application, or platform without explicit prior written permission", and say it
@@ -19,7 +19,7 @@ const thisFile = fileURLToPath(import.meta.url)
 // its subdomains (ice1.somafm.com).
 const FORBIDDEN_HOSTS = ['somafm.com']
 
-// The ids the SomaFM presets sent until RBA-245. A page cached before the change still sends them
+// The ids the SomaFM presets sent until only stations whose terms allow it were kept. A page cached before the change still sends them
 // through its own old bundle, so GA4 shows a few for a while; this gate must take them calmly too.
 const RETIRED_STATION_IDS = ['somafm_defcon', 'somafm_groovesalad', 'somafm_beatblender']
 

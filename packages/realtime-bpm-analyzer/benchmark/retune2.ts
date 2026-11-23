@@ -1,4 +1,4 @@
-// RBA-51's third sweep, on dev with RBA-59's full mixes: see "The third sweep" in benchmark/readme.md.
+// The engine study's third sweep, on dev with the free full mixes: see "The third sweep" in benchmark/readme.md.
 //   run.sh retune2 floors <dev.json>                    the guard's floors: peaks on the tuning sets, real path
 //   run.sh retune2 pick <plan.json> <sweep.jsonl>       applies the rule, exit 1 when it refuses
 //   run.sh retune2 report <dev.json>[,<dev.json>] <a,b,c> tables with group-aware ranges, first detector less the others

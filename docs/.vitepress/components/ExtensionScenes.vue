@@ -5,7 +5,7 @@ import { ADDRESSES, ICONS, SCENES, TEMPO_RANGE, crowdPath } from '../tools/exten
 import type { ScenesPlayback, playScenes as PlayScenes } from '../tools/extension-scenes-player'
 import ExtensionSceneOverlay from './ExtensionSceneOverlay.vue'
 
-// The demo on the extension's first screens (RBA-58): drawn pages with the overlay on them, no
+// The demo on the extension's first screens: drawn pages with the overlay on them, no
 // footage and no sound. The server sends the first page, reading, so the first paint and anyone
 // without motion or JavaScript see the whole message. On a computer the rest loads once the page
 // is idle and it plays once, then rests: a loop beside the BPM tool would compete with it for the

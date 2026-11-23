@@ -1,4 +1,4 @@
-/* The extension's demo (RBA-58): the frame, the first page and the overlay. This much is the still
+/* The extension's demo: the frame, the first page and the overlay. This much is the still
    that every visitor gets, so it stays small. The later pages' styles load with the player. Sizes
    are in --u, one unit of the 520-wide stage, because a container unit keeps text and vector edges
    sharp at any size where scaling with a transform would blur them. */

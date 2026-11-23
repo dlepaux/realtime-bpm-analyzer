@@ -1,7 +1,7 @@
 // The steps that open audio resources before the tool has anywhere to keep them. A running
 // AudioContext holds the output device until it is closed or its tab goes away, and its
 // variable going out of scope does not close it, so a step that fails must release what it
-// opened (RBA-93). Types are the slice used here, so tests run in Node without Web Audio.
+// opened. Types are the slice used here, so tests run in Node without Web Audio.
 
 type Closable = { close: () => Promise<void> }
 type Decoding<B> = Closable & { decodeAudioData: (data: ArrayBuffer) => Promise<B> }

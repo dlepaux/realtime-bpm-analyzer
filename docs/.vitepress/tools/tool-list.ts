@@ -1,5 +1,5 @@
-// The site's free tools, as the home's grid shows them (RBA-66). Plain data with no framework, so
-// rba-web can render the same list. The names and lines are the home's existing copy, kept word
+// The site's free tools, as the home's grid shows them. Plain data with no framework, so
+// another front end can render the same list. The names and lines are the home's existing copy, kept word
 // for word while the home's text is frozen (see scripts/home-frozen-text.test.ts).
 
 /** A lucide icon name, which the renderer maps to its own component. */
@@ -17,7 +17,7 @@ export type FreeTool = {
 export const GRID_COLUMNS = 6
 
 // Rows in order of use: the musicians' everyday tools first, then the video editors' pair and
-// the strobe light for visuals (RBA-237). Two rows of 3 fill the 6-column grid.
+// the strobe light for visuals. Two rows of 3 fill the 6-column grid.
 export const FREE_TOOL_ROWS: readonly (readonly FreeTool[])[] = [
   [
     { name: 'Tap Tempo', line: 'Tap along with any song to measure its tempo, with a steadiness score.', link: '/tap-tempo', icon: 'hand' },

@@ -95,7 +95,7 @@ describe('createRealtimeBpmAnalyzer', function () {
     });
 
     it('rejects any option it does not take, and a tempo range with a key other than min and max, naming the key', async () => {
-      // RBA-108's DECISION of 2026-11-16: a typo would otherwise run the defaults without a word
+      // Strict options: a typo would otherwise run the defaults without a word
       const refused: Array<[Record<string, unknown>, string]> = [
         [{engin: 'peaks'}, 'engin'],
         [{tempRange: {min: 60, max: 120}}, 'tempRange'],

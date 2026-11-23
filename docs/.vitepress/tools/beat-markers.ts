@@ -1,4 +1,4 @@
-// Beat markers for video editors (RBA-127): a marker every beat at the detected tempo, written
+// Beat markers for video editors: a marker every beat at the detected tempo, written
 // as CSV, FCPXML (Final Cut Pro), a CMX 3600 EDL with DaVinci Resolve's marker notes, or a
 // Final Cut Pro 7 XML sequence (Premiere Pro). Everything is built in the browser.
 //
@@ -136,7 +136,7 @@ export function fps(rate: ExportRate): number {
 
 /**
  * Beat times in seconds, every 60 / bpm from the first beat, inside the audio: the audio's end
- * is not a beat, so a beat landing exactly on it is left out (RBA-239).
+ * is not a beat, so a beat landing exactly on it is left out.
  */
 export function beatTimes(bpm: number, firstBeat: number, duration: number): number[] {
   if (!(bpm > 0) || !(firstBeat >= 0) || !(duration > firstBeat)) return []
@@ -250,7 +250,7 @@ export interface BeatMarker {
 
 /**
  * The markers every format writes, and the count the panel shows: each beat on its own frame, by
- * frameAt's rounding, while that frame lies inside the sequence (RBA-239). A beat in the
+ * frameAt's rounding, while that frame lies inside the sequence. A beat in the
  * sequence's last half frame rounds to the frame where it ends, so it isn't written: moving it
  * back onto the last frame would put a marker off the grid, its seconds and frame disagreeing.
  */

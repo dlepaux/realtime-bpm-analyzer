@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The goodbye page's reinstall links, one per store, so someone who left Edge is not sent to
-// Chrome's. A component rather than markdown so its click is type-checked like every other (RBA-154).
+// Chrome's. A component rather than markdown so its click is type-checked like every other.
 import { useAnalytics } from '../composables/useAnalytics'
 import { EDGE_URL, STORE_URL } from '../tools/extension-live'
 import { installTargets } from '../tools/extension-promo'

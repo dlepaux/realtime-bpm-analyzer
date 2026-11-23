@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// "Your tracks" (RBA-277): the file results kept in this browser. The rows come from the
+// "Your tracks": the file results kept in this browser. The rows come from the
 // parent, which owns them and their storage; this shows, sorts, filters and exports them, and
 // remembers how the visitor last sorted and filtered.
 import { computed, nextTick, onMounted, ref, watch } from 'vue'

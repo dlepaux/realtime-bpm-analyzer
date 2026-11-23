@@ -19,7 +19,7 @@ export type Track = {
   readonly loopToSeconds?: number;
   /** Only this many seconds from the start are decoded and scored: see lib/free-mixes.ts */
   readonly excerptSeconds?: number;
-  /** How the tempo label was reached, where a set grades its labels: RBA-59's `confidence` */
+  /** How the tempo label was reached, where a set grades its labels: the free mixes' `confidence` */
   readonly label?: string;
 };
 
@@ -32,7 +32,7 @@ export type TrackResult = {
   readonly set: string;
   readonly id: string;
   readonly genre: string;
-  /** The track's group, for error ranges that know such tracks are not independent. Absent before RBA-51's second look */
+  /** The track's group, for error ranges that know such tracks are not independent. Absent before the engine study's second look */
   readonly group?: string;
   /** The track's label grade, on sets that have one */
   readonly label?: string;
@@ -48,16 +48,16 @@ export type TrackResult = {
   readonly stable: ReadonlyArray<readonly [number, number]>;
   /** Top candidate of the offline path, on detectors that have one */
   readonly offline?: number | null;
-  /** The last reading's candidates as [bpm, relation to the top], top first. Absent before RBA-106's ensemble run */
+  /** The last reading's candidates as [bpm, relation to the top], top first. Absent before the calibration study's ensemble run */
   readonly candidates?: ReadonlyArray<readonly [number, CandidateRelation]>;
-  /** The last reading's confidence, null when the detector never gave a reading or that reading was unmeasured (RBA-147) */
+  /** The last reading's confidence, null when the detector never gave a reading or that reading was unmeasured */
   readonly confidence?: number | null;
   /**
    * Each change of the top candidate as [seconds of audio, tempo, its confidence], the confidence null when unmeasured.
-   * Absent before RBA-106's ensemble run
+   * Absent before the calibration study's ensemble run
    */
   readonly readings?: ReadonlyArray<readonly [number, number, number | null]>;
-  /** RBA-106's hysteresis sweep, on its own detectors only */
+  /** The calibration study's hysteresis sweep, on its own detectors only */
   readonly hysteresis?: HysteresisRecord;
 };
 

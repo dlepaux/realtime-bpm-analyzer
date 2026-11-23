@@ -1,4 +1,4 @@
-// The strobe's spectrogram (RBA-237): which analyser bin each row shows, the colours, and how far
+// The strobe's spectrogram: which analyser bin each row shows, the colours, and how far
 // it scrolls each frame. The component shifts the canvas and paints one new column per pixel of
 // time, so the main thread's work per frame is a copy and SPECTROGRAM_HEIGHT palette lookups.
 // Pure, so node --test checks the mapping and the cost (scripts/spectrogram.test.ts).
@@ -13,7 +13,7 @@ export const PX_PER_MS = 0.06
 /**
  * The page's own main-thread work per frame (the light's step and the spectrogram), at most:
  * a quarter of a 60 Hz frame, leaving the rest to the browser's style, paint and the analyzer's
- * messages. Measured in Chromium with the CPU slowed 4 times, as a phone; see RBA-237's READY.
+ * messages. Measured in Chromium with the CPU slowed 4 times, as a phone.
  */
 export const FRAME_BUDGET_MS = 4
 

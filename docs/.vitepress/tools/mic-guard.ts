@@ -1,4 +1,4 @@
-// What the home's mic panel tells a listener besides the tempo (RBA-275): that the input is too
+// What the home's mic panel tells a listener besides the tempo: that the input is too
 // quiet, that a reading isn't coming and tapping along is an option, and where the session
 // stood when it stopped. Many phone mic sessions stop without a lock, and a quiet room showed a
 // confident-looking number for 30 s with no word about the level.

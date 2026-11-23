@@ -77,7 +77,7 @@ export function assertDecoded(path: string, status: number | null, samples: numb
 export type RunFailure = {readonly set: string; readonly id: string; readonly reason: string; readonly undecodable: boolean};
 
 /**
- * Distinct tracks a run may lose to a file that cannot decode. RBA-51's first look stopped on one.
+ * Distinct tracks a run may lose to a file that cannot decode. The engine study's first look stopped on one.
  * Three of the thousands in a run cannot move a set's number by much; more means the data or the
  * decoder changed, and that needs a person.
  */
@@ -108,7 +108,7 @@ export function refusalOf(failures: readonly RunFailure[]): string | null {
   return skipped > undecodableLimit ? `${skipped} tracks cannot decode, over the limit of ${undecodableLimit}` : null;
 }
 
-/** RBA-51's held-out budget, per volume: the look of 2026-10-31 and the one its DECISION adds */
+/** The engine study's held-out budget, per volume: the look of 2026-10-31 and the one its decision adds */
 export const looksAllowed = 2;
 
 /**
@@ -167,7 +167,7 @@ export function lookDetectorRefusal(pick: string | null, names: readonly string[
 }
 
 /**
- * RBA-51's look at RBA-59's held-out free mixes, allowed once by its DECISION of 2026-11-03. It keeps its
+ * The engine study's look at the held-out free mixes, allowed once by its decision of 2026-11-03. It keeps its
  * own log, apart from the clean sets' budget above, since it reads another half of other data. One line
  * there spends it: no commit, reason or restart buys a second.
  * @param log The volume's free-mix held-out log, empty when there is none

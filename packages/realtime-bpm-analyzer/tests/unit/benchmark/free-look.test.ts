@@ -25,7 +25,7 @@ const results = (candidate: (track: Track, index: number) => boolean, peaks: (tr
 const everyOther = (_: Track, index: number) => index % 2 === 0;
 const failing = (conditions: ReturnType<typeof freeLookBar>) => conditions.filter(({isMet}) => !isMet).map(({gate, what}) => `${gate}: ${what}`);
 
-describe('the pass bar of RBA-51\'s look at the held-out free mixes', () => {
+describe('the pass bar of the engine study\'s look at the held-out free mixes', () => {
   it('passes a candidate clearly ahead everywhere, with gates 1, 2, 4 and 5', () => {
     const conditions = freeLookBar(results(() => true, everyOther));
 

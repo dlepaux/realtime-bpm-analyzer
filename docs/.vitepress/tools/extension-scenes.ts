@@ -1,4 +1,4 @@
-// What the demo's first frame needs (RBA-58): its pages, tempos and drawn shapes. It ships to every
+// What the demo's first frame needs: its pages, tempos and drawn shapes. It ships to every
 // visitor, phones included, so the motion lives apart in extension-scenes-timeline.ts, which only a
 // computer that plays the demo downloads. Pure and import-free so `npm test` can read both.
 

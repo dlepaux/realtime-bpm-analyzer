@@ -2,7 +2,7 @@ import {expect} from 'chai';
 import {assertNoRemovedOptions, resolveEngine, resolveOfflineEngine} from '../../../src/core/engine';
 import type {EngineOption, OfflineEngineOption} from '../../../src/contract/types';
 
-// RBA-108's DECISION of 2026-11-16: `engine` is strict like `lowpass`. A key outside the engine's set throws a
+// `engine` is strict like `lowpass`. A key outside the engine's set throws a
 // TypeError that names it, whatever its value, so a call can't pass in a test and then throw on other data.
 
 const sampleRate = 44_100;

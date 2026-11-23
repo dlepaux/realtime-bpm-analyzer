@@ -79,7 +79,7 @@ function excludedFromHeldout(benchmarkDir: string, set: string): Set<string> {
 
 function selectTracks(benchmarkDir: string, split: Split, sets: string[]): Track[] {
   return sets.flatMap(set => {
-    // RBA-59's held-out half is RBA-51's one look, reached only past freeHeldoutRefusal and the look's log line
+    // The free mixes' held-out half is the engine study's one look, reached only past freeHeldoutRefusal and the look's log line
     if (isFreeSet(set)) {
       return split === 'dev' ? freeLoaders[set]() : freeHeldoutLoaders[set]();
     }
@@ -183,7 +183,7 @@ async function main(): Promise<void> {
     limit: {type: 'string'},
     tuning: {type: 'string'},
     progress: {type: 'string'},
-    // `calibration`: RBA-106's one held-out calibration check, with its own scope and log
+    // `calibration`: the calibration study's one held-out calibration check, with its own scope and log
     look: {type: 'string'},
   }});
   const benchmarkDir = values.dir!;

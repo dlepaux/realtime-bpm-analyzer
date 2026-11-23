@@ -1,4 +1,4 @@
-// Where the library runs, for the home page's "Where it runs" section (RBA-266). Pure and
+// Where the library runs, for the home page's "Where it runs" section. Pure and
 // import-free so `npm test` reads it with node --test.
 
 export type Platform = {

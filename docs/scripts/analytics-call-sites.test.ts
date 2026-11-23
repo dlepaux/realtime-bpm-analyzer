@@ -1,4 +1,4 @@
-// Run with `npm test`. Every track() call against the catalogue (RBA-154): a name the catalogue
+// Run with `npm test`. Every track() call against the catalogue: a name the catalogue
 // doesn't know never reaches a report, and an event nobody sends is a report that stays empty.
 // Markdown can't be type-checked, so it never calls track(): a component does.
 import { test } from 'node:test'

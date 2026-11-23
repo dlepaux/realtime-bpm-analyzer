@@ -1,4 +1,4 @@
-// Run with `npm test`. The strobe's demo track (RBA-237) is rendered in the page from a score, so
+// Run with `npm test`. The strobe's demo track is rendered in the page from a score, so
 // its kicks are known: they are the ground truth of the browser measurement. These check the score
 // has the shape the card asks for (a clear kick, a breakdown with none, then the drop), and that
 // the renderer plays a kick at each of the score's times and nowhere else.

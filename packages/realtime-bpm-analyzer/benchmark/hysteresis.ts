@@ -1,4 +1,4 @@
-// RBA-106's hysteresis pick, from the sweep's dev results. Bundled by benchmark/run.sh, run by the job's hysteresis mode.
+// The calibration study's hysteresis pick, from the sweep's dev results. Bundled by benchmark/run.sh, run by the job's hysteresis mode.
 //   hysteresis.mjs --in dev-<sha>.json --out hysteresis-report-<sha>.json --samples calibration-samples-<sha>.json
 // --out holds aggregates only. --samples holds, per dev track, the picked rows' readings at the sample times, for
 // the calibration (benchmark/calibration.py): it is per track, and stays on the data volume.

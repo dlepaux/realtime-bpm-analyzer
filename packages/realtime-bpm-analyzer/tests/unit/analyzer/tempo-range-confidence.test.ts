@@ -9,7 +9,7 @@ import {generateValidPeaksModel} from '../../../src/core/utils';
 import type {Interval, TempoRange, ValidPeaks} from '../../../src/core/types';
 
 /**
- * Tempo range (octave folding) and confidence v1 (RBA-22).
+ * Tempo range (octave folding) and confidence v1.
  * Fixtures are synthetic peak trains generated in code: no audio involved.
  */
 const sampleRate = 44100;
@@ -119,7 +119,7 @@ describe('analyzer - tempo range', () => {
   ];
 
   for (const [name, peaks, expected] of baselineBeforeRba22) {
-    it(`returns the pre-RBA-22 tempos, counts and order with no range: ${name}`, async () => {
+    it(`returns the tempos, counts and order from before the range option when given no range: ${name}`, async () => {
       const {bpm} = await computeBpm({audioSampleRate: sampleRate, data: asValidPeaks(peaks)});
       expect(bpm.map(t => [t.tempo, t.count])).to.deep.equal(expected);
     });
@@ -206,7 +206,7 @@ describe('analyzer - confidence', () => {
    * Calibration on synthetic fixtures. A perfect click train cannot reach 1:
    * pairs 3, 5, 6, 7 and 9 beats apart fold to other tempos. Measured: click 0.460,
    * ±5/10/20 ms jitter down to 0.43/0.37/0.27, random peaks 0.048–0.092 (table in
-   * the RBA-22 PR). No docs threshold is derived here.
+   * the pull request that added the range). No docs threshold is derived here.
    */
   it('scores a perfect click train high and random peaks low', async () => {
     const clickScores: number[] = [];

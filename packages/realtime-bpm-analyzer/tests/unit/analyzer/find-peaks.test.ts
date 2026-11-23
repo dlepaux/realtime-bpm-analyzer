@@ -53,7 +53,7 @@ describe('analyzer - findPeaksAtThreshold', () => {
       }).to.throw('Invalid sample rate');
     });
 
-    // RBA-260: under 2 Hz the skip after a peak rounds to no sample, and 6.1.0's loop found the same peak forever
+    // Under 2 Hz the skip after a peak rounds to no sample, and 6.1.0's loop found the same peak forever
     it('should throw a RangeError under 2 Hz, where the skip after a peak is no sample, and run at 2 Hz', () => {
       const data = new Float32Array([0.9, 0.9, 0.9, 0.9]);
       for (const audioSampleRate of [1.99, 1, 0.1]) {

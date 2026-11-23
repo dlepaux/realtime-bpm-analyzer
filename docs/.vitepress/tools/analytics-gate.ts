@@ -1,4 +1,4 @@
-// What track() does to an event before it leaves (RBA-154): checks it against the catalogue and
+// What track() does to an event before it leaves: checks it against the catalogue and
 // returns only what the catalogue declares, in the shape it declares. Types catch most mistakes at
 // build time; this catches the rest at run time (a value computed from user input, a call the
 // types can't see). In dev the problems throw, in production they are fixed and sent, so a drift
@@ -36,7 +36,7 @@ function checkValue(spec: ParamSpec, value: unknown): Checked {
       return typeof value === 'boolean' ? { value } : { problem: `${JSON.stringify(value)} is not a boolean` }
     case 'text': {
       if (typeof value !== 'string') return { problem: `${JSON.stringify(value)} is not a string` }
-      // Scrub the whole text before the cut: a cut can end mid-address and hide its shape (RBA-35).
+      // Scrub the whole text before the cut: a cut can end mid-address and hide its shape.
       if (isUrlShaped(value)) return { value: REDACTED }
       if (spec.pattern && !spec.pattern.test(value)) return { value: INVALID, problem: `${JSON.stringify(value)} does not match its pattern` }
       // GA4 cuts at 100 characters anyway; cutting here keeps that visible and predictable.
@@ -65,6 +65,6 @@ export function gateEvent(event: string, raw: Readonly<Record<string, unknown>> 
   for (const [key, use] of Object.entries(declared)) {
     if (use === 'required' && !(key in params)) problems.push(`${event}.${key}: required, missing`)
   }
-  // Defence in depth for the lane rule "analytics never send URLs" (RBA-35).
+  // Defence in depth for the rule that analytics never send URLs: a listener's links are their own.
   return { params: scrubEventParams(params), problems }
 }

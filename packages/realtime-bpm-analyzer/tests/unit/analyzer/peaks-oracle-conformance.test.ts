@@ -42,11 +42,11 @@ function statusOf(oracle: OfflineResult, reading: OfflineResult): Status {
 }
 
 /**
- * RBA-221's bar on the conformance inputs: wherever the peaks file path as it stood before RBA-221 (the oracle)
+ * The level-relative search's bar on the conformance inputs: wherever the peaks file path as it stood before it (the oracle)
  * returns a reading, the library returns the same whole reading. Only an input the old path read nothing in may
  * read now. Every conformance input runs, through the Node entry the vectors are generated from.
  */
-describe('peaks file path - the readings the old path returns are unchanged on every conformance input (RBA-221)', function () {
+describe('peaks file path - the readings the old path returns are unchanged on every conformance input', function () {
   // Seven option sets of up to 12 s of audio, twice each
   this.timeout(60_000);
 

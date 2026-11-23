@@ -21,7 +21,7 @@ function row(tuning: Record<string, number>, score: number, fast = 6, scoreSe = 
 
 const grid = (score: (bpm: number, octaves: number) => number) => [60, 80, 100].flatMap(priorBpm => [1, 1.7, 2.4].map(priorOctaves => row({priorBpm, priorOctaves}, score(priorBpm, priorOctaves))));
 
-describe('RBA-51 third sweep rule', () => {
+describe('the third sweep rule', () => {
   it('picks the locked settings when they are interior and within noise', () => {
     const outcome = pickRetune2([row({}, 70), ...grid((bpm, octaves) => (bpm === 100 && octaves === 1 ? 70.5 : 69))], guard, defaults);
 

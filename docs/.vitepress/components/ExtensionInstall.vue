@@ -32,7 +32,7 @@ const trackStore = (placement: ExtensionPlacement, store: StoreId) =>
   track('extension_link_clicked', { placement, target: 'store', store })
 
 function sendLink(event: MouseEvent) {
-  // The phone's way to the extension, counted like the home page's (RBA-154).
+  // The phone's way to the extension, counted like the home page's.
   track('extension_link_clicked', { placement: props.placement, target: 'share' })
   const share = typeof navigator.share === 'function' ? navigator.share.bind(navigator) : undefined
   if (sharePageLink(share, () => { window.location.href = SEND_LINK_MAILTO })) event.preventDefault()

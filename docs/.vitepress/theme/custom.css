@@ -46,7 +46,7 @@
 
 /* ── Developers menu: a generic icon for the CLI and the MCP server ─────── */
 
-/* RBA-240's DECISION of 2026-11-16: no third-party logo, since no terms allow the MCP one,
+/* No third-party logo, since no terms allow the MCP one,
    so each gets a plain drawn icon next to its name, in the desktop flyout and the mobile
    menu. The SVG is only a mask: the icon takes the link's own colour, hover and dark mode
    included. */
@@ -97,7 +97,7 @@
 }
 
 /* A code block's language label ("ts", "bash") is VitePress's --vp-c-text-3, 3.4:1 on the dark
-   block and about 3:1 on the light one. Text-2 is 5:1 or more on both (RBA-268). */
+   block and about 3:1 on the light one. Text-2 is 5:1 or more on both. */
 :root {
   --vp-code-lang-color: var(--vp-c-text-2);
 }

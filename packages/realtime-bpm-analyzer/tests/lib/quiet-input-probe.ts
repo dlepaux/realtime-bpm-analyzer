@@ -9,12 +9,12 @@ import {
 } from '../fixtures/quiet-input';
 
 /**
- * RBA-218, the probe for the site's largest loss: most of its file errors are `no_bpm`. Each source is turned down
+ * The probe for the site's largest loss: most of its file errors are `no_bpm`. Each source is turned down
  * and high-passed, written as a WAV and decoded the way the site's file input does, then read by
  * `analyzeFullBuffer` on the peaks engine. Every variant still has a clear beat, so each must read the tempo it was
- * built at. Before RBA-221 peaks read nothing once the lowpassed bass peaked under its fixed ladder's 0.2 floor.
+ * built at. Before the level-relative search, peaks read nothing once the lowpassed bass peaked under its fixed ladder's 0.2 floor.
  *
- * Each case also holds RBA-221's bar: wherever the peaks file path as it stood before (the oracle) reads, the whole
+ * Each case also holds the level-relative search's bar: wherever the peaks file path as it stood before (the oracle) reads, the whole
  * reading is unchanged. A reading only the new search finds reports its confidence as null, unmeasured, since the
  * calibration never saw one.
  *
@@ -31,7 +31,7 @@ async function oracle(buffer: AudioBuffer): Promise<OfflineResult> {
 
 /**
  * The committed fixture has no ground truth, so its variants are graded against its own original reading, which
- * tests level invariance only (RBA-218). A 300 Hz highpass changes what the file holds, not its level: on a 7.7 s
+ * tests level invariance only. A 300 Hz highpass changes what the file holds, not its level: on a 7.7 s
  * clip that peaks reads from at most 8 interval votes, with 125 against the tempogram's 93, the original's top
  * reading is no truth for it. There the original's tempo must still be among the candidates, and the log records
  * the top one.
@@ -45,7 +45,7 @@ function isGraded(source: Source, variant: Variant): boolean {
  * Mocha names the tests before `load` runs, so the name is given.
  */
 export function probeQuietInput(name: string, load: () => Source | Promise<Source> = () => generatedSource(name)): void {
-  describe(`RBA-218: a quiet or bass-light file still reads its tempo on peaks, ${name}`, function () {
+  describe(`a quiet or bass-light file still reads its tempo on peaks, ${name}`, function () {
     // Thirty seconds of audio, read twice
     this.timeout(60_000);
 

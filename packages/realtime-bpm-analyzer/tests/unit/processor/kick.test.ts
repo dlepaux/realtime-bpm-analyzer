@@ -9,7 +9,7 @@ const sampleRate = 48_000;
 
 type KickMessage = Extract<PostedWorkletMessage, {type: 'kick'}>;
 
-/** The processor reports each kick of its input as it hears it, on the context clock (RBA-243) */
+/** The processor reports each kick of its input as it hears it, on the context clock */
 describe('RealTimeBpmProcessor - kicks', () => {
   let RealTimeBpmProcessor: any;
 
@@ -123,7 +123,7 @@ describe('RealTimeBpmProcessor - kicks', () => {
     return processor.posted as PostedWorkletMessage[];
   }
 
-  // RBA-246: one bad sample used to silence the kicks until reset(), and an infinite one could leave the tempogram
+  // One bad sample used to silence the kicks until reset(), and an infinite one could leave the tempogram
   // deaf for good. Both now start over by themselves. Every step reads the same status, reason and tempo as without
   // the sample. The tempogram's exact tempo and confidence drift a little for a few seconds, as the frames that hold
   // the sample count as no onset (measured: up to 2.5e-5 BPM and 1.4e-7)

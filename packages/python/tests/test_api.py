@@ -92,7 +92,7 @@ def test_a_float64_past_float32_range_is_refused_as_the_infinity_it_becomes() ->
 @pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
 @pytest.mark.parametrize("engine", ["tempogram", "peaks"])
 def test_non_finite_samples_raise(value: float, engine: EngineName) -> None:
-    # As JS refuses them since RBA-260: through the peaks lowpass one turned every later sample into NaN
+    # As JS refuses them since 6.2: through the peaks lowpass one turned every later sample into NaN
     samples = np.zeros(RATE * 4, dtype=np.float32)
     samples[200] = value
     with pytest.raises(InvalidSamplesError, match="sample 200 is"):
@@ -132,7 +132,7 @@ def test_unusable_samples_raise(samples: object, error: type[Exception]) -> None
         ({"tempo_range": TempoRange(min=90, max=179)}, RATE),
         ({"tempo_range": TempoRange(min=math.inf, max=math.inf)}, RATE),
         ({}, math.nan),
-        # The bounds JS has since RBA-260: peaks under 2 Hz, a max past 2^31 - 1, and a max / min past a double
+        # The bounds JS has since 6.2: peaks under 2 Hz, a max past 2^31 - 1, and a max / min past a double
         ({"engine": "peaks", "lowpass": Lowpass(frequency=0.5)}, 1.5),
         ({"tempo_range": TempoRange(min=1e-10, max=1e308)}, RATE),
         ({"tempo_range": TempoRange(min=90, max=2**31)}, RATE),

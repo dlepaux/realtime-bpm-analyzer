@@ -20,7 +20,7 @@ function row(id: string, split: string, extra: Record<string, unknown> = {}): st
 
 const splitIds = JSON.stringify({seed: 's', dev: ['a', 'b', 'c', 'd', 'e'], heldout: ['h']});
 
-describe('RBA-59 free mixes, dev half', () => {
+describe('free mixes, dev half', () => {
   it('keeps dev rows by tier, with their artist as the group and the excerpt length', () => {
     const manifest = [
       row('a', 'dev'),
@@ -52,7 +52,7 @@ describe('RBA-59 free mixes, dev half', () => {
     expect(() => devTracks(splitIds, '{"kind":"real","id":"a"}')).to.throw('does not start with its id');
   });
 
-  it('tiers a label as RBA-59 settles it', () => {
+  it('tiers a label as the free-mix pipeline settles it', () => {
     expect(tierOf({bpm: null, labelProvenance: {}})).to.equal(null);
     expect(tierOf({bpm: 170, labelProvenance: {halvesAgree: null}})).to.equal('free-mixes');
     expect(tierOf({bpm: 170, labelProvenance: {octaveSplit: true}})).to.equal('free-mixes-contested');

@@ -1,4 +1,4 @@
-// Proves the extension switch on real builds (RBA-58). Run after `npm run build`: it
+// Proves the extension switch on real builds. Run after `npm run build`: it
 // checks that build against the committed EXTENSION_STORE_URL, builds the site with the
 // switch the other way into a temporary folder, checks that, and puts the file back.
 // Rewriting the one line, rather than reading an environment variable, keeps the value

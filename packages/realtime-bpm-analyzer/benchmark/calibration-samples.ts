@@ -1,4 +1,4 @@
-// RBA-106's held-out calibration check: the tempogram's calibration samples from a run's results, on dev at the row
+// The calibration study's held-out calibration check: the tempogram's calibration samples from a run's results, on dev at the row
 // the committed table was fitted at and held-out at the shipped one. Bundled by benchmark/run.sh, run by the job's calibration-heldout mode, on dev
 // first and then on held-out.
 //   calibration-samples.mjs --in <run results> --out <samples>

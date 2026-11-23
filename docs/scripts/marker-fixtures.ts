@@ -14,10 +14,10 @@ import {
 
 // A tempo between whole numbers, a first beat off the frame grid, past 999 markers and past the
 // tenth minute (drop-frame's exception), and a name that needs escaping in XML and in the EDL.
-// Then RBA-239's file: 30.0 s at 120 BPM from 0 s, whose 61st beat would sit on the audio's end.
+// Then the file ending on a beat: 30.0 s at 120 BPM from 0 s, whose 61st beat would sit on the audio's end.
 const SCENARIOS = [
   { name: 'Conformance <A&B> "mix" é.wav', bpm: 127.6, firstBeat: 0.37, duration: 610.5 },
-  { name: 'RBA-239 kick 120 BPM.wav', bpm: 120, firstBeat: 0, duration: 30 },
+  { name: 'kick 120 BPM ending on a beat.wav', bpm: 120, firstBeat: 0, duration: 30 },
 ] as const
 
 const outDir = process.argv[2]

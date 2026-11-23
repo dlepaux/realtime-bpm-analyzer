@@ -12,7 +12,7 @@ import type {EngineTraceStep, Observation} from './stream';
 import type {Track, TrackResult} from './types';
 
 /**
- * RBA-106's hysteresis sweep on dev. Each track runs once per grid row, and what a listener of the main thread
+ * The calibration study's hysteresis sweep on dev. Each track runs once per grid row, and what a listener of the main thread
  * would have seen is scored: when the state first locked, how long it stayed locked on a wrong tempo, how often a
  * lock fell back to settling. The readings at fixed audio times are kept as well, for the calibration that follows.
  */
@@ -38,7 +38,7 @@ export const tempogramAxes: Axes = {
 };
 
 /**
- * Peaks keeps its own lock rule (RBA-107), so the lock fields do not reach it and stay at the contract's. Its rows
+ * Peaks keeps its own lock rule, so the lock fields do not reach it and stay at the contract's. Its rows
  * are run through the real session, one at a time, as its `onReadingLost` feeds the tracker back into the engine:
  * so the grid moves one field at a time around the contract's values, which keeps the job to hours.
  */
@@ -113,8 +113,8 @@ export type SweepRow = readonly [number, number, number, number, number, number,
 
 /**
  * A reading shown at a sample time, as [bpm, confidence, raw], or null when the state was listening there. The
- * confidence is the calibrated one the reading carried, null outside the measured tempo range or on a custom range
- * (RBA-147); the raw score is what the calibration maps (RBA-148), so a fit can read it there too
+ * confidence is the calibrated one the reading carried, null outside the measured tempo range or on a custom range;
+ * the raw score is what the calibration maps, so a fit can read it there too
  */
 export type Sample = readonly [number, number | null, number] | null;
 
@@ -127,7 +127,7 @@ export type CompactTrace = {
   readonly now: readonly number[];
   readonly bpm: readonly number[];
   readonly confidence: ReadonlyArray<number | null>;
-  /** Missing in traces written before RBA-148, which `expandTrace` refuses */
+  /** Missing in traces written before the raw score was recorded, which `expandTrace` refuses */
   readonly raw: readonly number[];
   readonly frameTempo: readonly number[];
   readonly flags: readonly number[];
@@ -278,7 +278,7 @@ export function compactTrace(steps: readonly EngineTraceStep[]): CompactTrace {
   return {
     now: steps.map(({now}) => now),
     bpm: steps.map(({bpm}) => bpm ?? 0),
-    // Null stays null: a 0 would read as a calibrated confidence (RBA-147)
+    // Null stays null: a 0 would read as a calibrated confidence
     confidence: steps.map(({bpm, confidence}) => (bpm !== null && confidence === null ? null : rounded(confidence))),
     raw: steps.map(({raw}) => rounded(raw)),
     frameTempo: steps.map(({frameTempo}) => frameTempo),
@@ -361,8 +361,8 @@ function rawOf(bpm: number, confidence: number | null, raw: number | null): numb
 /**
  * The offline reading, with its raw score: the same detection and the same `toReading` as `analyzeSamples` with
  * only the engine named, which a test holds, so the score is the one the reading's confidence maps. A peaks reading
- * found only relative to the input's level (RBA-221) is left out: its confidence is null by design, not by the
- * tables, so it is no sample for fitting them, and leaving it out keeps the fit's input what it was before RBA-221.
+ * found only relative to the input's level is left out: its confidence is null by design, not by the
+ * tables, so it is no sample for fitting them, and leaving it out keeps the fit's input what it was before the level-relative search.
  * @param raw Mono samples, not lowpassed
  * @param sampleRate Their rate
  * @param engine The engine

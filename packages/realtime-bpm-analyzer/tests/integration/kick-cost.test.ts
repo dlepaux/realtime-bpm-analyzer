@@ -7,14 +7,14 @@ const quantum = 128;
 const sampleRate = 48_000;
 
 /**
- * What the kick event costs, in this browser (RBA-243). It replays the same quanta through the library's own
- * processor with the kick detector on and off, as RBA-51's main-thread replay does
+ * What the kick event costs, in this browser. It replays the same quanta through the library's own
+ * processor with the kick detector on and off, as the engine study's main-thread replay does
  * (`benchmark/results/rba-51-browser-cost.md`): `performance.now()` is too coarse inside the worklet. Each mode runs
  * three times, alternating, and the fastest run counts, so a runner's hiccup does not count against either.
  *
  * Logged as `KICK-COST` for the report. The one assertion is loose, so the test measures the code and not the
  * runner: the kick detector may add at most 1% of the real-time budget, that is 10 ms of CPU per second of audio,
- * the whole tempogram's sustained share on CI (RBA-51). That is v6's CPU rule, `benchmark/cpu-rule.md`, where the
+ * the whole tempogram's sustained share on CI. That is v6's CPU rule, `benchmark/cpu-rule.md`, where the
  * measured costs are kept.
  */
 describe('Kick event - CPU cost', function () {

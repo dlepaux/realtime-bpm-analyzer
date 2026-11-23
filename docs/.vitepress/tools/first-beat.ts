@@ -1,9 +1,9 @@
 // The beat grid of the marker export, from the decoded audio: the exact tempo it steps at and the
 // grid's phase (fitTempo), and where it starts, the first beat of that grid (firstBeatOf).
 //
-// This is the RBA-109 phase 0 grid baseline (benchmark/beats_tracker.py `grid_baseline`, PR #332),
-// ported to the site on purpose and not into packages/: it is a demand test (RBA-127), and the
-// library's own beat API is phase 1 of RBA-109. The onset curve below is the library's tempogram
+// This is the beat tracker's grid baseline (benchmark/beats_tracker.py `grid_baseline`, PR #332),
+// ported to the site on purpose and not into packages/: it is a test of whether anyone wants markers, and the
+// library's own beat API would come after it. The onset curve below is the library's tempogram
 // `onsetCurve` (packages/realtime-bpm-analyzer/src/core/tempogram.ts, defaultTempogramTuning) at
 // 100 frames a second, so the baseline is scored on the same curve the benchmark read. If the
 // library's onset stage changes, this copy does not follow it, which is acceptable for a test.
@@ -301,7 +301,7 @@ export async function onsetCurveInSlices(
   return curve
 }
 
-// The exact tempo (RBA-128). A grid at the whole-number 128 on a 127.6 BPM song is half a second
+// The exact tempo. A grid at the whole-number 128 on a 127.6 BPM song is half a second
 // late after 3 minutes, so the grid never steps at Reading.bpm. fitTempo is seeded with
 // Reading.bpmExact, the engine's unrounded estimate, and refines it from the same onset curve:
 // it finds the strong onsets near a grid within 1 BPM of the seed and fits beat number to onset
@@ -467,7 +467,7 @@ export function fitTempo(curve: OnsetCurve, seedBpm: number): GridTempo {
 
 /**
  * The export's line under the download for a grid that is not fitted, or null for a fitted one.
- * Such a grid steps at the exact reading, which is never shown (RBA-128), so the line names the
+ * Such a grid steps at the exact reading, which is never shown, so the line names the
  * whole number people see (`shownBpm`, Reading.bpm) only as the reading it stands for.
  */
 export function fallbackNote(tempo: GridTempo, shownBpm: number): string | null {

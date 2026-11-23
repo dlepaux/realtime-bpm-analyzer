@@ -1,4 +1,4 @@
-// Why the microphone didn't start, as analytics can carry it (RBA-154): a fixed kind and the
+// Why the microphone didn't start, as analytics can carry it: a fixed kind and the
 // browser's error name from a known list, never the message, which is free text.
 // Pure and import-free so `npm test` runs it with node --test.
 

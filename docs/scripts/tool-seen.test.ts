@@ -1,4 +1,4 @@
-// Run with `npm test`. When the BPM tool counts as seen (RBA-298): once per page view, when its
+// Run with `npm test`. When the BPM tool counts as seen: once per page view, when its
 // input area is at least half on screen, and whether that took a scroll. The browser half, a real
 // IntersectionObserver, is in analytics-contract.e2e.ts.
 import { test } from 'node:test'

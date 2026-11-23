@@ -1,5 +1,5 @@
 // Run with `npm test -w docs`. The docs embed every example, and CI builds them through build-examples.ts.
-// Two things the build alone wouldn't catch (RBA-231): an embed that blocks the microphone, which
+// Two things the build alone wouldn't catch: an embed that blocks the microphone, which
 // only shows in docs dev where the examples are on another origin, and an example whose types
 // drift from the library's, which vite strips without checking.
 import { test } from 'node:test'
@@ -43,9 +43,9 @@ test('every example type-checks before vite bundles it', () => {
   }
 })
 
-// The file examples take video too (RBA-231): the browser decodes a video's sound track like any
+// The file examples take video too: the browser decodes a video's sound track like any
 // audio file, as /video-bpm does. The three say it in the same words, so a reader can compare them.
-// The limits are the page's FAQ, plus the iOS .mov failure measured on the site (RBA-219).
+// The limits are the page's FAQ, plus the iOS .mov failure measured on the site.
 const FILE_FORMATS = 'Audio or video files. For a video, its sound track is analyzed: MP4 with AAC sound and WebM usually work, MOV and MKV depend on the browser and the codec inside, and iPhone .mov files don’t decode on iOS. The whole file is read into memory, so for a long video, export the sound or a shorter clip.'
 const DECODE_ERROR = 'This file could not be decoded. Try an MP3, WAV, OGG or FLAC file. For a video, try MP4 or WebM, or export its sound as WAV.'
 // The same limits in the readmes and the docs, in their markdown form.
@@ -102,7 +102,7 @@ test('every example has a dev port, the one its vite config falls back to', () =
 })
 
 // A dev server whose port is taken would move to the next free one, and the embed would then show
-// whatever app holds its port (RBA-238). strictPort makes it fail instead.
+// whatever app holds its port. strictPort makes it fail instead.
 test('every example dev server keeps its port or fails, never moving to another', () => {
   for (const example of EXAMPLES) {
     assert.match(read(`../../examples/${example}/vite.config.ts`), /\n\s+server: \{\n\s+port: [^\n]+\n\s+strictPort: true,\n/, example)

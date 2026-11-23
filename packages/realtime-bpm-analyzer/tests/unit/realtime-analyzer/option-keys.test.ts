@@ -3,7 +3,7 @@ import {assertOptions, optionKeys} from '../../../src/core/engine';
 import {resolveTempoRange, tempoRangeKeys} from '../../../src/core/tempo';
 import type {TempoRange} from '../../../src/contract/types';
 
-// RBA-108's DECISION of 2026-11-16: the top-level options are strict, as `engine` and `lowpass` are. A key outside
+// The top-level options are strict, as `engine` and `lowpass` are. A key outside
 // the function's set throws a TypeError that names it, whatever its value, after the 5.x names' own messages.
 // TempoRange follows the same ruling: it takes min and max only.
 

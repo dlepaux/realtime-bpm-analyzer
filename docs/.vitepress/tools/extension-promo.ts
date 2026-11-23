@@ -1,4 +1,4 @@
-// What the site promotes once the extension has a store listing (RBA-58). Every piece
+// What the site promotes once the extension has a store listing. Every piece
 // is derived from the store URL, null until the listing exists, so one value turns the
 // whole promotion on: the /extension/ page, its nav link, the home page's hero action
 // and section, and the links from the tools. Pure and import-free so `npm test` runs it with node --test.
@@ -54,7 +54,7 @@ export type ExtensionPlacement = (typeof EXTENSION_PLACEMENTS)[number]
 
 /**
  * A store link for one place on the site, so the store's own acquisition report can say which
- * link brought an install (RBA-58). Doors that lead to /extension/ carry nothing through it, so that
+ * link brought an install. Doors that lead to /extension/ carry nothing through it, so that
  * report sees the page, and the site's own click events tell the doors apart. The label names the
  * site and the place, never the visitor.
  * The structured data keeps the plain address: it is what the listing is, not a click.
@@ -148,7 +148,7 @@ export const EXTENSION_HERO_TAGLINE = 'Free BPM detection in your browser, and y
  * The home hero as the switch leaves it. The action to the extension's page is in its
  * door, ExtensionHomeBand.vue, which goes to the page because the page explains Chrome's
  * install prompt before anyone meets it. The page's meta description stays out of this:
- * RBA-11 holds the home page's title and description until its readbacks.
+ * the home page's title and description are held unchanged until their search results are read back.
  */
 export function extensionHomeHero<Hero extends { tagline: string }>(hero: Hero, storeUrl: string | null): Hero {
   if (storeUrl === null) return hero

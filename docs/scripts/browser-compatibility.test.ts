@@ -1,5 +1,5 @@
 // Run with `npm test`. The feature checks that docs/guide/browser-compatibility.md tells readers
-// to copy, run against stand-ins for the three kinds of browser they meet (RBA-247).
+// to copy, run against stand-ins for the three kinds of browser they meet.
 //
 // In a browser with AudioWorklet, `audioWorklet` is an accessor on AudioContext.prototype whose
 // getter needs a real context: reading `AudioContext.prototype.audioWorklet` throws a TypeError

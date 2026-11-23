@@ -34,7 +34,7 @@ describe('session - what the worklet sends', () => {
     });
   }
 
-  // RBA-128. 0.1 BPM is a quarter of the 0.4 BPM that rounding 127.6 to 128 loses, so a field that only partly
+  // 0.1 BPM is a quarter of the 0.4 BPM that rounding 127.6 to 128 loses, so a field that only partly
   // beats rounding fails. On these clicks the tempogram's interpolation is off by up to 0.06 BPM, peaks by under 0.01
   for (const name of ['peaks', 'tempogram'] as const) {
     it(`reports a whole bpm and the exact tempo it measured, for ${name}, on a 127.6 BPM click`, async function () {

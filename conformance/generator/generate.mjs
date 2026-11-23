@@ -32,7 +32,7 @@ const optionSets = [
 
 /**
  * Cases outside the grid of inputs and option sets, at a rate other than their input's or on a range at a bound
- * (RBA-260). The two ranges are the widest each bound takes: max at 2^31 - 1, and a max / min of 1e308, just under the
+ * (the option bounds). The two ranges are the widest each bound takes: max at 2^31 - 1, and a max / min of 1e308, just under the
  * largest finite double.
  */
 const extraCases = [
@@ -53,7 +53,7 @@ const errorCases = [
   ['range-min-zero', 'kick-120-tiny-44k', 44_100, {tempoRange: {min: 0, max: 150}}, 'min and max must be positive.'],
   ['lowpass-at-nyquist', 'kick-120-tiny-44k', 44_100, {engine: {name: 'peaks', lowpass: {frequency: 22_050}}}, 'The cutoff must be below half the sample rate.'],
   ['lowpass-q-above-range', 'kick-120-tiny-44k', 44_100, {engine: {name: 'peaks', lowpass: {q: 771}}}, 'q must be from -758 to 770 dB.'],
-  // RBA-260
+  // At a bound of the sample rate or of the range
   ['sample-rate-1.99-peaks', 'kick-120-tiny-44k', 1.99, {engine: {name: 'peaks', lowpass: {frequency: 0.2}}}, 'The peaks engine needs at least 2 Hz, where its 0.25 s skip after a peak is a whole sample.'],
   ['range-max-above-2147483647', 'kick-120-tiny-44k', 44_100, {tempoRange: {min: 90, max: 2_147_483_648}}, 'max must be at most 2^31 - 1, so a whole BPM fits a signed 32-bit integer.'],
   ['range-max-above-2147483647-peaks', 'kick-120-tiny-44k', 44_100, {engine: 'peaks', tempoRange: {min: 90, max: 2_147_483_648}}, 'max must be at most 2^31 - 1, so a whole BPM fits a signed 32-bit integer.'],
@@ -63,8 +63,8 @@ const errorCases = [
     [`sample-${name}`, `kick-120-${name}-8k`, 8_000, {}, 'Every sample must be a finite number.'],
     [`sample-${name}-peaks`, `kick-120-${name}-8k`, 8_000, {engine: 'peaks'}, 'Every sample must be a finite number.'],
   ]),
-  ['sample-rate-99-tempogram', 'kick-120-tiny-44k', 99, {}, 'Under the tempogram\'s floor of 122.97509238026915 Hz, and under its 100 Hz floor before RBA-261.'],
-  // RBA-261: from 100 Hz up to the floor the tempogram's FFT had 2 points, and it read null whatever the audio
+  ['sample-rate-99-tempogram', 'kick-120-tiny-44k', 99, {}, 'Under the tempogram\'s floor of 122.97509238026915 Hz, and under its 100 Hz floor before 6.3.0.'],
+  // Before 6.3.0, from 100 Hz up to the floor the tempogram's FFT had 2 points, and it read null whatever the audio
   ...[
     ['sample-rate-100-tempogram', {}],
     ['sample-rate-100-tempogram-90-180', {engine: 'tempogram', tempoRange: {min: 90, max: 180}}],

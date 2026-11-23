@@ -27,7 +27,7 @@ function hash53(text: string): string {
 
 /**
  * A cache file stem for a track id. Ids that fit are kept as they are, so existing caches stay valid.
- * RBA-59's ids are archive.org paths and some run past the filesystem's limit (ENAMETOOLONG), so a
+ * The free mixes' ids are archive.org paths and some run past the filesystem's limit (ENAMETOOLONG), so a
  * long one keeps its first 160 bytes, whole characters only, and a hash of the whole id.
  * @param stem The name before its extension
  * @returns A stem of at most 200 bytes, the same for the same id

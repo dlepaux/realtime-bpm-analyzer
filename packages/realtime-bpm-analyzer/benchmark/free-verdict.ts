@@ -1,4 +1,4 @@
-// Applies the pass bar of RBA-51's look at the held-out free mixes to the look's file, and writes only
+// Applies the pass bar of the engine study's look at the held-out free mixes to the look's file, and writes only
 // aggregates: the per-track file stays where the look ran.
 //   free-verdict.mjs <look.json> <verdict.md> <verdict.json>
 // Exits 0 on yes, 1 on no, 2 when the file cannot be judged. See lib/free-look.ts.

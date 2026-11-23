@@ -1,4 +1,4 @@
-// Run with `npm test`. Which route changes are page views (RBA-154).
+// Run with `npm test`. Which route changes are page views.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { pageViewTracker } from '../.vitepress/tools/analytics-pageview.ts'

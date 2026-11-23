@@ -1,4 +1,4 @@
-// Run with `npm test`. The strobe's spectrogram (RBA-237): which analyser bin each row shows, the
+// Run with `npm test`. The strobe's spectrogram: which analyser bin each row shows, the
 // colours it paints, and its cost per frame. It runs beside the light on a phone, so the work each
 // frame does on the main thread has a bound, asserted here on the code the page runs.
 import { test } from 'node:test'

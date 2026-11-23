@@ -16,7 +16,7 @@ const giantstepsCommit = 'd51ab2422e76abacfaa86616a57054bc222ec9fd';
 
 /**
  * Everything the job downloads, in order: labels first, since the GiantSteps audio list is in its
- * label repo. Hosts here are the job's allowlist: keep the job spec on RBA-51 in step. Hashes are
+ * label repo. Hosts here are the job's allowlist: keep the job's own spec in step. Hashes are
  * the publishers' own (Zenodo, Google Cloud Storage's x-goog-hash, Hugging Face's LFS pointer),
  * except ballroom-labels, whose host publishes none, so it is the sha-256 seen on 2026-10-31.
  */

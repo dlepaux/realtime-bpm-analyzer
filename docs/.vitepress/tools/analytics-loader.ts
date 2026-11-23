@@ -1,4 +1,4 @@
-// How Google Analytics reaches the page (RBA-154): gtag.js directly, no tag manager, on the
+// How Google Analytics reaches the page: gtag.js directly, no tag manager, on the
 // production host only. The loader is an inline script the config puts in every page's head,
 // built here so a test can run it against any hostname.
 //

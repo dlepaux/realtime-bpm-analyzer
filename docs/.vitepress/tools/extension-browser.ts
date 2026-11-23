@@ -1,4 +1,4 @@
-// Which browser the visitor is in, and what the install block offers them there (RBA-58). Pure,
+// Which browser the visitor is in, and what the install block offers them there. Pure,
 // so the server render and the tests use the same rules. Read in the page only, never stored or
 // sent: the one thing that leaves is the store name on a click, as before.
 import type { InstallTarget, StoreId } from './extension-promo'
@@ -72,7 +72,7 @@ const LEAD: Partial<Record<VisitorBrowser, StoreId>> = { edge: 'edge' }
 const NOTHING_FILLED: ReadonlySet<VisitorBrowser> = new Set(['firefox', 'safari'])
 
 // Built from the listed browsers, so a build without an Edge listing never names Edge.
-// Safari's line names where to go instead, since the visitor is one tab away from it (RBA-58).
+// Safari's line names where to go instead, since the visitor is one tab away from it.
 const CONTEXT: Partial<Record<VisitorBrowser, (browsers: readonly string[]) => string>> = {
   firefox: () => 'A Firefox version is on its way.',
   safari: (browsers) => `It doesn’t run in Safari. Open this page in ${browsers.join(' or ')}.`,

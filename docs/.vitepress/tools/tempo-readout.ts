@@ -1,4 +1,4 @@
-// The home tool's readout rules (RBA-66). Pure, so the rba-web port can reuse them as they are.
+// The home tool's readout rules. Pure, so another front end can reuse them as they are.
 
 /** Above this tempo the beat dot pulses on every other beat. */
 export const BEAT_DOT_HALF_ABOVE = 170

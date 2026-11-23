@@ -37,10 +37,10 @@ export async function analyzeSamples(
 }
 
 /**
- * Refuses a NaN or infinite sample (RBA-260). A whole buffer comes from a caller who can fix its decoding, and such a
+ * Refuses a NaN or infinite sample. A whole buffer comes from a caller who can fix its decoding, and such a
  * sample is no PCM: through the peaks lowpass it turned every later sample into NaN, so 6.1.0 read only the audio
  * before it, without a word. Realtime audio has no caller to tell, so there the tempogram reads such a sample as no
- * audio instead (RBA-246).
+ * audio instead.
  * @param channelData The samples of one channel
  * @throws {Error} At the first sample that is not a finite number, naming its index
  */

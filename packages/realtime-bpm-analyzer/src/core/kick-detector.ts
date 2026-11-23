@@ -1,4 +1,4 @@
-// The live kick detector (RBA-243). Import-free, so the plain-Node measurement script runs the code the worklet runs.
+// The live kick detector. Import-free, so the plain-Node measurement script runs the code the worklet runs.
 
 /**
  * Called once per kick, with its time on the clock `process` was given, and its strength: its peak in the band over
@@ -80,7 +80,7 @@ export type KickTuning = {
  *   of itself counts, however soft: a bass line, and likely a snare's or a clap's body on the backbeat (unmeasured).
  *   In the band, a quieter track's kicks and a bass line look the same, so a gate that kept
  *   the bass out for longer would keep the quiet kicks out as long. It was a decaying peak before, with a 4 s
- *   half-life, which let kicks back in about 5 s after a 10 dB drop, and about 19 s after 20 dB (RBA-246). A level
+ *   half-life, which let kicks back in about 5 s after a 10 dB drop, and about 19 s after 20 dB. A level
  *   that rises lets every kick through at once, as each is louder than the window's loudest.
  * - `floorDb`: under -60 dB in the band nothing counts: silence, or a mic's hiss.
  * - `refractorySeconds`: after a kick, 80 ms with none, a sixteenth note at 187 BPM: music plays no kicks closer,

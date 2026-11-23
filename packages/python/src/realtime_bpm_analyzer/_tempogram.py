@@ -42,7 +42,7 @@ SMOOTHING_WEIGHTS = (1 / 9, 2 / 9, 3 / 9, 2 / 9, 1 / 9)
 MAX_CANDIDATES = 5
 SHORTEST_RECORDING_SECONDS = 1.5
 # The JS library's tempogramMinSampleRate, which consts.ts derives: the first double at which the FFT below has 4
-# points, so a bin above DC (RBA-261). Under it the FFT has 2, whose bins the onset sums skip, and every reading was
+# points, so a bin above DC. Under it the FFT has 2, whose bins the onset sums skip, and every reading was
 # None. The rate is compared with this double, not through the FFT size, as every port does
 MINIMUM_SAMPLE_RATE = 122.97509238026915
 # Frames transformed at once: bounds the memory a long input takes, about 8 MB at 44.1 kHz
@@ -60,7 +60,7 @@ class _Grid:
 
 def _tempo_grid(tempo_range: TempoRange, frame_rate: float, window_frames: int) -> _Grid:
     ratio = tempo_range.max / tempo_range.min
-    # _tempo_range refuses an overflowing ratio first, as JS's resolveTempoRange does since RBA-260: this keeps the
+    # _tempo_range refuses an overflowing ratio first, as JS's resolveTempoRange does: this keeps the
     # grid's size finite for any caller
     if not math.isfinite(ratio):
         raise OutOfRangeError(f"tempo_range spans too much: max / min ({tempo_range.max} / {tempo_range.min}) overflows")
@@ -108,7 +108,7 @@ def _onset_strengths(samples: NDArray[np.float64], sample_rate: float, hop: int,
         scales: list[float] = []
         for row, total in enumerate(totals.tolist()):
             # A NaN or infinite sample is no audio: no onset, and the state is kept, as the reference keeps it.
-            # analyze_channel_data refuses such samples first (RBA-260); this mirrors the reference's realtime rule
+            # analyze_channel_data refuses such samples first; this mirrors the reference's realtime rule
             if not math.isfinite(total):
                 continue
             loudness = max(math.sqrt(float(peaks[row])), loudness * LOUDNESS_DECAY, MINIMUM_LOUDNESS)
@@ -159,7 +159,7 @@ class _Accumulator:
 
     def _correlation_at(self, lag: float) -> float:
         # Past the buffer the reference reads undefined, which is NaN: a NaN penalty then counts as none. Checked
-        # before the floor, since a tempo near 0 BPM gives an infinite lag, which JS floors and Python can't (RBA-260)
+        # before the floor, since a tempo near 0 BPM gives an infinite lag, which JS floors and Python can't
         if not lag < len(self.autocorrelation) - 1:
             return math.nan
         low = math.floor(lag)

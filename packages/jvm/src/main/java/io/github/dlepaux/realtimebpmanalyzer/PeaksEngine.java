@@ -33,8 +33,8 @@ final class PeaksEngine {
     private static final int MAX_INTERVAL_COMPARISONS = 10;
     private static final int MAX_CANDIDATES = 5;
     /**
-     * The percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks
-     * (RBA-221): JS's levelPercentile.
+     * The percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks:
+     * JS's levelPercentile.
      */
     static final int LEVEL_PERCENTILE = 98;
     /** -70 dBFS: under it the level-relative search reads silence. Written out as JS writes it, the same double. */
@@ -55,7 +55,7 @@ final class PeaksEngine {
         float[] filtered = applyLowpass(samples, sampleRate, lowpass);
         int[] peaks = findPeaks(filtered, sampleRate);
         boolean calibrated = true;
-        // RBA-221: whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no peaks
+        // Whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no peaks
         // in is searched again relative to its level, and the calibration never saw such a reading
         if (peaks.length == 0) {
             peaks = findPeaksRelativeToLevel(filtered, sampleRate);
@@ -66,7 +66,7 @@ final class PeaksEngine {
         return new Detection(topCandidates(tempos), calibrated);
     }
 
-    /** The candidates of one channel, and whether the peaks calibration (RBA-106) covers them. */
+    /** The candidates of one channel, and whether the peaks calibration covers them. */
     static final class Detection {
         final List<Tempo> tempos;
         /** False when the peaks were found only relative to the channel's level: the confidence is then unmeasured. */
@@ -148,7 +148,7 @@ final class PeaksEngine {
         long skip = Math.round(PEAK_SKIP_SECONDS * sampleRate);
         // Each pass of findPeaksAtThreshold moves on by at least one sample only while the skip is one sample or more,
         // which bounds its loop to data.length passes, and no level window is then empty. BpmAnalyzer refuses a rate
-        // under 2 Hz, where it is 0, before this, as the JS library does (RBA-260)
+        // under 2 Hz, where it is 0, before this, as the JS library does
         if (skip < 1) {
             throw new OutOfRangeException("Invalid sample rate: " + sampleRate + ". The peaks engine needs at least "
                 + MIN_SAMPLE_RATE + " Hz, where the skip after a peak is a whole sample.");
@@ -158,7 +158,7 @@ final class PeaksEngine {
     }
 
     /**
-     * The level of a channel's loudest beats, which one click or clipped transient can't set (RBA-221): JS's
+     * The level of a channel's loudest beats, which one click or clipped transient can't set: JS's
      * levelReference. The maxima of its 0.25 s windows, each from 0 so only positive samples count, sorted, and the one
      * at index floor((windows - 1) * 98 / 100), in whole numbers.
      */
@@ -187,7 +187,7 @@ final class PeaksEngine {
 
     /**
      * The fixed ladder run again with every rung scaled by the channel's level, so a quiet or bass-light file is
-     * searched the way a full-scale one is (RBA-221): JS's findPeaksRelativeToLevel. None under the silence floor, or
+     * searched the way a full-scale one is: JS's findPeaksRelativeToLevel. None under the silence floor, or
      * at full scale or above.
      */
     static int[] findPeaksRelativeToLevel(float[] data, double sampleRate) {

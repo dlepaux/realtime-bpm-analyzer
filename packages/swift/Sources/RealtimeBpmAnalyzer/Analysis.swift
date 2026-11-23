@@ -36,7 +36,7 @@ public func analyzeChannelData(_ samples: UnsafeBufferPointer<Float>, sampleRate
         throw AnalysisError.invalidSamples("Invalid channel data: expected a non-empty buffer of samples.")
     }
     // A NaN or infinite sample is no PCM: through the peaks lowpass it turns every later sample into NaN. The caller
-    // can fix its decoding, so it is refused, as the JS library refuses it (RBA-260)
+    // can fix its decoding, so it is refused, as the JS library refuses it
     if let index = samples.firstIndex(where: { !$0.isFinite }) {
         throw AnalysisError.invalidSamples(
             "Invalid channel data: sample \(index) is \(samples[index]), and every sample must be a finite number.")
@@ -49,7 +49,7 @@ public func analyzeChannelData(_ samples: UnsafeBufferPointer<Float>, sampleRate
     var lowpass: Lowpass?
     if case .peaks(let settings) = options.engine {
         try checkLowpass(settings, sampleRate: sampleRate)
-        // Below 2 Hz the 0.25 s skip after a peak rounds to no sample (RBA-260)
+        // Below 2 Hz the 0.25 s skip after a peak rounds to no sample
         guard sampleRate >= Peaks.minimumSampleRate else {
             throw AnalysisError.outOfRange("Invalid sample rate: \(sampleRate). The peaks engine needs at least "
                 + "\(Peaks.minimumSampleRate) Hz, where the skip after a peak is a whole sample.")
@@ -71,7 +71,7 @@ public func analyzeChannelData(_ samples: UnsafeBufferPointer<Float>, sampleRate
     return reading(detection.tempos, audio, .peaks, range, calibrated: detection.calibrated)
 }
 
-/// Folding moves a tempo by octaves, so the range must span one. The JS library's two bounds (RBA-260): a whole BPM
+/// Folding moves a tempo by octaves, so the range must span one. The JS library's two bounds: a whole BPM
 /// fits a signed 32-bit integer, and the tempogram's grid has a finite size, at most 71,333 tempos.
 func checkTempoRange(_ range: TempoRange) throws -> TempoRange {
     let (min, max) = (range.min, range.max)
@@ -134,7 +134,7 @@ private func wholeBpm(_ tempo: Double) -> Int {
 }
 
 /// `calibrated` is false when the calibration never saw readings found the way these were, as for a peaks file read
-/// relative to its own level (RBA-221): the confidence is then nil, unmeasured.
+/// relative to its own level: the confidence is then nil, unmeasured.
 private func reading(_ tempos: [Tempo], _ audio: AudioSpan, _ engine: EngineName, _ range: TempoRange, calibrated: Bool) -> Reading? {
     guard let top = tempos.first else { return nil }
     let bpm = wholeBpm(top.tempo)

@@ -85,7 +85,7 @@ const removedOptions: ReadonlyMap<string, string> = new Map([
  * The top-level options each function takes: `createRealtimeBpmAnalyzer`, then `analyzeFullBuffer` and
  * `analyzeChannelData`. The one list {@link assertOptions} checks, which tests/types/public-surface.ts holds equal to
  * the keys of `AnalyzerOptions` and `OfflineOptions`. Any other key throws a `TypeError` that names it,
- * whatever its value, as `engine` and the lowpass settings do (RBA-108's DECISION of 2026-11-16): refusing a key
+ * whatever its value, as `engine` and the lowpass settings do: refusing a key
  * after 6.1.0 would break callers, while accepting one later would not.
  */
 export const optionKeys = Object.freeze({
@@ -365,7 +365,7 @@ export function createEngine(engine: ResolvedEngine, tempoRange: TempoRange, deb
  * @param engine The engine that measured them
  * @param tempoRange The resolved range the analysis ran on, which decides whether the confidence was measured
  * @param calibrated False when the calibration never saw readings found the way these were, as for a peaks file
- * read relative to its own level (RBA-221): the confidence is then null, unmeasured
+ * read relative to its own level: the confidence is then null, unmeasured
  * @returns The frozen reading, or null when there is no candidate
  */
 export function toReading(tempos: readonly Tempo[], audio: AudioSpan, engine: EngineName, tempoRange: TempoRange, calibrated = true): Reading | null {

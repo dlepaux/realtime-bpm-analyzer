@@ -34,7 +34,7 @@ type Point = readonly [number, number];
  * It bounds two things, and `calibrate` returns null outside either rather than the nearest table's number: the
  * reading's tempo, and the range the analysis ran on. A custom range changes which candidate each engine picks, so
  * even a reading inside 90 to 180 from a 60 to 200 analysis has a score nobody measured. A confidence with no proven
- * meaning would mislead the programs that act on it (RBA-108's DECISIONs of 2026-11-03 and 2026-11-16, RBA-147).
+ * meaning would mislead the programs that act on it.
  *
  * It is a fact about the data, kept apart from the library's default range (`consts.minBpmRange` and
  * `consts.maxBpmRange`), which is a setting: tying them in one constant would let a change of default relabel the
@@ -149,7 +149,7 @@ function read(table: readonly Point[], raw: number): number {
 /**
  * @param tempoRange The resolved range an analysis ran on
  * @returns Whether it is the range the tables were fitted on. Compared by value, so an explicit `{min: 90, max: 180}`
- * is the default range, as RBA-108's DECISION of 2026-11-16 has it
+ * is the default range
  */
 export function isMeasuredTempoRange(tempoRange: TempoRange): boolean {
   return tempoRange.min === MEASURED_TEMPO_RANGE.min && tempoRange.max === MEASURED_TEMPO_RANGE.max;

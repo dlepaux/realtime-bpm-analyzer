@@ -23,8 +23,8 @@ enum Peaks {
     /// Each peak is paired with the next ones up to this many places on, this one excluded.
     static let maxIntervalComparisons = 10
     static let maxCandidates = 5
-    /// The percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks
-    /// (RBA-221): JS's levelPercentile.
+    /// The percentile of the per-window maxima taken as a channel's level when the fixed ladder finds no peaks:
+    /// JS's levelPercentile.
     static let levelPercentile = 98
     /// -70 dBFS: under it the level-relative search reads silence. Written out as JS writes it, the same double.
     static let silenceFloor = 0.00031622776601683794
@@ -35,7 +35,7 @@ enum Peaks {
         let filtered = applyLowpass(samples, sampleRate: sampleRate, lowpass: lowpass)
         var peaks = findPeaks(filtered, sampleRate: sampleRate)
         var calibrated = true
-        // RBA-221: whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no peaks in
+        // Whatever the fixed ladder finds keeps exactly the reading it had. Only a channel it finds no peaks in
         // is searched again relative to its level, and the calibration never saw such a reading
         if peaks.isEmpty {
             peaks = findPeaksRelativeToLevel(filtered, sampleRate: sampleRate)
@@ -107,7 +107,7 @@ enum Peaks {
         return []
     }
 
-    /// The level of a channel's loudest beats, which one click or clipped transient can't set (RBA-221): JS's
+    /// The level of a channel's loudest beats, which one click or clipped transient can't set: JS's
     /// levelReference. The maxima of its 0.25 s windows, each from 0 so only positive samples count, sorted, and the one
     /// at index floor((windows - 1) * 98 / 100), in whole numbers.
     static func levelReference(_ data: [Float], sampleRate: Double) -> Float {
@@ -133,7 +133,7 @@ enum Peaks {
     }
 
     /// The fixed ladder run again with every rung scaled by the channel's level, so a quiet or bass-light file is
-    /// searched the way a full-scale one is (RBA-221): JS's findPeaksRelativeToLevel. None under the silence floor, or
+    /// searched the way a full-scale one is: JS's findPeaksRelativeToLevel. None under the silence floor, or
     /// at full scale or above.
     static func findPeaksRelativeToLevel(_ data: [Float], sampleRate: Double) -> [Int] {
         // Widened to double here, so the floor comparison and every product below are in double, as in JS

@@ -126,7 +126,7 @@ export async function findPeaks({
 }
 
 /**
- * The level of a channel's loudest beats, which one click or clipped transient can't set (RBA-221)
+ * The level of a channel's loudest beats, which one click or clipped transient can't set
  * @param data Lowpassed PCM samples
  * @param audioSampleRate Sample rate in Hz, at least {@link consts.peaksMinSampleRate}
  * @returns The `levelPercentile` of the channel's maxima per `peakSkipDuration` window, 0 for silence
@@ -170,7 +170,7 @@ export function levelReference(data: Float32Array, audioSampleRate: number): num
 
 /**
  * The fixed ladder run again, every rung scaled by the channel's own level, so a quiet or bass-light file is searched
- * the way a full-scale one is (RBA-221)
+ * the way a full-scale one is
  * @param options - AnalyzerFindPeaksOptions
  * @param options.audioSampleRate - Sample rate
  * @param options.channelData - Lowpassed channel data

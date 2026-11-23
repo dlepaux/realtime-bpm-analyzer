@@ -98,7 +98,7 @@ enum Calibration {
     }
 
     /// The chance a reading is right, 0 to 1, or `nil` when its tempo or the analysis's range was never measured.
-    /// Compared by value, so an explicit 90 to 180 is the default range (RBA-108's DECISION of 2026-11-16).
+    /// Compared by value, so an explicit 90 to 180 is the default range.
     static func calibrate(_ engine: EngineName, raw: Double, bpm: Double, range: TempoRange) -> Double? {
         guard range == .default else { return nil }
         // Written so that a bpm that is not a number fails the test and reads as unmeasured

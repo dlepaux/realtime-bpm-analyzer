@@ -208,7 +208,7 @@ different ways:
 - **Arithmetic.** All of it is IEEE 754 double, except the input samples, which are 32-bit floats. The lowpass
   output and the tempogram's onset ring are also stored as 32-bit floats, but, as measured above, a port may keep
   them as doubles. The peaks thresholds (0.9 down to 0.2) are doubles, and the comparison with them is in double.
-- **The peaks level (RBA-221).** When none of the peaks thresholds finds 15 peaks, the engine searches once more,
+- **The peaks level.** When none of the peaks thresholds finds 15 peaks, the engine searches once more,
   with every threshold multiplied by the input's level. Its readings have `confidence` `null`, whatever the range.
   The level is computed on the lowpassed samples:
   1. Cut them into windows of `Math.round(0.25 * sampleRate)` samples, rounded half up: the same count as the skip
@@ -235,7 +235,7 @@ different ways:
   a level whose `0.9 * level` rounds up when stored, and the 32-bit floats either side of the floor. Those floor tests
   also pin the floor's value to one 32-bit step, which the vectors don't: they catch a missing floor, and each port
   checks its constant against `consts.ts`.
-- **The tempogram's floor (RBA-261).** The tempogram refuses a sample rate under `122.97509238026915` Hz with the
+- **The tempogram's floor.** The tempogram refuses a sample rate under `122.97509238026915` Hz with the
   error category `RangeError`. That is the first double at which its FFT has 4 points, `2 ** Math.round(Math.log2(0.023
   * rate))`, so a bin above DC: `consts.ts` derives it. Compare the rate with that double, `rate >= floor`, before the
   FFT size, and not the FFT size itself: a log2 computed as a ratio of logarithms gives 4 points on the two doubles

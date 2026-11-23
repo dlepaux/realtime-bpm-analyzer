@@ -235,7 +235,7 @@ export type Reading = {
    * An explicit `{min: 90, max: 180}` is the default range.
    *
    * Also `null` on the default range for one kind of reading: the offline peaks engine's, when it found the beats only
-   * relative to a quiet or bass-light file's own level, after its fixed thresholds found none (RBA-221). The tables
+   * relative to a quiet or bass-light file's own level, after its fixed thresholds found none. The tables
    * never saw such a reading, and the file may hold no beat at all, since noise whose level after the engine's lowpass
    * filter is above -70 dBFS can read a tempo this way. Every other reading on the default range has a number.
    */
@@ -551,13 +551,13 @@ export type Hysteresis = {
  * checked on held-out data, though the held-out calibration check ran under them. Where each value comes from:
  * - `lockBand` 0.02 and `lockAfterSeconds` 8: the tempogram's 5.x stable rule (`stableTolerance`, `stableSeconds`:
  *   80% of the frames of the last 8 s agree within 2%, besides its lead and salience, which stay engine detail).
- *   The 2% is also the band rba-pro copied by hand to tell stable from settling (`reading.ts`, `STABLE_TOLERANCE`).
+ *   The 2% is also the band the Live BPM Detector extension copied by hand to tell stable from settling.
  *   The peaks engine keeps its own lock rule (10 s of audio, then a fuller threshold rung): its readings
  *   jump by whole BPM, so a band on them was never measured.
  * - `unlockBand` 0.04: the benchmark's ±4% for a correct reading. Leaving a lock while the reading is still within
  *   it would be noise, and twice the lock band keeps the two apart.
  * - `unlockAfterSeconds` 2 and `pulseLostAfterSeconds` 2: new. 5.x dropped a tempogram lock on the first frame
- *   without a pulse, and rba-pro on the first reading outside 2%, so both flapped. Four tempogram frames.
+ *   without a pulse, and the extension on the first reading outside 2%, so both flapped. Four tempogram frames.
  */
 export const HYSTERESIS: Hysteresis = Object.freeze({
   lockBand: 0.02,

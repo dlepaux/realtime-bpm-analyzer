@@ -74,7 +74,7 @@ export class RealTimeBpmProcessor extends AudioWorkletProcessor {
   // Only an analyzer made with `liveInput` reports a clock: from any other, `delivered` is ignored
   liveInput = false;
   silentQuantum = new Float32Array(renderQuantumFrames);
-  // Hears kicks in every quantum of real input, apart from the analysis: the kick event (RBA-243)
+  // Hears kicks in every quantum of real input, apart from the analysis: the kick event
   kickDetector: KickDetector = createKickDetector(sampleRate);
   // Set while the input has no channels (a source that ended or was disconnected): the kicks start over after it
   inputGap = false;

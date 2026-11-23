@@ -19,12 +19,12 @@ export const thresholdStep = 0.05;
 export const maxKeptPeaks = 256;
 /**
  * The percentile of a channel's per-window maxima that the peaks file path takes as the level of its loudest beats,
- * when its fixed ladder finds no tempo (RBA-221)
+ * when its fixed ladder finds no tempo
  * @remarks
  * A window is {@link peakSkipDuration} long, the span one peak occupies. The maximum sorted at index
  * `Math.floor((n - 1) * 98 / 100)` of the `n` windows is the level: whole-number arithmetic, so every port picks the
  * same window. At 98 the loudest window never sets the level on a file of two windows or more, and on a 3-minute
- * file the loudest 15 don't, so one click or clipped transient can't. On RBA-218's generated sources every quiet or
+ * file the loudest 15 don't, so one click or clipped transient can't. On the generated test sources every quiet or
  * high-passed variant reads its tempo with any percentile from 97 to 100, while 95 and under read a high-passed full
  * mix at 114 instead of 96, because the ladder then starts under its beats.
  */
@@ -33,8 +33,8 @@ export const levelPercentile = 98;
  * The level, as a sample value, under which the peaks file path's level-relative search reads a channel as silence:
  * -70 dBFS, `10 ** (-70 / 20)`, written out so every port compares with the same double
  * @remarks
- * Under it the scaled ladder would count dither and noise as beats. It is 13 dB under the quietest variant RBA-218
- * built with a clear beat (a click at -24 dB through a 300 Hz highpass, -56.7 dBFS after the lowpass), and well above
+ * Under it the scaled ladder would count dither and noise as beats. It is 13 dB under the quietest generated variant
+ * with a clear beat (a click at -24 dB through a 300 Hz highpass, -56.7 dBFS after the lowpass), and well above
  * a 16-bit file's quantisation noise after the lowpass.
  */
 export const silenceFloor = 0.00031622776601683794;
@@ -60,7 +60,7 @@ export const maxBpmRange = 180;
 
 /**
  * The largest `tempoRange.max`, in BPM: 2^31 - 1, so that a reading's whole BPM fits a signed 32-bit integer, the
- * `int` the JVM port and other typed ports return it in (RBA-260). No music comes near it.
+ * `int` the JVM port and other typed ports return it in. No music comes near it.
  */
 export const maxTempoRangeBpm = (2 ** 31) - 1;
 
@@ -75,12 +75,12 @@ export const peakSkipDuration = 0.25;
 /**
  * The lowest sample rate, in Hz, the peaks engine runs at: the lowest at which {@link peakSkipDuration} rounds to at
  * least one sample (`Math.round(0.25 * 2)` is 1). Under it the skip after a peak is no sample, and 6.1.0's peak
- * search found the same peak forever (RBA-260).
+ * search found the same peak forever.
  */
 export const peaksMinSampleRate = 2;
 
 /**
- * The lowest sample rate, in Hz, the tempogram runs at: the first at which its FFT has a bin above DC (RBA-261).
+ * The lowest sample rate, in Hz, the tempogram runs at: the first at which its FFT has a bin above DC.
  * @remarks
  * The onset stage's FFT has `2 ** Math.round(Math.log2(0.023 * rate))` points, the power of two nearest 23 ms. At 2
  * points its bins are DC and Nyquist, which the onset sums skip, so every onset strength is 0 and 6.1 and 6.2 read null

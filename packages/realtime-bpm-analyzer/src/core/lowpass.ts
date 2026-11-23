@@ -27,8 +27,7 @@ const unknownSetting = 'is unknown: the settings are frequency and q';
  * inward to whole decibels. Below 20·log10(2^-126) ≈ -758.6 dB, float32's smallest normal number, Chrome's lowpass
  * renders NaN from the first sample; above 20·log10(float32's largest value, ≈ 3.4e38) ≈ 770.6 dB the term
  * overflows. Node's float64 math would take far more, so the bound keeps both paths alike. Widening it later is not
- * a breaking change, while narrowing it would be. RBA-108's DECISION of 2026-11-15 (16:26Z) sets it, on the
- * measurements in RBA-228's READY 48826a7.
+ * a breaking change, while narrowing it would be.
  */
 const qMin = -758;
 const qMax = 770;

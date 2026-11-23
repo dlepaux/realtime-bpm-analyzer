@@ -80,7 +80,7 @@ namespace RealtimeBpmAnalyzer
 
         /// <summary>
         /// A NaN or infinite sample is no PCM, and through the peaks lowpass it would turn every later sample into
-        /// NaN. The caller can fix its decoding, so it is refused, as the JS library refuses it (RBA-260).
+        /// NaN. The caller can fix its decoding, so it is refused, as the JS library refuses it.
         /// </summary>
         private static void RequireFiniteSamples(float[] samples)
         {
@@ -117,7 +117,7 @@ namespace RealtimeBpmAnalyzer
 
         /// <summary>
         /// The reading of the top candidate. <c>calibrated</c> is false when the calibration never saw readings found
-        /// the way these were, as for a peaks file read relative to its own level (RBA-221): the confidence is then
+        /// the way these were, as for a peaks file read relative to its own level: the confidence is then
         /// null, unmeasured.
         /// </summary>
         private static Reading? ToReading(List<Tempo> tempos, double audioTo, EngineName engine, TempoRange range, bool calibrated)

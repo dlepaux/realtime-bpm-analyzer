@@ -66,7 +66,7 @@ def _as_channel(samples: Samples) -> NDArray[np.float32]:
     with np.errstate(over="ignore"):
         channel = channel.astype(np.float32)
     # A NaN or infinite sample is no PCM: through the peaks lowpass it turns every later sample into NaN. The caller
-    # can fix its decoding, so it is refused, as the JS library refuses it (RBA-260)
+    # can fix its decoding, so it is refused, as the JS library refuses it
     not_finite = np.flatnonzero(~np.isfinite(channel))
     if not_finite.size > 0:
         index = int(not_finite[0])
@@ -95,7 +95,7 @@ def _tempo_range(tempo_range: TempoRange | None) -> TempoRange:
         raise OutOfRangeError(f"tempo_range min and max must be positive finite numbers (got min={low}, max={high})")
     if high < low * 2:
         raise OutOfRangeError(f"tempo_range max ({high}) must be at least twice min ({low})")
-    # The JS library's two bounds (RBA-260): a whole BPM fits a signed 32-bit integer, and the tempogram's grid has a
+    # The JS library's two bounds: a whole BPM fits a signed 32-bit integer, and the tempogram's grid has a
     # finite size, at most 71,333 tempos for any finite max / min
     if high > MAXIMUM_TEMPO_RANGE_BPM:
         raise OutOfRangeError(f"tempo_range max ({high}) must be at most {MAXIMUM_TEMPO_RANGE_BPM} BPM")
@@ -146,7 +146,7 @@ def _relation_to(top: int, bpm: int) -> CandidateRelation:
 def _to_reading(
     tempos: list[Tempo], audio: AudioSpan, engine: EngineName, tempo_range: TempoRange, calibrated: bool
 ) -> Reading | None:
-    """The reading, its confidence None when `calibrated` is False: a peaks file read relative to its level (RBA-221)."""
+    """The reading, its confidence None when `calibrated` is False: a peaks file read relative to its level."""
     if not tempos:
         return None
     top = tempos[0]
@@ -206,7 +206,7 @@ def analyze_channel_data(
         if engine != "peaks":
             raise OutOfRangeError("Only the peaks engine takes a lowpass")
         _lowpass(lowpass, rate)
-    # Below 2 Hz the peak search's skip rounds to 0, and the JS library refuses the rate too (RBA-260)
+    # Below 2 Hz the peak search's skip rounds to 0, and the JS library refuses the rate too
     if engine == "peaks" and not rate >= PEAKS_MINIMUM_SAMPLE_RATE:
         raise OutOfRangeError(f"Invalid sample rate: {rate}. The peaks engine needs at least {PEAKS_MINIMUM_SAMPLE_RATE} Hz.")
     resolved_range = _tempo_range(tempo_range)
@@ -220,7 +220,7 @@ def analyze_channel_data(
         frequency = q = math.nan
     else:
         frequency, q = _lowpass(lowpass, rate)
-    # The samples are finite by now. NumPy's invalid and overflow warnings stay off, as before RBA-260: JS's arithmetic
+    # The samples are finite by now. NumPy's invalid and overflow warnings stay off: JS's arithmetic
     # has no such warnings, and the engines follow it
     with np.errstate(invalid="ignore", over="ignore"):
         if engine == "tempogram":

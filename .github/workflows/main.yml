@@ -1190,6 +1190,11 @@ jobs:
           for attempt in $(seq 1 30); do curl -sf http://localhost:4173/ > /dev/null && break; sleep 1; done
           CONTRACT_BASE_URL=http://localhost:4173 npm run test:analytics-contract -w docs
 
+      # The blocked microphone's help and the phone's pasted-link line (RBA-299, RBA-300), with the
+      # mic denied through Chrome's own permission control. Same preview, same aborted Google hosts.
+      - name: Check the blocked-mic help
+        run: MIC_E2E_BASE_URL=http://localhost:4173 npm run test:mic-denied -w docs
+
       # Checks this build against the committed EXTENSION_STORE_URL, then builds the site
       # in the other state and checks that too. Before and after the switch is
       # flipped, both states stay proven. The pages artifact below is this first build.

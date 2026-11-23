@@ -18,6 +18,7 @@ import { useMicGuard } from '../composables/useMicGuard'
 import { MIC_LISTENING_LINE, MIC_STOPPED_LINE, micStatusLine, type MicPhase } from '../tools/mic-guard'
 import { fileExtensionParam } from '../tools/analytics-params'
 import { classifyMicError } from '../tools/mic-error'
+import { MIC_ALLOW_STEPS, MIC_BLOCKED_LINE, PHONE_LINK_LINE, isPhone, micHelpBrowser } from '../tools/mic-denied-help'
 import { toolPageOf, watchToolSeen } from '../tools/tool-seen'
 import { decodeAndClose, openAnalysis } from '../tools/audio-setup'
 import {
@@ -112,6 +113,10 @@ const micStatus = ref<Status>('idle')
 const micLiveBpm = ref<number | null>(null)
 const micStableBpm = ref<number | null>(null)
 const micError = ref<string | null>(null)
+// A blocked mic gets its own panel: how to allow it again in this browser, and the two inputs
+// that need no mic (RBA-299). Read from the user agent once mounted, never sent.
+const micDenied = ref(false)
+const micAllowSteps = ref(MIC_ALLOW_STEPS.other)
 // `shallowRef` for audio graph nodes — Vue shouldn't deep-track them (they're
 // not reactive targets) and we want consistent `.value = null` semantics.
 const micContext = shallowRef<AudioContext | null>(null)
@@ -157,6 +162,8 @@ const streamTabCapture = shallowRef<MediaStream | null>(null)
 const tabSharingEnded = ref(false)
 // Decided on mount, not during SSR, because it reads `navigator`.
 const tabAudioSupported = ref(false)
+// A phone has no tab to share, so a pasted link can only reach the mic (RBA-300).
+const onPhone = ref(false)
 
 // A YouTube, Spotify… link can never play here: those sites stream through their
 // own player and send no CORS headers. Detect it as the user pastes, before any request.
@@ -192,6 +199,7 @@ function setMode(next: Mode) {
       micStatus.value = 'idle'
       micLiveBpm.value = null
       micError.value = null
+      micDenied.value = false
     }
   }
   if (mode.value === 'stream') {
@@ -436,6 +444,7 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic
   const clickedAt = performance.now()
 
   micError.value = null
+  micDenied.value = false
   micLiveBpm.value = null
   micStableBpm.value = null
   micResultKept.value = false
@@ -515,8 +524,9 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic
     if (gen !== generation) return // invalidated during setup — bail quietly
     const reason = error instanceof Error ? error.message : 'unknown'
     const micFailure = classifyMicError(error)
-    micError.value = micFailure.error_kind === 'denied'
-      ? 'Microphone access denied. Enable it in your browser settings and try again.'
+    micDenied.value = micFailure.error_kind === 'denied'
+    micError.value = micDenied.value
+      ? MIC_BLOCKED_LINE
       : 'Couldn’t start the microphone. Check your device and try again.'
     micStatus.value = 'error'
     track('bpm_mic_error', { reason, ...micFailure })
@@ -596,6 +606,7 @@ function stopMic() {
   micLiveBpm.value = null
   micStableBpm.value = null
   micError.value = null
+  micDenied.value = false
 }
 
 // The tap on Resume is the gesture iOS wants before audio runs again. A mic track that ended
@@ -617,6 +628,14 @@ watch([micStatus, micPaused], () => {
     if (!root.contains(document.activeElement)) micStopButton.value?.focus()
   })
 })
+
+// The blocked panel's way out that needs no mic. The picker opens in the same click, once the
+// file mode's input is on screen; a file result already there is simply shown.
+async function chooseFileInstead() {
+  setMode('file')
+  await nextTick()
+  openFilePicker()
+}
 
 function onTapAlongOffer() {
   track('bpm_tool_link_clicked', { mode: 'mic→tap-tempo', result_source: 'mic', tool: 'tap-tempo' })
@@ -934,6 +953,8 @@ onMounted(() => {
   const page = toolPageOf(window.location.pathname)
   if (toolBody.value) stopSeenWatch = watchToolSeen(toolBody.value, (seenOn) => track('bpm_tool_seen', { page, seen_on: seenOn }))
   tabAudioSupported.value = supportsTabAudio(navigator as NavigatorLike)
+  onPhone.value = isPhone(navigator.userAgent)
+  micAllowSteps.value = MIC_ALLOW_STEPS[micHelpBrowser({ userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints })]
   if (keepsTracks.value) {
     crateStored.value = browserStore() !== null
     crateRows.value = parseCrate(readItem(browserStore(), CRATE_STORAGE_KEY))
@@ -1260,6 +1281,12 @@ function formatDuration(seconds: number): string {
             <div class="bpm-error-msg">
               {{ micError }}
             </div>
+            <div
+              v-if="micDenied"
+              class="bpm-mic-steps"
+            >
+              {{ micAllowSteps }}
+            </div>
             <button
               type="button"
               class="bpm-restart-btn"
@@ -1267,6 +1294,21 @@ function formatDuration(seconds: number): string {
             >
               Try again
             </button>
+            <div
+              v-if="micDenied"
+              class="bpm-stream-hint"
+            >
+              Or skip the microphone: <button
+                type="button"
+                class="bpm-text-btn"
+                @click="chooseFileInstead"
+              >
+                choose a file
+              </button>, or <a
+                class="bpm-text-btn"
+                href="/tap-tempo"
+              >tap the tempo</a>.
+            </div>
           </div>
         </template>
       </div>
@@ -1348,7 +1390,22 @@ function formatDuration(seconds: number): string {
                 />
                 <span>Play it next to your mic</span>
               </button>
-              <div class="bpm-stream-hint">
+              <div
+                v-if="onPhone"
+                class="bpm-stream-hint"
+              >
+                {{ PHONE_LINK_LINE }} Or <button
+                  type="button"
+                  class="bpm-text-btn"
+                  @click="chooseFileInstead"
+                >
+                  choose a file
+                </button> instead.
+              </div>
+              <div
+                v-else
+                class="bpm-stream-hint"
+              >
                 Play the track out loud on any device and hold it near this one.
               </div>
             </template>
@@ -1713,6 +1770,14 @@ function formatDuration(seconds: number): string {
 .bpm-state-error .bpm-error-msg {
   font-size: 0.9375rem;
   color: var(--vp-c-danger-1);
+}
+
+/* The way back to the mic, under the blocked line: instructions, not an error, so neutral text. */
+.bpm-mic-steps {
+  max-width: 34rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-1);
 }
 
 /* ── Mic ── */

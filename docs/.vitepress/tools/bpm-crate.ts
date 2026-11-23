@@ -84,15 +84,24 @@ export function serializeCrate(rows: readonly CrateRow[]): string {
   return JSON.stringify(rows.slice(0, CRATE_MAX_ROWS))
 }
 
+/** A name too long to keep is cut, never refused: the file was read, so it belongs in the list. */
+function fitName(name: string): string {
+  if (name.length <= MAX_NAME_LENGTH) return name
+  const cut = name.slice(0, MAX_NAME_LENGTH - 1)
+  // Never end on half of a character outside the BMP (an emoji, say).
+  return `${/[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut}…`
+}
+
 /**
  * Adds a result at the top. The same file analysed again replaces its row, so re-dropping a
  * folder doesn't double it. The oldest rows fall off past the cap, which the copy states.
  */
 export function addToCrate(rows: readonly CrateRow[], entry: CrateRow): CrateRow[] {
-  if (!isRow(entry)) return [...rows]
-  const key = rowKey(entry)
+  const fitted = { ...entry, name: fitName(entry.name) }
+  if (!isRow(fitted)) return [...rows]
+  const key = rowKey(fitted)
   const others = rows.filter(row => rowKey(row) !== key)
-  return [cleanRow(entry), ...others].slice(0, CRATE_MAX_ROWS)
+  return [cleanRow(fitted), ...others].slice(0, CRATE_MAX_ROWS)
 }
 
 export function removeFromCrate(rows: readonly CrateRow[], key: string): CrateRow[] {
@@ -172,12 +181,13 @@ export function crateRowBucket(count: number): CrateRowBucket {
 
 // A spreadsheet runs a cell starting with = + - @ (or a tab or return) as a formula, and a file
 // name is visitor input, so such a cell gets a leading quote.
-function csvCell(value: string): string {
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
-  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
-}
+const defuseFormula = (value: string): string => (/^[=+\-@\t\r]/.test(value) ? `'${value}` : value)
 
-/** RFC 4180: CRLF line ends, quotes doubled inside quoted cells. */
+// Always quoted: an Excel set to a semicolon list separator (French, German) splits an unquoted
+// `a;=1+1` at the semicolon, and the leading-character guard never sees the formula after it.
+const csvCell = (value: string): string => `"${defuseFormula(value).replace(/"/g, '""')}"`
+
+/** RFC 4180: CRLF line ends, every name quoted, quotes doubled inside. */
 export function crateToCsv(rows: readonly CrateRow[]): string {
   const lines = rows.map(row => `${csvCell(row.name)},${row.bpm},${Math.round(row.durationS)}`)
   return ['File,BPM,Duration (s)', ...lines].join('\r\n') + '\r\n'
@@ -185,5 +195,5 @@ export function crateToCsv(rows: readonly CrateRow[]): string {
 
 /** Tab-separated, so a paste lands in two columns in a spreadsheet, and reads as a list anywhere else. */
 export function crateToText(rows: readonly CrateRow[]): string {
-  return rows.map(row => `${row.name.replace(/[\t\r\n]+/g, ' ')}\t${row.bpm}`).join('\n')
+  return rows.map(row => `${defuseFormula(row.name.replace(/[\t\r\n]+/g, ' '))}\t${row.bpm}`).join('\n')
 }

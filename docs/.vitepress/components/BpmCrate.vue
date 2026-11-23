@@ -2,7 +2,7 @@
 // "Your tracks" (RBA-277): the file results kept in this browser. The rows come from the
 // parent, which owns them and their storage; this shows, sorts, filters and exports them, and
 // remembers how the visitor last sorted and filtered.
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import {
   CRATE_MAX_ROWS,
   CRATE_VIEW_STORAGE_KEY,
@@ -27,8 +27,10 @@ const props = defineProps<{
   progress: string | null
   /** Names of the files of the last batch that gave no reading. */
   failures: readonly string[]
-  /** Files left out of the last batch past its cap, 0 when none. */
+  /** Files left out of the last batch (past its cap, or when the visitor left), 0 when none. */
   skipped: number
+  /** False when this browser refused to keep the list: it then lasts for this visit only. */
+  stored: boolean
 }>()
 const emit = defineEmits<{ remove: [key: string], clear: [], dismissFailures: [] }>()
 
@@ -36,9 +38,10 @@ const emit = defineEmits<{ remove: [key: string], clear: [], dismissFailures: []
 const COLLAPSED_ROWS = 5
 
 const sort = ref<CrateSort>('recent')
-// The fields' text as typed; the bounds are read from it, so an empty or half-typed field is no limit.
-const lowText = ref('')
-const highText = ref('')
+// The fields' values as typed (Vue hands a number field's value over as a number); the bounds are
+// read from them, so an empty or half-typed field is no limit.
+const lowText = ref<string | number>('')
+const highText = ref<string | number>('')
 const expanded = ref(false)
 const copyState = ref<'idle' | 'copied' | 'failed'>('idle')
 
@@ -53,6 +56,7 @@ const shown = computed(() => {
 const visible = computed(() => (expanded.value ? shown.value : shown.value.slice(0, COLLAPSED_ROWS)))
 const countLine = computed(() => {
   const total = props.rows.length
+  if (total === 0) return ''
   if (ranged.value) return `${shown.value.length} of ${total} shown`
   return total === 1 ? '1 track' : `${total} tracks`
 })
@@ -94,12 +98,27 @@ async function copyList() {
   copyTimer = setTimeout(() => { copyState.value = 'idle' }, 2000)
 }
 
+// The whole list, whatever the range: the note sells the CSV as the copy that lasts, and a range
+// remembered from an earlier visit would silently leave tracks out of it.
 function downloadCsv() {
-  const url = URL.createObjectURL(new Blob([crateToCsv(shown.value)], { type: 'text/csv;charset=utf-8' }))
+  const url = URL.createObjectURL(new Blob([crateToCsv(sortCrate(props.rows, sort.value))], { type: 'text/csv;charset=utf-8' }))
   const link = Object.assign(document.createElement('a'), { href: url, download: 'your-tracks-bpm.csv' })
   link.click()
   // Revoked on the next turn: some browsers start the download only after the click handler returns.
   setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+// Removing a row removes the focused button: focus moves to the row that takes its place, or the
+// one before it, or the list itself once it is empty.
+const listEl = ref<HTMLOListElement | null>(null)
+const sectionEl = ref<HTMLElement | null>(null)
+function removeRow(row: CrateRow, index: number) {
+  emit('remove', rowKey(row))
+  void nextTick(() => {
+    const buttons = listEl.value?.querySelectorAll<HTMLButtonElement>('.crate-remove') ?? []
+    const next = buttons[Math.min(index, buttons.length - 1)] ?? sectionEl.value
+    next?.focus()
+  })
 }
 
 function confirmClear() {
@@ -110,6 +129,7 @@ function confirmClear() {
 <template>
   <section
     id="your-tracks"
+    ref="sectionEl"
     class="crate"
     aria-labelledby="your-tracks-title"
     tabindex="-1"
@@ -121,23 +141,31 @@ function confirmClear() {
       >
         Your tracks <span class="crate-count">{{ countLine }}</span>
       </h3>
-      <p class="crate-note">
+      <p
+        v-if="stored"
+        class="crate-note"
+      >
         Kept in this browser only, never uploaded, up to {{ CRATE_MAX_ROWS }} tracks.
         Clearing your browser data erases it: download the CSV to keep a copy.
+      </p>
+      <p
+        v-else
+        class="crate-note"
+      >
+        This browser refuses to keep the list, so it lasts until you leave the page: download the CSV to keep a copy.
+        Never uploaded.
       </p>
     </header>
 
     <p
       v-if="progress"
       class="crate-progress"
-      role="status"
     >
       {{ progress }}
     </p>
     <div
       v-if="failures.length > 0 || skipped > 0"
       class="crate-failures"
-      role="status"
     >
       <p v-if="failures.length > 0">
         No reading for {{ failures.length === 1 ? 'this file' : `these ${failures.length} files` }}:
@@ -211,10 +239,11 @@ function confirmClear() {
 
     <ol
       v-if="rows.length > 0"
+      ref="listEl"
       class="crate-list"
     >
       <li
-        v-for="row in visible"
+        v-for="(row, index) in visible"
         :key="rowKey(row)"
         class="crate-row"
       >
@@ -235,7 +264,7 @@ function confirmClear() {
           type="button"
           class="crate-remove"
           :aria-label="`Remove ${row.name}`"
-          @click="emit('remove', rowKey(row))"
+          @click="removeRow(row, index)"
         >
           ×
         </button>
@@ -267,12 +296,11 @@ function confirmClear() {
         :disabled="shown.length === 0"
         @click="copyList"
       >
-        {{ copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy list' }}
+        {{ copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : ranged ? `Copy ${shown.length} shown` : 'Copy list' }}
       </button>
       <button
         type="button"
         class="crate-btn"
-        :disabled="shown.length === 0"
         @click="downloadCsv"
       >
         Download CSV

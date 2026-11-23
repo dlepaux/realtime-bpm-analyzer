@@ -122,11 +122,30 @@ test('the list size goes to analytics in buckets only', () => {
   assert.deepEqual([1, 2, 5, 6, 20, 21, 100, 101, 500].map(crateRowBucket), ['1', '2-5', '2-5', '6-20', '6-20', '21-100', '21-100', '101+', '101+'])
 })
 
-test('crateToCsv quotes, and defuses names a spreadsheet would run as formulas', () => {
-  const csv = crateToCsv([row('Artist, "Live".mp3', 124), row('=HYPERLINK("x").mp3', 90)])
-  assert.equal(csv, 'File,BPM,Duration (s)\r\n"Artist, ""Live"".mp3",124,200\r\n"\'=HYPERLINK(""x"").mp3",90,200\r\n')
+test('crateToCsv quotes every name, and defuses names a spreadsheet would run as formulas', () => {
+  const csv = crateToCsv([row('Artist, "Live".mp3', 124), row('=HYPERLINK("x").mp3', 90), row('a;=1+1;.mp3', 100)])
+  assert.equal(csv, [
+    'File,BPM,Duration (s)',
+    '"Artist, ""Live"".mp3",124,200',
+    '"\'=HYPERLINK(""x"").mp3",90,200',
+    // Quoted, so an Excel splitting on semicolons keeps it one cell and never runs =1+1.
+    '"a;=1+1;.mp3",100,200',
+    '',
+  ].join('\r\n'))
 })
 
 test('crateToText is one tab-separated line per track, whatever the name holds', () => {
   assert.equal(crateToText([row('a.mp3', 124), row('b\tc.mp3', 90)]), 'a.mp3\t124\nb c.mp3\t90')
+  // Pasted into a spreadsheet, a leading = would run.
+  assert.equal(crateToText([row('=cmd.mp3', 120)]), "'=cmd.mp3\t120")
+})
+
+test('a name too long to keep is cut, not refused, and never mid-character', () => {
+  const kept = addToCrate([], row(`${'x'.repeat(300)}.mp3`, 120))
+  assert.equal(kept.length, 1)
+  assert.equal(kept[0]?.name.length, 200)
+  assert.ok(kept[0]?.name.endsWith('…'))
+  const emoji = addToCrate([], row(`${'x'.repeat(198)}🎵🎵.mp3`, 120))[0]?.name ?? ''
+  assert.ok(!/[\uD800-\uDBFF]…$/.test(emoji))
+  assert.equal(parseCrate(serializeCrate(kept)).length, 1)
 })

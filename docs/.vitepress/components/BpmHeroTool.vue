@@ -42,6 +42,7 @@ import BpmSourceSwitch from './BpmSourceSwitch.vue'
 import BpmCrate from './BpmCrate.vue'
 import { CRATE_STORAGE_KEY, addToCrate, crateRowBucket, parseCrate, removeFromCrate, serializeCrate, type CrateRow } from '../tools/bpm-crate'
 import { browserStore, readItem, writeItem } from '../tools/local-store'
+import { batchProgressLabel, listsFailures, planBatch } from '../tools/file-batch'
 import { STORE_URL } from '../tools/extension-live'
 import { EXTENSION_PAGE, extensionCovers } from '../tools/extension-promo'
 
@@ -208,19 +209,29 @@ function openFilePicker() {
 // page's result is a marker export, not a track list, so it keeps nothing.
 const keepsTracks = computed(() => props.variant === 'audio')
 const crateRows = shallowRef<CrateRow[]>([])
+// False once this browser refused to keep the list (blocked storage, quota): the list then says
+// it lasts for this visit only, and every change works on the copy in memory.
+const crateStored = ref(true)
 const batchProgress = ref<string | null>(null)
 const batchFailures = shallowRef<string[]>([])
 const batchSkipped = ref(0)
-/** Files per batch: a folder of 300 would hold the tab for an hour. The copy says how many were left out. */
-const MAX_FILES_PER_BATCH = 50
-const fileQueue: { file: File; inputMethod: 'drop' | 'browse' }[] = []
-let batchDone = 0
 let batchRunning = false
+const chooseFileButton = ref<HTMLButtonElement | null>(null)
 
-function saveCrate(rows: CrateRow[]) {
-  crateRows.value = rows
-  // Refused (private mode, quota): the list still lives for this visit.
-  writeItem(browserStore(), CRATE_STORAGE_KEY, serializeCrate(rows))
+// Read, change, write: another tab, or this page's previous instance finishing a file after a
+// navigation, may have written since this one read the list, and writing this instance's copy
+// over theirs would drop their tracks without a word.
+function updateCrate(change: (rows: readonly CrateRow[]) => CrateRow[]) {
+  const store = browserStore()
+  const current = store && crateStored.value ? parseCrate(readItem(store, CRATE_STORAGE_KEY)) : crateRows.value
+  const next = change(current)
+  crateRows.value = next
+  crateStored.value = writeItem(store, CRATE_STORAGE_KEY, serializeCrate(next))
+}
+
+// Another tab added, removed or cleared tracks: show its list. A null key is a clear of all storage.
+function onCrateStorage(event: StorageEvent) {
+  if (event.key === CRATE_STORAGE_KEY || event.key === null) crateRows.value = parseCrate(event.newValue)
 }
 
 function clearBatchReport() {
@@ -228,34 +239,55 @@ function clearBatchReport() {
   batchSkipped.value = 0
 }
 
-// One file after another, never in parallel: each decode holds a whole track in memory. Files
-// dropped while a batch runs join it, so the count and the cap cover the whole run.
+// One file after another, never in parallel: each decode holds a whole track in memory. The drop
+// zone and the picker exist only while the tool is idle, so a batch never overlaps another.
+// Leaving file mode or the page invalidates the batch: the file being read finishes, as a lone file
+// always did, and the rest are counted as left out rather than decoded behind the mic.
 async function analyseFiles(files: readonly File[], inputMethod: 'drop' | 'browse') {
-  if (files.length === 0) return
-  if (!batchRunning) {
-    batchDone = 0
-    clearBatchReport()
-  }
-  const room = Math.max(0, MAX_FILES_PER_BATCH - batchDone - fileQueue.length)
-  fileQueue.push(...files.slice(0, room).map(file => ({ file, inputMethod })))
-  batchSkipped.value += Math.max(0, files.length - room)
-  if (batchRunning) return
+  if (files.length === 0 || batchRunning) return
+  const { take, skipped } = planBatch(files)
+  clearBatchReport()
+  batchSkipped.value = skipped
   batchRunning = true
+  const gen = generation
+  let readCount = 0
   try {
-    while (fileQueue.length > 0) {
-      const next = fileQueue.shift()
-      if (!next) break
-      const total = batchDone + fileQueue.length + 1
-      batchProgress.value = total > 1 ? `Analysing ${batchDone + 1} of ${total}` : null
-      const read = await analyseFile(next.file, next.inputMethod)
-      // A lone file's failure shows in the tool itself; a batch's are listed by name.
-      if (!read && total > 1) batchFailures.value = [...batchFailures.value, next.file.name]
-      batchDone++
+    for (const [index, file] of take.entries()) {
+      if (gen !== generation) {
+        batchSkipped.value += take.length - index
+        break
+      }
+      batchProgress.value = batchProgressLabel(index, take.length)
+      const read = await analyseFile(file, inputMethod)
+      if (read) readCount++
+      else if (listsFailures(take.length)) batchFailures.value = [...batchFailures.value, file.name]
     }
   } finally {
     batchRunning = false
     batchProgress.value = null
   }
+  // One line for the whole batch, once it ends: the list's own text appears with it, too late
+  // for a screen reader to notice.
+  if (listsFailures(take.length) && gen === generation) announce(`${readCount} of ${take.length} files read`)
+}
+
+// Clearing the list or dismissing the report can remove the element that had focus: hand it to
+// the list if it is still there, else to the way in to the tool.
+function focusAfterCrateChange() {
+  void nextTick(() => {
+    const target = document.getElementById('your-tracks') ?? chooseFileButton.value ?? toolRoot.value?.querySelector('button')
+    target?.focus()
+  })
+}
+
+function clearCrate() {
+  updateCrate(() => [])
+  focusAfterCrateChange()
+}
+
+function dismissBatchReport() {
+  clearBatchReport()
+  focusAfterCrateChange()
 }
 
 function onFileChange(event: Event) {
@@ -274,7 +306,8 @@ function onDrop(event: DragEvent) {
 
 function jumpToCrate() {
   const list = document.getElementById('your-tracks')
-  list?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  list?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })
   list?.focus({ preventScroll: true })
 }
 
@@ -338,7 +371,7 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse'): Promise<
     fileSamples.value = audioBuffer.getChannelData(0)
     fileSampleRate.value = audioBuffer.sampleRate
     if (keepsTracks.value) {
-      saveCrate(addToCrate(crateRows.value, {
+      updateCrate(rows => addToCrate(rows, {
         name: file.name,
         sizeBytes: file.size,
         bpm: reading.bpm,
@@ -881,7 +914,9 @@ function stopStream() {
 onMounted(() => {
   tabAudioSupported.value = supportsTabAudio(navigator as NavigatorLike)
   if (keepsTracks.value) {
+    crateStored.value = browserStore() !== null
     crateRows.value = parseCrate(readItem(browserStore(), CRATE_STORAGE_KEY))
+    window.addEventListener('storage', onCrateStorage)
     // How many come back to a list they built: the size in buckets, never a name (RBA-277).
     if (crateRows.value.length > 0) track('bpm_crate_loaded', { rows: crateRowBucket(crateRows.value.length) })
   }
@@ -889,8 +924,8 @@ onMounted(() => {
 
 // ─── Cleanup on unmount ──────────────────────────────────────────────────
 onBeforeUnmount(() => {
-  // A batch still queued stops with the page; the file under analysis finishes on its own.
-  fileQueue.length = 0
+  // invalidate() also stops a batch: the file under analysis finishes on its own.
+  window.removeEventListener('storage', onCrateStorage)
   reportMicStop()
   invalidate()
   teardownMic()
@@ -975,6 +1010,7 @@ function formatDuration(seconds: number): string {
               <span class="bpm-on-touch">{{ fileCopy.touchHeadline }}</span>
             </p>
             <button
+              ref="chooseFileButton"
               type="button"
               class="bpm-primary-btn"
               @click.stop="openFilePicker"
@@ -1429,9 +1465,10 @@ function formatDuration(seconds: number): string {
       :progress="batchProgress"
       :failures="batchFailures"
       :skipped="batchSkipped"
-      @remove="key => saveCrate(removeFromCrate(crateRows, key))"
-      @clear="saveCrate([])"
-      @dismiss-failures="clearBatchReport"
+      :stored="crateStored"
+      @remove="key => updateCrate(rows => removeFromCrate(rows, key))"
+      @clear="clearCrate"
+      @dismiss-failures="dismissBatchReport"
     />
     <p
       class="bpm-announce"

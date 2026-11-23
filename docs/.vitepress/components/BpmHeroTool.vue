@@ -230,7 +230,10 @@ function updateCrate(change: (rows: readonly CrateRow[]) => CrateRow[]) {
 }
 
 // Another tab added, removed or cleared tracks: show its list. A null key is a clear of all storage.
+// Not while this tab can't write: its list then lives only in memory, and taking the other tab's
+// would drop it.
 function onCrateStorage(event: StorageEvent) {
+  if (event.storageArea !== browserStore() || !crateStored.value) return
   if (event.key === CRATE_STORAGE_KEY || event.key === null) crateRows.value = parseCrate(event.newValue)
 }
 
@@ -268,7 +271,11 @@ async function analyseFiles(files: readonly File[], inputMethod: 'drop' | 'brows
   }
   // One line for the whole batch, once it ends: the list's own text appears with it, too late
   // for a screen reader to notice.
-  if (listsFailures(take.length) && gen === generation) announce(`${readCount} of ${take.length} files read`)
+  if (listsFailures(take.length) && gen === generation) {
+    // Emptied first, so a second batch with the same count is read out too.
+    announce('')
+    void nextTick(() => announce(`${readCount} of ${take.length} files read`))
+  }
 }
 
 // Clearing the list or dismissing the report can remove the element that had focus: hand it to
@@ -278,6 +285,13 @@ function focusAfterCrateChange() {
     const target = document.getElementById('your-tracks') ?? chooseFileButton.value ?? toolRoot.value?.querySelector('button')
     target?.focus()
   })
+}
+
+// The list's own focus move covers a row that leaves others behind; the last row unmounts the
+// list with it, so the parent hands focus on.
+function removeFromList(key: string) {
+  updateCrate(rows => removeFromCrate(rows, key))
+  if (crateRows.value.length === 0) focusAfterCrateChange()
 }
 
 function clearCrate() {
@@ -1466,7 +1480,7 @@ function formatDuration(seconds: number): string {
       :failures="batchFailures"
       :skipped="batchSkipped"
       :stored="crateStored"
-      @remove="key => updateCrate(rows => removeFromCrate(rows, key))"
+      @remove="removeFromList"
       @clear="clearCrate"
       @dismiss-failures="dismissBatchReport"
     />

@@ -361,10 +361,14 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic
       if (localAnalyzer.state.status === 'locked') micStableBpm.value = micLiveBpm.value
     })
 
-    localAnalyzer.on('statechange', ({ to }) => {
-      // Stopped is the session ending (Stop, a tab switch), never a lock lost: a tab switch keeps
-      // the locked result on screen, so it must not be demoted on the way out.
-      if (to.status === 'stopped') return
+    localAnalyzer.on('statechange', ({ to, reason }) => {
+      // Stopped by the caller is the session ending (Stop, a tab switch), never a lock lost: a tab
+      // switch keeps the locked result on screen, so it must not be demoted on the way out. Stopped
+      // by a fault is a dead analyzer: say so and release the mic, rather than keep it listening.
+      if (to.status === 'stopped') {
+        if (reason === 'failed' && micAnalyzer.value === localAnalyzer) failMic()
+        return
+      }
       if (to.status !== 'locked') {
         // A lock that no longer holds (a new song, the beat or the sound lost) goes back to
         // Settling, never a stale Stable (RBA-275). With no reading at all, no number either.
@@ -447,6 +451,16 @@ function reportMicStop() {
     elapsed_ms: Math.min(Math.round(performance.now() - micStartedAt), MAX_ELAPSED_MS),
   })
   micStartedAt = null
+}
+
+// The analyzer died mid-session: the panel says so, the session reports 'error', and the mic,
+// the level polling and the wake lock are released.
+function failMic() {
+  micStatus.value = 'error'
+  micError.value = 'The microphone stopped unexpectedly.'
+  reportMicStop()
+  invalidate()
+  teardownMic()
 }
 
 function stopMic() {
@@ -722,6 +736,8 @@ function onTabSharingEnded(gen: number) {
 
 function useMicInstead() {
   setMode('mic')
+  // A result kept from an earlier mic session would make startMic a no-op: the visitor asked for a new one.
+  if (micResultKept.value) stopMic()
   startMic('link_fallback')
 }
 

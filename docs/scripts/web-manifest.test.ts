@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs'
 
 const MANIFEST_PATH = '../public/favicon/site.webmanifest'
 const manifest = JSON.parse(readFileSync(new URL(MANIFEST_PATH, import.meta.url), 'utf8')) as {
+  id?: string
   start_url?: string
   icons?: { src: string }[]
   shortcuts?: { name: string; url: string; icons?: { src: string }[] }[]
@@ -16,8 +17,9 @@ const manifest = JSON.parse(readFileSync(new URL(MANIFEST_PATH, import.meta.url)
 const isPublicFile = (src: string) => existsSync(new URL(`../public${src}`, import.meta.url))
 const isPage = (url: string) => existsSync(new URL(`..${url}.md`, import.meta.url))
 
-test('the installed app opens on the home', () => {
+test('the installed app opens on the home, under a stable id', () => {
   assert.equal(manifest.start_url, '/')
+  assert.equal(manifest.id, '/')
 })
 
 test('the shortcuts are the metronome and tap tempo, and their pages exist', () => {

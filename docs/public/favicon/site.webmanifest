@@ -1,6 +1,7 @@
 {
   "name": "Realtime BPM Analyzer",
   "short_name": "BPM",
+  "id": "/",
   "start_url": "/",
   "icons": [
     {

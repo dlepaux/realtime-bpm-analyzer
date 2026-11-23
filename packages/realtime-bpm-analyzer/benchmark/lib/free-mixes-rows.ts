@@ -144,7 +144,7 @@ export function freeHeldoutRefusal(split: string, sets: readonly string[], detec
 
   return isSame(sets, freeLookScope.sets) && isSame(detectorNames, freeLookScope.detectors)
     ? null
-    : `Held-out on RBA-59's sets is RBA-51's one look: ${freeLookScope.detectors.join(', ')} on ${freeLookScope.sets.join(', ')}, no more and no less`;
+    : `Held-out on the free mixes is the engine study's one look: ${freeLookScope.detectors.join(', ')} on ${freeLookScope.sets.join(', ')}, no more and no less`;
 }
 
 /**
@@ -156,7 +156,7 @@ export function freeHeldoutRefusal(split: string, sets: readonly string[], detec
  */
 export function freeJobModeRefusal(mode: string, sets: readonly string[]): string | null {
   return mode === 'heldout' && sets.some(set => isFreeSet(set))
-    ? 'RBA-59\'s sets have no place in the heldout mode: their one look is the free-look mode'
+    ? 'The free mixes have no place in the heldout mode: their one look is the free-look mode'
     : null;
 }
 

@@ -502,7 +502,7 @@ def section_ranking(c, say):
         say(f'- {a} less {b}: {fmt3(diff) if diff else "n/a"}')
     if edges:
         say('\nReliability of each engine\'s own final confidence, in fifths of its dev distribution (all dev): Acc1 of the'
-            ' engine\'s final reading, % [95% range]. This is the raw scale RBA-106 would calibrate.\n')
+            ' engine\'s final reading, % [95% range]. This is the raw scale the calibration study would map.\n')
         say('| engine | fifth | confidence from | to | tracks | Acc1 |')
         say('|---|---:|---:|---:|---:|---:|')
         per_fifth = CONFIDENCE_BINS // 5

@@ -3,7 +3,7 @@
 // passes only as it stands. The gate is Build & Test's first step, so a path it stops covering would pass quietly.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -102,26 +102,31 @@ for (const path of LEFT_OUT) {
   })
 }
 
-const [entry] = readFileSync(join(ROOT, ALLOWLIST), 'utf8').split('\n').filter(Boolean)
-assert.ok(entry, `${ALLOWLIST} is empty`)
-const cut = entry.indexOf(':')
-const allowedPath = entry.slice(0, cut)
-const allowedLine = entry.slice(cut + 1)
+// The real allowlist may be empty, so these plant their own entry: a file in `files` replaces the copied one
+const allowedPath = 'packages/realtime-bpm-analyzer/benchmark/planted.ts'
+const allowedLine = `  throw new Error('kept as printed: ${REF}')`
+const allowlist = { [ALLOWLIST]: `${allowedPath}:${allowedLine}\n` }
 
 test('an allowlisted line passes as it stands', () => {
-  const run = runGate({ [allowedPath]: `${allowedLine}\n` })
+  const run = runGate({ ...allowlist, [allowedPath]: `${allowedLine}\n` })
   assert.equal(run.status, 0, run.out)
 })
 
 test('a new reference in an allowlisted file still fails', () => {
-  const run = runGate({ [allowedPath]: `${allowedLine}\n// cited ${REF} here\n` })
+  const run = runGate({ ...allowlist, [allowedPath]: `${allowedLine}\n// cited ${REF} here\n` })
   assert.equal(run.status, 1, run.out)
   assert.ok(!run.out.includes(allowedLine), 'the allowlisted line is listed too')
 })
 
 test('an allowlisted line that changes no longer matches its entry', () => {
-  const run = runGate({ [allowedPath]: `${allowedLine} changed\n` })
+  const run = runGate({ ...allowlist, [allowedPath]: `${allowedLine} changed\n` })
   assert.equal(run.status, 1, run.out)
+})
+
+test('an empty allowlist lets no reference through', () => {
+  const run = runGate({ [ALLOWLIST]: '', [allowedPath]: `${allowedLine}\n` })
+  assert.equal(run.status, 1, run.out)
+  assert.ok(run.out.includes(allowedLine), run.out)
 })
 
 test('a git grep error fails the gate instead of passing as clean', () => {

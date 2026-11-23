@@ -39,6 +39,8 @@ common frame rate, for cutting video on the beat. Click any value to copy it.
 
 <BpmToFrames />
 
+<ToolboxEntry placement="app_below_tool" />
+
 ## The formula
 
 One beat lasts 60 ÷ BPM seconds, so:

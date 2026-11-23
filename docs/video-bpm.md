@@ -40,6 +40,8 @@ milliseconds and in frames, ready for cutting to the beat.
   <BpmHeroTool variant="video" />
 </div>
 
+<ToolboxEntry placement="app_below_tool" />
+
 The file is analysed in your browser and stays on your device. The website
 records how the tool is used, never the file itself: see
 [Website Privacy](/website-privacy). For a video

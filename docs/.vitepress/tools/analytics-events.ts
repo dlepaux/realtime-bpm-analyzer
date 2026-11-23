@@ -24,6 +24,7 @@ import { CRATE_ROW_BUCKETS } from './bpm-crate.ts'
 import { PLATFORM_LABELS, STATIONS, STREAM_ERROR_MESSAGES, type Platform, type StreamErrorKind } from './stream-input.ts'
 import { STROBE_SOURCES } from './strobe.ts'
 import { SEEN_ON, TOOL_PAGES } from './tool-seen.ts'
+import { APP_PLACEMENTS } from './toolbox-entry.ts'
 import { NOTE_DIVISIONS } from './tempo.ts'
 import { freeTools } from './tool-list.ts'
 
@@ -89,7 +90,8 @@ export const PARAMS = {
   variant: { type: 'enum', values: ['inline', 'block'], scope: 'dimension' },
   placement: {
     type: 'enum',
-    values: [...EXTENSION_PLACEMENTS, 'demo_file_result', 'demo_mic_stable', 'demo_stream_stable', 'getting_started_end'],
+    // APP_PLACEMENTS (RBA-284): the entries into the musician app.
+    values: [...EXTENSION_PLACEMENTS, 'demo_file_result', 'demo_mic_stable', 'demo_stream_stable', 'getting_started_end', ...APP_PLACEMENTS],
     scope: 'dimension',
   },
   target: { type: 'enum', values: ['page', 'store', 'share'], scope: 'dimension' },
@@ -326,6 +328,11 @@ export const EVENTS = {
     params: { placement: 'required', target: 'required', store: 'optional' },
     repeats: 'Each click.',
     privacy: 'When you click a link to the browser extension: where it sits on the site, whether it leads to its page, a store or the "send the link to yourself" option, and for a store which one (Chrome or Edge).',
+  },
+  app_link_clicked: {
+    params: { placement: 'required' },
+    repeats: 'Each click.',
+    privacy: 'When you open the music toolbox app from this site: where the link sits (the top bar, the menu, or under the tool). Never the address it opens.',
   },
   extension_demo_control: {
     params: { action: 'required' },

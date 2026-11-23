@@ -256,6 +256,23 @@ test('the tool below the first screen is seen only once a scroll brings it in', 
   }
 })
 
+// The way into the musician app (RBA-284). The click leaves the page, so its hit has to go out as
+// the page unloads; the app's address is aborted here like every other outside request.
+test('opening the toolbox sends where the entry sits, and nothing else, as the page leaves', async () => {
+  await page.setViewport(DESKTOP)
+  try {
+    const mark = await openFresh('/video-bpm')
+    const href = await page.$eval('.toolbox-entry.is-nav', (link) => link.getAttribute('href'))
+    assert.equal(href, 'https://app.realtime-bpm-analyzer.com/video-bpm')
+    await page.click('.toolbox-entry.is-nav')
+    const clicks = () => hits.slice(mark).filter((hit) => hit.name === 'app_link_clicked')
+    await waitFor('app_link_clicked', () => clicks().length >= 1)
+    assert.deepEqual(clicks().map((hit) => hit.params), [{ placement: 'app_nav' }])
+  } finally {
+    await page.setViewport(DEFAULT_VIEWPORT)
+  }
+})
+
 // What GA4 and its enhanced measurement send by themselves, with params of their own.
 const COLLECTED_BY_GA = new Set(['page_view', 'user_engagement', 'scroll', 'click', 'file_download', 'form_start', 'form_submit', 'view_search_results'])
 

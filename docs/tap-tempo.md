@@ -36,6 +36,8 @@ taps into beats per minute (BPM) as you go and tells you how steady they are.
 
 <TapTempo />
 
+<ToolboxEntry placement="app_below_tool" />
+
 ## How tap tempo works
 
 Each tap is timestamped to a fraction of a millisecond. Rather than averaging

@@ -39,6 +39,8 @@ press **Start**. Nothing flashes, and nothing plays, until you do.
 
 <StrobeLight />
 
+<ToolboxEntry placement="app_below_tool" />
+
 ## How it works
 
 - **It hears the kick.** The open-source library finds each kick drum in your

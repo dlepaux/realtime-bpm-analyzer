@@ -36,6 +36,8 @@ Click any value to copy it.
 
 <BpmToMs />
 
+<ToolboxEntry placement="app_below_tool" />
+
 ## The formula
 
 One beat is a quarter note, and one minute is 60,000 milliseconds, so:

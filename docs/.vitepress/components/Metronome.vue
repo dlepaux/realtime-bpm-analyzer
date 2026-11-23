@@ -7,23 +7,28 @@ import {
   MIN_BPM,
   clampBpm,
   clickKind,
-  parseBpmParam,
   tapToSet,
   tempoMarking,
   ticksBefore,
   type ClickKind,
   type TickCursor,
 } from '../tools/tempo'
+import {
+  MAX_BEATS_PER_BAR,
+  METRONOME_STORAGE_KEY,
+  MIN_BEATS_PER_BAR,
+  SUBDIVISIONS,
+  loadSettings,
+  settingsQuery,
+  subdivisionOf,
+  subdivisionValue,
+  writeSettingsToUrl,
+  type MetronomeSettings,
+} from '../tools/metronome-settings'
+import { browserStore, readItem, writeItem } from '../tools/local-store'
+import { coalescedWrite } from '../tools/coalesced-write'
 
 const { track } = useAnalytics()
-
-// `id` is what analytics sends (RBA-154), `label` what the button shows.
-const SUBDIVISIONS = [
-  { value: 1, label: 'Quarters', id: 'quarters' },
-  { value: 2, label: 'Eighths', id: 'eighths' },
-  { value: 3, label: 'Triplets', id: 'triplets' },
-  { value: 4, label: '16ths', id: 'sixteenths' },
-] as const
 const PITCH: Record<ClickKind, number> = { accent: 1760, beat: 1320, sub: 880 }
 const SWING_DEG = 28
 // The scheduler wakes every LOOKAHEAD_MS and books every click due within
@@ -41,6 +46,12 @@ const currentBeat = ref(-1)
 const beatFlash = ref(0)
 const angle = ref(0)
 const tapTimes = ref<number[]>([])
+
+const settings = computed<MetronomeSettings>(() => ({
+  bpm: bpm.value,
+  beatsPerBar: beatsPerBar.value,
+  subdivision: subdivisionOf(subdivision.value).id,
+}))
 
 const marking = computed(() => tempoMarking(bpm.value))
 // A real metronome's weight slides up the arm to slow it down.
@@ -134,7 +145,7 @@ async function start() {
   schedule()
   schedulerTimer = window.setInterval(schedule, LOOKAHEAD_MS)
   frame = requestAnimationFrame(draw)
-  const chosen = SUBDIVISIONS.find((s) => s.value === subdivision.value) ?? SUBDIVISIONS[0]
+  const chosen = subdivisionOf(subdivision.value)
   // `mode` keeps its old form for the readback; time_signature and subdivision split it (RBA-154).
   track('bpm_metronome_started', {
     bpm: bpm.value,
@@ -197,16 +208,44 @@ function onKeyDown(event: KeyboardEvent) {
   event.preventDefault()
 }
 
+// The settings are saved to the store and the address as they change, at most once per
+// SAVE_SPELL_MS: a slider drag or a held arrow key changes the tempo many times a second, and
+// Safari throws past about 100 replaceState calls per 30 s. The last change of a spell still
+// waiting when the page goes is flushed.
+const SAVE_SPELL_MS = 400
+
+function save() {
+  writeItem(browserStore(), METRONOME_STORAGE_KEY, settingsQuery(settings.value))
+  writeSettingsToUrl(window, settings.value)
+}
+
+// Reached through arrows, so the prerender, which has no window, never touches it.
+const saver = coalescedWrite(save, SAVE_SPELL_MS, {
+  setTimeout: (run, ms) => window.setTimeout(run, ms),
+  clearTimeout: (id) => window.clearTimeout(id),
+})
+
 onMounted(() => {
-  const fromUrl = parseBpmParam(new URLSearchParams(window.location.search).get('bpm'))
-  if (fromUrl !== null) setBpm(fromUrl)
+  const loaded = loadSettings(window.location.search, readItem(browserStore(), METRONOME_STORAGE_KEY))
+  setBpm(loaded.bpm)
+  beatsPerBar.value = loaded.beatsPerBar
+  subdivision.value = subdivisionValue(loaded.subdivision)
+  // The address shows what plays from the start, so a link copied before any change carries it.
+  // The store is left alone: opening someone's link doesn't replace the visitor's own settings.
+  writeSettingsToUrl(window, loaded)
+  // Started after the load above, so loading is never saved as a change.
+  watch(settings, saver.request)
   reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   window.addEventListener('keydown', onKeyDown)
+  window.addEventListener('pagehide', saver.flush)
 })
 
 onBeforeUnmount(() => {
   stop()
+  saver.flush()
+  saver.cancel()
   window.removeEventListener('keydown', onKeyDown)
+  window.removeEventListener('pagehide', saver.flush)
   void ctx?.close()
   ctx = null
 })
@@ -337,7 +376,7 @@ onBeforeUnmount(() => {
             type="button"
             class="tt-btn tt-btn-round small"
             aria-label="Fewer beats per bar"
-            :disabled="beatsPerBar <= 1"
+            :disabled="beatsPerBar <= MIN_BEATS_PER_BAR"
             @click="beatsPerBar--"
           >
             <Minus :size="14" />
@@ -347,7 +386,7 @@ onBeforeUnmount(() => {
             type="button"
             class="tt-btn tt-btn-round small"
             aria-label="More beats per bar"
-            :disabled="beatsPerBar >= 12"
+            :disabled="beatsPerBar >= MAX_BEATS_PER_BAR"
             @click="beatsPerBar++"
           >
             <Plus :size="14" />

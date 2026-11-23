@@ -50,7 +50,11 @@ export interface UrlWindow {
  * the link behind until the next change.
  */
 export function writeBpmToUrl(win: UrlWindow, bpm: number | null): boolean {
-  const search = withBpmParam(win.location.search, bpm)
+  return writeSearchToUrl(win, withBpmParam(win.location.search, bpm))
+}
+
+/** Replaces the address's query with `search` ("" or "?…"), as writeBpmToUrl does. */
+export function writeSearchToUrl(win: UrlWindow, search: string): boolean {
   if (search === win.location.search) return true
   const { pathname, hash } = win.location
   try {

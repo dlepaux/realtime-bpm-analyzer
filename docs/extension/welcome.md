@@ -50,9 +50,12 @@ playing, also on your computer. It sends nothing of its own: no analytics, no
 install ID. While listening, it keeps only whether it is listening and the id
 of the tab it is listening to, plus, in memory until listening stops, what it needs
 to recognise a track. All of that goes when listening stops or the browser closes.
-Your choice on its settings page (the widget's progress style) stays in the
-browser's local storage on your device until you remove the extension, and is
-never sent.
+It keeps three things longer, in the browser's local storage on your device:
+your choices on its settings page, a count of the readings it has shown so it
+can ask for a store rating, twice at most, and, unless you turn it off, the history of your
+readings, with each tab's title and the time but never the page's address. You
+can delete a reading, clear the history or turn it off on the extension's page.
+None of it is ever sent.
 
 </div>
 

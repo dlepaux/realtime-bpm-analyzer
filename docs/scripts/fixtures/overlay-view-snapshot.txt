@@ -87,6 +87,7 @@ const MARKUP: Markup = el('div', {class: 'pill', role: 'group', 'aria-label': 'L
     el('span', {class: 'hint', 'data-stability': 'listening', 'data-level': 'low'},
       el('span', {class: 'dot'}), el('span', {class: 'label'}, 'listening'), el('span', {class: 'rate', 'aria-hidden': 'true'}), el('span', {class: 'sr rate-help'}))),
   el('span', {class: 'sr live', 'aria-live': 'polite', 'aria-atomic': 'true'}),
+  el('button', {type: 'button', class: 'page', 'aria-label': 'Your readings, on the extension\'s page', title: 'Your readings'}, '≡'),
   el('button', {type: 'button', class: 'close', 'aria-label': 'Stop the BPM analysis'}, '✕'),
   el('span', {class: 'progress', 'aria-hidden': 'true', 'data-stability': 'listening'}, el('span', {class: 'fill'})));
 

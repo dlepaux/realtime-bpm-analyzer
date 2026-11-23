@@ -101,19 +101,20 @@ test('tool FAQs: the privacy answer says what Google Analytics records, and the 
   }
 })
 
-// From 1.0.1 the settings page keeps its choice in storage.local until the extension is removed
-// so neither page may say the extension stores only session data any more.
-test('extension pages: the stored settings choice is named, and nothing claims session-only storage', () => {
+// From 1.0.1 the settings page keeps its choice in storage.local until the extension is removed, and from the
+// release of the extension's own page the readings history and the rating counter are kept there too, so both
+// pages must name all three, and neither may say the extension stores only session data.
+test('extension pages: what the extension keeps is named, and nothing claims session-only storage', () => {
   const flat = (path: string) => read(path).replace(/\s+/g, ' ')
-  assert.ok(
-    flat('../extension/privacy.md').includes(
-      "**Your choice on the settings page** (the widget's progress style), kept in the browser's local storage on your device until you remove the extension. It is never sent.",
-    ),
-    'extension/privacy.md must list the settings choice kept in local storage',
-  )
-  assert.match(flat('../extension/welcome.md'), /settings page \(the widget's progress style\) stays in the browser's local storage on your device until you remove the extension, and is never sent/)
+  const privacy = flat('../extension/privacy.md')
+  assert.ok(privacy.includes('**Your readings history**, which is on unless you turn it off'), 'extension/privacy.md must describe the readings history')
+  assert.ok(privacy.includes('It never holds the page\'s address'), 'extension/privacy.md must say the history holds no address')
+  assert.ok(privacy.includes('**Your choices on the settings page**'), 'extension/privacy.md must list the settings kept in local storage')
+  assert.ok(privacy.includes('**A count of the tempos it has shown you**'), 'extension/privacy.md must describe the rating counter')
+  assert.match(flat('../extension/welcome.md'), /It keeps three things longer, in the browser's local storage on your device: your choices on its settings page, a count of the readings it has shown .* the history of your readings, .* never the page's address\. .* None of it is ever sent\./)
   for (const path of ['../extension/privacy.md', '../extension/welcome.md']) {
     assert.doesNotMatch(flat(path), /\bstores only\b/i, path)
+    assert.doesNotMatch(flat(path), /one thing it keeps/i, path)
   }
 })
 

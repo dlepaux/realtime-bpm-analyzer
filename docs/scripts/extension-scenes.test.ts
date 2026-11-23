@@ -188,7 +188,7 @@ test('every declaration of the drawn widget is the real overlay\'s', () => {
   const drawn = drawnOverlay()
   assert.ok(drawn.size >= 12, 'the pinned block is all there')
   for (const [selector, declarations] of drawn) {
-    // The close button is the real overlay's only visible `button`.
+    // The drawn close button takes the real overlay's `button` rule; the drawn widget leaves out the page link (button.page).
     const theirs = real.get(selector === '.close' ? 'button' : selector)
     assert.ok(theirs, `view.ts has no ${selector}`)
     for (const [property, value] of declarations) assert.equal(value, theirs.get(property), `${selector} ${property}`)

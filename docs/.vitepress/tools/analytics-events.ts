@@ -19,6 +19,7 @@ import { EXPORT_TIMECODES, MARKER_FORMATS } from './beat-markers.ts'
 import { EXTENSION_PLACEMENTS } from './extension-promo.ts'
 import { FRAME_RATES } from './frames.ts'
 import { MIC_ERROR_KINDS, MIC_ERROR_NAMES } from './mic-error.ts'
+import { MIC_PHASES } from './mic-guard.ts'
 import { PLATFORM_LABELS, STATIONS, STREAM_ERROR_MESSAGES, type Platform, type StreamErrorKind } from './stream-input.ts'
 import { STROBE_SOURCES } from './strobe.ts'
 import { NOTE_DIVISIONS } from './tempo.ts'
@@ -56,7 +57,9 @@ export const PARAMS = {
   mode: { type: 'text', maxLength: 100, pattern: /^[\w ./→-]+$/u, scope: 'dimension' },
   input_method: {
     type: 'enum',
-    values: ['drop', 'browse', 'mic_tab', 'link_fallback', 'tab', 'url'],
+    // mic_resume (RBA-275): Resume had to restart a mic whose track ended, so a funnel of first
+    // clicks leaves it out.
+    values: ['drop', 'browse', 'mic_tab', 'link_fallback', 'mic_resume', 'tab', 'url'],
     scope: 'dimension',
   },
   size_kb: { type: 'int', min: 0, max: 10_000_000, scope: 'metric' },
@@ -121,6 +124,16 @@ export const PARAMS = {
    * from the BigQuery export, which keeps every param, so it needs no Custom definition in GA4.
    */
   audio_source: { type: 'enum', values: [...STROBE_SOURCES], scope: 'none' },
+
+  // ── Added by RBA-275 ─────────────────────────────────────────────────────────────────────
+  // Why half of the mobile mic sessions stop without a lock. `none`, like audio_source: read from
+  // the BigQuery export, so they need no Custom definition in GA4.
+  /** Where the mic session stood when it stopped: listening, settling, locked, paused or failed. */
+  mic_phase: { type: 'enum', values: [...MIC_PHASES], scope: 'none' },
+  /** The input stayed too quiet long enough for the hint to show, at any point of the session. */
+  too_quiet: { type: 'bool', scope: 'none' },
+  /** The audio stopped under the session at least once: a call, the screen locking, another app. */
+  interrupted: { type: 'bool', scope: 'none' },
 } as const satisfies Record<string, ParamSpec>
 
 export type ParamName = keyof typeof PARAMS
@@ -167,7 +180,7 @@ export const EVENTS = {
   bpm_mic_clicked: {
     params: { input_method: 'required' },
     repeats: 'Each time the microphone is started.',
-    privacy: 'When you start the microphone, from its tab or from the alternatives offered for a link.',
+    privacy: 'When you start the microphone, from its tab, from the alternatives offered for a link, or by resuming it after an interruption.',
   },
   bpm_mic_locked: {
     params: { bpm: 'required', engine: 'required', first: 'required', elapsed_ms: 'optional' },
@@ -181,9 +194,9 @@ export const EVENTS = {
     deprecated: { reason: 'error_kind and error_name' },
   },
   bpm_mic_stopped: {
-    params: {},
+    params: { mic_phase: 'required', too_quiet: 'required', interrupted: 'required', elapsed_ms: 'optional' },
     repeats: 'Each time the microphone is stopped.',
-    privacy: 'When you stop the microphone.',
+    privacy: 'When you stop the microphone: whether it had found a steady tempo yet, whether the sound was too quiet or was interrupted, and how long it listened. Never the sound.',
   },
   bpm_stream_clicked: {
     params: { ...STREAM_URL_PARAMS, input_method: 'required' },

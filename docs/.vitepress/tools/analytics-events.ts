@@ -20,6 +20,7 @@ import { EXTENSION_PLACEMENTS } from './extension-promo.ts'
 import { FRAME_RATES } from './frames.ts'
 import { MIC_ERROR_KINDS, MIC_ERROR_NAMES } from './mic-error.ts'
 import { MIC_PHASES } from './mic-guard.ts'
+import { CRATE_ROW_BUCKETS } from './bpm-crate.ts'
 import { PLATFORM_LABELS, STATIONS, STREAM_ERROR_MESSAGES, type Platform, type StreamErrorKind } from './stream-input.ts'
 import { STROBE_SOURCES } from './strobe.ts'
 import { NOTE_DIVISIONS } from './tempo.ts'
@@ -134,6 +135,10 @@ export const PARAMS = {
   too_quiet: { type: 'bool', scope: 'none' },
   /** The audio stopped under the session at least once: a call, the screen locking, another app. */
   interrupted: { type: 'bool', scope: 'none' },
+
+  // ── Added by RBA-277 ─────────────────────────────────────────────────────────────────────
+  /** How many tracks a returning visitor's list holds, in buckets. Read from the BigQuery export. */
+  rows: { type: 'enum', values: [...CRATE_ROW_BUCKETS], scope: 'none' },
 } as const satisfies Record<string, ParamSpec>
 
 export type ParamName = keyof typeof PARAMS
@@ -176,6 +181,11 @@ export const EVENTS = {
     params: {},
     repeats: 'Each time a file result is cleared.',
     privacy: 'When you clear a file result to start again.',
+  },
+  bpm_crate_loaded: {
+    params: { rows: 'required' },
+    repeats: 'Each time the page with the BPM finder opens with tracks kept in this browser.',
+    privacy: 'When the BPM finder opens with tracks you kept in this browser: how many, in a range such as 6 to 20. Never their names or tempos.',
   },
   bpm_mic_clicked: {
     params: { input_method: 'required' },

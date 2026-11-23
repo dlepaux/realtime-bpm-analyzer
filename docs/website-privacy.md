@@ -18,7 +18,7 @@ so does the browser extension: [Extension Privacy](/extension/privacy).
 Files you choose, microphone input and stream audio are analysed in your
 browser by the library. The website never receives your audio, your files or
 their names. That is about your audio only: the pages themselves are measured, as
-the next section describes.
+[What the website measures](#what-the-website-measures) describes.
 
 ## What the tools remember
 
@@ -28,6 +28,12 @@ settings are kept in your browser's local storage, on this device. The metronome
 also puts its settings in the page's address when you change them or they differ
 from its defaults, so a copied link opens on them.
 Clearing this site's data in your browser removes them.
+
+The BPM finder on the home page keeps the files you analyse there as "Your
+tracks": each file's name, size, tempo and length, and when you added it, up to
+500 files, with how you last sorted and filtered the list. They are kept in your
+browser's local storage, on this device, and are never sent anywhere. "Clear list"
+removes the tracks, and clearing this site's data removes everything.
 
 ## What the website measures
 

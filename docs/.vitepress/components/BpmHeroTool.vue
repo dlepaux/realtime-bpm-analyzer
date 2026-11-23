@@ -39,6 +39,10 @@ import ExtensionResultPrompt from './ExtensionResultPrompt.vue'
 import BeatMarkerExport from './BeatMarkerExport.vue'
 import BpmReadout from './BpmReadout.vue'
 import BpmSourceSwitch from './BpmSourceSwitch.vue'
+import BpmCrate from './BpmCrate.vue'
+import { CRATE_STORAGE_KEY, addToCrate, crateRowBucket, parseCrate, removeFromCrate, serializeCrate, type CrateRow } from '../tools/bpm-crate'
+import { browserStore, readItem, writeItem } from '../tools/local-store'
+import { batchProgressLabel, listsFailures, planBatch } from '../tools/file-batch'
 import { STORE_URL } from '../tools/extension-live'
 import { EXTENSION_PAGE, extensionCovers } from '../tools/extension-promo'
 
@@ -201,20 +205,124 @@ function openFilePicker() {
   fileInput.value?.click()
 }
 
+// "Your tracks" (RBA-277): every file result of the audio tool, kept in this browser. The video
+// page's result is a marker export, not a track list, so it keeps nothing.
+const keepsTracks = computed(() => props.variant === 'audio')
+const crateRows = shallowRef<CrateRow[]>([])
+// False once this browser refused to keep the list (blocked storage, quota): the list then says
+// it lasts for this visit only, and every change works on the copy in memory.
+const crateStored = ref(true)
+const batchProgress = ref<string | null>(null)
+const batchFailures = shallowRef<string[]>([])
+const batchSkipped = ref(0)
+let batchRunning = false
+const chooseFileButton = ref<HTMLButtonElement | null>(null)
+
+// Read, change, write: another tab, or this page's previous instance finishing a file after a
+// navigation, may have written since this one read the list, and writing this instance's copy
+// over theirs would drop their tracks without a word.
+function updateCrate(change: (rows: readonly CrateRow[]) => CrateRow[]) {
+  const store = browserStore()
+  const current = store && crateStored.value ? parseCrate(readItem(store, CRATE_STORAGE_KEY)) : crateRows.value
+  const next = change(current)
+  crateRows.value = next
+  crateStored.value = writeItem(store, CRATE_STORAGE_KEY, serializeCrate(next))
+}
+
+// Another tab added, removed or cleared tracks: show its list. A null key is a clear of all storage.
+// Not while this tab can't write: its list then lives only in memory, and taking the other tab's
+// would drop it.
+function onCrateStorage(event: StorageEvent) {
+  if (event.storageArea !== browserStore() || !crateStored.value) return
+  if (event.key === CRATE_STORAGE_KEY || event.key === null) crateRows.value = parseCrate(event.newValue)
+}
+
+function clearBatchReport() {
+  batchFailures.value = []
+  batchSkipped.value = 0
+}
+
+// One file after another, never in parallel: each decode holds a whole track in memory. The drop
+// zone and the picker exist only while the tool is idle, so a batch never overlaps another.
+// Leaving file mode or the page invalidates the batch: the file being read finishes, as a lone file
+// always did, and the rest are counted as left out rather than decoded behind the mic.
+async function analyseFiles(files: readonly File[], inputMethod: 'drop' | 'browse') {
+  if (files.length === 0 || batchRunning) return
+  const { take, skipped } = planBatch(files)
+  clearBatchReport()
+  batchSkipped.value = skipped
+  batchRunning = true
+  const gen = generation
+  let readCount = 0
+  try {
+    for (const [index, file] of take.entries()) {
+      if (gen !== generation) {
+        batchSkipped.value += take.length - index
+        break
+      }
+      batchProgress.value = batchProgressLabel(index, take.length)
+      const read = await analyseFile(file, inputMethod)
+      if (read) readCount++
+      else if (listsFailures(take.length)) batchFailures.value = [...batchFailures.value, file.name]
+    }
+  } finally {
+    batchRunning = false
+    batchProgress.value = null
+  }
+  // One line for the whole batch, once it ends: the list's own text appears with it, too late
+  // for a screen reader to notice.
+  if (listsFailures(take.length) && gen === generation) {
+    // Emptied first, so a second batch with the same count is read out too.
+    announce('')
+    void nextTick(() => announce(`${readCount} of ${take.length} files read`))
+  }
+}
+
+// Clearing the list or dismissing the report can remove the element that had focus: hand it to
+// the list if it is still there, else to the way in to the tool.
+function focusAfterCrateChange() {
+  void nextTick(() => {
+    const target = document.getElementById('your-tracks') ?? chooseFileButton.value ?? toolRoot.value?.querySelector('button')
+    target?.focus()
+  })
+}
+
+// The list's own focus move covers a row that leaves others behind; the last row unmounts the
+// list with it, so the parent hands focus on.
+function removeFromList(key: string) {
+  updateCrate(rows => removeFromCrate(rows, key))
+  if (crateRows.value.length === 0) focusAfterCrateChange()
+}
+
+function clearCrate() {
+  updateCrate(() => [])
+  focusAfterCrateChange()
+}
+
+function dismissBatchReport() {
+  clearBatchReport()
+  focusAfterCrateChange()
+}
+
 function onFileChange(event: Event) {
   const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-  analyseFile(file, 'browse')
+  void analyseFiles(Array.from(target.files ?? []), 'browse')
   target.value = ''
 }
 
 function onDrop(event: DragEvent) {
   event.preventDefault()
   isDragOver.value = false
-  const file = event.dataTransfer?.files?.[0]
-  if (!file) return
-  analyseFile(file, 'drop')
+  // A lone file on the video page, as before; the audio tool takes a batch.
+  const files = Array.from(event.dataTransfer?.files ?? [])
+  void analyseFiles(keepsTracks.value ? files : files.slice(0, 1), 'drop')
+}
+
+function jumpToCrate() {
+  const list = document.getElementById('your-tracks')
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  list?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })
+  list?.focus({ preventScroll: true })
 }
 
 function onDragOver(event: DragEvent) {
@@ -228,7 +336,8 @@ function onDragLeave() {
 
 // `input_method`, not `source`: GA4 reads an event parameter named `source` as the
 // session's traffic source, which credited 1,237 sessions to "drop"/"browse" (RBA-2).
-async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
+/** Analyses one file into the tool's result, and answers whether it gave a reading. */
+async function analyseFile(file: File, inputMethod: 'drop' | 'browse'): Promise<boolean> {
   fileName.value = file.name
   fileStatus.value = 'analysing'
   fileError.value = null
@@ -275,6 +384,16 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
     })
     fileSamples.value = audioBuffer.getChannelData(0)
     fileSampleRate.value = audioBuffer.sampleRate
+    if (keepsTracks.value) {
+      updateCrate(rows => addToCrate(rows, {
+        name: file.name,
+        sizeBytes: file.size,
+        bpm: reading.bpm,
+        durationS: audioBuffer.duration,
+        addedAt: Date.now(),
+      }))
+    }
+    return true
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'unknown'
     fileError.value = stage === 'decode'
@@ -288,6 +407,7 @@ async function analyseFile(file: File, inputMethod: 'drop' | 'browse') {
       reason,
     })
     console.error('[BpmHeroTool] file analysis failed:', error)
+    return false
   }
 }
 
@@ -807,10 +927,19 @@ function stopStream() {
 
 onMounted(() => {
   tabAudioSupported.value = supportsTabAudio(navigator as NavigatorLike)
+  if (keepsTracks.value) {
+    crateStored.value = browserStore() !== null
+    crateRows.value = parseCrate(readItem(browserStore(), CRATE_STORAGE_KEY))
+    window.addEventListener('storage', onCrateStorage)
+    // How many come back to a list they built: the size in buckets, never a name (RBA-277).
+    if (crateRows.value.length > 0) track('bpm_crate_loaded', { rows: crateRowBucket(crateRows.value.length) })
+  }
 })
 
 // ─── Cleanup on unmount ──────────────────────────────────────────────────
 onBeforeUnmount(() => {
+  // invalidate() also stops a batch: the file under analysis finishes on its own.
+  window.removeEventListener('storage', onCrateStorage)
   reportMicStop()
   invalidate()
   teardownMic()
@@ -819,7 +948,12 @@ onBeforeUnmount(() => {
 
 // ─── UI helpers ──────────────────────────────────────────────────────────
 // One line under the tool: the formats where a file is chosen, and where the audio goes.
-const metaLine = computed(() => (mode.value === 'file' ? `${fileCopy.value.formats} · ${STAYS_ON_DEVICE}` : STAYS_ON_DEVICE))
+const metaLine = computed(() => {
+  if (mode.value !== 'file') return STAYS_ON_DEVICE
+  // Choosing several files is easy to miss in a picker, so the line says it (RBA-277).
+  const several = keepsTracks.value ? ' · Several at once' : ''
+  return `${fileCopy.value.formats}${several} · ${STAYS_ON_DEVICE}`
+})
 
 // What screen readers hear: a settled reading only, once, as it arrives. A live number changes
 // about once a second, and reading each one out would talk over the music. The readings are
@@ -890,17 +1024,26 @@ function formatDuration(seconds: number): string {
               <span class="bpm-on-touch">{{ fileCopy.touchHeadline }}</span>
             </p>
             <button
+              ref="chooseFileButton"
               type="button"
               class="bpm-primary-btn"
               @click.stop="openFilePicker"
             >
               Choose a file
             </button>
+            <!-- Inside the zone, not above it: the body keeps one height, so nothing below moves. -->
+            <a
+              v-if="keepsTracks && crateRows.length > 0"
+              class="bpm-crate-jump"
+              href="#your-tracks"
+              @click.stop.prevent="jumpToCrate"
+            >Your tracks ({{ crateRows.length }})</a>
           </div>
           <input
             ref="fileInput"
             type="file"
             accept="audio/*,video/*"
+            :multiple="keepsTracks"
             class="bpm-file-input"
             @change="onFileChange"
           />
@@ -1330,6 +1473,17 @@ function formatDuration(seconds: number): string {
     <p class="bpm-meta">
       {{ metaLine }}
     </p>
+    <BpmCrate
+      v-if="keepsTracks && mode === 'file' && (crateRows.length > 0 || batchProgress || batchFailures.length > 0 || batchSkipped > 0)"
+      :rows="crateRows"
+      :progress="batchProgress"
+      :failures="batchFailures"
+      :skipped="batchSkipped"
+      :stored="crateStored"
+      @remove="removeFromList"
+      @clear="clearCrate"
+      @dismiss-failures="dismissBatchReport"
+    />
     <p
       class="bpm-announce"
       aria-live="polite"
@@ -1498,6 +1652,23 @@ function formatDuration(seconds: number): string {
   justify-content: center;
   font-size: 0.875rem;
   color: var(--vp-c-text-2);
+}
+
+/* The way back to the list on a return visit; a link, so it reads as a place, not an action. */
+.bpm-crate-jump {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.bpm-crate-jump:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
 }
 
 .bpm-restart-btn {

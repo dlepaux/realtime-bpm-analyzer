@@ -17,6 +17,7 @@
     "lint": "eslint .",
     "test": "node --test scripts/*.test.ts",
     "test:analytics-contract": "node --test scripts/analytics-contract.e2e.ts",
+    "test:mic-denied": "node --test scripts/mic-denied.e2e.ts",
     "verify:extension-switch": "node scripts/verify-extension-switch.ts",
     "verify:seo": "node scripts/verify-seo.ts",
     "lint:fix": "eslint . --fix",

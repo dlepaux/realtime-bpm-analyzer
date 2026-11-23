@@ -113,8 +113,8 @@ export const SAVE_SPELL_MS = 400
  * Saves the metronome's settings as they change: to the store and, while the page is still the
  * metronome, to the address. The address check matters because the router pushes the next
  * page's address before the metronome unmounts (and Back has changed it before popstate), so a
- * late write would put the tempo on the next page, which reads it. A flush, run as the page
- * leaves or hides, writes the store only for the same reason.
+ * late write, a flush on leaving included, would put the tempo on the next page, which reads it.
+ * A flush while the tab hides on the metronome writes both, so the address never lags the store.
  */
 export function metronomeSaver(
   win: UrlWindow,
@@ -123,10 +123,9 @@ export function metronomeSaver(
   current: () => MetronomeSettings,
 ): CoalescedWrite {
   const path = win.location.pathname
-  const toStore = () => { writeItem(store, METRONOME_STORAGE_KEY, settingsQuery(current())) }
-  const toStoreAndUrl = () => {
-    toStore()
+  const save = () => {
+    writeItem(store, METRONOME_STORAGE_KEY, settingsQuery(current()))
     if (win.location.pathname === path) writeSettingsToUrl(win, current())
   }
-  return coalescedWrite(toStoreAndUrl, SAVE_SPELL_MS, timers, toStore)
+  return coalescedWrite(save, SAVE_SPELL_MS, timers)
 }

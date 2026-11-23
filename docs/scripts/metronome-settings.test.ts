@@ -192,13 +192,16 @@ test('metronomeSaver: a spell ending after the router moved on leaves the next p
   assert.equal(rig.location.search, '')
 })
 
-test('metronomeSaver: a flush on the metronome (tab hidden) writes the store only', () => {
+test('metronomeSaver: a flush on the metronome (tab hidden) writes the store and the address', () => {
   const rig = saverRig()
   rig.saver.request()
   rig.set(WALTZ)
   rig.saver.request()
   rig.saver.flush()
   assert.equal(rig.stored(), 'bpm=72&beats=3&sub=triplets')
-  assert.equal(rig.urls.length, 1)
+  // Back on the tab, a copied link opens on what plays, not on the change before it.
+  assert.equal(rig.location.search, '?bpm=72&beats=3&sub=triplets')
+  rig.endSpell()
+  assert.equal(rig.urls.length, 2, 'the spell then ends without writing again')
   assert.equal(SAVE_SPELL_MS, 400)
 })

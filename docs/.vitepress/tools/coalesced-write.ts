@@ -13,18 +13,13 @@ export interface Timers {
 export interface CoalescedWrite {
   /** A change happened: write now, or once the current spell ends. */
   request: () => void
-  /** Writes a change still waiting with `flushWrite`, for when the page goes or hides. */
+  /** Writes a change still waiting, for when the page goes or hides. */
   flush: () => void
   /** Drops the timer, for when the component goes after a flush. */
   cancel: () => void
 }
 
-/**
- * `flushWrite` is what a flush runs, `write` by default. It can do less: the metronome's flush
- * runs as the page leaves, when the address is already the next page's, so it writes the store
- * only.
- */
-export function coalescedWrite(write: () => void, waitMs: number, timers: Timers, flushWrite: () => void = write): CoalescedWrite {
+export function coalescedWrite(write: () => void, waitMs: number, timers: Timers): CoalescedWrite {
   let timer: number | undefined
   let pending = false
 
@@ -48,7 +43,7 @@ export function coalescedWrite(write: () => void, waitMs: number, timers: Timers
     flush: () => {
       if (!pending) return
       pending = false
-      flushWrite()
+      write()
     },
     cancel: () => {
       timers.clearTimeout(timer)

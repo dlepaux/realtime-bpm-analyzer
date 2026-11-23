@@ -3,6 +3,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   MIC_ALLOW_STEPS,
+  MIC_BLOCKED_BEFORE_PRESS,
+  blockedHelpReporter,
   MIC_BLOCKED_LINE,
   MIC_PURPOSE_LINE,
   PHONE_LINK_LINE,
@@ -137,4 +139,21 @@ test('Brave, which sends Chrome user agent unchanged, gets the general steps, no
   assert.equal(micHelpBrowser({ userAgent: UA.macChrome, maxTouchPoints: 0, brave: true }), 'other')
   assert.equal(micHelpBrowser({ userAgent: UA.androidChrome, maxTouchPoints: 5, brave: true }), 'other')
   assert.equal(micHelpBrowser({ userAgent: UA.macChrome, maxTouchPoints: 0, brave: false }), 'chrome')
+})
+
+test('a help shown because the mic is already blocked is reported once per page view, as a denial with its own reason', () => {
+  let sent = 0
+  const reporter = blockedHelpReporter(() => { sent += 1 })
+  reporter.shown()
+  reporter.shown()
+  assert.equal(sent, 1)
+  assert.deepEqual(MIC_BLOCKED_BEFORE_PRESS, { reason: 'blocked_before_press', error_kind: 'denied', error_name: 'NotAllowedError' })
+})
+
+test('after a press already reported the refusal, the help that follows reports nothing more', () => {
+  let sent = 0
+  const reporter = blockedHelpReporter(() => { sent += 1 })
+  reporter.pressDenied()
+  reporter.shown()
+  assert.equal(sent, 0)
 })

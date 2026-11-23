@@ -14,7 +14,7 @@
 import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import puppeteer, { type Browser, type BrowserContext, type HTTPRequest, type Page } from 'puppeteer'
-import { MIC_ALLOW_STEPS, MIC_BLOCKED_LINE, MIC_PURPOSE_LINE, PHONE_LINK_LINE } from '../.vitepress/tools/mic-denied-help.ts'
+import { MIC_ALLOW_STEPS, MIC_BLOCKED_BEFORE_PRESS, MIC_BLOCKED_LINE, MIC_PURPOSE_LINE, PHONE_LINK_LINE } from '../.vitepress/tools/mic-denied-help.ts'
 import { PRODUCTION_HOST, SITE_URL } from '../.vitepress/tools/site-url.ts'
 
 const BASE_URL = process.env.MIC_E2E_BASE_URL
@@ -112,6 +112,26 @@ function micErrors(page: Page): Promise<Record<string, unknown>[]> {
     .map((entry) => entry[2] as Record<string, unknown>))
 }
 
+// iOS Safari opens a file picker only within the tap itself. The button is pressed from a script
+// here, so no microtask checkpoint runs inside the press (a real tap runs one after each listener):
+// the input's click() counts as within the tap only if it ran before the press returned, with no
+// await, promise or timer in between. The picker itself is not opened.
+async function pickerClicksWithinPress(page: Page, selector: string): Promise<string[]> {
+  return page.$eval(selector, async (button) => {
+    const calls: string[] = []
+    let pressing = true
+    const click = HTMLInputElement.prototype.click
+    HTMLInputElement.prototype.click = function (this: HTMLInputElement) {
+      if (this.type === 'file') calls.push(pressing ? 'within' : 'late')
+    }
+    ;(button as HTMLElement).click()
+    pressing = false
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    HTMLInputElement.prototype.click = click
+    return calls
+  })
+}
+
 before(async () => {
   assert.ok(BASE_URL, 'Set MIC_E2E_BASE_URL to a running local site, such as http://localhost:4173')
   // GitHub's Ubuntu runners have no usable Chrome sandbox, as in analytics-contract.e2e.ts.
@@ -144,7 +164,12 @@ for (const [name, device, steps] of DENIED_CASES) {
     assert.ok(text.includes(steps), text)
     assert.match(text, /choose a file/)
     assert.equal(await page.$eval('.bpm-mode-mic a[href="/tap-tempo"]', (a) => a.textContent?.trim()), 'tap the tempo')
-    assert.deepEqual(await micErrors(page), [])
+    // The denial is still counted, once per page view, with the reason that tells it from a press.
+    assert.deepEqual(await micErrors(page), [MIC_BLOCKED_BEFORE_PRESS])
+    await pickSource(page, 'File')
+    await pickSource(page, 'Mic')
+    await page.waitForSelector('.bpm-mode-mic .bpm-state-error')
+    assert.deepEqual(await micErrors(page), [MIC_BLOCKED_BEFORE_PRESS])
 
     // Choosing a file leaves the mic for the file picker.
     const chooser = page.waitForFileChooser()
@@ -162,7 +187,23 @@ test('a pasted link on a blocked site goes to the help, never to a request', asy
   const help = await page.waitForSelector('.bpm-mode-mic .bpm-state-error')
   assert.ok((await help!.evaluate((node) => (node as HTMLElement).innerText)).includes(MIC_ALLOW_STEPS.android_chrome))
   assert.deepEqual(await micRequests(page), [])
+  assert.deepEqual(await micErrors(page), [MIC_BLOCKED_BEFORE_PRESS])
   await page.close()
+})
+
+test('choose a file opens the picker within the press, from the blocked mic and from a pasted link', async () => {
+  const blocked = await openPage({ phone: true })
+  await denyMic(blocked)
+  assert.deepEqual(await pickerClicksWithinPress(blocked, '.bpm-mode-mic .bpm-text-btn'), ['within'])
+  await blocked.close()
+
+  const context = await browser.createBrowserContext()
+  const link = await openPage({ phone: true, context })
+  await pickSource(link, 'Stream')
+  await link.locator('#bpm-stream-url').fill('https://www.youtube.com/watch?v=abc')
+  await link.waitForSelector(`.bpm-stream-hint ::-p-text(${PHONE_LINK_LINE})`)
+  assert.deepEqual(await pickerClicksWithinPress(link, '.bpm-mode-stream .bpm-stream-hint .bpm-text-btn'), ['within'])
+  await context.close()
 })
 
 // Where the browser can't report the permission, the help waits for the refusal, which fires the

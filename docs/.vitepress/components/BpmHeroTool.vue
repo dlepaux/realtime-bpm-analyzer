@@ -18,7 +18,7 @@ import { useMicGuard } from '../composables/useMicGuard'
 import { MIC_LISTENING_LINE, MIC_STOPPED_LINE, micStatusLine, type MicPhase } from '../tools/mic-guard'
 import { fileExtensionParam } from '../tools/analytics-params'
 import { classifyMicError } from '../tools/mic-error'
-import { MIC_ALLOW_STEPS, MIC_BLOCKED_LINE, MIC_PURPOSE_LINE, PHONE_LINK_LINE, isPhone, micHelpBrowser, watchMicPermission, type MicPermission, type PermissionsLike } from '../tools/mic-denied-help'
+import { MIC_ALLOW_STEPS, MIC_BLOCKED_BEFORE_PRESS, MIC_BLOCKED_LINE, MIC_PURPOSE_LINE, blockedHelpReporter, PHONE_LINK_LINE, isPhone, micHelpBrowser, watchMicPermission, type MicPermission, type PermissionsLike } from '../tools/mic-denied-help'
 import { toolPageOf, watchToolSeen } from '../tools/tool-seen'
 import { decodeAndClose, openAnalysis } from '../tools/audio-setup'
 import {
@@ -121,6 +121,13 @@ const micAllowSteps = ref(MIC_ALLOW_STEPS.other)
 // of a button that could only fail. `unknown` where the browser can't tell, until a refusal.
 const micPermission = ref<MicPermission>('unknown')
 const micBlocked = computed(() => micDenied.value || (micStatus.value === 'idle' && micPermission.value === 'denied'))
+// A site the browser reports blocked shows the help with no press, so no start fails: the denial is
+// still counted, once per page view, with a reason of its own beside the refusals after a press.
+const blockedHelp = blockedHelpReporter(() => track('bpm_mic_error', { ...MIC_BLOCKED_BEFORE_PRESS }))
+watch(
+  () => mode.value === 'mic' && micStatus.value === 'idle' && micPermission.value === 'denied',
+  (shown) => { if (shown) blockedHelp.shown() },
+)
 let stopPermissionWatch: (() => void) | null = null
 // `shallowRef` for audio graph nodes — Vue shouldn't deep-track them (they're
 // not reactive targets) and we want consistent `.value = null` semantics.
@@ -531,6 +538,7 @@ async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic
     const reason = error instanceof Error ? error.message : 'unknown'
     const micFailure = classifyMicError(error)
     micDenied.value = micFailure.error_kind === 'denied'
+    if (micDenied.value) blockedHelp.pressDenied()
     micError.value = micDenied.value
       ? MIC_BLOCKED_LINE
       : 'Couldn’t start the microphone. Check your device and try again.'
@@ -635,19 +643,19 @@ watch([micStatus, micPaused], () => {
   })
 })
 
-// The way out that needs no mic, from a blocked mic or a phone's pasted link. The picker opens in
-// the same click once the idle file panel's input is on screen. A file result already there stays,
-// with its own "Try another", rather than be thrown away for a picker the visitor may cancel. Focus
-// goes to the file panel, since the pressed button is gone.
-async function chooseFileInstead() {
+// The way out that needs no mic, from a blocked mic or a phone's pasted link. iOS Safari opens a
+// file picker only within the tap itself, so the click on the input (kept in the page whatever the
+// mode) comes first, before any await. A file result already there stays, with its own "Try
+// another", rather than be thrown away for a picker the visitor may cancel. Focus goes to the file
+// panel once it renders, since the pressed button is gone.
+function chooseFileInstead() {
+  const picks = fileStatus.value === 'idle'
+  if (picks) openFilePicker()
   setMode('file')
-  await nextTick()
-  if (fileStatus.value !== 'idle') {
-    toolBody.value?.querySelector<HTMLButtonElement>('.bpm-mode-file button')?.focus()
-    return
-  }
-  chooseFileButton.value?.focus()
-  openFilePicker()
+  void nextTick(() => {
+    const target = picks ? chooseFileButton.value : toolBody.value?.querySelector<HTMLButtonElement>('.bpm-mode-file button')
+    target?.focus()
+  })
 }
 
 // Try again on a blocked mic asks the browser at once: going back to the mic button first would
@@ -1047,6 +1055,16 @@ function formatDuration(seconds: number): string {
       @select="setMode"
     />
 
+    <!-- Outside the file panel, so "choose a file" from another input can open the picker within
+         its own tap, before that panel renders. -->
+    <input
+      ref="fileInput"
+      type="file"
+      accept="audio/*,video/*"
+      :multiple="keepsTracks"
+      class="bpm-file-input"
+      @change="onFileChange"
+    />
     <div
       ref="toolBody"
       class="bpm-tool-body"
@@ -1093,14 +1111,6 @@ function formatDuration(seconds: number): string {
               @click.stop.prevent="jumpToCrate"
             >Your tracks ({{ crateRows.length }})</a>
           </div>
-          <input
-            ref="fileInput"
-            type="file"
-            accept="audio/*,video/*"
-            :multiple="keepsTracks"
-            class="bpm-file-input"
-            @change="onFileChange"
-          />
         </template>
 
         <template v-else-if="fileStatus === 'analysing'">

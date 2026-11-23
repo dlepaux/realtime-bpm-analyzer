@@ -4,6 +4,9 @@
 // - The steps that run Node at that floor: a bump there tests a newer Node than the floor promises.
 // - The markers job's Python: its requirements pin OpenTimelineIO's CPython wheel by hash, and OpenTimelineIO
 //   publishes none past 3.13, so a newer Python breaks `pip install --require-hashes`.
+// - The runtime floors of the published Python package (numpy >=1.26.4): the py311 job tests exactly that floor, and
+//   raising it drops users on the older major, as #455 would have.
+// - JUnit below 6 in the JVM package: JUnit 6 needs Java 17, and CI runs the same tests on Java 8 (#456).
 // Every other setup-node and setup-python step keeps getting Renovate's bumps.
 // The matcher below models the packageRules fields this repo's holds use. Renovate matches matchPackageNames
 // against the packageName, which for setup-node's node-version is actions/node-versions, not node: a hold written
@@ -30,7 +33,7 @@ const matchesPattern = (pattern: string, value: string) => {
 }
 
 // What each field is matched against. A rule with any other match* field doesn't match here; a test below
-// refuses such a field on any rule that sets enabled, so neither a hold nor a block can pass unread.
+// refuses such a field on any rule that sets enabled or allowedVersions, so no hold or block can pass unread.
 const FIELDS: Record<string, (dep: Dep) => string | undefined> = {
   matchManagers: (dep) => dep.manager,
   matchDepTypes: (dep) => dep.depType,
@@ -53,6 +56,9 @@ function ruleMatches(rule: Rule, dep: Dep): boolean {
 // Later rules override earlier ones, as in Renovate
 const isHeld = (dep: Dep) =>
   packageRules.filter((rule) => ruleMatches(rule, dep)).reduce((enabled, rule) => rule.enabled ?? enabled, true) === false
+
+const allowedVersions = (dep: Dep) => packageRules.filter((rule) => ruleMatches(rule, dep))
+  .reduce<unknown>((allowed, rule) => rule.allowedVersions ?? allowed, undefined)
 
 const workflowsDir = fileURLToPath(new URL('../../.github/workflows/', import.meta.url))
 const workflows = readdirSync(workflowsDir).filter((file) => /\.ya?ml$/.test(file)).map((file) =>
@@ -111,15 +117,50 @@ test('Renovate leaves the markers job on the Python its hashed wheels are for, a
   }
 })
 
+// pyproject's [project] dependencies, as Renovate's pep621 manager extracts them: "numpy>=1.26.4" → numpy, >=1.26.4
+function pythonRuntimeDeps(): Dep[] {
+  const list = /^dependencies = \[(.*)\]$/m.exec(repoFile('packages/python/pyproject.toml'))
+  assert.ok(list, 'packages/python/pyproject.toml declares its dependencies on one line')
+  return [...list[1].matchAll(/"([A-Za-z0-9_.-]+)([^"]+)"/g)].map(([, name, range]) =>
+    ({ manager: 'pep621', depType: 'project.dependencies', depName: name, packageName: name, currentValue: range }))
+}
+
+test('Renovate leaves the published Python package\'s runtime floors alone, the versions the py311 job tests', () => {
+  const pinned = repoFile('packages/python/ci/test-py311.in')
+  const deps = pythonRuntimeDeps()
+  assert.ok(deps.some(({ depName }) => depName === 'numpy'), 'numpy is a runtime dependency')
+  for (const dep of deps) {
+    const floor = /^>=(\S+)$/.exec(dep.currentValue)?.[1]
+    assert.ok(floor, `${dep.depName} ${dep.currentValue} is a plain >= floor`)
+    assert.ok(new RegExp(`^${dep.depName}==${floor.replaceAll('.', '\\.')}$`, 'm').test(pinned),
+      `ci/test-py311.in tests ${dep.depName} at its floor ${floor}`)
+    assert.ok(isHeld(dep), `${dep.depName} ${dep.currentValue} is held`)
+  }
+  const build = { manager: 'pep621', depType: 'build-system.requires', depName: 'hatchling', packageName: 'hatchling', currentValue: '>=1.27' }
+  assert.equal(isHeld(build), false, 'the build backend still gets bumps')
+})
+
+test('Renovate keeps the JVM package on JUnit 5, which still runs on the Java 8 the tests prove', () => {
+  const pom = repoFile('packages/jvm/pom.xml')
+  const version = /<artifactId>junit-bom<\/artifactId>[\s\S]*?<version>([^<]+)<\/version>/.exec(pom)?.[1]
+  assert.match(version ?? '', /^5\./, 'pom.xml imports junit-bom 5.x')
+  assert.match(repoFile('.github/workflows/main.yml'), /surefire:test -Djvm="\$JAVA_HOME_8_X64\/bin\/java"/,
+    'CI runs the JVM tests on Java 8')
+  const bom = { manager: 'maven', depName: 'org.junit:junit-bom', packageName: 'org.junit:junit-bom', currentValue: version ?? '' }
+  assert.equal(allowedVersions(bom), '<6')
+  assert.equal(isHeld(bom), false, 'JUnit 5 patches and minors still come')
+})
+
 // The bump checks above hold only if the matcher reads every rule that can switch a dependency off. A rule on a
 // field it doesn't model (matchUpdateTypes, matchFileNames...) or with a glob, a negation or regex flags would
 // count as "no match" here while Renovate applies it, and the bumps it stops would pass unseen.
-test('every rule that sets enabled uses only the fields and patterns this test models', () => {
-  for (const rule of packageRules.filter((rule) => 'enabled' in rule)) {
+test('every rule that sets enabled or allowedVersions uses only the fields and patterns this test models', () => {
+  for (const rule of packageRules.filter((rule) => 'enabled' in rule || 'allowedVersions' in rule)) {
     for (const [key, value] of Object.entries(rule).filter(([key]) => key.startsWith('match'))) {
       assert.ok(key in FIELDS, `${String(rule.description)}: ${key} isn't modelled`)
       for (const pattern of [value].flat() as string[]) {
-        assert.ok(/^\/.+\/$/.test(pattern) || !/[*?!{}/]/.test(pattern), `${String(rule.description)}: ${pattern} isn't exact or /regex/`)
+        // A scoped name like @types/node is exact; a leading / or ! starts a regex with flags or a negation
+        assert.ok(/^\/.+\/$/.test(pattern) || !/^[!/]|[*?{}]/.test(pattern), `${String(rule.description)}: ${pattern} isn't exact or /regex/`)
       }
     }
   }

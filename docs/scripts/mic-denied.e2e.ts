@@ -77,8 +77,11 @@ async function denyMic(page: Page): Promise<string> {
 
 before(async () => {
   assert.ok(BASE_URL, 'Set MIC_E2E_BASE_URL to a running local site, such as http://localhost:4173')
+  // GitHub's Ubuntu runners have no usable Chrome sandbox, as in analytics-contract.e2e.ts.
+  const sandbox = process.env.CI ? ['--no-sandbox', '--disable-setuid-sandbox'] : []
   browser = await puppeteer.launch({
-    args: ['--use-fake-device-for-media-stream', '--mute-audio'],
+    headless: true,
+    args: ['--use-fake-device-for-media-stream', '--mute-audio', ...sandbox],
   })
   await browser.defaultBrowserContext().setPermission(ORIGIN, { permission: { name: 'microphone' }, state: 'denied' })
 })

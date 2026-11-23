@@ -4,7 +4,7 @@ Thanks for contributing to Realtime BPM Analyzer! This page covers setting up th
 
 ## Getting Started
 
-You need Node.js 22.12 or later and npm. The ports need their own toolchains, listed under [Testing](#testing).
+You need Node.js 26 and npm; CI uses 26.13.1. The CLI and the MCP server still run on Node 22.12 or later, which CI checks in a job of its own. The ports need their own toolchains, listed under [Testing](#testing).
 
 ```bash
 # Fork and clone the repository
@@ -65,8 +65,8 @@ The root scripts delegate to the workspaces. Run a workspace's own script with `
 
 Each port reads the same `conformance/vectors.json`, whose readme is the contract a port is tested against. Build and test a port from its folder:
 
-- Java: `./mvnw verify` (JDK 11 or later)
-- Python: build a wheel with `python -m build`, then `scripts/test-wheel.sh <python> <venv> <dist> ci/test-py311.txt` installs it and runs the tests (Python 3.11 or later)
+- Java: `./mvnw verify` (CI builds with JDK 21, and runs the tests on Java 8 too)
+- Python: build a wheel with `pip install --require-hashes -r ci/build.txt` and `python -m build --no-isolation`, then `scripts/test-wheel.sh <python> <venv> <dist> ci/test-py311.txt` installs it and runs the tests (Python 3.11 or later)
 - C#: `dotnet test tests/RealtimeBpmAnalyzer.Tests`
 - Swift: `swift test -c release -Xswiftc -enable-testing`
 
@@ -76,14 +76,14 @@ Tests use synthetic signals only. Never commit recorded music or other audio you
 
 ## Commit Messages
 
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/), which [release-please](https://github.com/googleapis/release-please) reads to choose each package's next version and write its changelog. The `commit-msg` hook runs commitlint (`@commitlint/config-conventional`), and the `pre-commit` hook runs ESLint with `--fix` on each package you staged files in.
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/), which [release-please](https://github.com/googleapis/release-please) reads to choose each package's next version and write its changelog. The `commit-msg` hook runs commitlint (`@commitlint/config-conventional`), and the `pre-commit` hook runs ESLint with `--fix` on the library, the CLI or the MCP server when you stage files in them. The site's own lint runs in `npm run verify -w docs`.
 
 | Type | Releases |
 | --- | --- |
 | `fix` | a patch of the package whose folder it touches |
 | `feat` | a minor |
 | `feat!`, `fix!` or a `BREAKING CHANGE:` footer | a major |
-| `perf`, `deps`, `revert` | a patch |
+| `perf`, `revert` | a patch |
 | `docs`, `chore`, `refactor`, `test`, `build`, `ci`, `style` | nothing on its own |
 
 A commit releases only the packages whose folders it touches, so work in `docs/`, `examples/` or `.github/` never bumps a package. The root `readme.md` and `license.md` ship in the library's tarball, but a commit touching only them releases nothing; they go out with the next library release. A scope is welcome when it helps, for example `fix(cli): ...` or `docs(site): ...`.

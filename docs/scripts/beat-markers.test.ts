@@ -461,7 +461,7 @@ function checkRule(scenario: Omit<MarkerExport, 'rate' | 'dropFrame'>, choice: (
 /** Frames in `seconds` of audio, the audio's length rounded up to a whole frame. */
 const framesIn = (seconds: number, entry: ExportRate) => Math.ceil((seconds * entry.numerator) / entry.denominator)
 
-test(' 30.000 s at 120 BPM from 0 s at 24 fps is 60 markers, the last at 29.500 s on frame 708', () => {
+test('30.000 s at 120 BPM from 0 s at 24 fps is 60 markers, the last at 29.500 s on frame 708', () => {
   const card: MarkerExport = { name: 'kick.wav', bpm: 120, firstBeat: 0, duration: 30, rate: rate('24'), dropFrame: false }
   const markers = beatMarkers(card)
   assert.equal(markers.length, 60)
@@ -480,7 +480,7 @@ test(' 30.000 s at 120 BPM from 0 s at 24 fps is 60 markers, the last at 29.500 
   assert.doesNotMatch(toEdl(card), /^061 /m)
 })
 
-test(' 30 s at 120 BPM keeps 60 markers on their beats at every rate and in every format', () => {
+test('30 s at 120 BPM keeps 60 markers on their beats at every rate and in every format', () => {
   for (const choice of EXPORT_TIMECODES) {
     const frames = checkRule({ name: 'kick.wav', bpm: 120, firstBeat: 0, duration: 30 }, choice, framesIn(30, choice.rate))
     assert.equal(frames.length, 60, choice.label)
@@ -489,7 +489,7 @@ test(' 30 s at 120 BPM keeps 60 markers on their beats at every rate and in ever
   }
 })
 
-test(' a beat at the end, or inside the last half frame, is not written; one just before it is', () => {
+test('a beat at the end, or inside the last half frame, is not written; one just before it is', () => {
   // Each case puts the last of three beats, a second apart, at a place in the sequence's last
   // frame. The audio ends on a frame boundary here, `frames` frames long, so the sequence and the
   // audio end together and the last half frame lies inside the audio at every rate.
@@ -511,7 +511,7 @@ test(' a beat at the end, or inside the last half frame, is not written; one jus
   }
 })
 
-test(' a first beat at 0 is frame 0, 00:00:00:00, and the EDL\'s 01:00:00:00', () => {
+test('a first beat at 0 is frame 0, 00:00:00:00, and the EDL\'s 01:00:00:00', () => {
   for (const choice of EXPORT_TIMECODES) {
     const exportInput: MarkerExport = { name: 'zero.wav', bpm: 90, firstBeat: 0, duration: 4, rate: choice.rate, dropFrame: choice.dropFrame }
     const frames = checkRule(exportInput, choice, framesIn(4, choice.rate))
@@ -522,7 +522,7 @@ test(' a first beat at 0 is frame 0, 00:00:00:00, and the EDL\'s 01:00:00:00', (
   }
 })
 
-test(' an audio that ends on a frame boundary declares exactly that many frames, despite float error', () => {
+test('an audio that ends on a frame boundary declares exactly that many frames, despite float error', () => {
   // 31 frames of 24000/1001 is 1.29295833... s, which times 24000 / 1001 is 31.000000000000004 in
   // floats, whose ceiling would add a 32nd frame past the audio's end.
   const choice = EXPORT_TIMECODES.find((entry) => entry.id === '23.976')!
@@ -537,7 +537,7 @@ test(' an audio that ends on a frame boundary declares exactly that many frames,
   assert.equal(toCsv(late), 'marker,seconds,frame,timecode\r\n')
 })
 
-test(' the rule holds across tempos, first beats and lengths', () => {
+test('the rule holds across tempos, first beats and lengths', () => {
   // Off-grid tempos and first beats, and lengths that end anywhere inside a frame.
   for (const choice of EXPORT_TIMECODES) {
     for (const [bpm, firstBeat, duration] of [[127.6, 0.37, 61.3], [174, 0.011, 9.999], [93.25, 1.7, 30.03], [140, 0, 12.857]] as const) {

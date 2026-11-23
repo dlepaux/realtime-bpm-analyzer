@@ -7,6 +7,8 @@
 # - the benchmark's results and its held-out log, dated records of runs that already happened;
 # - docs/scripts/fixtures/overlay-view-snapshot.txt, a verbatim copy of the extension's source that a test compares
 #   line by line with the original.
+# The pattern is case-sensitive on purpose: the results' lowercase file names, such as rba-51-*.md, are record
+# names, and the readme links to them.
 # bin/private-refs-allowlist.txt lists the single lines that must stay as they are, each as `path:text`: strings the
 # benchmark prints or throws, the tests that match them, and a quote of a logged reason. Any other line of those
 # files is still checked, and a line that changes no longer matches its entry.

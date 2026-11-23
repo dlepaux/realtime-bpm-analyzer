@@ -4,7 +4,7 @@
 // every link is an address the site already had, so no address changed.
 //
 // The CLI, the MCP server and "Migrating to v6" are in Developers from v6 on (and
-// no "Apps" menu, decided on 2026-11-16). The sidebar, the sitemap, the search and
+// no "Apps" menu, since the CLI and the MCP server are developer tools). The sidebar, the sitemap, the search and
 // llms.txt list the CLI and MCP guides too, since both packages are on npm (the noindex flip);
 // the theme draws their generic icons (custom.css). The Java and Python guides are in the sidebar,
 // the sitemap, the search and llms.txt since their ports reached Maven Central and PyPI, but not

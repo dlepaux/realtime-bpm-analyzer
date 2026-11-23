@@ -98,7 +98,7 @@ for (const [name, device, steps] of DENIED_CASES) {
   test(`a blocked mic in ${name} says how to allow it, and offers the file and tapping`, async () => {
     const page = await openPage(device)
     const text = await denyMic(page)
-    assert.match(text, new RegExp(MIC_BLOCKED_LINE.replace(/[.]/g, '\\.')))
+    assert.ok(text.includes(MIC_BLOCKED_LINE), text)
     assert.ok(text.includes(steps), text)
     assert.match(text, /choose a file/)
     assert.equal(await page.$eval('.bpm-mode-mic a[href="/tap-tempo"]', (a) => a.textContent?.trim()), 'tap the tempo')

@@ -20,8 +20,8 @@ import {
   roundingDrift,
   type FrameRate,
 } from '../tools/frames'
-import { loadFrameRate, rateForLabel, saveFrameRate } from '../tools/frame-rate-memory'
-import { browserStore } from '../tools/local-store'
+import { rateForLabel } from '../tools/frame-rate-memory'
+import { useFrameRate } from '../composables/useFrameRate'
 
 const { track } = useAnalytics()
 
@@ -31,7 +31,7 @@ const beatsInput = ref<number | ''>(4)
 const customFps = ref('')
 const copied = ref<string | null>(null)
 // The editor's rate from any video tool. Read on mount, so the prerendered page marks 24.
-const remembered = ref(loadFrameRate(null))
+const { rate: remembered, pick: pickRate } = useFrameRate()
 
 const bpm = computed(() =>
   typeof bpmInput.value === 'number' && bpmInput.value > 0 ? clampBpm(bpmInput.value) : null,
@@ -99,9 +99,7 @@ onUnmounted(() => window.clearTimeout(urlTimer))
 function rememberRate(row: { label: string; isCustom: boolean }) {
   if (row.isCustom) return
   const next = rateForLabel(remembered.value, row.label)
-  if (next === null || next === remembered.value) return
-  remembered.value = next
-  saveFrameRate(browserStore(), next)
+  if (next !== null) pickRate(next)
 }
 
 let copiedTimer: number | undefined
@@ -129,7 +127,6 @@ async function copy(key: string, text: string, row: { label: string; isCustom: b
 }
 
 onMounted(() => {
-  remembered.value = loadFrameRate(browserStore())
   const fromUrl = parseBpmParam(new URLSearchParams(window.location.search).get('bpm'))
   if (fromUrl !== null) bpmInput.value = fromUrl
   // Started after the read above, so a ?bpm= link is never overwritten by the default tempo.

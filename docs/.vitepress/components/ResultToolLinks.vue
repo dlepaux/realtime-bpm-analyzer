@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useAnalytics } from '../composables/useAnalytics'
 import { noteMs } from '../tools/tempo'
 import { framesPerBeat } from '../tools/frames'
 import { fps } from '../tools/beat-markers'
-import { DEFAULT_TIMECODE, loadFrameRate } from '../tools/frame-rate-memory'
-import { browserStore } from '../tools/local-store'
+import { useFrameRate } from '../composables/useFrameRate'
 
 // The next step after a detected tempo: the beat length right away, then the
 // tools, each opened already set to it (they read `?bpm=`). Deliberately a
@@ -19,9 +18,8 @@ const { track } = useAnalytics()
 
 const beatMs = computed(() => Math.round(noteMs(props.bpm, 4)))
 
-// Read on mount, so a prerendered card and its hydration agree on 24 first.
-const timecode = ref(DEFAULT_TIMECODE)
-onMounted(() => { timecode.value = loadFrameRate(browserStore()) })
+// Shared with the marker export below, so a rate picked there shows here at once.
+const { rate: timecode } = useFrameRate()
 
 const beatFrames = computed(() => Number(framesPerBeat(props.bpm, fps(timecode.value.rate)).toFixed(2)))
 

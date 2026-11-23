@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAnalytics } from '../composables/useAnalytics'
 import {
   MARKER_FORMATS,
@@ -11,8 +11,7 @@ import {
   type MarkerFormat,
 } from '../tools/beat-markers'
 import { fallbackNote, firstBeatOf, fitTempo, onsetCurveInSlices, type GridTempo } from '../tools/first-beat'
-import { loadFrameRate, saveFrameRate } from '../tools/frame-rate-memory'
-import { browserStore } from '../tools/local-store'
+import { useFrameRate } from '../composables/useFrameRate'
 
 // The "Export beat markers" step on a file result (RBA-127): a fixed grid at the exact tempo
 // from the first strong onset, so it only suits steady tempos, and the copy says so. It is also
@@ -50,9 +49,11 @@ const IMPORT_STEPS: Record<MarkerFormat, string> = {
 }
 
 const format = ref<MarkerFormat>('fcp7xml')
-// Opens on the editor's remembered rate (RBA-276), as this format offers it. The component is
-// mounted only after an analysis, in the browser, so the store can be read here.
-const timecodeId = ref(timecodeChoice(format.value, loadFrameRate(browserStore()).id).id)
+const { rate: rememberedRate, pick: pickRate } = useFrameRate()
+const timecodeId = ref('24')
+// Opens on the editor's remembered rate (RBA-276), as this format offers it. useFrameRate's own
+// mount hook, registered first, has read the store by then.
+onMounted(() => { timecodeId.value = timecodeChoice(format.value, rememberedRate.value.id).id })
 let reported = false
 
 // The grid is measured only when the step is opened, a slice at a time: most results are never
@@ -101,7 +102,7 @@ watch(format, () => { timecodeId.value = choice.value.id })
 
 function pickTimecode(event: Event) {
   timecodeId.value = (event.target as HTMLSelectElement).value
-  saveFrameRate(browserStore(), choice.value)
+  pickRate(choice.value)
 }
 // One input for the count and the file: how many beats fit depends on the frame rate, since a
 // beat in the sequence's last half frame isn't written (RBA-239).

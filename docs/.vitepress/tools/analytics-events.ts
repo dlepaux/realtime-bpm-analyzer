@@ -214,8 +214,8 @@ export const EVENTS = {
   },
   bpm_mic_error: {
     params: { reason: 'required', error_kind: 'required', error_name: 'required' },
-    repeats: 'Once per failed start.',
-    privacy: "When the microphone can't start: whether access was denied, no microphone was found or it was in use, the browser's error name, and its error message with any web address in it removed.",
+    repeats: 'Once per failed start, and once per page view when the browser already blocks the microphone here before any press.',
+    privacy: "When the microphone can't start, or your browser already blocks it for this site: whether access was denied, no microphone was found or it was in use, the browser's error name, and its error message with any web address in it removed.",
     deprecated: { reason: 'error_kind and error_name' },
   },
   bpm_mic_stopped: {

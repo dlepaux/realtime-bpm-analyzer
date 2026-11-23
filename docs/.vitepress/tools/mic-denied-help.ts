@@ -120,3 +120,31 @@ export function watchMicPermission(permissions: PermissionsLike | undefined, onS
     status?.removeEventListener('change', emit)
   }
 }
+
+/**
+ * The mic error event's params when the help shows before any press, because the browser already
+ * reports the site blocked. No getUserMedia call threw, so the name is the one the browser gives the
+ * same refusal after a press: the denial count stays whole, and `reason` tells the two apart.
+ */
+export const MIC_BLOCKED_BEFORE_PRESS = {
+  reason: 'blocked_before_press',
+  error_kind: 'denied',
+  error_name: 'NotAllowedError',
+} as const
+
+/**
+ * Counts a page view's blocked mic once. The help shown from a reported block sends the event the
+ * first time only, so switching tabs back and forth adds nothing, and not at all after a press
+ * already reported the refusal (the help that follows it is the same denial).
+ */
+export function blockedHelpReporter(send: () => void): { readonly shown: () => void; readonly pressDenied: () => void } {
+  let reported = false
+  return {
+    shown: () => {
+      if (reported) return
+      reported = true
+      send()
+    },
+    pressDenied: () => { reported = true },
+  }
+}

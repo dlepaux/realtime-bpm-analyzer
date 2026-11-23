@@ -25,7 +25,8 @@ the next section describes.
 The metronome remembers its tempo, beats per bar and subdivision, and the video
 tools the frame rate you last used, so they open where you left off. These
 settings are kept in your browser's local storage, on this device. The metronome
-also puts its settings in the page's address, so a copied link opens on them.
+also puts its settings in the page's address when you change them or they differ
+from its defaults, so a copied link opens on them.
 Clearing this site's data in your browser removes them.
 
 ## What the website measures
@@ -35,7 +36,8 @@ every page, to understand how the tools are used and what to improve. Google Ana
 cookies in your browser and receives:
 
 - the pages you visit, your approximate location, your device and browser type,
-  and how you arrived on the site;
+  and how you arrived on the site. The metronome's address, with its tempo, beats
+  per bar and subdivision, is part of the page view Google Analytics records;
 - the version numbers in the address of the pages the browser extension opens:
   its version when you install it or remove it, its new and previous versions
   when it updates;

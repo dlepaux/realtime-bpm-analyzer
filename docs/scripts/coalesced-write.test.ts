@@ -82,3 +82,14 @@ test('cancel drops the timer and any waiting change', () => {
   assert.equal(writes(), 1)
   assert.equal(timers.pending(), 0)
 })
+
+test('a flush runs flushWrite when one is given, and the spell then ends quietly', () => {
+  const timers = fakeTimers()
+  const calls: string[] = []
+  const saver = coalescedWrite(() => calls.push('write'), 400, timers, () => calls.push('flush'))
+  saver.request()
+  saver.request()
+  saver.flush()
+  timers.advance(400)
+  assert.deepEqual(calls, ['write', 'flush'])
+})

@@ -14,19 +14,21 @@ import {
   type TickCursor,
 } from '../tools/tempo'
 import {
+  DEFAULT_SETTINGS,
   MAX_BEATS_PER_BAR,
   METRONOME_STORAGE_KEY,
   MIN_BEATS_PER_BAR,
   SUBDIVISIONS,
   loadSettings,
-  settingsQuery,
+  metronomeSaver,
+  sameSettings,
   subdivisionOf,
   subdivisionValue,
   writeSettingsToUrl,
   type MetronomeSettings,
 } from '../tools/metronome-settings'
-import { browserStore, readItem, writeItem } from '../tools/local-store'
-import { coalescedWrite } from '../tools/coalesced-write'
+import { browserStore, readItem } from '../tools/local-store'
+import type { CoalescedWrite } from '../tools/coalesced-write'
 
 const { track } = useAnalytics()
 const PITCH: Record<ClickKind, number> = { accent: 1760, beat: 1320, sub: 880 }
@@ -208,44 +210,48 @@ function onKeyDown(event: KeyboardEvent) {
   event.preventDefault()
 }
 
-// The settings are saved to the store and the address as they change, at most once per
-// SAVE_SPELL_MS: a slider drag or a held arrow key changes the tempo many times a second, and
-// Safari throws past about 100 replaceState calls per 30 s. The last change of a spell still
-// waiting when the page goes is flushed.
-const SAVE_SPELL_MS = 400
+// Created on mount: it needs the window, and records the page it may write the address of.
+let saver: CoalescedWrite | null = null
 
-function save() {
-  writeItem(browserStore(), METRONOME_STORAGE_KEY, settingsQuery(settings.value))
-  writeSettingsToUrl(window, settings.value)
+// A tab sent to the background may be killed without a pagehide, so hiding saves too.
+function onVisibilityChange() {
+  if (document.visibilityState === 'hidden') saver?.flush()
 }
 
-// Reached through arrows, so the prerender, which has no window, never touches it.
-const saver = coalescedWrite(save, SAVE_SPELL_MS, {
-  setTimeout: (run, ms) => window.setTimeout(run, ms),
-  clearTimeout: (id) => window.clearTimeout(id),
-})
+function flushSave() {
+  saver?.flush()
+}
 
 onMounted(() => {
-  const loaded = loadSettings(window.location.search, readItem(browserStore(), METRONOME_STORAGE_KEY))
+  const store = browserStore()
+  const loaded = loadSettings(window.location.search, readItem(store, METRONOME_STORAGE_KEY))
   setBpm(loaded.bpm)
   beatsPerBar.value = loaded.beatsPerBar
   subdivision.value = subdivisionValue(loaded.subdivision)
-  // The address shows what plays from the start, so a link copied before any change carries it.
-  // The store is left alone: opening someone's link doesn't replace the visitor's own settings.
-  writeSettingsToUrl(window, loaded)
+  // Settings other than the defaults (from the store, or a link to normalise) go in the address
+  // at once, so a link copied before any change carries them. A plain visit leaves it bare. The
+  // store is left alone: opening someone's link doesn't replace the visitor's own settings.
+  if (!sameSettings(loaded, DEFAULT_SETTINGS)) writeSettingsToUrl(window, loaded)
+  const timers = {
+    setTimeout: (run: () => void, ms: number) => window.setTimeout(run, ms),
+    clearTimeout: (id: number | undefined) => window.clearTimeout(id),
+  }
+  saver = metronomeSaver(window, store, timers, () => settings.value)
   // Started after the load above, so loading is never saved as a change.
   watch(settings, saver.request)
   reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   window.addEventListener('keydown', onKeyDown)
-  window.addEventListener('pagehide', saver.flush)
+  window.addEventListener('pagehide', flushSave)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 onBeforeUnmount(() => {
   stop()
-  saver.flush()
-  saver.cancel()
+  saver?.flush()
+  saver?.cancel()
   window.removeEventListener('keydown', onKeyDown)
-  window.removeEventListener('pagehide', saver.flush)
+  window.removeEventListener('pagehide', flushSave)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   void ctx?.close()
   ctx = null
 })

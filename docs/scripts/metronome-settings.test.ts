@@ -7,8 +7,12 @@ import {
   MAX_BEATS_PER_BAR,
   MIN_BEATS_PER_BAR,
   SUBDIVISIONS,
+  METRONOME_STORAGE_KEY,
+  SAVE_SPELL_MS,
   loadSettings,
+  metronomeSaver,
   readSettings,
+  sameSettings,
   settingsQuery,
   subdivisionOf,
   subdivisionValue,
@@ -16,6 +20,7 @@ import {
   writeSettingsToUrl,
   type MetronomeSettings,
 } from '../.vitepress/tools/metronome-settings.ts'
+import type { Timers } from '../.vitepress/tools/coalesced-write.ts'
 
 const WALTZ: MetronomeSettings = { bpm: 72, beatsPerBar: 3, subdivision: 'triplets' }
 
@@ -117,4 +122,83 @@ test('subdivisionOf and subdivisionValue map clicks per beat to the id and back'
   assert.equal(subdivisionOf(5).id, 'quarters')
   // The ids are what analytics sends (RBA-154): renaming one changes a reported value.
   assert.deepEqual(SUBDIVISIONS.map((sub) => sub.id), ['quarters', 'eighths', 'triplets', 'sixteenths'])
+})
+
+test('sameSettings compares every field', () => {
+  assert.ok(sameSettings(DEFAULT_SETTINGS, { bpm: 120, beatsPerBar: 4, subdivision: 'quarters' }))
+  assert.ok(!sameSettings(DEFAULT_SETTINGS, { ...DEFAULT_SETTINGS, bpm: 121 }))
+  assert.ok(!sameSettings(DEFAULT_SETTINGS, { ...DEFAULT_SETTINGS, beatsPerBar: 3 }))
+  assert.ok(!sameSettings(DEFAULT_SETTINGS, { ...DEFAULT_SETTINGS, subdivision: 'eighths' }))
+})
+
+// A page the router can leave: the address changes under the saver, as router.go's pushState does.
+function saverRig() {
+  const location = { pathname: '/metronome', search: '', hash: '' }
+  const urls: string[] = []
+  const win = {
+    location,
+    history: { state: null, replaceState: (_state: unknown, _unused: string, url: string) => {
+      urls.push(url)
+      location.search = new URL(url, 'https://x.test').search
+    } },
+  }
+  const items = new Map<string, string>()
+  const store = { getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, value: string) => { items.set(key, value) } }
+  const due: (() => void)[] = []
+  const timers: Timers = { setTimeout: (run) => due.push(run), clearTimeout: () => undefined }
+  let settings: MetronomeSettings = DEFAULT_SETTINGS
+  const saver = metronomeSaver(win, store, timers, () => settings)
+  return {
+    saver, urls, location,
+    stored: () => items.get(METRONOME_STORAGE_KEY),
+    set: (next: MetronomeSettings) => { settings = next },
+    endSpell: () => due.splice(0).forEach((run) => run()),
+  }
+}
+
+test('metronomeSaver: a change goes to the store and the address', () => {
+  const rig = saverRig()
+  rig.set(WALTZ)
+  rig.saver.request()
+  assert.equal(rig.stored(), 'bpm=72&beats=3&sub=triplets')
+  assert.deepEqual(rig.urls, ['/metronome?bpm=72&beats=3&sub=triplets'])
+})
+
+test('metronomeSaver: a flush after the router moved on writes the store, never the next page\'s address', () => {
+  const rig = saverRig()
+  rig.set(WALTZ)
+  rig.saver.request()
+  rig.set({ ...WALTZ, bpm: 135 })
+  rig.saver.request()
+  // A nav click within the spell: the address is already the next page's when the page unmounts.
+  rig.location.pathname = '/tap-tempo'
+  rig.location.search = ''
+  rig.saver.flush()
+  assert.equal(rig.stored(), 'bpm=135&beats=3&sub=triplets')
+  assert.deepEqual(rig.urls, ['/metronome?bpm=72&beats=3&sub=triplets'])
+  assert.equal(rig.location.search, '')
+})
+
+test('metronomeSaver: a spell ending after the router moved on leaves the next page\'s address alone', () => {
+  const rig = saverRig()
+  rig.saver.request()
+  rig.set(WALTZ)
+  rig.saver.request()
+  rig.location.pathname = '/tap-tempo'
+  rig.location.search = ''
+  rig.endSpell()
+  assert.equal(rig.stored(), 'bpm=72&beats=3&sub=triplets')
+  assert.equal(rig.urls.length, 1, 'only the first change, written on the metronome')
+  assert.equal(rig.location.search, '')
+})
+
+test('metronomeSaver: a flush on the metronome (tab hidden) writes the store only', () => {
+  const rig = saverRig()
+  rig.saver.request()
+  rig.set(WALTZ)
+  rig.saver.request()
+  rig.saver.flush()
+  assert.equal(rig.stored(), 'bpm=72&beats=3&sub=triplets')
+  assert.equal(rig.urls.length, 1)
+  assert.equal(SAVE_SPELL_MS, 400)
 })

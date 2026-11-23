@@ -3,6 +3,8 @@
 // teacher's link opens on the meter as well as the tempo. The URL and the store hold the same
 // query text (`bpm=72&beats=3&sub=triplets`), so one reader validates both. No Vue and no DOM,
 // so node --test runs it (scripts/metronome-settings.test.ts).
+import { coalescedWrite, type CoalescedWrite, type Timers } from './coalesced-write.ts'
+import { writeItem, type KeyValueStore } from './local-store.ts'
 import { parseBpmParam, writeSearchToUrl, type UrlWindow } from './tempo.ts'
 
 export const METRONOME_STORAGE_KEY = 'rba:metronome:v1'
@@ -75,6 +77,11 @@ export function readSettings(query: string | null): Partial<MetronomeSettings> {
   }
 }
 
+/** True when both hold the same settings. */
+export function sameSettings(a: MetronomeSettings, b: MetronomeSettings): boolean {
+  return a.bpm === b.bpm && a.beatsPerBar === b.beatsPerBar && a.subdivision === b.subdivision
+}
+
 /** What the metronome opens on: each field from the address, else the store, else the default. */
 export function loadSettings(search: string, stored: string | null): MetronomeSettings {
   return { ...DEFAULT_SETTINGS, ...readSettings(stored), ...readSettings(search) }
@@ -97,4 +104,29 @@ export function withSettingsParams(search: string, settings: MetronomeSettings):
 /** Puts the settings in the address without a Back step. False when the browser refused. */
 export function writeSettingsToUrl(win: UrlWindow, settings: MetronomeSettings): boolean {
   return writeSearchToUrl(win, withSettingsParams(win.location.search, settings))
+}
+
+/** A change waits at most this long before it is saved; see coalescedWrite. */
+export const SAVE_SPELL_MS = 400
+
+/**
+ * Saves the metronome's settings as they change: to the store and, while the page is still the
+ * metronome, to the address. The address check matters because the router pushes the next
+ * page's address before the metronome unmounts (and Back has changed it before popstate), so a
+ * late write would put the tempo on the next page, which reads it. A flush, run as the page
+ * leaves or hides, writes the store only for the same reason.
+ */
+export function metronomeSaver(
+  win: UrlWindow,
+  store: KeyValueStore | null,
+  timers: Timers,
+  current: () => MetronomeSettings,
+): CoalescedWrite {
+  const path = win.location.pathname
+  const toStore = () => { writeItem(store, METRONOME_STORAGE_KEY, settingsQuery(current())) }
+  const toStoreAndUrl = () => {
+    toStore()
+    if (win.location.pathname === path) writeSettingsToUrl(win, current())
+  }
+  return coalescedWrite(toStoreAndUrl, SAVE_SPELL_MS, timers, toStore)
 }

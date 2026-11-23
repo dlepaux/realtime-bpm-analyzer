@@ -24,6 +24,7 @@ import puppeteer, { type Browser, type HTTPRequest, type Page } from 'puppeteer'
 import { EVENTS, type EventSpec } from '../.vitepress/tools/analytics-events.ts'
 import { GTAG_SRC } from '../.vitepress/tools/analytics-loader.ts'
 import { PRODUCTION_HOST, SITE_URL } from '../.vitepress/tools/site-url.ts'
+import { APP_ORIGIN } from '../.vitepress/tools/toolbox-entry.ts'
 
 const BASE_URL = process.env.CONTRACT_BASE_URL
 const NAVIGATION_TIMEOUT_MS = 90_000
@@ -39,6 +40,8 @@ type Hit = { readonly name: string; readonly location: string; readonly title: s
 
 const hits: Hit[] = []
 const blocked: string[] = []
+/** Requests for the musician app's origin, answered with a stub page so a click into it completes. */
+const appRequests: string[] = []
 const pageErrors: string[] = []
 let browser: Browser
 let page: Page
@@ -72,6 +75,10 @@ async function route(request: HTTPRequest): Promise<void> {
   const url = request.url()
   if (new URL(url).hostname === PRODUCTION_HOST) return serveLocally(request).catch(() => request.abort())
   if (url.startsWith(GTAG_SRC)) return request.continue()
+  if (new URL(url).origin === APP_ORIGIN) {
+    appRequests.push(url)
+    return request.respond({ status: 200, contentType: 'text/html', body: '<!doctype html><title>App stub</title>' })
+  }
   // A beacon's body can be missing from postData(); fetchPostData() reads it back from the browser.
   if (COLLECT.test(url)) {
     hits.push(...parseHits(url, request.postData() ?? (await request.fetchPostData().catch(() => undefined))))
@@ -251,6 +258,32 @@ test('the tool below the first screen is seen only once a scroll brings it in', 
     await page.$eval('.bpm-tool-body', (body) => body.scrollIntoView({ block: 'center' }))
     await new Promise((resolve) => setTimeout(resolve, QUIET_MS))
     assert.deepEqual(toolSeenSince(mark), [{ page: 'video-bpm', seen_on: 'scroll' }])
+  } finally {
+    await page.setViewport(DEFAULT_VIEWPORT)
+  }
+})
+
+// The way into the musician app (RBA-284). The click leaves the page in the same tab, so its hit has
+// to go out as the page unloads: the app's origin answers with a stub page, so the navigation
+// completes and the old page really unloads. The address the browser asks for is the link's own
+// path with nothing added but `_gl`: GA4's cross-domain linker, which the data stream's "Configure
+// your domains" turns on and gtag.js adds at click time. A UTM or anything else fails here.
+test('opening the toolbox sends where the entry sits, and nothing else, as the page leaves', async () => {
+  await page.setViewport(DESKTOP)
+  try {
+    const mark = await openFresh('/video-bpm')
+    const href = await page.$eval('.toolbox-entry.is-nav', (link) => link.getAttribute('href'))
+    assert.equal(href, `${APP_ORIGIN}/video-bpm`)
+    await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), page.click('.toolbox-entry.is-nav')])
+    assert.equal(new URL(page.url()).origin, APP_ORIGIN, 'the click should have left for the app')
+    assert.equal(appRequests.length, 1, appRequests.join(' '))
+    const opened = new URL(appRequests[0] ?? '')
+    assert.equal(`${opened.origin}${opened.pathname}`, href)
+    assert.deepEqual([...opened.searchParams.keys()].filter((key) => key !== '_gl'), [], opened.search)
+    assert.equal(opened.hash, '')
+    const clicks = () => hits.slice(mark).filter((hit) => hit.name === 'app_link_clicked')
+    await waitFor('app_link_clicked', () => clicks().length >= 1)
+    assert.deepEqual(clicks().map((hit) => hit.params), [{ placement: 'app_nav' }])
   } finally {
     await page.setViewport(DEFAULT_VIEWPORT)
   }

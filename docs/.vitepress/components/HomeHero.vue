@@ -7,6 +7,7 @@ import { computed } from 'vue'
 import { useData, withBase } from 'vitepress'
 import BpmHeroTool from './BpmHeroTool.vue'
 import ExtensionHomeBand from './ExtensionHomeBand.vue'
+import ToolboxEntry from './ToolboxEntry.vue'
 import { STORE_URL } from '../tools/extension-live'
 
 const { frontmatter, site } = useData()
@@ -44,6 +45,7 @@ const hero = computed(() => frontmatter.value.homeHero as { text: string; taglin
         </BpmHeroTool>
         <ExtensionHomeBand v-if="STORE_URL" />
       </div>
+      <ToolboxEntry placement="app_below_tool" />
     </div>
   </section>
 </template>

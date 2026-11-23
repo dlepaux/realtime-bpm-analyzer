@@ -47,6 +47,8 @@ online, paste its link in the **Stream** tab: on desktop Chrome and Edge the
 tool offers to share the audio of the tab that plays it, and elsewhere the
 microphone.
 
+<ToolboxEntry placement="app_below_tool" />
+
 ## From BPM to frames
 
 One beat lasts 60 ÷ BPM seconds, so:

@@ -37,6 +37,8 @@ tempo, pick a time signature and a subdivision, and press **Start** or
 
 <Metronome />
 
+<ToolboxEntry placement="app_below_tool" />
+
 ## Built for practice
 
 - **Accurate timing.** Clicks are booked on the audio clock about a tenth of

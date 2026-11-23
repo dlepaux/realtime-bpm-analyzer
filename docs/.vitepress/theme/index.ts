@@ -2,6 +2,7 @@ import DefaultTheme from 'vitepress/theme'
 import { inBrowser, type EnhanceAppContext, type Theme } from 'vitepress'
 import { trackRouteChange } from '../composables/useAnalytics'
 import ExampleEmbed from '../components/ExampleEmbed.vue'
+import ToolboxEntry from '../components/ToolboxEntry.vue'
 import Layout from './Layout.vue'
 import './tokens.css'
 import './custom.css'
@@ -15,6 +16,8 @@ export default {
   Layout,
   enhanceApp({ app, router }: EnhanceAppContext) {
     app.component('ExampleEmbed', ExampleEmbed)
+    // The tool pages put it under their tool (RBA-284).
+    app.component('ToolboxEntry', ToolboxEntry)
     // In-site page views come from the router, not from GA4's history tracking (RBA-154).
     if (inBrowser) router.onAfterRouteChange = trackRouteChange
   },

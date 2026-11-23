@@ -443,7 +443,8 @@ function restartFile() {
 
 // ─── Mic flow ────────────────────────────────────────────────────────────
 async function startMic(entry: 'mic_tab' | 'link_fallback' | 'mic_resume' = 'mic_tab') {
-  if (micStatus.value !== 'idle') return
+  // A blocked site is refused with no prompt: the Mic panel shows how to allow it instead.
+  if (micStatus.value !== 'idle' || micPermission.value === 'denied') return
 
   track('bpm_mic_clicked', { input_method: entry })
   const clickedAt = performance.now()
@@ -635,13 +636,16 @@ watch([micStatus, micPaused], () => {
 })
 
 // The way out that needs no mic, from a blocked mic or a phone's pasted link. The picker opens in
-// the same click once the file mode's input is on screen, which takes an idle file panel: the
-// visitor asked for a new file, as "Try another" does. Focus goes to the file button, since the pressed
-// button is gone and a cancelled picker would otherwise leave it on the page body.
+// the same click once the idle file panel's input is on screen. A file result already there stays,
+// with its own "Try another", rather than be thrown away for a picker the visitor may cancel. Focus
+// goes to the file panel, since the pressed button is gone.
 async function chooseFileInstead() {
   setMode('file')
-  if (fileStatus.value !== 'idle') restartFile()
   await nextTick()
+  if (fileStatus.value !== 'idle') {
+    toolBody.value?.querySelector<HTMLButtonElement>('.bpm-mode-file button')?.focus()
+    return
+  }
   chooseFileButton.value?.focus()
   openFilePicker()
 }
@@ -970,7 +974,7 @@ onMounted(() => {
   if (toolBody.value) stopSeenWatch = watchToolSeen(toolBody.value, (seenOn) => track('bpm_tool_seen', { page, seen_on: seenOn }))
   tabAudioSupported.value = supportsTabAudio(navigator as NavigatorLike)
   onPhone.value = isPhone(navigator.userAgent)
-  micAllowSteps.value = MIC_ALLOW_STEPS[micHelpBrowser({ userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints })]
+  micAllowSteps.value = MIC_ALLOW_STEPS[micHelpBrowser({ userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints, brave: 'brave' in navigator })]
   stopPermissionWatch = watchMicPermission(navigator.permissions as PermissionsLike | undefined, (state) => { micPermission.value = state })
   if (keepsTracks.value) {
     crateStored.value = browserStore() !== null
@@ -1308,7 +1312,10 @@ function formatDuration(seconds: number): string {
                 {{ micAllowSteps }}
               </div>
             </div>
+            <!-- While the browser reports the site blocked, a retry can only be refused: the
+                 permission's change event brings the mic button back once it is allowed. -->
             <button
+              v-if="micPermission !== 'denied'"
               type="button"
               class="bpm-restart-btn"
               @click="micBlocked ? retryBlockedMic() : stopMic()"

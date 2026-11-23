@@ -25,7 +25,7 @@ const ANDROID_CHROME = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (K
 const IPHONE_SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.1 Mobile/15E148 Safari/604.1'
 const MAC_FIREFOX = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:145.0) Gecko/20100101 Firefox/145.0'
 
-type Device = { readonly userAgent?: string; readonly phone: boolean; readonly context?: BrowserContext }
+type Device = { readonly userAgent?: string; readonly phone: boolean; readonly context?: BrowserContext; readonly before?: () => void }
 
 // Before any page script: every getUserMedia call is logged with the last press before it, so a
 // test can prove the browser's prompt only ever follows a press (DECISION of 2026-11-23, RBA-299).
@@ -35,7 +35,7 @@ function logMicRequests(): void {
   Object.assign(window, { __micRequests: log })
   for (const type of ['pointerdown', 'click', 'keydown']) {
     addEventListener(type, (event) => {
-      if (event.isTrusted) lastPress = (event.target as HTMLElement).closest('button, a')?.textContent?.trim() || type
+      if (event.isTrusted) lastPress = (event.target as HTMLElement).closest('button, a')?.textContent?.trim() || 'press'
     }, true)
   }
   const devices = navigator.mediaDevices
@@ -72,6 +72,7 @@ async function openPage(device: Device): Promise<Page> {
   const page = await (device.context ?? browser.defaultBrowserContext()).newPage()
   page.setDefaultTimeout(TIMEOUT_MS)
   await page.evaluateOnNewDocument(logMicRequests)
+  if (device.before) await page.evaluateOnNewDocument(device.before)
   await page.setRequestInterception(true)
   page.on('request', (request) => void route(request))
   if (device.phone) {
@@ -92,21 +93,23 @@ async function pickSource(page: Page, label: string): Promise<void> {
   await page.locator(`.bpm-source-btn ::-p-text(${label})`).click()
 }
 
-// The site is blocked already, as a returning visitor's "Block" leaves it: the Mic tab shows the
-// help in place of a button that could only fail, before any request. Try again asks the browser,
-// which refuses at once, and the panel stays.
+// The site is blocked already, as a returning visitor's "Block" leaves it, and the Permissions API
+// says so: the Mic tab shows the help in place of a button that could only fail, with no request
+// and no Try again, since a retry would be refused unseen.
 async function denyMic(page: Page): Promise<string> {
   await pickSource(page, 'Mic')
   const help = await page.waitForSelector('.bpm-mode-mic .bpm-state-error')
   assert.equal(await page.$('button[aria-label="Detect BPM from microphone"]'), null)
+  assert.equal(await page.$('.bpm-mode-mic .bpm-restart-btn'), null)
   assert.deepEqual(await micRequests(page), [])
-  const before = await help!.evaluate((node) => (node as HTMLElement).innerText)
-  await page.locator('.bpm-mode-mic ::-p-text(Try again)').click()
-  await page.waitForFunction(() => (window as unknown as { __micRequests: string[] }).__micRequests.length === 1)
-  assert.deepEqual(await micRequests(page), ['Try again'])
-  const after = await page.waitForSelector('.bpm-mode-mic .bpm-state-error')
-  assert.equal(await after!.evaluate((node) => (node as HTMLElement).innerText), before)
-  return before
+  return help!.evaluate((node) => (node as HTMLElement).innerText)
+}
+
+function micErrors(page: Page): Promise<Record<string, unknown>[]> {
+  return page.evaluate(() => ((window as unknown as { dataLayer?: unknown[] }).dataLayer ?? [])
+    .map((entry) => Array.from(entry as ArrayLike<unknown>))
+    .filter((entry) => entry[0] === 'event' && entry[1] === 'bpm_mic_error')
+    .map((entry) => entry[2] as Record<string, unknown>))
 }
 
 before(async () => {
@@ -131,26 +134,17 @@ const DENIED_CASES: readonly (readonly [string, Device, string])[] = [
   ['Firefox on desktop', { userAgent: MAC_FIREFOX, phone: false }, MIC_ALLOW_STEPS.firefox],
 ]
 
+// Headless Chrome plays each browser by its user agent: this proves which steps each one is shown,
+// not how that browser itself reports a block.
 for (const [name, device, steps] of DENIED_CASES) {
-  test(`a blocked mic in ${name} says how to allow it, and offers the file and tapping`, async () => {
+  test(`a site blocked earlier, with ${name}'s user agent, shows how to allow the mic and offers the file and tapping, before any press`, async () => {
     const page = await openPage(device)
     const text = await denyMic(page)
     assert.ok(text.includes(MIC_BLOCKED_LINE), text)
     assert.ok(text.includes(steps), text)
     assert.match(text, /choose a file/)
     assert.equal(await page.$eval('.bpm-mode-mic a[href="/tap-tempo"]', (a) => a.textContent?.trim()), 'tap the tempo')
-
-    // The existing error event, with its kind and the browser's name for the refusal.
-    const errors = await page.evaluate(() => ((window as unknown as { dataLayer?: unknown[] }).dataLayer ?? [])
-      .map((entry) => Array.from(entry as ArrayLike<unknown>))
-      .filter((entry) => entry[0] === 'event' && entry[1] === 'bpm_mic_error')
-      .map((entry) => entry[2]))
-    assert.equal(errors.length, 1, JSON.stringify(errors))
-    assert.deepEqual(
-      { kind: (errors[0] as Record<string, unknown>).error_kind, name: (errors[0] as Record<string, unknown>).error_name },
-      { kind: 'denied', name: 'NotAllowedError' },
-    )
-    assert.equal(typeof (errors[0] as Record<string, unknown>).reason, 'string')
+    assert.deepEqual(await micErrors(page), [])
 
     // Choosing a file leaves the mic for the file picker.
     const chooser = page.waitForFileChooser()
@@ -160,32 +154,70 @@ for (const [name, device, steps] of DENIED_CASES) {
   })
 }
 
+test('a pasted link on a blocked site goes to the help, never to a request', async () => {
+  const page = await openPage({ phone: true })
+  await pickSource(page, 'Stream')
+  await page.locator('#bpm-stream-url').fill('https://www.youtube.com/watch?v=abc')
+  await page.locator('.bpm-mode-stream ::-p-text(next to your mic)').click()
+  const help = await page.waitForSelector('.bpm-mode-mic .bpm-state-error')
+  assert.ok((await help!.evaluate((node) => (node as HTMLElement).innerText)).includes(MIC_ALLOW_STEPS.android_chrome))
+  assert.deepEqual(await micRequests(page), [])
+  await page.close()
+})
+
+// Where the browser can't report the permission, the help waits for the refusal, which fires the
+// existing error event with its reason, kind and name. Try again asks the browser again.
+test('without the Permissions API, a refusal after the press shows the help, Try again and the error event', async () => {
+  const page = await openPage({ phone: true, before: () => { Object.defineProperty(navigator, 'permissions', { value: undefined }) } })
+  await pickSource(page, 'Mic')
+  await page.locator('button[aria-label="Detect BPM from microphone"]').click()
+  const help = await page.waitForSelector('.bpm-mode-mic .bpm-state-error')
+  const text = await help!.evaluate((node) => (node as HTMLElement).innerText)
+  assert.ok(text.includes(MIC_BLOCKED_LINE) && text.includes(MIC_ALLOW_STEPS.android_chrome), text)
+  const errors = await micErrors(page)
+  assert.equal(errors.length, 1, JSON.stringify(errors))
+  assert.deepEqual({ kind: errors[0].error_kind, name: errors[0].error_name }, { kind: 'denied', name: 'NotAllowedError' })
+  assert.equal(typeof errors[0].reason, 'string')
+  await page.locator('.bpm-mode-mic ::-p-text(Try again)').click()
+  await page.waitForFunction(() => (window as unknown as { __micRequests: string[] }).__micRequests.length === 2)
+  assert.deepEqual(await micRequests(page), ['press', 'Try again'])
+  await page.close()
+})
+
 // A first visit: the browser has not been asked yet, so the permission is "prompt".
 for (const phone of [true, false]) {
   test(`on a first visit (${phone ? 'phone' : 'desktop'}), the mic is asked for only by a press, never by the page, the Mic tab or a pasted link`, async () => {
     const context = await browser.createBrowserContext()
     try {
-      let page = await openPage({ phone, context })
+      const page = await openPage({ phone, context })
       await pickSource(page, 'Mic')
       const idle = await page.$eval('.bpm-mode-mic', (node) => (node as HTMLElement).innerText)
       assert.ok(idle.includes(MIC_PURPOSE_LINE), idle)
       assert.deepEqual(await micRequests(page), [])
       await page.locator('button[aria-label="Detect BPM from microphone"]').click()
       await page.waitForFunction(() => (window as unknown as { __micRequests: string[] }).__micRequests.length > 0)
-      assert.equal((await micRequests(page)).length, 1)
+      // The mic button holds only its icon, so its press has no text of its own.
+      assert.deepEqual(await micRequests(page), ['press'])
       await page.close()
-
-      page = await openPage({ phone, context })
+    } finally {
+      await context.close()
+    }
+    // Headless Chrome answers the first prompt with a refusal and may keep it for the context, so
+    // the pasted link gets its own first visit.
+    const linkContext = await browser.createBrowserContext()
+    try {
+      const page = await openPage({ phone, context: linkContext })
       await pickSource(page, 'Stream')
       await page.locator('#bpm-stream-url').fill('https://www.youtube.com/watch?v=abc')
       await page.waitForSelector('.bpm-link-note')
       assert.deepEqual(await micRequests(page), [])
       await page.locator('.bpm-mode-stream ::-p-text(next to your mic)').click()
       await page.waitForFunction(() => (window as unknown as { __micRequests: string[] }).__micRequests.length > 0)
-      assert.match((await micRequests(page)).join(), /next to your mic/i)
+      assert.equal((await micRequests(page)).length, 1)
+      assert.match((await micRequests(page))[0], /next to your mic/i)
       await page.close()
     } finally {
-      await context.close()
+      await linkContext.close()
     }
   })
 }

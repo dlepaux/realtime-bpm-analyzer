@@ -132,3 +132,9 @@ test('the line beside the mic button says what it is for and that the audio stay
   assert.match(MIC_PURPOSE_LINE, /stays on this device/)
   assert.doesNotMatch(MIC_PURPOSE_LINE, /accura|best|precise|\d+ ?%/i)
 })
+
+test('Brave, which sends Chrome user agent unchanged, gets the general steps, not Chrome menus', () => {
+  assert.equal(micHelpBrowser({ userAgent: UA.macChrome, maxTouchPoints: 0, brave: true }), 'other')
+  assert.equal(micHelpBrowser({ userAgent: UA.androidChrome, maxTouchPoints: 5, brave: true }), 'other')
+  assert.equal(micHelpBrowser({ userAgent: UA.macChrome, maxTouchPoints: 0, brave: false }), 'chrome')
+})

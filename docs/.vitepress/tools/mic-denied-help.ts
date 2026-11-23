@@ -43,11 +43,13 @@ export type BrowserSignals = {
   readonly userAgent: string
   /** navigator.maxTouchPoints: iPadOS sends a Mac user agent, and only its touch screen tells it apart. */
   readonly maxTouchPoints: number
+  /** Brave sends Chrome's user agent unchanged but has its own menus: only `navigator.brave` tells. */
+  readonly brave?: boolean
 }
 
 // Browsers built on Chrome's engine that keep its token in their user agent but have their own
 // menus, and Android WebViews (in-app browsers), so they get the general steps. Brave sends
-// Chrome's user agent unchanged, so it gets Chrome's steps.
+// Chrome's user agent unchanged, so it is told apart by `navigator.brave`.
 const OTHER_CHROMIUM = /\b(?:OPR|Vivaldi|YaBrowser|SamsungBrowser|EdgA|UCBrowser)\/|; wv\)/
 // On iOS every browser is WebKit. Only Safari itself ends in a Version/… Safari/ pair: in-app
 // browsers (TikTok, Instagram…) drop the Safari token, and the other browsers add their own.
@@ -60,6 +62,7 @@ function isIos({ userAgent, maxTouchPoints }: BrowserSignals): boolean {
 
 export function micHelpBrowser(signals: BrowserSignals): MicHelpBrowser {
   const ua = signals.userAgent
+  if (signals.brave) return 'other'
   if (isIos(signals)) return IOS_SAFARI.test(ua) && !OTHER_IOS.test(ua) ? 'ios_safari' : 'other'
   if (/\bAndroid\b/.test(ua)) return /\bChrome\//.test(ua) && !OTHER_CHROMIUM.test(ua) ? 'android_chrome' : 'other'
   if (/\bEdg\//.test(ua)) return 'edge'

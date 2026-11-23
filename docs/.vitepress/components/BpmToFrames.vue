@@ -20,6 +20,8 @@ import {
   roundingDrift,
   type FrameRate,
 } from '../tools/frames'
+import { rateForLabel } from '../tools/frame-rate-memory'
+import { useFrameRate } from '../composables/useFrameRate'
 
 const { track } = useAnalytics()
 
@@ -28,6 +30,8 @@ const bpmInput = ref<number | ''>(120)
 const beatsInput = ref<number | ''>(4)
 const customFps = ref('')
 const copied = ref<string | null>(null)
+// The editor's rate from any video tool. Read on mount, so the prerendered page marks 24.
+const { rate: remembered, pick: pickRate } = useFrameRate()
 
 const bpm = computed(() =>
   typeof bpmInput.value === 'number' && bpmInput.value > 0 ? clampBpm(bpmInput.value) : null,
@@ -50,7 +54,9 @@ const rows = computed(() => {
   return rates.map((rate) => {
     const current = bpm.value
     // No tempo yet: empty cells, and their copy buttons are disabled.
-    if (current === null) return { ...rate, beat: '', bar: '', drift: '', driftLine: '', isCustom: rate === custom.value }
+    const isCustom = rate === custom.value
+    const isRemembered = !isCustom && rate.label === remembered.value.rate.label
+    if (current === null) return { ...rate, beat: '', bar: '', drift: '', driftLine: '', isCustom, isRemembered }
     const bar = framesFraction(current, rate.exact, beatsPerBar.value)
     const drift = driftParts(bar, framesPerBeats(current, rate.fps, beatsPerBar.value), rate.fps)
     return {
@@ -59,7 +65,8 @@ const rows = computed(() => {
       bar: formatFrames(bar),
       drift: drift ? `${drift.rounded} f: ${drift.text}` : 'none',
       driftLine: drift ? `Rounded bar ${drift.rounded} f, drift ${drift.text}` : 'Rounded bar: no drift',
-      isCustom: rate === custom.value,
+      isCustom,
+      isRemembered,
     }
   })
 })
@@ -87,12 +94,21 @@ const URL_SETTLE_MS = 400
 let urlTimer: number | undefined
 onUnmounted(() => window.clearTimeout(urlTimer))
 
+// Copying a count is the editor using that rate, so it becomes the one the other video tools
+// open on. A custom rate isn't remembered: the marker export can't write it.
+function rememberRate(row: { label: string; isCustom: boolean }) {
+  if (row.isCustom) return
+  const next = rateForLabel(remembered.value, row.label)
+  if (next !== null) pickRate(next)
+}
+
 let copiedTimer: number | undefined
 async function copy(key: string, text: string, row: { label: string; isCustom: boolean }, cell: 'beat' | 'bar') {
   if (text === '') return
   try {
     await navigator.clipboard.writeText(text)
     copied.value = key
+    rememberRate(row)
     window.clearTimeout(copiedTimer)
     copiedTimer = window.setTimeout(() => (copied.value = null), 1400)
     // `mode` keeps its old form for the readback; fps and frame_cell split it, and a typed rate
@@ -217,9 +233,12 @@ onMounted(() => {
             v-for="row in rows"
             :key="row.label"
           >
-            <tr :class="{ 'is-custom': row.isCustom }">
+            <tr :class="{ 'is-custom': row.isCustom, 'is-remembered': row.isRemembered }">
               <th scope="row">
-                {{ row.label }}
+                {{ row.label }}<span
+                  v-if="row.isRemembered"
+                  class="visually-hidden"
+                >, your last rate</span>
               </th>
               <td
                 v-for="cell in (['beat', 'bar'] as const)"
@@ -375,6 +394,20 @@ onMounted(() => {
 .vp-doc .tt-table tr.is-custom th,
 .vp-doc .tt-table tr.is-custom td {
   background: var(--vp-c-brand-soft);
+}
+
+/* The rate the editor last used, from this page or the marker export: its label in the brand
+   colour, so it is found at a glance without reordering the rates. */
+.vp-doc .tt-table tr.is-remembered th { color: var(--vp-c-brand-1); }
+.vp-doc .tt-table tr.is-remembered th::before {
+  content: '';
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-right: 0.35rem;
+  border-radius: 50%;
+  background: var(--vp-c-brand-1);
+  vertical-align: middle;
 }
 
 /*

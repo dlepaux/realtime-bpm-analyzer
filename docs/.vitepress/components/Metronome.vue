@@ -7,23 +7,30 @@ import {
   MIN_BPM,
   clampBpm,
   clickKind,
-  parseBpmParam,
   tapToSet,
   tempoMarking,
   ticksBefore,
   type ClickKind,
   type TickCursor,
 } from '../tools/tempo'
+import {
+  DEFAULT_SETTINGS,
+  MAX_BEATS_PER_BAR,
+  METRONOME_STORAGE_KEY,
+  MIN_BEATS_PER_BAR,
+  SUBDIVISIONS,
+  loadSettings,
+  metronomeSaver,
+  sameSettings,
+  subdivisionOf,
+  subdivisionValue,
+  writeSettingsToUrl,
+  type MetronomeSettings,
+} from '../tools/metronome-settings'
+import { browserStore, readItem } from '../tools/local-store'
+import type { CoalescedWrite } from '../tools/coalesced-write'
 
 const { track } = useAnalytics()
-
-// `id` is what analytics sends (RBA-154), `label` what the button shows.
-const SUBDIVISIONS = [
-  { value: 1, label: 'Quarters', id: 'quarters' },
-  { value: 2, label: 'Eighths', id: 'eighths' },
-  { value: 3, label: 'Triplets', id: 'triplets' },
-  { value: 4, label: '16ths', id: 'sixteenths' },
-] as const
 const PITCH: Record<ClickKind, number> = { accent: 1760, beat: 1320, sub: 880 }
 const SWING_DEG = 28
 // The scheduler wakes every LOOKAHEAD_MS and books every click due within
@@ -41,6 +48,12 @@ const currentBeat = ref(-1)
 const beatFlash = ref(0)
 const angle = ref(0)
 const tapTimes = ref<number[]>([])
+
+const settings = computed<MetronomeSettings>(() => ({
+  bpm: bpm.value,
+  beatsPerBar: beatsPerBar.value,
+  subdivision: subdivisionOf(subdivision.value).id,
+}))
 
 const marking = computed(() => tempoMarking(bpm.value))
 // A real metronome's weight slides up the arm to slow it down.
@@ -134,7 +147,7 @@ async function start() {
   schedule()
   schedulerTimer = window.setInterval(schedule, LOOKAHEAD_MS)
   frame = requestAnimationFrame(draw)
-  const chosen = SUBDIVISIONS.find((s) => s.value === subdivision.value) ?? SUBDIVISIONS[0]
+  const chosen = subdivisionOf(subdivision.value)
   // `mode` keeps its old form for the readback; time_signature and subdivision split it (RBA-154).
   track('bpm_metronome_started', {
     bpm: bpm.value,
@@ -197,16 +210,48 @@ function onKeyDown(event: KeyboardEvent) {
   event.preventDefault()
 }
 
+// Created on mount: it needs the window, and records the page it may write the address of.
+let saver: CoalescedWrite | null = null
+
+// A tab sent to the background may be killed without a pagehide, so hiding saves too.
+function onVisibilityChange() {
+  if (document.visibilityState === 'hidden') saver?.flush()
+}
+
+function flushSave() {
+  saver?.flush()
+}
+
 onMounted(() => {
-  const fromUrl = parseBpmParam(new URLSearchParams(window.location.search).get('bpm'))
-  if (fromUrl !== null) setBpm(fromUrl)
+  const store = browserStore()
+  const loaded = loadSettings(window.location.search, readItem(store, METRONOME_STORAGE_KEY))
+  setBpm(loaded.bpm)
+  beatsPerBar.value = loaded.beatsPerBar
+  subdivision.value = subdivisionValue(loaded.subdivision)
+  // Settings other than the defaults (from the store, or a link to normalise) go in the address
+  // at once, so a link copied before any change carries them. A plain visit leaves it bare. The
+  // store is left alone: opening someone's link doesn't replace the visitor's own settings.
+  if (!sameSettings(loaded, DEFAULT_SETTINGS)) writeSettingsToUrl(window, loaded)
+  const timers = {
+    setTimeout: (run: () => void, ms: number) => window.setTimeout(run, ms),
+    clearTimeout: (id: number | undefined) => window.clearTimeout(id),
+  }
+  saver = metronomeSaver(window, store, timers, () => settings.value)
+  // Started after the load above, so loading is never saved as a change.
+  watch(settings, saver.request)
   reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   window.addEventListener('keydown', onKeyDown)
+  window.addEventListener('pagehide', flushSave)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 onBeforeUnmount(() => {
   stop()
+  saver?.flush()
+  saver?.cancel()
   window.removeEventListener('keydown', onKeyDown)
+  window.removeEventListener('pagehide', flushSave)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   void ctx?.close()
   ctx = null
 })
@@ -337,7 +382,7 @@ onBeforeUnmount(() => {
             type="button"
             class="tt-btn tt-btn-round small"
             aria-label="Fewer beats per bar"
-            :disabled="beatsPerBar <= 1"
+            :disabled="beatsPerBar <= MIN_BEATS_PER_BAR"
             @click="beatsPerBar--"
           >
             <Minus :size="14" />
@@ -347,7 +392,7 @@ onBeforeUnmount(() => {
             type="button"
             class="tt-btn tt-btn-round small"
             aria-label="More beats per bar"
-            :disabled="beatsPerBar >= 12"
+            :disabled="beatsPerBar >= MAX_BEATS_PER_BAR"
             @click="beatsPerBar++"
           >
             <Plus :size="14" />

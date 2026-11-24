@@ -7,7 +7,7 @@ import type { ExtensionRelease } from '../tools/extension-pages'
 export const extensionReleases: readonly ExtensionRelease[] = [
   {
     // The first release with the readings history. For someone updating, the history starts recording only once the
-    // extension has opened this page, so the first note must keep naming it (rba-pro src/lib/history-gate.ts, RBA-312).
+    // extension has opened this page, so the first note must keep naming it (rba-pro extension/src/lib/history-gate.ts).
     version: '1.2.0',
     title: 'Your readings, kept in this browser, on a page of their own',
     notes: [

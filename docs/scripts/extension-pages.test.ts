@@ -80,6 +80,16 @@ test('splitReleases: nothing new when from is already the latest', () => {
   assert.equal(earlier.length, 4)
 })
 
+// For someone updating from 1.1.0, the extension starts its readings history and rating count only once it has
+// opened this release's what's-new page (rba-pro src/lib/history-gate.ts, RBA-312), so the entry must say so.
+test('extension releases: 1.2.0 names the readings history and the rating ask, and when each starts', () => {
+  const notes = extensionReleases.find((release) => release.version === '1.2.0')?.notes.join(' ') ?? ''
+  assert.match(notes, /history of your readings/)
+  assert.match(notes, /it starts only once this page has opened/)
+  assert.match(notes, /rate it in the store/)
+  assert.match(notes, /that count also starts only once this page has opened/)
+})
+
 test('extension releases: every entry is a valid, unique version with notes, newest first', () => {
   const seen = new Set<string>()
   for (const entry of extensionReleases) {

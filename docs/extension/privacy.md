@@ -35,14 +35,16 @@ once that page has loaded. Clicking the button on a different tab moves listenin
   updated from a version without it, it starts only once the extension has opened the update's what's-new
   page, which describes it.
 - **Your choices on the settings page** (the widget's progress style and whether the history is on),
-  whether the page has shown you its note about the history, and, after an update from a version without
-  the history, whether the extension has opened the what's-new page that describes it, kept in the
-  browser's local storage on your device until you remove the extension. They are never sent.
+  whether the page has shown you its note about the history, and whether the history and the count below
+  may start, which is set when you install the extension or, after an update from a version without them,
+  once the extension has opened the update's what's-new page. They are kept in the browser's local storage
+  on your device until you remove the extension, and are never sent.
 - **A count of the tempos it has shown you**, with the number of days they came on, the last of those dates,
   and whether it has asked you to rate it in the store and what you answered. It is kept in the browser's
   local storage on your device, only so that the extension asks for a rating after you have used it for a
   while, once more at most if you choose Later, and never after you rate it or decline. It is never sent. Choosing to rate it opens the store's page,
-  which is the store's own website.
+  which is the store's own website. If you updated from a version without it, the count starts only once
+  the extension has opened the update's what's-new page, as the history does.
 - **The page's hostname, its media player and what it says is playing**, read on your device to place the
   overlay, show the playback speed and notice when the track changes. What it says is playing means the
   site's own id for the video, the title, artist and album the page gives the browser's media controls,

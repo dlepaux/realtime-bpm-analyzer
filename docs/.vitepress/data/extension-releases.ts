@@ -13,7 +13,7 @@ export const extensionReleases: readonly ExtensionRelease[] = [
     notes: [
       'The extension now keeps a history of your readings: each time the tempo holds, it keeps the tab’s title, the tempo and the time, in this browser on this computer. It never keeps the page’s address, and it sends nothing. The history is on unless you turn it off. If you updated from an earlier version, it starts only once this page has opened. You can remove one reading, clear them all or turn the history off on the extension’s page.',
       'The extension has its own page. Open it with the ≡ button on the widget, or right-click the toolbar button and choose Options (Extension options in Edge). It lists your readings by day, and a reading’s Metronome link opens the free online metronome on the website at that tempo. The settings are there too, with links to the other free tools.',
-      'In Chrome and Edge, after you have used the extension on a few different days, the widget asks whether you would rate it in the store, twice at most. Rate it opens the store page and Don’t ask again ends it; Later leaves one more ask, after more use. The count it keeps to know when to ask stays in this browser and is never sent.',
+      'In Chrome and Edge, after you have used the extension on a few different days, the widget asks whether you would rate it in the store, twice at most. Rate it opens the store page and Don’t ask again ends it; Later leaves one more ask, after more use. The count it keeps to know when to ask stays in this browser and is never sent. If you updated from an earlier version, that count also starts only once this page has opened.',
     ],
   },
   {

@@ -321,9 +321,10 @@ const spin = (turn: number): Frame[] => [
   { offset: 1, transform: `rotate(${turn}deg)` },
 ]
 
-const bounce = (distance: number): Frame[] => [
+// `peak` moves the top of the bounce inside the loop, so rows can ripple and still rest at its ends.
+const bounce = (distance: number, peak = 0.3): Frame[] => [
   { offset: 0, transform: 'translateY(0)', easing: 'cubic-bezier(0.2, 0.7, 0.4, 1)' },
-  { offset: 0.3, transform: `translateY(${distance}%)`, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
+  { offset: peak, transform: `translateY(${distance}%)`, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
   { offset: 1, transform: 'translateY(0)' },
 ]
 
@@ -348,8 +349,11 @@ export const SCENE_LOOPS: Readonly<Record<SceneId, readonly BeatLoop[]>> = {
     { target: '.vid-halo', beats: 1, frames: hit('scale(1)', 'scale(1.1)', 0.8, 1) },
     { target: '.vid-ring-1', beats: 2, frames: ring(0.92, 0.5) },
     { target: '.vid-ring-2', beats: 2, frames: ring(1.28, 0.3) },
-    { target: '.vid-crowd-a', beats: 2, frames: bounce(-11) },
-    { target: '.vid-crowd-b', beats: 1, frames: bounce(-8) },
+    // Each row behind the middle one peaks about 0.1 s ahead of the row in front, so the crowd ripples.
+    { target: '.vid-crowd-far', beats: 2, frames: bounce(-11, 0.1) },
+    { target: '.vid-crowd-back', beats: 2, frames: bounce(-11, 0.2) },
+    { target: '.vid-crowd-middle', beats: 2, frames: bounce(-11) },
+    { target: '.vid-crowd-front', beats: 1, frames: bounce(-8) },
   ],
   music: [
     { target: '.mus-wash-a', beats: 8, frames: drift(9, -6, 1.14) },

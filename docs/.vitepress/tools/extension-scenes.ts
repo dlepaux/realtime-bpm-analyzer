@@ -50,32 +50,6 @@ function noise(seed: number): () => number {
   }
 }
 
-/**
- * A packed row of people, on a `width` by 70 canvas, as one filled path: shoulders close enough to
- * make one mass, heads above it, and some arms in the air. As one path it takes a rim of light with
- * `paint-order: stroke`, whose inner edges the fill covers. Every shape winds clockwise, or an overlap
- * would cancel out and punch a hole.
- */
-export function crowdPath(seed: number, width: number): string {
-  const random = noise(seed)
-  const n = (value: number) => value.toFixed(1)
-  const circle = (x: number, y: number, r: number) => `M${n(x - r)} ${n(y)}a${r} ${r} 0 1 1 ${2 * r} 0a${r} ${r} 0 1 1-${2 * r} 0Z`
-  const arm = (x: number, y: number, tipX: number, tipY: number) =>
-    `M${n(x - 4.5)} ${n(y)}Q${n((x + tipX) / 2 - 3)} ${n((y + tipY) / 2 + 3)} ${n(tipX - 1.6)} ${n(tipY)}h3.2Q${n((x + tipX) / 2 + 3)} ${n((y + tipY) / 2 + 3)} ${n(x + 4.5)} ${n(y)}Z`
-  const parts: string[] = []
-  for (let x = -8; x < width + 16; x += 19 + random() * 8) {
-    const head = 30 + random() * 14
-    const top = head + 8
-    parts.push(circle(x, head, 7.5), `M${n(x - 17)} 70V${n(top + 9)}Q${n(x - 16)} ${n(top)} ${n(x - 5)} ${n(top)}H${n(x + 5)}Q${n(x + 16)} ${n(top)} ${n(x + 17)} ${n(top + 9)}V70Z`)
-    const raised = random()
-    const lean = (random() - 0.4) * 24
-    const reach = head - 16 - random() * 13
-    if (raised > 0.62) parts.push(arm(x + 11, top + 8, x + 11 + lean, reach))
-    if (raised > 0.86) parts.push(arm(x - 11, top + 8, x - 11 - lean, reach + 4))
-  }
-  return parts.join('')
-}
-
 /** A track's waveform, mirrored around nothing: heights only, as one path of bars. */
 export function waveformPath(count: number, seed: number, width = 3, height = 60): string {
   const random = noise(seed)

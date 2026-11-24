@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, shallowRef, nextTick, type Component } from 'vue'
 import { useAnalytics } from '../composables/useAnalytics'
-import { ADDRESSES, ICONS, SCENES, TEMPO_RANGE, crowdPath } from '../tools/extension-scenes'
+import { ADDRESSES, ICONS, SCENES, TEMPO_RANGE } from '../tools/extension-scenes'
+import { CROWD_LAYERS, crowdPath } from '../tools/extension-scenes-crowd'
 import type { ScenesPlayback, playScenes as PlayScenes } from '../tools/extension-scenes-player'
 import ExtensionSceneOverlay from './ExtensionSceneOverlay.vue'
 
@@ -21,8 +22,8 @@ const { track } = useAnalytics()
 const status = ref<Status>('still')
 const canvas = ref<HTMLElement>()
 const rest = shallowRef<Component>()
-const crowdBack = crowdPath(7919, 440)
-const crowdFront = crowdPath(104729, 300)
+// Four rows, from the back of the room to the front, so the front row paints last.
+const crowd = CROWD_LAYERS.map((layer) => ({ ...layer, path: crowdPath(layer.seed, layer.width) }))
 
 // Invented, like everything on these pages. Tab titles double as the tab's own text.
 const TAB_TITLES = { video: 'Afterglow Engine', music: 'Orchard at Noon', waveform: 'Saltwater Static' } as const
@@ -233,13 +234,11 @@ onBeforeUnmount(() => {
                 <i class="vid-ring vid-ring-2"></i>
                 <i class="vid-sun"></i>
                 <svg
-                  class="vid-crowd vid-crowd-a"
-                  viewBox="0 0 440 70"
-                ><path :d="crowdBack" /></svg>
-                <svg
-                  class="vid-crowd vid-crowd-b"
-                  viewBox="0 0 300 70"
-                ><path :d="crowdFront" /></svg>
+                  v-for="row in crowd"
+                  :key="row.depth"
+                  :class="['vid-crowd', `vid-crowd-${row.depth}`]"
+                  :viewBox="`0 0 ${row.width} 70`"
+                ><path :d="row.path" /></svg>
                 <div class="vid-controls">
                   <i class="vid-scrub"><b></b></i>
                   <span class="vid-buttons">

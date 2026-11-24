@@ -242,9 +242,14 @@
 .vid-ring-1 { transform: scale(0.92); }
 .vid-ring-2 { transform: scale(1.28); opacity: 0.3; }
 
-.vid-crowd { left: -2%; width: 104%; height: auto; paint-order: stroke; stroke-linejoin: round; }
-.vid-crowd-a { bottom: 22%; aspect-ratio: 440 / 70; fill: #2a1160; stroke: rgb(255 120 220 / 0.6); stroke-width: 1.3; }
-.vid-crowd-b { bottom: 4%; aspect-ratio: 300 / 70; fill: #07031d; stroke: rgb(120 200 255 / 0.55); stroke-width: 1; }
+/* The extension's Settings crowd, copied in extension-scenes-crowd.ts. Each row overflows below, so it fills down behind the next
+   one and the player's own edge clips it. Further back, a row sits higher and takes on more of the
+   stage's light, so the room reads as deep. */
+.vid-crowd { left: -2%; width: 104%; height: auto; overflow: visible; paint-order: stroke; stroke-linejoin: round; }
+.vid-crowd-far { aspect-ratio: 760 / 70; bottom: 38%; fill: rgb(132 52 168 / 0.8); stroke: rgb(255 170 235 / 0.35); stroke-width: 1.4; }
+.vid-crowd-back { aspect-ratio: 580 / 70; bottom: 30%; fill: #44187c; stroke: rgb(255 140 225 / 0.5); stroke-width: 1.5; }
+.vid-crowd-middle { aspect-ratio: 440 / 70; bottom: 20%; fill: #2a1160; stroke: rgb(255 120 220 / 0.6); stroke-width: 1.3; }
+.vid-crowd-front { aspect-ratio: 300 / 70; bottom: 4%; fill: #07031d; stroke: rgb(120 200 255 / 0.55); stroke-width: 1; }
 
 /* As on any player, the controls sit on a shade of their own, clear of the picture. */
 .vid-controls {

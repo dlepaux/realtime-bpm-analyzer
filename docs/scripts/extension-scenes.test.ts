@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { test } from 'node:test'
-import { ADDRESSES, READINGS, SCENES, TEMPO_RANGE, crowdPath } from '../.vitepress/tools/extension-scenes.ts'
+import { ADDRESSES, READINGS, SCENES, TEMPO_RANGE } from '../.vitepress/tools/extension-scenes.ts'
 import {
   DOT_PULSE,
   SCENE_LOOPS,
@@ -144,12 +144,6 @@ test('a still is not called sped up: the words show only under the query that ge
   const query = /ANIMATE_WHERE = '([^']+)'/.exec(SCENES_VUE)?.[1]
   assert.ok(query)
   assert.ok(CSS.includes(`@media ${query} {\n  .ext-scenes-caption .ext-scenes-sped { display: inline; }`))
-})
-
-test('the crowd is one solid mass: every arc winds the same way, so overlaps leave no holes', () => {
-  const arcs = [...crowdPath(7919, 440).matchAll(/a\S+ \S+ 0 1 (\d)/g)].map((match) => match[1])
-  assert.ok(arcs.length > 0)
-  assert.deepEqual([...new Set(arcs)], ['1'])
 })
 
 test('no platform is named or drawn on the demo', () => {

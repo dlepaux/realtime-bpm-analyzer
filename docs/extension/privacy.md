@@ -31,10 +31,13 @@ once that page has loaded. Clicking the button on a different tab moves listenin
   extension, and holds up to 200
   readings, the oldest going first. On the extension's page you can delete one reading, clear them all or turn
   the history off. Turning it off stops new readings and keeps the ones already there until you clear them.
-  Removing the extension removes it. It is never sent.
-- **Your choices on the settings page** (the widget's progress style and whether the history is on), and
-  whether the page has shown you its note about the history, kept in the browser's local storage on your
-  device until you remove the extension. They are never sent.
+  Removing the extension removes it. It is never sent. On a new install it records from the start. If you
+  updated from a version without it, it starts only once the extension has opened the update's what's-new
+  page, which describes it.
+- **Your choices on the settings page** (the widget's progress style and whether the history is on),
+  whether the page has shown you its note about the history, and, after an update from a version without
+  the history, whether the extension has opened the what's-new page that describes it, kept in the
+  browser's local storage on your device until you remove the extension. They are never sent.
 - **A count of the tempos it has shown you**, with the number of days they came on, the last of those dates,
   and whether it has asked you to rate it in the store and what you answered. It is kept in the browser's
   local storage on your device, only so that the extension asks for a rating after you have used it for a
@@ -55,7 +58,9 @@ id or advertising. We don't sell or share your audio or tab information: it neve
 ## The website pages it opens
 
 The extension opens a page of realtime-bpm-analyzer.com when you install it and after a feature update,
-and sets one for your browser to open when you remove it. These tabs open without a click. The only thing
+and sets one for your browser to open when you remove it. These tabs open without a click. If the what's-new
+page of the update that adds your readings history can't open, the extension tries again when the browser
+next starts or opens a window, until it has opened once. The only thing
 the extension passes to these pages is its version number, and the previous version after an update,
 in the address. The pages are part of the website, which uses Google Analytics as described in
 [Website Privacy](/website-privacy), so a visit to one of them is measured like any other visit. The
@@ -64,8 +69,9 @@ Analytics, along with the version.
 
 The extension's own page links to the free tools on app.realtime-bpm-analyzer.com, and opens one only when
 you click its link. The app is part of the website and measures visits with Google Analytics too. The
-address of each link says only that it came from the extension's page and which link it was: no reading,
-title or id.
+address of each link says only that it came from the extension's page and which link it was. A reading's
+Metronome link also carries that reading's tempo, so the metronome opens at it. No link carries a tab's
+title, a page's address or an id.
 
 ## Chrome Web Store Limited Use
 
@@ -85,4 +91,4 @@ the change applies.
 The extension is made by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 23 November 2026._
+_Last updated: 24 November 2026._

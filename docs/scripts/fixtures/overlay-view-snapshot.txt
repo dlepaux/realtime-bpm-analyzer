@@ -70,6 +70,12 @@ button.handle { display: none; width: 10px; height: 18px; padding: 1.5px 0; curs
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 `;
 
+// The link to the extension's page (RBA-297), apart from STYLE for the same reason as the ask. It takes the pill's
+// button look, a little quieter than the ✕ so stopping stays the obvious control.
+const PAGE_LINK_STYLE = `
+button.page { font-size: 15px; color: #d1d5db; }
+`;
+
 type Markup = {readonly tag: string; readonly attrs?: Readonly<Record<string, string>> | undefined; readonly children?: readonly (Markup | string)[]};
 const el = (tag: string, attrs?: Readonly<Record<string, string>>, ...children: (Markup | string)[]): Markup => ({tag, attrs, children});
 

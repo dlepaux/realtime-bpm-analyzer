@@ -11,9 +11,11 @@
  * capture slows with the thread, nothing is dropped, and paying the difference to system time makes the tempo
  * read low instead (measured: 150 read 135, marked stable).
  *
- * What the input has delivered reaches this clock late, never early, so a late report can only make the
- * deficit look smaller. A stall the thread recovers from is left alone: it renders what it missed in a burst, so
- * the smallest deficit of a window stays where it was (measured, stalls up to 500 ms).
+ * What the input has delivered reaches this clock late, never early, so a late report makes the deficit look
+ * smaller, with one exception: the report the offset is taken from. Taken from a stale one, every deficit after it
+ * looks larger by as much. That is why the offset follows the newest of the reports queued at start-up: see
+ * `queueGapSeconds`. A stall the thread recovers from is left alone: it renders what it missed in a burst, so the
+ * smallest deficit of a window stays where it was (measured, stalls up to 500 ms).
  *
  * Paid silence puts the beats back on average, not each one: under sustained loss the tempogram still moves a hop
  * or two (measured: 120 read 117 and 118, 150 read 148). Below half speed the clock can't even pay what is lost. So
@@ -44,6 +46,28 @@ const behindShare = 0.05;
 
 /** Windows with nothing lost before the clock stops being behind */
 const windowsToRecover = 3;
+
+/**
+ * Reports posted before the thread first rendered wait on its port, and it handles them all at once: their deficits
+ * spread over as long as they waited, though nothing was lost (measured: 0.6 s, and every capture started over at
+ * 5 s). So while reports come with less than this rendered between them, a queue, the offset follows the newest.
+ * Reports on time come 250 ms apart, which only a thread under 20% speed renders as less, and the clock gives up
+ * on that one anyway.
+ */
+const queueGapSeconds = 0.05;
+
+/**
+ * The newest of a queue can still be up to a report's interval old (measured: 0.1 s). So after a queue of two or more,
+ * the offset follows one report more, posted once the thread ran, if it comes within this much rendering: one report's
+ * interval and a margin. That hides up to what a slow thread loses over one interval, 25 ms at 90% speed. One later
+ * than this can't be told from a loss, and is not followed.
+ *
+ * A single early report isn't followed: it can't be told from one on time, and following the next would hide a real
+ * loss from the first frame (an existing test: 25 ms of it unpaid turned a 150 read into 100). Its age, under a
+ * report's interval, then counts as lost, which starts nothing over on its own. After start-up, every loss counts as
+ * before.
+ */
+const followWithinSeconds = 0.3;
 
 /** Going this many windows without a report, the clock can't say whether anything is being lost */
 const windowsToGoBlind = 3;
@@ -87,8 +111,14 @@ export function createSampleClock(sampleRate: number): SampleClock {
   const blindAfter = windowsToGoBlind * windowFrames;
   const lostToStartOver = lostToStartOverSeconds * sampleRate;
   const notice = windowsToNotice * windowFrames;
+  const queueGap = queueGapSeconds * sampleRate;
+  const followWithin = followWithinSeconds * sampleRate;
   // What the input had delivered before the first frame counted here
   let offset: number | null = null;
+  // Start-up: the reports handled so far with next to nothing rendered between them, and when the last one was
+  let starting = true;
+  let queued = 0;
+  let renderedAtQueued = 0;
   let rendered = 0;
   let smallest = Number.POSITIVE_INFINITY;
   let credited = 0;
@@ -111,11 +141,40 @@ export function createSampleClock(sampleRate: number): SampleClock {
 
   function startOver(): void {
     offset = null;
+    starting = true;
+    queued = 0;
     lastDelivered = Number.NEGATIVE_INFINITY;
     paused = false;
     credited = 0;
     owed = 0;
     smallest = Number.POSITIVE_INFINITY;
+  }
+
+  /** Takes the offset from a report, and moves it on while the reports come from a queue: see `queueGapSeconds` */
+  function takeOffset(delivered: number): number {
+    if (offset === null) {
+      queued = 1;
+      renderedAtQueued = rendered;
+
+      return delivered - rendered;
+    }
+
+    if (!starting) {
+      return offset;
+    }
+
+    const since = rendered - renderedAtQueued;
+
+    if (since < queueGap) {
+      queued += 1;
+      renderedAtQueued = rendered;
+
+      return Math.max(offset, delivered - rendered);
+    }
+
+    starting = false;
+
+    return queued >= 2 && since <= followWithin ? Math.max(offset, delivered - rendered) : offset;
   }
 
   /** Banks what a window lost, and returns how much that was */
@@ -197,7 +256,7 @@ export function createSampleClock(sampleRate: number): SampleClock {
         startOver();
       }
 
-      offset ??= delivered - rendered;
+      offset = takeOffset(delivered);
 
       if (delivered > lastDelivered) {
         if (paused) {

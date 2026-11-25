@@ -42,7 +42,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-markdown": "^4.14.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.72.2",
+    "typescript-eslint": "^8.73.0",
     "vitepress": "^1.6.4",
     "vue": "^3.5.45",
     "vue-eslint-parser": "^10.4.2",

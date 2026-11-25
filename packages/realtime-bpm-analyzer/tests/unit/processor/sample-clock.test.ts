@@ -454,6 +454,123 @@ describe('createSampleClock', () => {
     });
   });
 
+  describe('reports queued before the first frame', () => {
+    type Start = {
+      /** Seconds between two queued reports handled, where a context hands them over one by one */
+      drain?: number;
+      /** Whether the main thread posts no report at a time, as when it's busy */
+      quiet?: (t: number) => boolean;
+    };
+
+    /**
+     * The input delivers from 0 s and reports every 250 ms, but the thread renders from `start` only. The reports
+     * posted before that wait on the port and are all handled at the first quantum, as a context that is still
+     * starting does (measured: three at once, then the gap steady at 0.87 s). After it, each is handled as it's posted.
+     */
+    function startLate(start: number, thread: (t: number) => number, seconds = 12, {drain = 0, quiet = () => false}: Start = {}) {
+      const clock = createSampleClock(rate);
+      const step = 0.001;
+      const posted: number[] = [];
+      let nextReport = 0.25;
+      let nextHandled = start;
+      let due = 0;
+      let owed = 0;
+      let startOvers = 0;
+      const behind = new Set<number>();
+
+      for (let t = 0; t < seconds; t += step) {
+        for (; t >= nextReport; nextReport += 0.25) {
+          if (!quiet(nextReport)) {
+            posted.push(nextReport);
+          }
+        }
+
+        if (t < start) {
+          continue;
+        }
+
+        due += thread(t) * step * rate;
+
+        while (posted.length > 0 && t >= nextHandled) {
+          clock.observe(posted.shift()!);
+          nextHandled = t + drain;
+        }
+
+        while (due >= quantum) {
+          owed += clock.advance(quantum) ? quantum : 0;
+          startOvers += clock.takeStartOver() ? 1 : 0;
+          due -= quantum;
+
+          if (clock.isBehind()) {
+            behind.add(Math.floor(t));
+          }
+        }
+      }
+
+      return {owed: owed / rate, startOvers, behind: [...behind]};
+    }
+
+    const none = {owed: 0, startOvers: 0, behind: []};
+
+    it('books none of them as lost, wherever the first frame falls between two reports', () => {
+      // Every 10 ms from two reports queued to nine: the oldest up to 2 s old, and the newest anywhere up to 250 ms
+      for (let start = 0.51; start <= 2.3; start += 0.01) {
+        expect(startLate(start, () => 1), `from ${start.toFixed(2)} s`).to.deep.equal(none);
+      }
+    });
+
+    it('books none of them as lost when they are handed over one by one, up to 40 ms apart', () => {
+      for (const drain of [0.01, 0.025, 0.04]) {
+        expect(startLate(0.87, () => 1, 12, {drain}), `${drain * 1000} ms apart`).to.deep.equal(none);
+      }
+    });
+
+    it('books the age of a single one as lost, which starts nothing over: it can\'t be told from a report on time', () => {
+      for (let start = 0.26; start < 0.5; start += 0.01) {
+        const late = startLate(start, () => 1);
+
+        expect(late.startOvers, `from ${start.toFixed(2)} s`).to.equal(0);
+        expect(late.owed, `from ${start.toFixed(2)} s`).to.be.below(0.25);
+      }
+    });
+
+    it('pays a loss from the first frame as it would without them, but for one report\'s interval of it', () => {
+      for (const share of [0.9, 0.8, 0.7, 0.6]) {
+        // The same 20 s of rendering, from a first frame with three reports queued, and from one with none
+        const queued = startLate(0.87, () => share, 20.87);
+        const onTime = startLate(0.2, () => share, 20.2);
+
+        expect(queued.owed, `at ${share}`).to.be.closeTo(onTime.owed, (1 - share) * 0.25 + 0.03);
+        expect(queued.behind.length, `at ${share}`).to.be.above(10);
+      }
+    });
+
+    it('follows no report that comes long after them: a loss while the main thread is quiet is still paid', () => {
+      const quiet = (t: number) => t > 0.87 && t < 3;
+      const late = startLate(0.87, () => 0.9, 20, {quiet});
+      const onTime = startLate(0.87, () => 0.9, 20);
+
+      // The quiet spell loses 0.21 s, all of it paid, where following the next report would have hidden it. The
+      // queue's age is paid on top, as for a single early report: under a report's interval
+      expect(late.owed).to.be.within(onTime.owed - 0.03, onTime.owed + 0.25);
+      expect(late.behind).to.include.members([4, 8, 16]);
+    });
+
+    it('still pays a loss that comes after them, and is behind for it', () => {
+      const late = startLate(0.87, t => (t < 4 ? 1 : 0.9), 20);
+
+      expect(late.behind).to.include.members([8, 12, 16]);
+      expect(late.behind.every(second => second >= 4)).to.equal(true);
+      expect(late.owed).to.be.closeTo((20 - 4.87) * 0.1, 0.3);
+    });
+
+    it('still starts over for a loss past 0.3 s that comes after them, and not for one under it', () => {
+      // 0.4 s lost, then 0.2 s lost, in two spells 1 s long after start-up
+      expect(startLate(0.87, t => (t >= 4 && t < 5 ? 0.6 : 1)).startOvers).to.equal(1);
+      expect(startLate(0.87, t => (t >= 4 && t < 5 ? 0.8 : 1)).startOvers).to.equal(0);
+    });
+  });
+
   it('gives up when nearly nothing renders: there is no tempo to protect', () => {
     expect(owedIn({thread: steady(0.3), seconds: 60})).to.equal(0);
   });

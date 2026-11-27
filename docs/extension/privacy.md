@@ -93,4 +93,4 @@ the change applies.
 The extension is made by David Lepaux. Questions:
 [d.lepaux@gmail.com](mailto:d.lepaux@gmail.com).
 
-_Last updated: 24 November 2026._
+_Last updated: 27 November 2026._

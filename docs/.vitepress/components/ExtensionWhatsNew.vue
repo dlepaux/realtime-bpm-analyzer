@@ -53,6 +53,8 @@ const intro = computed(() => {
         </li>
       </ul>
     </article>
+    <!-- The page's own words between what is new and the fold: what stays on the computer, and the tools. -->
+    <slot />
     <details
       v-if="split.earlier.length > 0"
       class="ext-earlier"

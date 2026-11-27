@@ -183,16 +183,32 @@ function parseRules(css: string): Map<string, Map<string, string>> {
 }
 
 test('every declaration of the drawn widget is the real overlay\'s', () => {
-  const style = SNAPSHOT.slice(SNAPSHOT.indexOf('const STYLE'), SNAPSHOT.indexOf('type Markup')).replace(/\/\*[\s\S]*?\*\//g, '')
+  // The pill's STYLE and the page link's own, each a template literal of view.ts.
+  const sheet = (name: string) => {
+    const start = SNAPSHOT.indexOf('`', SNAPSHOT.indexOf(`const ${name} =`)) + 1
+    assert.ok(start > 0, `the snapshot has no ${name}`)
+    return SNAPSHOT.slice(start, SNAPSHOT.indexOf('`;', start))
+  }
+  const style = [sheet('STYLE'), sheet('PAGE_LINK_STYLE')].join('\n').replace(/\/\*[\s\S]*?\*\//g, '')
   const real = parseRules(style)
   const drawn = drawnOverlay()
   assert.ok(drawn.size >= 12, 'the pinned block is all there')
   for (const [selector, declarations] of drawn) {
-    // The close button is the real overlay's only visible `button`.
-    const theirs = real.get(selector === '.close' ? 'button' : selector)
+    // The drawn buttons take the real overlay's `button` rule, the page link (≡) with its own `button.page` on top.
+    const button = real.get('button')
+    const theirs = selector === '.close' ? button
+      : selector === '.page' ? new Map([...(button ?? []), ...(real.get('button.page') ?? [])])
+        : real.get(selector)
     assert.ok(theirs, `view.ts has no ${selector}`)
     for (const [property, value] of declarations) assert.equal(value, theirs.get(property), `${selector} ${property}`)
   }
+})
+
+test('the drawn widget has the real one\'s buttons, the page link (≡) before the close (✕)', () => {
+  const real = [SNAPSHOT.indexOf("class: 'page'"), SNAPSHOT.indexOf("class: 'close'")]
+  const drawn = [OVERLAY_VUE.indexOf('<span class="page">≡</span>'), OVERLAY_VUE.indexOf('<span class="close">✕</span>')]
+  for (const at of [...real, ...drawn]) assert.ok(at !== -1, 'a button is missing')
+  assert.ok(real[0]! < real[1]! && drawn[0]! < drawn[1]!, 'the order differs')
 })
 
 test('the progress is the one the extension ships by default: the whole pill fills', () => {

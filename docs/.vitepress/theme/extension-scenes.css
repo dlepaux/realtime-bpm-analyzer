@@ -306,6 +306,8 @@
 .ext-sw .hint[data-stability="stable"] .dot { background: var(--rba-tempo-stable); }
 .ext-sw .close { box-sizing: border-box; width: calc(24 * var(--u)); height: calc(24 * var(--u)); border-radius: 50%; display: grid;
   place-items: center; color: #e5e7eb; font-size: calc(16 * var(--u)); line-height: 1; }
+.ext-sw .page { box-sizing: border-box; width: calc(24 * var(--u)); height: calc(24 * var(--u)); border-radius: 50%; display: grid;
+  place-items: center; color: #d1d5db; font-size: calc(15 * var(--u)); line-height: 1; }
 .ext-sw .progress { position: absolute; inset: 0; z-index: -1; border-radius: inherit; overflow: hidden; pointer-events: none; }
 .ext-sw .fill { display: block; width: 100%; height: 100%; background: #4b5563; }
 .ext-sw .progress[data-stability="settling"] .fill { background: var(--rba-tempo-settling-fill); }
@@ -321,7 +323,7 @@
 .ext-sw .dots { display: inline-flex; gap: calc(1 * var(--u)); opacity: 0; }
 .ext-sw .dots span { display: inline-block; }
 .ext-hint-layer { position: absolute; top: calc(18 * var(--u)); left: 0; opacity: 0; }
-.ext-sw .close { position: relative; z-index: 1; }
+.ext-sw .page, .ext-sw .close { position: relative; z-index: 1; }
 .ext-fill-shell { display: none; position: absolute; inset: 0; transform-origin: top; }
 .ext-fill-shell > i { position: absolute; inset: 0; border-radius: 999px; overflow: hidden; }
 .ext-fill-wipe { position: absolute; inset: 0; }

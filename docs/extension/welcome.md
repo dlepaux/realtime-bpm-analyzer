@@ -50,11 +50,28 @@ playing, also on your computer. It sends nothing of its own: no analytics, no
 install ID. While listening, it keeps only whether it is listening and the id
 of the tab it is listening to, plus, in memory until listening stops, what it needs
 to recognise a track. All of that goes when listening stops or the browser closes.
-Your choice on its settings page (the widget's progress style) stays in the
-browser's local storage on your device until you remove the extension, and is
-never sent.
+
+It keeps three things longer, in the browser's local storage on your device:
+your choices on its settings page, a count of the readings it has shown so it
+can ask for a store rating, twice at most, and, unless you turn it off, the history of your
+readings, with each tab's title and the time but never the page's address. You
+can delete a reading, clear the history or turn it off on the extension's page.
+None of it is ever sent.
 
 </div>
+
+## Your readings, on a page of their own
+
+Each time a tempo holds, the extension adds it to your readings history. Open the
+extension's page with the ≡ button on the widget, or right-click the toolbar button
+and choose Options (Extension options in Edge): your readings are there by day, and
+each one has a Metronome link that opens the free online metronome at that tempo.
+
+**Free tools on the website:**
+[BPM Finder](https://app.realtime-bpm-analyzer.com/) ·
+[Tap Tempo](https://app.realtime-bpm-analyzer.com/tap-tempo) ·
+[Online Metronome](https://app.realtime-bpm-analyzer.com/metronome) ·
+[BPM to ms](https://app.realtime-bpm-analyzer.com/bpm-to-ms)
 
 This page is part of the website, which counts visits with Google Analytics, like
 the rest of realtime-bpm-analyzer.com. The only thing the extension told it is its
@@ -63,4 +80,3 @@ version number, in the address. [Extension privacy](/extension/privacy) has the 
 <ExtensionOptIn />
 
 Something not working? [Open an issue on GitHub](https://github.com/dlepaux/realtime-bpm-analyzer/issues/new).
-In the meantime, the [free BPM tools](/) work in any browser.

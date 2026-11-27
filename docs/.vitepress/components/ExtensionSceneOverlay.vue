@@ -47,6 +47,7 @@ const FILL_CAPS = ['ext-fill-body', 'ext-fill-edge'] as const
             data-level="medium"
           ><span class="dot"></span><span class="label">settling</span></span>
         </span>
+        <span class="page">≡</span>
         <span class="close">✕</span>
         <span
           class="progress"

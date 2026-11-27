@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.3.1](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v6.3.0...v6.3.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **clock:** stop booking the start-up queue of clock reports as lost audio ([#478](https://github.com/dlepaux/realtime-bpm-analyzer/issues/478)) ([d6430e3](https://github.com/dlepaux/realtime-bpm-analyzer/commit/d6430e368da01819b03127cf84e90f1dfafaba1e))
+
 ## [6.3.0](https://github.com/dlepaux/realtime-bpm-analyzer/compare/v6.2.2...v6.3.0) (2026-11-17)
 
 

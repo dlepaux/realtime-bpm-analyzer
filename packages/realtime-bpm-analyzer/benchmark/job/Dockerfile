@@ -1,6 +1,6 @@
 # The engine study's batch job. Build context: the repo root, narrowed by Dockerfile.dockerignore to the
 # manifests, the library source and this directory, so no audio can reach the image.
-FROM node:24.22.1-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c AS build
+FROM node:24.22.2-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9 AS build
 WORKDIR /src
 COPY . .
 RUN npm ci --ignore-scripts
@@ -8,7 +8,7 @@ WORKDIR /src/packages/realtime-bpm-analyzer/benchmark
 RUN mkdir dist && ../../../node_modules/.bin/esbuild job.ts tune.ts run.ts retune2.ts free-verdict.ts hysteresis.ts calibration-samples.ts \
   --bundle --platform=node --format=esm --target=node22 --log-level=warning --outdir=dist --out-extension:.js=.mjs
 
-FROM node:24.22.1-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c
+FROM node:24.22.2-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9
 RUN apt-get update \
   && apt-get install --yes --no-install-recommends ca-certificates curl ffmpeg git python3 unzip \
   && rm -rf /var/lib/apt/lists/*

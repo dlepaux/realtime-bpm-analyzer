@@ -33,8 +33,7 @@ is sent anywhere. You can turn the history off, remove a reading or clear them
 all on the extension's page. The [extension's privacy policy](/extension/privacy)
 has every detail.
 
-**Free tools on the website:**
-[BPM Finder](https://app.realtime-bpm-analyzer.com/) ·
+**Free tools on the website:** [BPM Finder](https://app.realtime-bpm-analyzer.com/) ·
 [Tap Tempo](https://app.realtime-bpm-analyzer.com/tap-tempo) ·
 [Online Metronome](https://app.realtime-bpm-analyzer.com/metronome) ·
 [BPM to ms](https://app.realtime-bpm-analyzer.com/bpm-to-ms)

@@ -67,8 +67,7 @@ extension's page with the ≡ button on the widget, or right-click the toolbar b
 and choose Options (Extension options in Edge): your readings are there by day, and
 each one has a Metronome link that opens the free online metronome at that tempo.
 
-**Free tools on the website:**
-[BPM Finder](https://app.realtime-bpm-analyzer.com/) ·
+**Free tools on the website:** [BPM Finder](https://app.realtime-bpm-analyzer.com/) ·
 [Tap Tempo](https://app.realtime-bpm-analyzer.com/tap-tempo) ·
 [Online Metronome](https://app.realtime-bpm-analyzer.com/metronome) ·
 [BPM to ms](https://app.realtime-bpm-analyzer.com/bpm-to-ms)

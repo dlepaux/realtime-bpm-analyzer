@@ -10,7 +10,7 @@ readme = "readme.md"
 license = "Apache-2.0"
 license-files = ["license.md"]
 requires-python = ">=3.11"
-dependencies = ["numpy>=1.26.4"]
+dependencies = ["numpy>=2.5.5"]
 authors = [{ name = "David Lepaux" }]
 keywords = ["bpm", "tempo", "beat", "tempo detection", "audio", "music", "dj"]
 classifiers = [
